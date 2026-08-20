@@ -425,6 +425,7 @@
 | 2026-08-20 | Antigravity AI | v0.7.0 | Completed Task P1-005 (API Error Handling, Validation Middleware & Health Endpoints): Implemented centralized AppError hierarchy (`ValidationError`, `AuthenticationError`, `AuthorizationError`, `NotFoundError`, `ConflictError`, `RateLimitError`, `DependencyError`, `InternalServerError`), Fastify error/404 handlers, reusable Zod request and response validation middleware (`validateRequest`, `validateResponse`), and production health endpoints (`GET /livez` liveness probe, `GET /healthz` PostgreSQL readiness probe). Verified 64/64 total tests PASS across 9 suites. |
 | 2026-08-20 | Antigravity AI | v0.7.1 | Completed Task P1-003-A (Aiven PostgreSQL Migration & Provider-Neutral SSL): Transitioned active development database to Aiven Free PostgreSQL (PostgreSQL 18.6). Implemented `.env.local` priority loading in `src/config/env.js`, refactored SSL handling in `src/db/index.js` to be fully provider-neutral (supporting `sslmode=require`, `rejectUnauthorized: false`, and remote hosts without provider-specific hardcoding), configured conservative connection pool (max 5) suited for Aiven Free's 20-connection limit, successfully applied existing Drizzle migration (`0000_familiar_wrecker.sql`) to clean Aiven instance, and verified all 64 unit and live integration tests PASS with zero credential leakage. |
 | 2026-08-20 | Antigravity AI | v0.8.0 | Completed Task P1-006 (Automated Test Runner & CI Workflow): Established GitHub Actions CI workflow (`.github/workflows/ci.yml`) validating formatting (Prettier), static analysis (ESLint 9), Drizzle ORM configuration/schema check, automated migration application from scratch on an ephemeral PostgreSQL 17 service container, unit testing, and live integration testing. Authored ADR-015 (CI Database Isolation Strategy). Completed Phase 1 (100% of Phase 1 tasks verified). |
+| 2026-08-20 | Antigravity AI | v0.8.1 | CI Action Version Upgrade: Updated GitHub Actions workflow (`.github/workflows/ci.yml`) to `actions/checkout@v5` and `actions/setup-node@v7` to address GitHub Actions Node 20 runner deprecation warnings, while preserving the application runtime at Node.js 22. Verified all 64 tests PASS across 9 suites. |
 
 ---
 
@@ -575,6 +576,7 @@
     * `npm run db:check` -> PASS (Drizzle Kit config and schema verified)
 * **P1-006 (Automated Test Runner & CI Workflow - Verified)**:
   * CI Pipeline Architecture: Authored and validated GitHub Actions CI workflow in `.github/workflows/ci.yml`.
+  * Action Versioning: Configured current Node 24-compatible action versions (`actions/checkout@v5` and `actions/setup-node@v7`) eliminating Node 20 runner deprecation warnings, with the application runtime explicitly set to Node.js 22 LTS.
   * Isolation Strategy: Adopted ADR-015 establishing ephemeral native GitHub Actions PostgreSQL 17 service containers (`postgres:17-alpine` on `localhost:5432`) as hermetic test database environments.
   * Automated Verification Steps:
     1. Deterministic dependency installation via `npm ci` with Node.js 22 runtime caching.
