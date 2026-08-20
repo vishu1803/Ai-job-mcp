@@ -12,7 +12,7 @@ function matchesError(err, regex) {
   return regex.test(fullMsg);
 }
 
-describe('Live Supabase Core Identity Schema Integration Tests (P1-004)', () => {
+describe('Live Core Identity Schema Integration Tests (P1-004)', () => {
   // Test isolation fixtures
   const testRunId = crypto.randomBytes(4).toString('hex');
   const tenantASlug = `test-tenant-a-${testRunId}`;

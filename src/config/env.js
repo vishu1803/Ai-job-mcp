@@ -1,5 +1,16 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { z } from 'zod';
+
+// Load base .env if present
+dotenv.config();
+
+// Load .env.local if present with override priority for local development
+const envLocalPath = resolve(process.cwd(), '.env.local');
+if (existsSync(envLocalPath)) {
+  dotenv.config({ path: envLocalPath, override: true });
+}
 
 /**
  * @typedef {Object} AppConfig
@@ -20,8 +31,8 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   DATABASE_URL: z.string().default('postgres://postgres:postgres@localhost:5432/career_hub_dev'),
-  DATABASE_POOL_MIN: z.coerce.number().int().nonnegative().default(2),
-  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+  DATABASE_POOL_MIN: z.coerce.number().int().nonnegative().default(1),
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(5),
   DATABASE_SSL: z
     .enum(['true', 'false', 'require', 'disable'])
     .default('false')

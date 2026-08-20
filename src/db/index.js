@@ -40,19 +40,39 @@ export function parseSanitizedDbUrl(connectionString = config.DATABASE_URL) {
 
 /**
  * Builds the pg.Pool configuration object.
+ * Provides provider-neutral SSL detection supporting any PostgreSQL provider requiring TLS.
  *
  * @param {object} [overrides={}] Custom pool options overrides
  * @returns {import('pg').PoolConfig} Configured pg Pool options
  */
 export function getPoolConfig(overrides = {}) {
-  const isCloudHost =
-    config.DATABASE_URL.includes('supabase.co') ||
-    config.DATABASE_URL.includes('supabase.com') ||
-    config.DATABASE_URL.includes('sslmode=require');
-  const useSsl = config.DATABASE_SSL || isCloudHost;
+  const rawUrl = config.DATABASE_URL || '';
+  const urlLower = rawUrl.toLowerCase();
+  const isSslQuery =
+    urlLower.includes('sslmode=require') ||
+    urlLower.includes('sslmode=verify-full') ||
+    urlLower.includes('sslmode=verify-ca') ||
+    urlLower.includes('ssl=true');
+  const isRemoteHost =
+    Boolean(urlLower) &&
+    !urlLower.includes('localhost') &&
+    !urlLower.includes('127.0.0.1') &&
+    !urlLower.includes('host.docker.internal');
+  const useSsl = config.DATABASE_SSL || isSslQuery || isRemoteHost;
+
+  // Strip query-level SSL params from the connection string so pg doesn't conflict with explicit ssl options
+  let cleanConnectionString = rawUrl;
+  try {
+    const parsed = new URL(rawUrl);
+    parsed.searchParams.delete('sslmode');
+    parsed.searchParams.delete('ssl');
+    cleanConnectionString = parsed.toString();
+  } catch {
+    // If URL parsing fails, fallback to rawUrl
+  }
 
   return {
-    connectionString: config.DATABASE_URL,
+    connectionString: cleanConnectionString,
     min: config.DATABASE_POOL_MIN,
     max: config.DATABASE_POOL_MAX,
     ssl: useSsl ? { rejectUnauthorized: false } : false,

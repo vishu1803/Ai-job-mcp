@@ -11,7 +11,7 @@ import {
 import { runMigrations } from '../../src/db/migrate.js';
 import { config } from '../../src/config/env.js';
 
-describe('PostgreSQL & Supabase Live Integration Tests', () => {
+describe('PostgreSQL Live Integration Tests', () => {
   after(async () => {
     await closeDatabase(pool);
   });
@@ -62,15 +62,15 @@ describe('PostgreSQL & Supabase Live Integration Tests', () => {
       // 2. Insert test probe row
       await tx.execute(sql`
         INSERT INTO _test_infra_probe (probe_name)
-        VALUES ('supabase_integration_test');
+        VALUES ('postgres_integration_test');
       `);
 
       // 3. Query probe row
       const selectResult = await tx.execute(sql`
-        SELECT probe_name FROM _test_infra_probe WHERE probe_name = 'supabase_integration_test';
+        SELECT probe_name FROM _test_infra_probe WHERE probe_name = 'postgres_integration_test';
       `);
       assert.equal(selectResult.rows.length, 1);
-      assert.equal(selectResult.rows[0].probe_name, 'supabase_integration_test');
+      assert.equal(selectResult.rows[0].probe_name, 'postgres_integration_test');
 
       // 4. Drop temporary verification table before transaction ends
       await tx.execute(sql`DROP TABLE _test_infra_probe;`);

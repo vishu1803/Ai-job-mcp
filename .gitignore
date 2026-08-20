@@ -10,7 +10,7 @@
 .env.test.local
 .env.production.local
 !.env.example
-
+.env.local
 # Credentials & Key Files
 *.pem
 *.key

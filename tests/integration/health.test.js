@@ -24,7 +24,7 @@ describe('Live Health & API Error Integration Tests (P1-005)', () => {
     assert.ok(typeof body.uptime === 'number');
   });
 
-  test('2. Live HTTP GET /healthz executes real database health check on Supabase', async () => {
+  test('2. Live HTTP GET /healthz executes real database health check on PostgreSQL', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/healthz',

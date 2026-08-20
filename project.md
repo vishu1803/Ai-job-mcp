@@ -423,6 +423,7 @@
 | 2026-08-20 | Antigravity AI | v0.5.3 | Core Schema Review Clarification (P1-004A): Resolved all 4 review notes in `docs/schema-review.md`. Established dedicated audit sanitization boundary (independent from logger), clarified PostgreSQL session expiration query-level checks and indexed cleanup, eliminated redundant indexes (`idx_tenants_slug`, `idx_users_status`, `idx_sessions_tenant_user`), documented Open Policy Decision on tenant hard-deletion audit retention with MVP `CASCADE` rule, and upgraded gate status to **APPROVED**. |
 | 2026-08-20 | Antigravity AI | v0.6.0 | Completed Task P1-004 (Core Identity Database Schema): Implemented Drizzle ORM models for `tenants`, `users`, `sessions`, and `audit_logs` in `src/db/schema.js`. Created dedicated audit persistence sanitizer (`src/utils/audit-sanitizer.js`) enforcing 16 KB payload cap and strict credential redaction. Generated and applied initial Drizzle migration (`0000_familiar_wrecker.sql`) to live Supabase PostgreSQL 17.6 database. Authored 13 live integration tests verifying CRUD, multi-tenant isolation, cascade delete, and audit sanitization. Verified 43/43 total tests PASS across 6 suites. |
 | 2026-08-20 | Antigravity AI | v0.7.0 | Completed Task P1-005 (API Error Handling, Validation Middleware & Health Endpoints): Implemented centralized AppError hierarchy (`ValidationError`, `AuthenticationError`, `AuthorizationError`, `NotFoundError`, `ConflictError`, `RateLimitError`, `DependencyError`, `InternalServerError`), Fastify error/404 handlers, reusable Zod request and response validation middleware (`validateRequest`, `validateResponse`), and production health endpoints (`GET /livez` liveness probe, `GET /healthz` PostgreSQL readiness probe). Verified 64/64 total tests PASS across 9 suites. |
+| 2026-08-20 | Antigravity AI | v0.7.1 | Completed Task P1-003-A (Aiven PostgreSQL Migration & Provider-Neutral SSL): Transitioned active development database to Aiven Free PostgreSQL (PostgreSQL 18.6). Implemented `.env.local` priority loading in `src/config/env.js`, refactored SSL handling in `src/db/index.js` to be fully provider-neutral (supporting `sslmode=require`, `rejectUnauthorized: false`, and remote hosts without provider-specific hardcoding), configured conservative connection pool (max 5) suited for Aiven Free's 20-connection limit, successfully applied existing Drizzle migration (`0000_familiar_wrecker.sql`) to clean Aiven instance, and verified all 64 unit and live integration tests PASS with zero credential leakage. |
 
 ---
 
@@ -557,6 +558,21 @@ Tasks **P1-001**, **P1-002**, **P1-003**, **P1-004**, and **P1-005** are **100% 
     * `npm run test:integration` -> PASS (16/16 live integration tests passed across 3 suites)
     * `npm test` -> PASS (64/64 total tests passed across 9 suites)
     * `npm run db:check` -> PASS (Drizzle Kit schema and config verified)
+* **P1-003-A (Aiven PostgreSQL Development Database Migration - Verified)**:
+  * Database Environment: Transitioned active development database to managed **Aiven Free PostgreSQL** (PostgreSQL 18.6 on x86_64-pc-linux-gnu).
+  * Supabase Retention: Retained previously verified Supabase database as historical verification environment (zero modifications or drops performed).
+  * Provider-Neutral SSL Architecture: Updated `src/db/index.js` to eliminate provider-specific hostname checks (`supabase.co`/`supabase.com`), cleanly strip query-level SSL parameters from connection strings to prevent driver conflict, and automatically configure TLS with `rejectUnauthorized: false` for all remote cloud hosts and `sslmode=require` query modes.
+  * Connection Pool Tuning: Configured conservative pool sizing (`DATABASE_POOL_MIN=1`, `DATABASE_POOL_MAX=5`) in `src/config/env.js`, ensuring zero connection starvation against Aiven Free's 20-connection ceiling.
+  * Environment Isolation: Implemented `.env.local` priority override loading in `src/config/env.js` with Git ignore enforcement in `.gitignore`.
+  * Migration Application: Applied existing migration `drizzle/0000_familiar_wrecker.sql` to clean Aiven instance (`npm run db:migrate` -> exit code 0, 2.26s). Verified all 4 tables (`tenants`, `users`, `sessions`, `audit_logs`), 3 enums (`tenant_tier`, `user_role`, `user_status`), and 12 indexes created successfully.
+  * Verification Commands:
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run test:unit` -> PASS (48/48 unit tests passed across 6 suites)
+    * `npm run test:integration` -> PASS (16/16 live integration tests passed across 3 suites against Aiven)
+    * `npm test` -> PASS (64/64 total tests passed across 9 suites)
+    * `npm run db:check` -> PASS (Drizzle Kit config and schema verified)
+
 
 
 
