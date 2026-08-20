@@ -15,7 +15,7 @@
 | **Anthropic Claude** | Remote MCP Custom Connector | YES | YES (Gated) | **PLANNED (P10)** | Free tier supports 1 custom remote connector; Pro/Team supports multiple. Requires public HTTPS endpoint. |
 | **OpenAI ChatGPT** | Developer Mode MCP Connector | YES | YES (Gated) | **PLANNED (P11)** | Developer Mode supports Streamable HTTP / SSE MCP servers with OAuth 2.1 auth. |
 | **Model Context Protocol** | Modular `@modelcontextprotocol/server` | YES | YES (Gated) | **READY FOR P7** | 2026-07-28 specification standardizing stateless Streamable HTTP as primary transport. |
-| **PostgreSQL** | Drizzle ORM / pg connection pool | YES | YES | **READY FOR P1** | PostgreSQL 16+ with native JSONB indexing and relational tenant isolation. |
+| **PostgreSQL** | Drizzle ORM + pg connection pool | YES | YES | **READY FOR P1** | PostgreSQL 16+ with native JSONB indexing and relational tenant isolation. |
 | **Azure for Students** | Azure App Service / Container Apps | N/A | N/A | **PLANNED (P13)** | $100 annual credit for compute and database hosting without out-of-pocket costs. |
 
 ---

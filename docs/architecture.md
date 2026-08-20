@@ -229,7 +229,7 @@ The platform operates as a tool and context server for external AI clients:
 ## 15. External Integrations
 1. **GitHub App**: Provides fine-grained repository access, commit history inspection, and webhook event streaming.
 2. **AI Provider APIs (Testing/Verification)**: Google Gemini API SDK for running automated end-to-end integration tests.
-3. **Database & Cache**: PostgreSQL (v15+) and Redis (v7+).
+3. **Database & Cache**: PostgreSQL (16+) and Redis (v7+).
 
 ---
 

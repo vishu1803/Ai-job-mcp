@@ -90,7 +90,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **P1-001** | Initialize Node.js ESM project with `package.json`, ESLint, Prettier, and core dependencies (Fastify, Zod, dotenv, Pino) | P0-004 | **COMPLETE** | `npm run lint`, `npm run format:check`, `npm test`, lifecycle test PASS |
 | **P1-002** | Configure structured logging (Pino) with automatic secret masking / PII scrubbing | P1-001 | **COMPLETE** | `npm run lint`, `npm run format:check`, `npm test` (13/13 PASS), 10 focused security/redaction unit tests, lifecycle test PASS |
-| **P1-003** | Setup PostgreSQL database connection pool and migration tool (Drizzle ORM / Prisma) | P1-001 | NOT_STARTED | Run baseline migration script against local/containerized PostgreSQL |
+| **P1-003** | Setup PostgreSQL database connection pool and migration tool (Drizzle ORM) | P1-001 | NOT_STARTED | Run baseline migration script against local/containerized PostgreSQL |
 | **P1-004** | Create core database schema: `users`, `tenants`, `audit_logs`, `sessions` | P1-003 | NOT_STARTED | Automated schema migration and table validation |
 | **P1-005** | Implement standard API error handling, Zod request/response validation middleware, and health check endpoints (`/healthz`, `/livez`) | P1-001 | NOT_STARTED | HTTP integration tests returning 200 OK and structured 400/500 errors |
 | **P1-006** | Setup automated test runner (Vitest or Node Test Runner) and CI test workflow | P1-001 | NOT_STARTED | `npm test` executing mock test suite successfully |
@@ -301,7 +301,7 @@
 ### ADR-003: Database and ORM
 * **Status**: ACCEPTED
 * **Context**: Need ACID compliance for user accounts, installations, and audit trails, combined with flexible semi-structured JSON storage for candidate evidence trees and AST-parsed project metadata.
-* **Decision**: Use **PostgreSQL (v15+)** with **Drizzle ORM** (or Prisma) and native `JSONB` columns.
+* **Decision**: Use **PostgreSQL (16+)** with **Drizzle ORM** and native `JSONB` columns.
 * **Rationale**: PostgreSQL provides rock-solid relational integrity for multi-tenancy (`tenant_id`, `user_id` foreign keys) and powerful indexing (GIN indexes on `JSONB`) for querying skill evidence and AST nodes.
 * **Consequences**: Clean database migrations, verifiable referential integrity, and efficient candidate graph querying.
 
@@ -416,6 +416,7 @@
 | 2026-08-19 | Antigravity AI | v0.2.1 | Completed 10-point Architecture Sanity Check across all 9 control and technical specification documents (10/10 VERIFIED). Confirmed zero conflicts, zero fabrication risks, and approved commencement of Task P1-001. |
 | 2026-08-19 | Antigravity AI | v0.3.0 | Completed Task P1-001 (Node.js ESM Project Foundation): Configured `package.json`, ESLint 9 flat config, Prettier, runtime entrypoint `src/index.js`, Fastify app factory `src/app.js`, Zod environment validation `src/config/env.js`, and unit test suite. Verified 100% PASS. |
 | 2026-08-20 | Antigravity AI | v0.4.0 | Completed Task P1-002 (Structured Logging & Redaction): Implemented centralized Pino logger module (`src/utils/logger.js`) with comprehensive sensitive token/PII redaction, safe request/response serializers, error serializer with cause tracking, and request ID correlation in Fastify (`src/app.js`). Verified 13/13 unit tests PASS and live lifecycle PASS. |
+| 2026-08-20 | Antigravity AI | v0.4.1 | Documentation Consistency: Formally locked database stack to PostgreSQL 16+ and Drizzle ORM across all specifications and ADR references, eliminating residual slash-notation ambiguity. |
 
 ---
 
@@ -454,7 +455,7 @@
 
 Tasks **P1-001** and **P1-002** are **100% COMPLETE & VERIFIED**. The project is ready for **Task P1-003**.
 
-1. **[P1-003]**: Setup PostgreSQL database connection pool and migration tool (Drizzle ORM / Prisma).
+1. **[P1-003]**: Setup PostgreSQL database connection pool and migration tool (Drizzle ORM).
 2. **[P1-004]**: Define core database schema (`users`, `tenants`, `sessions`, `audit_logs`).
 3. **[P1-005]**: Implement standard API error handling, Zod validation middleware, and health check endpoints (`/healthz`, `/livez`).
 4. **[P1-006]**: Setup automated test runner integration and CI test workflow.
