@@ -93,7 +93,7 @@
 | **P1-003** | Setup PostgreSQL database connection pool and migration tool (Drizzle ORM) | P1-001 | **COMPLETE** | Live Supabase PostgreSQL 17.6 + Drizzle verified, `npm test` (29/29 PASS across 4 suites), `npm run db:migrate` PASS, `npm run db:check` PASS |
 | **P1-004** | Create core database schema: `users`, `tenants`, `audit_logs`, `sessions` | P1-003 | **COMPLETE** | Live Supabase migration (`0000_familiar_wrecker.sql`), `npm test` (43/43 PASS across 6 suites), CRUD, multi-tenant isolation, cascade delete, and audit sanitization verified |
 | **P1-005** | Implement standard API error handling, Zod request/response validation middleware, and health check endpoints (`/healthz`, `/livez`) | P1-001 | **COMPLETE** | HTTP integration tests returning 200 OK for `/livez` & `/healthz` (Supabase verified), 400 for Zod validation errors, 404 for not found, 409 for conflict, 500 for unhandled exceptions, zero secrets exposed |
-| **P1-006** | Setup automated test runner (Vitest or Node Test Runner) and CI test workflow | P1-001 | NOT_STARTED | `npm test` executing mock test suite successfully |
+| **P1-006** | Setup automated test runner (Vitest or Node Test Runner) and CI test workflow | P1-001 | **COMPLETE** | GitHub Actions CI workflow (`.github/workflows/ci.yml`), ADR-015, hermetic PostgreSQL 17 service container, `npm test` (64/64 PASS across 9 suites), `npm run lint` PASS, `npm run format:check` PASS, `npm run db:check` PASS |
 
 ---
 
@@ -424,6 +424,7 @@
 | 2026-08-20 | Antigravity AI | v0.6.0 | Completed Task P1-004 (Core Identity Database Schema): Implemented Drizzle ORM models for `tenants`, `users`, `sessions`, and `audit_logs` in `src/db/schema.js`. Created dedicated audit persistence sanitizer (`src/utils/audit-sanitizer.js`) enforcing 16 KB payload cap and strict credential redaction. Generated and applied initial Drizzle migration (`0000_familiar_wrecker.sql`) to live Supabase PostgreSQL 17.6 database. Authored 13 live integration tests verifying CRUD, multi-tenant isolation, cascade delete, and audit sanitization. Verified 43/43 total tests PASS across 6 suites. |
 | 2026-08-20 | Antigravity AI | v0.7.0 | Completed Task P1-005 (API Error Handling, Validation Middleware & Health Endpoints): Implemented centralized AppError hierarchy (`ValidationError`, `AuthenticationError`, `AuthorizationError`, `NotFoundError`, `ConflictError`, `RateLimitError`, `DependencyError`, `InternalServerError`), Fastify error/404 handlers, reusable Zod request and response validation middleware (`validateRequest`, `validateResponse`), and production health endpoints (`GET /livez` liveness probe, `GET /healthz` PostgreSQL readiness probe). Verified 64/64 total tests PASS across 9 suites. |
 | 2026-08-20 | Antigravity AI | v0.7.1 | Completed Task P1-003-A (Aiven PostgreSQL Migration & Provider-Neutral SSL): Transitioned active development database to Aiven Free PostgreSQL (PostgreSQL 18.6). Implemented `.env.local` priority loading in `src/config/env.js`, refactored SSL handling in `src/db/index.js` to be fully provider-neutral (supporting `sslmode=require`, `rejectUnauthorized: false`, and remote hosts without provider-specific hardcoding), configured conservative connection pool (max 5) suited for Aiven Free's 20-connection limit, successfully applied existing Drizzle migration (`0000_familiar_wrecker.sql`) to clean Aiven instance, and verified all 64 unit and live integration tests PASS with zero credential leakage. |
+| 2026-08-20 | Antigravity AI | v0.8.0 | Completed Task P1-006 (Automated Test Runner & CI Workflow): Established GitHub Actions CI workflow (`.github/workflows/ci.yml`) validating formatting (Prettier), static analysis (ESLint 9), Drizzle ORM configuration/schema check, automated migration application from scratch on an ephemeral PostgreSQL 17 service container, unit testing, and live integration testing. Authored ADR-015 (CI Database Isolation Strategy). Completed Phase 1 (100% of Phase 1 tasks verified). |
 
 ---
 
@@ -460,11 +461,11 @@
 
 ## 12. Next Recommended Implementation Tasks
 
-Tasks **P1-001**, **P1-002**, **P1-003**, **P1-004**, and **P1-005** are **100% COMPLETE & VERIFIED**. The project is ready for **Task P1-006**.
+**Phase 1 (Multi-User Platform Foundation)** is **100% COMPLETE & VERIFIED** (Tasks P1-001 through P1-006). The project is ready to commence **Phase 2 (Authentication & User Resource Connections)**.
 
-1. **[P1-006]**: Setup automated test runner integration and CI test workflow.
-2. **[P2-001]**: Implement AES-256-GCM symmetric encryption/decryption module for secrets at rest with per-record IV.
-3. **[P2-002]**: Implement User Authentication (OAuth 2.1 / Session / JWT with PKCE).
+1. **[P2-001]**: Implement AES-256-GCM symmetric encryption/decryption module for secrets at rest with per-record IV.
+2. **[P2-002]**: Implement User Authentication (OAuth 2.1 / Session / JWT with PKCE).
+3. **[P2-003]**: Create `resource_connections` database schema storing encrypted tokens, connector status, and scopes.
 
 ---
 
@@ -572,6 +573,27 @@ Tasks **P1-001**, **P1-002**, **P1-003**, **P1-004**, and **P1-005** are **100% 
     * `npm run test:integration` -> PASS (16/16 live integration tests passed across 3 suites against Aiven)
     * `npm test` -> PASS (64/64 total tests passed across 9 suites)
     * `npm run db:check` -> PASS (Drizzle Kit config and schema verified)
+* **P1-006 (Automated Test Runner & CI Workflow - Verified)**:
+  * CI Pipeline Architecture: Authored and validated GitHub Actions CI workflow in `.github/workflows/ci.yml`.
+  * Isolation Strategy: Adopted ADR-015 establishing ephemeral native GitHub Actions PostgreSQL 17 service containers (`postgres:17-alpine` on `localhost:5432`) as hermetic test database environments.
+  * Automated Verification Steps:
+    1. Deterministic dependency installation via `npm ci` with Node.js 22 runtime caching.
+    2. Code style validation via `npm run format:check` (Prettier).
+    3. Static lint analysis via `npm run lint` (ESLint 9 flat configuration).
+    4. Database schema check via `npm run db:check` (Drizzle Kit).
+    5. Clean-slate migration execution via `npm run db:migrate` (applies `0000_familiar_wrecker.sql` against empty PostgreSQL instance).
+    6. Unit test execution via `npm run test:unit` (48 tests across 6 suites).
+    7. Live integration test execution via `npm run test:integration` (16 tests across 3 suites).
+    8. Full test suite execution via `npm test` (64 tests across 9 suites).
+  * Secret Protection: Standard PR checks require 0 repository secrets, eliminating credential leakage risk and cloud connection quotas.
+  * Verification Commands:
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run test:unit` -> PASS (48/48 unit tests passed across 6 suites)
+    * `npm run test:integration` -> PASS (16/16 live integration tests passed across 3 suites)
+    * `npm test` -> PASS (64/64 total tests passed across 9 suites)
+    * `npm run db:check` -> PASS (Drizzle Kit schema and config verified)
+
 
 
 

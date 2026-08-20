@@ -1,0 +1,76 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Code Quality, Migration & Test Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_ci_password
+          POSTGRES_DB: career_hub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://postgres:postgres_ci_password@localhost:5432/career_hub_test
+      DATABASE_SSL: 'false'
+      DATABASE_POOL_MIN: 1
+      DATABASE_POOL_MAX: 5
+      DATABASE_STATEMENT_TIMEOUT_MS: 10000
+      LOG_LEVEL: warn
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (deterministic)
+        run: npm ci
+
+      - name: Verify code formatting (Prettier)
+        run: npm run format:check
+
+      - name: Run static analysis (ESLint)
+        run: npm run lint
+
+      - name: Validate Drizzle ORM configuration & schema
+        run: npm run db:check
+
+      - name: Execute database migrations from scratch
+        run: npm run db:migrate
+
+      - name: Execute unit test suite
+        run: npm run test:unit
+
+      - name: Execute live integration test suite
+        run: npm run test:integration
+
+      - name: Execute complete test suite
+        run: npm test

@@ -24,6 +24,7 @@
 | **ADR-012** | Cloud Hosting and Deployment Strategy | **PROPOSED** | 2026-08-19 |
 | **ADR-013** | Secret and Credential Encryption at Rest | **ACCEPTED** | 2026-08-19 |
 | **ADR-014** | Multi-User and Tenant Isolation Model | **ACCEPTED** | 2026-08-19 |
+| **ADR-015** | CI Database Isolation Strategy | **ACCEPTED** | 2026-08-20 |
 
 ---
 
@@ -220,3 +221,22 @@
 * **Reasons**: Balances resource efficiency on small cloud tiers with bulletproof isolation when enforced at the service and data-access layer.
 * **Consequences**: Automated multi-tenant security test suite is mandatory for every release.
 * **Revisit Conditions**: If enterprise clients require dedicated isolated database instances.
+
+---
+
+### ADR-015: CI Database Isolation Strategy
+* **Status**: ACCEPTED
+* **Date**: 2026-08-20
+* **Context**: Automated GitHub Actions CI must reliably validate code formatting, static linting, Drizzle ORM configuration, schema migrations from scratch, unit test suites, and live integration tests (covering table CRUD, session hashing, audit sanitization, cascade deletions, and multi-tenant isolation). The test database environment must guarantee complete isolation from development/production databases, support parallel CI concurrency, prevent credential exposure, and avoid depleting cloud connection and storage limits (e.g., Aiven Free 20-connection ceiling and 1GB storage).
+* **Decision**: Adopt **Ephemeral Native GitHub Actions PostgreSQL Service Containers (`postgres:17-alpine` on `localhost:5432`)** as the primary hermetic CI test database architecture. Every pull request and push runs against an empty, isolated PostgreSQL service container, applies migrations from scratch (`npm run db:migrate`), and runs all unit and integration test suites.
+* **Alternatives Considered**:
+  * *Shared Cloud Database on Aiven Free (e.g. `testdb`)*: High risk of connection exhaustion against the 20-connection limit, concurrency race conditions between parallel PR runs, network latency, and requirement to expose cloud credentials in CI secrets.
+  * *Dynamic Ephemeral Database on Cloud Aiven (`CREATE DATABASE / DROP DATABASE` per run)*: Risk of orphaned test databases exhausting the 1GB storage limit on unhandled runner cancellations, administrative privilege exposure, and connection pool saturation.
+  * *Isolated Schemas on Cloud Aiven (`CREATE SCHEMA`)*: Requires non-standard migration runner configuration for non-public schemas, while still consuming cloud connection quotas.
+* **Reasons**: Ephemeral container services provide 100% hermetic isolation per job, infinite parallel execution without race conditions, zero cloud cost, zero cloud connection depletion, and zero credential exposure in GitHub Actions secrets for standard PR checks.
+* **Consequences**:
+  * Clean, reproducible test runs starting with an empty database verifying migration scripts from scratch on every commit.
+  * Local development continues smoothly with `.env.local` pointing to Aiven Free PostgreSQL.
+  * Cloud development and production databases remain completely isolated from CI execution.
+* **Revisit Conditions**: When multi-region cloud staging validation requires scheduled end-to-end smoke tests against managed cloud database instances.
+
