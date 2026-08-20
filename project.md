@@ -91,7 +91,7 @@
 | **P1-001** | Initialize Node.js ESM project with `package.json`, ESLint, Prettier, and core dependencies (Fastify, Zod, dotenv, Pino) | P0-004 | **COMPLETE** | `npm run lint`, `npm run format:check`, `npm test`, lifecycle test PASS |
 | **P1-002** | Configure structured logging (Pino) with automatic secret masking / PII scrubbing | P1-001 | **COMPLETE** | `npm run lint`, `npm run format:check`, `npm test` (13/13 PASS), 10 focused security/redaction unit tests, lifecycle test PASS |
 | **P1-003** | Setup PostgreSQL database connection pool and migration tool (Drizzle ORM) | P1-001 | **COMPLETE** | Live Supabase PostgreSQL 17.6 + Drizzle verified, `npm test` (29/29 PASS across 4 suites), `npm run db:migrate` PASS, `npm run db:check` PASS |
-| **P1-004** | Create core database schema: `users`, `tenants`, `audit_logs`, `sessions` | P1-003 | NOT_STARTED | Automated schema migration and table validation |
+| **P1-004** | Create core database schema: `users`, `tenants`, `audit_logs`, `sessions` | P1-003 | **COMPLETE** | Live Supabase migration (`0000_familiar_wrecker.sql`), `npm test` (43/43 PASS across 6 suites), CRUD, multi-tenant isolation, cascade delete, and audit sanitization verified |
 | **P1-005** | Implement standard API error handling, Zod request/response validation middleware, and health check endpoints (`/healthz`, `/livez`) | P1-001 | NOT_STARTED | HTTP integration tests returning 200 OK and structured 400/500 errors |
 | **P1-006** | Setup automated test runner (Vitest or Node Test Runner) and CI test workflow | P1-001 | NOT_STARTED | `npm test` executing mock test suite successfully |
 
@@ -421,6 +421,7 @@
 | 2026-08-20 | Antigravity AI | v0.5.1 | End-to-End Live Supabase Verification (P1-003): Connected and fully verified PostgreSQL connection pool, Drizzle ORM queries, live transactions, and programmatic migration runner (`src/db/migrate.js`) against managed Supabase PostgreSQL 17.6 database. Authored dedicated live integration test suite (`tests/integration/db.test.js`) and confirmed 29/29 total tests PASS with zero exposed credentials. |
 | 2026-08-20 | Antigravity AI | v0.5.2 | Core Database Schema Review (P1-004A): Completed comprehensive architectural review for core identity and multi-tenancy entities (`tenants`, `users`, `sessions`, `audit_logs`) in `docs/schema-review.md`. |
 | 2026-08-20 | Antigravity AI | v0.5.3 | Core Schema Review Clarification (P1-004A): Resolved all 4 review notes in `docs/schema-review.md`. Established dedicated audit sanitization boundary (independent from logger), clarified PostgreSQL session expiration query-level checks and indexed cleanup, eliminated redundant indexes (`idx_tenants_slug`, `idx_users_status`, `idx_sessions_tenant_user`), documented Open Policy Decision on tenant hard-deletion audit retention with MVP `CASCADE` rule, and upgraded gate status to **APPROVED**. |
+| 2026-08-20 | Antigravity AI | v0.6.0 | Completed Task P1-004 (Core Identity Database Schema): Implemented Drizzle ORM models for `tenants`, `users`, `sessions`, and `audit_logs` in `src/db/schema.js`. Created dedicated audit persistence sanitizer (`src/utils/audit-sanitizer.js`) enforcing 16 KB payload cap and strict credential redaction. Generated and applied initial Drizzle migration (`0000_familiar_wrecker.sql`) to live Supabase PostgreSQL 17.6 database. Authored 13 live integration tests verifying CRUD, multi-tenant isolation, cascade delete, and audit sanitization. Verified 43/43 total tests PASS across 6 suites. |
 
 ---
 
@@ -457,11 +458,11 @@
 
 ## 12. Next Recommended Implementation Tasks
 
-Tasks **P1-001**, **P1-002**, and **P1-003** are **100% COMPLETE & VERIFIED**. Task **P1-004A** (Schema Design Review) is **APPROVED**. The project is ready for **Task P1-004**.
+Tasks **P1-001**, **P1-002**, **P1-003**, and **P1-004** are **100% COMPLETE & VERIFIED**. The project is ready for **Task P1-005**.
 
-1. **[P1-004]**: Create core database schema: `users`, `tenants`, `audit_logs`, `sessions`.
-2. **[P1-005]**: Implement standard API error handling, Zod validation middleware, and health check endpoints (`/healthz`, `/livez`).
-3. **[P1-006]**: Setup automated test runner integration and CI test workflow.
+1. **[P1-005]**: Implement standard API error handling, Zod validation middleware, and health check endpoints (`/healthz`, `/livez`).
+2. **[P1-006]**: Setup automated test runner integration and CI test workflow.
+3. **[P2-001]**: Implement AES-256-GCM symmetric encryption/decryption module for secrets at rest with per-record IV.
 
 ---
 
@@ -525,6 +526,23 @@ Tasks **P1-001**, **P1-002**, and **P1-003** are **100% COMPLETE & VERIFIED**. T
     3. **Index Optimization**: Removed redundant indexes (`idx_tenants_slug`, `idx_users_status`, `idx_sessions_tenant_user`); verified all remaining indexes map to concrete query patterns.
     4. **Audit Retention vs Tenant Deletion**: Classified as `OPEN POLICY DECISION (Tenant Hard Deletion Audit Retention Policy)`. Documented MVP decision (`CASCADE` on tenant hard delete, `SET NULL` on user delete) and post-cancellation archival path.
   * Approval Status: **APPROVED** (100% ready for P1-004 implementation).
+* **P1-004 (Core Identity Database Schema - Live Supabase Verified)**:
+  * Files Created / Updated: `src/db/schema.js`, `src/utils/audit-sanitizer.js`, `drizzle/0000_familiar_wrecker.sql`, `drizzle/meta/_journal.json`, `drizzle/meta/0000_snapshot.json`, `tests/unit/audit-sanitizer.test.js`, `tests/integration/identity-schema.test.js`.
+  * Schema Objects Created:
+    * **Enums**: `tenant_tier` (`'FREE'`, `'PRO'`, `'ENTERPRISE'`), `user_role` (`'OWNER'`, `'MEMBER'`, `'READONLY'`), `user_status` (`'ACTIVE'`, `'SUSPENDED'`, `'DELETED'`).
+    * **Tables**: `tenants`, `users`, `sessions`, `audit_logs`.
+    * **Constraints**: `tenants_slug_unique` (`UNIQUE (slug)`), `users_tenant_email_unique` (`UNIQUE (tenant_id, email)`).
+    * **Foreign Keys**: `users.tenant_id -> tenants.id` (`CASCADE`), `sessions.user_id -> users.id` (`CASCADE`), `sessions.tenant_id -> tenants.id` (`CASCADE`), `audit_logs.tenant_id -> tenants.id` (`CASCADE`), `audit_logs.user_id -> users.id` (`SET NULL`).
+    * **Indexes**: `idx_users_tenant_id` (`users.tenant_id`), `idx_sessions_user_id` (`sessions.user_id`), `idx_sessions_expires_at` (`sessions.expires_at`), `idx_audit_logs_tenant_created` (`audit_logs (tenant_id, created_at DESC)`), `idx_audit_logs_tenant_event` (`audit_logs (tenant_id, event_type)`), `idx_audit_logs_request_id` (`audit_logs.request_id`).
+  * Live Supabase PostgreSQL Migration: Generated `drizzle/0000_familiar_wrecker.sql` via `drizzle-kit generate` and executed against managed Supabase PostgreSQL 17.6 (`npm run db:migrate` -> exit code 0, 7.35s).
+  * Verification Commands:
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run test:unit` -> PASS (30/30 unit tests passed across 4 suites)
+    * `npm run test:integration` -> PASS (13/13 live integration tests passed against Supabase across 2 suites)
+    * `npm test` -> PASS (43/43 total tests passed across 6 suites)
+    * `npm run db:check` -> PASS (Drizzle Kit config and schema snapshot verified)
+
 
 
 
