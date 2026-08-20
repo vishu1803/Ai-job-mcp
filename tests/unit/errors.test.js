@@ -10,6 +10,7 @@ import {
   RateLimitError,
   DependencyError,
   InternalServerError,
+  CryptoError,
 } from '../../src/errors/index.js';
 
 describe('Centralized Error Model (P1-005)', () => {
@@ -79,5 +80,13 @@ describe('Centralized Error Model (P1-005)', () => {
     assert.equal(err.statusCode, 500);
     assert.equal(err.code, 'INTERNAL_ERROR');
     assert.equal(err.message, 'An unexpected internal server error occurred');
+  });
+
+  test('10. CryptoError defaults to 500 and CRYPTO_ERROR', () => {
+    const err = new CryptoError('Decryption failed', 'AUTHENTICATION_FAILED', { keyVersion: 'v1' });
+    assert.equal(err.statusCode, 500);
+    assert.equal(err.code, 'AUTHENTICATION_FAILED');
+    assert.equal(err.message, 'Decryption failed');
+    assert.deepEqual(err.details, { keyVersion: 'v1' });
   });
 });

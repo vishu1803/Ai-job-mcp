@@ -136,3 +136,17 @@ export class InternalServerError extends AppError {
     super(message, 500, 'INTERNAL_ERROR', details);
   }
 }
+
+/**
+ * 500 Cryptographic / Encryption Error.
+ */
+export class CryptoError extends AppError {
+  /**
+   * @param {string} [message='Cryptographic operation failed']
+   * @param {string} [code='CRYPTO_ERROR'] Machine-readable error code
+   * @param {any} [details=null] Safe structured metadata
+   */
+  constructor(message = 'Cryptographic operation failed', code = 'CRYPTO_ERROR', details = null) {
+    super(message, 500, code, details);
+  }
+}

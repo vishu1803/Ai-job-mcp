@@ -25,6 +25,7 @@
 | **ADR-013** | Secret and Credential Encryption at Rest | **ACCEPTED** | 2026-08-19 |
 | **ADR-014** | Multi-User and Tenant Isolation Model | **ACCEPTED** | 2026-08-19 |
 | **ADR-015** | CI Database Isolation Strategy | **ACCEPTED** | 2026-08-20 |
+| **ADR-016** | Application Secret Encryption at Rest (AES-256-GCM) | **ACCEPTED** | 2026-08-20 |
 
 ---
 
@@ -239,4 +240,29 @@
   * Local development continues smoothly with `.env.local` pointing to Aiven Free PostgreSQL.
   * Cloud development and production databases remain completely isolated from CI execution.
 * **Revisit Conditions**: When multi-region cloud staging validation requires scheduled end-to-end smoke tests against managed cloud database instances.
+
+---
+
+### ADR-016: Application Secret Encryption at Rest (AES-256-GCM)
+* **Status**: ACCEPTED
+* **Date**: 2026-08-20
+* **Context**: Future resource connectors (GitHub, Google, third-party platforms) require persisting sensitive tokens (OAuth access/refresh tokens, API keys, webhook secrets). Storing credentials in plaintext is unacceptable. The application requires a centralized, robust, tamper-resistant, authenticated symmetric encryption foundation with key versioning and seamless rotation capabilities.
+* **Decision**: Standardize on **AES-256-GCM** authenticated encryption implemented in `src/security/encryption.js` utilizing Node.js native `node:crypto`.
+  * **Key Management**: 256-bit symmetric keys (`ENCRYPTION_MASTER_KEY` / `ENCRYPTION_KEY`) with explicit key-versioning support (`keyVersion: 'v1'`). Multi-version key rings allow concurrent key resolution during rotation.
+  * **IV / Nonce**: Cryptographically secure random 96-bit (12-byte) IV generated per encryption operation (`crypto.randomBytes(12)`).
+  * **Authentication Tag**: 128-bit (16-byte) GCM authentication tag for tamper detection.
+  * **Additional Authenticated Data (AAD)**: Encodes format version and key version (`v1:<keyVersion>`) to cryptographically bind metadata to the ciphertext.
+  * **Serialization Formats**: Supports compact string (`enc:v1:<keyVersion>:<iv>:<tag>:<ciphertext>`) and structured JSON validated by Zod `EncryptedPayloadSchema`.
+  * **Payload Cap**: Strict 64 KB (65,536 bytes) maximum plaintext cap bounding usage to credentials.
+* **Alternatives Considered**:
+  * *AES-256-CBC with HMAC-SHA256*: Requires manual composition (Encrypt-then-MAC); more complex and error-prone than native AES-GCM AEAD mode.
+  * *Client-side or Cloud KMS for every secret read/write*: Introduces excessive network latency, cost, and external availability dependencies during development; envelope encryption or Cloud KMS root key management can wrap this foundation in Phase 14.
+  * *Unauthenticated AES-ECB / AES-CBC*: Insecure and vulnerable to bit-flipping and padding oracle attacks.
+* **Reasons**: AES-256-GCM is the modern industry standard for authenticated encryption at rest, offering high throughput, hardware acceleration (AES-NI), built-in integrity verification, and zero third-party dependencies.
+* **Consequences**:
+  * All credential columns in PostgreSQL will store opaque, tamper-evident ciphertext packages.
+  * Attempted tampering with ciphertext, IV, tag, or key version immediately throws safe `AUTHENTICATION_FAILED` `CryptoError`.
+  * Zero plaintext or key leakage in logs or error objects.
+* **Revisit Conditions**: When enterprise migration to Hardware Security Modules (HSM) or Cloud KMS (Azure Key Vault / AWS KMS) envelope encryption is scheduled in Phase 14.
+
 

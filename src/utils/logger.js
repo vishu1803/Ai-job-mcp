@@ -70,6 +70,10 @@ export const SENSITIVE_KEYS = [
   'cv',
   'sourceCode',
   'codeSnippet',
+  'plaintext',
+  'rawSecret',
+  'raw_secret',
+  'decryptedSecret',
 ];
 
 /**

@@ -87,19 +87,28 @@
 ---
 
 ## 10. Token Storage & Encryption at Rest
-* Plaintext credentials (access tokens, refresh tokens, webhook secrets) are **NEVER** stored in the database.
-* **Encryption Scheme**:
-  * Algorithm: `AES-256-GCM` (Authenticated Encryption with Associated Data).
-  * Key: 256-bit symmetric key (`ENCRYPTION_KEY`) passed via environment variable.
-  * Initialization Vector: 12-byte cryptographically random IV generated per encryption operation.
-  * Auth Tag: 16-byte HMAC authentication tag generated to detect any ciphertext tampering.
-  * Storage Format: `iv_hex:auth_tag_hex:ciphertext_hex` in `BYTEA` or `TEXT` database columns.
+* Plaintext credentials (access tokens, refresh tokens, webhook secrets, API keys) are **NEVER** stored in plaintext in the database, caches, or logs.
+* **Cryptographic Foundation (`src/security/encryption.js`)**:
+  * **Algorithm**: `AES-256-GCM` (Authenticated Encryption with Associated Data) via native `node:crypto`.
+  * **Master Key**: 256-bit (32-byte) symmetric key (`ENCRYPTION_MASTER_KEY` / `ENCRYPTION_KEY`) supplied via secure environment configuration.
+  * **Key Versioning & Rotation**: Every encrypted package explicitly binds a `keyVersion` (e.g. `'v1'`). Key ring mappings enable multi-version decryption and seamless key rotation via `rotateSecret()`.
+  * **Initialization Vector (IV)**: 12-byte (96-bit) cryptographically random IV generated via `crypto.randomBytes(12)` per encryption operation. Zero static/reused IVs.
+  * **Authentication Tag**: 16-byte (128-bit) GCM authentication tag verifying ciphertext integrity. Any tampering with ciphertext, IV, tag, or header throws an immediate `AUTHENTICATION_FAILED` error.
+  * **Additional Authenticated Data (AAD)**: Binds format version and key version (`v1:<keyVersion>`) to the GCM authentication tag to prevent version-swapping attacks.
+  * **Storage Formats**:
+    * **Compact String**: `enc:v1:<keyVersion>:<iv_base64url>:<tag_base64url>:<ciphertext_base64url>` for standard database columns and tokens.
+    * **Structured JSON**: `{ version: 1, keyVersion: 'v1', iv: '...', tag: '...', ciphertext: '...' }` validated via Zod `EncryptedPayloadSchema`.
+  * **Payload Boundary**: Strict 64 KB (65,536 bytes) maximum plaintext cap. Designed strictly for credentials, tokens, and secrets (NOT large files, resumes, or code trees).
+  * **Data Scope**:
+    * *Protected by this module*: GitHub installation access tokens, OAuth refresh tokens, third-party API keys, webhook signing secrets, MCP connection secrets.
+    * *Not protected by this module*: Public repository trees, candidate profiles, and evidence graphs (which are isolated via row-level tenant access controls).
 
 ---
 
 ## 11. Secret Management
-* Master keys (`ENCRYPTION_KEY`, `AUTH_SECRET`, `GITHUB_APP_PRIVATE_KEY`) are stored exclusively in environment variables or cloud secret managers (Azure Key Vault / AWS Secrets Manager).
+* Master keys (`ENCRYPTION_MASTER_KEY`, `AUTH_SECRET`, `GITHUB_APP_PRIVATE_KEY`) are stored exclusively in environment variables or cloud secret managers (Azure Key Vault / AWS Secrets Manager / GitHub Secrets).
 * Zero secrets are committed to Git. `.gitignore` strictly protects `.env*` files.
+* Centralized Pino logger redacts all master keys, token substrings, and plaintext properties across top-level and nested log outputs.
 
 ---
 

@@ -23,6 +23,8 @@ if (existsSync(envLocalPath)) {
  * @property {number} DATABASE_POOL_MAX
  * @property {boolean} DATABASE_SSL
  * @property {number} DATABASE_STATEMENT_TIMEOUT_MS
+ * @property {string} ENCRYPTION_MASTER_KEY
+ * @property {string} ENCRYPTION_KEY_VERSION
  */
 
 const envSchema = z.object({
@@ -38,6 +40,14 @@ const envSchema = z.object({
     .default('false')
     .transform((val) => val === 'true' || val === 'require'),
   DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  ENCRYPTION_MASTER_KEY: z
+    .string()
+    .default(
+      () =>
+        process.env.ENCRYPTION_KEY ||
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+    ),
+  ENCRYPTION_KEY_VERSION: z.string().default('v1'),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
