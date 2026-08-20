@@ -324,3 +324,56 @@ The MVP focuses strictly on the verifiable Golden Path:
 2. **Autonomous Main Branch Commits**: Prohibited; all writes must target isolated feature branches and draft PRs.
 3. **Complex Microservice Mesh**: Deferred until production scale demands it.
 4. **Third-Party Paid LLM Proxying**: The platform does not proxy LLM tokens; users connect their own AI clients via MCP.
+
+---
+
+## 24. Standard API Error Model, Validation & Health Probes
+
+### 24.1. Standard Response & Error Envelope
+All REST API routes adhere to a uniform, predictable response envelope:
+
+* **Success Envelope (2xx)**:
+  ```json
+  {
+    "success": true,
+    "data": { ... },
+    "error": null
+  }
+  ```
+
+* **Error Envelope (4xx / 5xx)**:
+  ```json
+  {
+    "success": false,
+    "data": null,
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "Human-readable safe error message",
+      "details": [
+        { "field": "email", "message": "Invalid email address", "location": "body" }
+      ],
+      "requestId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+    }
+  }
+  ```
+
+### 24.2. Standard HTTP Status Code & Error Code Mappings
+| HTTP Status | Machine-Readable Error Code | Exception Class | Standard Purpose |
+| :--- | :--- | :--- | :--- |
+| **400 Bad Request** | `VALIDATION_ERROR` / `BAD_REQUEST` | `ValidationError` | Zod schema validation failure or malformed JSON syntax. |
+| **401 Unauthorized** | `AUTHENTICATION_ERROR` | `AuthenticationError` | Missing, invalid, or expired session cookie / Bearer token. |
+| **403 Forbidden** | `AUTHORIZATION_ERROR` | `AuthorizationError` | Authenticated user lacks required tenant role or permissions. |
+| **404 Not Found** | `NOT_FOUND` | `NotFoundError` | Target resource or route path does not exist. |
+| **409 Conflict** | `CONFLICT` | `ConflictError` | Unique constraint violation (e.g. duplicate slug/email) or state conflict. |
+| **429 Too Many Requests** | `RATE_LIMITED` | `RateLimitError` | Client exceeded rate-limiting window threshold. |
+| **500 Internal Error** | `INTERNAL_ERROR` | `InternalServerError` | Unhandled server exception (stack trace logged safely, sanitized from client). |
+| **503 Unavailable** | `DEPENDENCY_ERROR` | `DependencyError` | Runtime dependency (e.g. PostgreSQL) failed health probe. |
+
+### 24.3. Zod Request & Response Validation Architecture
+* **Request Validation (`validateRequest`)**: Fastify `preHandler` hook validating `body`, `query`, `params`, and `headers`. Coerces data, assigns defaults, strips extra keys, and returns structured field-level errors on failure.
+* **Response Contract Enforcement (`validateResponse`)**: Fastify `preSerialization` hook validating outgoing payload against a strict Zod contract to prevent internal schema leaks.
+
+### 24.4. Health & Liveness Endpoints
+* **`GET /livez` (Liveness Probe)**: Fast, zero-dependency probe proving the Node.js process is running and event loop is responsive. Returns `200 OK` with `status: "ok"` and process `uptime`. Zero database or external network queries.
+* **`GET /healthz` (Readiness Probe)**: Evaluates required runtime infrastructure dependencies. Executes `checkDatabaseHealth()` against the PostgreSQL connection pool. Returns `200 OK` (`status: "healthy"`) or `503 Service Unavailable` (`status: "unhealthy"`). Never exposes raw connection strings, passwords, or internal SQL errors.
+

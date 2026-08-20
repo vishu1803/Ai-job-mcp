@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { getLoggerConfig } from './utils/logger.js';
+import { errorHandler, notFoundHandler } from './plugins/error-handler.js';
+import { healthRoutes } from './routes/health.routes.js';
 
 /**
  * Builds and configures the core Fastify application instance.
@@ -34,14 +36,19 @@ export function buildApp(opts = {}) {
     ...fastifyOpts,
   });
 
-  // Base Health Check endpoint
-  app.get('/healthz', async (_request, _reply) => {
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      service: 'antigravity-career-hub',
-    };
+  // Ensure request correlation ID is echoed in the response header
+  app.addHook('onSend', async (request, reply) => {
+    if (request.id) {
+      reply.header('x-request-id', request.id);
+    }
   });
+
+  // Global Error and Not Found Handlers
+  app.setErrorHandler(errorHandler);
+  app.setNotFoundHandler(notFoundHandler);
+
+  // Health and Liveness Routes (/livez, /healthz)
+  app.register(healthRoutes);
 
   // Root platform status verification endpoint
   app.get('/', async (_request, _reply) => {

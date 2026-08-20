@@ -92,7 +92,7 @@
 | **P1-002** | Configure structured logging (Pino) with automatic secret masking / PII scrubbing | P1-001 | **COMPLETE** | `npm run lint`, `npm run format:check`, `npm test` (13/13 PASS), 10 focused security/redaction unit tests, lifecycle test PASS |
 | **P1-003** | Setup PostgreSQL database connection pool and migration tool (Drizzle ORM) | P1-001 | **COMPLETE** | Live Supabase PostgreSQL 17.6 + Drizzle verified, `npm test` (29/29 PASS across 4 suites), `npm run db:migrate` PASS, `npm run db:check` PASS |
 | **P1-004** | Create core database schema: `users`, `tenants`, `audit_logs`, `sessions` | P1-003 | **COMPLETE** | Live Supabase migration (`0000_familiar_wrecker.sql`), `npm test` (43/43 PASS across 6 suites), CRUD, multi-tenant isolation, cascade delete, and audit sanitization verified |
-| **P1-005** | Implement standard API error handling, Zod request/response validation middleware, and health check endpoints (`/healthz`, `/livez`) | P1-001 | NOT_STARTED | HTTP integration tests returning 200 OK and structured 400/500 errors |
+| **P1-005** | Implement standard API error handling, Zod request/response validation middleware, and health check endpoints (`/healthz`, `/livez`) | P1-001 | **COMPLETE** | HTTP integration tests returning 200 OK for `/livez` & `/healthz` (Supabase verified), 400 for Zod validation errors, 404 for not found, 409 for conflict, 500 for unhandled exceptions, zero secrets exposed |
 | **P1-006** | Setup automated test runner (Vitest or Node Test Runner) and CI test workflow | P1-001 | NOT_STARTED | `npm test` executing mock test suite successfully |
 
 ---
@@ -422,6 +422,7 @@
 | 2026-08-20 | Antigravity AI | v0.5.2 | Core Database Schema Review (P1-004A): Completed comprehensive architectural review for core identity and multi-tenancy entities (`tenants`, `users`, `sessions`, `audit_logs`) in `docs/schema-review.md`. |
 | 2026-08-20 | Antigravity AI | v0.5.3 | Core Schema Review Clarification (P1-004A): Resolved all 4 review notes in `docs/schema-review.md`. Established dedicated audit sanitization boundary (independent from logger), clarified PostgreSQL session expiration query-level checks and indexed cleanup, eliminated redundant indexes (`idx_tenants_slug`, `idx_users_status`, `idx_sessions_tenant_user`), documented Open Policy Decision on tenant hard-deletion audit retention with MVP `CASCADE` rule, and upgraded gate status to **APPROVED**. |
 | 2026-08-20 | Antigravity AI | v0.6.0 | Completed Task P1-004 (Core Identity Database Schema): Implemented Drizzle ORM models for `tenants`, `users`, `sessions`, and `audit_logs` in `src/db/schema.js`. Created dedicated audit persistence sanitizer (`src/utils/audit-sanitizer.js`) enforcing 16 KB payload cap and strict credential redaction. Generated and applied initial Drizzle migration (`0000_familiar_wrecker.sql`) to live Supabase PostgreSQL 17.6 database. Authored 13 live integration tests verifying CRUD, multi-tenant isolation, cascade delete, and audit sanitization. Verified 43/43 total tests PASS across 6 suites. |
+| 2026-08-20 | Antigravity AI | v0.7.0 | Completed Task P1-005 (API Error Handling, Validation Middleware & Health Endpoints): Implemented centralized AppError hierarchy (`ValidationError`, `AuthenticationError`, `AuthorizationError`, `NotFoundError`, `ConflictError`, `RateLimitError`, `DependencyError`, `InternalServerError`), Fastify error/404 handlers, reusable Zod request and response validation middleware (`validateRequest`, `validateResponse`), and production health endpoints (`GET /livez` liveness probe, `GET /healthz` PostgreSQL readiness probe). Verified 64/64 total tests PASS across 9 suites. |
 
 ---
 
@@ -458,11 +459,11 @@
 
 ## 12. Next Recommended Implementation Tasks
 
-Tasks **P1-001**, **P1-002**, **P1-003**, and **P1-004** are **100% COMPLETE & VERIFIED**. The project is ready for **Task P1-005**.
+Tasks **P1-001**, **P1-002**, **P1-003**, **P1-004**, and **P1-005** are **100% COMPLETE & VERIFIED**. The project is ready for **Task P1-006**.
 
-1. **[P1-005]**: Implement standard API error handling, Zod validation middleware, and health check endpoints (`/healthz`, `/livez`).
-2. **[P1-006]**: Setup automated test runner integration and CI test workflow.
-3. **[P2-001]**: Implement AES-256-GCM symmetric encryption/decryption module for secrets at rest with per-record IV.
+1. **[P1-006]**: Setup automated test runner integration and CI test workflow.
+2. **[P2-001]**: Implement AES-256-GCM symmetric encryption/decryption module for secrets at rest with per-record IV.
+3. **[P2-002]**: Implement User Authentication (OAuth 2.1 / Session / JWT with PKCE).
 
 ---
 
@@ -542,6 +543,21 @@ Tasks **P1-001**, **P1-002**, **P1-003**, and **P1-004** are **100% COMPLETE & V
     * `npm run test:integration` -> PASS (13/13 live integration tests passed against Supabase across 2 suites)
     * `npm test` -> PASS (43/43 total tests passed across 6 suites)
     * `npm run db:check` -> PASS (Drizzle Kit config and schema snapshot verified)
+* **P1-005 (API Error Handling, Validation Middleware & Health Endpoints - Verified)**:
+  * Files Created / Updated: `src/errors/index.js`, `src/middleware/validate.js`, `src/plugins/error-handler.js`, `src/routes/health.routes.js`, `src/app.js`, `docs/architecture.md`, `tests/unit/errors.test.js`, `tests/unit/validate.test.js`, `tests/unit/app.test.js`, `tests/integration/health.test.js`.
+  * Architecture Implemented:
+    * **Centralized Error Model**: `AppError` base class and domain derivatives (`ValidationError` 400, `AuthenticationError` 401, `AuthorizationError` 403, `NotFoundError` 404, `ConflictError` 409, `RateLimitError` 429, `DependencyError` 503, `InternalServerError` 500).
+    * **Zod Middleware**: Reusable `validateRequest` (preHandler for `body`, `query`, `params`, `headers`) and `validateResponse` (preSerialization contract enforcement).
+    * **Health & Liveness Endpoints**: `GET /livez` (zero-dependency process liveness probe) and `GET /healthz` (PostgreSQL connection pool readiness check).
+    * **Request Correlation**: Propagates `x-request-id` / `x-correlation-id` through incoming requests, Pino logs, outgoing response headers, and error envelopes.
+  * Verification Commands:
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run test:unit` -> PASS (48/48 unit tests passed across 6 suites)
+    * `npm run test:integration` -> PASS (16/16 live integration tests passed across 3 suites)
+    * `npm test` -> PASS (64/64 total tests passed across 9 suites)
+    * `npm run db:check` -> PASS (Drizzle Kit schema and config verified)
+
 
 
 
