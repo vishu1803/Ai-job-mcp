@@ -103,7 +103,8 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P2-001** | Implement AES-256-GCM symmetric encryption/decryption module for secrets at rest with per-record IV | P1-001 | **COMPLETE** | Unit tests in `tests/unit/encryption.test.js` & `tests/unit/errors.test.js` (26 tests): roundtrip encryption/decryption, random IV uniqueness, wrong key rejection, tampering detection, 64 KB limit, Unicode/emoji preservation, zero key/plaintext leakage, key rotation, ADR-016 |
-| **P2-002** | Implement User Authentication (OAuth 2.1 / Session / JWT with PKCE) | P1-004, P2-001 | NOT_STARTED | Integration test: user registration, login, token refresh, and logout |
+| **P2-002A** | Authentication Architecture Review and Approval Gate | P1-004, P2-001 | **COMPLETE** | Architectural specification `docs/authentication-architecture.md`, ADR-017, standardized on OAuth 2.1 + PKCE + server-side PostgreSQL sessions, rejected initial stateless JWTs |
+| **P2-002** | Implement User Authentication (OAuth 2.1 / Session with PKCE) | P2-002A | NOT_STARTED | Integration test: user registration, login, token refresh, and logout |
 | **P2-003** | Create `resource_connections` database schema storing encrypted tokens, connector status, and scopes | P1-004, P2-001 | NOT_STARTED | Database migration and query isolation tests |
 | **P2-004** | Implement provider-neutral `ResourceConnector` interface and connector registry | P1-001 | NOT_STARTED | Unit tests validating interface contracts on dummy connector |
 | **P2-005** | Create connection lifecycle endpoints (list connections, test connection health, disconnect, revoke) | P2-003, P2-004 | NOT_STARTED | Integration test: disconnect connector and verify encrypted token deletion |
@@ -428,6 +429,7 @@
 | 2026-08-20 | Antigravity AI | v0.8.1 | CI Action Version Upgrade: Updated GitHub Actions workflow (`.github/workflows/ci.yml`) to `actions/checkout@v5` and `actions/setup-node@v7` to address GitHub Actions Node 20 runner deprecation warnings, while preserving the application runtime at Node.js 22. Verified all 64 tests PASS across 9 suites. |
 | 2026-08-20 | Antigravity AI | v0.9.0 | Completed Task P2-001 (AES-256-GCM Secret Encryption Foundation): Implemented authenticated symmetric encryption at rest in `src/security/encryption.js` utilizing native `node:crypto` AES-256-GCM with 128-bit authentication tags, 96-bit random IVs, AAD version binding, key versioning for rotation, 64 KB payload caps, and Zod `EncryptedPayloadSchema`. Added `CryptoError` to centralized errors and expanded logger sensitive key redactions. Authored ADR-016. Verified 91/91 total tests PASS across 20 suites. |
 | 2026-08-20 | Antigravity AI | v0.9.1 | P2-001 Security Review Hardening: Removed built-in fallback master key from `src/config/env.js` and added strict production environment validation. Hardened `normalizeKey` in `src/security/encryption.js` to strictly enforce 64-hex or 44-base64 encoding (rejecting arbitrary low-entropy UTF-8 passphrases). Added tests verifying `MISSING_KEY` errors when unconfigured. Verified 94/94 total tests PASS across 20 suites. |
+| 2026-08-20 | Antigravity AI | v0.9.2 | Completed Task P2-002A (Authentication Architecture Review & Approval Gate): Completed comprehensive authentication architecture specification in `docs/authentication-architecture.md`. Standardized on OAuth 2.1 with PKCE (`S256`), GitHub OAuth primary IdP, and server-side PostgreSQL sessions with SHA-256 hashed tokens and `HttpOnly` cookies. Formally rejected stateless JWTs for initial browser app to preserve instantaneous session revocation. Authored ADR-017. Gate status: P2-002A APPROVED. |
 
 ---
 
@@ -464,9 +466,9 @@
 
 ## 12. Next Recommended Implementation Tasks
 
-**Task P2-001** is **100% COMPLETE & VERIFIED**. The project is ready to proceed with **Task P2-002**.
+**Task P2-002A (Architecture Gate)** is **COMPLETE & APPROVED**. The project is ready to proceed with **Task P2-002**.
 
-1. **[P2-002]**: Implement User Authentication (OAuth 2.1 / Session / JWT with PKCE).
+1. **[P2-002]**: Implement User Authentication (OAuth 2.1 / Session with PKCE via GitHub OAuth IdP Adapter).
 2. **[P2-003]**: Create `resource_connections` database schema storing encrypted tokens, connector status, and scopes.
 3. **[P2-004]**: Implement provider-neutral `ResourceConnector` interface and connector registry.
 
@@ -614,6 +616,18 @@
     * `npm run test:integration` -> PASS (16/16 live integration tests passed across 3 suites)
     * `npm test` -> PASS (94/94 total tests passed across 20 suites)
     * `npm run db:check` -> PASS (Drizzle Kit schema and config verified)
+* **P2-002A (Authentication Architecture Review & Approval Gate - Verified)**:
+  * Specification Document: Authored comprehensive architecture document `docs/authentication-architecture.md` covering all 18 required dimensions.
+  * Architecture Decision: Authored ADR-017 (*Authentication Architecture: OAuth 2.1 + PKCE + Server-Side Sessions*), formally superseding provisional ADR-006.
+  * Core Architectural Decisions:
+    * **Protocol**: Standardized on OAuth 2.1 authorization code flow with mandatory PKCE (`S256` method).
+    * **Session Storage**: Server-side database sessions utilizing verified P1-004 `sessions` schema with SHA-256 hashed session tokens (`token_hash`) and automatic personal workspace provisioning.
+    * **Browser Security**: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, `Max-Age=604800` (7 days) cookies with `__Host-` prefix in production.
+    * **JWT Rejection**: Formally rejected stateless JWTs for the browser application to ensure instantaneous, zero-latency session revocation on logout, user suspension, or tenant deletion.
+    * **Identity Provider Strategy**: GitHub OAuth 2.0 / GitHub App selected as primary IdP with pluggable `IdentityProvider` interface for future Google/OIDC extension.
+    * **Tenant Resolution**: Tenant context strictly derived from authenticated session database records, never from untrusted client parameters.
+  * Gate Status: **P2-002A APPROVED**.
+
 
 
 

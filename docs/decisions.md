@@ -26,6 +26,7 @@
 | **ADR-014** | Multi-User and Tenant Isolation Model | **ACCEPTED** | 2026-08-19 |
 | **ADR-015** | CI Database Isolation Strategy | **ACCEPTED** | 2026-08-20 |
 | **ADR-016** | Application Secret Encryption at Rest (AES-256-GCM) | **ACCEPTED** | 2026-08-20 |
+| **ADR-017** | Authentication Architecture (OAuth 2.1 + PKCE + Server-Side Sessions) | **ACCEPTED** | 2026-08-20 |
 
 ---
 
@@ -264,5 +265,28 @@
   * Attempted tampering with ciphertext, IV, tag, or key version immediately throws safe `AUTHENTICATION_FAILED` `CryptoError`.
   * Zero plaintext or key leakage in logs or error objects.
 * **Revisit Conditions**: When enterprise migration to Hardware Security Modules (HSM) or Cloud KMS (Azure Key Vault / AWS KMS) envelope encryption is scheduled in Phase 14.
+
+---
+
+### ADR-017: Authentication Architecture (OAuth 2.1 + PKCE + Server-Side Sessions)
+* **Status**: ACCEPTED (Supersedes ADR-006)
+* **Date**: 2026-08-20
+* **Context**: The platform requires secure multi-tenant user authentication supporting browser web access and remote MCP AI client tool execution. We must evaluate OAuth/OIDC providers, session models, token storage, PKCE, and whether stateless JWTs are needed.
+* **Decision**: Adopt **OAuth 2.1 with PKCE (`S256`) and Server-Side Database Sessions** (`sessions` table with SHA-256 hashed tokens and `HttpOnly`, `Secure`, `SameSite=Lax` cookies) for web browser users, with **GitHub OAuth 2.0 / GitHub App** as the primary identity provider.
+  * **JWT Decision**: Explicitly **REJECT JWTs** for the initial application. Stateless JWTs create unacceptable revocation lag, token theft risks in `localStorage`, and key rotation complexity without benefits for a modular monolith.
+  * **PKCE Decision**: Enforce **PKCE with `S256`** for all OAuth flows to prevent authorization code interception and injection attacks.
+  * **Session Model**: 256-bit random session tokens stored exclusively as SHA-256 hashes in PostgreSQL `sessions`. Raw tokens exist solely in client cookies.
+  * **Tenant Resolution**: Tenant context is resolved exclusively from the verified database session and user record, never from untrusted client parameters.
+  * **Remote MCP Clients**: AI clients authenticate via scoped, SHA-256 hashed API Bearer tokens (`Authorization: Bearer <mcp_token>`) in Phase 5.
+* **Alternatives Considered**:
+  * *Stateless JWTs in LocalStorage/Cookies*: Rejected due to inability to revoke sessions immediately upon user suspension or compromise without server-side blocklists.
+  * *Third-Party Managed Auth (Clerk/Auth0/Supabase Auth)*: Rejected due to external vendor lock-in, recurring SaaS cost, and friction in multi-tenant data ownership.
+* **Reasons**: Delivers maximum browser security (OWASP compliance), instant session revocation, zero token leakage, defense against CSRF/XSS, and seamless integration with existing P1-004 `sessions` database schema.
+* **Consequences**:
+  * Clean, simple authentication pipeline with indexed database lookups (<0.5ms).
+  * First-time users are automatically provisioned with a personal tenant workspace.
+  * Extensible to additional providers (Google, OIDC) via pluggable `IdentityProvider` adapters.
+* **Revisit Conditions**: If microservices architecture in future phases demands cross-service distributed assertion tokens.
+
 
 
