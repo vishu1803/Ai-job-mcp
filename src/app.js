@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
-import { config } from './config/env.js';
+import { randomUUID } from 'node:crypto';
+import { getLoggerConfig } from './utils/logger.js';
 
 /**
  * Builds and configures the core Fastify application instance.
@@ -8,21 +9,29 @@ import { config } from './config/env.js';
  * @returns {import('fastify').FastifyInstance} Configured Fastify instance
  */
 export function buildApp(opts = {}) {
+  const { logger: customLogger, loggerInstance, ...fastifyOpts } = opts;
+
+  /** @type {object} */
+  let loggerConfig;
+  if (loggerInstance) {
+    loggerConfig = { loggerInstance };
+  } else if (customLogger !== undefined) {
+    loggerConfig = { logger: customLogger };
+  } else {
+    loggerConfig = { logger: getLoggerConfig() };
+  }
+
   const app = Fastify({
-    logger: {
-      level: opts.logLevel || config.LOG_LEVEL,
-      serializers: {
-        req(req) {
-          return {
-            method: req.method,
-            url: req.url,
-            hostname: req.hostname,
-            remoteAddress: req.ip,
-          };
-        },
-      },
+    ...loggerConfig,
+    genReqId(req) {
+      return (
+        /** @type {string} */ (req.headers['x-request-id']) ||
+        /** @type {string} */ (req.headers['x-correlation-id']) ||
+        randomUUID()
+      );
     },
-    ...opts,
+    requestIdHeader: 'x-request-id',
+    ...fastifyOpts,
   });
 
   // Base Health Check endpoint
