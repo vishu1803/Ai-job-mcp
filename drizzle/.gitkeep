@@ -1,0 +1,2 @@
+# Drizzle SQL Migrations Directory
+# Migration files generated via `npm run db:generate` will reside here.

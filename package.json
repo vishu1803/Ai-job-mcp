@@ -13,7 +13,11 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --test tests/**/*.test.js"
+    "test": "node --test tests/**/*.test.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:check": "drizzle-kit check",
+    "db:studio": "drizzle-kit studio"
   },
   "keywords": [
     "mcp",
@@ -21,18 +25,24 @@
     "career",
     "ai",
     "fastify",
-    "evidence-provenance"
+    "evidence-provenance",
+    "postgresql",
+    "drizzle-orm"
   ],
   "author": "Antigravity Team",
   "license": "Apache-2.0",
   "dependencies": {
     "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.45.2",
     "fastify": "^5.2.1",
+    "pg": "^8.23.0",
     "pino": "^9.6.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.20.1",
     "eslint-config-prettier": "^10.0.1",
     "prettier": "^3.5.1"
