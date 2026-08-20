@@ -1,8 +1,11 @@
 import Fastify from 'fastify';
 import { randomUUID } from 'node:crypto';
+import fastifyCookie from '@fastify/cookie';
 import { getLoggerConfig } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './plugins/error-handler.js';
 import { healthRoutes } from './routes/health.routes.js';
+import authRoutes from './routes/auth.routes.js';
+import { config } from './config/env.js';
 
 /**
  * Builds and configures the core Fastify application instance.
@@ -43,12 +46,20 @@ export function buildApp(opts = {}) {
     }
   });
 
+  // Global Cookie Support
+  app.register(fastifyCookie, {
+    secret: config.SESSION_COOKIE_SECRET || undefined,
+  });
+
   // Global Error and Not Found Handlers
   app.setErrorHandler(errorHandler);
   app.setNotFoundHandler(notFoundHandler);
 
   // Health and Liveness Routes (/livez, /healthz)
   app.register(healthRoutes);
+
+  // Authentication Routes (/auth/github, /auth/github/callback, /auth/me, /auth/logout)
+  app.register(authRoutes, opts.authService ? { authService: opts.authService } : {});
 
   // Root platform status verification endpoint
   app.get('/', async (_request, _reply) => {

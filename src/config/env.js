@@ -25,6 +25,13 @@ if (existsSync(envLocalPath)) {
  * @property {number} DATABASE_STATEMENT_TIMEOUT_MS
  * @property {string} ENCRYPTION_MASTER_KEY
  * @property {string} ENCRYPTION_KEY_VERSION
+ * @property {string} GITHUB_CLIENT_ID
+ * @property {string} GITHUB_CLIENT_SECRET
+ * @property {string} GITHUB_OAUTH_REDIRECT_URI
+ * @property {string} SESSION_COOKIE_NAME
+ * @property {string} SESSION_COOKIE_SECRET
+ * @property {number} SESSION_TTL_SECONDS
+ * @property {string} APP_URL
  */
 
 const envSchema = z
@@ -46,6 +53,13 @@ const envSchema = z
       .optional()
       .default(() => process.env.ENCRYPTION_KEY || ''),
     ENCRYPTION_KEY_VERSION: z.string().default('v1'),
+    GITHUB_CLIENT_ID: z.string().optional().default(''),
+    GITHUB_CLIENT_SECRET: z.string().optional().default(''),
+    GITHUB_OAUTH_REDIRECT_URI: z.string().default('http://localhost:3000/auth/github/callback'),
+    SESSION_COOKIE_NAME: z.string().default('career_hub_session'),
+    SESSION_COOKIE_SECRET: z.string().optional().default(''),
+    SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(604800),
+    APP_URL: z.string().default('http://localhost:3000'),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && !data.ENCRYPTION_MASTER_KEY) {

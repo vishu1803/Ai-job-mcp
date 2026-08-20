@@ -47,28 +47,30 @@ export class ValidationError extends AppError {
 }
 
 /**
- * 401 Unauthorized / Authentication Error (Placeholder for Phase 2).
+ * 401 Unauthorized / Authentication Error.
  */
 export class AuthenticationError extends AppError {
   /**
    * @param {string} [message='Authentication required']
-   * @param {any} [details=null]
+   * @param {string} [code='AUTHENTICATION_ERROR'] Machine-readable error code
+   * @param {any} [details=null] Structured error details
    */
-  constructor(message = 'Authentication required', details = null) {
-    super(message, 401, 'AUTHENTICATION_ERROR', details);
+  constructor(message = 'Authentication required', code = 'AUTHENTICATION_ERROR', details = null) {
+    super(message, 401, code, details);
   }
 }
 
 /**
- * 403 Forbidden / Authorization Error (Placeholder for Phase 2).
+ * 403 Forbidden / Authorization Error.
  */
 export class AuthorizationError extends AppError {
   /**
    * @param {string} [message='Access denied']
-   * @param {any} [details=null]
+   * @param {string} [code='AUTHORIZATION_ERROR'] Machine-readable error code
+   * @param {any} [details=null] Structured error details
    */
-  constructor(message = 'Access denied', details = null) {
-    super(message, 403, 'AUTHORIZATION_ERROR', details);
+  constructor(message = 'Access denied', code = 'AUTHORIZATION_ERROR', details = null) {
+    super(message, 403, code, details);
   }
 }
 

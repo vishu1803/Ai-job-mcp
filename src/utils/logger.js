@@ -74,6 +74,12 @@ export const SENSITIVE_KEYS = [
   'rawSecret',
   'raw_secret',
   'decryptedSecret',
+  'codeVerifier',
+  'code_verifier',
+  'codeChallenge',
+  'code_challenge',
+  'rawToken',
+  'raw_token',
 ];
 
 /**
