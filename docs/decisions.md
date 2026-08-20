@@ -248,7 +248,7 @@
 * **Date**: 2026-08-20
 * **Context**: Future resource connectors (GitHub, Google, third-party platforms) require persisting sensitive tokens (OAuth access/refresh tokens, API keys, webhook secrets). Storing credentials in plaintext is unacceptable. The application requires a centralized, robust, tamper-resistant, authenticated symmetric encryption foundation with key versioning and seamless rotation capabilities.
 * **Decision**: Standardize on **AES-256-GCM** authenticated encryption implemented in `src/security/encryption.js` utilizing Node.js native `node:crypto`.
-  * **Key Management**: 256-bit symmetric keys (`ENCRYPTION_MASTER_KEY` / `ENCRYPTION_KEY`) with explicit key-versioning support (`keyVersion: 'v1'`). Multi-version key rings allow concurrent key resolution during rotation.
+  * **Key Management**: 256-bit (32-byte) symmetric keys (`ENCRYPTION_MASTER_KEY` / `ENCRYPTION_KEY`) strictly encoded as 64-character hexadecimal or 44-character Base64. Raw UTF-8 human passphrases and built-in fallbacks are explicitly rejected. Explicit key-versioning support (`keyVersion: 'v1'`) and multi-version key rings allow concurrent key resolution during rotation.
   * **IV / Nonce**: Cryptographically secure random 96-bit (12-byte) IV generated per encryption operation (`crypto.randomBytes(12)`).
   * **Authentication Tag**: 128-bit (16-byte) GCM authentication tag for tamper detection.
   * **Additional Authenticated Data (AAD)**: Encodes format version and key version (`v1:<keyVersion>`) to cryptographically bind metadata to the ciphertext.

@@ -27,28 +27,51 @@ if (existsSync(envLocalPath)) {
  * @property {string} ENCRYPTION_KEY_VERSION
  */
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().int().positive().default(3000),
-  HOST: z.string().default('0.0.0.0'),
-  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
-  DATABASE_URL: z.string().default('postgres://postgres:postgres@localhost:5432/career_hub_dev'),
-  DATABASE_POOL_MIN: z.coerce.number().int().nonnegative().default(1),
-  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(5),
-  DATABASE_SSL: z
-    .enum(['true', 'false', 'require', 'disable'])
-    .default('false')
-    .transform((val) => val === 'true' || val === 'require'),
-  DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
-  ENCRYPTION_MASTER_KEY: z
-    .string()
-    .default(
-      () =>
-        process.env.ENCRYPTION_KEY ||
-        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
-    ),
-  ENCRYPTION_KEY_VERSION: z.string().default('v1'),
-});
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    PORT: z.coerce.number().int().positive().default(3000),
+    HOST: z.string().default('0.0.0.0'),
+    LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+    DATABASE_URL: z.string().default('postgres://postgres:postgres@localhost:5432/career_hub_dev'),
+    DATABASE_POOL_MIN: z.coerce.number().int().nonnegative().default(1),
+    DATABASE_POOL_MAX: z.coerce.number().int().positive().default(5),
+    DATABASE_SSL: z
+      .enum(['true', 'false', 'require', 'disable'])
+      .default('false')
+      .transform((val) => val === 'true' || val === 'require'),
+    DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+    ENCRYPTION_MASTER_KEY: z
+      .string()
+      .optional()
+      .default(() => process.env.ENCRYPTION_KEY || ''),
+    ENCRYPTION_KEY_VERSION: z.string().default('v1'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.NODE_ENV === 'production' && !data.ENCRYPTION_MASTER_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'ENCRYPTION_MASTER_KEY is mandatory in production environment',
+        path: ['ENCRYPTION_MASTER_KEY'],
+      });
+    }
+
+    if (data.ENCRYPTION_MASTER_KEY) {
+      const isHex = /^[0-9a-fA-F]{64}$/.test(data.ENCRYPTION_MASTER_KEY);
+      const isB64 =
+        /^[A-Za-z0-9+/_-]{43,44}={0,2}$/.test(data.ENCRYPTION_MASTER_KEY) &&
+        Buffer.from(data.ENCRYPTION_MASTER_KEY, 'base64').length === 32;
+
+      if (!isHex && !isB64) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'ENCRYPTION_MASTER_KEY must be a 32-byte key encoded as 64 hex characters or 44 base64 characters',
+          path: ['ENCRYPTION_MASTER_KEY'],
+        });
+      }
+    }
+  });
 
 const parsedEnv = envSchema.safeParse(process.env);
 

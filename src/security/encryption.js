@@ -47,7 +47,8 @@ export const EncryptedPayloadSchema = z.object({
 
 /**
  * Normalizes a raw encryption key into a 32-byte Buffer.
- * Supports 32-byte Buffers, 64-char Hex strings, 44-char Base64 strings, and 32-byte UTF-8 strings.
+ * Supports 32-byte Buffers, 64-char Hex strings, and 44-char Base64 strings.
+ * Note: Arbitrary UTF-8 strings/passphrases are explicitly rejected to prevent low-entropy key generation.
  *
  * @param {string | Buffer} keyInput Raw key input
  * @returns {Buffer} 32-byte cryptographic key Buffer
@@ -74,11 +75,6 @@ export function normalizeKey(keyInput) {
       return Buffer.from(keyInput, 'hex');
     }
 
-    // 32-byte UTF-8 string
-    if (Buffer.byteLength(keyInput, 'utf8') === KEY_LENGTH_BYTES) {
-      return Buffer.from(keyInput, 'utf8');
-    }
-
     // Base64 string representing 32 bytes
     if (/^[A-Za-z0-9+/_-]{43,44}={0,2}$/.test(keyInput)) {
       const b64Buf = Buffer.from(keyInput, 'base64');
@@ -88,7 +84,7 @@ export function normalizeKey(keyInput) {
     }
 
     throw new CryptoError(
-      `Master encryption key string must decode to exactly ${KEY_LENGTH_BYTES} bytes (e.g. 64 hex characters)`,
+      `Master encryption key string must be encoded as 64 hex characters or 44 base64 characters (representing ${KEY_LENGTH_BYTES} random bytes)`,
       'INVALID_KEY'
     );
   }
@@ -116,8 +112,14 @@ export function resolveKey(keyVersion, options = {}) {
   }
 
   const activeVersion = config.ENCRYPTION_KEY_VERSION || DEFAULT_KEY_VERSION;
-  if (keyVersion === activeVersion && config.ENCRYPTION_MASTER_KEY) {
-    return normalizeKey(config.ENCRYPTION_MASTER_KEY);
+  if (keyVersion === activeVersion) {
+    if (config.ENCRYPTION_MASTER_KEY) {
+      return normalizeKey(config.ENCRYPTION_MASTER_KEY);
+    }
+    throw new CryptoError(
+      'Master encryption key is not configured in environment. Set ENCRYPTION_MASTER_KEY.',
+      'MISSING_KEY'
+    );
   }
 
   throw new CryptoError(

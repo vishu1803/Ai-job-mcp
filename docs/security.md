@@ -90,7 +90,8 @@
 * Plaintext credentials (access tokens, refresh tokens, webhook secrets, API keys) are **NEVER** stored in plaintext in the database, caches, or logs.
 * **Cryptographic Foundation (`src/security/encryption.js`)**:
   * **Algorithm**: `AES-256-GCM` (Authenticated Encryption with Associated Data) via native `node:crypto`.
-  * **Master Key**: 256-bit (32-byte) symmetric key (`ENCRYPTION_MASTER_KEY` / `ENCRYPTION_KEY`) supplied via secure environment configuration.
+  * **Master Key Format**: 256-bit (32-byte) symmetric key (`ENCRYPTION_MASTER_KEY` / `ENCRYPTION_KEY`) strictly encoded as a 64-character hexadecimal string or 44-character Base64 string. Raw human passphrases/arbitrary UTF-8 strings are explicitly rejected to prevent weak key generation.
+  * **No Built-in Fallbacks**: No hardcoded or default encryption keys exist. In production (`NODE_ENV=production`), `ENCRYPTION_MASTER_KEY` is strictly required at startup. In development/testing, missing keys fail with `MISSING_KEY` errors rather than silently using insecure defaults.
   * **Key Versioning & Rotation**: Every encrypted package explicitly binds a `keyVersion` (e.g. `'v1'`). Key ring mappings enable multi-version decryption and seamless key rotation via `rotateSecret()`.
   * **Initialization Vector (IV)**: 12-byte (96-bit) cryptographically random IV generated via `crypto.randomBytes(12)` per encryption operation. Zero static/reused IVs.
   * **Authentication Tag**: 16-byte (128-bit) GCM authentication tag verifying ciphertext integrity. Any tampering with ciphertext, IV, tag, or header throws an immediate `AUTHENTICATION_FAILED` error.

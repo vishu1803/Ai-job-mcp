@@ -425,14 +425,54 @@ describe('AES-256-GCM Secret Encryption Foundation (P2-001)', () => {
       assert.strictEqual(normalized.length, 32);
     });
 
-    it('normalizeKey accepts 32-byte Buffer, 64-hex, 44-base64, and 32-char strings', () => {
+    it('throws MISSING_KEY when environment key is unconfigured and no explicit key is provided', () => {
+      // In test runner environment, config.ENCRYPTION_MASTER_KEY is empty by default
+      assert.throws(
+        () => resolveKey('v1'),
+        (err) => {
+          assert.ok(err instanceof CryptoError);
+          assert.strictEqual(err.code, 'MISSING_KEY');
+          return true;
+        }
+      );
+    });
+
+    it('normalizeKey accepts 32-byte Buffer, 64-hex, and 44-base64 strings', () => {
       const buf = crypto.randomBytes(32);
       assert.ok(normalizeKey(buf).equals(buf));
       assert.ok(normalizeKey(buf.toString('hex')).equals(buf));
       assert.ok(normalizeKey(buf.toString('base64')).equals(buf));
+    });
 
-      const raw32 = '12345678901234567890123456789012';
-      assert.strictEqual(normalizeKey(raw32).length, 32);
+    it('normalizeKey explicitly rejects raw UTF-8 human passphrases to prevent weak keys', () => {
+      const humanPassphrase = 'my_super_secret_password_32bytes!';
+      assert.throws(
+        () => normalizeKey(humanPassphrase),
+        (err) => {
+          assert.ok(err instanceof CryptoError);
+          assert.strictEqual(err.code, 'INVALID_KEY');
+          return true;
+        }
+      );
+    });
+
+    it('normalizeKey rejects invalid keys (wrong lengths, malformed encodings, null)', () => {
+      assert.throws(
+        () => normalizeKey('short_key'),
+        (err) => err instanceof CryptoError && err.code === 'INVALID_KEY'
+      );
+      assert.throws(
+        () => normalizeKey(null),
+        (err) => err instanceof CryptoError && err.code === 'INVALID_KEY'
+      );
+      assert.throws(
+        () => normalizeKey(Buffer.alloc(16)),
+        (err) => err instanceof CryptoError && err.code === 'INVALID_KEY'
+      );
+      assert.throws(
+        () => normalizeKey('0123456789abcdef0123456789abcdef0123456789abcdef0123456789zzzzzz'), // invalid hex
+        (err) => err instanceof CryptoError && err.code === 'INVALID_KEY'
+      );
     });
 
     it('serializeEncryptedPayload formats structured payload into valid compact string', () => {

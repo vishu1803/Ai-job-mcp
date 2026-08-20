@@ -427,6 +427,7 @@
 | 2026-08-20 | Antigravity AI | v0.8.0 | Completed Task P1-006 (Automated Test Runner & CI Workflow): Established GitHub Actions CI workflow (`.github/workflows/ci.yml`) validating formatting (Prettier), static analysis (ESLint 9), Drizzle ORM configuration/schema check, automated migration application from scratch on an ephemeral PostgreSQL 17 service container, unit testing, and live integration testing. Authored ADR-015 (CI Database Isolation Strategy). Completed Phase 1 (100% of Phase 1 tasks verified). |
 | 2026-08-20 | Antigravity AI | v0.8.1 | CI Action Version Upgrade: Updated GitHub Actions workflow (`.github/workflows/ci.yml`) to `actions/checkout@v5` and `actions/setup-node@v7` to address GitHub Actions Node 20 runner deprecation warnings, while preserving the application runtime at Node.js 22. Verified all 64 tests PASS across 9 suites. |
 | 2026-08-20 | Antigravity AI | v0.9.0 | Completed Task P2-001 (AES-256-GCM Secret Encryption Foundation): Implemented authenticated symmetric encryption at rest in `src/security/encryption.js` utilizing native `node:crypto` AES-256-GCM with 128-bit authentication tags, 96-bit random IVs, AAD version binding, key versioning for rotation, 64 KB payload caps, and Zod `EncryptedPayloadSchema`. Added `CryptoError` to centralized errors and expanded logger sensitive key redactions. Authored ADR-016. Verified 91/91 total tests PASS across 20 suites. |
+| 2026-08-20 | Antigravity AI | v0.9.1 | P2-001 Security Review Hardening: Removed built-in fallback master key from `src/config/env.js` and added strict production environment validation. Hardened `normalizeKey` in `src/security/encryption.js` to strictly enforce 64-hex or 44-base64 encoding (rejecting arbitrary low-entropy UTF-8 passphrases). Added tests verifying `MISSING_KEY` errors when unconfigured. Verified 94/94 total tests PASS across 20 suites. |
 
 ---
 
@@ -609,9 +610,9 @@
   * Verification Commands:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
-    * `npm run test:unit` -> PASS (75/75 unit tests passed across 7 suites)
+    * `npm run test:unit` -> PASS (78/78 unit tests passed across 7 suites)
     * `npm run test:integration` -> PASS (16/16 live integration tests passed across 3 suites)
-    * `npm test` -> PASS (91/91 total tests passed across 20 suites)
+    * `npm test` -> PASS (94/94 total tests passed across 20 suites)
     * `npm run db:check` -> PASS (Drizzle Kit schema and config verified)
 
 
