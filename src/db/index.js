@@ -45,14 +45,20 @@ export function parseSanitizedDbUrl(connectionString = config.DATABASE_URL) {
  * @returns {import('pg').PoolConfig} Configured pg Pool options
  */
 export function getPoolConfig(overrides = {}) {
+  const isCloudHost =
+    config.DATABASE_URL.includes('supabase.co') ||
+    config.DATABASE_URL.includes('supabase.com') ||
+    config.DATABASE_URL.includes('sslmode=require');
+  const useSsl = config.DATABASE_SSL || isCloudHost;
+
   return {
     connectionString: config.DATABASE_URL,
     min: config.DATABASE_POOL_MIN,
     max: config.DATABASE_POOL_MAX,
-    ssl: config.DATABASE_SSL ? { rejectUnauthorized: false } : false,
+    ssl: useSsl ? { rejectUnauthorized: false } : false,
     statement_timeout: config.DATABASE_STATEMENT_TIMEOUT_MS,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000,
     ...overrides,
   };
 }

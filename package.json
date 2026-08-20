@@ -14,8 +14,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "node --test tests/**/*.test.js",
+    "test:unit": "node --test tests/unit/**/*.test.js",
+    "test:integration": "node --test tests/integration/**/*.test.js",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node src/db/migrate.js",
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio"
   },

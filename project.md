@@ -90,7 +90,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **P1-001** | Initialize Node.js ESM project with `package.json`, ESLint, Prettier, and core dependencies (Fastify, Zod, dotenv, Pino) | P0-004 | **COMPLETE** | `npm run lint`, `npm run format:check`, `npm test`, lifecycle test PASS |
 | **P1-002** | Configure structured logging (Pino) with automatic secret masking / PII scrubbing | P1-001 | **COMPLETE** | `npm run lint`, `npm run format:check`, `npm test` (13/13 PASS), 10 focused security/redaction unit tests, lifecycle test PASS |
-| **P1-003** | Setup PostgreSQL database connection pool and migration tool (Drizzle ORM) | P1-001 | **COMPLETE** | `npm run lint`, `npm run format:check`, `npm test` (24/24 PASS), `npm run db:check` PASS, 11 DB unit tests PASS |
+| **P1-003** | Setup PostgreSQL database connection pool and migration tool (Drizzle ORM) | P1-001 | **COMPLETE** | Live Supabase PostgreSQL 17.6 + Drizzle verified, `npm test` (29/29 PASS across 4 suites), `npm run db:migrate` PASS, `npm run db:check` PASS |
 | **P1-004** | Create core database schema: `users`, `tenants`, `audit_logs`, `sessions` | P1-003 | NOT_STARTED | Automated schema migration and table validation |
 | **P1-005** | Implement standard API error handling, Zod request/response validation middleware, and health check endpoints (`/healthz`, `/livez`) | P1-001 | NOT_STARTED | HTTP integration tests returning 200 OK and structured 400/500 errors |
 | **P1-006** | Setup automated test runner (Vitest or Node Test Runner) and CI test workflow | P1-001 | NOT_STARTED | `npm test` executing mock test suite successfully |
@@ -418,6 +418,7 @@
 | 2026-08-20 | Antigravity AI | v0.4.0 | Completed Task P1-002 (Structured Logging & Redaction): Implemented centralized Pino logger module (`src/utils/logger.js`) with comprehensive sensitive token/PII redaction, safe request/response serializers, error serializer with cause tracking, and request ID correlation in Fastify (`src/app.js`). Verified 13/13 unit tests PASS and live lifecycle PASS. |
 | 2026-08-20 | Antigravity AI | v0.4.1 | Documentation Consistency: Formally locked database stack to PostgreSQL 16+ and Drizzle ORM across all specifications and ADR references, eliminating residual slash-notation ambiguity. |
 | 2026-08-20 | Antigravity AI | v0.5.0 | Completed Task P1-003 (PostgreSQL & Drizzle Foundation): Configured PostgreSQL connection pool (`pg`), Drizzle ORM client (`src/db/index.js`), `drizzle.config.js`, migration directory (`drizzle/`), database health check probe, and 11 unit tests. Verified 24/24 unit tests PASS and `drizzle-kit check` PASS. |
+| 2026-08-20 | Antigravity AI | v0.5.1 | End-to-End Live Supabase Verification (P1-003): Connected and fully verified PostgreSQL connection pool, Drizzle ORM queries, live transactions, and programmatic migration runner (`src/db/migrate.js`) against managed Supabase PostgreSQL 17.6 database. Authored dedicated live integration test suite (`tests/integration/db.test.js`) and confirmed 29/29 total tests PASS with zero exposed credentials. |
 
 ---
 
@@ -495,17 +496,25 @@ Tasks **P1-001**, **P1-002**, and **P1-003** are **100% COMPLETE & VERIFIED**. T
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm test` -> PASS (13/13 tests passed across 2 suites)
     * `node scratch/test-lifecycle.js` -> PASS (Structured logging on boot, request correlation, clean graceful shutdown)
-* **P1-003 (PostgreSQL & Drizzle ORM Foundation)**:
-  * Files Created / Updated: `src/db/index.js`, `src/db/schema.js`, `drizzle.config.js`, `drizzle/.gitkeep`, `src/config/env.js`, `src/utils/logger.js`, `package.json`, `tests/unit/db.test.js`.
+* **P1-003 (PostgreSQL & Drizzle ORM Foundation - Live Supabase Verified)**:
+  * Files Created / Updated: `src/db/index.js`, `src/db/migrate.js`, `src/db/schema.js`, `drizzle.config.js`, `drizzle/.gitkeep`, `src/config/env.js`, `src/utils/logger.js`, `package.json`, `tests/unit/db.test.js`, `tests/integration/db.test.js`.
   * Dependencies Added: `pg` (v8.23.0), `drizzle-orm` (v0.45.2), `drizzle-kit` (v0.31.10), `@types/pg` (v8.23.1).
-  * npm Scripts Added: `db:generate`, `db:migrate`, `db:check`, `db:studio`.
-  * Database Architecture: Centralized `pg.Pool` connection pool with SSL/statement timeout handling, `parseSanitizedDbUrl` metadata extractor, Drizzle ORM initialization, `checkDatabaseHealth` probe (`SELECT 1`), and `closeDatabase` lifecycle drain.
-  * Live Verification Status: Host PostgreSQL listening on port 5432 verified; default placeholder authentication rejected as expected; health check probe verified graceful error handling and zero credential leakage.
+  * npm Scripts Added: `db:generate`, `db:migrate`, `db:check`, `db:studio`, `test:unit`, `test:integration`.
+  * Database Architecture: Centralized `pg.Pool` connection pool with auto-SSL/TLS resolution for cloud hosts, statement timeout handling (10s), `parseSanitizedDbUrl` metadata extractor, Drizzle ORM initialization, `checkDatabaseHealth` probe (`SELECT 1`), and `closeDatabase` lifecycle drain.
+  * Live Supabase Database Verification (100% VERIFIED):
+    * Reached managed PostgreSQL database on host `db.dsglltpfahfeadedvimu.supabase.co` on port `5432`.
+    * Engine verified: **PostgreSQL 17.6** on x86_64-pc-linux-gnu.
+    * Database probe: `SELECT 1 AS alive` executed and verified through both `pg.Pool` and Drizzle ORM.
+    * Real Transaction & Migration: Verified transactional DDL (`CREATE TABLE`), DML (`INSERT`/`SELECT`), and cleanup (`DROP TABLE`) with 0 residual tables left.
+    * Programmatic Migrations: `runMigrations()` (`npm run db:migrate`) connected, verified, and exited cleanly.
   * Verification Commands:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
-    * `npm test` -> PASS (24/24 tests passed across 3 suites)
+    * `npm run test:unit` -> PASS (24/24 unit tests passed across 3 suites)
+    * `npm run test:integration` -> PASS (5/5 live integration tests passed against Supabase)
+    * `npm test` -> PASS (29/29 total tests passed across 4 suites)
     * `npm run db:check` -> PASS (Drizzle Kit config loaded and verified)
+
 
 
 

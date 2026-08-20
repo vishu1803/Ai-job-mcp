@@ -58,7 +58,7 @@ describe('PostgreSQL & Drizzle Foundation (P1-003)', () => {
     assert.equal(poolConfig.max, config.DATABASE_POOL_MAX);
     assert.equal(poolConfig.statement_timeout, config.DATABASE_STATEMENT_TIMEOUT_MS);
     assert.equal(poolConfig.idleTimeoutMillis, 30000);
-    assert.equal(poolConfig.connectionTimeoutMillis, 5000);
+    assert.equal(poolConfig.connectionTimeoutMillis, 10000);
 
     const overridden = getPoolConfig({ max: 25, statement_timeout: 5000 });
     assert.equal(overridden.max, 25);
