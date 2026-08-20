@@ -419,7 +419,8 @@
 | 2026-08-20 | Antigravity AI | v0.4.1 | Documentation Consistency: Formally locked database stack to PostgreSQL 16+ and Drizzle ORM across all specifications and ADR references, eliminating residual slash-notation ambiguity. |
 | 2026-08-20 | Antigravity AI | v0.5.0 | Completed Task P1-003 (PostgreSQL & Drizzle Foundation): Configured PostgreSQL connection pool (`pg`), Drizzle ORM client (`src/db/index.js`), `drizzle.config.js`, migration directory (`drizzle/`), database health check probe, and 11 unit tests. Verified 24/24 unit tests PASS and `drizzle-kit check` PASS. |
 | 2026-08-20 | Antigravity AI | v0.5.1 | End-to-End Live Supabase Verification (P1-003): Connected and fully verified PostgreSQL connection pool, Drizzle ORM queries, live transactions, and programmatic migration runner (`src/db/migrate.js`) against managed Supabase PostgreSQL 17.6 database. Authored dedicated live integration test suite (`tests/integration/db.test.js`) and confirmed 29/29 total tests PASS with zero exposed credentials. |
-| 2026-08-20 | Antigravity AI | v0.5.2 | Core Database Schema Review (P1-004A): Completed comprehensive architectural review and formal approval (APPROVED WITH NOTES) for core identity and multi-tenancy entities (`tenants`, `users`, `sessions`, `audit_logs`) in `docs/schema-review.md`. Established relational constraints, hashed session storage, audit retention rules, and multi-tenant isolation matrix prior to P1-004 implementation. |
+| 2026-08-20 | Antigravity AI | v0.5.2 | Core Database Schema Review (P1-004A): Completed comprehensive architectural review for core identity and multi-tenancy entities (`tenants`, `users`, `sessions`, `audit_logs`) in `docs/schema-review.md`. |
+| 2026-08-20 | Antigravity AI | v0.5.3 | Core Schema Review Clarification (P1-004A): Resolved all 4 review notes in `docs/schema-review.md`. Established dedicated audit sanitization boundary (independent from logger), clarified PostgreSQL session expiration query-level checks and indexed cleanup, eliminated redundant indexes (`idx_tenants_slug`, `idx_users_status`, `idx_sessions_tenant_user`), documented Open Policy Decision on tenant hard-deletion audit retention with MVP `CASCADE` rule, and upgraded gate status to **APPROVED**. |
 
 ---
 
@@ -456,7 +457,7 @@
 
 ## 12. Next Recommended Implementation Tasks
 
-Tasks **P1-001**, **P1-002**, and **P1-003** are **100% COMPLETE & VERIFIED**. Task **P1-004A** (Schema Design Review) is **APPROVED WITH NOTES**. The project is ready for **Task P1-004**.
+Tasks **P1-001**, **P1-002**, and **P1-003** are **100% COMPLETE & VERIFIED**. Task **P1-004A** (Schema Design Review) is **APPROVED**. The project is ready for **Task P1-004**.
 
 1. **[P1-004]**: Create core database schema: `users`, `tenants`, `audit_logs`, `sessions`.
 2. **[P1-005]**: Implement standard API error handling, Zod validation middleware, and health check endpoints (`/healthz`, `/livez`).
@@ -516,15 +517,15 @@ Tasks **P1-001**, **P1-002**, and **P1-003** are **100% COMPLETE & VERIFIED**. T
     * `npm test` -> PASS (29/29 total tests passed across 4 suites)
     * `npm run db:check` -> PASS (Drizzle Kit config loaded and verified)
 * **P1-004A (Core Database Schema Architectural Review & Approval Gate)**:
-  * Artifact Created: `docs/schema-review.md`.
+  * Artifact Created / Updated: `docs/schema-review.md`.
   * Entities Evaluated: `tenants`, `users`, `sessions`, `audit_logs`.
-  * Key Architecture Decisions Approved:
-    * Strict tenant isolation anchored to `tenants.id` root boundary.
-    * Composite uniqueness constraint on `(tenant_id, email)` for multi-organization tenancy.
-    * Cryptographic hashed session identifier storage (SHA-256) preventing token theft at rest.
-    * Immutable audit trail with `ON DELETE SET NULL` on `audit_logs.user_id` and mandatory metadata scrubbing.
-    * Index optimization for tenant scoping, expired session cleanup (24h TTL), and chronological audit inspection.
-  * Approval Status: **APPROVED WITH NOTES** (100% ready for P1-004 implementation).
+  * Resolved Review Issues:
+    1. **Dedicated Audit Sanitization**: Separated audit persistence rules from Pino logger; defined prohibited/permitted field allowlists and 16 KB payload limit.
+    2. **PostgreSQL Session Expiration**: Documented query-level active check (`WHERE expires_at > NOW()`) and indexed background cleanup sweeps.
+    3. **Index Optimization**: Removed redundant indexes (`idx_tenants_slug`, `idx_users_status`, `idx_sessions_tenant_user`); verified all remaining indexes map to concrete query patterns.
+    4. **Audit Retention vs Tenant Deletion**: Classified as `OPEN POLICY DECISION (Tenant Hard Deletion Audit Retention Policy)`. Documented MVP decision (`CASCADE` on tenant hard delete, `SET NULL` on user delete) and post-cancellation archival path.
+  * Approval Status: **APPROVED** (100% ready for P1-004 implementation).
+
 
 
 
