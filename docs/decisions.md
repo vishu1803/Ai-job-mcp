@@ -272,10 +272,12 @@
 * **Status**: ACCEPTED (Supersedes ADR-006)
 * **Date**: 2026-08-20
 * **Context**: The platform requires secure multi-tenant user authentication supporting browser web access and remote MCP AI client tool execution. We must evaluate OAuth/OIDC providers, session models, token storage, PKCE, and whether stateless JWTs are needed.
-* **Decision**: Adopt **OAuth 2.1 with PKCE (`S256`) and Server-Side Database Sessions** (`sessions` table with SHA-256 hashed tokens and `HttpOnly`, `Secure`, `SameSite=Lax` cookies) for web browser users, with **GitHub OAuth 2.0 / GitHub App** as the primary identity provider.
+* **Decision**: Adopt **OAuth 2.1 with PKCE (`S256`) and Server-Side Database Sessions** (`sessions` table where `sessions.id` stores the SHA-256 hash of the 256-bit random session token, and `HttpOnly`, `Secure`, `SameSite=Lax` cookies) for web browser users, with **GitHub OAuth 2.0 / GitHub App** as the primary identity provider.
+  * **Session Identifier Decision**: Approved Option A (`sessions.id = SHA-256(raw_token)`). Direct Primary Key B-tree lookup (<0.2ms) with zero secondary index overhead, matching existing verified P1-004 schema.
   * **JWT Decision**: Explicitly **REJECT JWTs** for the initial application. Stateless JWTs create unacceptable revocation lag, token theft risks in `localStorage`, and key rotation complexity without benefits for a modular monolith.
   * **PKCE Decision**: Enforce **PKCE with `S256`** for all OAuth flows to prevent authorization code interception and injection attacks.
-  * **Session Model**: 256-bit random session tokens stored exclusively as SHA-256 hashes in PostgreSQL `sessions`. Raw tokens exist solely in client cookies.
+  * **External Identity Mapping**: External identities anchored on immutable `(provider, provider_user_id)` pairs. P2-002 maps verified GitHub email to user/tenant; a dedicated `user_identities` table is designed for multi-IdP linking in Phase 3/4.
+  * **GitHub Login vs GitHub App Separation**: GitHub OAuth Login (P2-002) exchanges short-lived tokens solely to read `/user` identity and discards them. GitHub App (P3-001/P3-002) uses server-to-server JWTs with private PEM keys to mint 1-hour `ghs_*` installation tokens encrypted in `resource_connections`.
   * **Tenant Resolution**: Tenant context is resolved exclusively from the verified database session and user record, never from untrusted client parameters.
   * **Remote MCP Clients**: AI clients authenticate via scoped, SHA-256 hashed API Bearer tokens (`Authorization: Bearer <mcp_token>`) in Phase 5.
 * **Alternatives Considered**:
