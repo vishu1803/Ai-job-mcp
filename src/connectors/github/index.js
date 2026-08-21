@@ -6,6 +6,8 @@ export { normalizeAppPrivateKey, generateAppJwt, GitHubAppAuthManager } from './
 
 export { GitHubTokenCache, buildTokenCacheKey } from './token-cache.js';
 
+export { GitHubAppConnector } from './github-connector.js';
+
 export {
   GitHubAuthError,
   GitHubInstallationNotFoundError,

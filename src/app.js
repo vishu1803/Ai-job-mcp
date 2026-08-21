@@ -9,6 +9,9 @@ import connectionsRoutes from './routes/connections.routes.js';
 import integrationsRoutes from './routes/integrations.routes.js';
 import webhooksRoutes from './routes/webhooks.routes.js';
 import { config } from './config/env.js';
+import { connectorRegistry } from './connectors/registry/connector-registry.js';
+import { GitHubAppConnector } from './connectors/github/github-connector.js';
+import { GitHubAppAuthManager } from './connectors/github/auth.js';
 
 /**
  * Builds and configures the core Fastify application instance.
@@ -57,6 +60,21 @@ export function buildApp(opts = {}) {
   // Global Error and Not Found Handlers
   app.setErrorHandler(errorHandler);
   app.setNotFoundHandler(notFoundHandler);
+
+  // Register GitHubAppConnector in default connectorRegistry if configured and not already registered
+  if (
+    config.GITHUB_APP_ID &&
+    (config.GITHUB_APP_PRIVATE_KEY || config.GITHUB_APP_PRIVATE_KEY_BASE64) &&
+    !connectorRegistry.has('GITHUB_APP')
+  ) {
+    const authManager = new GitHubAppAuthManager({
+      appId: config.GITHUB_APP_ID,
+      privateKey: config.GITHUB_APP_PRIVATE_KEY,
+      privateKeyBase64: config.GITHUB_APP_PRIVATE_KEY_BASE64,
+      tokenCache: opts.tokenCache,
+    });
+    connectorRegistry.register('GITHUB_APP', new GitHubAppConnector({ authManager }));
+  }
 
   // Health and Liveness Routes (/livez, /healthz)
   app.register(healthRoutes);
