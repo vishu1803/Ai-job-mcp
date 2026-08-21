@@ -15,10 +15,11 @@ Traditional AI resume builders and career assistants frequently hallucinate capa
 
 | Indicator | Status | Details |
 | :--- | :--- | :--- |
-| **Current Phase** | **Pre-Coding Preparation / Ready for Phase 1** | Architectural specifications, ADRs, security threat model, and data models complete. |
-| **Active Milestone** | **M0: Foundation & Specification** | 100% Verified in `project.md` |
-| **Next Milestone** | **M1: Multi-User Platform Foundation** | Phase 1 (Node.js ESM, Fastify, PostgreSQL schemas) |
-| **Overall Progress** | **5.0% (4 / 80 Tasks)** | Strict task completion accounting (zero inflation) |
+| **Current Phase** | **PHASE 2 — Authentication & User Resource Connections** | AES-256-GCM encryption, OAuth 2.1 PKCE, resource schema, connector framework, and connection lifecycle API verified. |
+| **Active Tasks** | **Task P2-005 Complete** | Ready for Task P2-006 (Tenant Isolation Middleware) |
+| **Completed Tasks** | **15 / 80 Tasks (18.75%)** | Phase 0 (100%), Phase 1 (100%), Phase 2 (83.3%) |
+| **Automated Tests** | **215 / 215 PASS (100%)** | 157 unit tests, 58 live integration tests across 58 suites |
+| **Database** | **PostgreSQL (Aiven Free / Ephemeral CI)** | Managed with Drizzle ORM migrations |
 
 ---
 
@@ -32,82 +33,88 @@ Traditional AI resume builders and career assistants frequently hallucinate capa
 
 ---
 
-## 4. MVP Golden Path
-
-The MVP validates the complete end-to-end path:
-1. **User Authentication**: Secure user registration and session management.
-2. **GitHub App Connection**: Candidate grants scoped read-only access to selected repositories.
-3. **Evidence Ingestion**: Extraction of package dependencies, AST usage, and commit history into atomic `EvidenceItem` records.
-4. **Unified Candidate Model**: Automated creation of an evidence-backed candidate skill graph.
-5. **Job Description Analysis**: Parsing target job descriptions into normalized requirement taxonomies.
-6. **Gap Analysis & Fit Scoring**: Deterministic matching of candidate evidence against job requirements.
-7. **Remote MCP Server**: Stateless JSON-RPC 2.0 gateway running over Streamable HTTP.
-8. **Gemini MCP Client**: Google Gemini connects to the remote MCP server and explains job fit with ground-truth citations.
-
----
-
-## 5. Repository Structure
+## 4. System Architecture & Modules
 
 ```
 Ai-career-agent/
-├── AGENTS.md                  # Mandatory operating rules and invariants for AI agents
-├── goal.md                    # Strategic source of truth, constitution, and long-term vision
-├── project.md                 # Living execution ledger, master task table, and progress tracker
-├── README.md                  # Project overview, architecture summary, and onboarding
-├── .env.example               # Safe environment variable configuration template
-├── .gitignore                 # Git ignore rules protecting secrets and artifacts
-├── docs/                      # Architectural and technical specifications
-│   ├── architecture.md        # System architecture, component boundaries, and request flows
-│   ├── decisions.md           # Architecture Decision Records (ADR-001 through ADR-014)
-│   ├── security.md            # Security specification, threat model, and cryptographic rules
-│   ├── data-model.md          # Unified Candidate Data Model and evidence provenance schema
-│   ├── integrations.md        # Third-party integration specs (GitHub, Gemini, Claude, ChatGPT)
-│   └── golden-path.md         # MVP end-to-end user journey and verification protocol
-└── .github/
-    └── instructions/          # Path-specific development guidelines for AI agents
-        ├── javascript.instructions.md
-        ├── backend.instructions.md
-        ├── database.instructions.md
-        ├── security.instructions.md
-        └── testing.instructions.md
+├── src/
+│   ├── app.js                         # Fastify application setup with plugins & hooks
+│   ├── index.js                       # HTTP server entrypoint
+│   ├── config/env.js                  # Strongly-typed environment configuration (Zod)
+│   ├── connectors/                    # Provider-neutral resource connector framework (P2-004)
+│   │   ├── base/                      # BaseResourceConnector, capabilities, context, models
+│   │   ├── errors/                    # Connector error hierarchy with retryability semantics
+│   │   ├── registry/                  # Centralized ConnectorRegistry singleton
+│   │   └── testing/                   # Deterministic MockResourceConnector
+│   ├── db/                            # PostgreSQL connection pool & Drizzle ORM
+│   │   ├── schema.js                  # Tenants, users, sessions, audit_logs, resource_connections
+│   │   ├── migrate.js                 # Programmatic schema migration runner
+│   │   └── repositories/              # Tenant-isolated data access layer (P2-005)
+│   ├── middleware/                    # Auth, authorization, CSRF, and Zod validation hooks
+│   ├── routes/                        # REST endpoints
+│   │   ├── auth.routes.js             # OAuth 2.1 PKCE login, session validation, /dashboard
+│   │   ├── connections.routes.js      # Resource connection lifecycle API (P2-005)
+│   │   ├── connections.schemas.js     # Zod request/response contracts
+│   │   └── health.routes.js           # Liveness (/livez) and database health (/healthz)
+│   ├── security/                      # Cryptographic core
+│   │   ├── encryption.js              # AES-256-GCM authenticated encryption at rest (P2-001)
+│   │   ├── auth.service.js            # User provisioning & tenant assignment
+│   │   ├── session.service.js         # Cryptographically random SHA-256 session management
+│   │   └── oauth-state.js             # Encrypted transit cookies & PKCE verification
+│   └── utils/                         # Security redaction logger & audit data sanitizer
+└── tests/
+    ├── unit/                          # Fast isolated unit tests (157 tests)
+    └── integration/                   # Live PostgreSQL & HTTP integration tests (58 tests)
 ```
 
 ---
 
-## 6. Project Control Documents
+## 5. Resource Connection Lifecycle API (`/connections`)
 
-This repository is governed by three authoritative control documents:
-1. [AGENTS.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/AGENTS.md) — Mandatory operating protocols, security invariants, and task lifecycle rules.
-2. [goal.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/goal.md) — Strategic constitution, problem definition, and architectural principles.
-3. [project.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/project.md) — Living execution ledger tracking all 80 tasks across Phases 0–15.
+Implemented in **Task P2-005**:
 
-Detailed technical specifications:
-* [docs/architecture.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/docs/architecture.md)
-* [docs/decisions.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/docs/decisions.md)
-* [docs/security.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/docs/security.md)
-* [docs/data-model.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/docs/data-model.md)
-* [docs/integrations.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/docs/integrations.md)
-* [docs/golden-path.md](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/docs/golden-path.md)
+| Method | Path | Summary | Access Role |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/connections` | List connection summaries with pagination and filters | `OWNER`, `MEMBER`, `READONLY` |
+| `GET` | `/connections/:id` | Get detailed connection metadata (strictly zero credentials) | `OWNER`, `MEMBER`, `READONLY` |
+| `POST` | `/connections/:id/test` | Validate upstream authorization health against external provider | `OWNER`, Connection Creator |
+| `POST` | `/connections/:id/disconnect` | Deactivate connection, purge credentials, best-effort revoke | `OWNER`, Connection Creator |
+| `DELETE` | `/connections/:id` | Permanently delete connection record (cascades to child items) | `OWNER`, Connection Creator |
 
 ---
 
-## 7. Security & Compliance Warning
+## 6. Verification & Quality Gates
+
+Run the comprehensive test and verification pipeline:
+
+```bash
+# Run all unit tests
+npm run test:unit
+
+# Run live PostgreSQL integration tests
+npm run test:integration
+
+# Run entire test suite (unit + integration)
+npm test
+
+# Static analysis & linting
+npm run lint
+
+# Prettier format verification
+npm run format:check
+
+# Drizzle ORM schema validation
+npm run db:check
+```
+
+---
+
+## 7. Security & Compliance Rules
 
 > [!WARNING]
 > **CRITICAL SECURITY RULES**:
 > 1. NEVER commit `.env` files or hardcode credentials in code.
-> 2. All third-party secrets must be encrypted using AES-256-GCM.
+> 2. All third-party secrets must be encrypted using AES-256-GCM (`encryptSecret`).
 > 3. Consequential external operations MUST go through the two-phase approval gate.
-> 4. All database queries must enforce tenant isolation (`tenant_id`).
-
----
-
-## 8. Development & Setup (Implementation Pending)
-
-### Prerequisites
-* **Node.js**: v20.0.0+ LTS (Tested on v24.13.0)
-* **npm**: v10.0.0+ (Tested on v11.6.2)
-* **Docker**: Docker Engine (v24+) for local PostgreSQL
-* **Git**: v2.40+
-
-*Note: Source code implementation begins in Phase 1 (`P1-001`).*
+> 4. All database queries must enforce tenant isolation (`WHERE tenant_id = req.tenant.id`).
+> 5. Credentials must never appear in HTTP responses, logs, or audit records.

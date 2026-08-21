@@ -5,6 +5,7 @@ import { getLoggerConfig } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './plugins/error-handler.js';
 import { healthRoutes } from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import connectionsRoutes from './routes/connections.routes.js';
 import { config } from './config/env.js';
 
 /**
@@ -60,6 +61,12 @@ export function buildApp(opts = {}) {
 
   // Authentication Routes (/auth/github, /auth/github/callback, /auth/me, /auth/logout)
   app.register(authRoutes, opts.authService ? { authService: opts.authService } : {});
+
+  // Resource Connection Lifecycle Routes (/connections)
+  app.register(connectionsRoutes, {
+    prefix: '/connections',
+    connectionService: opts.connectionService,
+  });
 
   // Root platform status verification endpoint
   app.get('/', async (_request, _reply) => {
