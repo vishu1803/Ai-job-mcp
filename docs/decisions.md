@@ -490,3 +490,28 @@
 * **Consequences**:
   * Task P3-005 will implement deep inspection methods in `src/connectors/github/github-connector.js` following this specification.
 * **Revisit Conditions**: When multi-file tarball streaming or semantic code embedding pipelines are introduced in Phase 5.
+
+---
+
+### ADR-026: GitHub Connector Caching & Rate-Limit Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 3 (Task P3-006), the platform requires an intelligent caching and rate-limit tracking layer for `GitHubAppConnector` to prevent exhausting GitHub's 5,000 req/hr installation quota during deep candidate repository scans and AI agent exploratory crawls. We must establish clear rules regarding what data can be cached, tenant partition isolation, conditional HTTP `ETag` / `If-None-Match` revalidation, memory bounds, TTL policies, and webhook-driven invalidation.
+* **Decision**: Implement `GitHubConnectorCache` and `GitHubRateLimiter` governed by the following core architectural decisions:
+  * **Strictly Normalized Domain Caching**: Only sanitized/normalized domain models (`NormalizedAccount`, `NormalizedResource`, `NormalizedLanguageBreakdown`, `NormalizedDirectoryTree`, `NormalizedReadme`, `NormalizedCommit`, `NormalizedFileContent`) and upstream `ETag` strings are stored in cache. Tokens, App JWTs, private keys, author emails, and unnormalized raw responses are strictly prohibited.
+  * **Multi-Tenant Partition Isolation**: Cache keys are deterministically namespaced with `tenantId` and `installationId` (`gh_cache:<tenantId>:<installationId>:<operation>:<resourceId>:<paramsHash>`). Cross-tenant cache hits or lookups are impossible.
+  * **HTTP `ETag` & 304 Conditional GET**: For stale cache entries possessing an upstream `ETag`, requests forward `If-None-Match: <etag>`. Upon receiving `304 Not Modified`, the cached payload is returned immediately with refreshed TTL and zero rate-limit quota consumption.
+  * **Tiered TTL Policy**:
+    * Account / Commits: 5 minutes.
+    * Resource catalog / Trees / README / File contents: 15 minutes (or 24 hours if pinned to Git commit/tree SHA).
+    * Languages: 30 minutes.
+  * **Strict Memory Ceilings & LRU Eviction**: In-memory LRU cache capped at a global maximum of 2,000 entries (~50 MB ceiling) and 500 entries per tenant. Payloads exceeding 1 MB are never cached.
+  * **Webhook-Driven Purging**: Webhook events (`push`, `installation_repositories.removed`, `installation.deleted`, `installation.suspend`) trigger immediate targeted cache eviction in `GitHubWebhookService`.
+  * **In-Memory Rate Limit Tracking**: Tracks remaining quota (`x-ratelimit-remaining`) and reset epoch per installation. Emits `logger.warn` when remaining <= 50 and enforces proactive throttling when <= 5.
+* **Alternatives Considered**:
+  * *Using Redis for connector caching*: Rejected for Phase 3 to avoid external infrastructure dependencies before distributed multi-node deployment. In-memory LRU provides microsecond latency with strict memory bounds.
+  * *Unconditional caching without `ETag` revalidation*: Rejected because code updates pushed to GitHub would remain stale until TTL expiry without guarantee of freshness.
+* **Reasons**: Dramatically reduces GitHub API rate-limit quota consumption, accelerates repository inspection latency by >90% on repeated queries, and enforces bulletproof tenant isolation.
+* **Consequences**:
+  * Task P3-006 will implement `GitHubConnectorCache` and `GitHubRateLimiter` in `src/connectors/github/` and integrate them into `GitHubAppConnector`.
+* **Revisit Conditions**: When distributed multi-instance clustering or Redis-backed global caching is introduced in Phase 14.
