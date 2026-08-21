@@ -15,10 +15,10 @@ Traditional AI resume builders and career assistants frequently hallucinate capa
 
 | Indicator | Status | Details |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 2 — Authentication & User Resource Connections (COMPLETE)** | AES-256-GCM encryption, OAuth 2.1 PKCE, resource schema, connector framework, connection lifecycle API, and global tenant isolation verified. |
-| **Active Milestone** | **Phase 2 Complete / Ready for Phase 3** | Ready for Phase 3 (GitHub App Integration - Task P3-001) |
-| **Completed Tasks** | **16 / 80 Tasks (20.00%)** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%) |
-| **Automated Tests** | **244 / 244 PASS (100%)** | 177 unit tests, 67 live integration tests across 68 suites |
+| **Current Phase** | **PHASE 3 — GitHub App Integration** | GitHub App authentication module (App JWT, installation access tokens, partitioned in-memory token cache, anti-stampede coalescing) verified. |
+| **Active Milestone** | **Task P3-001 Complete** | Ready for Task P3-002 (GitHub App Installation Callback & Linking Flow) |
+| **Completed Tasks** | **17 / 80 Tasks (21.25%)** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (16.7%) |
+| **Automated Tests** | **265 / 265 PASS (100%)** | 198 unit tests, 67 live integration tests across 77 suites |
 | **Database** | **PostgreSQL (Aiven Free / Ephemeral CI)** | Managed with Drizzle ORM migrations |
 
 ---

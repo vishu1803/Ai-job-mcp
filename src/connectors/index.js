@@ -18,3 +18,4 @@ export * from './base/models.js';
 export * from './errors/index.js';
 export * from './registry/connector-registry.js';
 export * from './testing/mock-connector.js';
+export * from './github/index.js';
