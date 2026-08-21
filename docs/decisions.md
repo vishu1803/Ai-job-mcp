@@ -467,3 +467,26 @@
 * **Consequences**:
   * Task P3-004 will implement `GitHubAppConnector` in `src/connectors/github/github-connector.js` following this specification.
 * **Revisit Conditions**: When deep repository tree traversal and multi-file batch downloading (P3-005) or GraphQL-based batch inspection is introduced.
+
+---
+
+### ADR-025: GitHub Deep Repository Inspection Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 3 (Task P3-005), the platform requires deep repository inspection capabilities—`getReadme`, `getRepositoryTree`, `getLanguages`, `getRecentCommits`, and `getFileContent`—to support Phase 4 skills extraction and project provenance tracking. We must design strict resource bounds, security protections, and data minimization invariants to prevent OOM crashes, path traversal vulnerabilities, binary ingestion errors, circular symlink loops, and secret/PII leakage.
+* **Decision**: Implement deep repository inspection operations adhering to the following core architectural invariants:
+  * **Strict File Size Limits**: Enforce a hard ceiling of 1 MB on single file content reading (`getFileContent`) and 256 KB on decoded README markdown (`getReadme`). Files exceeding these bounds are rejected or truncated with explicit metadata flags.
+  * **Directory Tree Bounds**: Capped at a maximum depth of 10 nested directory levels and 1,000 total entries per crawl. Gracefully handles GitHub `truncated: true` payloads without crashing.
+  * **Binary & Media Filtering**: Automatically filters out compiled binaries, executables, archives, and media files via extension blocklists and null-byte detection (first 512 bytes).
+  * **Symlink Exclusion & POSIX Path Normalization**: Rejects Git symlink entries (`mode === '120000'`). Normalizes all file paths via `path.posix.normalize()`, strictly rejecting path traversal (`..`), leading slashes, null bytes (`%00`), and Windows backslashes with `400 ValidationError`.
+  * **Commit History & PII Scrubbing**: Returns a maximum of 100 recent commits (default 30), prunes commit messages to 500 characters, and excludes raw author email addresses from domain payloads.
+  * **Ephemeral Processing Policy**: Repositories are processed ephemerally in-memory for skills/evidence token extraction; full repository file trees and raw code clones are never stored permanently in PostgreSQL.
+  * **Capability Expansion**: Declares `CONNECTOR_CAPABILITIES.READ_CONTENT` in `GitHubAppConnector`.
+* **Alternatives Considered**:
+  * *Storing full repository file trees in PostgreSQL*: Rejected to avoid database storage bloat and unnecessary data retention liability.
+  * *Permitting unrestricted file sizes for code analysis*: Rejected to eliminate OOM vectors and event-loop blocking during AI candidate profiling.
+  * *Following symlinks*: Rejected to eliminate path traversal vulnerabilities and circular loop deadlocks.
+* **Reasons**: Guarantees system resilience against massive or hostile repositories, protects user privacy, enforces least-privilege data access, and prepares the platform for Phase 4 evidence extraction.
+* **Consequences**:
+  * Task P3-005 will implement deep inspection methods in `src/connectors/github/github-connector.js` following this specification.
+* **Revisit Conditions**: When multi-file tarball streaming or semantic code embedding pipelines are introduced in Phase 5.
