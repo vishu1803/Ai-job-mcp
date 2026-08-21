@@ -74,6 +74,7 @@ export function buildApp(opts = {}) {
   app.register(integrationsRoutes, {
     prefix: '/integrations',
     installationService: opts.installationService,
+    tokenCache: opts.tokenCache,
     db: opts.db,
   });
 

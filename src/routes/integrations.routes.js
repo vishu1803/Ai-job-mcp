@@ -10,7 +10,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import { validateRequest } from '../middleware/validate.js';
 import { githubInstallCallbackQuerySchema } from './integrations.schemas.js';
 import { GitHubInstallationService } from '../services/github-installation.service.js';
-import { AuthorizationError } from '../errors/index.js';
+import { AuthorizationError, ValidationError } from '../errors/index.js';
 import { config } from '../config/env.js';
 import { writeAuditRecord } from '../db/repositories/connection.repository.js';
 import { db as defaultDb } from '../db/index.js';
@@ -21,10 +21,16 @@ import { db as defaultDb } from '../db/index.js';
  * @param {import('fastify').FastifyInstance} fastify
  * @param {object} [opts]
  * @param {GitHubInstallationService} [opts.installationService]
+ * @param {import('../connectors/github/token-cache.js').GitHubTokenCache} [opts.tokenCache]
+ * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [opts.db]
  */
 export default async function integrationsRoutes(fastify, opts = {}) {
   const service =
-    opts.installationService || new GitHubInstallationService({ db: opts.db || defaultDb });
+    opts.installationService ||
+    new GitHubInstallationService({
+      db: opts.db || defaultDb,
+      tokenCache: opts.tokenCache,
+    });
   const db = opts.db || defaultDb;
 
   /**
@@ -85,7 +91,7 @@ export default async function integrationsRoutes(fastify, opts = {}) {
 
   /**
    * GET /integrations/github/install/callback
-   * Handles return redirect from GitHub App installation.
+   * Handles return redirect from GitHub App installation or update.
    */
   fastify.get(
     '/github/install/callback',
@@ -101,12 +107,47 @@ export default async function integrationsRoutes(fastify, opts = {}) {
         );
       }
 
-      // 2. Read transit cookie
       const isSecure = config.NODE_ENV === 'production' && config.DATABASE_SSL;
       const cookieName = isSecure ? '__Host-gh_install_state' : 'gh_install_state';
       const cookieToken = request.cookies[cookieName] || request.cookies['gh_install_state'];
 
-      // 3. Validate state token (signature, expiration, user/tenant binding)
+      const reqContext = {
+        requestId: request.id,
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent'],
+      };
+
+      const setupAction = request.query.setup_action;
+
+      // 2. Branch: Setup Update Flow (setup_action === 'update')
+      if (setupAction === 'update') {
+        // Clear transit cookie if present
+        reply.clearCookie(cookieName, { path: '/integrations/github' });
+        if (cookieName !== 'gh_install_state') {
+          reply.clearCookie('gh_install_state', { path: '/integrations/github' });
+        }
+
+        // Verify and update existing connection belonging to authenticated tenant
+        await service.updateInstallation({
+          user: request.user,
+          tenantId: request.auth.tenantId,
+          installationId: request.query.installation_id,
+          reqContext,
+        });
+
+        return reply.redirect('/dashboard?connection=updated', 302);
+      }
+
+      // 3. Branch: Initial Installation Flow (setup_action === 'install' or 'request' or default)
+      // State parameter is strictly MANDATORY for initial installation
+      if (!request.query.state) {
+        throw new ValidationError(
+          'Missing state parameter required for initial installation linking',
+          'MISSING_INSTALLATION_STATE'
+        );
+      }
+
+      // Validate state token (signature, expiration, user/tenant binding)
       service.validateInstallationState({
         stateToken: request.query.state,
         cookieToken,
@@ -114,19 +155,13 @@ export default async function integrationsRoutes(fastify, opts = {}) {
         tenantId: request.auth.tenantId,
       });
 
-      // 4. Invalidate transit cookie immediately to prevent replay attacks
+      // Invalidate transit cookie immediately to prevent replay attacks
       reply.clearCookie(cookieName, { path: '/integrations/github' });
       if (cookieName !== 'gh_install_state') {
         reply.clearCookie('gh_install_state', { path: '/integrations/github' });
       }
 
-      // 5. Verify installation on GitHub and link to active tenant
-      const reqContext = {
-        requestId: request.id,
-        ipAddress: request.ip,
-        userAgent: request.headers['user-agent'],
-      };
-
+      // Verify installation on GitHub and link to active tenant
       const { isUpdate } = await service.linkInstallation({
         user: request.user,
         tenantId: request.auth.tenantId,
@@ -134,7 +169,7 @@ export default async function integrationsRoutes(fastify, opts = {}) {
         reqContext,
       });
 
-      // 6. Safe redirect to dashboard
+      // Safe redirect to dashboard
       const redirectUrl = `/dashboard?connection=${isUpdate ? 'updated' : 'linked'}`;
       return reply.redirect(redirectUrl, 302);
     }

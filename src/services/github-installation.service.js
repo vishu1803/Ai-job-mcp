@@ -11,10 +11,13 @@
 
 import crypto from 'node:crypto';
 import { Buffer } from 'node:buffer';
+import { eq, and } from 'drizzle-orm';
+import { resourceConnections } from '../db/schema.js';
 import {
   AuthenticationError,
   AuthorizationError,
   ConflictError,
+  NotFoundError,
   ValidationError,
   CryptoError,
 } from '../errors/index.js';
@@ -38,6 +41,7 @@ export class GitHubInstallationService {
    * @param {object} [options]
    * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [options.db]
    * @param {GitHubAppAuthManager} [options.authManager]
+   * @param {import('../connectors/github/token-cache.js').GitHubTokenCache} [options.tokenCache]
    * @param {string} [options.masterKey]
    * @param {string} [options.keyVersion]
    * @param {string} [options.appSlug]
@@ -47,6 +51,7 @@ export class GitHubInstallationService {
   constructor({
     db,
     authManager,
+    tokenCache,
     masterKey = config.ENCRYPTION_MASTER_KEY,
     keyVersion = config.ENCRYPTION_KEY_VERSION,
     appSlug = config.GITHUB_APP_SLUG || 'antigravity-career-hub',
@@ -75,6 +80,8 @@ export class GitHubInstallationService {
     } else {
       this.authManager = null;
     }
+
+    this.tokenCache = tokenCache || this.authManager?.tokenCache || null;
   }
 
   /**
@@ -385,7 +392,12 @@ export class GitHubInstallationService {
       },
     });
 
-    // 5. Write structured audit log
+    // 5. Evict cached tokens if re-linking / updating
+    if (this.tokenCache) {
+      this.tokenCache.evict(tenantId, installationId);
+    }
+
+    // 6. Write structured audit log
     await writeAuditRecord(this.db, {
       tenantId,
       userId: user.id,
@@ -407,6 +419,107 @@ export class GitHubInstallationService {
     return {
       connection,
       isUpdate: !!existing,
+    };
+  }
+
+  /**
+   * Updates an existing GitHub App installation connection for the current tenant (setup_action=update).
+   *
+   * @param {object} params
+   * @param {object} params.user - Authenticated user object
+   * @param {string} params.tenantId - Authenticated tenant ID
+   * @param {string|number} params.installationId - GitHub installation ID
+   * @param {object} [params.reqContext] - Request context (ip, userAgent, reqId)
+   * @returns {Promise<{ connection: object, isUpdate: true }>}
+   */
+  async updateInstallation({ user, tenantId, installationId, reqContext = {} }) {
+    if (!tenantId || !user?.id) {
+      throw new ValidationError('tenantId and user are mandatory to update installation');
+    }
+
+    if (user.role === 'READONLY') {
+      throw new AuthorizationError(
+        'Read-only members do not have permission to update workspace integrations',
+        'FORBIDDEN_READONLY_ROLE'
+      );
+    }
+
+    // 1. Verify installation directly against GitHub using App JWT
+    const verified = await this.verifyGitHubInstallation(installationId);
+
+    // 2. Find existing connection
+    const existing = await findConnectionByInstallationId(this.db, installationId);
+
+    if (!existing || existing.tenantId !== tenantId) {
+      // Return safe 404 NOT_FOUND without leaking foreign tenant ownership
+      throw new NotFoundError(
+        'No existing GitHub App connection found for this installation in active workspace',
+        { installationId: String(installationId) }
+      );
+    }
+
+    if (existing.status === 'DISCONNECTED') {
+      throw new ValidationError(
+        'Cannot update a disconnected GitHub integration. Please reconnect from dashboard.',
+        'CONNECTION_DISCONNECTED'
+      );
+    }
+
+    // 3. Update metadata & repositorySelection
+    const currentMetadata =
+      existing.metadata && typeof existing.metadata === 'object' ? existing.metadata : {};
+    const updatedMetadata = {
+      ...currentMetadata,
+      repositorySelection: verified.repositorySelection,
+      targetType: verified.account.type,
+      accountAvatarUrl: verified.account.avatarUrl,
+      accountHtmlUrl: verified.account.htmlUrl,
+    };
+
+    const nextStatus = existing.status === 'REVOKED' ? 'ACTIVE' : existing.status;
+
+    const [updatedConnection] = await this.db
+      .update(resourceConnections)
+      .set({
+        metadata: updatedMetadata,
+        status: nextStatus,
+        lastErrorCode: nextStatus === 'ACTIVE' ? null : existing.lastErrorCode,
+        lastErrorAt: nextStatus === 'ACTIVE' ? null : existing.lastErrorAt,
+        lastValidatedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(resourceConnections.id, existing.id), eq(resourceConnections.tenantId, tenantId))
+      )
+      .returning();
+
+    // 4. Evict token cache for tenant + installation
+    if (this.tokenCache) {
+      this.tokenCache.evict(tenantId, installationId);
+    }
+
+    // 5. Write structured audit record
+    await writeAuditRecord(this.db, {
+      tenantId,
+      userId: user.id,
+      eventType: 'github.installation_updated',
+      resourceId: existing.id,
+      requestId: reqContext.requestId,
+      ipAddress: reqContext.ipAddress,
+      userAgent: reqContext.userAgent,
+      details: {
+        installationId: String(installationId),
+        externalAccountId: String(verified.account.id),
+        externalAccountName: verified.account.login,
+        repositorySelection: verified.repositorySelection,
+        targetType: verified.account.type,
+        status: nextStatus,
+      },
+    });
+
+    return {
+      connection: updatedConnection,
+      isUpdate: true,
     };
   }
 }

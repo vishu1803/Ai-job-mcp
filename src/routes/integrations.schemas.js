@@ -9,6 +9,6 @@ export const githubInstallCallbackQuerySchema = z.object({
     .number()
     .int()
     .positive({ message: 'installation_id must be a positive integer' }),
-  setup_action: z.string().optional(),
-  state: z.string().min(1, { message: 'state parameter is required' }),
+  setup_action: z.enum(['install', 'update', 'request']).optional().default('install'),
+  state: z.string().optional(),
 });

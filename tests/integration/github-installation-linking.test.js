@@ -256,7 +256,7 @@ describe('GitHub App Installation Linking Integration Tests (P3-002)', () => {
 
       assert.strictEqual(response.statusCode, 400);
       const body = response.json();
-      assert.strictEqual(body.error.code, 'VALIDATION_ERROR');
+      assert.strictEqual(body.error.code, 'MISSING_INSTALLATION_STATE');
     });
 
     it('rejects callback when transit cookie is missing', async () => {
@@ -429,6 +429,89 @@ describe('GitHub App Installation Linking Integration Tests (P3-002)', () => {
       assert.ok(auditLog);
       assert.strictEqual(auditLog.details.reason, 'cross_tenant_collision');
       assert.strictEqual(auditLog.details.statusCode, 409);
+    });
+
+    it('rejects initial install callback without state parameter with 400 ValidationError', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/integrations/github/install/callback?installation_id=${testInstallationId}&setup_action=install`,
+        headers: {
+          cookie: userASessionCookie,
+        },
+      });
+
+      assert.strictEqual(response.statusCode, 400);
+      const body = response.json();
+      assert.strictEqual(body.error.code, 'MISSING_INSTALLATION_STATE');
+    });
+
+    it('executes setup_action=update callback without state parameter successfully and redirects to /dashboard?connection=updated', async () => {
+      // User A in Tenant A updates existing installation without state query parameter
+      const response = await app.inject({
+        method: 'GET',
+        url: `/integrations/github/install/callback?installation_id=${testInstallationId}&setup_action=update`,
+        headers: {
+          cookie: userASessionCookie,
+        },
+      });
+
+      assert.strictEqual(response.statusCode, 302);
+      assert.strictEqual(response.headers.location, '/dashboard?connection=updated');
+
+      // Verify connection in DB was updated
+      const [updatedConn] = await db
+        .select()
+        .from(resourceConnections)
+        .where(
+          and(
+            eq(resourceConnections.tenantId, tenantAId),
+            eq(resourceConnections.installationId, String(testInstallationId))
+          )
+        );
+
+      assert.ok(updatedConn);
+      assert.strictEqual(updatedConn.metadata.repositorySelection, 'selected');
+
+      // Verify audit record written
+      const [auditRecord] = await db
+        .select()
+        .from(auditLogs)
+        .where(
+          and(
+            eq(auditLogs.tenantId, tenantAId),
+            eq(auditLogs.eventType, 'github.installation_updated')
+          )
+        );
+
+      assert.ok(auditRecord);
+      assert.strictEqual(auditRecord.details.installationId, String(testInstallationId));
+      assert.strictEqual(auditRecord.details.repositorySelection, 'selected');
+    });
+
+    it('rejects setup_action=update with 404 when Tenant B attempts to update Tenant A installation', async () => {
+      // User B in Tenant B attempts to update installationId owned by Tenant A
+      const response = await app.inject({
+        method: 'GET',
+        url: `/integrations/github/install/callback?installation_id=${testInstallationId}&setup_action=update`,
+        headers: {
+          cookie: userBSessionCookie,
+        },
+      });
+
+      assert.strictEqual(response.statusCode, 404);
+    });
+
+    it('rejects setup_action=update with 404 when no connection exists in database', async () => {
+      const nonExistentInstallId = 88998899;
+      const response = await app.inject({
+        method: 'GET',
+        url: `/integrations/github/install/callback?installation_id=${nonExistentInstallId}&setup_action=update`,
+        headers: {
+          cookie: userASessionCookie,
+        },
+      });
+
+      assert.strictEqual(response.statusCode, 404);
     });
   });
 });

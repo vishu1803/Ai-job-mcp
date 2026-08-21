@@ -609,4 +609,295 @@ describe('GitHub Installation Service Unit Tests (P3-002)', () => {
       assert.strictEqual(connection.metadata.repositorySelection, 'all');
     });
   });
+
+  // -------------------------------------------------------------------------
+  // 5. Update Callback Flow (setup_action=update)
+  // -------------------------------------------------------------------------
+  describe('5. Update Callback Flow (setup_action=update)', () => {
+    it('successfully updates repositorySelection metadata, clears error state, evicts token cache, and writes audit record', async () => {
+      let evictedTenant = null;
+      let evictedInstall = null;
+      let auditedRecord = null;
+      let updatedData = null;
+
+      const mockDb = {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: async () => [
+                {
+                  id: 'conn-update-1',
+                  tenantId: tenantA,
+                  userId: userA.id,
+                  installationId,
+                  status: 'REVOKED',
+                  lastErrorCode: 'APP_SUSPENDED',
+                  metadata: { repositorySelection: 'all', targetType: 'User' },
+                },
+              ],
+            }),
+          }),
+        }),
+        update: () => ({
+          set: (data) => ({
+            where: () => ({
+              returning: async () => {
+                updatedData = data;
+                return [{ id: 'conn-update-1', tenantId: tenantA, ...data }];
+              },
+            }),
+          }),
+        }),
+        insert: () => ({
+          values: async (record) => {
+            auditedRecord = record;
+            return [];
+          },
+        }),
+      };
+
+      const mockTokenCache = {
+        evict: (tId, iId) => {
+          evictedTenant = tId;
+          evictedInstall = iId;
+        },
+      };
+
+      const mockFetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: Number(installationId),
+          account: {
+            id: 1234567,
+            login: 'octocat',
+            type: 'User',
+            avatar_url: 'https://avatar.url',
+          },
+          repository_selection: 'selected',
+          permissions: { contents: 'read', metadata: 'read' },
+          suspended_at: null,
+        }),
+      });
+
+      const customAuthManager = new GitHubAppAuthManager({
+        appId: testAppId,
+        privateKey: rawPemPrivateKey,
+        fetchFn: mockFetch,
+      });
+
+      const service = new GitHubInstallationService({
+        db: mockDb,
+        authManager: customAuthManager,
+        tokenCache: mockTokenCache,
+        masterKey,
+        fetchFn: mockFetch,
+      });
+
+      const result = await service.updateInstallation({
+        user: userA,
+        tenantId: tenantA,
+        installationId,
+        reqContext: { requestId: 'req-update-1' },
+      });
+
+      assert.strictEqual(result.isUpdate, true);
+      assert.strictEqual(updatedData.metadata.repositorySelection, 'selected');
+      assert.strictEqual(updatedData.status, 'ACTIVE');
+      assert.strictEqual(updatedData.lastErrorCode, null);
+      assert.strictEqual(evictedTenant, tenantA);
+      assert.strictEqual(evictedInstall, installationId);
+      assert.strictEqual(auditedRecord.eventType, 'github.installation_updated');
+      assert.strictEqual(auditedRecord.tenantId, tenantA);
+      assert.strictEqual(auditedRecord.details.repositorySelection, 'selected');
+    });
+
+    it('rejects READONLY user from executing update flow with 403 Forbidden', async () => {
+      const service = new GitHubInstallationService({ authManager, masterKey });
+
+      await assert.rejects(
+        async () => {
+          await service.updateInstallation({
+            user: readonlyUser,
+            tenantId: tenantA,
+            installationId,
+          });
+        },
+        (err) => {
+          assert.strictEqual(err.statusCode, 403);
+          assert.strictEqual(err.code, 'FORBIDDEN_READONLY_ROLE');
+          return true;
+        }
+      );
+    });
+
+    it('throws 404 when no existing connection exists in active workspace', async () => {
+      const mockDb = {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: async () => [], // No connection found
+            }),
+          }),
+        }),
+      };
+
+      const mockFetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: Number(installationId),
+          account: { id: 1234567, login: 'octocat', type: 'User' },
+          repository_selection: 'all',
+          permissions: { contents: 'read', metadata: 'read' },
+          suspended_at: null,
+        }),
+      });
+
+      const customAuthManager = new GitHubAppAuthManager({
+        appId: testAppId,
+        privateKey: rawPemPrivateKey,
+        fetchFn: mockFetch,
+      });
+
+      const service = new GitHubInstallationService({
+        db: mockDb,
+        authManager: customAuthManager,
+        masterKey,
+        fetchFn: mockFetch,
+      });
+
+      await assert.rejects(
+        async () => {
+          await service.updateInstallation({
+            user: userA,
+            tenantId: tenantA,
+            installationId,
+          });
+        },
+        (err) => {
+          assert.strictEqual(err.statusCode, 404);
+          return true;
+        }
+      );
+    });
+
+    it('throws 404 when installation belongs to another tenant (multi-tenant boundary)', async () => {
+      const mockDb = {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: async () => [
+                {
+                  id: 'conn-tenant-b',
+                  tenantId: tenantB, // Belongs to Tenant B
+                  installationId,
+                  status: 'ACTIVE',
+                },
+              ],
+            }),
+          }),
+        }),
+      };
+
+      const mockFetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: Number(installationId),
+          account: { id: 1234567, login: 'octocat', type: 'User' },
+          repository_selection: 'all',
+          permissions: { contents: 'read', metadata: 'read' },
+          suspended_at: null,
+        }),
+      });
+
+      const customAuthManager = new GitHubAppAuthManager({
+        appId: testAppId,
+        privateKey: rawPemPrivateKey,
+        fetchFn: mockFetch,
+      });
+
+      const service = new GitHubInstallationService({
+        db: mockDb,
+        authManager: customAuthManager,
+        masterKey,
+        fetchFn: mockFetch,
+      });
+
+      // Tenant A attempts to update Tenant B's installation
+      await assert.rejects(
+        async () => {
+          await service.updateInstallation({
+            user: userA,
+            tenantId: tenantA,
+            installationId,
+          });
+        },
+        (err) => {
+          assert.strictEqual(err.statusCode, 404);
+          return true;
+        }
+      );
+    });
+
+    it('rejects updating a DISCONNECTED connection without silent reactivation', async () => {
+      const mockDb = {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: async () => [
+                {
+                  id: 'conn-disconnected',
+                  tenantId: tenantA,
+                  installationId,
+                  status: 'DISCONNECTED',
+                },
+              ],
+            }),
+          }),
+        }),
+      };
+
+      const mockFetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: Number(installationId),
+          account: { id: 1234567, login: 'octocat', type: 'User' },
+          repository_selection: 'all',
+          permissions: { contents: 'read', metadata: 'read' },
+          suspended_at: null,
+        }),
+      });
+
+      const customAuthManager = new GitHubAppAuthManager({
+        appId: testAppId,
+        privateKey: rawPemPrivateKey,
+        fetchFn: mockFetch,
+      });
+
+      const service = new GitHubInstallationService({
+        db: mockDb,
+        authManager: customAuthManager,
+        masterKey,
+        fetchFn: mockFetch,
+      });
+
+      await assert.rejects(
+        async () => {
+          await service.updateInstallation({
+            user: userA,
+            tenantId: tenantA,
+            installationId,
+          });
+        },
+        (err) => {
+          assert.strictEqual(err.statusCode, 400);
+          assert.strictEqual(err.code, 'CONNECTION_DISCONNECTED');
+          return true;
+        }
+      );
+    });
+  });
 });
