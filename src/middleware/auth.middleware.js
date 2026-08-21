@@ -47,16 +47,16 @@ export async function authenticate(req, _reply) {
 
   const { session, user, tenant } = sessionContext;
 
-  // Hydrate trusted request context (never trust caller headers for identity/tenant)
-  req.auth = {
+  // Hydrate trusted immutable request context (never trust caller headers for identity/tenant)
+  req.auth = Object.freeze({
     userId: user.id,
     tenantId: tenant.id,
     sessionId: session.id,
     role: user.role,
-  };
-  req.user = user;
-  req.tenant = tenant;
-  req.session = session;
+  });
+  req.user = Object.freeze({ ...user });
+  req.tenant = Object.freeze({ ...tenant });
+  req.session = Object.freeze({ ...session });
   req.tenantId = tenant.id;
 }
 

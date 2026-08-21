@@ -23,18 +23,16 @@ import {
 import {
   connectorRegistry as defaultConnectorRegistry,
   CONNECTOR_CAPABILITIES,
-  createConnectorContext,
   ConnectionNotFoundError,
   ConnectorAuthError,
 } from '../connectors/index.js';
 import { decryptSecret, encryptSecret } from '../security/encryption.js';
 import { sanitizeAuditDetails } from '../utils/audit-sanitizer.js';
 import {
-  AuthorizationError,
-  ConflictError,
-  AuthenticationError,
-  RateLimitError,
-} from '../errors/index.js';
+  authorizeResourceAccess,
+  createTrustedConnectorContext,
+} from '../security/resource-authorization.js';
+import { ConflictError, AuthenticationError, RateLimitError } from '../errors/index.js';
 
 export class ConnectionService {
   /**
@@ -53,19 +51,18 @@ export class ConnectionService {
    * Rule: User must be workspace OWNER OR the connection creator (userId === connection.userId).
    *
    * @param {{id: string, role: string}} user
-   * @param {{userId: string}} connection
+   * @param {{userId: string, tenantId: string}} connection
+   * @param {string} [tenantId]
    * @throws {AuthorizationError} If permission is denied
    */
-  assertCanMutateConnection(user, connection) {
-    const isCreator = connection.userId === user.id;
-    const isOwner = user.role === 'OWNER';
-
-    if (!isCreator && !isOwner) {
-      throw new AuthorizationError(
-        'You do not have permission to modify this resource connection. Only the connection creator or a workspace owner may perform this action.',
-        'FORBIDDEN'
-      );
-    }
+  assertCanMutateConnection(user, connection, tenantId) {
+    authorizeResourceAccess({
+      user,
+      tenantId: tenantId || connection.tenantId,
+      resource: connection,
+      action: 'mutate',
+      requireCreator: true,
+    });
   }
 
   /**
@@ -245,7 +242,7 @@ export class ConnectionService {
     try {
       const decryptedString = decryptSecret(connection.encryptedCredentials);
       credentials = JSON.parse(decryptedString);
-    } catch (_decryptErr) {
+    } catch {
       await updateConnectionMetadata(this.db, connectionId, tenantId, {
         status: 'ERROR',
         lastValidatedAt: new Date(),
@@ -259,13 +256,10 @@ export class ConnectionService {
     }
 
     const connector = this.registry.get(connection.provider);
-    const context = createConnectorContext({
+    const context = createTrustedConnectorContext({
+      user,
       tenantId,
-      userId: user.id,
-      connectionId,
-      provider: connection.provider,
-      authType: connection.authType,
-      scopes: connection.scopes,
+      connection,
       requestId: requestContext.requestId,
     });
 
@@ -363,13 +357,10 @@ export class ConnectionService {
         if (connector.getCapabilities().has(CONNECTOR_CAPABILITIES.REVOKE_ACCESS)) {
           const decrypted = decryptSecret(connection.encryptedCredentials);
           const credentials = JSON.parse(decrypted);
-          const ctx = createConnectorContext({
+          const ctx = createTrustedConnectorContext({
+            user,
             tenantId,
-            userId: user.id,
-            connectionId,
-            provider: connection.provider,
-            authType: connection.authType,
-            scopes: connection.scopes,
+            connection,
             requestId: requestContext.requestId,
           });
           await connector.revokeAccess(ctx, credentials);

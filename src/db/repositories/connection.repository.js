@@ -7,6 +7,13 @@
 
 import { eq, and, desc, lt, count } from 'drizzle-orm';
 import { resourceConnections, auditLogs } from '../schema.js';
+import { ValidationError } from '../../errors/index.js';
+
+function assertTenantId(tenantId, fnName) {
+  if (!tenantId || typeof tenantId !== 'string') {
+    throw new ValidationError(`tenantId is mandatory for repository operation ${fnName}`);
+  }
+}
 
 /**
  * Lists resource connections within a tenant workspace with optional filtering and pagination.
@@ -21,6 +28,7 @@ import { resourceConnections, auditLogs } from '../schema.js';
  * @returns {Promise<{items: Array<any>, nextCursor: string|null, hasMore: boolean, totalCount: number}>}
  */
 export async function listConnectionsByTenant(db, tenantId, options = {}) {
+  assertTenantId(tenantId, 'listConnectionsByTenant');
   const limit = Math.min(Math.max(1, options.limit || 50), 100);
   const conditions = [eq(resourceConnections.tenantId, tenantId)];
 
@@ -81,6 +89,7 @@ export async function listConnectionsByTenant(db, tenantId, options = {}) {
  * @returns {Promise<any|null>} Connection row or null
  */
 export async function findConnectionByIdAndTenant(db, connectionId, tenantId) {
+  assertTenantId(tenantId, 'findConnectionByIdAndTenant');
   const [connection] = await db
     .select()
     .from(resourceConnections)
@@ -101,6 +110,7 @@ export async function findConnectionByIdAndTenant(db, connectionId, tenantId) {
  * @returns {Promise<any>} Updated connection record
  */
 export async function updateConnectionMetadata(db, connectionId, tenantId, updates) {
+  assertTenantId(tenantId, 'updateConnectionMetadata');
   const [updated] = await db
     .update(resourceConnections)
     .set({
@@ -126,6 +136,7 @@ export async function updateConnectionMetadata(db, connectionId, tenantId, updat
  * @returns {Promise<any>} Updated record
  */
 export async function disconnectConnectionRecord(db, connectionId, tenantId, scrubbedCiphertext) {
+  assertTenantId(tenantId, 'disconnectConnectionRecord');
   const [disconnected] = await db
     .update(resourceConnections)
     .set({
@@ -150,6 +161,7 @@ export async function disconnectConnectionRecord(db, connectionId, tenantId, scr
  * @returns {Promise<any>} Deleted record or null
  */
 export async function deleteConnectionRecord(db, connectionId, tenantId) {
+  assertTenantId(tenantId, 'deleteConnectionRecord');
   const [deleted] = await db
     .delete(resourceConnections)
     .where(
@@ -167,6 +179,7 @@ export async function deleteConnectionRecord(db, connectionId, tenantId) {
  * @param {object} auditData
  */
 export async function writeAuditRecord(db, auditData) {
+  assertTenantId(auditData?.tenantId, 'writeAuditRecord');
   await db.insert(auditLogs).values({
     tenantId: auditData.tenantId,
     userId: auditData.userId || null,
