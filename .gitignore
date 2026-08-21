@@ -71,3 +71,11 @@ temp/
 scratch/
 *.tmp
 *.bak
+
+# Internal Project & AI Control Documents (Only README.md is tracked in Git)
+AGENTS.md
+project.md
+goal.md
+road.md
+roadmap.md
+docs/
