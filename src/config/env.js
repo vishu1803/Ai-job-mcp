@@ -61,8 +61,13 @@ const envSchema = z
     GITHUB_APP_CLIENT_ID: z.string().optional().default(''),
     GITHUB_APP_CLIENT_SECRET: z.string().optional().default(''),
     GITHUB_APP_PRIVATE_KEY: z.string().optional().default(''),
-    GITHUB_APP_PRIVATE_KEY_BASE64: z.string().optional().default(''),
     GITHUB_APP_WEBHOOK_SECRET: z.string().optional().default(''),
+    GITHUB_WEBHOOK_SECRET: z
+      .string()
+      .optional()
+      .default(
+        () => process.env.GITHUB_WEBHOOK_SECRET || process.env.GITHUB_APP_WEBHOOK_SECRET || ''
+      ),
     SESSION_COOKIE_NAME: z.string().default('career_hub_session'),
     SESSION_COOKIE_SECRET: z.string().optional().default(''),
     SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(604800),

@@ -39,10 +39,15 @@ export class AppError extends Error {
 export class ValidationError extends AppError {
   /**
    * @param {string} [message='Validation failed']
+   * @param {string|any} [codeOrDetails='VALIDATION_ERROR'] Machine-readable error code or details
    * @param {any} [details=null] Structured field error details
    */
-  constructor(message = 'Validation failed', details = null) {
-    super(message, 400, 'VALIDATION_ERROR', details);
+  constructor(message = 'Validation failed', codeOrDetails = 'VALIDATION_ERROR', details = null) {
+    if (typeof codeOrDetails === 'string') {
+      super(message, 400, codeOrDetails, details);
+    } else {
+      super(message, 400, 'VALIDATION_ERROR', codeOrDetails);
+    }
   }
 }
 
@@ -132,10 +137,19 @@ export class DependencyError extends AppError {
 export class InternalServerError extends AppError {
   /**
    * @param {string} [message='An unexpected internal server error occurred']
+   * @param {string|any} [codeOrDetails='INTERNAL_ERROR'] Machine-readable error code or details
    * @param {any} [details=null]
    */
-  constructor(message = 'An unexpected internal server error occurred', details = null) {
-    super(message, 500, 'INTERNAL_ERROR', details);
+  constructor(
+    message = 'An unexpected internal server error occurred',
+    codeOrDetails = 'INTERNAL_ERROR',
+    details = null
+  ) {
+    if (typeof codeOrDetails === 'string') {
+      super(message, 500, codeOrDetails, details);
+    } else {
+      super(message, 500, 'INTERNAL_ERROR', codeOrDetails);
+    }
   }
 }
 

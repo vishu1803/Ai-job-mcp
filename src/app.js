@@ -7,6 +7,7 @@ import { healthRoutes } from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import connectionsRoutes from './routes/connections.routes.js';
 import integrationsRoutes from './routes/integrations.routes.js';
+import webhooksRoutes from './routes/webhooks.routes.js';
 import { config } from './config/env.js';
 
 /**
@@ -73,6 +74,14 @@ export function buildApp(opts = {}) {
   app.register(integrationsRoutes, {
     prefix: '/integrations',
     installationService: opts.installationService,
+    db: opts.db,
+  });
+
+  // GitHub Webhook Ingress Route (/webhooks/github)
+  app.register(webhooksRoutes, {
+    prefix: '/webhooks',
+    webhookService: opts.webhookService,
+    tokenCache: opts.tokenCache,
     db: opts.db,
   });
 
