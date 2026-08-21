@@ -18,6 +18,7 @@ import { GitHubWebhookService } from '../services/github-webhook.service.js';
  * @param {GitHubWebhookService} [opts.webhookService]
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [opts.db]
  * @param {import('../connectors/github/token-cache.js').GitHubTokenCache} [opts.tokenCache]
+ * @param {import('../connectors/github/github-connector-cache.js').GitHubConnectorCache} [opts.connectorCache]
  */
 export default async function webhooksRoutes(fastify, opts = {}) {
   const webhookService =
@@ -25,6 +26,7 @@ export default async function webhooksRoutes(fastify, opts = {}) {
     new GitHubWebhookService({
       db: opts.db,
       tokenCache: opts.tokenCache,
+      connectorCache: opts.connectorCache,
     });
 
   // Scoped Content-Type parser capturing raw request body Buffer for HMAC verification

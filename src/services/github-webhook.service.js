@@ -19,6 +19,7 @@ import {
 } from '../db/repositories/connection.repository.js';
 import { verifyWebhookSignature } from '../security/webhook-signature.js';
 import { defaultWebhookDeliveryCache } from './webhook-delivery-cache.js';
+import { defaultGitHubConnectorCache } from '../connectors/github/github-connector-cache.js';
 import { ValidationError } from '../errors/index.js';
 import { db as defaultDb } from '../db/index.js';
 import { config } from '../config/env.js';
@@ -29,17 +30,20 @@ export class GitHubWebhookService {
    * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [options.db]
    * @param {import('../connectors/github/token-cache.js').GitHubTokenCache} [options.tokenCache]
    * @param {import('./webhook-delivery-cache.js').WebhookDeliveryCache} [options.deliveryCache]
+   * @param {import('../connectors/github/github-connector-cache.js').GitHubConnectorCache} [options.connectorCache]
    * @param {string} [options.webhookSecret]
    */
   constructor({
     db,
     tokenCache = null,
     deliveryCache = defaultWebhookDeliveryCache,
+    connectorCache = defaultGitHubConnectorCache,
     webhookSecret = config.GITHUB_APP_WEBHOOK_SECRET || config.GITHUB_WEBHOOK_SECRET,
   } = {}) {
     this.db = db || defaultDb;
     this.tokenCache = tokenCache;
     this.deliveryCache = deliveryCache;
+    this.connectorCache = connectorCache;
     this.webhookSecret = webhookSecret;
   }
 
@@ -182,6 +186,11 @@ export class GitHubWebhookService {
           this.tokenCache.evict(tenantId, installationId);
         }
 
+        // Evict all connector cache records for tenant + installation
+        if (this.connectorCache) {
+          this.connectorCache.evict(tenantId, installationId);
+        }
+
         // Emit audit record
         await writeAuditRecord(this.db, {
           tenantId,
@@ -231,6 +240,11 @@ export class GitHubWebhookService {
         // Evict cached tokens immediately
         if (this.tokenCache) {
           this.tokenCache.evict(tenantId, installationId);
+        }
+
+        // Evict all connector cache records for tenant + installation
+        if (this.connectorCache) {
+          this.connectorCache.evict(tenantId, installationId);
         }
 
         // Emit audit record
@@ -440,6 +454,27 @@ export class GitHubWebhookService {
     // Evict cached installation tokens
     if (this.tokenCache) {
       this.tokenCache.evict(tenantId, installationId);
+    }
+
+    // Evict connector cache records
+    if (this.connectorCache) {
+      if (action === 'removed') {
+        this.connectorCache.evict(tenantId, installationId, 'listResources');
+        const removedList = Array.isArray(payload.repositories_removed)
+          ? payload.repositories_removed
+          : [];
+        for (const repo of removedList) {
+          if (repo.id) {
+            this.connectorCache.evict(tenantId, installationId, null, String(repo.id));
+          }
+          if (repo.full_name) {
+            this.connectorCache.evict(tenantId, installationId, null, repo.full_name);
+          }
+        }
+      } else if (action === 'added') {
+        this.connectorCache.evict(tenantId, installationId, 'listResources');
+        this.connectorCache.evict(tenantId, installationId, 'getAccount');
+      }
     }
 
     // Emit structured audit log

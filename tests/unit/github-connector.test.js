@@ -19,6 +19,11 @@ import crypto from 'node:crypto';
 import { GitHubAppConnector } from '../../src/connectors/github/github-connector.js';
 import { GitHubAppAuthManager } from '../../src/connectors/github/auth.js';
 import { GitHubTokenCache } from '../../src/connectors/github/token-cache.js';
+import {
+  GitHubConnectorCache,
+  defaultGitHubConnectorCache,
+} from '../../src/connectors/github/github-connector-cache.js';
+import { defaultGitHubRateLimiter } from '../../src/connectors/github/github-rate-limiter.js';
 import { CONNECTOR_CAPABILITIES } from '../../src/connectors/base/capabilities.js';
 import { createConnectorContext } from '../../src/connectors/base/context.js';
 
@@ -69,6 +74,8 @@ describe('GitHubAppConnector Unit Tests (P3-004)', () => {
   });
 
   beforeEach(() => {
+    defaultGitHubConnectorCache.clear();
+    defaultGitHubRateLimiter.clear();
     tokenCache = new GitHubTokenCache();
     authManager = new GitHubAppAuthManager({
       appId: testAppId,
@@ -1025,6 +1032,208 @@ describe('GitHubAppConnector Unit Tests (P3-004)', () => {
           assert.strictEqual(err.code, 'PROVIDER_UNAVAILABLE');
           return true;
         }
+      );
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 7. Caching, HTTP 304 Revalidation, & Rate Limiting (P3-006)
+  // -------------------------------------------------------------------------
+  describe('7. Caching, HTTP 304 Revalidation, & Rate Limiting (P3-006)', () => {
+    it('caches 200 OK responses with ETag and serves subsequent fresh requests from cache without network egress', async () => {
+      let networkFetchCalls = 0;
+      const mockFetch = async (url) => {
+        if (url.includes('/access_tokens')) {
+          return {
+            ok: true,
+            status: 201,
+            json: async () => ({
+              token: 'ghs_token_cache',
+              expires_at: new Date(Date.now() + 3600000).toISOString(),
+            }),
+          };
+        }
+
+        networkFetchCalls++;
+        return {
+          ok: true,
+          status: 200,
+          headers: new Map([
+            ['etag', 'W/"etag-repo-100"'],
+            ['x-ratelimit-remaining', '4990'],
+          ]),
+          json: async () => ({
+            id: 100,
+            name: 'cached-repo',
+            full_name: 'testuser/cached-repo',
+            default_branch: 'main',
+            private: false,
+          }),
+        };
+      };
+
+      const customAuth = new GitHubAppAuthManager({
+        appId: testAppId,
+        privateKey: rawPemPrivateKey,
+        fetchFn: mockFetch,
+        cache: tokenCache,
+      });
+
+      const customCache = new GitHubConnectorCache();
+      const connector = new GitHubAppConnector({
+        authManager: customAuth,
+        fetchFn: mockFetch,
+        cache: customCache,
+      });
+
+      // 1. First Call: Cache Miss -> HTTP 200 -> Caches with ETag
+      const res1 = await connector.getResource(activeContext, mockCredentials, '100');
+      assert.strictEqual(res1.name, 'cached-repo');
+      assert.strictEqual(networkFetchCalls, 1);
+      assert.strictEqual(customCache.getStats().hits, 0);
+      assert.strictEqual(customCache.getStats().misses, 1);
+
+      // 2. Second Call: Fresh Hit -> Zero network egress
+      const res2 = await connector.getResource(activeContext, mockCredentials, '100');
+      assert.strictEqual(res2.name, 'cached-repo');
+      assert.strictEqual(networkFetchCalls, 1); // no network call!
+      assert.strictEqual(customCache.getStats().hits, 1);
+    });
+
+    it('sends If-None-Match on stale cache entry and handles HTTP 304 Not Modified by returning cached model', async () => {
+      let sentIfNoneMatchHeader = null;
+      let networkFetchCalls = 0;
+
+      const mockFetch = async (url, opts) => {
+        if (url.includes('/access_tokens')) {
+          return {
+            ok: true,
+            status: 201,
+            json: async () => ({
+              token: 'ghs_token_cache',
+              expires_at: new Date(Date.now() + 3600000).toISOString(),
+            }),
+          };
+        }
+
+        networkFetchCalls++;
+        sentIfNoneMatchHeader = opts?.headers?.['If-None-Match'] || null;
+
+        return {
+          ok: false,
+          status: 304,
+          headers: new Map([
+            ['etag', 'W/"etag-readme-100"'],
+            ['x-ratelimit-remaining', '4989'],
+          ]),
+        };
+      };
+
+      const customAuth = new GitHubAppAuthManager({
+        appId: testAppId,
+        privateKey: rawPemPrivateKey,
+        fetchFn: mockFetch,
+        cache: tokenCache,
+      });
+
+      const customCache = new GitHubConnectorCache();
+      // Pre-populate stale cache entry with an ETag
+      customCache.set(
+        activeContext.tenantId,
+        mockCredentials.installationId,
+        'getReadme',
+        '100',
+        {},
+        {
+          data: {
+            name: 'README.md',
+            path: 'README.md',
+            content: '# Cached Markdown Title',
+            encoding: 'utf-8',
+          },
+          etag: 'W/"etag-readme-100"',
+        },
+        -1 // expired immediately
+      );
+
+      const connector = new GitHubAppConnector({
+        authManager: customAuth,
+        fetchFn: mockFetch,
+        cache: customCache,
+      });
+
+      const readme = await connector.getReadme(activeContext, mockCredentials, '100');
+
+      assert.strictEqual(networkFetchCalls, 1);
+      assert.strictEqual(sentIfNoneMatchHeader, 'W/"etag-readme-100"');
+      assert.strictEqual(readme.content, '# Cached Markdown Title');
+      assert.strictEqual(customCache.getStats().revalidations304, 1);
+    });
+
+    it('evicts cached data on HTTP 401 Unauthorized along with token cache', async () => {
+      const mockFetch = async (url) => {
+        if (url.includes('/access_tokens')) {
+          return {
+            ok: true,
+            status: 201,
+            json: async () => ({
+              token: 'ghs_invalid_token',
+              expires_at: new Date(Date.now() + 3600000).toISOString(),
+            }),
+          };
+        }
+
+        return {
+          ok: false,
+          status: 401,
+          headers: new Map(),
+          json: async () => ({ message: 'Bad credentials' }),
+        };
+      };
+
+      const customAuth = new GitHubAppAuthManager({
+        appId: testAppId,
+        privateKey: rawPemPrivateKey,
+        fetchFn: mockFetch,
+        cache: tokenCache,
+      });
+
+      const customCache = new GitHubConnectorCache();
+      customCache.set(
+        activeContext.tenantId,
+        mockCredentials.installationId,
+        'getResource',
+        '100',
+        {},
+        { data: { id: '100' } },
+        300
+      );
+
+      const connector = new GitHubAppConnector({
+        authManager: customAuth,
+        fetchFn: mockFetch,
+        cache: customCache,
+      });
+
+      await assert.rejects(
+        async () => {
+          await connector.getResource(activeContext, mockCredentials, '999');
+        },
+        (err) => {
+          assert.strictEqual(err.statusCode, 401);
+          return true;
+        }
+      );
+
+      // Verify that all cache entries for tenant+installation were evicted
+      assert.strictEqual(
+        customCache.get(
+          activeContext.tenantId,
+          mockCredentials.installationId,
+          'getResource',
+          '100'
+        ),
+        null
       );
     });
   });

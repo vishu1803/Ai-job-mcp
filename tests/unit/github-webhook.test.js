@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { WebhookDeliveryCache } from '../../src/services/webhook-delivery-cache.js';
 import { GitHubWebhookService } from '../../src/services/github-webhook.service.js';
 import { generateWebhookSignature } from '../../src/security/webhook-signature.js';
+import { GitHubConnectorCache } from '../../src/connectors/github/github-connector-cache.js';
 
 describe('GitHub Webhook Service & Delivery Cache Unit Tests (P3-003)', () => {
   const testSecret = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -641,6 +642,177 @@ describe('GitHub Webhook Service & Delivery Cache Unit Tests (P3-003)', () => {
       assert.equal(result.success, true);
       assert.equal(result.unlinked, true);
       assert.equal(updateExecuted, false, 'Unlinked installation must not mutate database');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 5. Connector Cache Invalidation on Webhook Events (P3-006)
+  // -------------------------------------------------------------------------
+  describe('5. Connector Cache Invalidation on Webhook Events (P3-006)', () => {
+    const tenantId = 'tenant-hook-123';
+    const installationId = 777888999;
+
+    const baseConnection = {
+      id: 'conn-hook-1',
+      tenantId,
+      userId: 'user-hook-1',
+      provider: 'GITHUB_APP',
+      status: 'ACTIVE',
+      externalAccountId: '12345',
+      externalAccountName: 'hookuser',
+      metadata: { repositorySelection: 'all' },
+    };
+
+    test('installation.deleted completely purges connector cache for tenant + installation', async () => {
+      const mockDb = {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: () => [baseConnection],
+            }),
+          }),
+        }),
+        update: () => ({
+          set: () => ({
+            where: async () => [baseConnection],
+          }),
+        }),
+        insert: () => ({
+          values: async () => [],
+        }),
+      };
+
+      const connectorCache = new GitHubConnectorCache();
+      connectorCache.set(
+        tenantId,
+        installationId,
+        'getResource',
+        '999',
+        {},
+        { data: { id: '999' } },
+        300
+      );
+
+      const service = new GitHubWebhookService({
+        db: mockDb,
+        webhookSecret: testSecret,
+        connectorCache,
+      });
+
+      const payload = {
+        action: 'deleted',
+        installation: { id: installationId },
+      };
+      const rawBody = Buffer.from(JSON.stringify(payload));
+      const signature = generateWebhookSignature(rawBody, testSecret);
+
+      const result = await service.processWebhook({
+        headers: {
+          'x-github-event': 'installation',
+          'x-github-delivery': 'del-purge-1',
+          'x-hub-signature-256': signature,
+        },
+        rawBody,
+        payload,
+      });
+
+      assert.equal(result.success, true);
+      assert.equal(result.action, 'deleted');
+      assert.equal(
+        connectorCache.get(tenantId, installationId, 'getResource', '999'),
+        null,
+        'Connector cache must be evicted on installation deletion'
+      );
+    });
+
+    test('installation_repositories.removed purges listResources and removed repository cache records', async () => {
+      const mockDb = {
+        select: () => ({
+          from: () => ({
+            where: () => ({
+              limit: () => [baseConnection],
+            }),
+          }),
+        }),
+        update: () => ({
+          set: () => ({
+            where: async () => [baseConnection],
+          }),
+        }),
+        insert: () => ({
+          values: async () => [],
+        }),
+      };
+
+      const connectorCache = new GitHubConnectorCache();
+      connectorCache.set(
+        tenantId,
+        installationId,
+        'listResources',
+        null,
+        { page: 1 },
+        { data: { items: [] } },
+        300
+      );
+      connectorCache.set(
+        tenantId,
+        installationId,
+        'getResource',
+        '555',
+        {},
+        { data: { id: '555', name: 'repo-to-remove' } },
+        300
+      );
+      connectorCache.set(
+        tenantId,
+        installationId,
+        'getResource',
+        '666',
+        {},
+        { data: { id: '666', name: 'repo-to-keep' } },
+        300
+      );
+
+      const service = new GitHubWebhookService({
+        db: mockDb,
+        webhookSecret: testSecret,
+        connectorCache,
+      });
+
+      const payload = {
+        action: 'removed',
+        installation: { id: installationId },
+        repositories_removed: [{ id: 555, full_name: 'hookuser/repo-to-remove' }],
+      };
+      const rawBody = Buffer.from(JSON.stringify(payload));
+      const signature = generateWebhookSignature(rawBody, testSecret);
+
+      const result = await service.processWebhook({
+        headers: {
+          'x-github-event': 'installation_repositories',
+          'x-github-delivery': 'del-repo-rm-1',
+          'x-hub-signature-256': signature,
+        },
+        rawBody,
+        payload,
+      });
+
+      assert.equal(result.success, true);
+      assert.equal(result.action, 'removed');
+      assert.equal(
+        connectorCache.get(tenantId, installationId, 'listResources', null, { page: 1 }),
+        null,
+        'listResources cache must be evicted'
+      );
+      assert.equal(
+        connectorCache.get(tenantId, installationId, 'getResource', '555'),
+        null,
+        'Removed repository cache must be evicted'
+      );
+      assert.ok(
+        connectorCache.get(tenantId, installationId, 'getResource', '666'),
+        'Unremoved repository cache must remain intact'
+      );
     });
   });
 });

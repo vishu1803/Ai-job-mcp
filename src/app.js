@@ -73,7 +73,14 @@ export function buildApp(opts = {}) {
       privateKeyBase64: config.GITHUB_APP_PRIVATE_KEY_BASE64,
       tokenCache: opts.tokenCache,
     });
-    connectorRegistry.register('GITHUB_APP', new GitHubAppConnector({ authManager }));
+    connectorRegistry.register(
+      'GITHUB_APP',
+      new GitHubAppConnector({
+        authManager,
+        cache: opts.connectorCache,
+        rateLimiter: opts.rateLimiter,
+      })
+    );
   }
 
   // Health and Liveness Routes (/livez, /healthz)
@@ -101,6 +108,7 @@ export function buildApp(opts = {}) {
     prefix: '/webhooks',
     webhookService: opts.webhookService,
     tokenCache: opts.tokenCache,
+    connectorCache: opts.connectorCache,
     db: opts.db,
   });
 

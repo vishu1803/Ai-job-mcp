@@ -36,7 +36,8 @@ import {
   ConnectionInactiveError,
 } from '../errors/connector-errors.js';
 import { ValidationError } from '../../errors/index.js';
-import { logger } from '../../utils/logger.js';
+import { defaultGitHubConnectorCache, GITHUB_CACHE_TTL } from './github-connector-cache.js';
+import { defaultGitHubRateLimiter } from './github-rate-limiter.js';
 
 const BLOCKED_BINARY_EXTENSIONS = new Set([
   // Images / Media
@@ -151,12 +152,16 @@ export class GitHubAppConnector extends BaseResourceConnector {
    * @param {typeof fetch} [options.fetchFn=globalThis.fetch] - HTTP fetch client
    * @param {string} [options.baseUrl='https://api.github.com'] - GitHub REST API base URL
    * @param {number} [options.timeoutMs=10000] - Request timeout in milliseconds (10s)
+   * @param {import('./github-connector-cache.js').GitHubConnectorCache} [options.cache=defaultGitHubConnectorCache]
+   * @param {import('./github-rate-limiter.js').GitHubRateLimiter} [options.rateLimiter=defaultGitHubRateLimiter]
    */
   constructor({
     authManager,
     fetchFn = globalThis.fetch,
     baseUrl = 'https://api.github.com',
     timeoutMs = 10000,
+    cache = defaultGitHubConnectorCache,
+    rateLimiter = defaultGitHubRateLimiter,
   } = {}) {
     super('GITHUB_APP');
     if (!authManager) {
@@ -166,6 +171,8 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.fetch = fetchFn;
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.timeoutMs = timeoutMs;
+    this.cache = cache;
+    this.rateLimiter = rateLimiter;
   }
 
   /**
@@ -271,7 +278,10 @@ export class GitHubAppConnector extends BaseResourceConnector {
    * @param {object} [options]
    * @param {string} [options.method='GET']
    * @param {object} [options.body]
-   * @returns {Promise<{ data: any, headers: Headers, status: number }>}
+   * @param {string} [options.etag]
+   * @param {string} [options.operation]
+   * @param {string} [options.resourceId]
+   * @returns {Promise<{ data: any, headers: Headers, status: number, notModified?: boolean }>}
    */
   async _request(context, credentials, endpoint, options = {}) {
     this._assertActiveConnection(context);
@@ -279,6 +289,11 @@ export class GitHubAppConnector extends BaseResourceConnector {
     const installationId = credentials?.installationId;
     if (!installationId) {
       throw new ValidationError('installationId is missing from connection credentials');
+    }
+
+    // Check rate limit tracker quota before dispatching
+    if (this.rateLimiter) {
+      await this.rateLimiter.assertAvailableQuota(context.tenantId, installationId);
     }
 
     const method = options.method || 'GET';
@@ -298,35 +313,36 @@ export class GitHubAppConnector extends BaseResourceConnector {
     while (attempt <= maxRetries) {
       const startTime = Date.now();
       try {
+        const reqHeaders = {
+          Authorization: `Bearer ${tokenInfo.token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'Antigravity-Career-Hub/0.1.0',
+          ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+          ...(options.etag ? { 'If-None-Match': options.etag } : {}),
+        };
+
         const res = await this.fetch(url, {
           method,
-          headers: {
-            Authorization: `Bearer ${tokenInfo.token}`,
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'Antigravity-Career-Hub/0.1.0',
-            ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-          },
+          headers: reqHeaders,
           body: options.body ? JSON.stringify(options.body) : undefined,
           signal: globalThis.AbortSignal.timeout(this.timeoutMs),
         });
 
-        const latencyMs = Date.now() - startTime;
+        const _latencyMs = Date.now() - startTime;
+
+        // Update rate limiter state from response headers
+        if (this.rateLimiter) {
+          this.rateLimiter.updateFromHeaders(context.tenantId, installationId, res.headers);
+        }
+
         const rateLimitRemaining = res.headers?.get?.('x-ratelimit-remaining') ?? null;
         const rateLimitReset = res.headers?.get?.('x-ratelimit-reset') ?? null;
         const retryAfter = res.headers?.get?.('retry-after') ?? null;
 
-        if (rateLimitRemaining !== null && Number(rateLimitRemaining) <= 5) {
-          logger.warn({
-            provider: 'GITHUB_APP',
-            operation: endpoint,
-            tenantId: context.tenantId,
-            installationId: String(installationId),
-            rateLimitRemaining: Number(rateLimitRemaining),
-            rateLimitReset,
-            latencyMs,
-            msg: 'GitHub API rate limit remaining quota is critically low (<= 5)',
-          });
+        // 304 Not Modified -> return notModified flag with headers
+        if (res.status === 304) {
+          return { data: null, headers: res.headers, status: 304, notModified: true };
         }
 
         if (res.ok) {
@@ -334,12 +350,15 @@ export class GitHubAppConnector extends BaseResourceConnector {
           if (res.status !== 204) {
             data = await res.json();
           }
-          return { data, headers: res.headers, status: res.status };
+          return { data, headers: res.headers, status: res.status, notModified: false };
         }
 
-        // 401 Unauthorized -> Evict token cache immediately and throw ConnectorAuthError
+        // 401 Unauthorized -> Evict token cache AND connector data cache
         if (res.status === 401) {
           this.authManager.evictInstallationTokens(context.tenantId, installationId);
+          if (this.cache) {
+            this.cache.evict(context.tenantId, installationId);
+          }
           throw new ConnectorAuthError(
             'GITHUB_APP',
             'GitHub App installation token is invalid or expired',
@@ -372,6 +391,14 @@ export class GitHubAppConnector extends BaseResourceConnector {
 
         // 404 Not Found
         if (res.status === 404) {
+          if (this.cache && options.operation) {
+            this.cache.evict(
+              context.tenantId,
+              installationId,
+              options.operation,
+              options.resourceId
+            );
+          }
           throw new ResourceNotFoundError('GITHUB_APP', endpoint);
         }
 
@@ -444,13 +471,28 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_ACCOUNT);
     this._assertActiveConnection(context);
 
-    // Prefer getting installation metadata from /installation/repositories
-    const { data } = await this._request(
-      context,
-      credentials,
-      '/installation/repositories?per_page=1'
-    );
+    const installationId = credentials?.installationId;
+    const operation = 'getAccount';
+    const ttl = GITHUB_CACHE_TTL.GET_ACCOUNT;
 
+    const cached = this.cache ? this.cache.get(context.tenantId, installationId, operation) : null;
+
+    if (cached && !cached.isExpired) {
+      return cached.data;
+    }
+
+    // Prefer getting installation metadata from /installation/repositories
+    const res = await this._request(context, credentials, '/installation/repositories?per_page=1', {
+      etag: cached?.etag,
+      operation,
+    });
+
+    if (res.status === 304 && cached) {
+      this.cache.touch(context.tenantId, installationId, operation, null, {}, ttl);
+      return cached.data;
+    }
+
+    const data = res.data;
     if (!data || typeof data !== 'object') {
       throw new ProviderUnavailableError(
         'GITHUB_APP',
@@ -497,7 +539,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
       );
     }
 
-    return createNormalizedAccount({
+    const normalizedAccount = createNormalizedAccount({
       id: String(account.id),
       name: account.login,
       displayName: account.login,
@@ -510,6 +552,21 @@ export class GitHubAppConnector extends BaseResourceConnector {
         htmlUrl: account.html_url || null,
       },
     });
+
+    if (this.cache) {
+      const etag = res.headers?.get?.('etag') || null;
+      this.cache.set(
+        context.tenantId,
+        installationId,
+        operation,
+        null,
+        {},
+        { data: normalizedAccount, etag },
+        ttl
+      );
+    }
+
+    return normalizedAccount;
   }
 
   /**
@@ -524,15 +581,33 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.LIST_RESOURCES);
     this._assertActiveConnection(context);
 
+    const installationId = credentials?.installationId;
     const pagination = createPaginationOptions(options);
     const { page, limit } = this._decodeCursor(pagination.cursor, pagination.limit);
+    const operation = 'listResources';
+    const params = { page, limit };
+    const ttl = GITHUB_CACHE_TTL.LIST_RESOURCES;
 
-    const { data } = await this._request(
-      context,
-      credentials,
-      `/installation/repositories?per_page=${limit}&page=${page}`
-    );
+    const cached = this.cache
+      ? this.cache.get(context.tenantId, installationId, operation, null, params)
+      : null;
 
+    if (cached && !cached.isExpired) {
+      return cached.data;
+    }
+
+    const endpoint = `/installation/repositories?per_page=${limit}&page=${page}`;
+    const res = await this._request(context, credentials, endpoint, {
+      etag: cached?.etag,
+      operation,
+    });
+
+    if (res.status === 304 && cached) {
+      this.cache.touch(context.tenantId, installationId, operation, null, params, ttl);
+      return cached.data;
+    }
+
+    const data = res.data;
     if (!data || !Array.isArray(data.repositories)) {
       throw new ProviderUnavailableError(
         'GITHUB_APP',
@@ -547,12 +622,27 @@ export class GitHubAppConnector extends BaseResourceConnector {
     const hasMore = items.length === limit && page * limit < totalCount;
     const nextCursor = hasMore ? this._encodeCursor(page + 1, limit) : null;
 
-    return createPaginatedResult({
+    const paginatedResult = createPaginatedResult({
       items,
       nextCursor,
       hasMore,
       totalCount,
     });
+
+    if (this.cache) {
+      const etag = res.headers?.get?.('etag') || null;
+      this.cache.set(
+        context.tenantId,
+        installationId,
+        operation,
+        null,
+        params,
+        { data: paginatedResult, etag },
+        ttl
+      );
+    }
+
+    return paginatedResult;
   }
 
   /**
@@ -606,10 +696,34 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_RESOURCE);
     this._assertActiveConnection(context);
 
+    const installationId = credentials?.installationId;
+    const resourceId = String(externalResourceId).trim();
+    const operation = 'getResource';
+    const ttl = GITHUB_CACHE_TTL.GET_RESOURCE;
+
+    const cached = this.cache
+      ? this.cache.get(context.tenantId, installationId, operation, resourceId)
+      : null;
+
+    if (cached && !cached.isExpired) {
+      return cached.data;
+    }
+
     const endpoint = this._resolveRepoEndpointPrefix(externalResourceId);
 
     try {
-      const { data } = await this._request(context, credentials, endpoint);
+      const res = await this._request(context, credentials, endpoint, {
+        etag: cached?.etag,
+        operation,
+        resourceId,
+      });
+
+      if (res.status === 304 && cached) {
+        this.cache.touch(context.tenantId, installationId, operation, resourceId, {}, ttl);
+        return cached.data;
+      }
+
+      const data = res.data;
       if (!data || !data.id || !data.name) {
         throw new ProviderUnavailableError(
           'GITHUB_APP',
@@ -617,7 +731,23 @@ export class GitHubAppConnector extends BaseResourceConnector {
           false
         );
       }
-      return this._normalizeRepository(data);
+
+      const normalizedResource = this._normalizeRepository(data);
+
+      if (this.cache) {
+        const etag = res.headers?.get?.('etag') || null;
+        this.cache.set(
+          context.tenantId,
+          installationId,
+          operation,
+          resourceId,
+          {},
+          { data: normalizedResource, etag },
+          ttl
+        );
+      }
+
+      return normalizedResource;
     } catch (err) {
       if (err instanceof ResourceNotFoundError) {
         throw new ResourceNotFoundError('GITHUB_APP', externalResourceId);
@@ -632,18 +762,46 @@ export class GitHubAppConnector extends BaseResourceConnector {
    * @param {import('../base/context.js').ConnectorContext} context
    * @param {Record<string, unknown>} credentials
    * @param {string} externalResourceId
+   * @param {object} [options]
+   * @param {string} [options.ref]
    * @returns {Promise<object|null>}
    */
-  async getReadme(context, credentials, externalResourceId) {
+  async getReadme(context, credentials, externalResourceId, options = {}) {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
     this._assertActiveConnection(context);
 
+    const installationId = credentials?.installationId;
+    const resourceId = String(externalResourceId).trim();
+    const operation = 'getReadme';
+    const isPinned = Boolean(options?.ref && /^[0-9a-f]{40}$/i.test(options.ref));
+    const ttl = isPinned ? GITHUB_CACHE_TTL.GET_README_PINNED : GITHUB_CACHE_TTL.GET_README;
+    const params = options?.ref ? { ref: options.ref } : {};
+
+    const cached = this.cache
+      ? this.cache.get(context.tenantId, installationId, operation, resourceId, params)
+      : null;
+
+    if (cached && !cached.isExpired) {
+      return cached.data;
+    }
+
     const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
-    const endpoint = `${prefix}/readme`;
+    const refQuery = options?.ref ? `?ref=${encodeURIComponent(options.ref)}` : '';
+    const endpoint = `${prefix}/readme${refQuery}`;
 
     try {
-      const { data } = await this._request(context, credentials, endpoint);
+      const res = await this._request(context, credentials, endpoint, {
+        etag: cached?.etag,
+        operation,
+        resourceId,
+      });
 
+      if (res.status === 304 && cached) {
+        this.cache.touch(context.tenantId, installationId, operation, resourceId, params, ttl);
+        return cached.data;
+      }
+
+      const data = res.data;
       if (!data || !data.content) {
         return null;
       }
@@ -660,7 +818,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
         decodedString = decodedBuffer.toString('utf8');
       }
 
-      return {
+      const normalizedReadme = {
         name: data.name || 'README.md',
         path: data.path || 'README.md',
         sha: data.sha || null,
@@ -670,6 +828,21 @@ export class GitHubAppConnector extends BaseResourceConnector {
         downloadUrl: data.download_url || null,
         truncated,
       };
+
+      if (this.cache) {
+        const etag = res.headers?.get?.('etag') || null;
+        this.cache.set(
+          context.tenantId,
+          installationId,
+          operation,
+          resourceId,
+          params,
+          { data: normalizedReadme, etag },
+          ttl
+        );
+      }
+
+      return normalizedReadme;
     } catch (err) {
       if (err instanceof ResourceNotFoundError) {
         return null;
@@ -692,13 +865,40 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
     this._assertActiveConnection(context);
 
-    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const installationId = credentials?.installationId;
+    const resourceId = String(externalResourceId).trim();
+    const operation = 'getRepositoryTree';
     const treeSha = options?.treeSha ? String(options.treeSha).trim() : 'HEAD';
+    const isPinned = /^[0-9a-f]{40}$/i.test(treeSha);
+    const ttl = isPinned
+      ? GITHUB_CACHE_TTL.GET_REPOSITORY_TREE_PINNED
+      : GITHUB_CACHE_TTL.GET_REPOSITORY_TREE;
+    const params = { treeSha };
+
+    const cached = this.cache
+      ? this.cache.get(context.tenantId, installationId, operation, resourceId, params)
+      : null;
+
+    if (cached && !cached.isExpired) {
+      return cached.data;
+    }
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
     const endpoint = `${prefix}/git/trees/${encodeURIComponent(treeSha)}?recursive=1`;
 
     try {
-      const { data } = await this._request(context, credentials, endpoint);
+      const res = await this._request(context, credentials, endpoint, {
+        etag: cached?.etag,
+        operation,
+        resourceId,
+      });
 
+      if (res.status === 304 && cached) {
+        this.cache.touch(context.tenantId, installationId, operation, resourceId, params, ttl);
+        return cached.data;
+      }
+
+      const data = res.data;
       if (!data || !Array.isArray(data.tree)) {
         throw new ProviderUnavailableError(
           'GITHUB_APP',
@@ -748,12 +948,27 @@ export class GitHubAppConnector extends BaseResourceConnector {
         }
       }
 
-      return {
+      const normalizedTree = {
         sha: data.sha || treeSha,
         entries: normalizedEntries,
         totalEntries: normalizedEntries.length,
         truncated: isTruncated,
       };
+
+      if (this.cache) {
+        const etag = res.headers?.get?.('etag') || null;
+        this.cache.set(
+          context.tenantId,
+          installationId,
+          operation,
+          resourceId,
+          params,
+          { data: normalizedTree, etag },
+          ttl
+        );
+      }
+
+      return normalizedTree;
     } catch (err) {
       if (err instanceof ResourceNotFoundError) {
         throw new ResourceNotFoundError('GITHUB_APP', externalResourceId);
@@ -774,11 +989,34 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
     this._assertActiveConnection(context);
 
+    const installationId = credentials?.installationId;
+    const resourceId = String(externalResourceId).trim();
+    const operation = 'getLanguages';
+    const ttl = GITHUB_CACHE_TTL.GET_LANGUAGES;
+
+    const cached = this.cache
+      ? this.cache.get(context.tenantId, installationId, operation, resourceId)
+      : null;
+
+    if (cached && !cached.isExpired) {
+      return cached.data;
+    }
+
     const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
     const endpoint = `${prefix}/languages`;
 
-    const { data } = await this._request(context, credentials, endpoint);
+    const res = await this._request(context, credentials, endpoint, {
+      etag: cached?.etag,
+      operation,
+      resourceId,
+    });
 
+    if (res.status === 304 && cached) {
+      this.cache.touch(context.tenantId, installationId, operation, resourceId, {}, ttl);
+      return cached.data;
+    }
+
+    const data = res.data;
     if (!data || typeof data !== 'object') {
       throw new ProviderUnavailableError(
         'GITHUB_APP',
@@ -810,11 +1048,26 @@ export class GitHubAppConnector extends BaseResourceConnector {
 
     const primaryLanguage = languages.length > 0 ? languages[0].name : null;
 
-    return {
+    const normalizedLanguages = {
       languages,
       totalBytes,
       primaryLanguage,
     };
+
+    if (this.cache) {
+      const etag = res.headers?.get?.('etag') || null;
+      this.cache.set(
+        context.tenantId,
+        installationId,
+        operation,
+        resourceId,
+        {},
+        { data: normalizedLanguages, etag },
+        ttl
+      );
+    }
+
+    return normalizedLanguages;
   }
 
   /**
@@ -830,15 +1083,45 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
     this._assertActiveConnection(context);
 
-    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const installationId = credentials?.installationId;
+    const resourceId = String(externalResourceId).trim();
+    const operation = 'getRecentCommits';
     const pagination = this._decodeCursor(options?.cursor, options?.limit || DEFAULT_COMMITS_LIMIT);
     const limit = Math.min(Math.max(1, pagination.limit), MAX_COMMITS_LIMIT);
     const page = Math.max(1, pagination.page);
+    const params = {
+      page,
+      limit,
+      sha: options?.sha || undefined,
+      path: options?.path || undefined,
+    };
+    const ttl = GITHUB_CACHE_TTL.GET_RECENT_COMMITS;
 
-    const endpoint = `${prefix}/commits?per_page=${limit}&page=${page}`;
+    const cached = this.cache
+      ? this.cache.get(context.tenantId, installationId, operation, resourceId, params)
+      : null;
 
-    const { data } = await this._request(context, credentials, endpoint);
+    if (cached && !cached.isExpired) {
+      return cached.data;
+    }
 
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    let endpoint = `${prefix}/commits?per_page=${limit}&page=${page}`;
+    if (options?.sha) endpoint += `&sha=${encodeURIComponent(options.sha)}`;
+    if (options?.path) endpoint += `&path=${encodeURIComponent(options.path)}`;
+
+    const res = await this._request(context, credentials, endpoint, {
+      etag: cached?.etag,
+      operation,
+      resourceId,
+    });
+
+    if (res.status === 304 && cached) {
+      this.cache.touch(context.tenantId, installationId, operation, resourceId, params, ttl);
+      return cached.data;
+    }
+
+    const data = res.data;
     if (!Array.isArray(data)) {
       throw new ProviderUnavailableError(
         'GITHUB_APP',
@@ -885,12 +1168,27 @@ export class GitHubAppConnector extends BaseResourceConnector {
     const hasMore = normalizedCommits.length === limit;
     const nextCursor = hasMore ? this._encodeCursor(page + 1, limit) : null;
 
-    return createPaginatedResult({
+    const paginatedResult = createPaginatedResult({
       items: normalizedCommits,
       nextCursor,
       hasMore,
       totalCount: undefined,
     });
+
+    if (this.cache) {
+      const etag = res.headers?.get?.('etag') || null;
+      this.cache.set(
+        context.tenantId,
+        installationId,
+        operation,
+        resourceId,
+        params,
+        { data: paginatedResult, etag },
+        ttl
+      );
+    }
+
+    return paginatedResult;
   }
 
   /**
@@ -908,6 +1206,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
     this._assertActiveConnection(context);
 
+    const installationId = credentials?.installationId;
     const normalizedPath = sanitizeRelativePosixPath(filePath);
 
     // Binary file extension check
@@ -918,13 +1217,40 @@ export class GitHubAppConnector extends BaseResourceConnector {
       );
     }
 
+    const resourceId = `${externalResourceId}:${normalizedPath}`;
+    const operation = 'getFileContent';
+    const ref = options?.ref || 'HEAD';
+    const isPinned = /^[0-9a-f]{40}$/i.test(ref);
+    const ttl = isPinned
+      ? GITHUB_CACHE_TTL.GET_FILE_CONTENT_PINNED
+      : GITHUB_CACHE_TTL.GET_FILE_CONTENT;
+    const params = options?.ref ? { ref: options.ref } : {};
+
+    const cached = this.cache
+      ? this.cache.get(context.tenantId, installationId, operation, resourceId, params)
+      : null;
+
+    if (cached && !cached.isExpired) {
+      return cached.data;
+    }
+
     const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
     const refQuery = options?.ref ? `?ref=${encodeURIComponent(options.ref)}` : '';
     const endpoint = `${prefix}/contents/${encodeURI(normalizedPath)}${refQuery}`;
 
     try {
-      const { data } = await this._request(context, credentials, endpoint);
+      const res = await this._request(context, credentials, endpoint, {
+        etag: cached?.etag,
+        operation,
+        resourceId,
+      });
 
+      if (res.status === 304 && cached) {
+        this.cache.touch(context.tenantId, installationId, operation, resourceId, params, ttl);
+        return cached.data;
+      }
+
+      const data = res.data;
       if (!data) {
         throw new ResourceNotFoundError('GITHUB_APP', normalizedPath);
       }
@@ -979,7 +1305,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
 
       const decodedContent = decodedBuffer.toString('utf8');
 
-      return {
+      const normalizedFile = {
         name: data.name || path.posix.basename(normalizedPath),
         path: normalizedPath,
         sha: data.sha || null,
@@ -988,6 +1314,21 @@ export class GitHubAppConnector extends BaseResourceConnector {
         encoding: 'utf-8',
         type: 'file',
       };
+
+      if (this.cache) {
+        const etag = res.headers?.get?.('etag') || null;
+        this.cache.set(
+          context.tenantId,
+          installationId,
+          operation,
+          resourceId,
+          params,
+          { data: normalizedFile, etag },
+          ttl
+        );
+      }
+
+      return normalizedFile;
     } catch (err) {
       if (err instanceof ResourceNotFoundError) {
         throw new ResourceNotFoundError('GITHUB_APP', normalizedPath);
@@ -1059,7 +1400,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
   }
 
   /**
-   * Revokes upstream installation access token and clears local token cache.
+   * Revokes upstream installation access token and clears local token cache and data cache.
    *
    * @param {import('../base/context.js').ConnectorContext} context
    * @param {Record<string, unknown>} credentials
@@ -1074,6 +1415,10 @@ export class GitHubAppConnector extends BaseResourceConnector {
         tenantId: context.tenantId,
         installationId,
       });
+
+      if (this.cache) {
+        this.cache.evict(context.tenantId, installationId);
+      }
     }
   }
 }

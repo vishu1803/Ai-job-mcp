@@ -19,6 +19,8 @@ import { GitHubAppAuthManager } from '../../src/connectors/github/auth.js';
 import { GitHubTokenCache } from '../../src/connectors/github/token-cache.js';
 import { CONNECTOR_CAPABILITIES } from '../../src/connectors/base/capabilities.js';
 import { createConnectorContext } from '../../src/connectors/base/context.js';
+import { defaultGitHubConnectorCache } from '../../src/connectors/github/github-connector-cache.js';
+import { defaultGitHubRateLimiter } from '../../src/connectors/github/github-rate-limiter.js';
 import {
   ConnectorAuthError,
   InsufficientScopeError,
@@ -74,6 +76,8 @@ describe('GitHub Deep Repository Inspection Unit Tests (P3-005)', () => {
   });
 
   beforeEach(() => {
+    defaultGitHubConnectorCache.clear();
+    defaultGitHubRateLimiter.clear();
     tokenCache = new GitHubTokenCache();
     authManager = new GitHubAppAuthManager({
       appId: testAppId,
