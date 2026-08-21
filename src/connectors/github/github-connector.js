@@ -18,6 +18,7 @@
  */
 
 import { Buffer } from 'node:buffer';
+import path from 'node:path';
 import { BaseResourceConnector } from '../base/resource-connector.js';
 import { CONNECTOR_CAPABILITIES } from '../base/capabilities.js';
 import {
@@ -36,6 +37,112 @@ import {
 } from '../errors/connector-errors.js';
 import { ValidationError } from '../../errors/index.js';
 import { logger } from '../../utils/logger.js';
+
+const BLOCKED_BINARY_EXTENSIONS = new Set([
+  // Images / Media
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.ico',
+  '.webp',
+  '.mp4',
+  '.mp3',
+  '.wav',
+  '.mov',
+  '.avi',
+  // Archives / Binaries
+  '.zip',
+  '.tar',
+  '.gz',
+  '.7z',
+  '.rar',
+  '.exe',
+  '.dll',
+  '.so',
+  '.dylib',
+  '.bin',
+  '.iso',
+  '.dmg',
+  // Fonts / Documents
+  '.pdf',
+  '.doc',
+  '.docx',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.eot',
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+  // Build Outputs / Bytecode
+  '.class',
+  '.pyc',
+  '.o',
+  '.a',
+  '.wasm',
+  '.jar',
+  '.war',
+  '.ear',
+]);
+
+const MAX_FILE_SIZE_BYTES = 1048576; // 1 MB
+const MAX_README_SIZE_BYTES = 262144; // 256 KB
+const MAX_TREE_ENTRIES = 1000;
+const MAX_TREE_DEPTH = 10;
+const MAX_COMMITS_LIMIT = 100;
+const DEFAULT_COMMITS_LIMIT = 30;
+const MAX_COMMIT_MESSAGE_LENGTH = 500;
+
+function sanitizeRelativePosixPath(rawPath) {
+  if (!rawPath || typeof rawPath !== 'string' || rawPath.trim().length === 0) {
+    throw new ValidationError('File path must be a non-empty string', 'INVALID_FILE_PATH');
+  }
+
+  // Reject null bytes, backslashes, leading slashes, or '..'
+  if (
+    rawPath.includes('\0') ||
+    rawPath.includes('\\') ||
+    rawPath.startsWith('/') ||
+    rawPath.includes('..')
+  ) {
+    throw new ValidationError(
+      `Invalid file path '${rawPath}'. Must be a relative POSIX path without '..' or backslashes`,
+      'INVALID_FILE_PATH'
+    );
+  }
+
+  const normalized = path.posix.normalize(rawPath);
+
+  if (
+    normalized === '.' ||
+    normalized.startsWith('../') ||
+    normalized.startsWith('/') ||
+    normalized.includes('..')
+  ) {
+    throw new ValidationError(`Invalid normalized file path '${rawPath}'`, 'INVALID_FILE_PATH');
+  }
+
+  return normalized;
+}
+
+function isBlockedBinaryExtension(filePath) {
+  const ext = path.posix.extname(filePath).toLowerCase();
+  return BLOCKED_BINARY_EXTENSIONS.has(ext);
+}
+
+function isBinaryBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) return false;
+  const sampleLength = Math.min(buffer.length, 512);
+  for (let i = 0; i < sampleLength; i++) {
+    if (buffer[i] === 0x00) {
+      return true;
+    }
+  }
+  return false;
+}
 
 export class GitHubAppConnector extends BaseResourceConnector {
   /**
@@ -71,6 +178,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
       CONNECTOR_CAPABILITIES.READ_ACCOUNT,
       CONNECTOR_CAPABILITIES.LIST_RESOURCES,
       CONNECTOR_CAPABILITIES.READ_RESOURCE,
+      CONNECTOR_CAPABILITIES.READ_CONTENT,
       CONNECTOR_CAPABILITIES.REVOKE_ACCESS,
     ]);
   }
@@ -448,6 +556,45 @@ export class GitHubAppConnector extends BaseResourceConnector {
   }
 
   /**
+   * Resolves a repository numeric ID or 'owner/repo' into an API path prefix.
+   *
+   * @private
+   * @param {string} externalResourceId
+   * @returns {string}
+   */
+  _resolveRepoEndpointPrefix(externalResourceId) {
+    if (
+      !externalResourceId ||
+      typeof externalResourceId !== 'string' ||
+      externalResourceId.trim().length === 0
+    ) {
+      throw new ValidationError('externalResourceId is required');
+    }
+
+    const trimmed = externalResourceId.trim();
+
+    if (/^\d+$/.test(trimmed)) {
+      return `/repositories/${trimmed}`;
+    }
+
+    if (trimmed.includes('/')) {
+      const parts = trimmed.split('/');
+      if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        throw new ValidationError(
+          `Invalid repository format '${externalResourceId}'. Must be numeric ID or 'owner/repo'`,
+          'INVALID_RESOURCE_ID'
+        );
+      }
+      return `/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}`;
+    }
+
+    throw new ValidationError(
+      `Invalid repository identifier '${externalResourceId}'. Expected numeric ID or 'owner/repo'`,
+      'INVALID_RESOURCE_ID'
+    );
+  }
+
+  /**
    * Fetches detailed metadata for a single repository by numeric ID or 'owner/repo'.
    *
    * @param {import('../base/context.js').ConnectorContext} context
@@ -459,36 +606,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
     this.assertCapability(CONNECTOR_CAPABILITIES.READ_RESOURCE);
     this._assertActiveConnection(context);
 
-    if (
-      !externalResourceId ||
-      typeof externalResourceId !== 'string' ||
-      externalResourceId.trim().length === 0
-    ) {
-      throw new ValidationError('externalResourceId is required');
-    }
-
-    const trimmedId = externalResourceId.trim();
-    let endpoint;
-
-    if (/^\d+$/.test(trimmedId)) {
-      // Canonical Numeric ID lookup
-      endpoint = `/repositories/${trimmedId}`;
-    } else if (trimmedId.includes('/')) {
-      // Secondary owner/repo lookup
-      const parts = trimmedId.split('/');
-      if (parts.length !== 2 || !parts[0] || !parts[1]) {
-        throw new ValidationError(
-          `Invalid repository format '${externalResourceId}'. Must be numeric ID or 'owner/repo'`,
-          'INVALID_RESOURCE_ID'
-        );
-      }
-      endpoint = `/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}`;
-    } else {
-      throw new ValidationError(
-        `Invalid repository identifier '${externalResourceId}'. Expected numeric ID or 'owner/repo'`,
-        'INVALID_RESOURCE_ID'
-      );
-    }
+    const endpoint = this._resolveRepoEndpointPrefix(externalResourceId);
 
     try {
       const { data } = await this._request(context, credentials, endpoint);
@@ -503,6 +621,376 @@ export class GitHubAppConnector extends BaseResourceConnector {
     } catch (err) {
       if (err instanceof ResourceNotFoundError) {
         throw new ResourceNotFoundError('GITHUB_APP', externalResourceId);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Extracts and decodes the repository's root documentation (README.md).
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @returns {Promise<object|null>}
+   */
+  async getReadme(context, credentials, externalResourceId) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
+    this._assertActiveConnection(context);
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const endpoint = `${prefix}/readme`;
+
+    try {
+      const { data } = await this._request(context, credentials, endpoint);
+
+      if (!data || !data.content) {
+        return null;
+      }
+
+      const cleanBase64 = String(data.content).replace(/[\r\n\s]+/g, '');
+      const decodedBuffer = Buffer.from(cleanBase64, 'base64');
+      let decodedString;
+      let truncated = false;
+
+      if (decodedBuffer.length > MAX_README_SIZE_BYTES) {
+        decodedString = decodedBuffer.subarray(0, MAX_README_SIZE_BYTES).toString('utf8');
+        truncated = true;
+      } else {
+        decodedString = decodedBuffer.toString('utf8');
+      }
+
+      return {
+        name: data.name || 'README.md',
+        path: data.path || 'README.md',
+        sha: data.sha || null,
+        size: typeof data.size === 'number' ? data.size : decodedBuffer.length,
+        content: decodedString,
+        encoding: 'utf-8',
+        downloadUrl: data.download_url || null,
+        truncated,
+      };
+    } catch (err) {
+      if (err instanceof ResourceNotFoundError) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Crawls the repository directory hierarchy using GitHub's recursive Git tree API.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {object} [options]
+   * @param {string} [options.treeSha='HEAD']
+   * @returns {Promise<object>}
+   */
+  async getRepositoryTree(context, credentials, externalResourceId, options = {}) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
+    this._assertActiveConnection(context);
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const treeSha = options?.treeSha ? String(options.treeSha).trim() : 'HEAD';
+    const endpoint = `${prefix}/git/trees/${encodeURIComponent(treeSha)}?recursive=1`;
+
+    try {
+      const { data } = await this._request(context, credentials, endpoint);
+
+      if (!data || !Array.isArray(data.tree)) {
+        throw new ProviderUnavailableError(
+          'GITHUB_APP',
+          'Malformed Git tree response received from GitHub',
+          false
+        );
+      }
+
+      const rawEntries = data.tree;
+      const normalizedEntries = [];
+      let isTruncated = Boolean(data.truncated);
+
+      for (const item of rawEntries) {
+        if (!item || !item.path) continue;
+
+        // Exclude symlinks (Git mode 120000)
+        if (item.mode === '120000') continue;
+
+        // Exclude binary extensions
+        if (isBlockedBinaryExtension(item.path)) continue;
+
+        // Validate & normalize path
+        let normalizedPath;
+        try {
+          normalizedPath = sanitizeRelativePosixPath(item.path);
+        } catch {
+          // Skip invalid/unsafe paths
+          continue;
+        }
+
+        // Calculate directory depth
+        const depth = normalizedPath.split('/').length;
+        if (depth > MAX_TREE_DEPTH) continue;
+
+        normalizedEntries.push({
+          path: normalizedPath,
+          mode: item.mode,
+          type: item.type === 'tree' ? 'tree' : 'blob',
+          sha: item.sha,
+          size: typeof item.size === 'number' ? item.size : undefined,
+          depth,
+        });
+
+        if (normalizedEntries.length >= MAX_TREE_ENTRIES) {
+          isTruncated = true;
+          break;
+        }
+      }
+
+      return {
+        sha: data.sha || treeSha,
+        entries: normalizedEntries,
+        totalEntries: normalizedEntries.length,
+        truncated: isTruncated,
+      };
+    } catch (err) {
+      if (err instanceof ResourceNotFoundError) {
+        throw new ResourceNotFoundError('GITHUB_APP', externalResourceId);
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Retrieves the byte-level breakdown of programming languages used across the repository.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @returns {Promise<object>}
+   */
+  async getLanguages(context, credentials, externalResourceId) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
+    this._assertActiveConnection(context);
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const endpoint = `${prefix}/languages`;
+
+    const { data } = await this._request(context, credentials, endpoint);
+
+    if (!data || typeof data !== 'object') {
+      throw new ProviderUnavailableError(
+        'GITHUB_APP',
+        'Malformed language response received from GitHub',
+        false
+      );
+    }
+
+    const entries = Object.entries(data);
+    let totalBytes = 0;
+    for (const [, bytes] of entries) {
+      if (typeof bytes === 'number') {
+        totalBytes += bytes;
+      }
+    }
+
+    // Sort descending by byte count for deterministic output
+    entries.sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0));
+
+    const languages = entries.map(([name, bytes]) => {
+      const byteCount = typeof bytes === 'number' ? bytes : 0;
+      const percentage = totalBytes > 0 ? Number(((byteCount / totalBytes) * 100).toFixed(1)) : 0;
+      return {
+        name,
+        bytes: byteCount,
+        percentage,
+      };
+    });
+
+    const primaryLanguage = languages.length > 0 ? languages[0].name : null;
+
+    return {
+      languages,
+      totalBytes,
+      primaryLanguage,
+    };
+  }
+
+  /**
+   * Inspects recent commit history with opaque cursor pagination and author PII scrubbing.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {object} [options]
+   * @returns {Promise<import('../base/models.js').PaginatedResult>}
+   */
+  async getRecentCommits(context, credentials, externalResourceId, options = {}) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
+    this._assertActiveConnection(context);
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const pagination = this._decodeCursor(options?.cursor, options?.limit || DEFAULT_COMMITS_LIMIT);
+    const limit = Math.min(Math.max(1, pagination.limit), MAX_COMMITS_LIMIT);
+    const page = Math.max(1, pagination.page);
+
+    const endpoint = `${prefix}/commits?per_page=${limit}&page=${page}`;
+
+    const { data } = await this._request(context, credentials, endpoint);
+
+    if (!Array.isArray(data)) {
+      throw new ProviderUnavailableError(
+        'GITHUB_APP',
+        'Malformed commits response received from GitHub',
+        false
+      );
+    }
+
+    const normalizedCommits = [];
+    const shaRegex = /^[0-9a-f]{40}$/i;
+
+    for (const item of data) {
+      if (!item || !item.sha || !shaRegex.test(item.sha)) {
+        continue;
+      }
+
+      const sha = item.sha;
+      const shortSha = sha.substring(0, 7);
+
+      let message = item.commit?.message || '';
+      if (message.length > MAX_COMMIT_MESSAGE_LENGTH) {
+        message = message.substring(0, MAX_COMMIT_MESSAGE_LENGTH);
+      }
+
+      const authorLogin = item.author?.login || null;
+      const authorName = item.commit?.author?.name || authorLogin || 'Unknown';
+      const authorDate = item.commit?.author?.date ? new Date(item.commit.author.date) : new Date();
+      const avatarUrl = item.author?.avatar_url || null;
+
+      normalizedCommits.push({
+        sha,
+        shortSha,
+        message,
+        author: {
+          login: authorLogin,
+          name: authorName,
+          date: authorDate,
+          avatarUrl,
+        },
+        htmlUrl: item.html_url || null,
+      });
+    }
+
+    const hasMore = normalizedCommits.length === limit;
+    const nextCursor = hasMore ? this._encodeCursor(page + 1, limit) : null;
+
+    return createPaginatedResult({
+      items: normalizedCommits,
+      nextCursor,
+      hasMore,
+      totalCount: undefined,
+    });
+  }
+
+  /**
+   * Fetches and safely decodes single file text content with strict size and binary guards.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {string} filePath
+   * @param {object} [options]
+   * @param {string} [options.ref]
+   * @returns {Promise<object>}
+   */
+  async getFileContent(context, credentials, externalResourceId, filePath, options = {}) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.READ_CONTENT);
+    this._assertActiveConnection(context);
+
+    const normalizedPath = sanitizeRelativePosixPath(filePath);
+
+    // Binary file extension check
+    if (isBlockedBinaryExtension(normalizedPath)) {
+      throw new ValidationError(
+        `Binary files cannot be read as text: '${normalizedPath}'`,
+        'BINARY_FILE_REJECTED'
+      );
+    }
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const refQuery = options?.ref ? `?ref=${encodeURIComponent(options.ref)}` : '';
+    const endpoint = `${prefix}/contents/${encodeURI(normalizedPath)}${refQuery}`;
+
+    try {
+      const { data } = await this._request(context, credentials, endpoint);
+
+      if (!data) {
+        throw new ResourceNotFoundError('GITHUB_APP', normalizedPath);
+      }
+
+      // Check if it is a directory or symlink
+      if (Array.isArray(data) || data.type === 'dir') {
+        throw new ValidationError(
+          `Path '${normalizedPath}' is a directory, not a file`,
+          'INVALID_FILE_TYPE'
+        );
+      }
+
+      if (data.type === 'symlink' || data.target) {
+        throw new ValidationError(
+          `Symlinks cannot be read: '${normalizedPath}'`,
+          'SYMLINK_REJECTED'
+        );
+      }
+
+      // Size limit check
+      if (typeof data.size === 'number' && data.size > MAX_FILE_SIZE_BYTES) {
+        throw new ValidationError(
+          `File size (${data.size} bytes) exceeds maximum allowable limit of 1MB`,
+          'FILE_TOO_LARGE'
+        );
+      }
+
+      if (!data.content || data.encoding !== 'base64') {
+        throw new ValidationError(
+          `File content unavailable or unsupported encoding '${data.encoding}'`,
+          'UNSUPPORTED_ENCODING'
+        );
+      }
+
+      const cleanBase64 = String(data.content).replace(/[\r\n\s]+/g, '');
+      const decodedBuffer = Buffer.from(cleanBase64, 'base64');
+
+      if (decodedBuffer.length > MAX_FILE_SIZE_BYTES) {
+        throw new ValidationError(
+          `Decoded file size (${decodedBuffer.length} bytes) exceeds maximum allowable limit of 1MB`,
+          'FILE_TOO_LARGE'
+        );
+      }
+
+      // Null-byte binary sniffing
+      if (isBinaryBuffer(decodedBuffer)) {
+        throw new ValidationError(
+          `Binary file detected via content inspection: '${normalizedPath}'`,
+          'BINARY_FILE_REJECTED'
+        );
+      }
+
+      const decodedContent = decodedBuffer.toString('utf8');
+
+      return {
+        name: data.name || path.posix.basename(normalizedPath),
+        path: normalizedPath,
+        sha: data.sha || null,
+        size: decodedBuffer.length,
+        content: decodedContent,
+        encoding: 'utf-8',
+        type: 'file',
+      };
+    } catch (err) {
+      if (err instanceof ResourceNotFoundError) {
+        throw new ResourceNotFoundError('GITHUB_APP', normalizedPath);
       }
       throw err;
     }

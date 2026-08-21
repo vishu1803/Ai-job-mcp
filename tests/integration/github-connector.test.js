@@ -106,6 +106,86 @@ describe('GitHubAppConnector PostgreSQL Integration Tests (P3-004)', () => {
         };
       }
 
+      if (url.includes('/repositories/1043905096/readme')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new globalThis.Headers(),
+          json: async () => ({
+            name: 'README.md',
+            path: 'README.md',
+            sha: 'sha-readme-1',
+            size: 30,
+            content: Buffer.from('# Integration README').toString('base64'),
+            encoding: 'base64',
+          }),
+        };
+      }
+
+      if (url.includes('/repositories/1043905096/git/trees/')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new globalThis.Headers(),
+          json: async () => ({
+            sha: 'tree-sha-1',
+            tree: [
+              { path: 'package.json', mode: '100644', type: 'blob', sha: 'sha-pkg' },
+              { path: 'src', mode: '040000', type: 'tree', sha: 'sha-src' },
+              { path: 'src/index.js', mode: '100644', type: 'blob', sha: 'sha-idx' },
+            ],
+            truncated: false,
+          }),
+        };
+      }
+
+      if (url.includes('/repositories/1043905096/languages')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new globalThis.Headers(),
+          json: async () => ({
+            JavaScript: 80000,
+            HTML: 20000,
+          }),
+        };
+      }
+
+      if (url.includes('/repositories/1043905096/commits')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new globalThis.Headers(),
+          json: async () => [
+            {
+              sha: '3333333333333333333333333333333333333333',
+              commit: {
+                message: 'feat: add deep inspection',
+                author: { name: 'Vishwanath Nishad', date: '2026-08-21T18:00:00Z' },
+              },
+              author: { login: 'vishu1803' },
+            },
+          ],
+        };
+      }
+
+      if (url.includes('/repositories/1043905096/contents/package.json')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new globalThis.Headers(),
+          json: async () => ({
+            name: 'package.json',
+            path: 'package.json',
+            sha: 'sha-pkg-1',
+            size: 40,
+            content: Buffer.from('{"name":"ai-job-mcp"}').toString('base64'),
+            encoding: 'base64',
+            type: 'file',
+          }),
+        };
+      }
+
       if (url.includes('/repositories/1043905096')) {
         return {
           ok: true,
@@ -273,6 +353,31 @@ describe('GitHubAppConnector PostgreSQL Integration Tests (P3-004)', () => {
     const single = await connector.getResource(context, credentials, '1043905096');
     assert.strictEqual(single.id, '1043905096');
     assert.strictEqual(single.fullName, 'vishu1803/Ai-job-mcp');
+
+    // 4. getReadme
+    const readme = await connector.getReadme(context, credentials, '1043905096');
+    assert.strictEqual(readme.name, 'README.md');
+    assert.strictEqual(readme.content, '# Integration README');
+
+    // 5. getRepositoryTree
+    const tree = await connector.getRepositoryTree(context, credentials, '1043905096');
+    assert.strictEqual(tree.totalEntries, 3);
+    assert.strictEqual(tree.entries[0].path, 'package.json');
+
+    // 6. getLanguages
+    const langs = await connector.getLanguages(context, credentials, '1043905096');
+    assert.strictEqual(langs.primaryLanguage, 'JavaScript');
+    assert.strictEqual(langs.totalBytes, 100000);
+
+    // 7. getRecentCommits
+    const commits = await connector.getRecentCommits(context, credentials, '1043905096');
+    assert.strictEqual(commits.items.length, 1);
+    assert.strictEqual(commits.items[0].sha, '3333333333333333333333333333333333333333');
+
+    // 8. getFileContent
+    const file = await connector.getFileContent(context, credentials, '1043905096', 'package.json');
+    assert.strictEqual(file.name, 'package.json');
+    assert.strictEqual(file.content, '{"name":"ai-job-mcp"}');
   });
 
   it('Tenant B is strictly rejected when attempting to access Tenant A connection (404)', async () => {
@@ -321,6 +426,17 @@ describe('GitHubAppConnector PostgreSQL Integration Tests (P3-004)', () => {
     await assert.rejects(
       async () => {
         await connector.listResources(context, credentials);
+      },
+      (err) => {
+        assert.strictEqual(err.statusCode, 403);
+        assert.strictEqual(err.code, 'CONNECTION_INACTIVE');
+        return true;
+      }
+    );
+
+    await assert.rejects(
+      async () => {
+        await connector.getFileContent(context, credentials, '1043905096', 'package.json');
       },
       (err) => {
         assert.strictEqual(err.statusCode, 403);
