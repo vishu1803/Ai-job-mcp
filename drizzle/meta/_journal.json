@@ -8,6 +8,13 @@
       "when": 1787211481560,
       "tag": "0000_familiar_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787291317964,
+      "tag": "0001_funny_human_fly",
+      "breakpoints": true
     }
   ]
 }

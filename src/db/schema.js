@@ -40,6 +40,40 @@ export const userRoleEnum = pgEnum('user_role', ['OWNER', 'MEMBER', 'READONLY'])
  */
 export const userStatusEnum = pgEnum('user_status', ['ACTIVE', 'SUSPENDED', 'DELETED']);
 
+/**
+ * Supported third-party resource providers.
+ */
+export const resourceProviderEnum = pgEnum('resource_provider', [
+  'GITHUB_APP',
+  'GITLAB',
+  'GOOGLE_DRIVE',
+  'ONEDRIVE',
+  'NOTION',
+  'CUSTOM_API',
+]);
+
+/**
+ * Authentication / authorization credential mechanisms.
+ */
+export const connectionAuthTypeEnum = pgEnum('connection_auth_type', [
+  'APP_INSTALLATION',
+  'OAUTH2_CODE',
+  'API_KEY',
+  'SERVICE_ACCOUNT',
+]);
+
+/**
+ * Resource connection lifecycle states.
+ */
+export const resourceConnectionStatusEnum = pgEnum('resource_connection_status', [
+  'PENDING',
+  'ACTIVE',
+  'EXPIRED',
+  'REVOKED',
+  'ERROR',
+  'DISCONNECTED',
+]);
+
 // ---------------------------------------------------------------------------
 // 1. Tenants Table (Multi-Tenant Workspace Root)
 // ---------------------------------------------------------------------------
@@ -133,6 +167,53 @@ export const auditLogs = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 5. Resource Connections Table (Authorized Third-Party Connectors)
+// ---------------------------------------------------------------------------
+
+export const resourceConnections = pgTable(
+  'resource_connections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    provider: resourceProviderEnum('provider').notNull(),
+    authType: connectionAuthTypeEnum('auth_type').notNull(),
+    displayName: text('display_name').notNull(),
+    externalAccountId: text('external_account_id').notNull(),
+    externalAccountName: text('external_account_name'),
+    installationId: text('installation_id'),
+    encryptedCredentials: text('encrypted_credentials').notNull(),
+    keyVersion: text('key_version').notNull().default('v1'),
+    status: resourceConnectionStatusEnum('status').notNull().default('PENDING'),
+    scopes: jsonb('scopes').default('[]').notNull(),
+    metadata: jsonb('metadata').default('{}').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    refreshedAt: timestamp('refreshed_at', { withTimezone: true }),
+    lastValidatedAt: timestamp('last_validated_at', { withTimezone: true }),
+    lastErrorCode: text('last_error_code'),
+    lastErrorAt: timestamp('last_error_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('resource_connections_tenant_provider_account_unique').on(
+      table.tenantId,
+      table.provider,
+      table.externalAccountId
+    ),
+    index('idx_resource_connections_tenant_id').on(table.tenantId),
+    index('idx_resource_connections_user_id').on(table.userId),
+    index('idx_resource_connections_tenant_status').on(table.tenantId, table.status),
+    index('idx_resource_connections_expires_at').on(table.expiresAt),
+    index('idx_resource_connections_key_version').on(table.keyVersion),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
 
@@ -140,8 +221,12 @@ export const schema = {
   tenantTierEnum,
   userRoleEnum,
   userStatusEnum,
+  resourceProviderEnum,
+  connectionAuthTypeEnum,
+  resourceConnectionStatusEnum,
   tenants,
   users,
   sessions,
   auditLogs,
+  resourceConnections,
 };
