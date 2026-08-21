@@ -30,6 +30,7 @@ import {
   MAX_PLAINTEXT_BYTES,
   CURRENT_ENCRYPTION_FORMAT_VERSION,
 } from '../../src/security/encryption.js';
+import { config } from '../../src/config/env.js';
 
 describe('AES-256-GCM Secret Encryption Foundation (P2-001)', () => {
   const TEST_KEY_1 = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -425,16 +426,21 @@ describe('AES-256-GCM Secret Encryption Foundation (P2-001)', () => {
       assert.strictEqual(normalized.length, 32);
     });
 
-    it('throws MISSING_KEY when environment key is unconfigured and no explicit key is provided', () => {
-      // In test runner environment, config.ENCRYPTION_MASTER_KEY is empty by default
-      assert.throws(
-        () => resolveKey('v1'),
-        (err) => {
-          assert.ok(err instanceof CryptoError);
-          assert.strictEqual(err.code, 'MISSING_KEY');
-          return true;
-        }
-      );
+    it('resolves environment master key when configured or throws MISSING_KEY when unconfigured', () => {
+      if (config.ENCRYPTION_MASTER_KEY) {
+        const resolved = resolveKey('v1');
+        assert.ok(Buffer.isBuffer(resolved));
+        assert.strictEqual(resolved.length, 32);
+      } else {
+        assert.throws(
+          () => resolveKey('v1'),
+          (err) => {
+            assert.ok(err instanceof CryptoError);
+            assert.strictEqual(err.code, 'MISSING_KEY');
+            return true;
+          }
+        );
+      }
     });
 
     it('normalizeKey accepts 32-byte Buffer, 64-hex, and 44-base64 strings', () => {
