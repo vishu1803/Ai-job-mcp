@@ -173,6 +173,111 @@ export async function deleteConnectionRecord(db, connectionId, tenantId) {
 }
 
 /**
+ * Finds a GitHub App connection record across the platform by its installation ID.
+ * Used for cross-tenant collision detection and idempotent setup.
+ *
+ * @param {import('drizzle-orm/node-postgres').NodePgDatabase} db
+ * @param {string|number} installationId - GitHub installation ID
+ * @returns {Promise<any|null>} Connection row or null
+ */
+export async function findConnectionByInstallationId(db, installationId) {
+  if (!installationId) {
+    throw new ValidationError('installationId is mandatory for findConnectionByInstallationId');
+  }
+
+  const [connection] = await db
+    .select()
+    .from(resourceConnections)
+    .where(
+      and(
+        eq(resourceConnections.provider, 'GITHUB_APP'),
+        eq(resourceConnections.installationId, String(installationId))
+      )
+    )
+    .limit(1);
+
+  return connection || null;
+}
+
+/**
+ * Upserts a GitHub App resource connection record for a tenant.
+ *
+ * @param {import('drizzle-orm/node-postgres').NodePgDatabase} db
+ * @param {object} params
+ * @param {string} params.tenantId
+ * @param {string} params.userId
+ * @param {string|number} params.installationId
+ * @param {string} params.externalAccountId
+ * @param {string} params.externalAccountName
+ * @param {string} params.displayName
+ * @param {string} params.encryptedCredentials
+ * @param {string} params.keyVersion
+ * @param {string[]} params.scopes
+ * @param {string} params.status
+ * @param {object} params.metadata
+ * @returns {Promise<any>} Created or updated connection row
+ */
+export async function upsertGitHubAppConnection(db, params) {
+  assertTenantId(params?.tenantId, 'upsertGitHubAppConnection');
+
+  const existing = await findConnectionByInstallationId(db, params.installationId);
+
+  if (existing && existing.tenantId === params.tenantId) {
+    const [updated] = await db
+      .update(resourceConnections)
+      .set({
+        userId: params.userId,
+        displayName: params.displayName,
+        externalAccountId: String(params.externalAccountId),
+        externalAccountName: params.externalAccountName,
+        encryptedCredentials: params.encryptedCredentials,
+        keyVersion: params.keyVersion,
+        scopes: params.scopes,
+        status: params.status || 'ACTIVE',
+        metadata: params.metadata || {},
+        lastValidatedAt: new Date(),
+        lastErrorCode: null,
+        lastErrorAt: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(resourceConnections.id, existing.id),
+          eq(resourceConnections.tenantId, params.tenantId)
+        )
+      )
+      .returning();
+
+    return updated;
+  }
+
+  const [inserted] = await db
+    .insert(resourceConnections)
+    .values({
+      id: crypto.randomUUID(),
+      tenantId: params.tenantId,
+      userId: params.userId,
+      provider: 'GITHUB_APP',
+      authType: 'APP_INSTALLATION',
+      displayName: params.displayName,
+      externalAccountId: String(params.externalAccountId),
+      externalAccountName: params.externalAccountName,
+      installationId: String(params.installationId),
+      encryptedCredentials: params.encryptedCredentials,
+      keyVersion: params.keyVersion,
+      scopes: params.scopes,
+      status: params.status || 'ACTIVE',
+      metadata: params.metadata || {},
+      lastValidatedAt: new Date(),
+      lastErrorCode: null,
+      lastErrorAt: null,
+    })
+    .returning();
+
+  return inserted;
+}
+
+/**
  * Writes an audit record to the audit_logs table.
  *
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} db

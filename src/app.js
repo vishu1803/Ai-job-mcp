@@ -6,6 +6,7 @@ import { errorHandler, notFoundHandler } from './plugins/error-handler.js';
 import { healthRoutes } from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import connectionsRoutes from './routes/connections.routes.js';
+import integrationsRoutes from './routes/integrations.routes.js';
 import { config } from './config/env.js';
 
 /**
@@ -66,6 +67,13 @@ export function buildApp(opts = {}) {
   app.register(connectionsRoutes, {
     prefix: '/connections',
     connectionService: opts.connectionService,
+  });
+
+  // Third-Party Integration Setup Routes (/integrations/github/install, /integrations/github/install/callback)
+  app.register(integrationsRoutes, {
+    prefix: '/integrations',
+    installationService: opts.installationService,
+    db: opts.db,
   });
 
   // Root platform status verification endpoint
