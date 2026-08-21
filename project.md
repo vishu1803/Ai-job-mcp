@@ -655,13 +655,17 @@
       7. `POST /auth/logout` revokes session in PostgreSQL and clears session cookie.
       8. Re-login for existing user updates session without creating duplicate tenant records.
       9. Suspended user is denied authentication with 403 `ACCOUNT_SUSPENDED`.
+      10. `GET /dashboard` rejects unauthenticated requests with 401 `UNAUTHENTICATED`.
+      11. `GET /dashboard` returns protected dashboard placeholder (`message`, `user.id`, `user.displayName`, `user.role`, `tenant.id`, `tenant.name`) for authenticated users with zero credential leakage.
+      12. `GET /dashboard` enforces tenant trust boundary by ignoring spoofed tenant IDs in query/headers.
+      13. `GET /auth/github/callback` redirects to `/dashboard` upon successful browser login.
   * Verification Commands:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit schema check verified)
-    * `npm run test:unit` -> PASS (100/100 unit tests passed across 10 suites)
-    * `npm run test:integration` -> PASS (27/27 live integration tests passed across 4 suites)
-    * `npm test` -> PASS (127/127 total tests passed across 31 suites)
+    * `npm run test:unit` -> PASS (102/102 unit tests passed across 27 suites)
+    * `npm run test:integration` -> PASS (29/29 live integration tests passed across 4 suites)
+    * `npm test` -> PASS (131/131 total tests passed across 31 suites)
 
 
 

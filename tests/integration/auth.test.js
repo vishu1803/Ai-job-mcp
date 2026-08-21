@@ -334,5 +334,143 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
     assert.strictEqual(callbackRes.statusCode, 403);
     const body = JSON.parse(callbackRes.payload);
     assert.strictEqual(body.error.code, 'ACCOUNT_SUSPENDED');
+
+    // Restore user to ACTIVE for subsequent tests
+    await db.update(users).set({ status: 'ACTIVE' }).where(eq(users.id, createdUserId));
+  });
+
+  it('10. GET /dashboard rejects unauthenticated request without session cookie', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/dashboard',
+    });
+
+    assert.strictEqual(res.statusCode, 401);
+    const body = JSON.parse(res.payload);
+    assert.strictEqual(body.error.code, 'UNAUTHENTICATED');
+  });
+
+  it('11. GET /dashboard returns protected dashboard placeholder for authenticated user', async () => {
+    // Re-authenticate user to obtain active session cookie
+    const flowRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github',
+    });
+    const parsedUrl = new URL(flowRes.headers['location']);
+    const newState = parsedUrl.searchParams.get('state');
+    const newTransit = flowRes.cookies.find((c) => c.name === OAUTH_TRANSIT_COOKIE_NAME).value;
+
+    const callbackRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github/callback',
+      query: {
+        code: 'valid_mock_code',
+        state: newState,
+        format: 'json',
+      },
+      cookies: {
+        [OAUTH_TRANSIT_COOKIE_NAME]: newTransit,
+      },
+    });
+
+    const activeSessionCookie = callbackRes.cookies.find(
+      (c) => c.name === 'career_hub_session'
+    ).value;
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/dashboard',
+      cookies: {
+        career_hub_session: activeSessionCookie,
+      },
+    });
+
+    assert.strictEqual(res.statusCode, 200);
+    const body = JSON.parse(res.payload);
+    assert.strictEqual(body.message, 'Welcome to Antigravity Career Hub Dashboard');
+    assert.strictEqual(body.user.id, createdUserId);
+    assert.strictEqual(body.user.displayName, `Developer ${testRunId}`);
+    assert.strictEqual(body.user.role, 'OWNER');
+    assert.strictEqual(body.tenant.id, createdTenantId);
+    assert.strictEqual(body.tenant.name, `Developer ${testRunId}'s Workspace`);
+
+    // Verify zero credential leakage
+    assert.strictEqual(body.token, undefined);
+    assert.strictEqual(body.accessToken, undefined);
+    assert.strictEqual(body.session, undefined);
+  });
+
+  it('12. GET /dashboard ignores injected spoofed tenant IDs', async () => {
+    // Re-authenticate user
+    const flowRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github',
+    });
+    const parsedUrl = new URL(flowRes.headers['location']);
+    const newState = parsedUrl.searchParams.get('state');
+    const newTransit = flowRes.cookies.find((c) => c.name === OAUTH_TRANSIT_COOKIE_NAME).value;
+
+    const callbackRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github/callback',
+      query: {
+        code: 'valid_mock_code',
+        state: newState,
+        format: 'json',
+      },
+      cookies: {
+        [OAUTH_TRANSIT_COOKIE_NAME]: newTransit,
+      },
+    });
+
+    const activeSessionCookie = callbackRes.cookies.find(
+      (c) => c.name === 'career_hub_session'
+    ).value;
+    const spoofedTenantId = crypto.randomUUID();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/dashboard?tenant_id=${spoofedTenantId}`,
+      headers: {
+        'x-tenant-id': spoofedTenantId,
+        'tenant-id': spoofedTenantId,
+      },
+      cookies: {
+        career_hub_session: activeSessionCookie,
+      },
+    });
+
+    assert.strictEqual(res.statusCode, 200);
+    const body = JSON.parse(res.payload);
+    assert.strictEqual(body.tenant.id, createdTenantId);
+    assert.notStrictEqual(body.tenant.id, spoofedTenantId);
+  });
+
+  it('13. GET /auth/github/callback redirects to /dashboard upon successful browser login', async () => {
+    const flowRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github',
+    });
+    const parsedUrl = new URL(flowRes.headers['location']);
+    const newState = parsedUrl.searchParams.get('state');
+    const newTransit = flowRes.cookies.find((c) => c.name === OAUTH_TRANSIT_COOKIE_NAME).value;
+
+    const callbackRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github/callback',
+      query: {
+        code: 'valid_mock_code',
+        state: newState,
+      },
+      cookies: {
+        [OAUTH_TRANSIT_COOKIE_NAME]: newTransit,
+      },
+    });
+
+    assert.strictEqual(callbackRes.statusCode, 302);
+    assert.strictEqual(callbackRes.headers.location, '/dashboard');
+    const sessionCookieObj = callbackRes.cookies.find((c) => c.name === 'career_hub_session');
+    assert.ok(sessionCookieObj);
+    assert.ok(sessionCookieObj.value);
   });
 });

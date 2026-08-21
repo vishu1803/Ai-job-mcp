@@ -50,6 +50,19 @@ const LogoutResponseSchema = z.object({
   message: z.string(),
 });
 
+const DashboardResponseSchema = z.object({
+  message: z.string(),
+  user: z.object({
+    id: z.string().uuid(),
+    displayName: z.string(),
+    role: z.enum(['OWNER', 'MEMBER', 'READONLY']),
+  }),
+  tenant: z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+  }),
+});
+
 /**
  * Registers authentication routes with the Fastify application.
  *
@@ -198,6 +211,31 @@ export default async function authRoutes(app, opts = {}) {
 
       return {
         message: 'Successfully logged out',
+      };
+    }
+  );
+
+  // -------------------------------------------------------------------------
+  // 5. GET /dashboard — Protected post-authentication dashboard placeholder
+  // -------------------------------------------------------------------------
+  app.get(
+    '/dashboard',
+    {
+      preHandler: [authenticate],
+      preSerialization: [validateResponse(DashboardResponseSchema)],
+    },
+    async (req) => {
+      return {
+        message: 'Welcome to Antigravity Career Hub Dashboard',
+        user: {
+          id: req.user.id,
+          displayName: req.user.displayName,
+          role: req.user.role,
+        },
+        tenant: {
+          id: req.tenant.id,
+          name: req.tenant.name,
+        },
       };
     }
   );
