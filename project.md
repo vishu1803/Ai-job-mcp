@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (16.67% - P5-001 complete) |
+| **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (33.33% - P5-001, P5-002 complete) |
 | **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 4 complete; Phase 5 in progress |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **29 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (1: P5-001) verified |
-| **In Progress Tasks** | **0 Tasks** | P5-001 complete; ready for P5-002 |
+| **Completed Tasks** | **30 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (2: P5-001, P5-002) verified |
+| **In Progress Tasks** | **0 Tasks** | P5-002 complete; ready for P5-003 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **36.25% (29 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **32.29% (5.17 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **37.50% (30 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **33.33% (5.33 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -29,7 +29,7 @@
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 5** | Career Intelligence Engine | 6 | 1 | 0 | **IN_PROGRESS** | **16.67%** |
+| **PHASE 5** | Career Intelligence Engine | 6 | 2 | 0 | **IN_PROGRESS** | **33.33%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **29** | **0** | **IN_PROGRESS** | **36.25%** |
+| **TOTAL** | **All Phases Combined** | **80** | **30** | **0** | **IN_PROGRESS** | **37.50%** |
 
 ---
 
@@ -161,7 +161,7 @@
 | **P5-001A** | Career Intelligence Engine Architecture Review | Phase 4 | **COMPLETE & APPROVED** | Architectural specification `docs/career-intelligence-architecture.md` (`ARCH-011`), ADR-031 in `docs/decisions.md`. Defined canonical `JobDescription` & `JobRequirement` domain models, taxonomy reuse, deterministic 100-point scoring formula, explainable match evaluations (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), prioritized skill gaps (`CRITICAL`, `HIGH`, `MED`, `LOW`), anti-prompt-injection sandbox, multi-tenant 404 default-deny, and future 4-table persistence model. |
 | **P5-001** | Implement Job Description Parser (extracts title, level, required skills, preferred skills, domain, and responsibilities) | P4-001, P5-001A | **COMPLETE** | Implemented `JobDescriptionParser` and canonical domain schemas (`src/domain/career/`). Unit test suites (`tests/unit/job-description.schemas.test.js` - 11 tests, `tests/unit/job-description-parser.test.js` - 19 tests) verifying 5 real-world JDs, deterministic section partitioning, taxonomy normalization, experience/education/location parsing, prompt-injection defense, and resilient fallback. Full suite: 585/585 PASS across 204 suites. |
 | **P5-002A** | Skill Normalizer & Taxonomy Engine Architecture Review | P5-001 | **COMPLETE & APPROVED** | Architectural specification `docs/skill-taxonomy-architecture.md` (`ARCH-012`), ADR-032 in `docs/decisions.md`. Defined single canonical slug model (`^[a-z0-9]+(?:-[a-z0-9]+)*$`), 50+ technology alias catalog, 7-stage deterministic normalization pipeline, explicit relationship graph (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`), controlled unknown tool slugification, strict LLM boundary, hybrid in-memory/PostgreSQL storage, and 100% backward compatibility with existing evidence. |
-| **P5-002** | Implement Skill Normalizer & Taxonomy (e.g., maps "React.js", "ReactJS", "React" -> `React`; "Postgres" -> `PostgreSQL`) | P5-001, P5-002A | NOT_STARTED | Unit test with 50+ common technology synonym variations |
+| **P5-002** | Implement Skill Normalizer & Taxonomy (e.g., maps "React.js", "ReactJS", "React" -> `React`; "Postgres" -> `PostgreSQL`) | P5-001, P5-002A | **COMPLETE** | Implemented `SkillTaxonomyEngine` in `src/domain/career/skill-taxonomy.js` and updated `TaxonomyMapper` adapter. Unit tests in `tests/unit/skill-taxonomy.test.js` (29/29 PASS) verifying 30+ canonical identifiers, 61+ curated technology synonyms across 7 approved categories, context disambiguation (`Go` / `Spring`), safe unknown tool slugification (`TOOL`, `isCustom: true`, `requiresReview: true`), relationship graph edges (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`), graph integrity validation (zero dangling edges), prototype pollution resistance, and full test suite compatibility. Full suite: 614/614 PASS across 213 suites. |
 | **P5-003** | Implement Evidence Matching & Gap Analysis Engine (categorizes requirements as: Verified, User Claim, Inferred, or Missing) | P4-004, P5-002 | NOT_STARTED | Test matching candidate profile against job requirements with exact gap breakdown |
 | **P5-004** | Implement Project Relevance Scoring (ranks candidate repositories by direct relevance to target job requirements) | P4-004, P5-003 | NOT_STARTED | Test project ranking accuracy given diverse job descriptions |
 | **P5-005** | Implement ATS Fit Score calculator with transparent breakdown and reasoning | P5-003, P5-004 | NOT_STARTED | Test deterministic scoring output matching mathematical breakdown |
@@ -1290,3 +1290,24 @@ The project is ready to proceed with Task **P3-003**:
     * **Controlled Unknown Technology Handling**: Unrecognized terms generate validated kebab-case slugs, default to category `TOOL`, are flagged with `isCustom: true` and `requiresReview: true`, and emit `taxonomy.unknown_term_observed` audit telemetry for curator review. Unknown terms are never automatically aliased.
     * **Strict LLM Boundary**: LLMs cannot act as the primary normalizer, cannot create arbitrary canonical skills, and cannot mutate taxonomy records.
     * **Zero Schema Migrations**: Uses in-memory compiled catalog for microsecond lookups in ingestion hot paths, with PostgreSQL `skills` table as global persistent relational source of truth. Zero breaking changes to existing evidence or candidate profile records.
+* **P5-002 (Skill Normalizer & Taxonomy Engine Implementation — Completed)**:
+  * Implemented Modules:
+    * `src/domain/career/skill-taxonomy.js`: Canonical Skill Normalizer & Taxonomy Engine exporting `SkillTaxonomyEngine`, `CANONICAL_SKILLS`, `SKILL_CATEGORIES`, `MAX_SKILL_INPUT_LENGTH`, `normalizeSkill`, `resolveCanonicalSkill`, `getSkillMetadata`, `getAliases`, `getRelationships`, `isKnownSkill`, and `validateTaxonomyGraph`.
+    * `src/domain/career/index.js` & `src/domain/index.js`: Re-exported `skill-taxonomy.js` to provide a universal domain entrypoint.
+    * `src/extractors/github/taxonomy/taxonomy-mapper.js`: Updated `TaxonomyMapper` adapter to delegate `normalize()` and `TAXONOMY_CATALOG` to `SkillTaxonomyEngine`, preserving 100% backward compatibility for all existing manifest parsers and AST scanners.
+  * Verified Invariants:
+    * **Canonical Identifier Resolution**: 30+ canonical skill slugs (`node-js`, `postgresql`, `react`, `fastapi`, `next-js`, `fastify`, `express`, `django`, `tokio`, `grpc`, `docker`, `kubernetes`, `aws`, `gcp`, `azure`, `terraform`, `github-actions`, `zod`, `pydantic`, `vitest`, `jest`, `pytest`, `serde`, `pandas`, `drizzle-orm`, `prisma`, `go`, `rust`, `typescript`, `python`) resolve with exact identity and 1.0 confidence. `nodejs` strictly canonicalizes to `node-js`.
+    * **Multi-Category Synonym Normalization**: Verified 61+ curated technology synonyms across all 7 approved categories (`LANGUAGE`, `FRAMEWORK`, `DATABASE`, `CLOUD_DEVOPS`, `TOOL`, `ARCHITECTURE`, `CONCEPT`).
+    * **Invariance Robustness**: Verified case-insensitivity, Unicode NFKC decomposition, npm scope stripping (`@fastify/cors` $\rightarrow$ `fastify`), version string removal, and git repo URL normalization (`github.com/gin-gonic/gin` $\rightarrow$ `gin`).
+    * **Context Disambiguation**: Polysemous terms (`Go`, `Spring`, `Rust`) resolve to programming concepts under technical context (`"Go programming"`, `"Spring Boot microservices"`) and fail closed/return null on ambiguous prose (`"go to the office"`, `"spring season"`).
+    * **Safe Unknown Technology Slugification**: Uncataloged terms generate safe kebab-case slugs (`^[a-z0-9]+(?:-[a-z0-9]+)*$`), default to category `TOOL`, are flagged with `isKnown: false`, `isCustom: true`, `requiresReview: true`, and confidence 0.50, and emit `taxonomy.unknown_term_observed` audit telemetry. Unknown terms are never auto-aliased to existing technologies.
+    * **Relationship Graph Modeling & Integrity**: Graph modeling verified for `BUILT_ON` (`react` $\rightarrow$ `javascript`, `next-js` $\rightarrow$ `react`, `fastapi` $\rightarrow$ `python`, `gin` $\rightarrow$ `go`, `tokio` $\rightarrow$ `rust`), `ECOSYSTEM_OF` (`drizzle-orm` $\rightarrow$ `postgresql`, `boto3` $\rightarrow$ `aws`), and `IMPLEMENTS` (`postgresql` $\rightarrow$ `relational-database`, `kafka` $\rightarrow$ `event-driven-architecture`, `grpc` $\rightarrow$ `microservices`). `validateTaxonomyGraph()` asserts 0 dangling edges.
+    * **Security & Prototype Pollution Hardening**: In-memory lookups initialized via `Object.create(null)` prevent prototype pollution on `__proto__` and `constructor` inputs.
+  * Verification Commands:
+    * `node --test tests/unit/skill-taxonomy.test.js` -> PASS (29/29 tests passed across 9 suites)
+    * `npm run test:unit` -> PASS (463/463 tests passed across 151 suites)
+    * `npm run test:integration` -> PASS (151/151 tests passed across 62 suites)
+    * `npm test` -> PASS (614/614 tests passed across 213 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)

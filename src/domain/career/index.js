@@ -5,3 +5,4 @@
 export * from './job-description.schemas.js';
 export * from './job-requirement.schemas.js';
 export * from './job-parser.js';
+export * from './skill-taxonomy.js';
