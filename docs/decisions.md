@@ -896,3 +896,27 @@
   * Phase 6 Task P6-003 will implement `PortfolioRecommendationService` and domain schemas in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When persistent portfolio web deployment adapters or public portfolio hosting endpoints are introduced.
 
+---
+
+### ADR-040: Career Artifact Export & Canonical Interchange Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 6 (Task P6-004A), the platform requires a standards-compliant, canonical interchange export layer (`CareerArtifactExportService`) that transforms tailored career artifacts (`TailoredResume`, `TailoredCoverLetter`, `PortfolioRecommendation`) into industry-standard formats (`JSON_RESUME`, `MARKDOWN`, `PLAIN_TEXT`, `CANONICAL_JSON`). The export layer must ensure full JSON Resume v1.0.0 validator compatibility without breaking schema checkers, deliver clean single-column ATS-safe plain text without Unicode ligature corruption or broken delimiters, generate semantic GFM Markdown with configurable citation formats, maintain cryptographic verification provenance inside compliant metadata extensions, support privacy/anonymization controls, and execute statelessly in-memory without premature database tables.
+* **Decision**: Adopt the **Career Artifact Export & Canonical Interchange Architecture** defined in `docs/career-artifact-export-architecture.md` (`ARCH-020`) governed by the following core architectural decisions:
+  * **Canonical Interchange Contract**: Encapsulates all export operations in a structured `ExportedArtifact` envelope containing `artifactId`, `tenantId`, `artifactType`, `format`, `mimeType`, `fileName`, `content`, and `metadata` (with SHA-256 checksum and line/byte counts).
+  * **Strict JSON Resume v1.0.0 Compliance**: Maps `TailoredResume` strictly to JSON Resume standard root fields (`basics`, `work`, `education`, `skills`, `projects`, `certificates`, `meta`). All verification provenance, evidence hashes, and candidate assertion badges are namespaced inside `meta.antigravity` to preserve 100% validator compatibility with third-party tools (`resumed`, `resume-cli`).
+  * **ATS-Optimized Plain Text Sanitization**: Formats plain text resumes into clean single-column linear text with ASCII section dividers, 2-space indents (zero tabs), and sanitized typography (converting curly quotes, em-dashes, and unicode bullets to standard ASCII).
+  * **CommonMark & GFM Typography**: Formats resumes, cover letters, and portfolios into semantic GitHub Flavored Markdown with clean heading hierarchies, bullet styling, and safe HTML escaping.
+  * **Configurable Evidence Citation Styles**: Supports `NONE` (clean application-ready copy), `INLINE` (compact inline citations), `FOOTNOTES` (numbered superscripts linking to an end-of-document evidence ledger), and `METADATA_ONLY` (retained strictly in JSON/frontmatter).
+  * **Privacy & Anonymization Controls**: Supports `anonymize: true` for blind hiring screening (redacting full name, email, phone, and street address) and `includeUnverifiedClaims: false` for omitting unbacked manual assertions.
+  * **Multi-Tenant Sovereign Default-Deny**: Enforces `tenant_id === context.tenantId` across all inputs with 404 default-deny.
+  * **Ephemeral In-Memory Execution**: Operates in-memory with sub-5ms latency and zero database mutations.
+* **Alternatives Considered**:
+  * *Ad-hoc JSON dumping of internal domain models*: Rejected because internal service structures are proprietary and cannot be rendered by external resume builders or CLI tools.
+  * *Directly embedding verification badges in JSON Resume root fields*: Rejected because invalid top-level fields break official JSON Resume schema validators.
+  * *Coupling export directly to binary PDF generation (Puppeteer/PDFKit)*: Rejected because the core platform focuses on structured semantic interchange; visual PDF/DOCX rendering is decoupled downstream.
+* **Reasons**: Establishes an open, verifiable interchange standard for candidate career assets that guarantees broad third-party tool interoperability, ATS parsing reliability, and tamper-evident provenance preservation.
+* **Consequences**:
+  * Phase 6 Task P6-004 will implement `CareerArtifactExportService` and domain schemas in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When additional external interchange standards (e.g. HR-XML / HR Open JSON) or direct binary export formats are introduced.
+
