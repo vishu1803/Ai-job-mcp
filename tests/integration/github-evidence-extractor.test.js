@@ -274,7 +274,9 @@ describe('Live GitHub Evidence Extractor Integration Tests (P4-003)', () => {
       assert.ok(dbEvidence.length >= 5);
 
       // Check for manifest evidence
-      const fastifyEvidence = dbEvidence.find((e) => e.excerpt?.includes('fastify'));
+      const fastifyEvidence = dbEvidence.find(
+        (e) => e.evidenceType === 'PACKAGE_MANIFEST_DEPENDENCY' && e.excerpt?.includes('fastify')
+      );
       assert.ok(fastifyEvidence);
       assert.strictEqual(fastifyEvidence.evidenceType, 'PACKAGE_MANIFEST_DEPENDENCY');
       assert.strictEqual(fastifyEvidence.confidenceScore, 1.0);

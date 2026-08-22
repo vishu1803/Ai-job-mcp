@@ -28,7 +28,7 @@
 | **PHASE 1** | Multi-User Platform Foundation | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 4** | Unified Candidate / Resource Model | 6 | 3 | 0 | **IN_PROGRESS** | **50.00%** |
+| **PHASE 4** | Unified Candidate / Resource Model | 6 | 4 | 0 | **IN_PROGRESS** | **66.67%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **25** | **0** | **IN_PROGRESS** | **31.25%** |
+| **TOTAL** | **All Phases Combined** | **80** | **26** | **0** | **IN_PROGRESS** | **32.50%** |
 
 ---
 
@@ -146,7 +146,7 @@
 | **P4-003A** | GitHub Evidence Extractor Architecture & Security Review | P3-005, P4-002 | **COMPLETE & APPROVED** | Architectural specification `docs/github-evidence-extractor-architecture.md` (`ARCH-008`), ADR-028 in `docs/decisions.md`. Defined threat model, zero-code-execution static parsing, multi-ecosystem manifest parsing (`package.json`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `go.mod`, `Cargo.toml`), safe import regexes, secret scrubber ($\le 1024$ chars), taxonomy normalization engine, deterministic deduplication hashing, and candidate skill rollup formulas. |
 | **P4-003** | Implement GitHub Evidence Extractor (analyzes `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, directory trees, and commit messages) | P3-005, P4-001, P4-003A | **COMPLETE** | Unit tests (`tests/unit/github-evidence-extractor.test.js` - 39 tests), live PostgreSQL integration tests (`tests/integration/github-evidence-extractor.test.js` - 5 tests), and live extraction gate against GitHub installation `155430459` (`vishu1803/Ai-job-mcp`). Full suite: 481/481 PASS across 158 suites. |
 | **P4-004A** | Evidence Linking Engine Architecture Review | P4-003 | **COMPLETE & APPROVED** | Architectural specification `docs/evidence-linking-architecture.md` (`ARCH-009`), ADR-029 in `docs/decisions.md`. Defined canonical `EvidenceId` (UUIDv4), SHA-256 fingerprint deduplication decoupling, strict provenance immutability, skill linking via direct FKs & primary anchor, project linking ($1 : N$), strict multi-tenant default-deny (404), 40-char commit SHA pinning, historical evidence preservation, and transactional atomicity. |
-| **P4-004** | Implement Evidence Linking Engine: every skill and project item is assigned an immutable `EvidenceId` referencing repository, file path, and commit SHA | P4-003, P4-004A | NOT_STARTED | Verification test ensuring zero skills are created without valid `EvidenceId` |
+| **P4-004** | Implement Evidence Linking Engine: every skill and project item is assigned an immutable `EvidenceId` referencing repository, file path, and commit SHA | P4-003, P4-004A | **COMPLETE** | Unit tests (`tests/unit/evidence-linking.test.js` - 17 tests), live PostgreSQL integration tests (`tests/integration/evidence-linking.test.js` - 9 tests). Verified canonical `EvidenceId` (UUIDv4), deterministic primary evidence selection, monotonic confidence scoring, project linking & `project_resources` association, cross-tenant 404 default-deny, atomic rollback on batch failure, and retention semantics. Full suite: 507/507 PASS across 170 suites. |
 | **P4-005** | Create Candidate Profile Service (CRUD operations, manual claim tagging as `[Unverified User Claim]`, profile sync) | P4-002, P4-004 | NOT_STARTED | Integration test: sync candidate profile from connected GitHub repositories |
 | **P4-006** | Multi-tenant candidate data isolation tests | P4-005 | NOT_STARTED | Security test: assert User A cannot access User B's candidate profile or evidence |
 
@@ -1171,3 +1171,27 @@ The project is ready to proceed with Task **P3-003**:
     * **Concrete Commit SHA Pinning**: Provenance must always be pinned to a 40-character hexadecimal Git commit SHA. Transient branch names (`main`, `HEAD`) are strictly prohibited as persistent provenance values.
     * **Historical Evidence Preservation**: Code modifications or dependency deletions do not purge historical evidence; freshness is tracked via `detectedAt` and `lastObservedAt` timestamps.
     * **Transactional Atomicity**: All linking and rollup operations execute atomically inside a single database transaction downstream of external GitHub API retrieval.
+* **P4-004 (Evidence Linking Engine Implementation — Completed)**:
+  * Implemented Modules:
+    * `src/services/evidence/primary-evidence-selector.js`: Deterministic ranking engine implementing 4-tier evidence comparison (Confidence Score -> Quality Tier -> Recency -> UUID Lexical Tie-Breaker).
+    * `src/services/evidence/evidence-ref-mapper.js`: Provider-neutral lightweight domain `EvidenceRef` and full `EvidenceNode` formatters protecting sensitive excerpts and secrets.
+    * `src/services/evidence-linking.service.js`: Core domain service for candidate skill linking, project linking, atomic batch linking, and provenance validation.
+    * `src/services/evidence/index.js`: Module re-exports.
+  * Verified Invariants:
+    * **Canonical Evidence Identity**: Uses `evidence_items.id` (UUIDv4) across all citations, APIs, and foreign keys.
+    * **Immutable Provenance Guard**: Throws `ValidationError` on any attempt to mutate `id`, `tenantId`, `candidateId`, `resourceId`, `sourceProvider`, `evidenceType`, `sourceLocation`, `excerpt`, or `fingerprint`.
+    * **Monotonic Confidence Invariance**: Weaker evidence never downgrades stronger assertions or existing `VERIFIED` status.
+    * **Deterministic Primary Selection**: Stronger anchor nodes are preserved when secondary/weaker evidence is linked.
+    * **Project Linking & Association**: Automatically ensures `project_resources` association exists when linking evidence to projects.
+    * **Strict Multi-Tenant Default-Deny**: Rejects cross-tenant evidence, candidate, resource, or project linkage with 404 `NotFoundError`.
+    * **Atomic Rollback**: Batch operations roll back completely across all items if any constraint fails.
+    * **Retention Semantics**: Project deletion sets `evidence_items.project_id = NULL` without destroying underlying evidence nodes.
+  * Verification Commands:
+    * `node --test tests/unit/evidence-linking.test.js` -> PASS (17/17 tests passed across 5 suites)
+    * `node --test tests/integration/evidence-linking.test.js` -> PASS (9/9 tests passed across 7 suites against Aiven PostgreSQL)
+    * `npm run test:unit` -> PASS (395/395 tests passed across 128 suites)
+    * `npm run test:integration` -> PASS (112/112 tests passed across 42 suites)
+    * `npm test` -> PASS (507/507 tests passed across 170 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
