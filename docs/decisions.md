@@ -36,6 +36,7 @@
 | **ADR-026** | GitHub Connector Caching & Rate-Limit Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-027** | Unified Candidate and Resource Domain Model | **ACCEPTED** | 2026-08-22 |
 | **ADR-028** | GitHub Evidence Extractor Architecture & Security Rules | **ACCEPTED** | 2026-08-22 |
+| **ADR-029** | Evidence Linking and Provenance Integrity Architecture | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -571,5 +572,30 @@
   * *Unsanitized Full-File Excerpt Storage*: Rejected to prevent storing embedded secrets, database passwords, or bloated files in PostgreSQL `evidence_items`.
 * **Reasons**: Guarantees airtight security against untrusted repository payloads, prevents credential leakage, enables reproducible evidence extraction across diverse software ecosystems, and preserves multi-tenant isolation.
 * **Consequences**:
-  * Task P4-003 will implement `GitHubEvidenceExtractorService`, manifest parsers, `TaxonomyMapper`, and `SecretScrubber` in `src/services/extractors/`.
+  * Task P4-003 will implement `GitHubEvidenceExtractorService`, manifest parsers, `TaxonomyMapper`, and `SecretScrubber` in `src/extractors/github/`.
 * **Revisit Conditions**: When adding JVM (`pom.xml`, `build.gradle`) or C# (`.csproj`) manifest parsers in future phases.
+
+---
+
+### ADR-029: Evidence Linking and Provenance Integrity Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 4 (Task P4-004A), we must define how extracted evidence nodes (`EvidenceItem`) are linked to candidate skill rollups (`CandidateSkill`) and project initiatives (`Project`). The evidence linking model must guarantee zero-hallucination integrity for AI career tools, prevent cross-tenant evidence leakage, maintain stable immutable citation identifiers, preserve historical evidence without destructive mutations, and maintain transactional atomicity.
+* **Decision**: Adopt the **Evidence Linking & Provenance Integrity Architecture** defined in `docs/evidence-linking-architecture.md` (`ARCH-009`) governed by the following core architectural decisions:
+  * **Canonical Evidence Identity (`EvidenceId`)**: `evidence_items.id` (UUIDv4) is the universal, immutable identifier for all citations, API responses, and database foreign keys. Synthetic prefix IDs and compound keys are rejected.
+  * **Fingerprint Decoupling**: Ingestion deduplication uses a deterministic SHA-256 content-addressable hash (`metadata.fingerprint`) computed over `(tenant_id, candidate_id, resource_id, skill_slug, evidence_type, file_path, commit_sha)`, decoupling deduplication from entity primary keys.
+  * **Strict Provenance Immutability**: `id`, `tenantId`, `candidateId`, `resourceId`, `sourceProvider`, `evidenceType`, `sourceLocation` (`filePath`, `commitSha`, `lineRange`), and `excerpt` are strictly immutable once created. Linkers must never rewrite excerpts or provenance pointers.
+  * **Skill Linking via Direct FKs & Primary Anchor**: `candidate_skills.primary_evidence_id` points to the highest-confidence anchor proof node, while `evidence_items.skill_id` links all supporting nodes. A separate join table is explicitly rejected as redundant overhead.
+  * **Project Linking ($1 : N$)**: `evidence_items.project_id` links evidence directly to projects, while `project_resources` links projects to underlying repositories ($M : N$).
+  * **Strict Multi-Tenant Default-Deny**: Enforces tenant equality across all participating entities (`EvidenceItem.tenantId == Candidate.tenantId == Resource.tenantId == Project.tenantId`). Cross-tenant operations return 404 default-deny.
+  * **Concrete Commit SHA Pinning**: Provenance must always be pinned to a 40-character hexadecimal Git commit SHA. Transient branch names (`main`, `HEAD`) are strictly prohibited as persistent provenance values.
+  * **Historical Evidence Preservation**: Code modifications or dependency deletions do not purge historical evidence; freshness is tracked via `detectedAt` and `lastObservedAt` timestamps.
+  * **Transactional Atomicity**: All linking and rollup operations execute atomically inside a single database transaction downstream of external GitHub API retrieval.
+* **Alternatives Considered**:
+  * *Introducing a `candidate_skill_evidence` join table*: Rejected because `evidence_items` already contains `(tenant_id, candidate_id, skill_id)`. An extra join table introduces redundant writes and dual sources of truth without architectural benefit.
+  * *Allowing dynamic branch names as provenance*: Rejected because branch heads change with every push, destroying cryptographic auditability and reproducibility.
+  * *Deleting old evidence when dependencies are removed*: Rejected because historical accomplishments remain factual proof of competence.
+* **Reasons**: Enforces provider-neutral zero-hallucination guarantees, maintains strict multi-tenant isolation, preserves historical provenance, and provides an efficient, verifiable foundation for Phase 5 Career Intelligence and Phase 7 Remote MCP Server.
+* **Consequences**:
+  * Task P4-004 will implement `EvidenceLinkingService` in `src/services/` and domain linking methods without modifying the database schema.
+* **Revisit Conditions**: When multi-tenant organization credential sharing or cross-resource aggregate project trees are introduced in future phases.
