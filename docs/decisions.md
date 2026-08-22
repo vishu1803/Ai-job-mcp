@@ -775,3 +775,32 @@
 * **Consequences**:
   * Phase 5 Task P5-005 will implement `AtsFitScoreService` and domain schemas in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When recruiter-customized component weight templates or organizational candidate ranking filters are introduced.
+
+---
+
+### ADR-036: Zero-Hallucination Career Integrity Gate Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 5 (Task P5-006A), the platform requires a definitive trust boundary between structured career intelligence and any downstream AI or human-readable career artifact (tailored resume bullets, cover letters, MCP tool responses, AI agent prompts). The gate must guarantee that no factual assertion is presented as verified without cryptographic proof grounded in immutable, commit-pinned evidence nodes, prevent qualification hallucinations, neutralize prompt-injection exploits, maintain multi-tenant default-deny isolation, and deliver sub-millisecond in-memory verification without premature database migrations.
+* **Decision**: Adopt the **Zero-Hallucination Integrity Gate Architecture** defined in `docs/zero-hallucination-integrity-architecture.md` (`ARCH-016`) governed by the following core architectural decisions:
+  * **Strict Verification Grounding**: No factual assertion may be assigned status `VERIFIED` unless it cites at least one valid, unforgeable `EvidenceId` (UUIDv4) that resolves to an active, tenant-matched `EvidenceItem`.
+  * **Zero-Evidence Behavior**: When an evaluation query or AI generator asks about an unsupported skill or qualification, the gate **never** affirms capability. It outputs structured `MISSING_EVIDENCE`.
+  * **Claim vs Fact Sovereignty**: Self-asserted manual profile claims cannot attain `VERIFIED` status without cryptographic evidence nodes and must always retain the explicit tag `[Unverified User Claim]` (`CLAIMED`).
+  * **Zero Conflation of Code Duration with Corporate Tenure**: Observed Git commit timestamps establish technical skill duration, but are **never** converted into corporate employment tenure without explicit career history records.
+  * **Taxonomic Inference Containment**: Skills inferred via taxonomy edges (e.g. Next.js $\rightarrow$ React via `BUILT_ON`) are classified strictly as `INFERRED` and cannot masquerade as direct `VERIFIED` evidence.
+  * **Deterministic Multi-Evidence Aggregation**: Citations are deduplicated by `EvidenceId`, stably sorted by quality weight descending, and capped at a maximum of 5 `EvidenceRef` nodes per assertion. If any cited reference is invalid, the entire assertion fails closed.
+  * **Comprehensive Blocking Rules**: Assigns status `BLOCKED` on unbacked verified claims, invalid EvidenceIds, tenant mismatches, candidate mismatches, provenance mismatches, unsupported tenure claims, or fabricated citations.
+  * **Deterministic Safe Downgrade Protocol**: Over-broad or unverified claims are safely downgraded to factual inferred statements or labeled claims rather than completely fabricating proof.
+  * **LLM Sandbox Boundary**: External AI models (Gemini, Claude, ChatGPT) receive only pre-validated assertions, and AI-generated outputs are strictly audited by the gate post-generation before release.
+  * **Structured Audit Reason Codes**: Emits standardized, machine-readable reason codes (`VALID_EVIDENCE`, `VALID_INFERENCE`, `LABELED_USER_CLAIM`, `MISSING_EVIDENCE`, `UNBACKED_VERIFIED_CLAIM`, `INVALID_EVIDENCE_ID`, `TENANT_MISMATCH`, `CANDIDATE_MISMATCH`, `PROVENANCE_MISMATCH`, `UNSUPPORTED_TENURE`, `UNSUPPORTED_ACHIEVEMENT`, `FABRICATED_CITATION`).
+  * **Multi-Tenant Sovereign Default-Deny**: Enforces `tenant_id === context.tenantId` across all assertions and cited evidence with 404 default-deny / `BLOCKED`.
+  * **Ephemeral In-Memory Computation & $\mathcal{O}(|\text{Assertions}| + |\text{EvidenceRefs}|)$ Latency**: Pure validation engine executing with zero database writes, zero LLM calls, and zero premature schema migrations.
+* **Alternatives Considered**:
+  * *Trusting LLM-generated citations in resume bullets*: Rejected because LLMs hallucinate realistic-looking commit SHAs and repository paths that fail cryptographic auditability.
+  * *Permitting commit activity to count as employment years*: Rejected because student or open-source commits do not equal professional corporate engineering tenure.
+  * *Silently dropping invalid evidence citations*: Rejected because silent drops obscure security breaches and tenant boundary violations.
+  * *Premature persistence tables (`career_assertions`)*: Rejected because integrity verification is performed on-demand during artifact generation with sub-millisecond latency.
+* **Reasons**: Establishes an unassailable truth boundary for Phase 6 Resume Adaptation, Phase 7 Remote MCP Server, and provider-neutral AI integrations while guaranteeing complete regulatory auditability (EU AI Act).
+* **Consequences**:
+  * Phase 5 Task P5-006 will implement `ZeroHallucinationIntegrityService` and domain schemas in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When persistent audited career assertion registries or cryptographic verification signatures (e.g. Ed25519 tokens) are introduced in future phases.
