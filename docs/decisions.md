@@ -40,6 +40,7 @@
 | **ADR-030** | Candidate Profile Service Architecture and Claim Integrity | **ACCEPTED** | 2026-08-22 |
 | **ADR-031** | Career Intelligence Engine Architecture & Deterministic Scoring | **ACCEPTED** | 2026-08-22 |
 | **ADR-032** | Skill Taxonomy & Normalization Engine Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-033** | Evidence Matching & Gap Analysis Architecture | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -673,3 +674,35 @@
 * **Consequences**:
   * Phase 5 Task P5-002 will implement the comprehensive 50+ technology alias catalog, relationship lookups, and test suite in `src/extractors/github/taxonomy/taxonomy-mapper.js` and `src/domain/career/`.
 * **Revisit Conditions**: When tenant-custom organizational taxonomy extensions or multi-language internationalized taxonomy naming is requested.
+
+---
+
+### ADR-033: Evidence Matching & Gap Analysis Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 5 (Task P5-003A), the platform requires a deterministic, provider-neutral matching and gap analysis engine to evaluate structured job requirements (`JobRequirement`) against candidate profiles (`CandidateProfileView`, `CandidateSkill`, `Project`, `EvidenceItem`). The engine must classify matches with radical evidentiary precision (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), prioritize actionable skill gaps (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), enforce multi-tenant sovereign default-deny, and eliminate AI hallucinations without introducing premature database tables or non-deterministic LLM scoring.
+* **Decision**: Adopt the **Evidence Matching & Gap Analysis Architecture** defined in `docs/evidence-matching-architecture.md` (`ARCH-013`) governed by the following core architectural decisions:
+  * **Canonical 4-Status Match Evaluation**: Requirements are evaluated into exactly four canonical statuses (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`).
+  * **Strict Evidence Gating for `MATCHED`**: A technical skill requirement attains `MATCHED` if and only if backed by a canonical taxonomy match, `CandidateSkill.provenanceStatus === 'VERIFIED'` (or strong `INFERRED` $\ge 0.85$), and $\ge 1$ qualifying code `EvidenceItem` (`PACKAGE_MANIFEST_DEPENDENCY`, `CODE_IMPORT`, `CODE_USAGE`, `CONFIG_SYNTAX_DECLARATION`). A self-asserted claim or README mention alone **never** produces `MATCHED`.
+  * **Precise Deterministic `PARTIAL` Conditions**: `PARTIAL` is reserved for specific conditions: (1) unverified user claims (`[Unverified User Claim]`), (2) adjacent/related technologies via taxonomy relationships (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`), (3) partial tenure duration, or (4) evidence confidence $< 0.85$.
+  * **Zero False Negative `MISSING` Assertions**: `MISSING` is applied only to mechanically evaluable requirements where the candidate possesses zero qualifying evidence and zero relevant claims. Subjective soft skills, culture requirements, or unstated candidate profile fields (e.g. unstated degree) evaluate to `UNKNOWN` or `INSUFFICIENT_EVIDENCE` rather than false negative absence.
+  * **Taxonomy Relationship Integration**: Leverage `ARCH-012` directional graph edges (`BUILT_ON` with $0.90-0.95$ multiplier for frameworks/runtimes, `ECOSYSTEM_OF` with $0.75-0.80$ multiplier for SDKs/drivers, `IMPLEMENTS` with $0.50$ multiplier for sibling database/protocol implementations).
+  * **Non-Skill Protocol Boundaries**:
+    - *Experience*: Observed GitHub commit timestamps establish code activity duration, but are never conflated with corporate employment tenure without explicit work history records.
+    - *Education*: Evaluated hierarchically by degree level and field of study; unstated profile education yields `UNKNOWN`.
+    - *Location*: Evaluated against workplace constraints (`REMOTE`, `HYBRID`, `ON_SITE`); unstated candidate location yields `UNKNOWN`.
+    - *Domain*: Evaluated against curated project domains and architectures, not single package imports.
+  * **Separation of Match Confidence from Numerical Scoring**: Match confidence $C_{\text{match}}$ is computed deterministically per requirement ($C_{\text{req}} \times C_{\text{cand\_skill}} \times C_{\text{evid}}$). Final 100-point candidate scoring remains strictly separated in downstream scoring engines.
+  * **Actionable Skill Gap Prioritization**: Gaps are classified by priority (`CRITICAL` for missing required, `HIGH` for unverified required claims or missing high-weight preferred, `MEDIUM` for standard preferred, `LOW` for optional) and severity (`EXPLICITLY_MISSING`, `UNVERIFIED_CLAIM`, `INSUFFICIENT_EVIDENCE`, `PARTIAL_TENURE`).
+  * **Verifiable Match Explanations**: Structured, deterministic explanation strings linking up to 3 `EvidenceRef` nodes with commit-pinned provenance.
+  * **Multi-Tenant Sovereign Default-Deny**: All match operations enforce `tenant_id === context.tenantId` across job descriptions, candidates, skills, and evidence. Cross-tenant lookups fail closed with `404 NotFoundError`.
+  * **Ephemeral On-Demand Computation & $O(N)$ Performance**: Matching is executed in-memory with pre-indexed skill hash maps. No database migrations or persistent match tables are introduced in P5-003.
+  * **Strict LLM Boundary**: LLMs are prohibited from deciding match statuses, confidence values, or gap severities.
+* **Alternatives Considered**:
+  * *LLM-driven matching decisions*: Rejected because LLMs hallucinate matches, produce non-deterministic verdicts across identical runs, and fail auditability requirements.
+  * *Binary (MATCHED / MISSING) matching*: Rejected because it ignores transferable skills, partial tenure, and unverified user claims, creating harsh false negatives.
+  * *Premature persistence tables (`candidate_requirement_matches`)*: Rejected because matching results are purely derived from existing database state and can be computed on-demand with sub-millisecond latency.
+* **Reasons**: Guarantees radical transparency, mathematical explainability, regulatory compliance (EU AI Act), zero hallucinations, and actionable gap analysis while preserving multi-tenant isolation.
+* **Consequences**:
+  * Phase 5 Task P5-003 will implement the deterministic matching service, gap analysis engine, and Zod schemas in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When semantic vector embedding similarity or custom recruiter scoring weights are introduced.
