@@ -46,6 +46,7 @@
 | **ADR-036** | Zero-Hallucination Career Integrity Gate Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-037** | Career Artifact Adaptation Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-038** | Cover Letter Drafting Engine Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-039** | Portfolio Recommendation & Hiring-Signal Architecture | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -863,4 +864,35 @@
 * **Consequences**:
   * Phase 6 Task P6-002 will implement `CoverLetterDraftingService` and domain schemas in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When custom user cover-letter styling templates or persistent application tracking are introduced in Phase 12.
+
+---
+
+### ADR-039: Portfolio Recommendation & Hiring-Signal Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 6 (Task P6-003A), the platform requires an evidence-first, deterministic Portfolio Recommendation Engine (`PortfolioRecommendationService`) that selects and strategies a candidate's featured projects (`PortfolioRecommendation`) for a target job. The engine must transcend simple keyword matching to optimize for job relevance, evidence depth, engineering maturity, signal complementarity, and marginal project value, while guarding against tutorial clones, superficial apps, and unbacked metrics without introducing premature database tables.
+* **Decision**: Adopt the **Portfolio Recommendation & Hiring-Signal Architecture** defined in `docs/portfolio-recommendation-architecture.md` (`ARCH-019`) governed by the following core architectural decisions:
+  * **Bounded Curated Sizing (1 to 5 Featured Projects)**: Deterministically recommends 1 to 5 featured projects based on evidence quality. Portfolios default to 2–3 projects and reject padding with weak repositories.
+  * **Quality Over Quantity Deterministic Floor**: Superficial projects with low architectural density ($< 30.0$) and zero tests/CI are strictly disqualified from `featuredProjects`.
+  * **Marginal Value Optimization**: Employs greedy marginal optimization selecting projects that maximize new required skill coverage and diverse architectural signals ($\mathcal{O}(k \cdot N)$).
+  * **Signal Complementarity Across 7 Architectural Dimensions**: Evaluates projects across 7 orthogonal signal domains (`BACKEND_DISTRIBUTED`, `DATABASE_DATA_MODELING`, `FRONTEND_UI_UX`, `DEVOPS_INFRASTRUCTURE`, `SECURITY_AUTH`, `TESTING_QUALITY`, `API_INTEGRATIONS`) to prevent duplicate coverage inflation.
+  * **Anti-Inflation Coverage Accounting**: Attributes shared skills (e.g. PostgreSQL across multiple repos) strictly to the highest-verification project and flags subsequent mentions as redundant.
+  * **Ownership and Contribution Confidence**: Classifies repositories (`DIRECT_OWNER`, `ORGANIZATION_MEMBER`, `COLLABORATOR`, `FORK_UPSTREAM`) and author share (`PRIMARY_AUTHOR`, `MAJOR_CONTRIBUTOR`, `MINOR_CONTRIBUTOR`, `UNVERIFIED`) without fabricating solo claims for team projects.
+  * **Tutorial & Clone Detection Guard**: Flags fork metadata, conventional tutorial names, and boilerplate READMEs as `LIKELY_TUTORIAL` to deprioritize generic clones with explicit user warnings.
+  * **Story Completeness vs Technical Depth Decoupling**: Maintains separate scores for code quality vs. documentation clarity; generates actionable case study prompts for undocumented code rather than silently discarding it.
+  * **Metric Integrity Guard**: Quantitative metrics must be backed by authentic evidence or benchmarks; unbacked numbers trigger `ValidationError` and are replaced with interview preparation prompts.
+  * **Technical Interview Discussion Value**: Computes an interview value score ($0-100$) reflecting architectural complexity, custom middleware, and trade-off depth.
+  * **Extensible Job-Family Personalization**: Dynamically adjusts signal weights across 7 job families (`BACKEND`, `FRONTEND`, `FULLSTACK`, `DEVOPS_CLOUD`, `DATA_ML`, `AI_ENGINEERING`, `GENERAL_SOFTWARE`).
+  * **User Control & Override Support**: Supports user `PIN_FEATURED`, `EXCLUDE_PROJECT`, and `REORDER_OVERRIDE` actions with automated requirement gap recalculation.
+  * **Decoupled Architecture**: Separates Recommendation Strategy (*WHAT to show*) from Content Synthesis (*HOW to describe it*) and Visual Rendering (*HOW to present it*).
+  * **Multi-Tenant Sovereign Default-Deny**: Enforces `tenant_id === context.tenantId` across all inputs with 404 default-deny.
+  * **Ephemeral In-Memory Execution**: Operates in-memory with sub-50ms latency with zero database tables or migrations in Phase 6.
+* **Alternatives Considered**:
+  * *Sorting projects solely by individual ProjectRelevanceScore*: Rejected because it selects redundant projects (e.g. 3 identical CRUD apps) and fails to maximize hiring signal breadth.
+  * *LLM-driven project selection*: Rejected because LLMs hallucinate project capabilities, vary non-deterministically across runs, and cannot be mathematically audited.
+  * *Premature persistence tables (`portfolio_recommendations`)*: Rejected because portfolio recommendations are synthesized on-demand; persistence belongs to Phase 12.
+* **Reasons**: Synthesizes empirical recruiting science into a deterministic, evidence-first recommendation engine that maximizes candidate hiring impact while maintaining uncompromising zero-hallucination integrity.
+* **Consequences**:
+  * Phase 6 Task P6-003 will implement `PortfolioRecommendationService` and domain schemas in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When persistent portfolio web deployment adapters or public portfolio hosting endpoints are introduced.
 
