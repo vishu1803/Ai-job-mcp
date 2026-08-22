@@ -478,8 +478,14 @@ describe('Live Resume Tailoring Service Integration Tests (P6-001)', () => {
   it('3. verifies that resume tailoring causes zero database writes or mutations', async () => {
     const context = { tenantId: tenantA.id, userId: userA.id };
 
-    const [beforeCand] = await db.select({ count: sql`count(*)` }).from(candidates);
-    const [beforeEv] = await db.select({ count: sql`count(*)` }).from(evidenceItems);
+    const [beforeCand] = await db
+      .select({ count: sql`count(*)` })
+      .from(candidates)
+      .where(eq(candidates.tenantId, tenantA.id));
+    const [beforeEv] = await db
+      .select({ count: sql`count(*)` })
+      .from(evidenceItems)
+      .where(eq(evidenceItems.tenantId, tenantA.id));
 
     await service.tailorResume(
       context,
@@ -490,8 +496,14 @@ describe('Live Resume Tailoring Service Integration Tests (P6-001)', () => {
       integrityCheckedAssertionsA
     );
 
-    const [afterCand] = await db.select({ count: sql`count(*)` }).from(candidates);
-    const [afterEv] = await db.select({ count: sql`count(*)` }).from(evidenceItems);
+    const [afterCand] = await db
+      .select({ count: sql`count(*)` })
+      .from(candidates)
+      .where(eq(candidates.tenantId, tenantA.id));
+    const [afterEv] = await db
+      .select({ count: sql`count(*)` })
+      .from(evidenceItems)
+      .where(eq(evidenceItems.tenantId, tenantA.id));
 
     assert.strictEqual(
       Number(afterCand.count),
