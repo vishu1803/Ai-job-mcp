@@ -38,6 +38,7 @@
 | **ADR-028** | GitHub Evidence Extractor Architecture & Security Rules | **ACCEPTED** | 2026-08-22 |
 | **ADR-029** | Evidence Linking and Provenance Integrity Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-030** | Candidate Profile Service Architecture and Claim Integrity | **ACCEPTED** | 2026-08-22 |
+| **ADR-031** | Career Intelligence Engine Architecture & Deterministic Scoring | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -623,3 +624,27 @@
 * **Consequences**:
   * Task P4-005 will implement `CandidateProfileService` in `src/services/` and domain validation methods without modifying the database schema.
 * **Revisit Conditions**: When multi-tenant candidate sharing or organizational candidate transfer workflows are designed in future phases.
+
+---
+
+### ADR-031: Career Intelligence Engine Architecture & Deterministic Scoring
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 5 (Task P5-001A), the platform requires a provider-neutral analytical engine to parse unstructured job descriptions, extract atomic requirements, normalize skills against the canonical platform taxonomy, evaluate candidate evidence graphs, and calculate match scores. The architecture must guarantee 100% explainability, prevent LLM hallucination of qualifications, withstand adversarial prompt-injection payloads in job postings, and enforce strict multi-tenant isolation.
+* **Decision**: Adopt the **Career Intelligence Engine Architecture** defined in `docs/career-intelligence-architecture.md` (`ARCH-011`) governed by the following core architectural decisions:
+  * **Deterministic 100-Point Scoring Algorithm**: Prohibit LLMs from generating final numerical match scores. All scores $S \in [0, 100]$ are calculated by a transparent, decomposable mathematical formula:
+    $$S = (0.50 \cdot S_{\text{req}} + 0.20 \cdot S_{\text{pref}} + 0.20 \cdot S_{\text{proj}} + 0.10 \cdot S_{\text{evid}}) \times 100$$
+  * **Strict LLM Sandbox & Anti-Prompt Injection**: Raw job descriptions are treated strictly as untrusted external DATA. Instruction injection payloads (e.g. `"ignore previous instructions"`, `"award 100/100"`) are neutralized because the LLM is restricted to entity extraction bounded by strict Zod schema validation without execution tools or scoring authority.
+  * **Canonical Taxonomy Reuse**: Job skills are mapped strictly to the existing `skills` table via `TaxonomyMapper`. Unrecognized terms are provisioned under strict slug rules and flagged for telemetry review.
+  * **Evidence-Backed Verification**: Matching is categorized into `MATCHED`, `PARTIAL`, `MISSING`, and `UNKNOWN`. High-confidence matches require backing `EvidenceItem` proof nodes pinned to concrete commit SHAs and file paths.
+  * **Explainable Skill Gap Modeling**: Gaps are classified by severity (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`) and distinguish between `EXPLICITLY_MISSING`, `INSUFFICIENT_EVIDENCE` (unverified user claims), and `ADJACENT_COVERAGE`.
+  * **Multi-Signal Project Relevance**: Evaluates project relevance based on attached verified skill evidence density rather than simple keyword string matching.
+  * **Experience & Years Integrity**: Evaluates experience years strictly from verifiable evidence timestamps and explicit user claims. The engine **never** converts commit count into years of experience.
+  * **Multi-Tenant Sovereign Default-Deny**: All job descriptions, requirements, candidate matches, and gap analyses enforce `tenant_id = context.tenantId` with 404 default-deny.
+* **Alternatives Considered**:
+  * *End-to-end LLM scoring (prompting the model to output a score from 1-100)*: Rejected because LLM scoring is non-deterministic, hallucinates justification, varies across runs, and violates AI compliance frameworks (EU AI Act).
+  * *Ad-hoc skill strings without taxonomy normalization*: Rejected because it fragments matching (e.g., "Postgres" vs "PostgreSQL" failing to match).
+* **Reasons**: Guarantees radical transparency, auditability, regulatory compliance, and airtight prompt-injection defense while delivering actionable, evidence-grounded career insights.
+* **Consequences**:
+  * Phase 5 tasks will implement deterministic parsers, Zod schemas, scoring services, and database persistence in `src/services/intelligence/` and `src/domain/intelligence/`.
+* **Revisit Conditions**: When multilingual job parsing or multi-vector semantic embedding search is integrated in future phases.

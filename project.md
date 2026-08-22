@@ -158,7 +158,8 @@
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P5-001** | Implement Job Description Parser (extracts title, level, required skills, preferred skills, domain, and responsibilities) | P4-001 | NOT_STARTED | Test parsing 5 distinct real-world software engineering job descriptions |
+| **P5-001A** | Career Intelligence Engine Architecture Review | Phase 4 | **COMPLETE & APPROVED** | Architectural specification `docs/career-intelligence-architecture.md` (`ARCH-011`), ADR-031 in `docs/decisions.md`. Defined canonical `JobDescription` & `JobRequirement` domain models, taxonomy reuse, deterministic 100-point scoring formula, explainable match evaluations (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), prioritized skill gaps (`CRITICAL`, `HIGH`, `MED`, `LOW`), anti-prompt-injection sandbox, multi-tenant 404 default-deny, and future 4-table persistence model. |
+| **P5-001** | Implement Job Description Parser (extracts title, level, required skills, preferred skills, domain, and responsibilities) | P4-001, P5-001A | NOT_STARTED | Test parsing 5 distinct real-world software engineering job descriptions |
 | **P5-002** | Implement Skill Normalizer & Taxonomy (e.g., maps "React.js", "ReactJS", "React" -> `React`; "Postgres" -> `PostgreSQL`) | P5-001 | NOT_STARTED | Unit test with 50+ common technology synonym variations |
 | **P5-003** | Implement Evidence Matching & Gap Analysis Engine (categorizes requirements as: Verified, User Claim, Inferred, or Missing) | P4-004, P5-002 | NOT_STARTED | Test matching candidate profile against job requirements with exact gap breakdown |
 | **P5-004** | Implement Project Relevance Scoring (ranks candidate repositories by direct relevance to target job requirements) | P4-004, P5-003 | NOT_STARTED | Test project ranking accuracy given diverse job descriptions |
@@ -1252,3 +1253,13 @@ The project is ready to proceed with Task **P3-003**:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed)
+* **P5-001A (Career Intelligence Engine Architecture Review — Completed & Approved)**:
+  * Deliverables:
+    * `docs/career-intelligence-architecture.md`: Comprehensive architectural specification (`ARCH-011`) defining canonical `JobDescription` & `JobRequirement` domain models, taxonomy normalization, deterministic 100-point scoring algorithm, evidence-backed matching (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), prioritized skill gap analysis (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), anti-prompt-injection sandbox, and multi-tenant sovereign default-deny isolation.
+    * `docs/decisions.md` (ADR-031): Formally accepted *Career Intelligence Engine Architecture & Deterministic Scoring*.
+  * Core Decisions Approved:
+    * **Deterministic Scoring ($S \in [0, 100]$)**: Mathematical formula combining Required Skills (50%), Preferred Skills (20%), Project Relevance (20%), and Evidence Depth (10%). LLMs are strictly prohibited from generating final match scores.
+    * **Anti-Prompt-Injection Defense**: Untrusted job descriptions are sanitized, bounded ($\le 50\,\text{KB}$), and fenced in prompt sandboxes; LLM parser output must pass strict Zod schema validation before ingestion.
+    * **Taxonomy Normalization**: All job skills map strictly to the canonical `skills` table via `TaxonomyMapper`.
+    * **Evidence-Backed Match Explanations**: Matches link to lightweight `EvidenceRef` objects pinned to concrete commit SHAs and repository file paths.
+    * **Multi-Tenant Isolation**: Enforces tenant scoping across all job descriptions, requirements, candidate matches, and gap evaluations with 404 default-deny.
