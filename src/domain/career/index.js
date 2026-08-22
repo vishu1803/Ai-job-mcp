@@ -12,3 +12,4 @@ export * from './ats-fit-score.schemas.js';
 export * from './integrity-gate.schemas.js';
 export * from './resume.schemas.js';
 export * from './cover-letter.schemas.js';
+export * from './portfolio-recommendation.schemas.js';
