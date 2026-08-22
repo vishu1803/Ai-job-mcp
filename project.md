@@ -29,7 +29,7 @@
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 5** | Career Intelligence Engine | 6 | 3 | 0 | **IN_PROGRESS** | **50.00%** |
+| **PHASE 5** | Career Intelligence Engine | 6 | 4 | 0 | **IN_PROGRESS** | **66.67%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **31** | **0** | **IN_PROGRESS** | **38.75%** |
+| **TOTAL** | **All Phases Combined** | **80** | **32** | **0** | **IN_PROGRESS** | **40.00%** |
 
 ---
 
@@ -165,7 +165,7 @@
 | **P5-003A** | Evidence Matching & Gap Analysis Architecture Review | P5-002 | **COMPLETE & APPROVED** | Architectural specification `docs/evidence-matching-architecture.md` (`ARCH-013`), ADR-033 in `docs/decisions.md`. Defined canonical 4-status evaluation (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), strict evidence verification gating, taxonomy graph relationship multipliers (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`), non-skill matching protocols (experience, education, location, domain), decoupled match confidence formula, actionable skill gap taxonomy (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), ephemeral in-memory computation ($O(N)$), and multi-tenant default-deny isolation. |
 | **P5-003** | Implement Evidence Matching & Gap Analysis Engine (categorizes requirements as: Verified, User Claim, Inferred, or Missing) | P4-004, P5-002, P5-003A | **COMPLETE** | Implemented `EvidenceMatchingService` in `src/services/evidence-matching.service.js` and canonical domain schemas in `src/domain/career/evidence-matching.schemas.js`. Unit tests in `tests/unit/evidence-matching.service.test.js` (27/27 PASS) verifying canonical 4-status evaluations (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), strict evidence verification thresholds, multi-variation alias normalization, fact-vs-claim precedence (`[Unverified User Claim]` $\rightarrow$ `PARTIAL`), directional taxonomy relationship traversals (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`, `PARENT_OF`), non-skill protocols (experience tenure, education degrees, remote location, domain architectures), qualitative soft-skill routing to `UNKNOWN`, top 3 evidence selection, prioritized skill gaps (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), bit-for-bit determinism, and multi-tenant 404 default-deny isolation. Full suite: 645/645 PASS across 225 suites. |
 | **P5-004A** | Project Relevance Scoring Architecture Review | P5-003 | **COMPLETE & APPROVED** | Architectural specification `docs/project-relevance-architecture.md` (`ARCH-014`), ADR-034 in `docs/decisions.md`. Defined canonical 0–100 project relevance score, 5 additive components (50% requirement coverage, 25% architectural density across 10 dimensions, 15% evidence quality, 5% completeness, 5% bounded recency), relevance bands (`HIGH`, `MEDIUM`, `LOW`, `MINIMAL`), strict deduplication guard, multi-repository project aggregation, top 5 evidence selection, and multi-tenant default-deny isolation. |
-| **P5-004** | Implement Project Relevance Scoring (ranks candidate repositories by direct relevance to target job requirements) | P4-004, P5-003, P5-004A | NOT_STARTED | Test project ranking accuracy given diverse job descriptions |
+| **P5-004** | Implement Project Relevance Scoring (ranks candidate repositories by direct relevance to target job requirements) | P4-004, P5-003, P5-004A | **COMPLETE** | Implemented `ProjectRelevanceService` in `src/services/project-relevance.service.js` and canonical domain schemas in `src/domain/career/project-relevance.schemas.js`. Unit tests in `tests/unit/project-relevance.service.test.js` (30/30 PASS across 13 suites) verifying transparent 5-part score breakdown (50% requirement coverage, 25% architectural density across 10 dimensions, 15% evidence quality, 5% completeness, 5% bounded recency), directional taxonomy multipliers (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`, `PARENT_OF`), strict deduplication & anti-inflation guard, relevance bands (`HIGH`, `MEDIUM`, `LOW`, `MINIMAL`), top 5 commit-pinned evidence selection, project type classification, deterministic batch ranking, and multi-tenant default-deny isolation. Full suite: 675/675 PASS across 238 suites. |
 | **P5-005** | Implement ATS Fit Score calculator with transparent breakdown and reasoning | P5-003, P5-004 | NOT_STARTED | Test deterministic scoring output matching mathematical breakdown |
 | **P5-006** | Zero-Hallucination Integrity Gate (validates that any career summary or match assertion contains valid evidence references) | P5-003 | NOT_STARTED | Test that queries with zero evidence produce explicit "Missing Evidence" status |
 
@@ -1365,3 +1365,27 @@ The project is ready to proceed with Task **P3-003**:
     * **Multi-Tenant Sovereign Default-Deny**: Enforces `tenant_id === context.tenantId` across all project, candidate, and job lookups with 404 default-deny.
     * **Ephemeral On-Demand Computation & $O(|\text{Projects}| \times |\text{Requirements}|)$ Performance**: In-memory computation with zero premature database migrations in P5-004A.
     * **Strict LLM Boundary**: LLMs are prohibited from deciding project relevance scores or relevance bands.
+* **P5-004 (Project Relevance Scoring Engine Implementation — Completed)**:
+  * Implemented Modules:
+    * `src/domain/career/project-relevance.schemas.js`: Canonical Zod schemas for `ProjectRelevanceBandEnum`, `ProjectTypeEnum`, `ArchitecturalDimensionEnum`, `ProjectRelevanceScoreBreakdownSchema`, `ProjectRelevanceExplanationSchema`, `ProjectRelevanceSchema`, and `CandidateProjectRelevanceAnalysisSchema`.
+    * `src/domain/career/index.js`: Re-exported project relevance domain schemas.
+    * `src/services/project-relevance.service.js`: Provider-neutral `ProjectRelevanceService` exposing `computeProjectRelevance(context, jobDescription, project, options)` and `computeProjectsRelevance(context, jobDescription, projects, options)`.
+  * Verified Invariants:
+    * **Transparent 5-Part Additive Decomposition**: Decomposes score into 5 bounded components ($S_{\text{proj}} = S_{\text{req\_cov}} + S_{\text{arch\_dens}} + S_{\text{evid\_qual}} + S_{\text{comp}} + S_{\text{rec}} \in [0.0, 100.0]$).
+    * **Direct Requirement Coverage & Tier Weights**: `REQUIRED` (1.00), high-weight `PREFERRED` (0.70), standard `PREFERRED` (0.50), `OPTIONAL` (0.25), `DOMAIN` (0.80).
+    * **Strict Deduplication & Anti-Inflation**: Counts each distinct skill at most once per project across multiple files and linked repositories.
+    * **Taxonomy Graph Relationship Multipliers**: `BUILT_ON` (0.90), `ECOSYSTEM_OF` (0.75), `IMPLEMENTS` (0.50), `PARENT_OF` (1.00).
+    * **10 Architectural Density Dimensions**: Detects API routing, data persistence, auth/security, background queues, cloud/DevOps, automated testing, observability, caching, external SDKs, and modular architecture ($2.5$ pts each, up to $25.0$ max).
+    * **Evidence Quality & Provenance Ranking**: Weights `PACKAGE_MANIFEST_DEPENDENCY` (1.00), `CODE_IMPORT_USAGE` (0.95), `CODE_USAGE` (0.90), `CONFIG_SYNTAX_DECLARATION` (0.85), `COMMIT_CONTRIBUTION` (0.75), `README_SPECIFICATION` (0.30), `DOCUMENT_CLAIM` (0.00).
+    * **Project Completeness & Activity Recency**: Awards completeness signals (tests $+1.5$, README $+1.5$, CI/CD $+1.0$, build manifests $+1.0$) and bounded recency ($\le 6$ mo: $+5.0$, $6-18$ mo: $+3.0$, $18-36$ mo: $+1.5$, $>36$ mo: $0.0$).
+    * **Relevance Bands & Top Evidence Selection**: Categorizes into `HIGH` ($\ge 75.0$), `MEDIUM` ($50.0-74.9$), `LOW` ($25.0-49.9$), `MINIMAL` ($< 25.0$) with top 5 ranked `EvidenceRef` items.
+    * **Batch Ranking & Determinism**: Stably ranks projects by `relevanceScore` descending with `projectId` ascending tie-breaker; 100 consecutive runs yield bit-for-bit identical results.
+    * **Multi-Tenant Sovereign Isolation**: Enforces `tenant_id === context.tenantId` across job descriptions, projects, child resources, and evidence with strict 404 default-deny.
+  * Verification Commands:
+    * `node --test tests/unit/project-relevance.service.test.js` -> PASS (30/30 tests passed across 13 suites)
+    * `npm run test:unit` -> PASS (524/524 tests passed across 176 suites)
+    * `npm run test:integration` -> PASS (151/151 tests passed across 62 suites)
+    * `npm test` -> PASS (675/675 tests passed across 238 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)

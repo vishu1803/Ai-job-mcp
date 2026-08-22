@@ -352,12 +352,12 @@ export const CandidateProjectRelevanceAnalysisSchema = z.strictObject({
 
 ---
 
-## 14. Architecture Decision & Approval Recommendation
+## 14. Implementation Details & Service Contracts (P5-004 Verified)
 
-The proposed design satisfies all core tenets of `goal.md` and `AGENTS.md`:
-- **Radical Transparency**: Transparent 5-part score breakdown.
-- **Traceable Evidence**: Top 5 commit-pinned evidence pointers per project.
-- **Provider-Neutral & Secure**: Zero vendor lock-in, multi-tenant sovereign default-deny.
-- **Deterministic**: Bit-for-bit identical ranking across identical inputs.
-
-**Recommendation**: **APPROVE P5-004A**. Proceed to P5-004 implementation upon user approval.
+* **Core Service**: `ProjectRelevanceService` in `src/services/project-relevance.service.js`.
+* **Primary APIs**:
+  - `computeProjectRelevance(context, jobDescription, project, options)`: Evaluates single project against job description with strict multi-tenant validation.
+  - `computeProjectsRelevance(context, jobDescription, projects, options)`: Evaluates and stably ranks multiple candidate projects.
+* **Functional Export Aliases**: `computeProjectRelevance`, `computeProjectsRelevance`.
+* **Domain Schemas**: `ProjectRelevanceSchema`, `ProjectRelevanceScoreBreakdownSchema`, `ProjectRelevanceExplanationSchema`, `CandidateProjectRelevanceAnalysisSchema` exported via `src/domain/career/index.js`.
+* **Unit Test Coverage**: `tests/unit/project-relevance.service.test.js` (30/30 tests passing across 13 suites).

@@ -7,3 +7,4 @@ export * from './job-requirement.schemas.js';
 export * from './job-parser.js';
 export * from './skill-taxonomy.js';
 export * from './evidence-matching.schemas.js';
+export * from './project-relevance.schemas.js';
