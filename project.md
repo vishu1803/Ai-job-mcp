@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (33.33% - P5-001, P5-002 complete) |
+| **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (50.0% - P5-001, P5-002, P5-003 complete) |
 | **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 4 complete; Phase 5 in progress |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **30 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (2: P5-001, P5-002) verified |
-| **In Progress Tasks** | **0 Tasks** | P5-002 complete; ready for P5-003 |
+| **Completed Tasks** | **31 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (3: P5-001, P5-002, P5-003) verified |
+| **In Progress Tasks** | **0 Tasks** | P5-003 complete; ready for P5-004 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **37.50% (30 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **33.33% (5.33 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **38.75% (31 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **34.38% (5.50 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -29,7 +29,7 @@
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 5** | Career Intelligence Engine | 6 | 2 | 0 | **IN_PROGRESS** | **33.33%** |
+| **PHASE 5** | Career Intelligence Engine | 6 | 3 | 0 | **IN_PROGRESS** | **50.00%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **30** | **0** | **IN_PROGRESS** | **37.50%** |
+| **TOTAL** | **All Phases Combined** | **80** | **31** | **0** | **IN_PROGRESS** | **38.75%** |
 
 ---
 
@@ -163,7 +163,7 @@
 | **P5-002A** | Skill Normalizer & Taxonomy Engine Architecture Review | P5-001 | **COMPLETE & APPROVED** | Architectural specification `docs/skill-taxonomy-architecture.md` (`ARCH-012`), ADR-032 in `docs/decisions.md`. Defined single canonical slug model (`^[a-z0-9]+(?:-[a-z0-9]+)*$`), 50+ technology alias catalog, 7-stage deterministic normalization pipeline, explicit relationship graph (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`), controlled unknown tool slugification, strict LLM boundary, hybrid in-memory/PostgreSQL storage, and 100% backward compatibility with existing evidence. |
 | **P5-002** | Implement Skill Normalizer & Taxonomy (e.g., maps "React.js", "ReactJS", "React" -> `React`; "Postgres" -> `PostgreSQL`) | P5-001, P5-002A | **COMPLETE** | Implemented `SkillTaxonomyEngine` in `src/domain/career/skill-taxonomy.js` and updated `TaxonomyMapper` adapter. Unit tests in `tests/unit/skill-taxonomy.test.js` (29/29 PASS) verifying 30+ canonical identifiers, 61+ curated technology synonyms across 7 approved categories, context disambiguation (`Go` / `Spring`), safe unknown tool slugification (`TOOL`, `isCustom: true`, `requiresReview: true`), relationship graph edges (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`), graph integrity validation (zero dangling edges), prototype pollution resistance, and full test suite compatibility. Full suite: 614/614 PASS across 213 suites. |
 | **P5-003A** | Evidence Matching & Gap Analysis Architecture Review | P5-002 | **COMPLETE & APPROVED** | Architectural specification `docs/evidence-matching-architecture.md` (`ARCH-013`), ADR-033 in `docs/decisions.md`. Defined canonical 4-status evaluation (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), strict evidence verification gating, taxonomy graph relationship multipliers (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`), non-skill matching protocols (experience, education, location, domain), decoupled match confidence formula, actionable skill gap taxonomy (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), ephemeral in-memory computation ($O(N)$), and multi-tenant default-deny isolation. |
-| **P5-003** | Implement Evidence Matching & Gap Analysis Engine (categorizes requirements as: Verified, User Claim, Inferred, or Missing) | P4-004, P5-002, P5-003A | NOT_STARTED | Test matching candidate profile against job requirements with exact gap breakdown |
+| **P5-003** | Implement Evidence Matching & Gap Analysis Engine (categorizes requirements as: Verified, User Claim, Inferred, or Missing) | P4-004, P5-002, P5-003A | **COMPLETE** | Implemented `EvidenceMatchingService` in `src/services/evidence-matching.service.js` and canonical domain schemas in `src/domain/career/evidence-matching.schemas.js`. Unit tests in `tests/unit/evidence-matching.service.test.js` (27/27 PASS) verifying canonical 4-status evaluations (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), strict evidence verification thresholds, multi-variation alias normalization, fact-vs-claim precedence (`[Unverified User Claim]` $\rightarrow$ `PARTIAL`), directional taxonomy relationship traversals (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`, `PARENT_OF`), non-skill protocols (experience tenure, education degrees, remote location, domain architectures), qualitative soft-skill routing to `UNKNOWN`, top 3 evidence selection, prioritized skill gaps (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), bit-for-bit determinism, and multi-tenant 404 default-deny isolation. Full suite: 645/645 PASS across 225 suites. |
 | **P5-004** | Implement Project Relevance Scoring (ranks candidate repositories by direct relevance to target job requirements) | P4-004, P5-003 | NOT_STARTED | Test project ranking accuracy given diverse job descriptions |
 | **P5-005** | Implement ATS Fit Score calculator with transparent breakdown and reasoning | P5-003, P5-004 | NOT_STARTED | Test deterministic scoring output matching mathematical breakdown |
 | **P5-006** | Zero-Hallucination Integrity Gate (validates that any career summary or match assertion contains valid evidence references) | P5-003 | NOT_STARTED | Test that queries with zero evidence produce explicit "Missing Evidence" status |
@@ -1327,3 +1327,25 @@ The project is ready to proceed with Task **P3-003**:
     * **Multi-Tenant Sovereign Default-Deny**: All match operations enforce `tenant_id === context.tenantId` across job descriptions, candidates, skills, and evidence. Cross-tenant lookups fail closed with `404 NotFoundError`.
     * **Ephemeral On-Demand Computation & $O(N)$ Performance**: Matching is executed in-memory with pre-indexed skill hash maps. Zero premature database migrations are introduced in P5-003A.
     * **Strict LLM Boundary**: LLMs are prohibited from deciding match statuses, confidence values, or gap severities.
+* **P5-003 (Evidence Matching & Gap Analysis Engine Implementation — Completed)**:
+  * Implemented Modules:
+    * `src/domain/career/evidence-matching.schemas.js`: Canonical Zod domain schemas for `CandidateRequirementMatchSchema`, `SkillGapSchema`, `MatchExplanationSchema`, `CandidateMatchSummarySchema`, and `CandidateMatchAnalysisSchema`.
+    * `src/domain/career/index.js`: Re-exported evidence matching domain schemas.
+    * `src/services/evidence-matching.service.js`: Provider-neutral `EvidenceMatchingService` exposing `matchJobToCandidate(context, jobDescription, candidateProfile)` with pre-indexed capability lookups, category-specific evaluation dispatchers, fact-vs-claim precedence gating, taxonomy graph relationship traversals, top 3 evidence selection, prioritized skill gaps, and multi-tenant default-deny isolation.
+  * Verified Invariants:
+    * **Canonical 4-Status Exhaustiveness**: Every job requirement evaluates into exactly one of `MATCHED`, `PARTIAL`, `MISSING`, or `UNKNOWN`.
+    * **Strict Verification Gating**: Technical skills backed by verified package manifest / code import evidence attain `MATCHED`. Self-asserted claims without code evidence are explicitly serialized as `[Unverified User Claim]` and produce `PARTIAL`, never `MATCHED`.
+    * **Taxonomy Relationship Integration**: Correctly models `BUILT_ON` (Next.js $\rightarrow$ React: `MATCHED`), `PARENT_OF` (TypeScript $\rightarrow$ JavaScript: `MATCHED`), `ECOSYSTEM_OF` (Drizzle ORM $\rightarrow$ PostgreSQL: `PARTIAL`), and `IMPLEMENTS` (MySQL $\rightarrow$ PostgreSQL: `PARTIAL`).
+    * **Non-Skill Protocol Execution**: Explicit work history verifies experience tenure without conflating repository commit duration with enterprise employment; education respects academic degree hierarchy; location validates remote/hybrid/on-site compatibility; domain checks project architecture tags.
+    * **Qualitative Soft-Skill Defense**: Subjective qualifications (leadership, communication, startup mindset) route to `UNKNOWN` with zero false-negative gaps.
+    * **Prioritized Skill Gaps**: Missing required skills generate `CRITICAL` gaps; unverified claims or missing preferred skills generate `HIGH`/`MEDIUM` gaps; optional skills generate `LOW` gaps.
+    * **Multi-Tenant Sovereign Isolation**: Context tenant mismatches fail closed with `404 NotFoundError` across all dimensions.
+    * **Bit-for-Bit Determinism**: 1,000 consecutive matching runs yield identical structured summary and requirement match arrays.
+  * Verification Commands:
+    * `node --test tests/unit/evidence-matching.service.test.js` -> PASS (27/27 tests passed across 11 suites)
+    * `npm run test:unit` -> PASS (494/494 tests passed across 163 suites)
+    * `npm run test:integration` -> PASS (151/151 tests passed across 62 suites)
+    * `npm test` -> PASS (645/645 tests passed across 225 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
