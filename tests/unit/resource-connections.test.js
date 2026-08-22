@@ -31,6 +31,9 @@ describe('Resource Connections Schema & Utilities Unit Tests (P2-003)', () => {
         'ONEDRIVE',
         'NOTION',
         'CUSTOM_API',
+        'LINKEDIN',
+        'GOOGLE',
+        'MANUAL',
       ]);
     });
 

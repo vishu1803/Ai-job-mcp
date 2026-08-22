@@ -17,6 +17,10 @@ import {
   text,
   timestamp,
   jsonb,
+  boolean,
+  integer,
+  real,
+  date,
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
@@ -50,6 +54,9 @@ export const resourceProviderEnum = pgEnum('resource_provider', [
   'ONEDRIVE',
   'NOTION',
   'CUSTOM_API',
+  'LINKEDIN',
+  'GOOGLE',
+  'MANUAL',
 ]);
 
 /**
@@ -72,6 +79,67 @@ export const resourceConnectionStatusEnum = pgEnum('resource_connection_status',
   'REVOKED',
   'ERROR',
   'DISCONNECTED',
+]);
+
+/**
+ * Candidate profile lifecycle states.
+ */
+export const candidateStatusEnum = pgEnum('candidate_status', ['ACTIVE', 'ARCHIVED', 'SUSPENDED']);
+
+/**
+ * Provider-neutral resource classifications.
+ */
+export const resourceTypeEnum = pgEnum('resource_type', [
+  'REPOSITORY',
+  'DOCUMENT',
+  'PROFILE',
+  'PORTFOLIO_SITE',
+]);
+
+/**
+ * Resource sync/availability lifecycle states.
+ */
+export const resourceStatusEnum = pgEnum('resource_status', [
+  'ACTIVE',
+  'DISCONNECTED',
+  'DELETED',
+  'ERROR',
+]);
+
+/**
+ * Skill taxonomy categories.
+ */
+export const skillCategoryEnum = pgEnum('skill_category', [
+  'LANGUAGE',
+  'FRAMEWORK',
+  'DATABASE',
+  'CLOUD_DEVOPS',
+  'TOOL',
+  'ARCHITECTURE',
+  'CONCEPT',
+]);
+
+/**
+ * Provenance / proof certainty states.
+ */
+export const provenanceStatusEnum = pgEnum('provenance_status', [
+  'VERIFIED',
+  'INFERRED',
+  'CLAIMED',
+  'MISSING',
+]);
+
+/**
+ * Foundational evidence type classifications.
+ */
+export const evidenceTypeEnum = pgEnum('evidence_type', [
+  'PACKAGE_MANIFEST_DEPENDENCY',
+  'CODE_IMPORT_USAGE',
+  'FILE_PATTERN_MATCH',
+  'COMMIT_CONTRIBUTION',
+  'README_SPECIFICATION',
+  'DIRECTORY_STRUCTURE',
+  'DOCUMENT_CLAIM',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -214,6 +282,278 @@ export const resourceConnections = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 6. Candidates Table (Canonical Domain Persona)
+// ---------------------------------------------------------------------------
+
+export const candidates = pgTable(
+  'candidates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    displayName: text('display_name').notNull(),
+    headline: text('headline'),
+    summary: text('summary'),
+    canonicalEmail: text('canonical_email'),
+    profileMetadata: jsonb('profile_metadata').default('{}').notNull(),
+    status: candidateStatusEnum('status').default('ACTIVE').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_candidates_tenant_id').on(table.tenantId),
+    index('idx_candidates_tenant_user').on(table.tenantId, table.userId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 7. Candidate Identities Table (Linked External Accounts)
+// ---------------------------------------------------------------------------
+
+export const candidateIdentities = pgTable(
+  'candidate_identities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    provider: resourceProviderEnum('provider').notNull(),
+    externalAccountId: text('external_account_id').notNull(),
+    externalUsername: text('external_username'),
+    externalEmail: text('external_email'),
+    profileUrl: text('profile_url'),
+    avatarUrl: text('avatar_url'),
+    verified: boolean('verified').default(false).notNull(),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    metadata: jsonb('metadata').default('{}').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('candidate_identities_tenant_provider_account_unique').on(
+      table.tenantId,
+      table.provider,
+      table.externalAccountId
+    ),
+    index('idx_candidate_identities_tenant_id').on(table.tenantId),
+    index('idx_candidate_identities_tenant_candidate').on(table.tenantId, table.candidateId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 8. Resources Table (Provider-Neutral External Resource Catalog)
+// ---------------------------------------------------------------------------
+
+export const resources = pgTable(
+  'resources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    connectionId: uuid('connection_id').references(() => resourceConnections.id, {
+      onDelete: 'set null',
+    }),
+    candidateId: uuid('candidate_id').references(() => candidates.id, {
+      onDelete: 'set null',
+    }),
+    provider: resourceProviderEnum('provider').notNull(),
+    resourceType: resourceTypeEnum('resource_type').default('REPOSITORY').notNull(),
+    externalResourceId: text('external_resource_id').notNull(),
+    name: text('name').notNull(),
+    displayName: text('display_name').notNull(),
+    url: text('url'),
+    isPrivate: boolean('is_private').default(false).notNull(),
+    status: resourceStatusEnum('status').default('ACTIVE').notNull(),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    metadata: jsonb('metadata').default('{}').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('resources_tenant_provider_external_id_unique').on(
+      table.tenantId,
+      table.provider,
+      table.externalResourceId
+    ),
+    index('idx_resources_tenant_id').on(table.tenantId),
+    index('idx_resources_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_resources_tenant_connection').on(table.tenantId, table.connectionId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 9. Projects Table (Domain-Level Initiatives)
+// ---------------------------------------------------------------------------
+
+export const projects = pgTable(
+  'projects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    slug: text('slug').notNull(),
+    headline: text('headline'),
+    summary: text('summary'),
+    role: text('role'),
+    isHighlighted: boolean('is_highlighted').default(false).notNull(),
+    startDate: date('start_date'),
+    endDate: date('end_date'),
+    metadata: jsonb('metadata').default('{}').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('projects_tenant_candidate_slug_unique').on(
+      table.tenantId,
+      table.candidateId,
+      table.slug
+    ),
+    index('idx_projects_tenant_id').on(table.tenantId),
+    index('idx_projects_tenant_candidate').on(table.tenantId, table.candidateId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 10. Project Resources Table (Project <-> Resource Many-to-Many Join)
+// ---------------------------------------------------------------------------
+
+export const projectResources = pgTable(
+  'project_resources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    resourceId: uuid('resource_id')
+      .notNull()
+      .references(() => resources.id, { onDelete: 'cascade' }),
+    roleInProject: text('role_in_project'),
+    metadata: jsonb('metadata').default('{}').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('project_resources_project_resource_unique').on(table.projectId, table.resourceId),
+    index('idx_project_resources_tenant_id').on(table.tenantId),
+    index('idx_project_resources_tenant_project').on(table.tenantId, table.projectId),
+    index('idx_project_resources_tenant_resource').on(table.tenantId, table.resourceId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 11. Skills Table (Global Canonical Taxonomy)
+// ---------------------------------------------------------------------------
+
+export const skills = pgTable(
+  'skills',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull(),
+    name: text('name').notNull(),
+    category: skillCategoryEnum('category').notNull(),
+    aliases: jsonb('aliases').default('[]').notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('skills_slug_unique').on(table.slug),
+    index('idx_skills_category').on(table.category),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 12. Candidate Skills Table (Candidate Skill Assertions & Rollup)
+// ---------------------------------------------------------------------------
+
+export const candidateSkills = pgTable(
+  'candidate_skills',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    skillId: uuid('skill_id')
+      .notNull()
+      .references(() => skills.id, { onDelete: 'restrict' }),
+    category: skillCategoryEnum('category').notNull(),
+    provenanceStatus: provenanceStatusEnum('provenance_status').default('CLAIMED').notNull(),
+    confidenceScore: real('confidence_score').default(0.0).notNull(),
+    evidenceCount: integer('evidence_count').default(0).notNull(),
+    primaryEvidenceId: uuid('primary_evidence_id'),
+    firstObservedAt: timestamp('first_observed_at', { withTimezone: true }),
+    lastObservedAt: timestamp('last_observed_at', { withTimezone: true }),
+    metadata: jsonb('metadata').default('{}').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex('candidate_skills_tenant_candidate_skill_unique').on(
+      table.tenantId,
+      table.candidateId,
+      table.skillId
+    ),
+    index('idx_candidate_skills_tenant_id').on(table.tenantId),
+    index('idx_candidate_skills_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_candidate_skills_tenant_skill').on(table.tenantId, table.skillId),
+    index('idx_candidate_skills_provenance').on(table.tenantId, table.provenanceStatus),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 13. Evidence Items Table (Immutable Provenance Nodes)
+// ---------------------------------------------------------------------------
+
+export const evidenceItems = pgTable(
+  'evidence_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    resourceId: uuid('resource_id')
+      .notNull()
+      .references(() => resources.id, { onDelete: 'cascade' }),
+    projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+    skillId: uuid('skill_id').references(() => skills.id, { onDelete: 'set null' }),
+    evidenceType: evidenceTypeEnum('evidence_type').notNull(),
+    sourceProvider: resourceProviderEnum('source_provider').notNull(),
+    sourceLocation: jsonb('source_location').notNull(),
+    excerpt: text('excerpt'),
+    confidenceScore: real('confidence_score').default(1.0).notNull(),
+    detectedAt: timestamp('detected_at', { withTimezone: true }).defaultNow().notNull(),
+    metadata: jsonb('metadata').default('{}').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_evidence_items_tenant_id').on(table.tenantId),
+    index('idx_evidence_items_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_evidence_items_tenant_resource').on(table.tenantId, table.resourceId),
+    index('idx_evidence_items_tenant_project').on(table.tenantId, table.projectId),
+    index('idx_evidence_items_tenant_skill').on(table.tenantId, table.skillId),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
 
@@ -224,9 +564,23 @@ export const schema = {
   resourceProviderEnum,
   connectionAuthTypeEnum,
   resourceConnectionStatusEnum,
+  candidateStatusEnum,
+  resourceTypeEnum,
+  resourceStatusEnum,
+  skillCategoryEnum,
+  provenanceStatusEnum,
+  evidenceTypeEnum,
   tenants,
   users,
   sessions,
   auditLogs,
   resourceConnections,
+  candidates,
+  candidateIdentities,
+  resources,
+  projects,
+  projectResources,
+  skills,
+  candidateSkills,
+  evidenceItems,
 };

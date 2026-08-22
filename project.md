@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 4 — Unified Candidate / Resource Model** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (16.67% - P4-001 complete) |
+| **Current Phase** | **PHASE 4 — Unified Candidate / Resource Model** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (33.33% - P4-001, P4-002 complete) |
 | **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 3 complete; Phase 4 in progress |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **23 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (1: P4-001) verified |
-| **In Progress Tasks** | **0 Tasks** | P4-001 complete; ready for P4-002 |
+| **Completed Tasks** | **24 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (2: P4-001, P4-002) verified |
+| **In Progress Tasks** | **0 Tasks** | P4-002 complete; ready for P4-003 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **28.75% (23 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **26.04% (4.17 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **30.00% (24 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **27.08% (4.33 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -28,7 +28,7 @@
 | **PHASE 1** | Multi-User Platform Foundation | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 4** | Unified Candidate / Resource Model | 6 | 1 | 0 | **IN_PROGRESS** | **16.67%** |
+| **PHASE 4** | Unified Candidate / Resource Model | 6 | 2 | 0 | **IN_PROGRESS** | **33.33%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **23** | **0** | **IN_PROGRESS** | **28.75%** |
+| **TOTAL** | **All Phases Combined** | **80** | **24** | **0** | **IN_PROGRESS** | **30.00%** |
 
 ---
 
@@ -141,8 +141,8 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P4-001A** | Unified Candidate / Resource Domain Model Architecture Review | P3-006 | **COMPLETE & APPROVED** | Architectural specification `docs/unified-candidate-resource-model.md`, ADR-027 in `docs/decisions.md`. Defined canonical `Candidate`, `CandidateIdentity`, provider-neutral `Resource`, `Project` ($1\text{ Project} \ne 1\text{ Repository}$), canonical `Skill` taxonomy, `CandidateSkill` with provenance status (`VERIFIED`, `INFERRED`, `CLAIMED`, `MISSING`), immutable `EvidenceItem` nodes, single-tenant strict isolation, ephemeral source processing, and proposed 8-table PostgreSQL schema. |
-| **P4-001** | Design and implement Zod schemas for `CandidateProfile`, `SkillWithEvidence`, `ProjectEvidence`, and `EvidenceNode` | P1-001, P4-001A | **COMPLETE** | Unit tests validating valid and invalid candidate data structures (`tests/unit/candidate-domain-schemas.test.js` -> 27/27 PASS). Strict object constraints, path traversal rejection, secret excerpt redaction, and bounded metadata. |
-| **P4-002** | Create database tables: `candidate_profiles`, `skills`, `evidence_items`, `projects` | P1-004, P4-001 | NOT_STARTED | Database migration and relational integrity verification |
+| **P4-001** | Design and implement Zod schemas for `CandidateProfile`, `SkillWithEvidence`, `ProjectEvidence`, and `EvidenceNode` | P1-001, P4-001A | **COMPLETE** | Unit tests validating valid and invalid candidate data structures (`tests/unit/candidate-domain-schemas.test.js` -> 29/29 PASS). Strict object constraints, path traversal rejection, secret excerpt redaction, and bounded metadata. |
+| **P4-002** | Create database tables: `candidates`, `candidate_identities`, `resources`, `projects`, `project_resources`, `skills`, `candidate_skills`, `evidence_items` | P1-004, P4-001 | **COMPLETE** | Live database migration `drizzle/0002_sturdy_zarek.sql` executed on Aiven PostgreSQL. Comprehensive integration test suite `tests/integration/candidate-domain-schema.test.js` (8/8 PASS) verifying CRUD, composite unique constraints, RESTRICT/CASCADE foreign key rules, and cross-tenant default-deny isolation. |
 | **P4-003** | Implement GitHub Evidence Extractor (analyzes `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, directory trees, and commit messages) | P3-005, P4-001 | NOT_STARTED | Test parsing diverse repositories and producing verifiable skill items |
 | **P4-004** | Implement Evidence Linking Engine: every skill and project item is assigned an immutable `EvidenceId` referencing repository, file path, and commit SHA | P4-003 | NOT_STARTED | Verification test ensuring zero skills are created without valid `EvidenceId` |
 | **P4-005** | Create Candidate Profile Service (CRUD operations, manual claim tagging as `[Unverified User Claim]`, profile sync) | P4-002, P4-004 | NOT_STARTED | Integration test: sync candidate profile from connected GitHub repositories |
@@ -1095,10 +1095,33 @@ The project is ready to proceed with Task **P3-003**:
   * Automated Unit Test Suite:
     * `tests/unit/candidate-domain-schemas.test.js`: 27 unit tests across 8 suites verifying valid and invalid payloads, boundary conditions, and security rejection.
   * Verification Commands:
-    * `node --test tests/unit/candidate-domain-schemas.test.js` -> PASS (27/27 tests passed across 8 suites)
-    * `npm run test:unit` -> PASS (337/337 tests passed across 104 suites)
+    * `node --test tests/unit/candidate-domain-schemas.test.js` -> PASS (29/29 tests passed across 9 suites)
+    * `npm run test:unit` -> PASS (339/339 tests passed across 104 suites)
     * `npm run test:integration` -> PASS (90/90 tests passed across 20 suites)
-    * `npm test` -> PASS (427/427 tests passed across 124 suites)
+    * `npm test` -> PASS (429/429 tests passed across 132 suites)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit schema check verified)
+* **P4-002 (Implement Unified Candidate / Resource Database Schema — Completed & Verified)**:
+  * Deliverables:
+    * `src/db/schema.js`: Implemented the 8 approved PostgreSQL/Drizzle domain tables (`candidates`, `candidate_identities`, `resources`, `projects`, `project_resources`, `skills`, `candidate_skills`, `evidence_items`) and 6 new pgEnums (`candidate_status`, `resource_type`, `resource_status`, `skill_category`, `provenance_status`, `evidence_type`).
+    * `drizzle/0002_sturdy_zarek.sql`: Generated non-destructive PostgreSQL migration creating the 8 domain tables, enums, indexes, and foreign keys without modifying Phase 1/2/3 tables.
+    * `tests/integration/candidate-domain-schema.test.js`: Live integration test suite exercising CRUD, unique constraints, restrict/cascade delete rules, and multi-tenant isolation.
+  * Relational & Security Invariants Enforced:
+    * **Multi-Tenant Ownership**: All tenant-owned tables (`candidates`, `candidate_identities`, `resources`, `projects`, `project_resources`, `candidate_skills`, `evidence_items`) enforce `tenant_id NOT NULL REFERENCES tenants(id) ON DELETE CASCADE`.
+    * **Global Taxonomy Independence**: `skills` table is a global canonical dictionary without tenant scoping (`skills.slug UNIQUE`), referenced by `candidate_skills` via `ON DELETE RESTRICT`.
+    * **Decoupled Architecture**: `ResourceConnection` (credentials/auth) is decoupled from `resources` (`connection_id ON DELETE SET NULL`), and `projects` is decoupled from individual repositories ($1\text{ Project} \ne 1\text{ Repository}$) via `project_resources`.
+    * **Immutable Provenance**: `evidence_items` is an append-oriented table storing structured source pointers (`source_location` JSONB) and sanitized excerpts ($\le 1024$ chars).
+    * **Composite Unique Constraints**:
+      * `candidate_identities`: `UNIQUE (tenant_id, provider, external_account_id)`
+      * `resources`: `UNIQUE (tenant_id, provider, external_resource_id)`
+      * `projects`: `UNIQUE (tenant_id, candidate_id, slug)`
+      * `project_resources`: `UNIQUE (project_id, resource_id)`
+      * `candidate_skills`: `UNIQUE (tenant_id, candidate_id, skill_id)`
+  * Live Database Migration & Verification:
+    * `npm run db:migrate` -> Successfully executed `0002_sturdy_zarek.sql` on the live Aiven PostgreSQL database in 4.2s.
+    * `node --test tests/integration/candidate-domain-schema.test.js` -> PASS (8/8 test suites passed against Aiven database).
+    * `npm test` -> PASS (437/437 tests passed across 141 suites).
+    * `npm run lint` -> PASS (0 errors, 0 warnings).
+    * `npm run format:check` -> PASS (All matched files use Prettier code style).
+    * `npm run db:check` -> PASS (Drizzle Kit check passed).
