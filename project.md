@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 4 — Unified Candidate / Resource Model** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (50.0% - P4-001, P4-002, P4-003 complete) |
+| **Current Phase** | **PHASE 4 — Unified Candidate / Resource Model** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (83.33% - P4-001 to P4-005 complete) |
 | **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 3 complete; Phase 4 in progress |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **25 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (3: P4-001, P4-002, P4-003) verified |
-| **In Progress Tasks** | **0 Tasks** | P4-003 complete; ready for P4-004 |
+| **Completed Tasks** | **27 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (5: P4-001, P4-002, P4-003, P4-004, P4-005) verified |
+| **In Progress Tasks** | **0 Tasks** | P4-005 complete; ready for P4-006 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **31.25% (25 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **28.13% (4.50 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **33.75% (27 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **30.21% (4.83 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -28,7 +28,7 @@
 | **PHASE 1** | Multi-User Platform Foundation | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 4** | Unified Candidate / Resource Model | 6 | 4 | 0 | **IN_PROGRESS** | **66.67%** |
+| **PHASE 4** | Unified Candidate / Resource Model | 6 | 5 | 0 | **IN_PROGRESS** | **83.33%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **26** | **0** | **IN_PROGRESS** | **32.50%** |
+| **TOTAL** | **All Phases Combined** | **80** | **27** | **0** | **IN_PROGRESS** | **33.75%** |
 
 ---
 
@@ -148,7 +148,7 @@
 | **P4-004A** | Evidence Linking Engine Architecture Review | P4-003 | **COMPLETE & APPROVED** | Architectural specification `docs/evidence-linking-architecture.md` (`ARCH-009`), ADR-029 in `docs/decisions.md`. Defined canonical `EvidenceId` (UUIDv4), SHA-256 fingerprint deduplication decoupling, strict provenance immutability, skill linking via direct FKs & primary anchor, project linking ($1 : N$), strict multi-tenant default-deny (404), 40-char commit SHA pinning, historical evidence preservation, and transactional atomicity. |
 | **P4-004** | Implement Evidence Linking Engine: every skill and project item is assigned an immutable `EvidenceId` referencing repository, file path, and commit SHA | P4-003, P4-004A | **COMPLETE** | Unit tests (`tests/unit/evidence-linking.test.js` - 17 tests), live PostgreSQL integration tests (`tests/integration/evidence-linking.test.js` - 9 tests). Verified canonical `EvidenceId` (UUIDv4), deterministic primary evidence selection, monotonic confidence scoring, project linking & `project_resources` association, cross-tenant 404 default-deny, atomic rollback on batch failure, and retention semantics. Full suite: 507/507 PASS across 170 suites. |
 | **P4-005A** | Candidate Profile Service Architecture Review | P4-004 | **COMPLETE & APPROVED** | Architectural specification `docs/candidate-profile-service-architecture.md` (`ARCH-010`), ADR-030 in `docs/decisions.md`. Defined verified facts vs explicit `[Unverified User Claim]` labeling, user narrative sovereignty against background sync overwrites, Candidate vs User decoupling, credential scrubbing in resource summaries, multi-resource project modeling, RBAC (`OWNER`, `MEMBER`, `READONLY`), and `CandidateProfileView` domain serialization. |
-| **P4-005** | Create Candidate Profile Service (CRUD operations, manual claim tagging as `[Unverified User Claim]`, profile sync) | P4-002, P4-004, P4-005A | NOT_STARTED | Integration test: sync candidate profile from connected GitHub repositories |
+| **P4-005** | Create Candidate Profile Service (CRUD operations, manual claim tagging as `[Unverified User Claim]`, profile sync) | P4-002, P4-004, P4-005A | **COMPLETE** | Unit tests (`tests/unit/candidate-profile.service.test.js` - 9 tests), live PostgreSQL integration tests (`tests/integration/candidate-profile.service.test.js` - 15 tests). Verified candidate CRUD, full profile view aggregation without leaked credentials, manual skill claim creation with `[Unverified User Claim]` labeling, claim preservation/elevation against verified evidence, narrative sovereignty during background sync, partitioned metadata (`userCustom` vs `systemInferred`), archive/restore, and RBAC (`OWNER`, `MEMBER` self-linked, `READONLY`). Full suite: 531/531 PASS across 180 suites. |
 | **P4-006** | Multi-tenant candidate data isolation tests | P4-005 | NOT_STARTED | Security test: assert User A cannot access User B's candidate profile or evidence |
 
 ---
@@ -1208,3 +1208,24 @@ The project is ready to proceed with Task **P3-003**:
     * **Project Multi-Resource Decoupling**: Projects represent curated career initiatives ($1\text{ Project} \ne 1\text{ Repository}$) and can encompass multiple connected resources via `project_resources`.
     * **Multi-Tenant Sovereign Default-Deny**: All profile operations validate `tenant_id = context.tenantId`. Cross-tenant lookups fail closed with `404 Not Found`.
     * **Role-Based Access Control**: `OWNER` has full tenant profile authority; `MEMBER` can edit self-linked profiles; `READONLY` is restricted to read-only profile inspection with 403 enforcement.
+* **P4-005 (Candidate Profile Service Implementation — Completed)**:
+  * Implemented Modules:
+    * `src/services/candidate-profile.service.js`: Complete domain service implementing `getProfile`, `listCandidates`, `createCandidate`, `updateProfile`, `addSkillClaim`, `removeSkillClaim`, `archiveCandidate`, `restoreCandidate`, and `syncProfileFromResources`.
+  * Verified Invariants:
+    * **Full Profile Aggregation**: Combines candidate root, identities, clean resource summaries, projects, and skills into a cohesive, provider-neutral `CandidateProfileView`.
+    * **Credential Redaction**: Resources and identities strip all secrets, `encryptedCredentials`, tokens, and private keys from profile output.
+    * **Strict Claim Classification**: Manual skill claims are persisted with `provenanceStatus = 'CLAIMED'`, `confidenceScore = 0.0`, `isUserClaim = true`, and serialized as `claimLabel = '[Unverified User Claim]'`.
+    * **Evidence Precedence & Monotonicity**: Adding verified evidence elevates claims to `VERIFIED` with $\ge 0.85$ confidence. Adding manual claims on already-verified skills never downgrades score.
+    * **Narrative Sovereignty**: `syncProfileFromResources` updates `profileMetadata.systemInferred` without overwriting user-authored `displayName`, `headline`, `summary`, or `canonicalEmail`.
+    * **Metadata Partitioning**: Preserves distinct `userCustom` and `systemInferred` JSONB namespaces.
+    * **Archive/Restore Lifecycle**: Correctly toggles `ACTIVE` and `ARCHIVED` status without destroying evidence or resource links.
+    * **RBAC & Tenant Isolation**: Rejects cross-tenant access with 404 `NotFoundError`; permits `OWNER` full tenant mutation; permits `MEMBER` self-linked candidate mutation; rejects non-self-linked `MEMBER` and `READONLY` users with 403 `AuthorizationError`.
+  * Verification Commands:
+    * `node --test tests/unit/candidate-profile.service.test.js` -> PASS (9/9 tests passed across 3 suites)
+    * `node --test tests/integration/candidate-profile.service.test.js` -> PASS (15/15 tests passed across 7 suites against Aiven PostgreSQL)
+    * `npm run test:unit` -> PASS (404/404 tests passed across 131 suites)
+    * `npm run test:integration` -> PASS (127/127 tests passed across 49 suites)
+    * `npm test` -> PASS (531/531 tests passed across 180 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
