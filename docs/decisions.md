@@ -30,6 +30,11 @@
 | **ADR-020** | Resource Connection Lifecycle API Architecture | **ACCEPTED** | 2026-08-21 |
 | **ADR-021** | GitHub App Authentication & Private Key Management Architecture | **ACCEPTED** | 2026-08-21 |
 | **ADR-022** | GitHub App Installation Linking Architecture | **ACCEPTED** | 2026-08-21 |
+| **ADR-023** | GitHub App Webhook Ingress and State Synchronization Architecture | **ACCEPTED** | 2026-08-21 |
+| **ADR-024** | GitHub Read Connector Architecture | **ACCEPTED** | 2026-08-21 |
+| **ADR-025** | GitHub Deep Repository Inspection Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-026** | GitHub Connector Caching & Rate-Limit Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-027** | Unified Candidate and Resource Domain Model | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -515,3 +520,33 @@
 * **Consequences**:
   * Task P3-006 will implement `GitHubConnectorCache` and `GitHubRateLimiter` in `src/connectors/github/` and integrate them into `GitHubAppConnector`.
 * **Revisit Conditions**: When distributed multi-instance clustering or Redis-backed global caching is introduced in Phase 14.
+
+---
+
+### ADR-027: Unified Candidate and Resource Domain Model
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 4 (Task P4-001A), the platform requires a canonical domain model that unifies candidate identity, connected third-party resources (GitHub, GitLab, LinkedIn, Google Drive, uploaded resumes), projects, skills, evidence items, and immutable provenance tracking. We must design a provider-neutral architecture that prevents vendor lock-in to GitHub, preserves strict multi-tenant isolation, enforces radical evidence provenance (zero hallucination), cleanly separates projects from individual repositories, and avoids bloated full-source code storage in PostgreSQL.
+* **Decision**: Adopt the **Unified Candidate & Resource Domain Model** defined in `docs/unified-candidate-resource-model.md` governed by the following core architectural decisions:
+  * **Canonical Candidate Entity**: Represents a sovereign human professional persona strictly owned by exactly one `Tenant` (`tenant_id NOT NULL REFERENCES tenants(id) ON DELETE CASCADE`). Decouples human identity from external accounts (GitHub username is an external identity attribute, never the primary key).
+  * **Explicit Entity Layering**:
+    * `User`: Platform authentication/session actor.
+    * `Candidate`: Career profile persona.
+    * `CandidateIdentity`: Linked third-party accounts (`GITHUB_APP`, `LINKEDIN`, etc.).
+    * `ResourceConnection`: Credential and OAuth token vault (AES-256-GCM).
+    * `Resource`: Provider-neutral catalog of external assets (e.g. Git repository numeric ID `1338724502`, Google Drive document, uploaded resume).
+    * `Project`: Curated professional initiative decoupled from repositories via `project_resources` many-to-many join table ($1\text{ Project} \ne 1\text{ Repository}$).
+    * `Skill`: Canonical global taxonomy dictionary (`slug`, `name`, `category`, `aliases`).
+    * `CandidateSkill`: Candidate-specific skill claim with provenance status (`VERIFIED`, `INFERRED`, `CLAIMED`, `MISSING`) and confidence scoring ($0.00$ to $1.00$).
+    * `EvidenceItem`: Immutable proof node linking skills/projects to exact source locations (`provider`, `resource_id`, `filePath`, `commitSha`, `lineRange`, `excerpt`, `confidenceScore`).
+  * **Radical Provenance & Data Minimization**: Every derived fact must trace back to an exact source artifact and commit SHA. Full source files and ASTs are processed ephemerally in memory; only sanitized evidence excerpts ($\le 1\text{ KB}$) with secret redaction are stored.
+  * **Multi-Tenant Security Invariants**: All relational tables enforce foreign keys to `tenants.id` with `ON DELETE CASCADE`. Cross-tenant candidate access returns 404 default-deny.
+* **Alternatives Considered**:
+  * *Global Shared Candidates Across Tenants*: Rejected because sharing candidate entities across organizational boundaries creates cross-tenant data leaks and violates GDPR/CCPA.
+  * *Coupling Projects 1:1 with Git Repositories*: Rejected because real-world software projects frequently span multiple repositories (frontend + backend + infra) or live inside monorepos containing multiple projects.
+  * *Persisting Full Repository Source Code / ASTs in PostgreSQL*: Rejected to eliminate database bloat and liability. Evidence pointers (commit SHA + file path + small excerpt) provide complete provenance with minimal footprint.
+* **Reasons**: Guarantees provider neutrality, prevents resume hallucination with verifiable evidence chains, ensures strict multi-tenant cryptographic isolation, and establishes a robust foundation for Phase 4 skills extraction and Phase 5 career intelligence.
+* **Consequences**:
+  * Task P4-001 will implement Zod domain schemas and validators in `src/domain/candidate/` adhering to this specification.
+  * Task P4-002 will implement the proposed PostgreSQL schema in `src/db/schema.js` and generate migrations.
+* **Revisit Conditions**: When multi-tenant organization candidate sharing (with explicit candidate consent) or vector embedding storage for semantic project matching is introduced.
