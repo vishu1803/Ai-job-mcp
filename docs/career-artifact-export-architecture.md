@@ -330,7 +330,29 @@ export class CareerArtifactExportService {
 
 1. `docs/career-artifact-export-architecture.md` (`ARCH-020`) — This document.
 2. `ADR-040` in `docs/decisions.md`.
-3. Canonical Domain Schemas: `src/domain/career/export.schemas.js`.
+3. Canonical Domain Schemas: `src/domain/career/career-artifact-export.schemas.js`.
 4. Core Export Service: `src/services/career-artifact-export.service.js`.
 5. Unit Tests: `tests/unit/career-artifact-export.service.test.js`.
 6. Live Integration Tests: `tests/integration/career-artifact-export.service.test.js`.
+
+---
+
+## 9. Implementation Details & Verification Records
+
+### 9.1 Adapter Implementations
+* **JSON Resume Adapter (`_renderJsonResume`)**: Strict mapping to official JSON Resume v1.0.0 schema (`basics`, `work`, `education`, `skills`, `projects`, `certificates`, `meta`). All Antigravity-specific cryptographic provenance, ATS match scores, presentation modes, and evidence graphs are safely namespaced under `meta.antigravity`. Validated on every export via `JsonResumeSchema.parse()`.
+* **Markdown Adapter (`_renderMarkdown`)**: CommonMark/GFM-compatible Markdown generator for Resumes, Cover Letters, and Portfolio Recommendations. Enforces single-H1 candidate name, semantic H2-H4 sections, bullet typography, HTML escaping (`&lt;`, `&gt;`, `javascript:` URL neutralization), and deterministic footnote ledger indexing (`[^1]`).
+* **Plain Text Adapter (`_renderPlainText`)**: ATS-safe single-column plain text generator with ASCII headers (`=== SECTION ===`), bullet characters normalized to `* `, curly quotes normalized to standard ASCII (`"`, `'`), em/en-dashes normalized to `-`, tabs replaced with 2 spaces, and zero table breaks.
+* **Canonical JSON Adapter (`_renderCanonicalJson`)**: Full-fidelity platform domain export preserving assertion graph IDs, match scores, and metadata.
+
+### 9.2 Privacy, Citations & Encodings
+* **PII Redaction**: When `anonymize: true`, candidate full name is replaced with `[REDACTED_NAME]`, email with `[REDACTED_EMAIL]`, phone with `[REDACTED_PHONE]`, and address with `[REDACTED_ADDRESS]`.
+* **Unverified Claim Omission**: When `includeUnverifiedClaims: false`, manual assertions tagged as `CLAIMED` or `[Unverified User Claim]` are cleanly omitted without promoting them to verified facts.
+* **Citation Modes**: `NONE` (clean submission copy), `INLINE` (compact `[Verified: file@sha]`), `FOOTNOTES` (superscripts with numbered evidence ledger), `METADATA_ONLY` (metadata retention only).
+* **Line Endings & Encoding**: Full support for `LF` vs `CRLF`, `UTF-8` vs `ASCII` (with deterministic diacritic transliteration).
+* **SHA-256 Checksum**: Computed over exact exported buffer bytes matching encoding.
+
+### 9.3 Verification Suite
+* **Unit Tests (`tests/unit/career-artifact-export.service.test.js`)**: 26/26 PASS.
+* **Live Integration Tests (`tests/integration/career-artifact-export.service.test.js`)**: 5/5 PASS against PostgreSQL.
+* **Total Suite (`npm test`)**: 865/865 PASS across 262 suites.
