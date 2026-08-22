@@ -737,3 +737,41 @@
 * **Consequences**:
   * Phase 5 Task P5-004 will implement the deterministic project relevance service and Zod schemas in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When semantic vector embedding similarity or custom recruiter project filters are introduced.
+
+---
+
+### ADR-035: ATS Fit Score Calculator Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 5 (Task P5-005A), the platform requires a deterministic, provider-neutral apex evaluation engine to synthesize requirement match analysis (`P5-003`), project relevance scoring (`P5-004`), and candidate profile data (`Phase 4`) into an overall 100-point ATS Fit Score. The architecture must guarantee mathematical explainability, prevent qualification inflation (e.g. preferred skills masking missing core requirements), eliminate AI hallucinations without LLM scoring authority, prevent double-counting of evidence, enforce multi-tenant default-deny isolation, and deliver sub-millisecond in-memory performance without premature database migrations.
+* **Decision**: Adopt the **ATS Fit Score Calculator Architecture** defined in `docs/ats-fit-score-architecture.md` (`ARCH-015`) governed by the following core architectural decisions:
+  * **Canonical 100-Point Composite Fit Score**: Adopt a canonical 0–100 score decomposed into 7 distinct, additive components summing exactly to 100.0:
+    - *Required Skills Coverage* ($40.0$ Points): Direct satisfaction of mandatory technical job requirements.
+    - *Preferred Skills Coverage* ($15.0$ Points): Satisfaction of differentiator/bonus requirements.
+    - *Project Relevance & Architectural Depth* ($20.0$ Points): Decaying top-3 weighted average of verified repository codebases.
+    - *Professional Experience Tenure Fit* ($10.0$ Points): Corporate career tenure evaluated from explicit candidate experience records.
+    - *Education Alignment Fit* ($5.0$ Points): Academic degree hierarchy compliance.
+    - *Location & Work Authorization Fit* ($5.0$ Points): Remote / hybrid / on-site geographic compatibility.
+    - *Evidence Confidence & Provenance Strength* ($5.0$ Points): Cryptographic verification quality across cited proof nodes.
+  * **Required Skill Safety Gate (Hard Score Cap)**: Enforce non-compensatory score ceilings based on missing `REQUIRED` skills ($N_{\text{crit}}$):
+    - $N_{\text{crit}} = 0$: Max score $100.0$ (Eligible for `EXCELLENT` / `STRONG`).
+    - $N_{\text{crit}} = 1$: Hard cap $74.9$ (Capped at `MODERATE`).
+    - $N_{\text{crit}} = 2$: Hard cap $49.9$ (Capped at `WEAK`).
+    - $N_{\text{crit}} \ge 3$: Hard cap $24.9$ (Capped at `LOW`).
+  * **Decaying Top-3 Project Aggregation**: Aggregate multiple candidate projects using a top-3 weighted average ($60\% / 30\% / 10\%$), rewarding deep primary systems while neutralizing micro-repository spam.
+  * **Explicit UNKNOWN vs MISSING Neutrality**: Unstated candidate profile fields (e.g. unstated degree, unstated location) or subjective soft skills evaluate to `UNKNOWN` and receive neutral baseline credit, never incurring false-negative penalties.
+  * **Fact vs Claim Precedence**: Unverified manual user claims (`[Unverified User Claim]`) contribute at a reduced partial factor ($0.25$) and cannot achieve `MATCHED` status without verified code evidence.
+  * **Zero Conflation of Code Duration with Employment Tenure**: Observed Git commit history establishes technical skill duration, but is never converted into professional corporate employment tenure without explicit work history records.
+  * **Fit Score Bands**: Classify overall fit into 5 discrete bands: `EXCELLENT` ($90.0 - 100.0$), `STRONG` ($75.0 - 89.9$), `MODERATE` ($50.0 - 74.9$), `WEAK` ($25.0 - 49.9$), and `LOW` ($0.0 - 24.9$).
+  * **Deterministic Strengths & Explanations**: Generate structured `FitStrength` objects and evidence-linked narrative explanations without LLM generation.
+  * **Multi-Tenant Sovereign Default-Deny**: Enforce `tenant_id === context.tenantId` across all inputs (job description, candidate profile, match analysis, project analysis) with 404 default-deny.
+  * **Ephemeral In-Memory Computation & $\mathcal{O}(|\text{Req}| + |\text{Proj}| + |\text{Gaps}|)$ Latency**: Pure calculation service with zero network I/O, zero LLM calls, and zero premature database schema tables.
+* **Alternatives Considered**:
+  * *Prompting an LLM to generate the final fit score*: Rejected because LLMs hallucinate qualifications, produce varying scores across identical runs, and violate regulatory auditability requirements.
+  * *Permitting preferred skills to compensate for missing required skills*: Rejected because hiring teams treat core requirements as mandatory knockouts.
+  * *Equal weighting across all repositories*: Rejected because ten trivial utility repositories would falsely outweigh a single deep production-grade platform.
+  * *Premature persistence tables (`candidate_job_fit_scores`)*: Rejected because ATS fit is derived on-demand from existing domain state with sub-millisecond latency.
+* **Reasons**: Delivers radical transparency, mathematical explainability, regulatory compliance (EU AI Act, NYC Local Law 144), zero hallucinations, and actionable career insights while preserving multi-tenant isolation.
+* **Consequences**:
+  * Phase 5 Task P5-005 will implement `AtsFitScoreService` and domain schemas in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When recruiter-customized component weight templates or organizational candidate ranking filters are introduced.
