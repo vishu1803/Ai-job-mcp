@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (100.0% - P5-001 through P5-006 complete) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 5 complete; ready for Phase 6 |
+| **Current Phase** | **PHASE 6 — Resume / Cover-Letter / Portfolio Adaptation** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (100%), Phase 6 (20.0% - P6-001 complete) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 5 complete; Phase 6 in progress |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **34 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6: P5-001, P5-002, P5-003, P5-004, P5-005, P5-006) verified |
-| **In Progress Tasks** | **0 Tasks** | Phase 5 complete; ready for Phase 6 |
+| **Completed Tasks** | **35 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (1: P6-001) verified |
+| **In Progress Tasks** | **0 Tasks** | P6-001 complete; ready for P6-002 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **42.50% (34 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **37.50% (6.00 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **43.75% (35 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **38.75% (6.20 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -30,7 +30,7 @@
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
+| **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 1 | 0 | **IN_PROGRESS** | **20.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **32** | **0** | **IN_PROGRESS** | **40.00%** |
+| **TOTAL** | **All Phases Combined** | **80** | **35** | **0** | **IN_PROGRESS** | **43.75%** |
 
 ---
 
@@ -178,7 +178,7 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P6-001A** | Resume / Cover-Letter / Portfolio Adaptation Architecture Review | P5-006 | **COMPLETE & APPROVED** | Architectural specification `docs/career-artifact-adaptation-architecture.md` (`ARCH-017`), ADR-037 in `docs/decisions.md`. Defined provider-neutral synthesis engine for `TailoredResume`, `TailoredCoverLetter`, and `TailoredPortfolioContent`, atomic `ResumeBullet` model, absolute truth boundary consuming `IntegrityCheckedAssertions` from P5-006, safe ATS keyword alignment via canonical taxonomy mapping, metric safety guardrails (unbacked metrics $\rightarrow$ `BLOCKED`), corporate work history authority, deterministic content prioritization (Verified Required $\rightarrow$ Projects $\rightarrow$ Preferred $\rightarrow$ Inferred $\rightarrow$ Claimed), LLM phrasing sandbox, mandatory post-generation integrity checks, rendering decoupling, and multi-tenant default-deny isolation. |
-| **P6-001** | Implement Resume Tailoring Service (adapts candidate project descriptions using only verified technologies and commits) | P5-003, P5-006, P6-001A | NOT_STARTED | Unit test verifying all generated bullets link to valid `EvidenceId` |
+| **P6-001** | Implement Resume Tailoring Service (adapts candidate project descriptions using only verified technologies, supporting PRESERVE_EXISTING & GENERATE_NEW presentation modes) | P5-003, P5-006, P6-001A | **COMPLETE** | Unit tests (28 in `tests/unit/resume-tailoring.service.test.js`, 11 in `tests/unit/resume-presentation.service.test.js`) & live PostgreSQL tests (3 in `tests/integration/resume-tailoring.service.test.js`): verified required skill prioritization, project relevance ranking, preferred/inferred/claimed labeling, missing skill omission, canonical ATS keyword adaptation, metric safety guard, work history authority, presentation modes (PRESERVE_EXISTING, GENERATE_NEW), visual styling preservation & fingerprinting, format limitations (DOCX, PDF, Plain Text), deterministic output, and multi-tenant default-deny isolation. Full suite: 781/781 PASS across 256 suites. |
 | **P6-002** | Implement Cover Letter Drafting Engine (weaves authentic repository evidence into targeted narrative for a specific job) | P5-003, P5-006 | NOT_STARTED | Test generating cover letter with real project citations |
 | **P6-003** | Implement Portfolio Recommender (selects top 3-5 repositories and highlights key architectural achievements for target role) | P5-004 | NOT_STARTED | Test portfolio selection algorithm across Frontend, Backend, and DevOps roles |
 | **P6-004** | Implement Export Formats (JSON Resume standard, Markdown, Plain Text) | P6-001 | NOT_STARTED | Test exporting tailored resume to standard JSON Resume format |
@@ -1487,3 +1487,38 @@ The project is ready to proceed with Task **P3-003**:
     * **Document Representation & Rendering Decoupling**: Synthesis outputs pure structured JSON domain models (`TailoredResume`, `TailoredCoverLetter`, `TailoredPortfolioContent`). PDF, DOCX, and HTML rendering are decoupled downstream adapters.
     * **Multi-Tenant Sovereign Default-Deny**: Enforces `context.tenantId` matches across all inputs with 404 default-deny.
     * **On-Demand Stateless Execution**: Operates in-memory with sub-second latency with zero premature database tables in Phase 6.
+* **P6-001 (Resume Tailoring Service Implementation & Presentation Modes Continuation — Completed)**:
+  * Implemented Modules:
+    * `src/domain/career/resume.schemas.js`: Canonical strict Zod domain schemas for `ResumeSectionTypeEnum`, `ResumePresentationModeEnum` (`PRESERVE_EXISTING`, `GENERATE_NEW`), `ResumeTemplateIdEnum` (`ATS_FOCUSED`, `PROFESSIONAL`, `MODERN`, `MINIMAL`, `TRADITIONAL`), `PresentationIntegrityStatusEnum` (`PASS`, `WARNING`, `UNSUPPORTED_PRESERVATION`, `BLOCKED`), `SourceDocumentFormatEnum` (`DOCX`, `PDF`, `MARKDOWN`, `PLAIN_TEXT`), `PreservedAttributesSchema`, `ModifiedAttributesSchema`, `PresentationFingerprintSchema`, `PresentationAuditReportSchema`, `ResumeBulletSchema`, `ResumeSkillItemSchema`, `ResumeSkillCategorySchema`, `ResumeExperienceEntrySchema`, `ResumeProjectEntrySchema`, `ResumeEducationEntrySchema`, `ResumeCertificationEntrySchema`, `TailoredResumeMetadataSchema`, `TailoredResumeRequestOptionsSchema`, and `TailoredResumeSchema`.
+    * `src/domain/career/index.js`: Re-exported resume tailoring domain schemas.
+    * `src/services/resume-presentation.service.js`: `ResumePresentationService`, `ResumeTemplateRenderer` interface contract, and `PresentationFingerprintEngine` (computes SHA-256 visual styling hashes excluding text content).
+    * `src/services/resume-tailoring.service.js`: Provider-neutral `ResumeTailoringService` exposing `tailorResume(context, candidateProfile, jobDescription, candidateMatchAnalysis, projectRelevanceAnalysis, integrityCheckedAssertions, options)`.
+  * Verified Invariants:
+    * **Deterministic 5-Tier Content Prioritization**: Verified Required Skills ($100.0$) $\rightarrow$ High-Relevance Projects ($\ge 70.0$) $\rightarrow$ Verified Preferred Skills ($75.0$) $\rightarrow$ Inferred Related Skills $\rightarrow$ Labeled Claims.
+    * **Presentation Mode Separation**: Supports `PRESERVE_EXISTING` (user design sovereignty) and `GENERATE_NEW` (fresh template-based generation), sharing the identical underlying truth model and ATS content engine.
+    * **Visual Preservation Invariant**: *"Tailoring changes WHAT the resume says, not HOW the resume looks."* Preserves typography (font family, size, weight, styling), text color, margins, line spacing, paragraph spacing, and layout hierarchy under `PRESERVE_EXISTING` with DOCX.
+    * **Non-Content Visual Fingerprinting**: Computes SHA-256 hash strictly from visual styling attributes; modifying textual bullet content does NOT alter the visual fingerprint hash.
+    * **Format-Specific Boundaries**: Emits `PASS` on lossless DOCX preservation, `WARNING` on PDF layout reconstruction limitations, and `UNSUPPORTED_PRESERVATION` on plain text / Markdown.
+    * **Safe ATS Keyword Alignment**: Adapts candidate terminology (e.g. `postgres`) to job requirement titles (e.g. `PostgreSQL`) via canonical `SkillTaxonomyEngine` mapping without inserting ungrounded keywords.
+    * **Atomic Resume Bullets Grounded in EvidenceRefs**: Every synthesized bullet is represented by `ResumeBullet` with explicit `assertionIds`, commit-pinned `evidenceRefs` (capped at 5), confidence scores, and matched keywords.
+    * **Corporate Work History Authority**: Employment dates, job titles, and employers derive exclusively from explicit candidate work history records (`candidateProfile.experience`). Git commit timestamps and repository durations are never converted into corporate employment tenure.
+    * **Quantitative Metric Safety Guard**: Quantitative business outcome assertions (e.g. *"reduced latency by 70%"*) without explicit backing evidence trigger validation rejection (`ValidationError: Quantitative achievement claim rejected`) across both presentation modes.
+    * **Status & Claim Labeling Immutability**: Inferred skills retain `[Inferred from <source>]` notes; candidate manual claims retain explicit `[Unverified User Claim]` labels.
+    * **Strict Missing Skill Omission**: Missing required skills (e.g. Rust) are strictly omitted from the resume skills list and tracked in `metadata.omittedSkillsCount`.
+    * **Project Deduplication & Relevance Ordering**: Deduplicates projects by `projectId` and prioritizes top-ranked projects from `ProjectRelevanceService`.
+    * **100% Deterministic Output**: Guarantees bit-for-bit deterministic content selection and ordering across repeated invocations.
+    * **LLM Linguistic Transformation Sandbox**: Optional LLM adapter runs within strict passive XML boundary (`<job_input>`, `<candidate_facts>`) without fact invention.
+    * **Mandatory Post-Generation Integrity Audit**: Re-audits all generated bullets against `ZeroHallucinationIntegrityService` before release.
+    * **Multi-Tenant Sovereign Default-Deny**: Enforces `tenant_id === context.tenantId` across candidate profile, job description, match analysis, and project analysis with 404 default-deny.
+    * **Ephemeral In-Memory Synthesis & Zero DB Mutations**: On-demand resume generation produces zero database writes.
+  * Verification Commands:
+    * `node --test tests/unit/resume-tailoring.service.test.js` -> PASS (28/28 tests passed across 28 suites)
+    * `node --test tests/unit/resume-presentation.service.test.js` -> PASS (11/11 tests passed across 11 suites)
+    * `node --test tests/integration/resume-tailoring.service.test.js` -> PASS (3/3 tests passed against live PostgreSQL)
+    * `npm run test:unit` -> PASS (621/621 tests passed across 191 suites)
+    * `npm run test:integration` -> PASS (160/160 tests passed across 65 suites)
+    * `npm test` -> PASS (781/781 tests passed across 256 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
+

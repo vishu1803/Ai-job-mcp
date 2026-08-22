@@ -345,27 +345,128 @@ Every generated artifact carries complete provenance metadata:
 
 ---
 
-## 21. Comprehensive Testing Strategy (P6-001 through P6-005)
+---
+
+## 21. Resume Presentation Modes (PRESERVE_EXISTING & GENERATE_NEW)
+
+To accommodate both candidates with existing polished resume documents and candidates seeking fresh algorithmic resume designs, the system provides two first-class presentation modes:
+
+```
++---------------------------------------------------------------------------------------------------+
+|                                 RESUME PRESENTATION ARCHITECTURE                                  |
++---------------------------------------------------------------------------------------------------+
+|                                                                                                   |
+|  1. USER SELECTION                                                                                |
+|     +------------------------------------------+    +------------------------------------------+  |
+|     |       MODE 1: PRESERVE_EXISTING          |    |          MODE 2: GENERATE_NEW            |  |
+|     |  User provides existing source document  |    |  User requests fresh design generation   |  |
+|     +--------------------+---------------------+    +--------------------+---------------------+  |
+|                          |                                               |                        |
+|                          v                                               v                        |
+|  2. PRESENTATION STRATEGY                                                                         |
+|     +------------------------------------------+    +------------------------------------------+  |
+|     | • Preserves User-Owned Styling           |    | • Selects Canonical Template             |  |
+|     |   (Font family, size, weight, colors,    |    |   (ATS_FOCUSED, PROFESSIONAL, MODERN,    |  |
+|     |    margins, line spacing, hierarchy)     |    |    MINIMAL, TRADITIONAL)                 |  |
+|     | • Invariant: Tailoring changes WHAT the  |    | • Governed by ResumeTemplateRenderer     |  |
+|     |   resume says, not HOW the resume looks  |    |   interface boundary                     |  |
+|     +--------------------+---------------------+    +--------------------+---------------------+  |
+|                          |                                               |                        |
+|                          +-----------------------+-----------------------+                        |
+|                                                  |                                                |
+|                                                  v                                                |
+|  3. SHARED TRUTH & CAREER CONTENT ENGINE                                                          |
+|     +------------------------------------------------------------------------------------------+  |
+|     | • Zero-Hallucination Integrity Gate (P5-006 / ARCH-016) verification                      |  |
+|     | • Canonical SkillTaxonomyEngine ATS keyword adaptation (e.g. Postgres -> PostgreSQL)      |  |
+|     | • Corporate Work History Authority (Zero conflation of commits with employment tenure)   |  |
+|     | • Metric Safety Guard (Ungrounded quantitative metrics trigger validation failure)       |  |
+|     | • Deterministic 5-tier content prioritization (Required > Projects > Preferred > Inferred)|  |
+|     +--------------------------------------------+---------------------------------------------+  |
+|                                                  |                                                |
+|                                                  v                                                |
+|  4. POST-GENERATION PRESENTATION VERIFICATION                                                     |
+|     +------------------------------------------------------------------------------------------+  |
+|     | • PresentationFingerprintEngine: Hashes non-content visual attributes (SHA-256)           |  |
+|     | • Compares source vs target visual styling (typography, margins, colors, layout)          |  |
+|     | • Outputs: PASS | WARNING (PDF) | UNSUPPORTED_PRESERVATION (Plain Text) | BLOCKED         |  |
+|     +------------------------------------------------------------------------------------------+  |
+|                                                                                                   |
++---------------------------------------------------------------------------------------------------+
+```
+
+### A. Mode 1: `PRESERVE_EXISTING`
+* **Purpose**: Tailor textual content and bullet points for a target job while strictly retaining the user's bespoke visual formatting, document hierarchy, typography, and page layout.
+* **Allowed Content Modifications**:
+  * Action bullet phrasing and active verbs.
+  * Executive summary narrative alignment.
+  * Technical skill emphasis and canonical ATS terminology.
+  * Project highlight ordering and commit-pinned citations.
+  * Omission of irrelevant or non-matching qualifications.
+* **Mandatory Presentation Preservation (where format permits)**:
+  * Font family, font size, font weight, italic/bold styling.
+  * Text colors and background accents.
+  * Margins (top, bottom, left, right), line spacing, and paragraph spacing.
+  * Section header styling, horizontal dividers, and header/footer configurations.
+  * Column layout, page dimensions, and structural visual hierarchy.
+* **Core Invariant**: *"Tailoring changes WHAT the resume says, not HOW the resume looks."*
+
+### B. Mode 2: `GENERATE_NEW`
+* **Purpose**: Synthesize a fresh, beautifully formatted resume artifact from structured candidate data and target job requirements.
+* **Template Strategy**:
+  * Initial canonical template catalog: `ATS_FOCUSED` (default), `PROFESSIONAL`, `MODERN`, `MINIMAL`, `TRADITIONAL`.
+  * Layout, spacing, font pairings, and visual hierarchy are managed via the provider-neutral `ResumeTemplateRenderer` interface.
+
+### C. Source Format Strategy & Technical Boundaries
+1. **DOCX (Microsoft Word)**:
+   * Supports lossless style extraction and targeted paragraph/run text replacement.
+   * Visual fingerprint verification guarantees full preservation (`PASS`).
+2. **PDF (Portable Document Format)**:
+   * Arbitrary binary PDFs cannot be reliably edited without structural reflow and font reconstruction risks.
+   * Evaluates to `WARNING` status with explicit user guidance rather than falsely claiming exact visual preservation.
+3. **Plain Text / Markdown**:
+   * Contains zero visual styling metadata.
+   * Evaluates to `UNSUPPORTED_PRESERVATION` status; template rendering (`GENERATE_NEW`) is recommended.
+
+### D. Presentation Fingerprinting & Design Integrity Verification
+* **Fingerprint Definition**: A deterministic cryptographic hash (SHA-256) calculated over normalized visual styling tokens:
+  * Font family list, primary font size, heading scale.
+  * Margin dimensions (top, bottom, left, right).
+  * Line spacing, paragraph spacing, text alignment.
+  * Color palette (hex codes).
+  * Column count, header/footer flags, section divider styles.
+* **Exclusion Invariant**: Text content, candidate names, bullet prose, and company names are **strictly excluded** from the visual fingerprint. Textual changes do not invalidate the fingerprint.
+* **Post-Generation Audit**:
+  * Compares source and target visual fingerprints.
+  * Emits `PASS` when styling is intact, `WARNING` on format limitations, and `BLOCKED` when unauthorized visual modifications occur in strict preservation mode.
+
+---
+
+## 22. Comprehensive Testing Strategy (P6-001 through P6-005)
 
 In Phase 6, the implementation will be verified against the following test suites:
 
 1. **Evidence-Backed Resume Generation**: Verifies tailored resume generation with authentic, commit-pinned evidence references.
-2. **ATS Keyword Alignment**: Asserts canonical synonym substitution (e.g. Postgres $\rightarrow$ PostgreSQL) when backed by evidence.
-3. **Unsupported Skill Omission**: Asserts that ungrounded skills are omitted from the resume.
-4. **Unsupported Metric Blocking**: Asserts that unbacked quantitative metric claims trigger `BLOCKED` status.
-5. **Corporate Work History Guard**: Asserts that work experience bullets derive exclusively from explicit candidate experience records.
-6. **Project Highlight Prioritization**: Asserts that projects are ordered by `ProjectRelevanceService` score.
-7. **Cover Letter Evidence Grounding**: Asserts that cover letter paragraphs cite verified candidate achievements.
-8. **Portfolio Showcase Grounding**: Asserts that portfolio highlights link to real repository codebases.
-9. **Prompt Injection Hardening**: Asserts that malicious prompt injection payloads in job postings cannot generate false qualifications.
-10. **LLM Citation Tampering Defense**: Asserts that hallucinated `EvidenceId` values are caught by post-generation integrity checks.
-11. **Multi-Tenant Security Barrier**: Asserts that Tenant A cannot generate a resume for Candidate B or against Job B.
-12. **Deterministic Serialization**: Asserts that identical inputs produce identical structured JSON domain models.
-13. **Zero Database Mutation**: Verifies that on-demand adaptation causes zero database writes.
+2. **Resume Presentation Modes**: Verifies `PRESERVE_EXISTING` and `GENERATE_NEW` modes, template assignment, and source document validation.
+3. **Visual Style Preservation**: Asserts that typography, margins, line spacing, and colors remain unchanged under `PRESERVE_EXISTING` with DOCX.
+4. **Non-Content Visual Fingerprint Invariant**: Asserts that modifying bullet text does not alter the presentation fingerprint hash.
+5. **Format Limitation Handlers**: Asserts that PDF returns `WARNING` and Plain Text returns `UNSUPPORTED_PRESERVATION` under `PRESERVE_EXISTING`.
+6. **ATS Keyword Alignment**: Asserts canonical synonym substitution (e.g. Postgres $\rightarrow$ PostgreSQL) when backed by evidence.
+7. **Unsupported Skill Omission**: Asserts that ungrounded skills are omitted from the resume.
+8. **Unsupported Metric Blocking**: Asserts that unbacked quantitative metric claims trigger `BLOCKED` status across both presentation modes.
+9. **Corporate Work History Guard**: Asserts that work experience bullets derive exclusively from explicit candidate experience records.
+10. **Project Highlight Prioritization**: Asserts that projects are ordered by `ProjectRelevanceService` score.
+11. **Cover Letter Evidence Grounding**: Asserts that cover letter paragraphs cite verified candidate achievements.
+12. **Portfolio Showcase Grounding**: Asserts that portfolio highlights link to real repository codebases.
+13. **Prompt Injection Hardening**: Asserts that malicious prompt injection payloads in job postings cannot generate false qualifications.
+14. **LLM Citation Tampering Defense**: Asserts that hallucinated `EvidenceId` values are caught by post-generation integrity checks.
+15. **Multi-Tenant Security Barrier**: Asserts that Tenant A cannot generate a resume for Candidate B or against Job B.
+16. **Deterministic Serialization**: Asserts that identical inputs produce identical structured JSON domain models.
+17. **Zero Database Mutation**: Verifies that on-demand adaptation causes zero database writes.
 
 ---
 
-## 22. Open Decisions & Architectural Consensus
+## 23. Open Decisions & Architectural Consensus
 
 * **Decision 1: Separation of Adaptation from Rendering**:
   * *Consensus*: The engine outputs structured domain models; PDF/DOCX rendering is delegated to client/adapter layers.
@@ -373,11 +474,14 @@ In Phase 6, the implementation will be verified against the following test suite
   * *Consensus*: In Phase 6, generation runs in-memory with sub-second latency; database persistence belongs to Phase 12.
 * **Decision 3: Mandatory Post-Generation Integrity Gate**:
   * *Consensus*: All generated text must pass `ZeroHallucinationIntegrityService` before release to ensure complete provenance compliance.
+* **Decision 4: Presentation Modes & Visual Preservation**:
+  * *Consensus*: Support `PRESERVE_EXISTING` (user design sovereignty) and `GENERATE_NEW` (template-based design) while sharing the identical underlying truth and ATS content engine.
 
 ---
 
-## 23. Final Recommendation & Approval
+## 24. Final Recommendation & Approval
 
-The **Career Artifact Adaptation Architecture** establishes a rigorous, evidence-backed generation framework that guarantees complete zero-hallucination compliance, prevents metric fabrication, respects multi-tenant boundaries, and aligns candidate experience with target job requirements.
+The **Career Artifact Adaptation Architecture** establishes a rigorous, evidence-backed generation framework that guarantees complete zero-hallucination compliance, prevents metric fabrication, respects multi-tenant boundaries, aligns candidate experience with target job requirements, and preserves user document styling sovereignty.
 
-**Recommendation**: **APPROVE P6-001A**. Proceed to Phase 6 implementation upon user authorization.
+**Recommendation**: **APPROVED**. Proceed to Phase 6 execution.
+
