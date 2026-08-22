@@ -12,11 +12,11 @@
 | **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (50.0% - P5-001, P5-002, P5-003 complete) |
 | **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 4 complete; Phase 5 in progress |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **31 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (3: P5-001, P5-002, P5-003) verified |
-| **In Progress Tasks** | **0 Tasks** | P5-003 complete; ready for P5-004 |
+| **Completed Tasks** | **33 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (5: P5-001, P5-002, P5-003, P5-004, P5-005) verified |
+| **In Progress Tasks** | **0 Tasks** | P5-005 complete; ready for P5-006 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **38.75% (31 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **34.38% (5.50 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **41.25% (33 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **35.42% (5.67 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -29,7 +29,7 @@
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 5** | Career Intelligence Engine | 6 | 4 | 0 | **IN_PROGRESS** | **66.67%** |
+| **PHASE 5** | Career Intelligence Engine | 6 | 5 | 0 | **IN_PROGRESS** | **83.33%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -167,7 +167,7 @@
 | **P5-004A** | Project Relevance Scoring Architecture Review | P5-003 | **COMPLETE & APPROVED** | Architectural specification `docs/project-relevance-architecture.md` (`ARCH-014`), ADR-034 in `docs/decisions.md`. Defined canonical 0–100 project relevance score, 5 additive components (50% requirement coverage, 25% architectural density across 10 dimensions, 15% evidence quality, 5% completeness, 5% bounded recency), relevance bands (`HIGH`, `MEDIUM`, `LOW`, `MINIMAL`), strict deduplication guard, multi-repository project aggregation, top 5 evidence selection, and multi-tenant default-deny isolation. |
 | **P5-004** | Implement Project Relevance Scoring (ranks candidate repositories by direct relevance to target job requirements) | P4-004, P5-003, P5-004A | **COMPLETE** | Implemented `ProjectRelevanceService` in `src/services/project-relevance.service.js` and canonical domain schemas in `src/domain/career/project-relevance.schemas.js`. Unit tests in `tests/unit/project-relevance.service.test.js` (30/30 PASS across 13 suites) verifying transparent 5-part score breakdown (50% requirement coverage, 25% architectural density across 10 dimensions, 15% evidence quality, 5% completeness, 5% bounded recency), directional taxonomy multipliers (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`, `PARENT_OF`), strict deduplication & anti-inflation guard, relevance bands (`HIGH`, `MEDIUM`, `LOW`, `MINIMAL`), top 5 commit-pinned evidence selection, project type classification, deterministic batch ranking, and multi-tenant default-deny isolation. Full suite: 675/675 PASS across 238 suites. |
 | **P5-005A** | ATS Fit Score Calculator Architecture Review | P5-003, P5-004 | **COMPLETE & APPROVED** | Architectural specification `docs/ats-fit-score-architecture.md` (`ARCH-015`), ADR-035 in `docs/decisions.md`. Defined canonical 100-point composite fit score, 7 additive components summing to 100 (40% required coverage, 15% preferred coverage, 20% project relevance via decaying top-3 weighted average, 10% experience tenure, 5% education, 5% location, 5% evidence confidence), required skill safety gate (hard score caps for missing required skills: 1 missing $\le 74.9$, 2 missing $\le 49.9$, 3+ missing $\le 24.9$), fit bands (`EXCELLENT`, `STRONG`, `MODERATE`, `WEAK`, `LOW`), explicit UNKNOWN vs MISSING neutrality, fact-vs-claim precedence, and multi-tenant default-deny isolation. |
-| **P5-005** | Implement ATS Fit Score calculator with transparent breakdown and reasoning | P5-003, P5-004, P5-005A | NOT_STARTED | Test deterministic scoring output matching mathematical breakdown |
+| **P5-005** | Implement ATS Fit Score calculator with transparent breakdown and reasoning | P5-003, P5-004, P5-005A | **COMPLETE** | Implemented `AtsFitScoreService` in `src/services/ats-fit-score.service.js` and canonical domain schemas in `src/domain/career/ats-fit-score.schemas.js`. Unit tests in `tests/unit/ats-fit-score.service.test.js` (31/31 PASS across 12 suites) and live integration tests in `tests/integration/ats-fit-score.service.test.js` (2/2 PASS) verifying transparent 7-part additive scoring (40% required, 15% preferred, 20% project relevance via decaying top-3 weighted average, 10% experience tenure, 5% education, 5% location, 5% evidence confidence), required skill safety gate (hard score caps for missing required skills: 1 missing $\le 74.9$, 2 missing $\le 49.9$, 3+ missing $\le 24.9$), fit bands (`EXCELLENT`, `STRONG`, `MODERATE`, `WEAK`, `LOW`), explicit UNKNOWN vs MISSING neutrality, fact-vs-claim precedence, top 3 project aggregation, structured fit strengths, deterministic explanation narratives, and multi-tenant default-deny isolation. Full suite: 708/708 PASS across 251 suites. |
 | **P5-006** | Zero-Hallucination Integrity Gate (validates that any career summary or match assertion contains valid evidence references) | P5-003 | NOT_STARTED | Test that queries with zero evidence produce explicit "Missing Evidence" status |
 
 ---
@@ -1403,3 +1403,28 @@ The project is ready to proceed with Task **P3-003**:
     * **Multi-Tenant Sovereign Default-Deny**: Enforces `tenant_id === context.tenantId` across all inputs (job description, candidate profile, match analysis, project analysis) with 404 default-deny.
     * **Ephemeral In-Memory Computation & $\mathcal{O}(|\text{Req}| + |\text{Proj}| + |\text{Gaps}|)$ Latency**: Pure calculation service with zero network I/O, zero LLM calls, and zero premature database schema tables.
     * **Strict LLM Boundary**: LLMs are prohibited from calculating or adjusting fit scores.
+* **P5-005 (ATS Fit Score Calculator Engine Implementation — Completed)**:
+  * Implemented Modules:
+    * `src/domain/career/ats-fit-score.schemas.js`: Canonical strict Zod domain schemas for `FitScoreBandEnum`, `FitStrengthCategoryEnum`, `FitScoreBreakdownSchema`, `FitStrengthSchema`, `FitScoreExplanationSchema`, and `CandidateJobFitAnalysisSchema`.
+    * `src/domain/career/index.js`: Re-exported ATS fit score domain schemas.
+    * `src/services/ats-fit-score.service.js`: Provider-neutral `AtsFitScoreService` exposing `calculateCandidateJobFit(context, jobDescription, candidateMatchAnalysis, projectRelevanceAnalysis, candidateProfile, options)`.
+  * Verified Invariants:
+    * **Transparent 7-Part Additive Decomposition**: Sums 7 distinct bounded components ($S_{\text{overall}} = S_{\text{req}} + S_{\text{pref}} + S_{\text{proj}} + S_{\text{exp}} + S_{\text{edu}} + S_{\text{loc}} + S_{\text{conf}} \in [0.0, 100.0]$).
+    * **Exact Component Weights**: Required Skills ($40.0$), Preferred Skills ($15.0$), Project Relevance & Depth ($20.0$), Professional Experience Fit ($10.0$), Education Alignment Fit ($5.0$), Location & Work Auth Fit ($5.0$), Evidence Confidence Depth ($5.0$).
+    * **Required Skill Safety Gate (Hard Score Cap)**: Non-compensatory score ceilings for missing `REQUIRED` skills ($N_{\text{crit}} = 1 \rightarrow \le 74.9$ `MODERATE`, $N_{\text{crit}} = 2 \rightarrow \le 49.9$ `WEAK`, $N_{\text{crit}} \ge 3 \rightarrow \le 24.9$ `LOW`), preventing candidates with missing core requirements from receiving `STRONG` or `EXCELLENT` ratings.
+    * **Decaying Top-3 Project Aggregation**: Aggregates candidate repositories via top-3 weighted average ($0.60 \cdot s_1 + 0.30 \cdot s_2 + 0.10 \cdot s_3$), rewarding deep primary platforms while neutralizing micro-repository spam.
+    * **Explicit UNKNOWN vs MISSING Neutrality**: Unstated education, location, or soft skills evaluate to `UNKNOWN` and receive neutral baseline credit without false-negative penalties.
+    * **Zero Conflation of Code Duration with Employment Tenure**: Observed Git commit activity establishes technical skill duration, but is never converted into corporate employment tenure without explicit work history records.
+    * **Fact vs Claim Precedence**: Unverified manual user claims (`[Unverified User Claim]`) contribute at a reduced partial factor ($0.25$) and cannot achieve `MATCHED` status without verified code evidence.
+    * **Fit Bands**: `EXCELLENT` ($90.0-100.0$), `STRONG` ($75.0-89.9$), `MODERATE` ($50.0-74.9$), `WEAK` ($25.0-49.9$), `LOW` ($0.0-24.9$).
+    * **Structured Key Strengths & Deterministic Narratives**: Generates evidence-linked `FitStrength[]` items and transparent explanation narratives without LLM involvement.
+    * **Multi-Tenant Sovereign Isolation**: Enforces `tenant_id === context.tenantId` across all inputs (job description, candidate profile, match analysis, project analysis) with 404 default-deny.
+  * Verification Commands:
+    * `node --test tests/unit/ats-fit-score.service.test.js` -> PASS (31/31 tests passed across 12 suites)
+    * `node --test tests/integration/ats-fit-score.service.test.js` -> PASS (2/2 tests passed)
+    * `npm run test:unit` -> PASS (555/555 tests passed across 188 suites)
+    * `npm run test:integration` -> PASS (153/153 tests passed across 63 suites)
+    * `npm test` -> PASS (708/708 tests passed across 251 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)

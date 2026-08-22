@@ -8,3 +8,4 @@ export * from './job-parser.js';
 export * from './skill-taxonomy.js';
 export * from './evidence-matching.schemas.js';
 export * from './project-relevance.schemas.js';
+export * from './ats-fit-score.schemas.js';
