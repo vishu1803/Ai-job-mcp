@@ -177,7 +177,8 @@
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P6-001** | Implement Resume Tailoring Service (adapts candidate project descriptions using only verified technologies and commits) | P5-003, P5-006 | NOT_STARTED | Unit test verifying all generated bullets link to valid `EvidenceId` |
+| **P6-001A** | Resume / Cover-Letter / Portfolio Adaptation Architecture Review | P5-006 | **COMPLETE & APPROVED** | Architectural specification `docs/career-artifact-adaptation-architecture.md` (`ARCH-017`), ADR-037 in `docs/decisions.md`. Defined provider-neutral synthesis engine for `TailoredResume`, `TailoredCoverLetter`, and `TailoredPortfolioContent`, atomic `ResumeBullet` model, absolute truth boundary consuming `IntegrityCheckedAssertions` from P5-006, safe ATS keyword alignment via canonical taxonomy mapping, metric safety guardrails (unbacked metrics $\rightarrow$ `BLOCKED`), corporate work history authority, deterministic content prioritization (Verified Required $\rightarrow$ Projects $\rightarrow$ Preferred $\rightarrow$ Inferred $\rightarrow$ Claimed), LLM phrasing sandbox, mandatory post-generation integrity checks, rendering decoupling, and multi-tenant default-deny isolation. |
+| **P6-001** | Implement Resume Tailoring Service (adapts candidate project descriptions using only verified technologies and commits) | P5-003, P5-006, P6-001A | NOT_STARTED | Unit test verifying all generated bullets link to valid `EvidenceId` |
 | **P6-002** | Implement Cover Letter Drafting Engine (weaves authentic repository evidence into targeted narrative for a specific job) | P5-003, P5-006 | NOT_STARTED | Test generating cover letter with real project citations |
 | **P6-003** | Implement Portfolio Recommender (selects top 3-5 repositories and highlights key architectural achievements for target role) | P5-004 | NOT_STARTED | Test portfolio selection algorithm across Frontend, Backend, and DevOps roles |
 | **P6-004** | Implement Export Formats (JSON Resume standard, Markdown, Plain Text) | P6-001 | NOT_STARTED | Test exporting tailored resume to standard JSON Resume format |
@@ -1469,3 +1470,20 @@ The project is ready to proceed with Task **P3-003**:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed)
+* **P6-001A (Resume / Cover Letter / Portfolio Adaptation Architecture Review — Completed & Approved)**:
+  * Deliverables:
+    * `docs/career-artifact-adaptation-architecture.md`: Comprehensive architectural specification (`ARCH-017`) defining the provider-neutral synthesis engine for `TailoredResume`, `TailoredCoverLetter`, and `TailoredPortfolioContent`, atomic `ResumeBullet` model, absolute truth boundary consuming `IntegrityCheckedAssertions` from P5-006, safe ATS keyword alignment via canonical taxonomy mapping, metric safety guardrails (unbacked metrics $\rightarrow$ `BLOCKED`), corporate work history authority, deterministic content prioritization (Verified Required $\rightarrow$ Projects $\rightarrow$ Preferred $\rightarrow$ Inferred $\rightarrow$ Claimed), LLM phrasing sandbox, mandatory post-generation integrity checks, rendering decoupling, and multi-tenant default-deny isolation.
+    * `docs/decisions.md` (ADR-037): Formally accepted *Career Artifact Adaptation Architecture*.
+  * Core Decisions Approved:
+    * **Absolute Truth Boundary & Grounding**: Artifact synthesis engines strictly consume `IntegrityCheckedAssertion` objects from the Zero-Hallucination Integrity Gate (`P5-006`). Unvalidated prose, raw candidate text, or unparsed repository files are strictly excluded from generation pipelines.
+    * **Status Immutability**: Manual candidate claims retain the explicit label `[Unverified User Claim]` (`CLAIMED`), inferred skills retain `INFERRED` status, and missing evidence is never converted into affirmative qualifications.
+    * **Structured Atomic Resume Bullets**: Every resume bullet is represented by `ResumeBullet` containing explicit `assertionIds`, commit-pinned `evidenceRefs`, relevance scores, and matched target job keywords.
+    * **Safe ATS Keyword Alignment**: Target job terminology alignment is performed via canonical taxonomy mapping (`SkillTaxonomyEngine`). The engine is strictly prohibited from inserting keywords for skills the candidate does not demonstrate.
+    * **Corporate Work History Authority**: Candidate employment tenure, employers, and job titles derive exclusively from explicit candidate work history records (`candidateProfile.experience`). Git commit timestamps and repository durations are never converted into corporate employment tenure.
+    * **Quantitative Metric Safety**: Quantitative business outcome claims (e.g. *"Increased revenue by 40%"*, *"Scaled to 10M users"*) require explicit supporting evidence in candidate records; otherwise, they are strictly `BLOCKED`.
+    * **Content Prioritization Hierarchy**: Deterministically prioritizes: 1. Verified Required Job Skills $\rightarrow$ 2. Verified Relevant Projects $\rightarrow$ 3. Verified Preferred Skills $\rightarrow$ 4. Inferred Related Skills $\rightarrow$ 5. Labeled Claims.
+    * **LLM Sandbox & Phrasing Boundary**: External AI models (Gemini, Claude, ChatGPT) perform linguistic transformation only and are strictly forbidden from adding technologies, metrics, employers, or citations.
+    * **Mandatory Post-Generation Integrity Gate**: Every generated bullet and paragraph is parsed and audited through `ZeroHallucinationIntegrityService` before release.
+    * **Document Representation & Rendering Decoupling**: Synthesis outputs pure structured JSON domain models (`TailoredResume`, `TailoredCoverLetter`, `TailoredPortfolioContent`). PDF, DOCX, and HTML rendering are decoupled downstream adapters.
+    * **Multi-Tenant Sovereign Default-Deny**: Enforces `context.tenantId` matches across all inputs with 404 default-deny.
+    * **On-Demand Stateless Execution**: Operates in-memory with sub-second latency with zero premature database tables in Phase 6.

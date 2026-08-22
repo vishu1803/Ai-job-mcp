@@ -804,3 +804,31 @@
 * **Consequences**:
   * Phase 5 Task P5-006 will implement `ZeroHallucinationIntegrityService` and domain schemas in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When persistent audited career assertion registries or cryptographic verification signatures (e.g. Ed25519 tokens) are introduced in future phases.
+
+---
+
+### ADR-037: Career Artifact Adaptation Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 6 (Task P6-001A), the platform requires a provider-neutral architecture for synthesizing evidence-backed career documents (`TailoredResume`, `TailoredCoverLetter`, `TailoredPortfolioContent`). The architecture must guarantee complete truth grounding in validated career assertions, prevent qualification hallucinations and metric fabrication, enforce multi-tenant default-deny isolation, decouple domain models from rendering engines (PDF/DOCX/HTML), support ATS keyword optimization through canonical taxonomy mapping, and execute on-demand without premature database migrations.
+* **Decision**: Adopt the **Career Artifact Adaptation Architecture** defined in `docs/career-artifact-adaptation-architecture.md` (`ARCH-017`) governed by the following core architectural decisions:
+  * **Absolute Truth Boundary & Grounding**: Artifact synthesis engines strictly consume `IntegrityCheckedAssertion` objects from the Zero-Hallucination Integrity Gate (`P5-006`). Unvalidated prose, raw candidate text, or unparsed repository files are strictly excluded from generation pipelines.
+  * **Status Immutability**: Manual candidate claims retain the explicit label `[Unverified User Claim]` (`CLAIMED`), inferred skills retain `INFERRED` status, and missing evidence is never converted into affirmative qualifications.
+  * **Structured Atomic Resume Bullets**: Every resume bullet is represented by `ResumeBullet` containing explicit `assertionIds`, commit-pinned `evidenceRefs`, relevance scores, and matched target job keywords.
+  * **Safe ATS Keyword Alignment**: Target job terminology alignment is performed via canonical taxonomy mapping (`SkillTaxonomyEngine`). The engine is strictly prohibited from inserting keywords for skills the candidate does not demonstrate.
+  * **Corporate Work History Authority**: Candidate employment tenure, employers, and job titles derive exclusively from explicit candidate work history records (`candidateProfile.experience`). Git commit timestamps and repository durations are never converted into corporate employment tenure.
+  * **Quantitative Metric Safety**: Quantitative business outcome claims (e.g. *"Increased revenue by 40%"*, *"Scaled to 10M users"*) require explicit supporting evidence in candidate records; otherwise, they are strictly `BLOCKED`.
+  * **Content Prioritization Hierarchy**: Deterministically prioritizes: 1. Verified Required Job Skills $\rightarrow$ 2. Verified Relevant Projects $\rightarrow$ 3. Verified Preferred Skills $\rightarrow$ 4. Inferred Related Skills $\rightarrow$ 5. Labeled Claims.
+  * **LLM Sandbox & Phrasing Boundary**: External AI models (Gemini, Claude, ChatGPT) perform linguistic transformation only and are strictly forbidden from adding technologies, metrics, employers, or citations.
+  * **Mandatory Post-Generation Integrity Gate**: Every generated bullet and paragraph is parsed and audited through `ZeroHallucinationIntegrityService` before release.
+  * **Document Representation & Rendering Decoupling**: Synthesis outputs pure structured JSON domain models (`TailoredResume`, `TailoredCoverLetter`, `TailoredPortfolioContent`). PDF, DOCX, and HTML rendering are decoupled downstream adapters.
+  * **Multi-Tenant Sovereign Default-Deny**: Enforces `context.tenantId` matches across all inputs with 404 default-deny.
+  * **On-Demand Stateless Execution**: Operates in-memory with sub-second latency with zero premature database tables in Phase 6.
+* **Alternatives Considered**:
+  * *Generating raw markdown/prose directly from LLM without structured validation*: Rejected because LLMs hallucinate realistic-looking achievements, tools, and employment dates that fail cryptographic auditability.
+  * *Coupling resume generation directly to a PDF engine (e.g. Puppeteer/PDFKit)*: Rejected because the platform must expose structured resume models via MCP tools and web APIs independently of visual styling.
+  * *Premature persistence tables (`adapted_resumes`, `adapted_cover_letters`)*: Rejected because artifact adaptation is derived on-demand from existing domain state with sub-second latency; persistence belongs to Phase 12 (Application Tracking).
+* **Reasons**: Guarantees verifiable career document integrity, eliminates AI hallucinations, complies with strict multi-tenant security invariants, and enables seamless provider-neutral AI consumption via MCP.
+* **Consequences**:
+  * Phase 6 Tasks (P6-001 through P6-005) will implement domain schemas and services in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When user-saved application history or custom recruiter styling templates are introduced in Phase 12.
