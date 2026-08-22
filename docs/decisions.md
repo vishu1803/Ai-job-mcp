@@ -39,6 +39,7 @@
 | **ADR-029** | Evidence Linking and Provenance Integrity Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-030** | Candidate Profile Service Architecture and Claim Integrity | **ACCEPTED** | 2026-08-22 |
 | **ADR-031** | Career Intelligence Engine Architecture & Deterministic Scoring | **ACCEPTED** | 2026-08-22 |
+| **ADR-032** | Skill Taxonomy & Normalization Engine Architecture | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -648,3 +649,27 @@
 * **Consequences**:
   * Phase 5 tasks will implement deterministic parsers, Zod schemas, scoring services, and database persistence in `src/services/intelligence/` and `src/domain/intelligence/`.
 * **Revisit Conditions**: When multilingual job parsing or multi-vector semantic embedding search is integrated in future phases.
+
+---
+
+### ADR-032: Skill Taxonomy & Normalization Engine Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 5 (Task P5-002A), the platform requires a centralized, deterministic technology taxonomy and normalization engine. Real-world code evidence (manifest packages, AST imports, repository topics) and job postings contain hundreds of disparate technology representations, abbreviations, package names, and synonyms (e.g. `Postgres`, `PostgreSQL`, `pg`, `psycopg2`, `React`, `React.js`, `ReactJS`, `Node.js`, `NodeJS`). The architecture must guarantee that all synonyms map deterministically to a single canonical skill identity without fragmentation or hallucination, while supporting explicit framework-to-language relationships (`BUILT_ON`), safe unknown tool handling, and multi-tenant isolation.
+* **Decision**: Adopt the **Skill Normalizer & Taxonomy Engine Architecture** defined in `docs/skill-taxonomy-architecture.md` (`ARCH-012`) governed by the following core architectural decisions:
+  * **Strict Canonical Identity (One Canonical Slug per Tech)**: Every technical skill has exactly one canonical slug matching `^[a-z0-9]+(?:-[a-z0-9]+)*$` (e.g. `postgresql`, `react`, `node-js`, `c-sharp`, `fastapi`). Slugs are permanent and decoupled from UUID primary keys.
+  * **Seven Approved Categories**: Strictly reuse the 7 approved categories (`LANGUAGE`, `FRAMEWORK`, `DATABASE`, `CLOUD_DEVOPS`, `TOOL`, `ARCHITECTURE`, `CONCEPT`) without introducing ad-hoc categories.
+  * **Deterministic 7-Stage Normalization Pipeline**: Normalization executes in 7 deterministic stages: Input Bounds & Sanitization $\rightarrow$ Unicode NFKC & Case-Folding $\rightarrow$ Scope & Suffix Stripping $\rightarrow$ Direct Catalog Lookup $\rightarrow$ Multi-Variation Alias Lookup $\rightarrow$ Context/Keyword Disambiguation $\rightarrow$ Canonical Relationship Assembly.
+  * **Explicit Relationship Graph over Naive Inheritance**: Relationship edges are explicitly typed (`BUILT_ON`, `ECOSYSTEM_OF`, `IMPLEMENTS`, `PARENT_OF`). A framework (e.g. `React`) is modeled as `BUILT_ON` `JavaScript`, rather than an "instance of" JavaScript, preventing false transitive assumptions.
+  * **Controlled Unknown Technology Handling**: Unrecognized terms generate validated kebab-case slugs, default to category `TOOL`, are flagged with `isCustom: true` and `requiresReview: true`, and emit `taxonomy.unknown_term_observed` audit telemetry for curator review. Unknown terms are never automatically aliased to existing technologies.
+  * **Strict LLM Boundary**: LLMs cannot act as the primary normalizer, cannot create arbitrary canonical skills, and cannot mutate taxonomy records. Any optional LLM disambiguation output must be validated against the approved canonical catalog.
+  * **Hybrid In-Memory & Database Storage**: Compiled in-memory catalog provides zero-latency $O(1)$ lookups in ingestion hot paths, while PostgreSQL `skills` table serves as the global relational source of truth for foreign key constraints (`candidate_skills.skill_id`, `evidence_items.skill_id`). Zero premature database migrations are introduced in P5-002A.
+  * **Decoupled Confidence Taxonomy**: Separation between Normalization Confidence ($1.0$ exact, $0.95$ alias, $0.85$ contextual, $0.70$ LLM, $0.50$ unknown tool), Evidence Item Confidence, Candidate Skill Rollup Confidence, and Job Match Score.
+* **Alternatives Considered**:
+  * *LLM-driven freeform skill canonicalization*: Rejected because LLMs produce non-deterministic variations, invent duplicate slugs, and introduce latency into high-throughput repository scanners.
+  * *Pure object-oriented taxonomy inheritance*: Rejected because software engineering relationships are multi-dimensional (e.g., Next.js is built on React, which is built on JavaScript, but Next.js also encompasses server-side Node.js runtimes and bundler tooling).
+  * *Database-only taxonomy querying for every AST node*: Rejected because database latency on millions of parsed AST nodes per repository would violate indexing performance SLAs.
+* **Reasons**: Ensures 100% deterministic, high-performance skill normalization, eliminates duplicate skill identities, maintains radical auditability, and provides zero-breaking-change backward compatibility for all existing evidence items and candidate profile records.
+* **Consequences**:
+  * Phase 5 Task P5-002 will implement the comprehensive 50+ technology alias catalog, relationship lookups, and test suite in `src/extractors/github/taxonomy/taxonomy-mapper.js` and `src/domain/career/`.
+* **Revisit Conditions**: When tenant-custom organizational taxonomy extensions or multi-language internationalized taxonomy naming is requested.
