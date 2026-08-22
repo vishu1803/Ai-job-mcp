@@ -37,6 +37,7 @@
 | **ADR-027** | Unified Candidate and Resource Domain Model | **ACCEPTED** | 2026-08-22 |
 | **ADR-028** | GitHub Evidence Extractor Architecture & Security Rules | **ACCEPTED** | 2026-08-22 |
 | **ADR-029** | Evidence Linking and Provenance Integrity Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-030** | Candidate Profile Service Architecture and Claim Integrity | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -599,3 +600,26 @@
 * **Consequences**:
   * Task P4-004 will implement `EvidenceLinkingService` in `src/services/` and domain linking methods without modifying the database schema.
 * **Revisit Conditions**: When multi-tenant organization credential sharing or cross-resource aggregate project trees are introduced in future phases.
+
+---
+
+### ADR-030: Candidate Profile Service Architecture and Claim Integrity
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 4 (Task P4-005A), the platform requires a canonical lifecycle and aggregation service for candidate profiles (`CandidateProfileService`). The service must combine verified identities, connected resources, domain projects, verified skill rollups, and manual user claims into a single coherent domain view without allowing unverified user claims to masquerade as verified facts, without permitting background resource syncs to overwrite user narratives, and without exposing sensitive credentials or private tokens.
+* **Decision**: Adopt the **Candidate Profile Service Architecture** defined in `docs/candidate-profile-service-architecture.md` (`ARCH-010`) governed by the following core architectural decisions:
+  * **Strict Claim Classification**: Rigorously separate machine-verified facts (`provenanceStatus` `VERIFIED` or `INFERRED`) from self-asserted user claims (`provenanceStatus = 'CLAIMED'`). User claims are explicitly tagged and serialized as `[Unverified User Claim]` and can never attain `VERIFIED` status without cryptographic evidence nodes.
+  * **User Narrative Sovereignty**: Resource synchronization (e.g. GitHub App sync) updates resource catalogs and skill evidence graphs, but **never** overwrites explicit user-authored profile text (`displayName`, `headline`, `summary`, `canonicalEmail`).
+  * **Candidate vs. User Decoupling**: Candidate profiles are decoupled from the platform authentication `User` entity, enabling multi-persona modeling, recruiter agency workflows, and organizational candidate directories under strict tenant isolation.
+  * **Credential Redaction**: Profile responses expose clean resource summaries while strictly blacklisting `encryptedCredentials`, installation tokens, OAuth tokens, and private keys.
+  * **Project Multi-Resource Decoupling**: Projects represent curated career initiatives ($1\text{ Project} \ne 1\text{ Repository}$) and can encompass multiple connected resources via `project_resources`.
+  * **Multi-Tenant Sovereign Default-Deny**: All profile operations validate `tenant_id = context.tenantId`. Cross-tenant lookups fail closed with `404 Not Found`.
+  * **Role-Based Access Control**: `OWNER` has full tenant profile authority; `MEMBER` can edit self-linked profiles; `READONLY` is restricted to read-only profile inspection with 403 enforcement.
+* **Alternatives Considered**:
+  * *Allowing unverified manual claims to be labeled as verified*: Rejected because it destroys the platform's core zero-hallucination guarantee and misleads ATS/AI recruiters.
+  * *Overwriting profile headlines on every GitHub sync*: Rejected because candidates curate customized, multi-disciplinary career headlines that should not be wiped out by repository bio updates.
+  * *Merging candidates automatically on fuzzy email/username*: Rejected to prevent accidental profile merging across different users in multi-user workspaces.
+* **Reasons**: Establishes an unassailable provenance foundation for Phase 5 Career Intelligence and Phase 6 Resume Adaptation, prevents credential leaks, and guarantees user sovereignty over their career narrative.
+* **Consequences**:
+  * Task P4-005 will implement `CandidateProfileService` in `src/services/` and domain validation methods without modifying the database schema.
+* **Revisit Conditions**: When multi-tenant candidate sharing or organizational candidate transfer workflows are designed in future phases.
