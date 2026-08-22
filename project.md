@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 4 — Unified Candidate / Resource Model** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (83.33% - P4-001 to P4-005 complete) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 3 complete; Phase 4 in progress |
+| **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (0%) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 4 complete; Phase 5 ready to begin |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **27 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (5: P4-001, P4-002, P4-003, P4-004, P4-005) verified |
-| **In Progress Tasks** | **0 Tasks** | P4-005 complete; ready for P4-006 |
+| **Completed Tasks** | **28 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) verified |
+| **In Progress Tasks** | **0 Tasks** | Phase 4 complete; ready for P5-001A / P5-001 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **33.75% (27 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **30.21% (4.83 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **35.00% (28 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **31.25% (5.00 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -28,7 +28,7 @@
 | **PHASE 1** | Multi-User Platform Foundation | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 4** | Unified Candidate / Resource Model | 6 | 5 | 0 | **IN_PROGRESS** | **83.33%** |
+| **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **27** | **0** | **IN_PROGRESS** | **33.75%** |
+| **TOTAL** | **All Phases Combined** | **80** | **28** | **0** | **IN_PROGRESS** | **35.00%** |
 
 ---
 
@@ -149,7 +149,7 @@
 | **P4-004** | Implement Evidence Linking Engine: every skill and project item is assigned an immutable `EvidenceId` referencing repository, file path, and commit SHA | P4-003, P4-004A | **COMPLETE** | Unit tests (`tests/unit/evidence-linking.test.js` - 17 tests), live PostgreSQL integration tests (`tests/integration/evidence-linking.test.js` - 9 tests). Verified canonical `EvidenceId` (UUIDv4), deterministic primary evidence selection, monotonic confidence scoring, project linking & `project_resources` association, cross-tenant 404 default-deny, atomic rollback on batch failure, and retention semantics. Full suite: 507/507 PASS across 170 suites. |
 | **P4-005A** | Candidate Profile Service Architecture Review | P4-004 | **COMPLETE & APPROVED** | Architectural specification `docs/candidate-profile-service-architecture.md` (`ARCH-010`), ADR-030 in `docs/decisions.md`. Defined verified facts vs explicit `[Unverified User Claim]` labeling, user narrative sovereignty against background sync overwrites, Candidate vs User decoupling, credential scrubbing in resource summaries, multi-resource project modeling, RBAC (`OWNER`, `MEMBER`, `READONLY`), and `CandidateProfileView` domain serialization. |
 | **P4-005** | Create Candidate Profile Service (CRUD operations, manual claim tagging as `[Unverified User Claim]`, profile sync) | P4-002, P4-004, P4-005A | **COMPLETE** | Unit tests (`tests/unit/candidate-profile.service.test.js` - 9 tests), live PostgreSQL integration tests (`tests/integration/candidate-profile.service.test.js` - 15 tests). Verified candidate CRUD, full profile view aggregation without leaked credentials, manual skill claim creation with `[Unverified User Claim]` labeling, claim preservation/elevation against verified evidence, narrative sovereignty during background sync, partitioned metadata (`userCustom` vs `systemInferred`), archive/restore, and RBAC (`OWNER`, `MEMBER` self-linked, `READONLY`). Full suite: 531/531 PASS across 180 suites. |
-| **P4-006** | Multi-tenant candidate data isolation tests | P4-005 | NOT_STARTED | Security test: assert User A cannot access User B's candidate profile or evidence |
+| **P4-006** | Multi-tenant candidate data isolation tests | P4-005 | **COMPLETE** | Dedicated security integration test suite (`tests/integration/candidate-tenant-isolation.test.js` - 24 tests across 13 suites). Verified strict 404 default-deny on cross-tenant candidate/resource/project/skill/evidence lookups, list pagination isolation, deep recursive payload leak checks (0 foreign UUIDs or metadata), manual claim isolation, cross-tenant evidence linking rejection, 0 foreign row mutation capture, client spoofing resistance, RBAC matrix (`OWNER`, `MEMBER`, `READONLY`), sync isolation, and deletion independence. Full suite: 555/555 PASS across 193 suites. |
 
 ---
 
@@ -1226,6 +1226,29 @@ The project is ready to proceed with Task **P3-003**:
     * `npm run test:unit` -> PASS (404/404 tests passed across 131 suites)
     * `npm run test:integration` -> PASS (127/127 tests passed across 49 suites)
     * `npm test` -> PASS (531/531 tests passed across 180 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
+* **P4-006 (Multi-Tenant Candidate Data Isolation Security Tests — Completed)**:
+  * Implemented Modules / Test Suites:
+    * `tests/integration/candidate-tenant-isolation.test.js`: Dedicated security integration test suite containing 24 tests across 13 suites against live Aiven PostgreSQL.
+  * Verified Invariants:
+    * **Profile Isolation (404 Default-Deny)**: Tenant A cannot read Candidate B; Tenant B cannot read Candidate A. Cross-tenant lookups fail closed with `404 NotFoundError` (never 403) to prevent resource existence disclosure.
+    * **List Isolation**: `listCandidates` across all pagination pages (page 1, page 2, pageSize 1, empty page) returns strictly tenant-scoped candidates with zero cross-tenant contamination.
+    * **Deep Recursion Leak Check**: Serialized Candidate A profile payload contains 0 occurrences of Tenant B tenantId, candidateId, identityId, resourceId, projectId, evidenceId, or internal metadata tags.
+    * **Resource & Project Isolation**: Profiles contain exclusively self-tenant resources, projects, and linked evidence items.
+    * **Skill & Evidence Provenance Isolation**: Shared global taxonomy is decoupled from tenant-scoped `CandidateSkill` assertions and cryptographic `EvidenceItem` proof nodes.
+    * **Manual Claim Isolation**: Adding/removing manual claims in Tenant A has zero side effects on Tenant B.
+    * **Evidence Linking Isolation**: Attempting to link cross-tenant evidence, projects, candidates, or skills is blocked with 404 `NotFoundError`.
+    * **Negative Mutation Proof**: Row-count snapshots prove exactly 0 foreign rows are altered across unauthorized update, claim, link, archive, or restore attempts.
+    * **Spoofing Resistance**: Client-injected `tenantId` and `userId` fields in request bodies or query options are completely ignored in favor of trusted session context.
+    * **RBAC Hardening**: `OWNER` has full mutation authority; `MEMBER` can mutate self-linked candidate profiles only (`candidate.userId === context.userId`) and is rejected with 403 on other candidates; `READONLY` is rejected with 403 on all mutating actions.
+    * **Sync & Deletion Independence**: Background synchronization consumes only self-tenant resources. Deleting Candidate A or Tenant A rows does not affect or delete any Candidate B or Tenant B records.
+  * Verification Commands:
+    * `node --test tests/integration/candidate-tenant-isolation.test.js` -> PASS (24/24 tests passed across 13 suites against Aiven PostgreSQL)
+    * `npm run test:unit` -> PASS (404/404 tests passed across 131 suites)
+    * `npm run test:integration` -> PASS (151/151 tests passed across 62 suites)
+    * `npm test` -> PASS (555/555 tests passed across 193 suites)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed)
