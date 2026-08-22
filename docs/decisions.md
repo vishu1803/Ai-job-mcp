@@ -41,6 +41,7 @@
 | **ADR-031** | Career Intelligence Engine Architecture & Deterministic Scoring | **ACCEPTED** | 2026-08-22 |
 | **ADR-032** | Skill Taxonomy & Normalization Engine Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-033** | Evidence Matching & Gap Analysis Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-034** | Project Relevance Scoring Architecture | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -706,3 +707,33 @@
 * **Consequences**:
   * Phase 5 Task P5-003 will implement the deterministic matching service, gap analysis engine, and Zod schemas in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When semantic vector embedding similarity or custom recruiter scoring weights are introduced.
+
+---
+
+### ADR-034: Project Relevance Scoring Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 5 (Task P5-004A), the platform requires a deterministic, provider-neutral Project Relevance Engine to evaluate and rank candidate projects against target job descriptions. The engine must answer which specific projects demonstrate the highest technical depth and verified proof for a particular job, evaluate multi-dimensional architectural density across 10 engineering domains, support multi-repository aggregation with strict deduplication, enforce multi-tenant default-deny, and eliminate AI hallucinations without introducing premature database tables or non-deterministic LLM scoring.
+* **Decision**: Adopt the **Project Relevance Scoring Architecture** defined in `docs/project-relevance-architecture.md` (`ARCH-014`) governed by the following core architectural decisions:
+  * **Canonical 0–100 Composite Score**: Adopt a canonical composite score $S_{\text{proj}} \in [0.0, 100.0]$ decomposed into 5 transparent, additive components:
+    - *Requirement Coverage* (50 Points): Direct required/preferred skills demonstrated in project code.
+    - *Architectural Density* (25 Points): Multi-tier engineering depth across 10 deterministic dimensions.
+    - *Evidence Quality* (15 Points): Evidentiary weight of attached proof nodes (Manifests/Imports $>$ Readmes).
+    - *Project Completeness* (5 Points): Presence of automated test suites, documentation, and CI/CD pipelines.
+    - *Activity Recency* (5 Points): Bounded recency multiplier capped at 5 points (prevents recency from dominating technical depth).
+  * **Relevance Band Taxonomy**: Classify projects into four discrete relevance bands: `HIGH` ($\ge 75.0$), `MEDIUM` ($50.0 - 74.9$), `LOW` ($25.0 - 49.9$), and `MINIMAL` ($< 25.0$).
+  * **Strict Deduplication Guard**: A skill or requirement is counted at most once per project regardless of the number of files or linked repositories.
+  * **Directional Taxonomy Multipliers**: Apply calibrated taxonomy relationship weights (`BUILT_ON` with $0.90$, `ECOSYSTEM_OF` with $0.75$, `IMPLEMENTS` with $0.50$, `PARENT_OF` with $1.00$).
+  * **Multi-Repository Aggregation (Project $\ne$ Repository)**: Support multi-resource projects by pooling and deduplicating evidence items across child repositories.
+  * **Verifiable Explanations & Bounded Evidence Selection**: Produce deterministic explanation strings citing up to 5 commit-pinned `EvidenceRef` nodes.
+  * **Multi-Tenant Sovereign Default-Deny**: Enforce `tenant_id === context.tenantId` across job descriptions, candidate profiles, projects, and resources with 404 default-deny.
+  * **Ephemeral On-Demand Computation & $O(|\text{Projects}| \times |\text{Requirements}|)$ Performance**: Scoring is executed in-memory with pre-indexed hash maps. Zero premature database migrations are introduced in P5-004A.
+  * **Strict LLM Boundary**: LLMs are prohibited from computing project scores or relevance bands.
+* **Alternatives Considered**:
+  * *LLM-driven project ranking*: Rejected because LLMs hallucinate project capabilities, vary across runs, and cannot be deterministically audited.
+  * *Keyword search over README files*: Rejected because text mentions do not prove working code implementations or multi-tier architectural density.
+  * *Repository byte size / file count scoring*: Rejected because huge auto-generated or vendored repositories would falsely score higher than clean, modular production services.
+* **Reasons**: Guarantees mathematical explainability, regulatory compliance (EU AI Act), zero hallucinations, and actionable project highlighting while preserving multi-tenant isolation.
+* **Consequences**:
+  * Phase 5 Task P5-004 will implement the deterministic project relevance service and Zod schemas in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When semantic vector embedding similarity or custom recruiter project filters are introduced.
