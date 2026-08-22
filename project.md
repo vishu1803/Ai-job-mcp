@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 4 — Unified Candidate / Resource Model** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (33.33% - P4-001, P4-002 complete) |
+| **Current Phase** | **PHASE 4 — Unified Candidate / Resource Model** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (50.0% - P4-001, P4-002, P4-003 complete) |
 | **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 3 complete; Phase 4 in progress |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **24 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (2: P4-001, P4-002) verified |
-| **In Progress Tasks** | **0 Tasks** | P4-002 complete; ready for P4-003 |
+| **Completed Tasks** | **25 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (3: P4-001, P4-002, P4-003) verified |
+| **In Progress Tasks** | **0 Tasks** | P4-003 complete; ready for P4-004 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **30.00% (24 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **27.08% (4.33 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **31.25% (25 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **28.13% (4.50 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -28,7 +28,7 @@
 | **PHASE 1** | Multi-User Platform Foundation | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 4** | Unified Candidate / Resource Model | 6 | 2 | 0 | **IN_PROGRESS** | **33.33%** |
+| **PHASE 4** | Unified Candidate / Resource Model | 6 | 3 | 0 | **IN_PROGRESS** | **50.00%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **24** | **0** | **IN_PROGRESS** | **30.00%** |
+| **TOTAL** | **All Phases Combined** | **80** | **25** | **0** | **IN_PROGRESS** | **31.25%** |
 
 ---
 
@@ -144,7 +144,7 @@
 | **P4-001** | Design and implement Zod schemas for `CandidateProfile`, `SkillWithEvidence`, `ProjectEvidence`, and `EvidenceNode` | P1-001, P4-001A | **COMPLETE** | Unit tests validating valid and invalid candidate data structures (`tests/unit/candidate-domain-schemas.test.js` -> 29/29 PASS). Strict object constraints, path traversal rejection, secret excerpt redaction, and bounded metadata. |
 | **P4-002** | Create database tables: `candidates`, `candidate_identities`, `resources`, `projects`, `project_resources`, `skills`, `candidate_skills`, `evidence_items` | P1-004, P4-001 | **COMPLETE** | Live database migration `drizzle/0002_sturdy_zarek.sql` executed on Aiven PostgreSQL. Comprehensive integration test suite `tests/integration/candidate-domain-schema.test.js` (8/8 PASS) verifying CRUD, composite unique constraints, RESTRICT/CASCADE foreign key rules, and cross-tenant default-deny isolation. |
 | **P4-003A** | GitHub Evidence Extractor Architecture & Security Review | P3-005, P4-002 | **COMPLETE & APPROVED** | Architectural specification `docs/github-evidence-extractor-architecture.md` (`ARCH-008`), ADR-028 in `docs/decisions.md`. Defined threat model, zero-code-execution static parsing, multi-ecosystem manifest parsing (`package.json`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `go.mod`, `Cargo.toml`), safe import regexes, secret scrubber ($\le 1024$ chars), taxonomy normalization engine, deterministic deduplication hashing, and candidate skill rollup formulas. |
-| **P4-003** | Implement GitHub Evidence Extractor (analyzes `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, directory trees, and commit messages) | P3-005, P4-001, P4-003A | NOT_STARTED | Test parsing diverse repositories and producing verifiable skill items |
+| **P4-003** | Implement GitHub Evidence Extractor (analyzes `package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, directory trees, and commit messages) | P3-005, P4-001, P4-003A | **COMPLETE** | Unit tests (`tests/unit/github-evidence-extractor.test.js` - 39 tests), live PostgreSQL integration tests (`tests/integration/github-evidence-extractor.test.js` - 5 tests), and live extraction gate against GitHub installation `155430459` (`vishu1803/Ai-job-mcp`). Full suite: 481/481 PASS across 158 suites. |
 | **P4-004** | Implement Evidence Linking Engine: every skill and project item is assigned an immutable `EvidenceId` referencing repository, file path, and commit SHA | P4-003 | NOT_STARTED | Verification test ensuring zero skills are created without valid `EvidenceId` |
 | **P4-005** | Create Candidate Profile Service (CRUD operations, manual claim tagging as `[Unverified User Claim]`, profile sync) | P4-002, P4-004 | NOT_STARTED | Integration test: sync candidate profile from connected GitHub repositories |
 | **P4-006** | Multi-tenant candidate data isolation tests | P4-005 | NOT_STARTED | Security test: assert User A cannot access User B's candidate profile or evidence |
@@ -1126,14 +1126,33 @@ The project is ready to proceed with Task **P3-003**:
     * `npm run lint` -> PASS (0 errors, 0 warnings).
     * `npm run format:check` -> PASS (All matched files use Prettier code style).
     * `npm run db:check` -> PASS (Drizzle Kit check passed).
-* **P4-003A (GitHub Evidence Extractor Architecture & Security Review — Completed & Approved)**:
+* **P4-003 (Implement GitHub Evidence Extractor — Completed & Verified)**:
   * Deliverables:
-    * `docs/github-evidence-extractor-architecture.md`: Comprehensive specification (`ARCH-008`) establishing the threat model, parser contracts, secret scrubber rules, taxonomy normalization engine, confidence matrix, deduplication algorithm, and rollup metrics.
-    * `docs/decisions.md` (ADR-028): Formally accepted *GitHub Evidence Extractor Architecture & Security Rules*.
-  * Core Architecture & Security Invariants Approved:
-    * **Zero Code Execution**: Pure static analysis using safe declarative parsers; strict prohibition of `eval()`, `vm`, `child_process`, or language runtime interpreters on untrusted repository content.
-    * **Prototype Pollution & ReDoS Protection**: Sanitized JSON parsing (strip `__proto__`, `constructor`, `prototype`), `Object.create(null)` dictionaries, linear non-backtracking regexes with 500-char line truncation.
-    * **Multi-Ecosystem Manifests**: Safe parsing for Node.js (`package.json`), Python (`requirements.txt`, `Pipfile`, `pyproject.toml` with rejection of unsafe flags/URLs), Go (`go.mod`), and Rust (`Cargo.toml`).
-    * **Mandatory Secret Scrubber**: Scans and scrubs high-entropy credentials, private keys, AWS keys, GitHub tokens, JWTs, and connection strings from excerpts ($\le 1024$ chars).
-    * **Deterministic Deduplication**: Computes SHA-256 fingerprint over tenant, candidate, resource, skill slug, evidence type, file path, and commit SHA for idempotent re-extractions.
-    * **Candidate Skill Rollup Algorithm**: Mathematically aggregates multiple evidence nodes into single-tenant `CandidateSkill` rows with weighted confidence scores ($0.00$ to $1.00$).
+    * `src/extractors/github/security/secret-scrubber.js`: High-entropy credential detector and scrubber (redacts GitHub tokens `ghp_`/`ghs_`, private keys RSA/EC, AWS AKIA keys, Bearer/raw JWTs, DB connection strings, and variable secret assignments; enforces hard $\le 1024$ chars excerpt ceiling).
+    * `src/extractors/github/taxonomy/taxonomy-mapper.js`: Canonical taxonomy normalizer mapping 50+ ecosystem packages across Node, Python, Go, and Rust to canonical skills and 7 valid categories (`LANGUAGE`, `FRAMEWORK`, `DATABASE`, `CLOUD_DEVOPS`, `TOOL`, `ARCHITECTURE`, `CONCEPT`).
+    * `src/extractors/github/manifest-parsers/base-manifest-parser.js`: Base parser contract with line length ($\le 500$ chars) and file size ($\le 1\text{ MB}$) bounding.
+    * `src/extractors/github/manifest-parsers/node-manifest-parser.js`: `package.json` parser with prototype stripping and object depth ceiling ($\le 5$).
+    * `src/extractors/github/manifest-parsers/python-manifest-parser.js`: `requirements.txt`, `Pipfile`, `pyproject.toml` parser with unsafe pip flag rejection (`-r`, `-e`, `-i`, `--extra-index-url`, `git+`).
+    * `src/extractors/github/manifest-parsers/go-manifest-parser.js`: `go.mod` parser extracting direct dependencies and detecting `// indirect` dependencies.
+    * `src/extractors/github/manifest-parsers/rust-manifest-parser.js`: `Cargo.toml` parser extracting `[dependencies]`, `[dev-dependencies]`, and `[workspace.dependencies]`.
+    * `src/extractors/github/code-scanners/import-scanner.js`: Pure static regex import scanner for JS/TS, Python, Go, and Rust entrypoints with linear bounds ($\le 1000$ lines, $\le 500$ chars/line) and zero code execution.
+    * `src/extractors/github/fingerprint.js`: SHA-256 deterministic fingerprint deduplication engine (`SHA256(tenantId:candidateId:resourceId:skillSlug:evidenceType:filePath:commitSha)`).
+    * `src/extractors/github/skill-rollup.js`: Candidate skill rollup scoring engine implementing $\text{RollupScore} = \min(1.0, \max(\text{conf}) \times (0.8 + 0.05 \times \min(4, \text{count})))$ and provenance transitions (`VERIFIED`, `INFERRED`, `CLAIMED`, `MISSING`).
+    * `src/extractors/github/github-evidence-extractor.js`: Core orchestrator managing pre-transaction GitHub API data acquisition, declarative parsing, secret scrubbing, and atomic multi-tenant database persistence.
+    * `src/extractors/github/index.js`: Module re-exports.
+  * Security & Architectural Invariants Enforced:
+    * **Zero Code Execution**: Pure static analysis; no `eval()`, `new Function()`, `vm`, `child_process`, or runtime interpreters invoked.
+    * **Strict Multi-Tenant Isolation**: Verified single-tenant boundaries across candidates, resources, evidence items, and candidate skills with 404 default-deny on cross-tenant access.
+    * **Deterministic Idempotency**: Repeated extractions produce zero duplicate evidence items or candidate skill rows.
+    * **Excerpt Minimization & Secret Redaction**: Verified no complete source code stored; excerpts capped at $\le 1024$ chars with all credentials replaced with `[REDACTED_SECRET]`.
+  * Live Verification Against Real GitHub App Installation `155430459` (repository `vishu1803/Ai-job-mcp`):
+    * Successfully authenticated with GitHub App RS256 JWT -> Sourced installation token -> Retrieved directory tree and README -> Extracted normalized skills (`fastify`, `postgresql`, `drizzle-orm`) -> Persisted 3 sanitized `evidence_items` with SHA-256 fingerprints -> Generated 3 `candidate_skills` rollups with provenance `INFERRED` (confidence $0.51$) -> Updated `resources.last_synced_at`.
+  * Verification Commands:
+    * `node --test tests/unit/github-evidence-extractor.test.js` -> PASS (39/39 tests passed across 11 suites)
+    * `node --test tests/integration/github-evidence-extractor.test.js` -> PASS (5/5 test suites passed against Aiven PostgreSQL)
+    * `npm run test:unit` -> PASS (378/378 tests passed across 123 suites)
+    * `npm run test:integration` -> PASS (103/103 tests passed across 35 suites)
+    * `npm test` -> PASS (481/481 tests passed across 158 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
