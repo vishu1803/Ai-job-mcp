@@ -45,6 +45,12 @@ export class TaxonomyMapper {
       nestjs: { slug: 'nestjs', name: 'NestJS', category: 'FRAMEWORK' },
       '@nestjs/core': { slug: 'nestjs', name: 'NestJS', category: 'FRAMEWORK' },
       tailwindcss: { slug: 'tailwindcss', name: 'Tailwind CSS', category: 'FRAMEWORK' },
+      'tailwind css': { slug: 'tailwindcss', name: 'Tailwind CSS', category: 'FRAMEWORK' },
+      tailwind: { slug: 'tailwindcss', name: 'Tailwind CSS', category: 'FRAMEWORK' },
+      reactjs: { slug: 'react', name: 'React', category: 'FRAMEWORK' },
+      'react.js': { slug: 'react', name: 'React', category: 'FRAMEWORK' },
+      vuejs: { slug: 'vue', name: 'Vue.js', category: 'FRAMEWORK' },
+      'vue.js': { slug: 'vue', name: 'Vue.js', category: 'FRAMEWORK' },
       fastapi: { slug: 'fastapi', name: 'FastAPI', category: 'FRAMEWORK' },
       django: { slug: 'django', name: 'Django', category: 'FRAMEWORK' },
       flask: { slug: 'flask', name: 'Flask', category: 'FRAMEWORK' },
@@ -61,6 +67,7 @@ export class TaxonomyMapper {
       // -----------------------------------------------------------------------
       // Databases, Drivers & ORMs
       // -----------------------------------------------------------------------
+      postgresql: { slug: 'postgresql', name: 'PostgreSQL', category: 'DATABASE' },
       pg: { slug: 'postgresql', name: 'PostgreSQL', category: 'DATABASE' },
       'pg-promise': { slug: 'postgresql', name: 'PostgreSQL', category: 'DATABASE' },
       'pg-pool': { slug: 'postgresql', name: 'PostgreSQL', category: 'DATABASE' },
@@ -105,7 +112,10 @@ export class TaxonomyMapper {
       java: { slug: 'java', name: 'Java', category: 'LANGUAGE' },
       kotlin: { slug: 'kotlin', name: 'Kotlin', category: 'LANGUAGE' },
       csharp: { slug: 'c-sharp', name: 'C#', category: 'LANGUAGE' },
+      'c#': { slug: 'c-sharp', name: 'C#', category: 'LANGUAGE' },
       cpp: { slug: 'cpp', name: 'C++', category: 'LANGUAGE' },
+      'c++': { slug: 'cpp', name: 'C++', category: 'LANGUAGE' },
+      grpc: { slug: 'grpc', name: 'gRPC', category: 'FRAMEWORK' },
 
       // -----------------------------------------------------------------------
       // Cloud, DevOps & Infrastructure

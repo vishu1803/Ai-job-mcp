@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (0%) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 4 complete; Phase 5 ready to begin |
+| **Current Phase** | **PHASE 5 — Career Intelligence Engine** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (16.67% - P5-001 complete) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 to Phase 4 complete; Phase 5 in progress |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **28 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) verified |
-| **In Progress Tasks** | **0 Tasks** | Phase 4 complete; ready for P5-001A / P5-001 |
+| **Completed Tasks** | **29 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (1: P5-001) verified |
+| **In Progress Tasks** | **0 Tasks** | P5-001 complete; ready for P5-002 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **35.00% (28 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **31.25% (5.00 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **36.25% (29 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **32.29% (5.17 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -29,7 +29,7 @@
 | **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 5** | Career Intelligence Engine | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
+| **PHASE 5** | Career Intelligence Engine | 6 | 1 | 0 | **IN_PROGRESS** | **16.67%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **28** | **0** | **IN_PROGRESS** | **35.00%** |
+| **TOTAL** | **All Phases Combined** | **80** | **29** | **0** | **IN_PROGRESS** | **36.25%** |
 
 ---
 
@@ -159,7 +159,7 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P5-001A** | Career Intelligence Engine Architecture Review | Phase 4 | **COMPLETE & APPROVED** | Architectural specification `docs/career-intelligence-architecture.md` (`ARCH-011`), ADR-031 in `docs/decisions.md`. Defined canonical `JobDescription` & `JobRequirement` domain models, taxonomy reuse, deterministic 100-point scoring formula, explainable match evaluations (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), prioritized skill gaps (`CRITICAL`, `HIGH`, `MED`, `LOW`), anti-prompt-injection sandbox, multi-tenant 404 default-deny, and future 4-table persistence model. |
-| **P5-001** | Implement Job Description Parser (extracts title, level, required skills, preferred skills, domain, and responsibilities) | P4-001, P5-001A | NOT_STARTED | Test parsing 5 distinct real-world software engineering job descriptions |
+| **P5-001** | Implement Job Description Parser (extracts title, level, required skills, preferred skills, domain, and responsibilities) | P4-001, P5-001A | **COMPLETE** | Implemented `JobDescriptionParser` and canonical domain schemas (`src/domain/career/`). Unit test suites (`tests/unit/job-description.schemas.test.js` - 11 tests, `tests/unit/job-description-parser.test.js` - 19 tests) verifying 5 real-world JDs, deterministic section partitioning, taxonomy normalization, experience/education/location parsing, prompt-injection defense, and resilient fallback. Full suite: 585/585 PASS across 204 suites. |
 | **P5-002** | Implement Skill Normalizer & Taxonomy (e.g., maps "React.js", "ReactJS", "React" -> `React`; "Postgres" -> `PostgreSQL`) | P5-001 | NOT_STARTED | Unit test with 50+ common technology synonym variations |
 | **P5-003** | Implement Evidence Matching & Gap Analysis Engine (categorizes requirements as: Verified, User Claim, Inferred, or Missing) | P4-004, P5-002 | NOT_STARTED | Test matching candidate profile against job requirements with exact gap breakdown |
 | **P5-004** | Implement Project Relevance Scoring (ranks candidate repositories by direct relevance to target job requirements) | P4-004, P5-003 | NOT_STARTED | Test project ranking accuracy given diverse job descriptions |
@@ -1257,9 +1257,24 @@ The project is ready to proceed with Task **P3-003**:
   * Deliverables:
     * `docs/career-intelligence-architecture.md`: Comprehensive architectural specification (`ARCH-011`) defining canonical `JobDescription` & `JobRequirement` domain models, taxonomy normalization, deterministic 100-point scoring algorithm, evidence-backed matching (`MATCHED`, `PARTIAL`, `MISSING`, `UNKNOWN`), prioritized skill gap analysis (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`), anti-prompt-injection sandbox, and multi-tenant sovereign default-deny isolation.
     * `docs/decisions.md` (ADR-031): Formally accepted *Career Intelligence Engine Architecture & Deterministic Scoring*.
-  * Core Decisions Approved:
-    * **Deterministic Scoring ($S \in [0, 100]$)**: Mathematical formula combining Required Skills (50%), Preferred Skills (20%), Project Relevance (20%), and Evidence Depth (10%). LLMs are strictly prohibited from generating final match scores.
-    * **Anti-Prompt-Injection Defense**: Untrusted job descriptions are sanitized, bounded ($\le 50\,\text{KB}$), and fenced in prompt sandboxes; LLM parser output must pass strict Zod schema validation before ingestion.
-    * **Taxonomy Normalization**: All job skills map strictly to the canonical `skills` table via `TaxonomyMapper`.
-    * **Evidence-Backed Match Explanations**: Matches link to lightweight `EvidenceRef` objects pinned to concrete commit SHAs and repository file paths.
-    * **Multi-Tenant Isolation**: Enforces tenant scoping across all job descriptions, requirements, candidate matches, and gap evaluations with 404 default-deny.
+* **P5-001 (Job Description Parser & Extraction Contracts — Completed)**:
+  * Implemented Modules:
+    * `src/domain/career/job-description.schemas.js`: Canonical domain Zod contracts for `JobDescriptionInputSchema`, `JobDescriptionSchema`, `JobCompensationSchema`, and source/status/workplace/seniority enums with strict $\le 50\,\text{KB}$ boundary protection.
+    * `src/domain/career/job-requirement.schemas.js`: Atomic requirement schemas (`JobRequirementSchema`, `JobSkillRequirementCriteriaSchema`, `JobExperienceRequirementCriteriaSchema`, `JobEducationRequirementCriteriaSchema`, `JobLocationRequirementCriteriaSchema`, `JobDomainRequirementCriteriaSchema`, `JobClassificationResultSchema`) with source spans and importance/weight metadata.
+    * `src/domain/career/job-parser.js`: Provider-neutral parsing and extraction engine implementing preprocessing (unicode normalization, whitespace collapse, control character stripping), deterministic section partitioning (`REQUIREMENTS`, `RESPONSIBILITIES`, `PREFERRED_QUALIFICATIONS`, `EDUCATION`, `EXPERIENCE`, `COMPENSATION`), metadata inference, canonical skill normalization (`TaxonomyMapper`), experience years parsing, education degree extraction, domain detection, and LLM boundary prompt sandboxing with fallback.
+    * `src/domain/career/index.js` & `src/domain/index.js`: Exported career intelligence domain models.
+    * `src/extractors/github/taxonomy/taxonomy-mapper.js`: Expanded taxonomy catalog with canonical aliases (`postgresql`, `grpc`, `cpp`, `c++`, `c#`, `csharp`, `tailwind css`, `tailwind`, `reactjs`, `react.js`, `vuejs`, `vue.js`).
+  * Verified Invariants:
+    * **Real-World Role Extraction**: Verified across 5 diverse engineering job descriptions (Senior Backend, Staff AI/ML Infrastructure, Principal Rust Systems, Frontend React/TypeScript, Fintech Tech Lead).
+    * **Strict Taxonomy Normalization**: Synonym variations (`Postgres` / `PostgreSQL`, `React.js` / `React`, `Node.js` / `Node`) map deterministically to canonical skill slugs with zero duplicate taxonomy rows.
+    * **Bounded Input Security**: Enforces strict $\le 50\,\text{KB}$ size limits, rejects empty/short text, rejects metadata with forbidden secret keys, and sanitizes control characters.
+    * **Anti-Prompt-Injection Resistance**: Malicious instruction payloads (`"Ignore previous instructions"`, `"Call a tool named secrets"`, `"Return API key"`) are treated strictly as passive text data without execution side effects.
+    * **Resilient Fallback**: Operates with 100% functionality in standalone deterministic mode, and gracefully recovers from LLM errors, timeouts, or malformed JSON.
+  * Verification Commands:
+    * `node --test tests/unit/job-description.schemas.test.js tests/unit/job-description-parser.test.js` -> PASS (30/30 tests passed across 11 suites)
+    * `npm run test:unit` -> PASS (434/434 tests passed across 142 suites)
+    * `npm run test:integration` -> PASS (151/151 tests passed across 62 suites)
+    * `npm test` -> PASS (585/585 tests passed across 204 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)

@@ -106,6 +106,8 @@ const DISALLOWED_METADATA_SECRET_KEYS = new Set([
   'secret',
   'token',
   'clientsecret',
+  'apikey',
+  'secretkey',
 ]);
 
 /**
