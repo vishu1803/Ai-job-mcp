@@ -35,6 +35,7 @@
 | **ADR-025** | GitHub Deep Repository Inspection Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-026** | GitHub Connector Caching & Rate-Limit Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-027** | Unified Candidate and Resource Domain Model | **ACCEPTED** | 2026-08-22 |
+| **ADR-028** | GitHub Evidence Extractor Architecture & Security Rules | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -550,3 +551,25 @@
   * Task P4-001 will implement Zod domain schemas and validators in `src/domain/candidate/` adhering to this specification.
   * Task P4-002 will implement the proposed PostgreSQL schema in `src/db/schema.js` and generate migrations.
 * **Revisit Conditions**: When multi-tenant organization candidate sharing (with explicit candidate consent) or vector embedding storage for semantic project matching is introduced.
+
+---
+
+### ADR-028: GitHub Evidence Extractor Architecture & Security Rules
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 4 (Task P4-003A), the platform must parse raw, untrusted GitHub repository content (package manifests, configuration files, commit histories, code entrypoints) into verified, typed career evidence (`CandidateSkill`, `ProjectEvidence`, `EvidenceItem`). Untrusted repository content poses severe security risks including prototype pollution in JSON manifests, ReDoS in regex parsing, malicious code execution if scripts are evaluated, memory exhaustion via bloated manifests, and credential leakage if planted API keys/secrets are extracted into evidence excerpts. We must define strict architecture and security invariants before implementation.
+* **Decision**: Adopt the **GitHub Evidence Extractor Architecture** defined in `docs/github-evidence-extractor-architecture.md` (`ARCH-008`) governed by the following core architectural decisions:
+  * **Zero Code Execution & Pure Static Parsing**: Never execute, evaluate, import, or run untrusted repository code. Prohibit `eval()`, `new Function()`, `vm`, `child_process`, and external language runtimes. Use pure text-based safe JSON/TOML parsers, streaming line scanners, and linear non-backtracking regular expressions.
+  * **Prototype Pollution & ReDoS Defense**: Sanitize JSON objects (strip `__proto__`, `constructor`, `prototype`), use `Object.create(null)` for lookup dictionaries, enforce line length limits ($\le 500$ chars), and cap file scanning ($\le 1,000$ lines, $\le 50$ KB per file).
+  * **Multi-Ecosystem Manifest Support**: Modular parsers for Node.js (`package.json`), Python (`requirements.txt`, `Pipfile`, `pyproject.toml`), Go (`go.mod`), and Rust (`Cargo.toml`). Rejects unsafe pip flags (`-r`, `-e`, `-i`, `--extra-index-url`, `git+`) to prevent injection or SSRF vectors.
+  * **Mandatory Secret & PII Redaction**: Every evidence excerpt ($\le 1024$ chars) must pass through `SecretScrubber` to strip private keys, GitHub tokens, AWS keys, JWTs, API secrets, and connection strings before persisting to `evidence_items`.
+  * **Canonical Taxonomy Mapping**: Normalizes raw package identifiers (e.g. `@fastify/cors`, `pg`, `psycopg2`, `gorm.io/gorm`, `tokio`) to canonical global skill slugs (`fastify`, `postgresql`, `gorm`, `tokio`).
+  * **Deterministic Deduplication**: Computes SHA-256 fingerprint over `(tenant_id, candidate_id, resource_id, skill_slug, evidence_type, file_path, commit_sha)` to enable idempotent re-extractions without duplicating rows in `evidence_items`.
+  * **Mathematical Confidence Scoring & Rollup**: Assigns granular confidence scores ($0.20$ to $1.00$) and rolls up multiple evidence nodes into verified `CandidateSkill` assertions.
+* **Alternatives Considered**:
+  * *Using external CLI tools (e.g. `pip-compile`, `cargo metadata`, `go mod graph`)*: Rejected because invoking external language CLI binaries on untrusted repository code is a major remote code execution (RCE) vector and introduces massive deployment dependencies. Pure static parsing is secure, hermetic, and lightning fast.
+  * *Unsanitized Full-File Excerpt Storage*: Rejected to prevent storing embedded secrets, database passwords, or bloated files in PostgreSQL `evidence_items`.
+* **Reasons**: Guarantees airtight security against untrusted repository payloads, prevents credential leakage, enables reproducible evidence extraction across diverse software ecosystems, and preserves multi-tenant isolation.
+* **Consequences**:
+  * Task P4-003 will implement `GitHubEvidenceExtractorService`, manifest parsers, `TaxonomyMapper`, and `SecretScrubber` in `src/services/extractors/`.
+* **Revisit Conditions**: When adding JVM (`pom.xml`, `build.gradle`) or C# (`.csproj`) manifest parsers in future phases.
