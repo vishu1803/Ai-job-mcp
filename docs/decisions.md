@@ -42,6 +42,10 @@
 | **ADR-032** | Skill Taxonomy & Normalization Engine Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-033** | Evidence Matching & Gap Analysis Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-034** | Project Relevance Scoring Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-035** | ATS Fit Score Architecture & Deterministic Evaluation Engine | **ACCEPTED** | 2026-08-22 |
+| **ADR-036** | Zero-Hallucination Career Integrity Gate Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-037** | Career Artifact Adaptation Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-038** | Cover Letter Drafting Engine Architecture | **ACCEPTED** | 2026-08-22 |
 
 ---
 
@@ -832,3 +836,31 @@
 * **Consequences**:
   * Phase 6 Tasks (P6-001 through P6-005) will implement domain schemas and services in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When user-saved application history or custom recruiter styling templates are introduced in Phase 12.
+
+---
+
+### ADR-038: Cover Letter Drafting Engine Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-22
+* **Context**: In Phase 6 (Task P6-002A), the platform requires a provider-neutral Cover Letter Drafting Engine (`CoverLetterDraftingService`) that synthesizes targeted, persuasive cover letters (`TailoredCoverLetter`) grounded in authentic repository evidence, verified work history, and target job match analysis. The engine must adhere to strict zero-hallucination truth boundaries, prevent fabrication of company facts, candidate accomplishments, or quantitative metrics, enforce multi-tenant default-deny isolation, support bounded narrative length (3-6 paragraphs), and execute in-memory on demand without premature database migrations.
+* **Decision**: Adopt the **Cover Letter Drafting Engine Architecture** defined in `docs/cover-letter-drafting-architecture.md` (`ARCH-018`) governed by the following core architectural decisions:
+  * **Absolute Truth Boundary**: Drafting pipelines consume strictly `IntegrityCheckedAssertion` objects, validated candidate profiles, parsed job descriptions, and pre-computed match/relevance analyses. Raw candidate prose, unparsed repository files, and arbitrary LLM hallucinations are strictly excluded.
+  * **Structured Paragraph Schema**: Each cover letter paragraph is modeled as `CoverLetterParagraph` carrying explicit `paragraphType` (`OPENING`, `COMPANY_ALIGNMENT`, `RELEVANT_EXPERIENCE`, `PROJECT_EVIDENCE`, `MOTIVATION`, `CLOSING`), text, `assertionIds`, commit-pinned `evidenceRefs` (capped at 5), and status (`VERIFIED`, `INFERRED`, `CLAIMED`).
+  * **Deterministic 6-Tier Content Prioritization**: Prioritizes 1. Verified Required Skills $\rightarrow$ 2. High-Relevance Projects $\rightarrow$ 3. Verified Preferred Skills $\rightarrow$ 4. Corporate Work History $\rightarrow$ 5. Inferred Skills $\rightarrow$ 6. Labeled User Claims.
+  * **Corporate Work History Authority**: Employment dates, company names, and professional titles derive exclusively from explicit candidate work history records (`candidateProfile.experience`). Git commit timestamps and repository durations are never converted into corporate employment tenure.
+  * **Company Alignment Grounding**: Company domain, mission, and tech stack statements must reference only explicit text from the trusted `JobDescription` input. Unstated company details are never fabricated.
+  * **Quantitative Metric Safety Guard**: Quantitative claims (e.g. *"reduced latency by 45%"*, *"served 10M users"*) without backing evidence in candidate records trigger `ValidationError: Quantitative achievement claim rejected`.
+  * **Status Immutability & Omission Policy**: Unverified manual claims retain `[Unverified User Claim]` or are safely omitted; inferred skills retain `INFERRED` status; missing skills are never claimed.
+  * **Safe ATS Keyword Alignment**: Terminology alignment uses `SkillTaxonomyEngine` canonical mapping without injecting ungrounded technologies.
+  * **Optional LLM Linguistic Sandbox**: External AI models operate inside passive XML input boundaries (`<job_input>`, `<candidate_facts>`, `<approved_assertions>`) to polish transitions and tone (`PROFESSIONAL`, `CONCISE`, `CONFIDENT`, `WARM`) but are strictly forbidden from adding facts, metrics, employers, or citations.
+  * **Mandatory Post-Generation Integrity Gate**: All paragraphs are parsed and validated by `ZeroHallucinationIntegrityService` before release.
+  * **Multi-Tenant Sovereign Default-Deny**: Enforces `tenant_id === context.tenantId` across all inputs with 404 default-deny.
+  * **Ephemeral In-Memory Execution**: Operates in-memory with sub-second latency with zero database tables or migrations in Phase 6.
+* **Alternatives Considered**:
+  * *Unstructured LLM generation with raw prompt templates*: Rejected because LLMs hallucinate company relationships, ungrounded metrics, and non-existent technologies.
+  * *Premature persistence tables (`adapted_cover_letters`)*: Rejected because cover letters are synthesized on-demand; persistence belongs to Phase 12 (Application Tracking).
+* **Reasons**: Ensures complete factual authenticity, legal/regulatory compliance, mathematical explainability, and multi-tenant security while delivering compelling job-specific narratives.
+* **Consequences**:
+  * Phase 6 Task P6-002 will implement `CoverLetterDraftingService` and domain schemas in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When custom user cover-letter styling templates or persistent application tracking are introduced in Phase 12.
+
