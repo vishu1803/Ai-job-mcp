@@ -920,3 +920,31 @@
   * Phase 6 Task P6-004 will implement `CareerArtifactExportService` and domain schemas in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When additional external interchange standards (e.g. HR-XML / HR Open JSON) or direct binary export formats are introduced.
 
+---
+
+### ADR-041: Resume Integrity Audit Tool Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-23
+* **Context**: In Phase 6 (Task P6-005A), the platform requires an independent, provider-neutral Resume Integrity Audit Tool (`ResumeIntegrityAuditService`) that inspects final rendered or exported career documents (`TailoredResume`, `JSON_RESUME`, `MARKDOWN`, `PLAIN_TEXT`) to verify that every factual statement, skill claim, metric, employer, tenure, and education credential is grounded in approved career intelligence. The audit tool must operate as an independent verification firewall downstream from generators and exporters, never trusting internal generator status or LLM outputs, enforcing strict three-tier statuses (`PASS`, `WARN`, `BLOCK`), validating cryptographic evidence provenance, detecting status inflation and contradictions, and executing statelessly in-memory without premature database tables.
+* **Decision**: Adopt the **Resume Integrity Audit Tool Architecture** defined in `docs/resume-integrity-audit-architecture.md` (`ARCH-021`) governed by the following core architectural decisions:
+  * **Independent Zero-Trust Verification**: Operates decoupled from generators/exporters. Re-audits claims against ground-truth `IntegrityCheckedAssertions`, `EvidenceItems`, `CandidateProfile`, and `SkillTaxonomyEngine`.
+  * **Multi-Format Ingestion**: Supports `STRUCTURED_RESUME`, `JSON_RESUME`, `MARKDOWN`, and `PLAIN_TEXT`. `PDF` and `DOCX` are explicitly declared unsupported at this phase to avoid OCR/layout text-flow parsing hallucinations.
+  * **Three-Tier Status Gate (`PASS`, `WARN`, `BLOCK`)**: Emits `PASS` on 100% grounded facts; `WARN` on labeled user claims, valid inferences, and ambiguous terms; `BLOCK` on unsupported skills, ungrounded quantitative metrics, tenure/employer inflation, fabricated citations, cross-tenant leaks, or profile contradictions.
+  * **Deterministic Typed Claim Extraction**: Extracts `SKILL`, `METRIC`, `EXPERIENCE`, `TENURE`, `EMPLOYER`, `EDUCATION`, and `ACHIEVEMENT` claims via conservative regex and structural parsing without LLM dependencies.
+  * **Quantitative Metric Safety**: Concrete numerical figures (percentages, scales, latencies, revenues) without supporting evidence in candidate records trigger `UNSUPPORTED_METRIC` $\rightarrow$ `BLOCK`.
+  * **Corporate Work History Authority**: Employment dates, titles, and company names derive exclusively from explicit candidate work records. Repository commit duration is never conflated with corporate tenure (`UNSUPPORTED_TENURE` $\rightarrow$ `BLOCK`).
+  * **Cryptographic Evidence Reference Verification**: Every cited `EvidenceId` must resolve to an active, tenant-matched evidence item with identical `commitSha`, `filePath`, and `lineRange`.
+  * **Status Inflation & Contradiction Detection**: Unlabeled claims or inferred skills promoted to verified code trigger `STATUS_INFLATION` (`BLOCK`). Direct discrepancies with candidate facts trigger `CONTRADICTORY_FACT` (`BLOCK`).
+  * **Omission Invariant**: Omitting candidate skills or history is recognized as valid tailoring and is never penalized.
+  * **Dual-Layer Defense in Depth**: P5-006 validates structured assertions before generation; P6-005 audits rendered documents post-generation/export.
+  * **Multi-Tenant Sovereign Default-Deny**: Enforces `tenant_id === context.tenantId` across all inputs with 404 default-deny.
+  * **Ephemeral In-Memory Execution**: Operates in-memory with sub-15ms latency and zero database mutations.
+* **Alternatives Considered**:
+  * *Trusting generator `status: 'VERIFIED'` metadata*: Rejected because generator bugs or LLM phrasing drift can introduce ungrounded claims.
+  * *LLM-driven audit verdict decision*: Rejected because LLMs hallucinate realistic-looking justifications and vary non-deterministically.
+  * *Premature persistence tables (`resume_audits`, `audit_findings`)*: Rejected because auditing is an on-demand verification service in Phase 6; persistence belongs to Phase 12.
+* **Reasons**: Guarantees verifiable document integrity, eliminates hallucination risks, prevents ATS qualification misrepresentation, complies with EU AI Act auditability requirements, and maintains multi-tenant security.
+* **Consequences**:
+  * Phase 6 Task P6-005 will implement `ResumeIntegrityAuditService` and domain schemas in `src/domain/career/` and `src/services/`.
+* **Revisit Conditions**: When persistent audit history or automated remediation workflows are introduced in Phase 12.
+
