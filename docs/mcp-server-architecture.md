@@ -647,16 +647,23 @@ The architecture establishes a rigorous, standards-compliant, provider-neutral M
 
 ---
 
-## 26. Implementation Status & Verification (P7-001)
+## 26. Implementation Status & Verification (P7-001 — 2026-07-28 Standard)
 
-### 1. Implemented Components
-* **Official SDK**: `@modelcontextprotocol/sdk@1.30.0` utilizing `McpServer` and `StreamableHTTPServerTransport` with `enableJsonResponse: true` and `sessionIdGenerator: () => randomUUID()`.
-* **Server Wrapper**: `src/mcp/server.js` (`McpServerWrapper`, `createMcpServer`, `mapErrorToMcpResponse`) providing typed tool registration with RBAC and scope assertions, clean start/close lifecycle management, and JSON-RPC 2.0 error mapping.
-* **Authentication & Context Minting**: `src/security/mcp-auth.js` (`extractBearerToken`, `hashMcpToken`, `authenticateMcpRequest`, `assertToolPermission`) validating Bearer tokens against PostgreSQL `sessions`, verifying active tenant/user status, and minting immutable `McpRequestContext` objects.
+### 1. Implemented Components & SDK Architecture
+* **Official v2 SDK**: `@modelcontextprotocol/server@2.0.0` and `@modelcontextprotocol/core@2.0.0` (published 2026-07-27, 2026-07-28 protocol standard). Removed legacy v1 packages.
+* **Modern Protocol Handler**: Utilizes `createMcpHandler` with `responseMode: 'json'` and `legacy: 'allow'`, providing modern stateless per-request server dispatch without legacy initialize handshake bottlenecks.
+* **Server Wrapper**: `src/mcp/server.js` (`McpServerWrapper`, `createMcpServer`, `mapErrorToMcpResponse`) providing typed tool registration with Zod/JSON schema normalization (`toMcpInputSchema`), RBAC role enforcement (`OWNER`, `MEMBER`, `READONLY`), scope assertions, clean start/close lifecycle management, and JSON-RPC 2.0 error mapping.
+* **Authentication & Context Minting**: `src/security/mcp-auth.js` (`extractBearerToken`, `hashMcpToken`, `authenticateMcpRequest`, `assertToolPermission`) validating Bearer tokens against PostgreSQL `sessions`, verifying active tenant/user status, and minting immutable `McpRequestContext` with `protocolVersion: '2026-07-28'`.
 * **Domain Schemas**: `src/domain/mcp/mcp.schemas.js` (strict Zod schemas for `McpRequestContext`, `McpToolDefinition`, `McpToolResult`, `McpAuditEvent`, `McpErrorCode`, `McpRoleEnum`, `McpScopeEnum`).
-* **Fastify Route Integration**: `src/routes/mcp.routes.js` mounted at `POST /mcp` with 1 MB payload limits, prototype pollution detection, Bearer token authentication, request correlation (`x-request-id`), structured JSON-RPC 2.0 error formatting, and sanitized audit logging.
+* **Fastify Route Integration**: `src/routes/mcp.routes.js` mounted at `POST /mcp` with 1 MB payload limits, prototype pollution detection, Bearer token authentication, request correlation (`x-request-id`), Web Standards dispatch to `mcpServer.handler.fetch()`, structured JSON-RPC 2.0 error formatting, and sanitized audit logging.
 
-### 2. Verified Test Suite
-* **Unit Tests**: `tests/unit/mcp-server.test.js` (**23/23 PASS** across 1 suite).
-* **Live Integration Tests**: `tests/integration/mcp-server.test.js` (**12/12 PASS** against live Fastify & PostgreSQL).
-* **Total Project Tests**: **934/934 PASS across 266 test suites** (744 unit tests, 190 live integration tests).
+### 2. Modern 2026-07-28 Protocol Flow
+* **Header-Based Routing**: Requires `MCP-Protocol-Version: 2026-07-28` and `Mcp-Method: <method>` (with `Mcp-Name: <name>` for `tools/call`).
+* **Per-Request Metadata Envelope**: Enforces presence of `params._meta['io.modelcontextprotocol/protocolVersion']` and `params._meta['io.modelcontextprotocol/clientCapabilities']`.
+* **Result Envelope**: Emits modern 2026-07-28 responses with `resultType: "complete"` and server metadata `_meta['io.modelcontextprotocol/serverInfo']`.
+* **Legacy Interoperability**: Seamlessly supports older 2025-11-25 clients sending `initialize` requests via `legacy: 'allow'` fallback mode.
+
+### 3. Verified Test Suite
+* **Unit Tests**: `tests/unit/mcp-server.test.js` (**24/24 PASS** across 1 suite, including hard protocol revision assertion).
+* **Live Integration Tests**: `tests/integration/mcp-server.test.js` (**13/13 PASS** against live Fastify & PostgreSQL).
+* **Total Project Tests**: **936/936 PASS across 266 test suites** (745 unit tests, 191 live integration tests).

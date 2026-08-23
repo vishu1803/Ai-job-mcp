@@ -1,12 +1,12 @@
 /**
- * @file Model Context Protocol (MCP) Fastify Route Plugin.
+ * @file Model Context Protocol (MCP) Fastify Route Plugin (2026-07-28 Standard).
  *
  * Exposes Streamable HTTP endpoint for JSON-RPC 2.0 MCP requests (POST /mcp).
  * Handles:
  * 1. Request correlation (x-request-id).
  * 2. Payload size & prototype pollution defenses.
  * 3. Bearer token authentication & McpRequestContext minting.
- * 4. Dispatch to official StreamableHTTPServerTransport.
+ * 4. Dispatch to official @modelcontextprotocol/server v2 handler.
  * 5. Structured JSON-RPC 2.0 error mapping & sanitized audit logging.
  */
 
@@ -52,7 +52,7 @@ export async function mcpRoutes(fastify, opts = {}) {
   const mcpServer = opts.mcpServer || createMcpServer();
   const db = opts.db || fastify.db;
 
-  // Ensure transport is initialized
+  // Ensure MCP handler is initialized
   await mcpServer.start();
 
   // Fastify route handler for MCP Streamable HTTP transport
@@ -67,8 +67,8 @@ export async function mcpRoutes(fastify, opts = {}) {
       let context = null;
 
       try {
-        // Set correlation header on raw reply before any streaming or response
-        reply.raw.setHeader('x-request-id', requestId);
+        // Set correlation header
+        reply.header('x-request-id', requestId);
 
         // 1. Prototype pollution guard
         if (req.body) {
@@ -78,15 +78,42 @@ export async function mcpRoutes(fastify, opts = {}) {
         // 2. Authenticate request & mint sovereign McpRequestContext
         context = await authenticateMcpRequest(req, { db });
 
-        // 3. Attach trusted context for official StreamableHTTPServerTransport
-        req.raw.auth = context;
-        req.mcpContext = context;
+        // 3. Convert Fastify request to Web Standard Request
+        const webHeaders = new globalThis.Headers();
+        for (const [k, v] of Object.entries(req.headers)) {
+          if (v !== undefined) {
+            if (Array.isArray(v)) {
+              v.forEach((item) => webHeaders.append(k, item));
+            } else {
+              webHeaders.set(k, v);
+            }
+          }
+        }
+        webHeaders.set('x-request-id', requestId);
 
-        // 4. Delegate to official MCP transport
-        reply.hijack();
-        await mcpServer.transport.handleRequest(req.raw, reply.raw, req.body);
+        const url = 'http://' + (req.headers.host || 'localhost') + req.url;
+        const webReq = new globalThis.Request(url, {
+          method: req.method,
+          headers: webHeaders,
+          body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
+        });
 
-        // 5. Emit audit event on completion
+        // 4. Delegate to official MCP v2 handler
+        const webRes = await mcpServer.handler.fetch(webReq, {
+          authInfo: context,
+          parsedBody: req.body,
+        });
+
+        // 5. Transfer response back to Fastify
+        reply.status(webRes.status);
+        for (const [k, v] of webRes.headers.entries()) {
+          reply.header(k, v);
+        }
+        reply.header('x-request-id', requestId);
+
+        const responseText = await webRes.text();
+
+        // 6. Emit audit log
         const durationMs = Date.now() - startTime;
         req.log.info(
           {
@@ -96,10 +123,12 @@ export async function mcpRoutes(fastify, opts = {}) {
             role: context.role,
             requestId,
             durationMs,
-            statusCode: reply.raw.statusCode || 200,
+            statusCode: webRes.status,
           },
-          'MCP request completed successfully'
+          'MCP request completed'
         );
+
+        return reply.send(responseText);
       } catch (err) {
         const durationMs = Date.now() - startTime;
         const mappedError = mapErrorToMcpResponse(err, requestId);
@@ -129,20 +158,15 @@ export async function mcpRoutes(fastify, opts = {}) {
           'MCP request failed'
         );
 
-        if (!reply.raw.headersSent) {
-          reply.raw.writeHead(statusCode, {
-            'Content-Type': 'application/json',
-            'x-request-id': requestId,
-          });
+        reply.status(statusCode);
+        reply.header('content-type', 'application/json');
+        reply.header('x-request-id', requestId);
 
-          const errorPayload = {
-            jsonrpc: '2.0',
-            id: req.body?.id !== undefined ? req.body.id : null,
-            error: mappedError,
-          };
-
-          reply.raw.end(JSON.stringify(errorPayload));
-        }
+        return reply.send({
+          jsonrpc: '2.0',
+          id: req.body?.id !== undefined ? req.body.id : null,
+          error: mappedError,
+        });
       }
     }
   );

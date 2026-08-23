@@ -45,7 +45,7 @@ export const McpScopeEnum = z.enum([
 export const McpClientInfoSchema = z
   .object({
     userAgent: z.string().max(256).optional(),
-    protocolVersion: z.string().max(64).default('2025-11-25'),
+    protocolVersion: z.string().max(64).default('2026-07-28'),
     ipAddress: z.string().max(64).default('127.0.0.1'),
   })
   .strict();

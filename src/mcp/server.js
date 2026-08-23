@@ -1,17 +1,17 @@
 /**
- * @file Model Context Protocol (MCP) Server Factory & Wrapper.
+ * @file Model Context Protocol (MCP) Server Factory & Wrapper (2026-07-28 Standard).
  *
  * Implements:
- * 1. McpServer initialization with official @modelcontextprotocol/sdk.
- * 2. Streamable HTTP transport attachment.
+ * 1. MCP Server integration using official @modelcontextprotocol/server v2 (2026-07-28 revision).
+ * 2. Modern stateless per-request handler factory via createMcpHandler.
  * 3. Typed tool and resource registration with RBAC and scope assertions.
  * 4. Error mapping conforming to ARCH-022 and JSON-RPC 2.0 specifications.
  * 5. Lifecycle management (startup, teardown, connection cleanup).
  */
 
-import { randomUUID } from 'node:crypto';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { z } from 'zod';
+import { McpServer, createMcpHandler, fromJsonSchema } from '@modelcontextprotocol/server';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { McpToolDefinitionSchema, McpErrorCode } from '../domain/mcp/mcp.schemas.js';
 import { assertToolPermission } from '../security/mcp-auth.js';
 import {
@@ -23,10 +23,54 @@ import {
 } from '../errors/index.js';
 
 /**
+ * Normalizes inputSchema into a standard JSON schema wrapped with fromJsonSchema.
+ *
+ * @param {any} inputSchema Raw input schema object or Zod schema
+ * @returns {any} Normalized schema compatible with v2 McpServer
+ */
+function toMcpInputSchema(inputSchema) {
+  if (!inputSchema) {
+    return fromJsonSchema({ type: 'object', properties: {} });
+  }
+
+  // If already standard JSON schema (has type / properties)
+  if (inputSchema.type && typeof inputSchema.type === 'string') {
+    return fromJsonSchema(inputSchema);
+  }
+
+  // If Zod schema instance
+  if (
+    inputSchema._def ||
+    (typeof inputSchema.parse === 'function' && typeof inputSchema.safeParse === 'function')
+  ) {
+    const jsonSchema = zodToJsonSchema(inputSchema, {
+      $refStrategy: 'none',
+      target: 'jsonSchema7',
+    });
+    return fromJsonSchema(jsonSchema);
+  }
+
+  // If raw shape object: e.g. { msg: z.string().optional() } or {}
+  if (typeof inputSchema === 'object') {
+    if (Object.keys(inputSchema).length === 0) {
+      return fromJsonSchema({ type: 'object', properties: {} });
+    }
+    const wrappedZod = z.object(inputSchema);
+    const jsonSchema = zodToJsonSchema(wrappedZod, {
+      $refStrategy: 'none',
+      target: 'jsonSchema7',
+    });
+    return fromJsonSchema(jsonSchema);
+  }
+
+  return fromJsonSchema({ type: 'object', properties: {} });
+}
+
+/**
  * Maps application and domain errors to standardized JSON-RPC 2.0 / MCP error envelopes.
  * Guarantees zero leakage of database credentials, SQL statements, stack traces, or file paths.
  *
- * @param {Error | AppError} err Error instance
+ * @param {Error | import('../errors/index.js').AppError} err Error instance
  * @param {string} [requestId] Correlation request ID
  * @returns {{ code: number, message: string, data?: { requestId?: string, details?: any } }} Standardized MCP error object
  */
@@ -93,7 +137,6 @@ export function mapErrorToMcpResponse(err, requestId) {
   }
 
   // 7. Generic / Unexpected Internal Error (-32603)
-  // Strips stack traces, database details, file paths, and sensitive exception messages
   return {
     code: McpErrorCode.INTERNAL_ERROR,
     message: 'Internal error processing request.',
@@ -102,31 +145,22 @@ export function mapErrorToMcpResponse(err, requestId) {
 }
 
 /**
- * Encapsulated MCP Server Foundation Wrapper.
+ * Encapsulated MCP Server Foundation Wrapper for 2026-07-28 specification.
  */
 export class McpServerWrapper {
   /**
    * @param {object} [options={}] Configuration options
    * @param {string} [options.name='antigravity-career-hub'] Server identification name
    * @param {string} [options.version='0.1.0'] Server semantic version
-   * @param {object} [options.transportOptions] Streamable HTTP transport options
+   * @param {string} [options.protocolVersion='2026-07-28'] Primary MCP protocol revision
    */
   constructor(options = {}) {
     this.name = options.name || 'antigravity-career-hub';
     this.version = options.version || '0.1.0';
+    this.protocolVersion = options.protocolVersion || '2026-07-28';
     this.registeredTools = new Map();
-    this.transport = null;
+    this.handler = null;
     this.isStarted = false;
-    this.transportOptions = options.transportOptions || {
-      enableJsonResponse: true,
-      sessionIdGenerator: () => randomUUID(),
-    };
-
-    // Initialize official McpServer instance
-    this.mcpServer = new McpServer({
-      name: this.name,
-      version: this.version,
-    });
   }
 
   /**
@@ -146,46 +180,6 @@ export class McpServerWrapper {
       definition: validatedDef,
       handler,
     });
-
-    // Register with official McpServer
-    this.mcpServer.tool(
-      validatedDef.name,
-      validatedDef.description,
-      validatedDef.inputSchema,
-      async (args, extra) => {
-        // Resolve security context from extra.authInfo (passed from transport/Fastify)
-        const context = extra?.authInfo || extra?.context;
-
-        if (!context) {
-          throw new AuthenticationError(
-            'Authentication context required to invoke MCP tool.',
-            'UNAUTHENTICATED'
-          );
-        }
-
-        // 1. Assert RBAC and scope permissions
-        assertToolPermission(context, validatedDef);
-
-        // 2. Execute underlying handler
-        const result = await handler(context, args);
-
-        // 3. Ensure response is wrapped in standard content format
-        if (result && Array.isArray(result.content)) {
-          return result;
-        }
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
-            },
-          ],
-          isError: false,
-          ...(result && typeof result === 'object' ? { structuredData: result } : {}),
-        };
-      }
-    );
   }
 
   /**
@@ -198,23 +192,84 @@ export class McpServerWrapper {
   }
 
   /**
-   * Initializes and attaches the Streamable HTTP transport.
+   * Builds and instantiates a per-request McpServer instance populated with all registered tools.
    *
-   * @returns {Promise<StreamableHTTPServerTransport>} Connected transport instance
+   * @param {object} params Factory parameters
+   * @param {string} params.era Protocol era ('modern' | 'legacy')
+   * @param {object} [params.authInfo] Trusted authentication context
+   * @returns {Promise<McpServer>} Configured McpServer instance
    */
-  async start() {
-    if (this.isStarted && this.transport) {
-      return this.transport;
+  async buildServerInstance({ era: _era, authInfo }) {
+    const server = new McpServer({
+      name: this.name,
+      version: this.version,
+    });
+
+    for (const [toolName, { definition, handler }] of this.registeredTools) {
+      server.registerTool(
+        toolName,
+        {
+          description: definition.description,
+          inputSchema: toMcpInputSchema(definition.inputSchema),
+        },
+        async (args, extra) => {
+          const context = authInfo || extra?.authInfo || extra?.context;
+
+          if (!context) {
+            throw new AuthenticationError(
+              'Authentication context required to invoke MCP tool.',
+              'UNAUTHENTICATED'
+            );
+          }
+
+          // 1. Assert RBAC and scope permissions
+          assertToolPermission(context, definition);
+
+          // 2. Execute underlying handler
+          const result = await handler(context, args);
+
+          // 3. Ensure response is wrapped in standard content format
+          if (result && Array.isArray(result.content)) {
+            return result;
+          }
+
+          return {
+            content: [
+              {
+                type: 'text',
+                text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+              },
+            ],
+            ...(result && typeof result === 'object' ? { structuredData: result } : {}),
+          };
+        }
+      );
     }
 
-    this.transport = new StreamableHTTPServerTransport(this.transportOptions);
-    await this.mcpServer.connect(this.transport);
-    this.isStarted = true;
-    return this.transport;
+    return server;
   }
 
   /**
-   * Closes the MCP server and active transport cleanly.
+   * Initializes the official MCP request handler.
+   *
+   * @returns {Promise<object>} Initialized handler object
+   */
+  async start() {
+    if (this.isStarted && this.handler) {
+      return this.handler;
+    }
+
+    this.handler = createMcpHandler(async (params) => this.buildServerInstance(params), {
+      legacy: 'allow',
+      responseMode: 'json',
+    });
+
+    this.isStarted = true;
+    return this.handler;
+  }
+
+  /**
+   * Closes the MCP server handler cleanly.
    *
    * @returns {Promise<void>}
    */
@@ -223,12 +278,11 @@ export class McpServerWrapper {
       return;
     }
 
-    if (this.transport) {
-      await this.transport.close();
-      this.transport = null;
+    if (this.handler?.close) {
+      await this.handler.close();
+      this.handler = null;
     }
 
-    await this.mcpServer.close();
     this.isStarted = false;
   }
 }

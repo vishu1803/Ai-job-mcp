@@ -108,7 +108,7 @@ export async function authenticateMcpRequest(req, options = {}) {
     tokenScopes: ['career:read', 'career:write', 'career:export'],
     clientInfo: {
       userAgent: req.headers['user-agent'] || undefined,
-      protocolVersion: /** @type {string} */ (req.headers['mcp-protocol-version']) || '2025-11-25',
+      protocolVersion: /** @type {string} */ (req.headers['mcp-protocol-version']) || '2026-07-28',
       ipAddress: req.ip || /** @type {string} */ (req.headers['x-forwarded-for']) || '127.0.0.1',
     },
     authenticatedAt: now.toISOString(),
