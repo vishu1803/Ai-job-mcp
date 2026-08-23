@@ -7,3 +7,4 @@
 
 export * from './mcp.schemas.js';
 export * from './career-read-tools.schemas.js';
+export * from './career-artifact-tools.schemas.js';

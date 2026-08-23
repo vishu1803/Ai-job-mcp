@@ -257,7 +257,6 @@ describe('Live MCP Server Streamable HTTP Transport Integration Tests (P7-002 â€
     if (app) {
       await app.close();
     }
-    await closeDatabase();
   });
 
   // ===========================================================================

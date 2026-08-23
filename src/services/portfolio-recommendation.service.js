@@ -1099,7 +1099,8 @@ export class PortfolioRecommendationService {
       else if (priority === 'PREFERRED') preferredCount++;
 
       const match = matchByReqId.get(req.id);
-      const isMatched = match && (match.status === 'MATCHED' || match.status === 'PARTIAL');
+      const matchStatus = match ? match.status || match.matchStatus || null : null;
+      const isMatched = matchStatus === 'MATCHED' || matchStatus === 'PARTIAL';
 
       // Find the first featured project that demonstrates this requirement's skill
       let coveringProject = null;
@@ -1116,7 +1117,7 @@ export class PortfolioRecommendationService {
       }
 
       const isCovered = Boolean(coveringProject) || isMatched;
-      const isRedundant = req.skillSlug && seenSkills.has(req.skillSlug);
+      const isRedundant = Boolean(req.skillSlug && seenSkills.has(req.skillSlug));
       if (req.skillSlug) seenSkills.add(req.skillSlug);
 
       if (isCovered) {
@@ -1130,7 +1131,7 @@ export class PortfolioRecommendationService {
         requirementTitle: req.title,
         skillSlug: req.skillSlug || null,
         priority,
-        status: match ? match.status : isCovered ? 'MATCHED' : 'MISSING',
+        status: matchStatus || (isCovered ? 'MATCHED' : 'MISSING'),
         coveredByProjectId: coveringProject ? coveringProject.projectId : null,
         coveredByProjectName: coveringProject ? coveringProject.projectName : null,
         isPrimaryCoverage: !isRedundant,

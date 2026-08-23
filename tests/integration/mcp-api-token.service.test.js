@@ -178,7 +178,6 @@ describe('Live MCP API Token Infrastructure Integration Tests (P7-003A)', () => 
         .where(eq(tenants.id, tenantId))
         .catch(() => {});
     }
-    await closeDatabase();
   });
 
   // ===========================================================================

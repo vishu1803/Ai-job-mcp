@@ -1,8 +1,8 @@
 # MCP Application Artifact Tools Architecture (ARCH-024)
 
-**Status**: PROPOSED & APPROVED  
+**Status**: IMPLEMENTED & VERIFIED  
 **Standard**: Model Context Protocol (MCP) Specification `2026-07-28`  
-**Phase**: Phase 7 (Task P7-005A)  
+**Phase**: Phase 7 (Tasks P7-005A, P7-005)  
 **Parent Specification**: `docs/mcp-server-architecture.md` (`ARCH-022`)  
 **Decision Record**: `docs/decisions.md` (`ADR-045`)  
 

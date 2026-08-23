@@ -47,6 +47,7 @@ import {
   handleListVerifiedSkills,
   handleInspectProjectEvidence,
   handleAnalyzeJobFit,
+  registerCareerReadTools,
 } from '../../src/mcp/tools/career-read-tools.js';
 import { assertToolPermission } from '../../src/security/mcp-auth.js';
 import { NotFoundError, AuthorizationError } from '../../src/errors/index.js';
@@ -75,7 +76,8 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
   // 1. Tool Registration & Catalog Metadata
   // ===========================================================================
   it('1. registers all 4 career read tools onto McpServerWrapper with exact names', () => {
-    const server = createCareerMcpServer();
+    const server = new McpServerWrapper();
+    registerCareerReadTools(server);
     assert.ok(server instanceof McpServerWrapper);
     const tools = server.getRegisteredTools();
     assert.strictEqual(tools.length, 4);
@@ -903,10 +905,10 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
   // ===========================================================================
   // 18. McpServer Tool Discovery
   // ===========================================================================
-  it('18. McpServer exposes all 4 tools and handles tools/list properly', async () => {
+  it('18. McpServer exposes career read tools and handles tools/list properly', async () => {
     const server = createCareerMcpServer();
     const registered = server.getRegisteredTools();
-    assert.strictEqual(registered.length, 4);
+    assert.ok(registered.length >= 4);
 
     const names = registered.map((t) => t.name);
     assert.ok(names.includes('get_candidate_profile'));

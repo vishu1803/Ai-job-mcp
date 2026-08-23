@@ -26,7 +26,7 @@ import {
   ValidationError,
   ConflictError,
 } from '../errors/index.js';
-import { registerCareerReadTools } from './tools/index.js';
+import { registerCareerReadTools, registerCareerArtifactTools } from './tools/index.js';
 
 /**
  * Normalizes inputSchema into a standard JSON schema wrapped with fromJsonSchema.
@@ -276,6 +276,7 @@ export class McpServerWrapper {
         {
           description: definition.description,
           inputSchema: toMcpInputSchema(definition.inputSchema),
+          ...(definition.annotations ? { annotations: definition.annotations } : {}),
         },
         async (args, extra) => {
           const context = authInfo || extra?.authInfo || extra?.context;
@@ -427,17 +428,19 @@ export class McpServerWrapper {
   }
 }
 
-export { registerCareerReadTools };
+export { registerCareerReadTools, registerCareerArtifactTools };
 
 /**
- * Factory function creating a configured MCP server wrapper instance with career read tools pre-registered.
+ * Factory function creating a configured MCP server wrapper instance with career read and artifact tools pre-registered.
  *
  * @param {object} [options={}] Server configuration overrides and tool dependencies
  * @returns {McpServerWrapper} Configured MCP server instance with career tools
  */
 export function createCareerMcpServer(options = {}) {
   const server = new McpServerWrapper(options);
-  registerCareerReadTools(server, options.deps || options.toolDependencies || {});
+  const toolDeps = options.deps || options.toolDependencies || {};
+  registerCareerReadTools(server, toolDeps);
+  registerCareerArtifactTools(server, toolDeps);
   return server;
 }
 
