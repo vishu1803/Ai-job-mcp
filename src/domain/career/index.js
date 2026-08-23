@@ -14,3 +14,4 @@ export * from './resume.schemas.js';
 export * from './cover-letter.schemas.js';
 export * from './portfolio-recommendation.schemas.js';
 export * from './career-artifact-export.schemas.js';
+export * from './resume-integrity-audit.schemas.js';

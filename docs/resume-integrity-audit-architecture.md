@@ -394,11 +394,44 @@ export const IntegrityAuditReasonCodeEnum = z.enum([
 
 ---
 
-## 19. Deliverables & Implementation Roadmap for P6-005
+## 19. Deliverables & Implementation Verification Records for P6-005
 
-1. **`docs/resume-integrity-audit-architecture.md` (`ARCH-021`)** — This document.
-2. **`ADR-041` in `docs/decisions.md`**.
-3. **Domain Schemas**: `src/domain/career/resume-integrity-audit.schemas.js`.
-4. **Core Service**: `src/services/resume-integrity-audit.service.js`.
-5. **Unit Tests**: `tests/unit/resume-integrity-audit.service.test.js` (26+ test cases).
-6. **Live Integration Tests**: `tests/integration/resume-integrity-audit.service.test.js`.
+1. **`docs/resume-integrity-audit-architecture.md` (`ARCH-021`)** — Approved architectural specification.
+2. **`ADR-041` in `docs/decisions.md`** — Accepted Architecture Decision Record.
+3. **Domain Schemas (`src/domain/career/resume-integrity-audit.schemas.js`)**:
+   - `IntegrityAuditStatusEnum` (`PASS`, `WARN`, `BLOCK`)
+   - `IntegrityAuditSeverityEnum` (`INFO`, `WARN`, `BLOCK`)
+   - `ClaimTypeEnum` (`SKILL`, `METRIC`, `EXPERIENCE`, `TENURE`, `EMPLOYER`, `EDUCATION`, `ACHIEVEMENT`, `PROJECT`, `DOMAIN`, `OTHER`)
+   - `ContentDriftEnum` (`NONE`, `WORDING_ONLY`, `SEMANTIC_CHANGE`, `FACTUAL_CHANGE`)
+   - `AuditInputFormatEnum` (`STRUCTURED_RESUME`, `JSON_RESUME`, `MARKDOWN`, `PLAIN_TEXT`, `UNSUPPORTED`)
+   - `IntegrityAuditReasonCodeEnum` (21 bounded reason codes)
+   - `IntegrityAuditFindingSchema`, `ClaimAuditSchema`, `EvidenceCoverageSchema`, `ResumeIntegrityAuditStatisticsSchema`, `ResumeIntegrityAuditSchema`
+   - Re-exported via `src/domain/career/index.js`.
+4. **Core Service (`src/services/resume-integrity-audit.service.js`)**:
+   - Implemented `ResumeIntegrityAuditService.auditResume(context, resumeArtifact, integrityCheckedAssertions, candidateProfile, options)`
+   - Independent verification firewall decoupled from generators and LLM output.
+   - Deterministic claim extraction across structured AST, JSON Resume, Markdown, and Plain Text.
+   - Rejection of PDF and DOCX with `UNSUPPORTED_FORMAT` `ValidationError`.
+   - Canonical skill resolution via `SkillTaxonomyEngine.resolveCanonicalSkill()`.
+   - Quantitative metric safety guard (unbacked figures $\rightarrow$ `UNSUPPORTED_METRIC` $\rightarrow$ `BLOCK`).
+   - Corporate work history authority (Git commits $\ne$ employment tenure).
+   - EvidenceReference cryptographic validation (existence, tenant match, candidate match, resource match, project match, commit SHA 40-hex match, filePath match).
+   - Status inflation detection (claimed skills promoted to verified fact $\rightarrow$ `STATUS_INFLATION` $\rightarrow$ `BLOCK`).
+   - Contradiction detection against candidate profile facts (`CONTRADICTORY_FACT` $\rightarrow$ `BLOCK`).
+   - Omission-is-not-penalty tolerance.
+   - Content drift classification (`NONE`, `WORDING_ONLY`, `SEMANTIC_CHANGE`, `FACTUAL_CHANGE`).
+   - ATS keyword stuffing defense.
+   - Actionable remediation directives for all BLOCK/WARN findings.
+   - Multi-tenant sovereign default-deny (`NotFoundError` 404).
+   - Ephemeral in-memory execution ($<10\text{ms}$) with zero database mutations.
+5. **Unit Tests (`tests/unit/resume-integrity-audit.service.test.js`)**:
+   - 28/28 unit tests passing across all required edge cases and invariants.
+6. **Live Integration Tests (`tests/integration/resume-integrity-audit.service.test.js`)**:
+   - 6/6 live PostgreSQL integration tests validating realistic resume auditing, cross-tenant 404 default-deny, provenance tampering detection, zero DB mutations, and 100% deterministic repeat audits.
+7. **Verification Results**:
+   - `npm run test:unit` -> PASS (721/721 tests passed across 195 suites)
+   - `npm run test:integration` -> PASS (178/178 tests passed across 69 suites)
+   - `npm test` -> PASS (899/899 tests passed across 264 suites)
+   - `npm run lint` -> PASS (0 errors, 0 warnings)
+   - `npm run format:check` -> PASS (All matched files use Prettier code style)
+   - `npm run db:check` -> PASS (Drizzle Kit check passed)
