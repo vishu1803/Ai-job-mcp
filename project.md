@@ -1,7 +1,7 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-08-20*
+*Last Updated: 2026-08-23*
 
 ---
 
@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 7 — Remote MCP Server** | Phase 0-6 (100% COMPLETE), Phase 7 (16.67% IN_PROGRESS) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 6 complete; Phase 7 P7-001 verified |
+| **Current Phase** | **PHASE 7 — Remote MCP Server** | Phase 0-6 (100% COMPLETE), Phase 7 (66.67% IN_PROGRESS) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 6 complete; Phase 7 P7-001 through P7-004 verified |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **40 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (1: P7-001) verified |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 7 (P7-002) |
+| **Completed Tasks** | **42 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (3: P7-001, P7-002, P7-003, P7-004) verified |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 7 (P7-005) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **50.00% (40 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **44.79% (7.17 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **52.50% (42 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **47.92% (7.67 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -31,7 +31,7 @@
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 7** | Remote MCP Server | 6 | 2 | 0 | **IN_PROGRESS** | **33.33%** |
+| **PHASE 7** | Remote MCP Server | 6 | 4 | 0 | **IN_PROGRESS** | **66.67%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **41** | **0** | **IN_PROGRESS** | **51.25%** |
+| **TOTAL** | **All Phases Combined** | **80** | **42** | **0** | **IN_PROGRESS** | **52.50%** |
 
 ---
 
@@ -198,8 +198,9 @@
 | **P7-002** | Implement Streamable HTTP Transport with header routing (`Mcp-Method`) and fallback SSE endpoint | P7-001 | **COMPLETE** | Hardened Fastify route `POST /mcp` with content negotiation, header-based routing (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), 1 MB payload limits, prototype pollution & recursion depth protection, 3-tier sliding-window rate limiting (`McpRateLimiter`: IP, Tenant, Tool compute budget), tool/resource/prompt registration & discovery, Bearer token auth against PostgreSQL sessions, `McpRequestContext` minting, legacy 2025-11-25 initialize fallback over SSE, and sanitized audit events (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`). Unit tests: 30/30 PASS; Live integration tests: 20/20 PASS; Master suite: 949/949 PASS. |
 | **P7-003** | Implement Dedicated Personal MCP API Token Infrastructure & Tenant Scoping | P2-002, P7-002 | **COMPLETE** | Dedicated `mcp_api_tokens` PostgreSQL table, `McpApiTokenService`, SHA-256 token hashing, `mcp_<env>_<32-byte-hex>` token format, scope ceiling enforcement (`READONLY` -> `career:read`, `MEMBER` -> read/write/export, `OWNER` -> +admin), token quota (max 10), independent revocation, atomic rotation, throttled `last_used_at` writes (60s), environment binding, and transitional session token fallback (`authMethod: 'SESSION_FALLBACK'`). Unit tests: 10/10 PASS; Live integration tests: 8/8 PASS; Master suite: 967/967 PASS. |
 | **P7-004A** | MCP Career Read Tools Architecture & Industry Review | P7-003 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-career-read-tools-architecture.md` (`ARCH-023`), ADR-044 in `docs/decisions.md`. Defined narrow 4-tool catalog (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`), pure in-memory delegation to existing domain services, progressive disclosure agent pattern, advisory tool annotations (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`), scope `career:read`, multi-tenant 404 isolation, hard output budgets ($\le 500$ char excerpts, paginated lists), prompt injection sandboxing, tenant-private caching, and comprehensive test matrix. |
-| **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001, P7-004A | NOT_STARTED | Automated MCP client tool invocation test returning structured candidate data |
-| **P7-005** | Expose Application Artifact Tools: `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects` | P6-001, P6-002, P7-004 | NOT_STARTED | Automated MCP client tool invocation test returning verifiable artifacts |
+| **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001, P7-004A | **COMPLETE** | Implemented `registerCareerReadTools` in `src/mcp/tools/career-read-tools.js` and canonical Zod schemas in `src/domain/mcp/career-read-tools.schemas.js`. Features: 4-tool catalog (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`), pure in-memory delegation to `CandidateProfileService`, `EvidenceMatchingService`, `ProjectRelevanceService`, `AtsFitScoreService`, `SecretScrubber`, advisory tool annotations (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`), `career:read` scope enforcement, bounded output budgets (15 KB profiles, 500-char evidence excerpts, paginated skills/evidence), tenant-scoped candidate resolution (`resolveTargetCandidateId`), multi-tenant sovereign default-deny 404 isolation, RBAC matrix (`OWNER`, `MEMBER`, `READONLY` all permitted), `career:write`-only scope rejection (403 / -32003), cross-tenant project inspection rejection, zero database mutations, and tenant-private cache control metadata. Unit tests: 18/18 PASS (`tests/unit/mcp-career-read-tools.test.js`); Live integration tests: 9/9 PASS (`tests/integration/mcp-career-read-tools.test.js`); Master suite: 994/994 PASS across 270 suites. |
+| **P7-005A** | MCP Application Artifact Tools Architecture & Security Review | P7-004 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-application-artifact-tools-architecture.md` (`ARCH-024`), ADR-045 in `docs/decisions.md`. Defined 3-tool catalog (`generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects`), tool classification (`recommend_portfolio_projects` -> `career:read` / `READONLY+MEMBER`; `generate_tailored_resume` & `draft_cover_letter` -> `career:write` / `MEMBER`), advisory annotations (`readOnlyHint: false` for write-adjacent synthesis), pure in-memory delegation to `ResumeTailoringService`, `CoverLetterDraftingService`, `PortfolioRecommendationService`, `ResumePresentationService`, dual-layer integrity verification with post-generation audit gate (`ResumeIntegrityAuditService`), metric safety regex, decoupled export boundary (structured domain output only; format conversion decoupled in `export_career_artifact`), presentation mode preservation (`PRESERVE_EXISTING`, `GENERATE_NEW`), stateless zero-mutation in-memory execution, hard output budgets (Resume <= 25 KB, Cover Letter <= 15 KB, Portfolio <= 20 KB), dedicated compute rate limiting (20 calls/min per tenant), multi-tenant sovereign default-deny isolation (404), passive prompt injection defense, and 27-point verification matrix. |
+| **P7-005** | Expose Application Artifact Tools: `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects` | P6-001, P6-002, P7-004, P7-005A | NOT_STARTED | Automated MCP client tool invocation test returning verifiable artifacts |
 | **P7-006** | Implement MCP Audit Logging (logs tool invocation timestamp, tenant ID, tool name, execution time, and client user-agent) | P1-004, P7-004 | NOT_STARTED | Verify database audit log records created for every MCP tool call |
 
 ---

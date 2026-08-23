@@ -557,8 +557,8 @@ export class EvidenceMatchingService {
         continue;
       }
 
-      const candRelationships = SkillTaxonomyEngine.getRelationships(candSlug);
-      const targetRelationships = SkillTaxonomyEngine.getRelationships(targetSlug);
+      const candRelationships = SkillTaxonomyEngine.getRelationships(candSlug) || {};
+      const targetRelationships = SkillTaxonomyEngine.getRelationships(targetSlug) || {};
 
       const rawEvidenceList = Array.isArray(candSkill.evidence) ? candSkill.evidence : [];
       const evidenceRefs = EvidenceMatchingService._selectEvidenceRefs(

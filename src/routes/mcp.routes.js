@@ -12,7 +12,7 @@
  * 7. Structured JSON-RPC 2.0 error mapping & sanitized audit logging.
  */
 
-import { createMcpServer, mapErrorToMcpResponse } from '../mcp/server.js';
+import { createCareerMcpServer, mapErrorToMcpResponse } from '../mcp/server.js';
 import { authenticateMcpRequest } from '../security/mcp-auth.js';
 import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
 import { ValidationError, AppError } from '../errors/index.js';
@@ -111,8 +111,8 @@ function validateHeaderRouting(req) {
  * @param {import('../services/mcp-api-token.service.js').McpApiTokenService} [opts.tokenService] Optional token service override
  */
 export async function mcpRoutes(fastify, opts = {}) {
-  const mcpServer = opts.mcpServer || createMcpServer();
   const db = opts.db || fastify.db;
+  const mcpServer = opts.mcpServer || createCareerMcpServer({ deps: { db } });
   const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
   const tokenService = opts.tokenService || fastify.tokenService;
 

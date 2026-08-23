@@ -172,10 +172,11 @@ export const McpToolDefinitionSchema = z
       .max(64)
       .regex(/^[a-z0-9_]+$/, 'Tool name must be lowercase alphanumeric with underscores'),
     description: z.string().min(1).max(1000),
-    inputSchema: z.record(z.any()),
-    outputSchema: z.record(z.any()).optional(),
+    inputSchema: z.any(),
+    outputSchema: z.any().optional(),
     requiredRole: McpRoleEnum.default('READONLY'),
     requiredScopes: z.array(z.string()).default(['career:read']),
+    annotations: z.record(z.any()).optional(),
   })
   .strict();
 

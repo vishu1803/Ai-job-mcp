@@ -47,6 +47,12 @@
 | **ADR-037** | Career Artifact Adaptation Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-038** | Cover Letter Drafting Engine Architecture | **ACCEPTED** | 2026-08-22 |
 | **ADR-039** | Portfolio Recommendation & Hiring-Signal Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-040** | Career Artifact Export & Canonical Interchange Architecture | **ACCEPTED** | 2026-08-22 |
+| **ADR-041** | Resume Integrity Audit Tool Architecture | **ACCEPTED** | 2026-08-23 |
+| **ADR-042** | MCP Server Foundation & Career Tool Exposure Architecture | **ACCEPTED** | 2026-08-23 |
+| **ADR-043** | MCP Authentication Hybrid Model (Personal Tokens vs OAuth 2.1) | **ACCEPTED** | 2026-08-23 |
+| **ADR-044** | Career Read Tools over MCP Architecture | **ACCEPTED** | 2026-08-23 |
+| **ADR-045** | MCP Application Artifact Tools Architecture | **ACCEPTED** | 2026-08-23 |
 
 ---
 
@@ -1026,7 +1032,40 @@
 * **Reasons**: Establishes a secure, high-precision, token-efficient MCP read interface that enables seamless interoperability with major AI assistants while preserving Antigravity's core zero-hallucination, least-privilege, and multi-tenant security guarantees.
 * **Consequences**:
   * Phase 7 Task P7-004 will implement the four tool adapters in `src/mcp/tools/` (or `src/mcp/`) and register them with `McpServerWrapper`.
-* **Revisit Conditions**: When write/mutation tools (`tailor_resume`, `draft_cover_letter`) are introduced in Task P7-005.
+* **Revisit Conditions**: When write/mutation tools (`generate_tailored_resume`, `draft_cover_letter`) are introduced in Task P7-005.
+
+---
+
+### ADR-045: MCP Application Artifact Tools Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-23
+* **Context**: In Phase 7 (Task P7-005A), following the successful exposure of Career Read Tools (`P7-004`), the platform requires exposing artifact-producing career capabilities over the Model Context Protocol (MCP 2026-07-28 standard): `generate_tailored_resume`, `draft_cover_letter`, and `recommend_portfolio_projects`. We must design a secure, least-privilege tool suite that clearly classifies tools by side-effect profile, prevents unauthorized generation by read-only users, enforces dual-layer truth integrity gating, decouples structured generation from format exporting, enforces tenant-private caching and hard output budgets, sandboxes untrusted job description inputs, and executes statelessly in-memory without premature database persistence tables.
+* **Decision**: Adopt the **MCP Application Artifact Tools Architecture** defined in `docs/mcp-application-artifact-tools-architecture.md` (`ARCH-024`) governed by the following core architectural decisions:
+  * **Tool Classification & Scoping**:
+    * `recommend_portfolio_projects`: Classified as Read / Analysis tool (`career:read`). Permitted for `OWNER`, `MEMBER`, and `READONLY`. Declares advisory annotations: `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`.
+    * `generate_tailored_resume`: Classified as Artifact Synthesis tool (`career:write`). Permitted for `OWNER` and `MEMBER`; denied for `READONLY` (403 / `-32003 FORBIDDEN`). Declares advisory annotations: `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`.
+    * `draft_cover_letter`: Classified as Artifact Synthesis tool (`career:write`). Permitted for `OWNER` and `MEMBER`; denied for `READONLY` (403 / `-32003 FORBIDDEN`). Declares advisory annotations: `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`.
+  * **Pure In-Memory Interface Delegation**: MCP tool handlers act strictly as transport and validation gateways, delegating execution directly to authoritative domain services (`ResumeTailoringService`, `CoverLetterDraftingService`, `PortfolioRecommendationService`, `ResumePresentationService`, `ResumeIntegrityAuditService`, `ZeroHallucinationIntegrityService`). Zero duplicated ATS formulas, match rules, or scoring weights.
+  * **Dual-Layer Integrity Verification**:
+    * Pre-generation verification via `ZeroHallucinationIntegrityService` (P5-006) checks evidence grounding and classifies facts vs. claims.
+    * Post-generation verification via `ResumeIntegrityAuditService` (P6-005) scans synthesized text for unbacked numbers (`QUANTITATIVE_METRIC_REGEX`), corporate tenure inflation, and status promotion (`STATUS_INFLATION`).
+    * Verdict `BLOCK` fails synthesis with `-32602 (INVALID_PARAMS)`; verdict `WARN` / `PARTIAL` returns artifact with explicit warning metadata. No promotion of `CLAIMED` or `INFERRED` to `VERIFIED`.
+  * **Decoupled Export Boundary**: `generate_tailored_resume` produces the canonical *structured* domain model (`TailoredResume`). Converting to external downloadable interchange formats (`JSON_RESUME`, `MARKDOWN`, `PLAIN_TEXT`) remains exclusively decoupled in `export_career_artifact` (`CareerArtifactExportService`).
+  * **Resume Presentation Modes**: Preserves `PRESERVE_EXISTING` (layout audit via `ResumePresentationService`) and `GENERATE_NEW` (clean ATS template). Rejects arbitrary binary uploads; explicitly warns for unsupported visual formats.
+  * **Statelessness & Zero Premature Migrations**: In P7-005, all artifact generation is stateless in-memory with zero database insertions/updates/deletions. Database tables (`resume_artifacts`, `cover_letter_artifacts`, `portfolio_artifacts`) are strictly deferred to Phase 12.
+  * **Hard Output Budgets & Rate Limiting**:
+    * Hard response budgets: Resume $\le 25\text{ KB}$, Cover Letter $\le 15\text{ KB}$, Portfolio $\le 20\text{ KB}$.
+    * Dedicated compute rate limit tier in `McpRateLimiter`: 20 calls/min per tool per tenant for artifact tools.
+  * **Multi-Tenant Sovereign Default-Deny**: Strict `tenantId` extraction from `McpRequestContext`. Any foreign entity lookup returns 404 `NotFoundError` / `-32004 (NOT_FOUND)`.
+  * **Untrusted Content Sandboxing & Secret Scrubbing**: Job descriptions ($\le 20\text{ KB}$) and project texts are treated as passive data. All cited code excerpts are sanitized via `SecretScrubber`.
+* **Alternatives Considered**:
+  * *Allowing `READONLY` users to call `generate_tailored_resume`*: Rejected because generating customized job application documents is an active career writing action reserved for workspace members.
+  * *Persisting generated documents immediately into PostgreSQL*: Rejected because Phase 7 focuses on remote MCP client interaction; persistent tracking belongs to Phase 12.
+  * *Returning raw JSON Resume strings directly from `generate_tailored_resume`*: Rejected to keep synthesis decoupled from export formatting and preserve structured domain composability.
+* **Reasons**: Establishes a secure, least-privilege, verifiable MCP artifact layer that guarantees zero hallucination, strict multi-tenant isolation, and high-performance AI client interoperability.
+* **Consequences**:
+  * Phase 7 Task P7-005 will implement the 3 artifact tool adapters in `src/mcp/tools/` with strict Zod schemas and register them with `McpServerWrapper`.
+* **Revisit Conditions**: When persistent document history and application tracking are implemented in Phase 12.
 
 
 

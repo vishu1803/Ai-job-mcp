@@ -271,7 +271,11 @@ function buildEvidenceRef(evidence, resourceMap = new Map()) {
   const resourceName = resourceMap.get(resourceId) || 'Repository';
 
   return {
-    id: evidence.id,
+    id:
+      evidence.id ||
+      evidence.evidenceId ||
+      evidence.evidenceRefId ||
+      '00000000-0000-0000-0000-000000000000',
     resourceId,
     resourceName,
     evidenceType: evidence.evidenceType || 'CODE_USAGE',
@@ -589,7 +593,7 @@ export class ProjectRelevanceService {
         }
       } else if (req.category === 'DOMAIN') {
         // Domain match against project tags, headline, summary, and file structure
-        const domainTerm = req.name.toLowerCase();
+        const domainTerm = (req.name || req.extractedValue || req.skillSlug || '').toLowerCase();
         const projectText =
           `${project.name || ''} ${project.headline || ''} ${project.summary || ''} ${Array.from(allFilePaths).join(' ')}`.toLowerCase();
 

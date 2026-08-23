@@ -6,3 +6,4 @@
  */
 
 export * from './mcp.schemas.js';
+export * from './career-read-tools.schemas.js';

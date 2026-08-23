@@ -26,6 +26,7 @@ import {
   ValidationError,
   ConflictError,
 } from '../errors/index.js';
+import { registerCareerReadTools } from './tools/index.js';
 
 /**
  * Normalizes inputSchema into a standard JSON schema wrapped with fromJsonSchema.
@@ -424,6 +425,20 @@ export class McpServerWrapper {
 
     this.isStarted = false;
   }
+}
+
+export { registerCareerReadTools };
+
+/**
+ * Factory function creating a configured MCP server wrapper instance with career read tools pre-registered.
+ *
+ * @param {object} [options={}] Server configuration overrides and tool dependencies
+ * @returns {McpServerWrapper} Configured MCP server instance with career tools
+ */
+export function createCareerMcpServer(options = {}) {
+  const server = new McpServerWrapper(options);
+  registerCareerReadTools(server, options.deps || options.toolDependencies || {});
+  return server;
 }
 
 /**
