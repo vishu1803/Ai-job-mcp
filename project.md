@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 7 — Remote MCP Server** | Phase 0 (100%), Phase 1 (100%), Phase 2 (100%), Phase 3 (100%), Phase 4 (100%), Phase 5 (100%), Phase 6 (100% COMPLETE) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 6 complete; ready for Phase 7 |
+| **Current Phase** | **PHASE 7 — Remote MCP Server** | Phase 0-6 (100% COMPLETE), Phase 7 (16.67% IN_PROGRESS) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 6 complete; Phase 7 P7-001 verified |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **39 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5: P6-001, P6-002, P6-003, P6-004, P6-005) verified |
-| **In Progress Tasks** | **0 Tasks** | Phase 6 complete; ready for Phase 7 (P7-001) |
+| **Completed Tasks** | **40 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (1: P7-001) verified |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 7 (P7-002) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **48.75% (39 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **43.75% (7.00 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **50.00% (40 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **44.79% (7.17 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -31,7 +31,7 @@
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 7** | Remote MCP Server | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
+| **PHASE 7** | Remote MCP Server | 6 | 1 | 0 | **IN_PROGRESS** | **16.67%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **39** | **0** | **IN_PROGRESS** | **48.75%** |
+| **TOTAL** | **All Phases Combined** | **80** | **40** | **0** | **IN_PROGRESS** | **50.00%** |
 
 ---
 
@@ -194,7 +194,7 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P7-001A** | MCP Server Foundation Architecture & Security Review | Phase 6 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-server-architecture.md` (`ARCH-022`), ADR-042 in `docs/decisions.md`. Defined official MCP 2026-07-28 spec compliance, Streamable HTTP primary transport (`POST /mcp`), header routing (`MCP-Protocol-Version`, `Mcp-Method`), Bearer API token auth, trusted `McpRequestContext` minting, multi-tenant sovereign default-deny isolation (404), RBAC permission matrix (`OWNER`, `MEMBER`, `READONLY`), initial safe 7-tool catalog, strict internal boundary enforcement (no raw tokens/db queries), prompt injection sandboxing, 3-tier rate limiting, sanitized audit logging, and ephemeral execution with zero premature DB migrations. |
-| **P7-001** | Implement MCP Server foundation using official `@modelcontextprotocol/server` (2026-07-28 spec) | P1-005, P7-001A | NOT_STARTED | Initialize MCP server instance and verify protocol handshake |
+| **P7-001** | Implement MCP Server foundation using official `@modelcontextprotocol/sdk` (2026-07-28 spec) | P1-005, P7-001A | **COMPLETE** | Integrated `@modelcontextprotocol/sdk@1.30.0` with `McpServer` and `StreamableHTTPServerTransport`. Implemented `src/mcp/server.js`, `src/security/mcp-auth.js`, `src/domain/mcp/mcp.schemas.js`, `src/routes/mcp.routes.js`. Verified JSON-RPC 2.0 initialize protocol handshake, tool registration, RBAC role assertion (`OWNER`/`MEMBER`/`READONLY`), Bearer token auth against PostgreSQL sessions, `McpRequestContext` minting, prototype pollution rejection, request correlation (`x-request-id`), zero database mutations during handshake. Unit tests: 23/23 PASS; Live integration tests: 12/12 PASS; Master suite: 934/934 PASS. |
 | **P7-002** | Implement Streamable HTTP Transport with header routing (`Mcp-Method`) and fallback SSE endpoint | P7-001 | NOT_STARTED | HTTP test sending JSON-RPC 2.0 requests over Streamable HTTP and receiving responses |
 | **P7-003** | Implement Per-User Bearer Token / OAuth 2.1 Authentication & Tenant Scoping for MCP requests | P2-002, P7-002 | NOT_STARTED | Security test: valid MCP token routes to correct user; invalid token returns 401 |
 | **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001 | NOT_STARTED | Automated MCP client tool invocation test returning structured candidate data |
@@ -1735,6 +1735,32 @@ The project is ready to proceed with Task **P3-003**:
     * **Ephemeral Execution & Persistence Strategy**: Operates statelessly in-memory with zero premature database migrations.
   * Verification Status:
     * `npm test` -> PASS (899/899 tests passed across 264 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
+* **P7-001 (Implement MCP Server Foundation — Completed & Verified)**:
+  * Deliverables Created / Updated:
+    * `src/domain/mcp/mcp.schemas.js`: Strict Zod schemas for `McpRequestContext`, `McpToolDefinition`, `McpToolResult`, `McpAuditEvent`, `McpErrorCode`, `McpRoleEnum`, `McpScopeEnum`.
+    * `src/domain/mcp/index.js`: Re-export of canonical MCP domain schemas.
+    * `src/security/mcp-auth.js`: Bearer token extractor, SHA-256 token hashing, database session lookup, active tenant/user verification, sovereign `McpRequestContext` minting, and RBAC `assertToolPermission` assertions.
+    * `src/mcp/server.js`: `McpServerWrapper`, `createMcpServer`, `mapErrorToMcpResponse` integrating `@modelcontextprotocol/sdk@1.30.0` with `McpServer` and `StreamableHTTPServerTransport` (`enableJsonResponse: true`, `sessionIdGenerator: () => randomUUID()`).
+    * `src/routes/mcp.routes.js`: Fastify route plugin mounted at `POST /mcp` with 1 MB payload limits, prototype pollution defense, Bearer token auth, request correlation (`x-request-id`), structured JSON-RPC 2.0 error formatting, and sanitized audit logging.
+    * `src/app.js`: Registered `mcpRoutes` under `/mcp` prefix.
+    * `docs/mcp-server-architecture.md`: Updated Section 26 recording verified implementation.
+  * Verified Invariants:
+    * **Handshake & Protocol Version**: Successfully executes JSON-RPC 2.0 initialize protocol handshake with standard capabilities advertisement.
+    * **Multi-Tenant Bearer Authentication**: Verifies SHA-256 hashed Bearer tokens against PostgreSQL `sessions`, blocks missing/invalid/expired tokens with 401 / `-32001 (UNAUTHENTICATED)`.
+    * **Sovereign Request Context**: Mints immutable `McpRequestContext` (`tenantId`, `userId`, `role`, `tokenScopes`, `requestId`); strictly prevents clients from overriding `tenantId` in tool arguments.
+    * **RBAC & Scope Enforcement**: Enforces `OWNER` / `MEMBER` / `READONLY` workspace role hierarchy over live HTTP transport. `READONLY` users attempting to invoke mutating tools receive `isError: true` / `-32003 (FORBIDDEN)`.
+    * **Prototype Pollution Defense**: Rejects payloads containing illegal prototype properties (`__proto__`, `constructor`, `prototype`) with 400.
+    * **Safe Error & Traceability**: Strips SQL statements, credentials, and stack traces from error responses; propagates `x-request-id` correlation header in all responses.
+    * **Zero Database Mutations**: Guarantees zero DB records mutated during handshake or tool listing operations.
+  * Verification Commands & Results:
+    * `node --test tests/unit/mcp-server.test.js` -> PASS (23/23 tests passed across 1 suite)
+    * `node --test tests/integration/mcp-server.test.js` -> PASS (12/12 tests passed against live Fastify & PostgreSQL)
+    * `npm run test:unit` -> PASS (744/744 tests passed across 196 suites)
+    * `npm run test:integration` -> PASS (190/190 tests passed across 70 suites)
+    * `npm test` -> PASS (934/934 tests passed across 266 suites)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed)

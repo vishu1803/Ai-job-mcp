@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.routes.js';
 import connectionsRoutes from './routes/connections.routes.js';
 import integrationsRoutes from './routes/integrations.routes.js';
 import webhooksRoutes from './routes/webhooks.routes.js';
+import mcpRoutes from './routes/mcp.routes.js';
 import { config } from './config/env.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
@@ -109,6 +110,13 @@ export function buildApp(opts = {}) {
     webhookService: opts.webhookService,
     tokenCache: opts.tokenCache,
     connectorCache: opts.connectorCache,
+    db: opts.db,
+  });
+
+  // Model Context Protocol (MCP) Streamable HTTP Route (/mcp)
+  app.register(mcpRoutes, {
+    prefix: '/mcp',
+    mcpServer: opts.mcpServer,
     db: opts.db,
   });
 
