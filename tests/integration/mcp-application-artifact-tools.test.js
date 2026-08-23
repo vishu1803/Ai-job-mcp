@@ -15,7 +15,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import crypto from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
-import { db, closeDatabase } from '../../src/db/index.js';
+import { db } from '../../src/db/index.js';
 import {
   tenants,
   users,

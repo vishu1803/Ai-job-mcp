@@ -1,7 +1,7 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-08-23*
+*Last Updated: 2026-08-24*
 
 ---
 
@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 7 — Remote MCP Server** | Phase 0-6 (100% COMPLETE), Phase 7 (66.67% IN_PROGRESS) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 6 complete; Phase 7 P7-001 through P7-004 verified |
+| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (NOT_STARTED) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; ready for Phase 8 (Gemini Integration) |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **42 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (3: P7-001, P7-002, P7-003, P7-004) verified |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 7 (P7-005) |
+| **Completed Tasks** | **44 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6: P7-001 through P7-006, plus P7-006A) verified |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 8 (P8-001) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **52.50% (42 / 80 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **47.92% (7.67 / 16 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **55.0% (44 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **50.0% (8 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -31,7 +31,7 @@
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 7** | Remote MCP Server | 6 | 4 | 0 | **IN_PROGRESS** | **66.67%** |
+| **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **42** | **0** | **IN_PROGRESS** | **52.50%** |
+| **TOTAL** | **All Phases Combined** | **80** | **44** | **0** | **IN_PROGRESS** | **55.0%** |
 
 ---
 
@@ -200,7 +200,8 @@
 | **P7-004A** | MCP Career Read Tools Architecture & Industry Review | P7-003 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-career-read-tools-architecture.md` (`ARCH-023`), ADR-044 in `docs/decisions.md`. Defined narrow 4-tool catalog (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`), pure in-memory delegation to existing domain services, progressive disclosure agent pattern, advisory tool annotations (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`), scope `career:read`, multi-tenant 404 isolation, hard output budgets ($\le 500$ char excerpts, paginated lists), prompt injection sandboxing, tenant-private caching, and comprehensive test matrix. |
 | **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001, P7-004A | **COMPLETE** | Implemented `registerCareerReadTools` in `src/mcp/tools/career-read-tools.js` and canonical Zod schemas in `src/domain/mcp/career-read-tools.schemas.js`. Features: 4-tool catalog (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`), pure in-memory delegation to `CandidateProfileService`, `EvidenceMatchingService`, `ProjectRelevanceService`, `AtsFitScoreService`, `SecretScrubber`, advisory tool annotations (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`), `career:read` scope enforcement, bounded output budgets (15 KB profiles, 500-char evidence excerpts, paginated skills/evidence), tenant-scoped candidate resolution (`resolveTargetCandidateId`), multi-tenant sovereign default-deny 404 isolation, RBAC matrix (`OWNER`, `MEMBER`, `READONLY` all permitted), `career:write`-only scope rejection (403 / -32003), cross-tenant project inspection rejection, zero database mutations, and tenant-private cache control metadata. Unit tests: 18/18 PASS (`tests/unit/mcp-career-read-tools.test.js`); Live integration tests: 9/9 PASS (`tests/integration/mcp-career-read-tools.test.js`); Master suite: 994/994 PASS across 270 suites. |
 | **P7-005** | Expose Application Artifact Tools: `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects` | P6-001, P6-002, P7-004, P7-005A | **COMPLETE** | Implemented in `src/mcp/tools/career-artifact-tools.js` & `src/domain/mcp/career-artifact-tools.schemas.js`. Pure in-memory adapter delegation to `PortfolioRecommendationService`, `CoverLetterDraftingService`, `ResumeTailoringService`, `ResumePresentationService`, `ZeroHallucinationIntegrityService`, `ResumeIntegrityAuditService`. Unit tests (16/16 PASS in `tests/unit/mcp-application-artifact-tools.test.js`), Live Fastify + PostgreSQL integration tests (9/9 PASS in `tests/integration/mcp-application-artifact-tools.test.js`). Full suite: 1019/1019 PASS across 272 suites. |
-| **P7-006** | Implement MCP Audit Logging (logs tool invocation timestamp, tenant ID, tool name, execution time, and client user-agent) | P1-004, P7-004 | NOT_STARTED | Verify database audit log records created for every MCP tool call |
+| **P7-006A** | MCP Audit Logging Architecture & Security Review | P7-005 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-audit-logging-architecture.md` (`ARCH-025`), ADR-046 in `docs/decisions.md`. Evaluated existing `audit_logs` table vs. second audit system. Decided 100% on unified single-table audit architecture with zero schema migrations, mapping MCP execution telemetry into sanitized `details` JSONB envelope with non-blocking failure-isolated async persistence. |
+| **P7-006** | Implement MCP Audit Logging (logs tool invocation timestamp, tenant ID, tool name, execution time, and client user-agent) | P1-004, P7-004, P7-006A | **COMPLETE** | Implemented `McpAuditService` in `src/services/mcp-audit.service.js`, Zod schemas in `src/domain/mcp/mcp.schemas.js`, integrated into `src/routes/mcp.routes.js`. Verified across 8 unit tests (`tests/unit/mcp-audit.service.test.js`) & 7 live PostgreSQL integration tests (`tests/integration/mcp-audit-logging.test.js`): canonical event taxonomy (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`), credential & secret sanitization (tokens, passwords, raw resumes, source code stripped), 1000-char parameter string clamping, 16 KB payload ceiling via `sanitizeAuditDetails()`, failure-isolated non-blocking async DB persistence, unauthenticated request handling (Pino operational log only), multi-tenant sovereign default-deny isolation (`listAuditLogs` filters strictly by `tenantId`), correlation ID match (`x-request-id` ↔ `audit_logs.request_id`), zero plaintext API keys in database rows, RBAC denial recording (403 / -32003), rate limit denial recording (429 / -32029), and tenant-scoped paginated query interface. |
 
 ---
 
@@ -1869,8 +1870,69 @@ The project is ready to proceed with Task **P3-003**:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * Full test suite verification across 272 suites.
+* **P7-006A (MCP Audit Logging Architecture & Security Review — Completed & Approved)**:
+  * Deliverables Authored:
+    * `docs/mcp-audit-logging-architecture.md`: Comprehensive architectural and security specification (`ARCH-025`) evaluating the Model Context Protocol audit logging design, single-table vs. multi-table storage, schema completeness, performance isolation, and compliance standards (SOC 2, ISO 27001, EU AI Act).
+    * `docs/decisions.md` (ADR-046): Formally accepted *Unified MCP Audit Logging Architecture & Schema Invariants*.
+  * Core Invariants Approved:
+    * **Single Unified Audit Ledger**: Explicitly rejected creating a separate `mcp_audit_logs` table. All platform compliance events (Web, OAuth, GitHub App, MCP, Tokens) reside in the single canonical `audit_logs` PostgreSQL table.
+    * **Existing Schema Completeness**: The existing `audit_logs` table schema is 100% complete and sufficient. Relational query axes (`tenant_id`, `user_id`, `event_type`, `resource_type`, `resource_id`, `request_id`, `ip_address`, `user_agent`, `created_at`) use existing indexed columns; execution telemetry (`durationMs`, `statusCode`, `errorCode`, `role`, `authMethod`, `tokenPrefix`, `protocolVersion`, `isError`, `parameters`, `summary`) is encapsulated inside the existing `details` JSONB envelope. Zero database migrations required.
+    * **Canonical Event Taxonomy**: Employs hierarchical dot-notation naming: `mcp.tool.invoked`, `mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`, `mcp.resource.listed`, `mcp.resource.read`, `mcp.prompt.listed`, `mcp.prompt.rendered`, `mcp.handshake.completed`, `mcp.token.*`.
+    * **Strict PII & Credential Sanitization**: All audit details pass through `sanitizeAuditDetails()`, strictly stripping prohibited keys (tokens, passwords, private keys, raw resumes, full source code, SSNs) and enforcing a hard ceiling of 16 KB (`MAX_AUDIT_PAYLOAD_BYTES`). Raw API tokens and full hashes are never logged; only safe 16-char token prefixes (`mcp_live_4a8b...`) are recorded.
+    * **Non-Blocking Asynchronous Persistence**: Audit logging executes asynchronously in a failure-isolated `try/catch` block. Database write transient failures are logged to operational logs (Pino) but never crash or delay client tool responses.
+    * **Separation of Operational Logs and Compliance Ledger**: Pino logs to stdout for short-term telemetry and APM; PostgreSQL `audit_logs` provides immutable, long-term, tenant-scoped compliance records.
+    * **Sovereign Multi-Tenant Isolation**: Every audit entry strictly associates `tenant_id` from the verified `McpRequestContext`. All audit queries enforce `tenant_id` filtering with 404 default-deny semantics.
+  * Verification Status:
+    * `npm test` -> PASS (1,019/1,019 tests passed across 272 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+* **P7-006 (Implement MCP Audit Logging — Completed & Verified)**:
+  * Implemented Modules:
+    * `src/services/mcp-audit.service.js`: Implemented `McpAuditService` providing `recordEvent()` and `listAuditLogs()`. Features: unified single-table PostgreSQL `audit_logs` insertion (zero new tables, zero migrations per ADR-046), canonical MCP event taxonomy (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`, `mcp.token.*`, `mcp.handshake.*`), structured sanitized JSONB `details` envelope (`protocolVersion`, `mcpMethod`, `toolName`, `role`, `authMethod`, `tokenPrefix`, `durationMs`, `statusCode`, `errorCode`, `errorMessage`, `isError`, `parameters`, `summary`), mandatory `sanitizeAuditDetails()` stripping all prohibited keys (tokens, passwords, private keys, raw resumes, source code, SSNs) with hard 16 KB ceiling (`MAX_AUDIT_PAYLOAD_BYTES`), 1000-char parameter string clamping (`clampParameterStrings`), failure-isolated non-blocking async persistence (transient DB errors logged to Pino but never crash tool responses), unauthenticated request handling (Pino operational log only, zero PostgreSQL NOT NULL violations), sovereign multi-tenant default-deny isolation (`tenantId` parameterization on all queries), and tenant-scoped paginated audit log retrieval (`listAuditLogs` with `eventType`, `toolName`, `requestId`, `startDate`, `endDate` filters).
+    * `src/domain/mcp/mcp.schemas.js`: Added `McpAuditQuerySchema` Zod validation for audit log query parameters (page, limit, eventType, toolName, requestId, startDate, endDate).
+    * `src/routes/mcp.routes.js`: Integrated `McpAuditService` into Fastify MCP route handler. Records audit events on both success path (`mcp.tool.completed`) and error path (`mcp.tool.denied` for 403/429, `mcp.tool.failed` for 400/500), including catch block for pre-authentication failures. Passes `context`, `eventType`, `resourceType`, `resourceId`, `requestId`, `clientIp`, `userAgent`, `durationMs`, `statusCode`, `errorCode`, `errorMessage`, `isError`, `parameters`, and `protocolVersion` through to audit service.
+  * Security Invariants Enforced:
+    * Zero plaintext API tokens, passwords, or private keys ever stored in `audit_logs` database rows.
+    * Only safe 16-character token prefixes (`mcp_live_4a8b...`) recorded in `details.tokenPrefix`.
+    * Raw resumes, source code, and full file content stripped before database insertion.
+    * 16 KB hard ceiling on JSONB details payload.
+    * Failure isolation: transient DB audit write failures logged to stderr/Pino but never propagate to MCP client responses.
+    * Unauthenticated requests (no tenantId) logged to operational Pino stream only; zero PostgreSQL rows created without tenant context.
+    * Tenant-scoped audit queries enforce `WHERE tenant_id = :tenantId` on all lookups with 404 default-deny.
+  * Automated Tests:
+    * `tests/unit/mcp-audit.service.test.js`: 8 unit tests covering canonical event logging (`mcp.tool.completed`), denial event logging (`mcp.tool.denied` with 403/-32003), credential & secret scrubbing (tokens, passwords, raw resumes, source code stripped), large parameter string clamping, failure isolation (DB errors do not throw), unauthenticated request handling (no tenant violation), multi-tenant query rejection (`AuthorizationError`), and tenant-scoped list filtering (zero foreign tenant leakage).
+    * `tests/integration/mcp-audit-logging.test.js`: 7 live PostgreSQL integration tests covering live read tool invocation audit record (`get_candidate_profile` -> `mcp.tool.completed`), live artifact tool invocation audit record (`recommend_portfolio_projects` with sanitized parameters), RBAC denial recording (`READONLY` calling `draft_cover_letter` -> `mcp.tool.denied`, 403/-32003), rate limit denial recording (429/-32029), correlation ID match (`x-request-id` header <-> `audit_logs.request_id`), multi-tenant default-deny isolation (Tenant A cannot view Tenant B audit events), and zero plaintext token verification across all database rows.
+  * Verification Commands:
+    * `node --test tests/unit/mcp-audit.service.test.js` -> PASS (8/8 tests passed across 1 suite)
+    * `node --test tests/integration/mcp-audit-logging.test.js` -> PASS (7/7 tests passed across 1 suite)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
 
+---
 
+### PHASE 7 COMPLETION SUMMARY
+
+**Phase 7 — Remote MCP Server: COMPLETE (6/6 Tasks + P7-006A Architecture Review)**
+
+All Remote MCP Server tasks have been implemented, tested, and verified:
+
+| Task | Title | Status |
+| :--- | :--- | :--- |
+| P7-001A | MCP Server Architecture Review | **COMPLETE & APPROVED** |
+| P7-001 | MCP Server Foundation (2026-07-28) | **COMPLETE** |
+| P7-002 | Streamable HTTP Transport | **COMPLETE** |
+| P7-003 | MCP API Token Infrastructure | **COMPLETE** |
+| P7-004A | Career Read Tools Architecture | **COMPLETE & APPROVED** |
+| P7-004 | Career Read Tools | **COMPLETE** |
+| P7-005A | Application Artifact Tools Architecture | **COMPLETE & APPROVED** |
+| P7-005 | Application Artifact Tools | **COMPLETE** |
+| P7-006A | MCP Audit Logging Architecture | **COMPLETE & APPROVED** |
+| P7-006 | MCP Audit Logging | **COMPLETE** |
+
+**Next Phase**: Phase 8 — Gemini Integration (First Target AI Client)
+**Next Task**: P8-001 — Implement Gemini API Client adapter for testing tool calling against remote MCP endpoint
 
 
 

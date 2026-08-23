@@ -18,10 +18,10 @@ export class McpRateLimiter {
    * @param {number} [options.windowMs=60000] Time window duration in milliseconds (default 60s)
    */
   constructor(options = {}) {
-    this.ipLimit = options.ipLimit || 120;
-    this.tenantLimit = options.tenantLimit || 600;
-    this.toolLimit = options.toolLimit || 60;
-    this.windowMs = options.windowMs || 60000;
+    this.ipLimit = options.ipLimit !== undefined ? options.ipLimit : 120;
+    this.tenantLimit = options.tenantLimit !== undefined ? options.tenantLimit : 600;
+    this.toolLimit = options.toolLimit !== undefined ? options.toolLimit : 60;
+    this.windowMs = options.windowMs !== undefined ? options.windowMs : 60000;
     this.hits = new Map();
   }
 

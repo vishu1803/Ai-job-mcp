@@ -120,6 +120,7 @@ export function buildApp(opts = {}) {
     db: opts.db,
     rateLimiter: opts.rateLimiter,
     tokenService: opts.tokenService,
+    auditService: opts.auditService,
   });
 
   // Root platform status verification endpoint

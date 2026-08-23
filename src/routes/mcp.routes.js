@@ -15,6 +15,7 @@
 import { createCareerMcpServer, mapErrorToMcpResponse } from '../mcp/server.js';
 import { authenticateMcpRequest } from '../security/mcp-auth.js';
 import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
+import { McpAuditService, defaultMcpAuditService } from '../services/mcp-audit.service.js';
 import { ValidationError, AppError } from '../errors/index.js';
 
 /**
@@ -109,12 +110,16 @@ function validateHeaderRouting(req) {
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [opts.db] Optional database client override
  * @param {import('../security/mcp-rate-limiter.js').McpRateLimiter} [opts.rateLimiter] Optional rate limiter override
  * @param {import('../services/mcp-api-token.service.js').McpApiTokenService} [opts.tokenService] Optional token service override
+ * @param {import('../services/mcp-audit.service.js').McpAuditService} [opts.auditService] Optional audit service override
  */
 export async function mcpRoutes(fastify, opts = {}) {
   const db = opts.db || fastify.db;
   const mcpServer = opts.mcpServer || createCareerMcpServer({ deps: { db } });
   const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
   const tokenService = opts.tokenService || fastify.tokenService;
+  const auditService =
+    opts.auditService ||
+    (db ? new McpAuditService({ db, logger: fastify.log }) : defaultMcpAuditService);
 
   // Ensure MCP handler is initialized
   await mcpServer.start();
@@ -191,22 +196,129 @@ export async function mcpRoutes(fastify, opts = {}) {
 
         const responseText = await webRes.text();
 
-        // 9. Emit audit log
+        let parsedPayload = null;
+        try {
+          parsedPayload = JSON.parse(responseText);
+        } catch (err) {
+          parsedPayload = null;
+          void err;
+        }
+
+        const hasRpcError = Boolean(parsedPayload?.error);
+        const isToolExecutionError = Boolean(parsedPayload?.result?.isError);
+        const isError = hasRpcError || isToolExecutionError || webRes.status >= 400;
+
+        let effectiveStatusCode = webRes.status;
+        let errorCode = parsedPayload?.error?.code !== undefined ? parsedPayload.error.code : null;
+        let errorMessage = parsedPayload?.error?.message || null;
+
+        const errorText =
+          parsedPayload?.error?.message ||
+          (isToolExecutionError && parsedPayload?.result?.content
+            ? parsedPayload.result.content.map((c) => c.text || '').join(' ')
+            : '');
+
+        if (isError) {
+          errorMessage = errorText ? errorText.slice(0, 500) : errorMessage;
+          if (
+            errorCode === -32003 ||
+            errorText.includes('FORBIDDEN') ||
+            errorText.includes('Forbidden') ||
+            errorText.includes('READONLY') ||
+            errorText.includes('permission') ||
+            errorText.includes('denied') ||
+            errorText.includes('Insufficient')
+          ) {
+            effectiveStatusCode = 403;
+            errorCode = -32003;
+          } else if (
+            errorCode === -32029 ||
+            errorText.includes('RATE_LIMITED') ||
+            errorText.includes('Rate limit')
+          ) {
+            effectiveStatusCode = 429;
+            errorCode = -32029;
+          } else if (
+            errorCode === -32004 ||
+            errorText.includes('NOT_FOUND') ||
+            errorText.includes('Not Found') ||
+            errorText.includes('not found')
+          ) {
+            effectiveStatusCode = 404;
+            errorCode = -32004;
+          } else if (
+            errorCode === -32602 ||
+            errorText.includes('VALIDATION_ERROR') ||
+            errorText.includes('Invalid') ||
+            errorText.includes('required')
+          ) {
+            effectiveStatusCode = 400;
+            errorCode = -32602;
+          } else {
+            effectiveStatusCode = effectiveStatusCode >= 400 ? effectiveStatusCode : 500;
+            errorCode = errorCode || -32603;
+          }
+        }
+
+        const eventType = isError
+          ? effectiveStatusCode === 403 || effectiveStatusCode === 429
+            ? 'mcp.tool.denied'
+            : 'mcp.tool.failed'
+          : 'mcp.tool.completed';
+
+        // 9. Emit audit log (Operational Pino + PostgreSQL Compliance Ledger)
         const durationMs = Date.now() - startTime;
-        req.log.info(
-          {
-            event: 'mcp.tool.completed',
-            tenantId: context.tenantId,
-            userId: context.userId,
-            role: context.role,
-            toolName: req.body?.params?.name || undefined,
-            requestId,
-            durationMs,
-            statusCode: webRes.status,
-            clientIp,
-          },
-          'MCP request completed'
-        );
+        if (isError) {
+          req.log.warn(
+            {
+              event: eventType,
+              tenantId: context.tenantId,
+              userId: context.userId,
+              role: context.role,
+              toolName: req.body?.params?.name || undefined,
+              requestId,
+              durationMs,
+              statusCode: effectiveStatusCode,
+              errorCode,
+              errorMessage,
+              clientIp,
+            },
+            'MCP tool execution failed'
+          );
+        } else {
+          req.log.info(
+            {
+              event: eventType,
+              tenantId: context.tenantId,
+              userId: context.userId,
+              role: context.role,
+              toolName: req.body?.params?.name || undefined,
+              requestId,
+              durationMs,
+              statusCode: effectiveStatusCode,
+              clientIp,
+            },
+            'MCP request completed'
+          );
+        }
+
+        await auditService.recordEvent({
+          context,
+          eventType,
+          resourceType: req.body?.method === 'tools/call' ? 'mcp_tool' : 'mcp_protocol',
+          resourceId: req.body?.params?.name || req.body?.method || 'mcp',
+          requestId,
+          clientIp,
+          userAgent:
+            typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+          durationMs,
+          statusCode: effectiveStatusCode,
+          errorCode,
+          errorMessage,
+          isError,
+          parameters: req.body?.params?.arguments || undefined,
+          protocolVersion: req.headers['mcp-protocol-version'] || undefined,
+        });
 
         return reply.send(responseText);
       } catch (err) {
@@ -226,12 +338,17 @@ export async function mcpRoutes(fastify, opts = {}) {
                     ? 400
                     : 500);
 
+        const eventType =
+          mappedError.code === -32003 ||
+          mappedError.code === -32029 ||
+          statusCode === 403 ||
+          statusCode === 429
+            ? 'mcp.tool.denied'
+            : 'mcp.tool.failed';
+
         req.log.warn(
           {
-            event:
-              mappedError.code === -32003 || mappedError.code === -32029
-                ? 'mcp.tool.denied'
-                : 'mcp.tool.failed',
+            event: eventType,
             tenantId: context?.tenantId || null,
             userId: context?.userId || null,
             role: context?.role || undefined,
@@ -245,6 +362,24 @@ export async function mcpRoutes(fastify, opts = {}) {
           },
           'MCP request failed'
         );
+
+        await auditService.recordEvent({
+          context,
+          eventType,
+          resourceType: req.body?.method === 'tools/call' ? 'mcp_tool' : 'mcp_protocol',
+          resourceId: req.body?.params?.name || req.body?.method || 'mcp',
+          requestId,
+          clientIp: req.ip || undefined,
+          userAgent:
+            typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+          durationMs,
+          statusCode,
+          errorCode: mappedError.code,
+          errorMessage: mappedError.message,
+          isError: true,
+          parameters: req.body?.params?.arguments || undefined,
+          protocolVersion: req.headers['mcp-protocol-version'] || undefined,
+        });
 
         reply.status(statusCode);
         reply.header('content-type', 'application/json');

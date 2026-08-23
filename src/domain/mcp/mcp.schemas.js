@@ -132,12 +132,19 @@ export const McpTokenCreatedResultSchema = z
  */
 export const McpAuditEventSchema = z
   .object({
-    timestamp: z.string().datetime(),
+    timestamp: z
+      .string()
+      .datetime()
+      .default(() => new Date().toISOString()),
     event: z.enum([
       'mcp.tool.invoked',
       'mcp.tool.completed',
       'mcp.tool.denied',
       'mcp.tool.failed',
+      'mcp.resource.listed',
+      'mcp.resource.read',
+      'mcp.prompt.listed',
+      'mcp.prompt.rendered',
       'mcp.handshake.completed',
       'mcp.handshake.denied',
       'mcp.token.created',
@@ -158,6 +165,23 @@ export const McpAuditEventSchema = z
     statusCode: z.number().int(),
     errorCode: z.number().int().optional(),
     clientIp: z.string().max(64).optional(),
+    userAgent: z.string().max(256).optional(),
+    details: z.record(z.any()).optional(),
+  })
+  .strict();
+
+/**
+ * Filter schema for querying tenant MCP audit logs.
+ */
+export const McpAuditQuerySchema = z
+  .object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    eventType: z.string().max(64).optional(),
+    toolName: z.string().max(64).optional(),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+    requestId: z.string().uuid().optional(),
   })
   .strict();
 

@@ -26,7 +26,7 @@ import assert from 'node:assert';
 import crypto from 'node:crypto';
 import { sql, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { db, closeDatabase } from '../../src/db/index.js';
+import { db } from '../../src/db/index.js';
 import { tenants, users, sessions } from '../../src/db/schema.js';
 import { buildApp } from '../../src/app.js';
 import { createMcpServer } from '../../src/mcp/server.js';
