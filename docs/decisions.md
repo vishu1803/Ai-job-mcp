@@ -1067,5 +1067,29 @@
   * Phase 7 Task P7-005 will implement the 3 artifact tool adapters in `src/mcp/tools/` with strict Zod schemas and register them with `McpServerWrapper`.
 * **Revisit Conditions**: When persistent document history and application tracking are implemented in Phase 12.
 
+---
+
+### ADR-046: Unified MCP Audit Logging Architecture & Schema Invariants
+* **Status**: ACCEPTED
+* **Date**: 2026-08-24
+* **Context**: In Phase 7 (Task P7-006A), the platform requires capturing comprehensive, immutable audit logs for all Model Context Protocol (MCP 2026-07-28 standard) tool executions, discovery requests, authentication decisions, role-based denials, and rate-limit enforcements across connected AI clients (Gemini, Claude, ChatGPT, Cursor). We evaluated whether to introduce a separate `mcp_audit_logs` table, add new top-level columns to `audit_logs`, or leverage the existing unified `audit_logs` PostgreSQL table. We must prevent schema fragmentation, maintain strict multi-tenant sovereign isolation, ensure high-throughput execution without blocking client responses, enforce strict credential and PII redaction, and comply with SOC 2, ISO 27001, and EU AI Act traceability requirements.
+* **Decision**: Adopt the **Unified MCP Audit Logging Architecture** defined in `docs/mcp-audit-logging-architecture.md` (`ARCH-025`) governed by the following core architectural invariants:
+  * **Single Unified Audit Ledger**: Explicitly reject creating a second audit table (e.g. `mcp_audit_logs`). All platform compliance events (Web, OAuth, GitHub App, MCP, Tokens) reside in the single canonical `audit_logs` PostgreSQL table.
+  * **Existing Schema Completeness**: The existing `audit_logs` table schema is 100% complete and sufficient. Relational query axes (`tenant_id`, `user_id`, `event_type`, `resource_type`, `resource_id`, `request_id`, `ip_address`, `user_agent`, `created_at`) use existing indexed columns; execution telemetry (`durationMs`, `statusCode`, `errorCode`, `role`, `authMethod`, `tokenPrefix`, `protocolVersion`, `isError`, `parameters`, `summary`) is encapsulated inside the existing `details` JSONB envelope. Zero database schema migrations are needed.
+  * **Canonical Event Taxonomy**: Employs hierarchical dot-notation naming: `mcp.tool.invoked`, `mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`, `mcp.resource.listed`, `mcp.resource.read`, `mcp.prompt.listed`, `mcp.prompt.rendered`, `mcp.handshake.completed`, `mcp.token.*`.
+  * **Strict PII & Credential Sanitization**: All audit details pass through `sanitizeAuditDetails()`, strictly stripping prohibited keys (tokens, passwords, private keys, raw resumes, full source code, SSNs) and enforcing a hard ceiling of 16 KB (`MAX_AUDIT_PAYLOAD_BYTES`). Raw API tokens and full hashes are never logged; only safe 16-char token prefixes (`mcp_live_4a8b...`) are recorded.
+  * **Non-Blocking Asynchronous Persistence**: Audit logging executes asynchronously in a failure-isolated `try/catch` block. Database write transient failures are logged to operational logs (Pino) but never crash or delay client tool responses.
+  * **Separation of Operational Logs and Compliance Ledger**: Pino logs to stdout for short-term telemetry and APM; PostgreSQL `audit_logs` provides immutable, long-term, tenant-scoped compliance records.
+  * **Sovereign Multi-Tenant Isolation**: Every audit entry strictly associates `tenant_id` from the verified `McpRequestContext`. All audit queries enforce `tenant_id` filtering with 404 default-deny semantics.
+* **Alternatives Considered**:
+  * *Creating a separate `mcp_audit_logs` table*: Rejected because it fragments the compliance audit trail, complicates SOC 2 / ISO 27001 unified reporting, duplicates retention and purging logic, and violates the single-source-of-truth domain model.
+  * *Adding MCP-specific top-level columns (`tool_name`, `duration_ms`, `status_code`) to `audit_logs`*: Rejected because it introduces sparse `NULL` columns for non-MCP events, requires schema migrations, and adds no performance benefit over indexed relational columns + JSONB.
+  * *Relying solely on stdout/Pino operational logs*: Rejected because operational logs are transient, not queryable by tenants, not auditable for SOC 2, and lack relational database integrity guarantees.
+* **Reasons**: Delivers unified, tamper-resistant, high-performance audit logging that satisfies all regulatory compliance frameworks without schema churn or duplicate systems.
+* **Consequences**:
+  * Task P7-006 will implement the `McpAuditService` / route integration and associated unit/integration test suites verifying live PostgreSQL audit log insertion.
+* **Revisit Conditions**: When database partitioning for high-volume enterprise tenants (>10M monthly audit events) or external SIEM streaming webhooks are introduced in Phase 14.
+
+
 
 
