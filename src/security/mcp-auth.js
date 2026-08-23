@@ -1,12 +1,12 @@
 /**
- * @file MCP Authentication & Security Context Minting.
+ * @file MCP Authentication & Security Context Minting (P7-003A).
  *
  * Implements:
- * 1. Bearer token extraction and SHA-256 hash lookup against PostgreSQL.
- * 2. Immutable, sovereign McpRequestContext minting.
- * 3. Role-Based Access Control (RBAC) permission checking.
- * 4. Token scope enforcement.
- * Adheres strictly to ARCH-022 and multi-tenant sovereign default-deny isolation.
+ * 1. Dedicated personal MCP API token validation via McpApiTokenService.
+ * 2. Transitional Session Fallback for local development & legacy compatibility.
+ * 3. Immutable, sovereign McpRequestContext minting with dynamic per-token scopes.
+ * 4. Strict Role-Based Access Control (RBAC) & Scope verification.
+ * Adheres strictly to ARCH-022, ADR-043, and multi-tenant sovereign default-deny isolation.
  */
 
 import crypto from 'node:crypto';
@@ -15,9 +15,16 @@ import { sessions, users, tenants } from '../db/schema.js';
 import { db } from '../db/index.js';
 import { AuthenticationError, AuthorizationError } from '../errors/index.js';
 import { McpRequestContextSchema } from '../domain/mcp/mcp.schemas.js';
+import {
+  defaultMcpApiTokenService,
+  hashMcpToken,
+  ROLE_SCOPE_CEILINGS,
+} from '../services/mcp-api-token.service.js';
+
+export { hashMcpToken };
 
 /**
- * Extracts and hashes a raw Bearer token from authorization headers.
+ * Extracts a raw Bearer token from the authorization header.
  *
  * @param {string | undefined} authHeader Authorization HTTP header
  * @returns {string} Raw token string
@@ -48,30 +55,58 @@ export function extractBearerToken(authHeader) {
 }
 
 /**
- * Computes SHA-256 hash of a raw token for secure database lookup.
- *
- * @param {string} rawToken Raw token
- * @returns {string} Hex-encoded SHA-256 hash
- */
-export function hashMcpToken(rawToken) {
-  return crypto.createHash('sha256').update(rawToken).digest('hex');
-}
-
-/**
  * Authenticates an incoming MCP HTTP request and mints a trusted McpRequestContext.
+ * Prioritizes dedicated MCP API tokens; falls back to transitional session tokens if present.
  *
  * @param {import('fastify').FastifyRequest} req Fastify request
- * @param {object} [options={}] Optional overrides (e.g. database client)
+ * @param {object} [options={}] Optional overrides (e.g. database client, tokenService)
  * @returns {Promise<import('../domain/mcp/mcp.schemas.js').McpRequestContextSchema>} Immutable trusted context
  * @throws {AuthenticationError} If authentication fails
  */
 export async function authenticateMcpRequest(req, options = {}) {
   const database = options.db || req.db || db;
+  const tokenService = options.tokenService || defaultMcpApiTokenService;
   const rawToken = extractBearerToken(req.headers['authorization']);
+
+  const now = new Date();
+  const clientInfo = {
+    userAgent: req.headers['user-agent'] || undefined,
+    protocolVersion: /** @type {string} */ (req.headers['mcp-protocol-version']) || '2026-07-28',
+    ipAddress: req.ip || /** @type {string} */ (req.headers['x-forwarded-for']) || '127.0.0.1',
+  };
+
+  // ---------------------------------------------------------------------------
+  // Path 1: Primary Path — Dedicated Personal MCP API Token (`mcp_<env>_<hex>`)
+  // ---------------------------------------------------------------------------
+  const isMcpTokenFormat = /^mcp_(live|test|dev)_[0-9a-fA-F]{64}$/.test(rawToken);
+
+  if (isMcpTokenFormat) {
+    const { user, tenant, effectiveScopes } = await tokenService.validateToken(rawToken, {
+      db: database,
+    });
+
+    const rawContext = {
+      requestId: req.id || crypto.randomUUID(),
+      tenantId: tenant.id,
+      userId: user.id,
+      role: user.role,
+      tokenScopes: effectiveScopes,
+      authMethod: 'MCP_API_TOKEN',
+      clientInfo,
+      authenticatedAt: now.toISOString(),
+    };
+
+    const parsedContext = McpRequestContextSchema.parse(rawContext);
+    return Object.freeze(parsedContext);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Path 2: Transitional Session Fallback (DEPRECATION NOTICE: Scheduled for removal in Phase 13)
+  // Allows web UI sessions to authenticate MCP endpoints during local testing until
+  // the Phase 13 Dashboard User Onboarding & Token Generation UI is deployed.
+  // ---------------------------------------------------------------------------
   const tokenHash = hashMcpToken(rawToken);
 
-  // 1. Lookup active session / API token
-  const now = new Date();
   const rows = await database
     .select({
       session: sessions,
@@ -90,7 +125,7 @@ export async function authenticateMcpRequest(req, options = {}) {
 
   const { user, tenant } = rows[0];
 
-  // 2. Validate tenant & user status
+  // Validate tenant & user status
   if (tenant.status && tenant.status !== 'ACTIVE') {
     throw new AuthenticationError('Workspace account is inactive or suspended.', 'TENANT_INACTIVE');
   }
@@ -99,18 +134,17 @@ export async function authenticateMcpRequest(req, options = {}) {
     throw new AuthenticationError('User account is inactive or suspended.', 'USER_INACTIVE');
   }
 
-  // 3. Mint trusted, frozen McpRequestContext
+  // Assign scope ceiling based on user's role
+  const roleScopes = ROLE_SCOPE_CEILINGS[user.role] || ['career:read'];
+
   const rawContext = {
     requestId: req.id || crypto.randomUUID(),
     tenantId: tenant.id,
     userId: user.id,
     role: user.role,
-    tokenScopes: ['career:read', 'career:write', 'career:export'],
-    clientInfo: {
-      userAgent: req.headers['user-agent'] || undefined,
-      protocolVersion: /** @type {string} */ (req.headers['mcp-protocol-version']) || '2026-07-28',
-      ipAddress: req.ip || /** @type {string} */ (req.headers['x-forwarded-for']) || '127.0.0.1',
-    },
+    tokenScopes: roleScopes,
+    authMethod: 'SESSION_FALLBACK',
+    clientInfo,
     authenticatedAt: now.toISOString(),
   };
 

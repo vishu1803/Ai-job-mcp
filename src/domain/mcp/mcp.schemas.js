@@ -40,6 +40,21 @@ export const McpScopeEnum = z.enum([
 ]);
 
 /**
+ * MCP API token lifecycle states.
+ */
+export const McpTokenStatusEnum = z.enum(['ACTIVE', 'REVOKED', 'EXPIRED']);
+
+/**
+ * MCP client authorization types.
+ */
+export const McpClientTypeEnum = z.enum(['PERSONAL', 'THIRD_PARTY']);
+
+/**
+ * MCP authentication method types.
+ */
+export const McpAuthMethodEnum = z.enum(['MCP_API_TOKEN', 'SESSION_FALLBACK']);
+
+/**
  * Client connection and environment metadata.
  */
 export const McpClientInfoSchema = z
@@ -61,6 +76,7 @@ export const McpRequestContextSchema = z
     userId: z.string().uuid(),
     role: McpRoleEnum,
     tokenScopes: z.array(z.string()).default(['career:read']),
+    authMethod: McpAuthMethodEnum.default('MCP_API_TOKEN'),
     clientInfo: McpClientInfoSchema.default({}),
     authenticatedAt: z
       .string()
@@ -70,7 +86,49 @@ export const McpRequestContextSchema = z
   .strict();
 
 /**
- * Standardized audit event payload for MCP invocations.
+ * Input schema for creating a new personal MCP API token.
+ */
+export const CreateMcpTokenInputSchema = z
+  .object({
+    name: z.string().min(1).max(128).trim(),
+    scopes: z.array(McpScopeEnum).min(1).default(['career:read']),
+    expiryDays: z.number().int().min(0).max(365).nullable().optional().default(30),
+    clientType: McpClientTypeEnum.default('PERSONAL'),
+  })
+  .strict();
+
+/**
+ * Safe summary schema for listing MCP API tokens (never exposes hash or raw token).
+ */
+export const McpTokenSummarySchema = z
+  .object({
+    id: z.string().uuid(),
+    tenantId: z.string().uuid(),
+    userId: z.string().uuid(),
+    name: z.string(),
+    tokenPrefix: z.string(),
+    scopes: z.array(z.string()),
+    lastUsedAt: z.string().nullable().optional(),
+    expiresAt: z.string().nullable().optional(),
+    createdAt: z.string(),
+    revokedAt: z.string().nullable().optional(),
+    status: McpTokenStatusEnum,
+    clientType: McpClientTypeEnum,
+  })
+  .strict();
+
+/**
+ * Result schema returned ONLY once at token creation or rotation.
+ */
+export const McpTokenCreatedResultSchema = z
+  .object({
+    rawToken: z.string(),
+    token: McpTokenSummarySchema,
+  })
+  .strict();
+
+/**
+ * Standardized audit event payload for MCP invocations and token lifecycle.
  */
 export const McpAuditEventSchema = z
   .object({
@@ -82,12 +140,19 @@ export const McpAuditEventSchema = z
       'mcp.tool.failed',
       'mcp.handshake.completed',
       'mcp.handshake.denied',
+      'mcp.token.created',
+      'mcp.token.revoked',
+      'mcp.token.rotated',
+      'mcp.token.expired',
+      'mcp.token.authentication_failed',
     ]),
     tenantId: z.string().uuid().nullable().optional(),
     userId: z.string().uuid().nullable().optional(),
     role: McpRoleEnum.optional(),
     toolName: z.string().max(64).optional(),
     resourceName: z.string().max(128).optional(),
+    tokenId: z.string().uuid().optional(),
+    tokenPrefix: z.string().max(32).optional(),
     requestId: z.string().uuid(),
     durationMs: z.number().nonnegative().optional(),
     statusCode: z.number().int(),

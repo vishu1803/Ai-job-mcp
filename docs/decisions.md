@@ -974,3 +974,29 @@
   * Phase 7 Tasks P7-001 through P7-006 will implement the MCP server foundation, Streamable HTTP transport, Bearer authentication, and tool adapters.
 * **Revisit Conditions**: When bidirectional agentic tool execution (Phase 9: PR/Commit modification workflows) or new MCP transport standards are introduced.
 
+---
+
+### ADR-043: MCP Authentication Hybrid Model (Dedicated Personal API Tokens in P7-003, OAuth 2.1 in P10/P11)
+* **Status**: ACCEPTED
+* **Date**: 2026-08-23
+* **Context**: In Phase 7 (Task P7-003), following an independent architecture and security audit, the platform evaluated whether to implement full OAuth 2.1 authorization servers immediately or adopt dedicated personal MCP API tokens. Reusing browser session cookies as MCP Bearer tokens creates shared lifecycle vulnerabilities (revoking MCP access logs users out of web sessions), lacks independent scoping, and provides no user token management. However, implementing a full OAuth 2.1 authorization server (consent screens, client registration, PKCE authorization code grants) in Phase 7 is premature engineering, as Google Gemini and personal IDE agents (Cursor, Claude Desktop) connect via personal API keys, while hosted connector OAuth 2.1 is strictly required only for Phase 10 (Claude Web) and Phase 11 (ChatGPT Actions).
+* **Decision**: Adopt the **Hybrid Authentication Model**:
+  * **Dedicated Personal API Token Infrastructure (`P7-003`)**:
+    * Dedicated `mcp_api_tokens` PostgreSQL table with UUID primary keys, foreign keys to `tenants` and `users` (`ON DELETE CASCADE`), token hash (`SHA-256`), dynamic per-token scopes (`jsonb`), and token lifecycle states (`ACTIVE`, `REVOKED`, `EXPIRED`).
+    * Cryptographic token format: `mcp_<environment>_<32-byte-random-hex>` (e.g. `mcp_live_4a8b...`, `mcp_test_...`, `mcp_dev_...`). Raw token returned once at creation; never stored or logged in plaintext.
+    * Strict environment binding: Rejects cross-environment token replay at extraction time.
+    * Strict RBAC Scope Ceiling: Token requested scopes must be a subset of the user's role ceiling (`READONLY` $\rightarrow$ `['career:read']`; `MEMBER` $\rightarrow$ `['career:read', 'career:write', 'career:export']`; `OWNER` $\rightarrow$ `+['career:admin']`).
+    * Full token lifecycle: Creation, listing (safe summaries without hashes/secrets), revocation (without affecting web sessions), rotation (atomic revoke + issue), and expiration (default 30 days; supports 30, 60, 90, or no expiry).
+    * Quota enforcement: Maximum 10 active tokens per user.
+    * Throttled `last_used_at` tracking (once every 60 seconds) to avoid database write amplification.
+    * Transitional Session Fallback: Clearly documented fallback (`authMethod: 'SESSION_FALLBACK'`) for local testing compatibility, scheduled for full deprecation and removal in Phase 13 (Dashboard User Onboarding & Token UI).
+  * **Deferred OAuth 2.1 Authorization Server (`P10 / P11`)**: Full third-party OAuth 2.1 (client registration, PKCE authorization code grant, consent screens, refresh tokens) will be implemented as an additive authentication provider during Phase 10 (Claude) and Phase 11 (ChatGPT).
+* **Alternatives Considered**:
+  * *Immediate OAuth 2.1 in Phase 7*: Rejected as premature engineering that introduces unneeded complexity before third-party connector phases.
+  * *Permanent Browser Session Token Reuse*: Rejected due to lack of per-token scopes, lifecycle coupling, and inability for users to manage multiple independent AI client connections.
+* **Reasons**: Delivers complete token isolation, least-privilege scoping, and secure token lifecycle for personal MCP use cases while ensuring an orderly, modular roadmap for third-party OAuth integration.
+* **Consequences**:
+  * Task P7-003 implements `McpApiTokenService`, `mcp_api_tokens` schema migration, and updated `authenticateMcpRequest`.
+* **Revisit Conditions**: When Phase 10 (Claude connector) and Phase 11 (ChatGPT connector) introduce third-party OAuth 2.1 authorization servers.
+
+

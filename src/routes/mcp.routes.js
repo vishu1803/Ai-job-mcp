@@ -108,11 +108,13 @@ function validateHeaderRouting(req) {
  * @param {import('../mcp/server.js').McpServerWrapper} [opts.mcpServer] Optional custom MCP server wrapper instance
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [opts.db] Optional database client override
  * @param {import('../security/mcp-rate-limiter.js').McpRateLimiter} [opts.rateLimiter] Optional rate limiter override
+ * @param {import('../services/mcp-api-token.service.js').McpApiTokenService} [opts.tokenService] Optional token service override
  */
 export async function mcpRoutes(fastify, opts = {}) {
   const mcpServer = opts.mcpServer || createMcpServer();
   const db = opts.db || fastify.db;
   const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
+  const tokenService = opts.tokenService || fastify.tokenService;
 
   // Ensure MCP handler is initialized
   await mcpServer.start();
@@ -146,7 +148,7 @@ export async function mcpRoutes(fastify, opts = {}) {
         validateHeaderRouting(req);
 
         // 4. Authenticate request & mint sovereign McpRequestContext
-        context = await authenticateMcpRequest(req, { db });
+        context = await authenticateMcpRequest(req, { db, tokenService });
 
         // 5. Tenant & Tool Compute Rate Limiting Tiers
         rateLimiter.checkTenantLimit(context.tenantId);

@@ -196,7 +196,7 @@
 | **P7-001A** | MCP Server Foundation Architecture & Security Review | Phase 6 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-server-architecture.md` (`ARCH-022`), ADR-042 in `docs/decisions.md`. Defined official MCP 2026-07-28 spec compliance, Streamable HTTP primary transport (`POST /mcp`), header routing (`MCP-Protocol-Version`, `Mcp-Method`), Bearer API token auth, trusted `McpRequestContext` minting, multi-tenant sovereign default-deny isolation (404), RBAC permission matrix (`OWNER`, `MEMBER`, `READONLY`), initial safe 7-tool catalog, strict internal boundary enforcement (no raw tokens/db queries), prompt injection sandboxing, 3-tier rate limiting, sanitized audit logging, and ephemeral execution with zero premature DB migrations. |
 | **P7-001** | Implement MCP Server foundation using official `@modelcontextprotocol/server` (2026-07-28 spec) | P1-005, P7-001A | **COMPLETE** | Integrated official v2 SDK `@modelcontextprotocol/server@2.0.0` and `@modelcontextprotocol/core@2.0.0` (2026-07-28 standard). Implemented `src/mcp/server.js` (`McpServerWrapper`, `createMcpServer`, `createMcpHandler`), `src/security/mcp-auth.js`, `src/domain/mcp/mcp.schemas.js`, `src/routes/mcp.routes.js`. Verified modern 2026-07-28 protocol flow (header routing `MCP-Protocol-Version: 2026-07-28`, `Mcp-Method`, `Mcp-Name`, metadata envelope `_meta`), tool registration with Zod/JSON schema normalization, RBAC role assertion (`OWNER`/`MEMBER`/`READONLY`), Bearer token auth against PostgreSQL sessions, `McpRequestContext` minting, prototype pollution rejection, request correlation (`x-request-id`), legacy 2025-11-25 initialize fallback interoperability, and zero database mutations during handshake. Unit tests: 24/24 PASS (with hard 2026-07-28 assertion); Live integration tests: 13/13 PASS; Master suite: 936/936 PASS. |
 | **P7-002** | Implement Streamable HTTP Transport with header routing (`Mcp-Method`) and fallback SSE endpoint | P7-001 | **COMPLETE** | Hardened Fastify route `POST /mcp` with content negotiation, header-based routing (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), 1 MB payload limits, prototype pollution & recursion depth protection, 3-tier sliding-window rate limiting (`McpRateLimiter`: IP, Tenant, Tool compute budget), tool/resource/prompt registration & discovery, Bearer token auth against PostgreSQL sessions, `McpRequestContext` minting, legacy 2025-11-25 initialize fallback over SSE, and sanitized audit events (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`). Unit tests: 30/30 PASS; Live integration tests: 20/20 PASS; Master suite: 949/949 PASS. |
-| **P7-003** | Implement Per-User Bearer Token / OAuth 2.1 Authentication & Tenant Scoping for MCP requests | P2-002, P7-002 | NOT_STARTED | Security test: valid MCP token routes to correct user; invalid token returns 401 |
+| **P7-003** | Implement Dedicated Personal MCP API Token Infrastructure & Tenant Scoping | P2-002, P7-002 | **COMPLETE** | Dedicated `mcp_api_tokens` PostgreSQL table, `McpApiTokenService`, SHA-256 token hashing, `mcp_<env>_<32-byte-hex>` token format, scope ceiling enforcement (`READONLY` -> `career:read`, `MEMBER` -> read/write/export, `OWNER` -> +admin), token quota (max 10), independent revocation, atomic rotation, throttled `last_used_at` writes (60s), environment binding, and transitional session token fallback (`authMethod: 'SESSION_FALLBACK'`). Unit tests: 10/10 PASS; Live integration tests: 8/8 PASS; Master suite: 967/967 PASS. |
 | **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001 | NOT_STARTED | Automated MCP client tool invocation test returning structured candidate data |
 | **P7-005** | Expose Application Artifact Tools: `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects` | P6-001, P6-002, P7-004 | NOT_STARTED | Automated MCP client tool invocation test returning verifiable artifacts |
 | **P7-006** | Implement MCP Audit Logging (logs tool invocation timestamp, tenant ID, tool name, execution time, and client user-agent) | P1-004, P7-004 | NOT_STARTED | Verify database audit log records created for every MCP tool call |
@@ -1793,6 +1793,35 @@ The project is ready to proceed with Task **P3-003**:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed)
+* **P7-003 (Dedicated MCP API Token Infrastructure & Tenant Scoping — Completed & Verified)**:
+  * Deliverables Created / Updated:
+    * `src/db/schema.js`: Added `mcpTokenStatusEnum` (`'ACTIVE'`, `'REVOKED'`, `'EXPIRED'`), `mcpClientTypeEnum` (`'PERSONAL'`, `'THIRD_PARTY'`), and `mcpApiTokens` table definition with composite indexes (`tenantId`, `userId`, `tokenHash`, `status`, `expiresAt`).
+    * `drizzle/0003_early_shooting_star.sql` & `drizzle/meta/`: Drizzle SQL schema migration creating `mcp_api_tokens` table, enums, constraints, and indexes. Applied via `npm run db:migrate`.
+    * `src/domain/mcp/mcp.schemas.js`: Added `McpTokenStatusEnum`, `McpClientTypeEnum`, `McpAuthMethodEnum`, updated `McpRequestContextSchema` (`authMethod`), and added `CreateMcpTokenInputSchema`, `McpTokenSummarySchema`, `McpTokenCreatedResultSchema`, and token lifecycle audit event types.
+    * `src/services/mcp-api-token.service.js`: `McpApiTokenService` class implementing `createToken()`, `listTokens()`, `revokeToken()`, `rotateToken()`, `validateToken()`, `ROLE_SCOPE_CEILINGS` (`READONLY` $\rightarrow$ `career:read`; `MEMBER` $\rightarrow$ `career:read,career:write,career:export`; `OWNER` $\rightarrow$ `+career:admin`), token format generation (`mcp_<env>_<32-byte-hex>`), SHA-256 token hashing, environment validation, quota enforcement (max 10 active tokens per user), independent revocation, atomic rotation, and throttled `last_used_at` writes (60s).
+    * `src/security/mcp-auth.js`: Updated `authenticateMcpRequest()` to inspect and prioritize dedicated MCP API tokens, intersect token scopes with user role ceilings, and provide documented transitional session token fallback (`authMethod: 'SESSION_FALLBACK'`).
+    * `src/routes/mcp.routes.js` & `src/app.js`: Injected `tokenService` dependency into Fastify `/mcp` route.
+    * `docs/mcp-server-architecture.md`: Updated Section 26 recording verified implementation.
+    * `docs/decisions.md`: Formalized `ADR-043: MCP Authentication Hybrid Model`.
+    * `tests/unit/mcp-api-token.service.test.js`: 10 unit tests covering token creation, hashing, format, scope ceiling enforcement, environment validation, safe summary transformations, and quota limits (**10/10 PASS**).
+    * `tests/integration/mcp-api-token.service.test.js`: 8 live integration tests against PostgreSQL verifying token creation, live HTTP MCP tool invocation with dedicated token, scope enforcement, revocation without browser session invalidation, atomic token rotation, multi-tenant isolation, quota limits, and transitional session fallback (**8/8 PASS**).
+  * Verified Invariants:
+    * **Zero Plaintext Token Storage**: Raw tokens are returned once upon creation/rotation and never stored or logged. Database stores only SHA-256 hex hashes.
+    * **Independent Lifecycle & Non-Destructive Revocation**: Revoking an MCP API token immediately blocks MCP access while preserving active browser sessions in the `sessions` table.
+    * **RBAC Scope Ceiling Enforcement**: Requested token scopes are strictly constrained by user workspace roles (`READONLY` restricted to `career:read`; `MEMBER` restricted to `read/write/export`; `OWNER` permitted `career:admin`).
+    * **Environment Binding**: Rejects cross-environment token reuse (`mcp_test_` vs `mcp_live_`).
+    * **Multi-Tenant Cryptographic Isolation**: Token lookup chains strictly through `mcp_api_tokens ⟕ users ⟕ tenants`; cross-tenant access returns 404 default-deny.
+    * **Transitional Session Fallback**: Supports backward-compatible session authentication with documented deprecation criteria (scheduled for removal in Phase 13).
+  * Verification Commands & Results:
+    * `node --test tests/unit/mcp-api-token.service.test.js` -> PASS (10/10 tests passed across 1 suite)
+    * `node --test tests/integration/mcp-api-token.service.test.js` -> PASS (8/8 tests passed against live PostgreSQL)
+    * `npm run test:unit` -> PASS (761/761 tests passed across 197 suites)
+    * `npm run test:integration` -> PASS (206/206 tests passed across 71 suites)
+    * `npm test` -> PASS (967/967 tests passed across 268 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+
 
 
 

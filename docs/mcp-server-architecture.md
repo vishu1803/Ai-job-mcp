@@ -647,16 +647,17 @@ The architecture establishes a rigorous, standards-compliant, provider-neutral M
 
 ---
 
-## 26. Implementation Status & Verification (P7-001 & P7-002 — 2026-07-28 Standard)
+## 26. Implementation Status & Verification (P7-001, P7-002, P7-003A — 2026-07-28 Standard)
 
 ### 1. Implemented Components & SDK Architecture
 * **Official v2 SDK**: `@modelcontextprotocol/server@2.0.0` and `@modelcontextprotocol/core@2.0.0` (published 2026-07-27, 2026-07-28 protocol standard). Removed legacy v1 packages.
 * **Modern Protocol Handler**: Utilizes `createMcpHandler` with `responseMode: 'json'` and `legacy: 'allow'`, providing modern stateless per-request server dispatch without legacy initialize handshake bottlenecks.
+* **Dedicated MCP API Token Infrastructure (`P7-003A / ADR-043`)**: Dedicated `mcp_api_tokens` PostgreSQL table storing SHA-256 hashed personal tokens (`mcp_<env>_<32-byte-hex>`), dynamic per-token scopes, RBAC scope ceiling enforcement (`READONLY` -> `career:read`; `MEMBER` -> `career:read,career:write,career:export`; `OWNER` -> `+career:admin`), quota limits (max 10 active tokens per user), independent revocation without browser session invalidation, atomic token rotation, and throttled `last_used_at` writes (60s).
 * **Server Wrapper**: `src/mcp/server.js` (`McpServerWrapper`, `createMcpServer`, `mapErrorToMcpResponse`) providing typed registration for tools (`registerTool`), resources (`registerResource`), and prompts (`registerPrompt`) with Zod/JSON schema normalization (`toMcpInputSchema`), RBAC role enforcement (`OWNER`, `MEMBER`, `READONLY`), scope assertions, clean start/close lifecycle management, and JSON-RPC 2.0 error mapping.
 * **Multi-Tier Rate Limiting**: `src/security/mcp-rate-limiter.js` (`McpRateLimiter`) enforcing sliding-window rate limits across IP tier (120 req/min), Tenant quota tier (600 req/min), and Tool compute budget tier (60 calls/min).
-* **Authentication & Context Minting**: `src/security/mcp-auth.js` (`extractBearerToken`, `hashMcpToken`, `authenticateMcpRequest`, `assertToolPermission`) validating Bearer tokens against PostgreSQL `sessions`, verifying active tenant/user status, and minting immutable `McpRequestContext` with `protocolVersion: '2026-07-28'`.
-* **Domain Schemas**: `src/domain/mcp/mcp.schemas.js` (strict Zod schemas for `McpRequestContext`, `McpToolDefinition`, `McpResourceDefinition`, `McpPromptDefinition`, `McpToolResult`, `McpAuditEvent`, `McpErrorCode`, `McpRoleEnum`, `McpScopeEnum`).
-* **Fastify Route Integration**: `src/routes/mcp.routes.js` mounted at `POST /mcp` with 1 MB payload limits, prototype pollution & recursion depth defense, Content-Type negotiation, header-based routing validation (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), Bearer token authentication, request correlation (`x-request-id`), Web Standards dispatch to `mcpServer.handler.fetch()`, structured JSON-RPC 2.0 error formatting, and sanitized audit logging (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`).
+* **Authentication & Context Minting**: `src/security/mcp-auth.js` (`extractBearerToken`, `hashMcpToken`, `authenticateMcpRequest`, `assertToolPermission`) validating dedicated tokens via `McpApiTokenService`, with documented transitional session fallback (`authMethod: 'SESSION_FALLBACK'`), verifying active tenant/user status, and minting immutable `McpRequestContext` with dynamic `tokenScopes`.
+* **Domain Schemas**: `src/domain/mcp/mcp.schemas.js` (strict Zod schemas for `McpRequestContext`, `McpTokenStatusEnum`, `McpClientTypeEnum`, `McpAuthMethodEnum`, `CreateMcpTokenInputSchema`, `McpTokenSummarySchema`, `McpTokenCreatedResultSchema`, `McpToolDefinition`, `McpResourceDefinition`, `McpPromptDefinition`, `McpToolResult`, `McpAuditEvent`, `McpErrorCode`, `McpRoleEnum`, `McpScopeEnum`).
+* **Fastify Route Integration**: `src/routes/mcp.routes.js` mounted at `POST /mcp` with 1 MB payload limits, prototype pollution & recursion depth defense, Content-Type negotiation, header-based routing validation (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), dedicated token authentication, request correlation (`x-request-id`), Web Standards dispatch to `mcpServer.handler.fetch()`, structured JSON-RPC 2.0 error formatting, and sanitized audit logging (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`, `mcp.token.created`, `mcp.token.revoked`, `mcp.token.rotated`).
 
 ### 2. Modern 2026-07-28 Protocol Flow & Capabilities
 * **Header-Based Routing**: Validates `MCP-Protocol-Version: 2026-07-28` and `Mcp-Method: <method>` (with `Mcp-Name: <name>` for `tools/call`, `resources/read`, and `prompts/get`).
@@ -669,6 +670,6 @@ The architecture establishes a rigorous, standards-compliant, provider-neutral M
 * **Legacy Interoperability**: Seamlessly supports older 2025-11-25 clients sending `initialize` requests via `legacy: 'allow'` fallback mode over SSE.
 
 ### 3. Verified Test Suite
-* **Unit Tests**: `tests/unit/mcp-server.test.js` (**30/30 PASS** across 1 suite, including hard protocol revision assertion, resource/prompt discovery, multi-tier rate limiting, RBAC, error mapping, and lifecycle management).
-* **Live Integration Tests**: `tests/integration/mcp-server.test.js` (**20/20 PASS** against live Fastify & PostgreSQL, verifying modern tool listing & execution, resource listing & read, prompt listing & get, header routing validation, 415 media type rejection, rate limiting 429 rejection, Bearer auth failures, RBAC enforcement, tenant spoofing defense, prototype pollution defense, request correlation, zero DB mutations, and legacy SSE initialize fallback).
-* **Total Project Tests**: **949/949 PASS across 266 test suites** (751 unit tests, 198 live integration tests).
+* **Unit Tests**: `tests/unit/mcp-server.test.js` (**30/30 PASS**) and `tests/unit/mcp-api-token.service.test.js` (**10/10 PASS**).
+* **Live Integration Tests**: `tests/integration/mcp-server.test.js` (**20/20 PASS**) and `tests/integration/mcp-api-token.service.test.js` (**8/8 PASS** against live PostgreSQL).
+* **Total Project Tests**: **967/967 PASS across 268 test suites** (761 unit tests, 206 live integration tests).

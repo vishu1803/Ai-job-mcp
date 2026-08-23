@@ -130,6 +130,16 @@ export const provenanceStatusEnum = pgEnum('provenance_status', [
 ]);
 
 /**
+ * MCP API token lifecycle states.
+ */
+export const mcpTokenStatusEnum = pgEnum('mcp_token_status', ['ACTIVE', 'REVOKED', 'EXPIRED']);
+
+/**
+ * MCP client authorization types.
+ */
+export const mcpClientTypeEnum = pgEnum('mcp_client_type', ['PERSONAL', 'THIRD_PARTY']);
+
+/**
  * Foundational evidence type classifications.
  */
 export const evidenceTypeEnum = pgEnum('evidence_type', [
@@ -554,6 +564,41 @@ export const evidenceItems = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 14. MCP API Tokens Table (Dedicated Model Context Protocol Credentials)
+// ---------------------------------------------------------------------------
+
+export const mcpApiTokens = pgTable(
+  'mcp_api_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    tokenPrefix: text('token_prefix').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    scopes: jsonb('scopes').default('[]').notNull(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    status: mcpTokenStatusEnum('status').default('ACTIVE').notNull(),
+    clientType: mcpClientTypeEnum('client_type').default('PERSONAL').notNull(),
+  },
+  (table) => [
+    uniqueIndex('mcp_api_tokens_token_hash_unique').on(table.tokenHash),
+    index('idx_mcp_api_tokens_tenant_id').on(table.tenantId),
+    index('idx_mcp_api_tokens_user_id').on(table.userId),
+    index('idx_mcp_api_tokens_tenant_status').on(table.tenantId, table.status),
+    index('idx_mcp_api_tokens_user_status').on(table.userId, table.status),
+    index('idx_mcp_api_tokens_expires_at').on(table.expiresAt),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
 
@@ -570,6 +615,8 @@ export const schema = {
   skillCategoryEnum,
   provenanceStatusEnum,
   evidenceTypeEnum,
+  mcpTokenStatusEnum,
+  mcpClientTypeEnum,
   tenants,
   users,
   sessions,
@@ -583,4 +630,5 @@ export const schema = {
   skills,
   candidateSkills,
   evidenceItems,
+  mcpApiTokens,
 };
