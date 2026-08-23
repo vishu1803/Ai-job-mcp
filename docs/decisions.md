@@ -999,4 +999,34 @@
   * Task P7-003 implements `McpApiTokenService`, `mcp_api_tokens` schema migration, and updated `authenticateMcpRequest`.
 * **Revisit Conditions**: When Phase 10 (Claude connector) and Phase 11 (ChatGPT connector) introduce third-party OAuth 2.1 authorization servers.
 
+---
+
+### ADR-044: Career Read Tools over MCP Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-23
+* **Context**: In Phase 7 (Task P7-004A), the platform requires exposing candidate career profile data, verified technical skills, project evidence, and ATS job fit analysis to external AI clients (Gemini, Claude, ChatGPT, Cursor) over the Model Context Protocol (MCP 2026-07-28 standard). We must design an optimal tool suite that maximizes model tool-selection accuracy, avoids context-window exhaustion, prevents secret/credential leakage, enforces multi-tenant sovereign default-deny isolation, aligns with existing RBAC and token scopes, prevents prompt injection, preserves single-source-of-truth domain logic, and ensures strict read-only execution with zero database mutations.
+* **Decision**: Adopt the **Career Read Tools over MCP Architecture** defined in `docs/mcp-career-read-tools-architecture.md` (`ARCH-023`) governed by the following core architectural decisions:
+  * **Narrow 4-Tool Catalog**: Exposes four dedicated, single-purpose tools with explicit, non-overlapping semantic boundaries:
+    1. `get_candidate_profile`: High-level summary of identity, top skills (max 15), highlighted projects (max 5), experience (max 5), and completeness score.
+    2. `list_verified_skills`: Paginated, filtered list of code-verified skills (`VERIFIED` status only) with confidence scores and evidence counts.
+    3. `inspect_project_evidence`: Detailed inspection of a specific project, linked repositories, and commit-pinned, sanitized code excerpts ($\le 500$ chars).
+    4. `analyze_job_fit`: Deterministic ATS fit score (0–100), requirement matches, top relevant projects, and prioritized skill gaps against untrusted job descriptions ($\le 20\text{ KB}$).
+  * **Pure In-Memory Service Delegation**: MCP tools act strictly as transport and schema adapters, delegating execution directly to existing authoritative domain services (`CandidateProfileService`, `SkillTaxonomyEngine`, `EvidenceMatchingService`, `ProjectRelevanceService`, `AtsFitScoreService`). Zero duplicate business logic.
+  * **Progressive Disclosure Pattern**: Enables AI agents to query high-level profiles first, then drill down into projects and specific commit evidence as needed, preventing context-window bloat.
+  * **Advisory Tool Annotations**: All four tools declare `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, and `openWorldHint: false` in MCP tool definitions. Annotations are advisory hints for model planners and client UIs; backend RBAC and tenant authorization remain mandatory.
+  * **Strict Scope & RBAC Alignment**: All four read tools require scope `career:read` and are permitted for `OWNER`, `MEMBER`, and `READONLY` workspace roles. Mutating tools are strictly decoupled into later phases.
+  * **Sovereign Multi-Tenant Isolation**: Extracts `tenantId` strictly from authenticated `McpRequestContext`. Cross-tenant lookups immediately return 404 `NotFoundError` / `-32004 (NOT_FOUND)` to prevent foreign entity enumeration.
+  * **Hard Output Budgets & Sanitization**: Bounded array lengths, clamped pagination ($\le 50$ for skills, $\le 20$ for evidence), and secret scrubbing via `SecretScrubber` before emission.
+  * **Prompt Injection Defense**: Treats external job descriptions and project texts as passive data; applies character length limits and structured Zod validation without shell/eval channels.
+  * **Zero Database Mutations**: Guarantees zero database insertions, updates, or deletions during read tool execution.
+* **Alternatives Considered**:
+  * *Polymorphic "God Tool" (`career_intelligence(action, payload)`)*: Rejected because polymorphic schemas degrade LLM tool-calling accuracy ($<72\%$) and prevent granular Zod schema validation.
+  * *Dumping All Repository Code & Evidence in Profile*: Rejected because it exhausts LLM context windows and increases latency and cost.
+  * *Implementing Scoring Inside MCP Handlers*: Rejected because it duplicates domain business logic and breaches the single-source-of-truth invariant.
+* **Reasons**: Establishes a secure, high-precision, token-efficient MCP read interface that enables seamless interoperability with major AI assistants while preserving Antigravity's core zero-hallucination, least-privilege, and multi-tenant security guarantees.
+* **Consequences**:
+  * Phase 7 Task P7-004 will implement the four tool adapters in `src/mcp/tools/` (or `src/mcp/`) and register them with `McpServerWrapper`.
+* **Revisit Conditions**: When write/mutation tools (`tailor_resume`, `draft_cover_letter`) are introduced in Task P7-005.
+
+
 

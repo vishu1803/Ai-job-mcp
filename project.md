@@ -197,7 +197,8 @@
 | **P7-001** | Implement MCP Server foundation using official `@modelcontextprotocol/server` (2026-07-28 spec) | P1-005, P7-001A | **COMPLETE** | Integrated official v2 SDK `@modelcontextprotocol/server@2.0.0` and `@modelcontextprotocol/core@2.0.0` (2026-07-28 standard). Implemented `src/mcp/server.js` (`McpServerWrapper`, `createMcpServer`, `createMcpHandler`), `src/security/mcp-auth.js`, `src/domain/mcp/mcp.schemas.js`, `src/routes/mcp.routes.js`. Verified modern 2026-07-28 protocol flow (header routing `MCP-Protocol-Version: 2026-07-28`, `Mcp-Method`, `Mcp-Name`, metadata envelope `_meta`), tool registration with Zod/JSON schema normalization, RBAC role assertion (`OWNER`/`MEMBER`/`READONLY`), Bearer token auth against PostgreSQL sessions, `McpRequestContext` minting, prototype pollution rejection, request correlation (`x-request-id`), legacy 2025-11-25 initialize fallback interoperability, and zero database mutations during handshake. Unit tests: 24/24 PASS (with hard 2026-07-28 assertion); Live integration tests: 13/13 PASS; Master suite: 936/936 PASS. |
 | **P7-002** | Implement Streamable HTTP Transport with header routing (`Mcp-Method`) and fallback SSE endpoint | P7-001 | **COMPLETE** | Hardened Fastify route `POST /mcp` with content negotiation, header-based routing (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), 1 MB payload limits, prototype pollution & recursion depth protection, 3-tier sliding-window rate limiting (`McpRateLimiter`: IP, Tenant, Tool compute budget), tool/resource/prompt registration & discovery, Bearer token auth against PostgreSQL sessions, `McpRequestContext` minting, legacy 2025-11-25 initialize fallback over SSE, and sanitized audit events (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`). Unit tests: 30/30 PASS; Live integration tests: 20/20 PASS; Master suite: 949/949 PASS. |
 | **P7-003** | Implement Dedicated Personal MCP API Token Infrastructure & Tenant Scoping | P2-002, P7-002 | **COMPLETE** | Dedicated `mcp_api_tokens` PostgreSQL table, `McpApiTokenService`, SHA-256 token hashing, `mcp_<env>_<32-byte-hex>` token format, scope ceiling enforcement (`READONLY` -> `career:read`, `MEMBER` -> read/write/export, `OWNER` -> +admin), token quota (max 10), independent revocation, atomic rotation, throttled `last_used_at` writes (60s), environment binding, and transitional session token fallback (`authMethod: 'SESSION_FALLBACK'`). Unit tests: 10/10 PASS; Live integration tests: 8/8 PASS; Master suite: 967/967 PASS. |
-| **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001 | NOT_STARTED | Automated MCP client tool invocation test returning structured candidate data |
+| **P7-004A** | MCP Career Read Tools Architecture & Industry Review | P7-003 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-career-read-tools-architecture.md` (`ARCH-023`), ADR-044 in `docs/decisions.md`. Defined narrow 4-tool catalog (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`), pure in-memory delegation to existing domain services, progressive disclosure agent pattern, advisory tool annotations (`readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`), scope `career:read`, multi-tenant 404 isolation, hard output budgets ($\le 500$ char excerpts, paginated lists), prompt injection sandboxing, tenant-private caching, and comprehensive test matrix. |
+| **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001, P7-004A | NOT_STARTED | Automated MCP client tool invocation test returning structured candidate data |
 | **P7-005** | Expose Application Artifact Tools: `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects` | P6-001, P6-002, P7-004 | NOT_STARTED | Automated MCP client tool invocation test returning verifiable artifacts |
 | **P7-006** | Implement MCP Audit Logging (logs tool invocation timestamp, tenant ID, tool name, execution time, and client user-agent) | P1-004, P7-004 | NOT_STARTED | Verify database audit log records created for every MCP tool call |
 
@@ -1821,6 +1822,31 @@ The project is ready to proceed with Task **P3-003**:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+* **P7-004A (MCP Career Read Tools Architecture & Industry Review — Completed & Approved)**:
+  * Deliverables Authored:
+    * `docs/mcp-career-read-tools-architecture.md`: Comprehensive architectural and protocol specification (`ARCH-023`) for exposing verified career read tools over Model Context Protocol (MCP 2026-07-28 standard).
+    * `docs/decisions.md` (ADR-044): Formalized *Career Read Tools over MCP Architecture*.
+  * Core Invariants Approved:
+    * **Narrow 4-Tool Catalog**: Exposes four dedicated, single-purpose tools with explicit semantic boundaries:
+      1. `get_candidate_profile`: High-level summary of identity, top skills (max 15), highlighted projects (max 5), experience (max 5), and completeness score.
+      2. `list_verified_skills`: Paginated, filtered list of code-verified skills (`VERIFIED` status only) with confidence scores and evidence counts.
+      3. `inspect_project_evidence`: Detailed inspection of a specific project, linked repositories, and commit-pinned, sanitized code excerpts ($\le 500$ chars).
+      4. `analyze_job_fit`: Deterministic ATS fit score (0–100), requirement matches, top relevant projects, and prioritized skill gaps against untrusted job descriptions ($\le 20\text{ KB}$).
+    * **Pure In-Memory Service Delegation**: MCP tools act strictly as transport and schema adapters, delegating execution directly to existing authoritative domain services (`CandidateProfileService`, `SkillTaxonomyEngine`, `EvidenceMatchingService`, `ProjectRelevanceService`, `AtsFitScoreService`). Zero duplicate business logic.
+    * **Progressive Disclosure Pattern**: Enables AI agents to query high-level profiles first, then drill down into projects and specific commit evidence as needed, preventing context-window bloat.
+    * **Advisory Tool Annotations**: All four tools declare `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true`, and `openWorldHint: false` in MCP tool definitions. Annotations are advisory hints for model planners and client UIs; backend RBAC and tenant authorization remain mandatory.
+    * **Strict Scope & RBAC Alignment**: All four read tools require scope `career:read` and are permitted for `OWNER`, `MEMBER`, and `READONLY` workspace roles. Mutating tools are strictly decoupled into later phases.
+    * **Sovereign Multi-Tenant Isolation**: Extracts `tenantId` strictly from authenticated `McpRequestContext`. Cross-tenant lookups immediately return 404 `NotFoundError` / `-32004 (NOT_FOUND)` to prevent foreign entity enumeration.
+    * **Hard Output Budgets & Sanitization**: Bounded array lengths, clamped pagination ($\le 50$ for skills, $\le 20$ for evidence), and secret scrubbing via `SecretScrubber` before emission.
+    * **Prompt Injection Defense**: Treats external job descriptions and project texts as passive data; applies character length limits and structured Zod validation without shell/eval channels.
+    * **Tenant-Private Caching**: Configures `_meta.cacheControl` with `cacheScope: 'tenant-private'` and `ttlMs: 300000` (5 min TTL).
+    * **Zero Database Mutations**: Guarantees zero database insertions, updates, or deletions during read tool execution.
+  * Verification Status:
+    * `npm test` -> PASS (967/967 tests passed across 268 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+
 
 
 
