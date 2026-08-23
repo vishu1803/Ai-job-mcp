@@ -193,7 +193,8 @@
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P7-001** | Implement MCP Server foundation using official `@modelcontextprotocol/server` (2026-07-28 spec) | P1-005 | NOT_STARTED | Initialize MCP server instance and verify protocol handshake |
+| **P7-001A** | MCP Server Foundation Architecture & Security Review | Phase 6 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-server-architecture.md` (`ARCH-022`), ADR-042 in `docs/decisions.md`. Defined official MCP 2026-07-28 spec compliance, Streamable HTTP primary transport (`POST /mcp`), header routing (`MCP-Protocol-Version`, `Mcp-Method`), Bearer API token auth, trusted `McpRequestContext` minting, multi-tenant sovereign default-deny isolation (404), RBAC permission matrix (`OWNER`, `MEMBER`, `READONLY`), initial safe 7-tool catalog, strict internal boundary enforcement (no raw tokens/db queries), prompt injection sandboxing, 3-tier rate limiting, sanitized audit logging, and ephemeral execution with zero premature DB migrations. |
+| **P7-001** | Implement MCP Server foundation using official `@modelcontextprotocol/server` (2026-07-28 spec) | P1-005, P7-001A | NOT_STARTED | Initialize MCP server instance and verify protocol handshake |
 | **P7-002** | Implement Streamable HTTP Transport with header routing (`Mcp-Method`) and fallback SSE endpoint | P7-001 | NOT_STARTED | HTTP test sending JSON-RPC 2.0 requests over Streamable HTTP and receiving responses |
 | **P7-003** | Implement Per-User Bearer Token / OAuth 2.1 Authentication & Tenant Scoping for MCP requests | P2-002, P7-002 | NOT_STARTED | Security test: valid MCP token routes to correct user; invalid token returns 401 |
 | **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001 | NOT_STARTED | Automated MCP client tool invocation test returning structured candidate data |
@@ -1711,6 +1712,28 @@ The project is ready to proceed with Task **P3-003**:
     * `node --test tests/integration/resume-integrity-audit.service.test.js` -> PASS (6/6 tests passed against live PostgreSQL)
     * `npm run test:unit` -> PASS (721/721 tests passed across 195 suites)
     * `npm run test:integration` -> PASS (178/178 tests passed across 69 suites)
+    * `npm test` -> PASS (899/899 tests passed across 264 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
+* **P7-001A (MCP Server Foundation Architecture & Security Review — Completed & Approved)**:
+  * Deliverables Authored:
+    * `docs/mcp-server-architecture.md`: Comprehensive architectural and security specification (`ARCH-022`) defining the Model Context Protocol server layer for Antigravity Career Hub over Streamable HTTP (2026-07-28 official specification).
+    * `docs/decisions.md` (ADR-042): Formally accepted *MCP Server Foundation & Career Tool Exposure Architecture*.
+  * Core Invariants Approved:
+    * **Interface/Adapter Only**: MCP server operates strictly as a transport and schema translation layer over existing trusted domain services (`CandidateProfileService`, `AtsFitScoreService`, `ProjectRelevanceService`, `ResumeTailoringService`, `CoverLetterDraftingService`, `PortfolioRecommendationService`, `CareerArtifactExportService`, `ResumeIntegrityAuditService`). Zero duplicate business logic.
+    * **Streamable HTTP Primary Transport**: Standardizes on unified `POST /mcp` endpoint supporting standard JSON-RPC 2.0 payloads, optional SSE response streams for long-running operations, and standard protocol header inspection (`MCP-Protocol-Version`, `Mcp-Method`, `X-Request-Id`).
+    * **Bearer Token Authentication**: Uses SHA-256 hashed API keys (`mcp_api_tokens`) resolving to authenticated `User` and `Tenant` principals.
+    * **Trusted Request Context**: Mints immutable `McpRequestContext` (`userId`, `tenantId`, `role`, `tokenScopes`, `requestId`). Clients cannot provide `tenantId` or `userId` in tool arguments.
+    * **Multi-Tenant Sovereign Default-Deny**: Enforces strict tenant scoping. Cross-tenant resource IDs throw `NotFoundError` (404) to prevent resource enumeration.
+    * **RBAC Permission Alignment**: Maps `OWNER`, `MEMBER`, `READONLY` workspace roles directly to MCP tools. `READONLY` users are restricted from write tools (`tailor_resume`, `draft_cover_letter`).
+    * **Initial Safe 7-Tool Catalog**: Specifies `get_candidate_profile`, `analyze_job_fit`, `recommend_portfolio`, `tailor_resume`, `draft_cover_letter`, `audit_resume`, `export_career_artifact` with strict bounded Zod input/output schemas.
+    * **Strict Internal Boundary Enforcement**: Prohibits exposing raw GitHub tokens, AES-256-GCM encryption keys, direct SQL/repository queries, webhooks, or session storage.
+    * **Prompt Injection & Untrusted Content Sandboxing**: Treats all external texts as passive data wrapped in immutable delimiter boundaries; provides zero shell/eval execution channels.
+    * **Multi-Tier Rate Limiting**: Enforces IP-level, tenant-level, and tool-specific compute budgets.
+    * **Safe Audit Logging**: Emits sanitized events (`mcp.tool.invoked`, `mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`) without recording tokens or candidate PII.
+    * **Ephemeral Execution & Persistence Strategy**: Operates statelessly in-memory with zero premature database migrations.
+  * Verification Status:
     * `npm test` -> PASS (899/899 tests passed across 264 suites)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)

@@ -948,3 +948,29 @@
   * Phase 6 Task P6-005 will implement `ResumeIntegrityAuditService` and domain schemas in `src/domain/career/` and `src/services/`.
 * **Revisit Conditions**: When persistent audit history or automated remediation workflows are introduced in Phase 12.
 
+---
+
+### ADR-042: MCP Server Foundation & Career Tool Exposure Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-23
+* **Context**: In Phase 7 (Task P7-001A), the platform requires a standards-compliant Model Context Protocol (MCP) server layer to expose verified career intelligence, portfolio recommendations, artifact adaptation, and integrity auditing to external AI clients (Gemini, Claude, ChatGPT, Cursor). The MCP layer must operate strictly as an interface/adapter layer without duplicating domain business logic, maintain absolute multi-tenant default-deny isolation, enforce existing RBAC permissions, authenticate clients via Bearer API tokens mapped to trusted context, protect against prompt injection and oversized payloads, prevent credential and secret exfiltration, and operate statelessly with zero premature database migrations.
+* **Decision**: Adopt the **MCP Server Foundation & Career Tool Exposure Architecture** defined in `docs/mcp-server-architecture.md` (`ARCH-022`) governed by the following core architectural decisions:
+  * **Interface Adapter Pattern**: The MCP server is strictly a transport and schema adapter over existing domain services (`CandidateProfileService`, `AtsFitScoreService`, `ProjectRelevanceService`, `ResumeTailoringService`, `CoverLetterDraftingService`, `PortfolioRecommendationService`, `CareerArtifactExportService`, `ResumeIntegrityAuditService`). It never directly implements matching or scoring algorithms.
+  * **Streamable HTTP as Primary Transport**: Adopts official MCP specification (2026-07-28 standard) utilizing Streamable HTTP over a unified `POST /mcp` endpoint with standard header protocol routing (`MCP-Protocol-Version`, `Mcp-Method`), supporting optional SSE response streaming for long-running operations and stateless load balancing.
+  * **Bearer Token Authentication & Trusted Context Minting**: Authenticates clients via SHA-256 hashed Bearer API tokens (`mcp_api_tokens`) resolving to authenticated `User` and `Tenant` principals. Mints an immutable `McpRequestContext` (`userId`, `tenantId`, `role`, `tokenScopes`, `requestId`). Clients are strictly forbidden from providing security context in tool arguments.
+  * **Multi-Tenant Sovereign Default-Deny**: Enforces strict tenant scoping across all tool queries. Any foreign tenant resource ID immediately returns `NotFoundError` (HTTP 404 / MCP error `-32004`) to prevent foreign resource enumeration.
+  * **RBAC Alignment**: Maps existing workspace roles (`OWNER`, `MEMBER`, `READONLY`) directly to tool capabilities. `READONLY` users are permitted read and analysis tools (`get_candidate_profile`, `analyze_job_fit`, `recommend_portfolio`, `audit_resume`, `export_career_artifact`) but denied write tools (`tailor_resume`, `draft_cover_letter`).
+  * **Narrow, Bounded Tool Catalog**: Exposes seven explicit, typed tools (`get_candidate_profile`, `analyze_job_fit`, `recommend_portfolio`, `tailor_resume`, `draft_cover_letter`, `audit_resume`, `export_career_artifact`) with strict Zod input/output validation, rejecting monolithic "god tools".
+  * **Strict Internal Boundary Protection**: Prohibits exposing raw GitHub tokens, encryption keys (`AES-256-GCM`), repository mutations, raw database queries, webhook internals, or session caches over MCP.
+  * **Prompt Injection & Untrusted Content Sandboxing**: Treats all external textual inputs (job descriptions, resume text, repository Readmes) as passive untrusted data, sandboxed with explicit delimiter tags and executed without shell/eval channels.
+  * **Safe Error & Audit Model**: Maps domain errors to standard JSON-RPC 2.0 error codes without leaking SQL errors or stack traces. Emits sanitized audit events (`mcp.tool.invoked`, `mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`) correlated via `requestId`.
+  * **Ephemeral In-Memory Execution**: Read and analysis tools execute on-demand in-memory with zero database mutations.
+* **Alternatives Considered**:
+  * *Monolithic "God Tool" (`career_intelligence(action, payload)`)*: Rejected because dynamic untyped actions break client-side Zod validation, prevent granular RBAC scoping, and complicate auditability.
+  * *Exposing raw database repositories over MCP*: Rejected because it bypasses tenant isolation, skips integrity gates, and leaks database implementation details.
+  * *Stateful HTTP+SSE dual-endpoint transport*: Rejected in favor of modern single-endpoint Streamable HTTP, which is fully compatible with standard reverse proxies and cloud load balancers.
+* **Reasons**: Establishes a secure, scalable, provider-neutral interface standard that enables seamless interoperability with major AI clients while strictly enforcing Antigravity's zero-hallucination integrity, multi-tenant isolation, and least-privilege security guarantees.
+* **Consequences**:
+  * Phase 7 Tasks P7-001 through P7-006 will implement the MCP server foundation, Streamable HTTP transport, Bearer authentication, and tool adapters.
+* **Revisit Conditions**: When bidirectional agentic tool execution (Phase 9: PR/Commit modification workflows) or new MCP transport standards are introduced.
+
