@@ -647,23 +647,28 @@ The architecture establishes a rigorous, standards-compliant, provider-neutral M
 
 ---
 
-## 26. Implementation Status & Verification (P7-001 — 2026-07-28 Standard)
+## 26. Implementation Status & Verification (P7-001 & P7-002 — 2026-07-28 Standard)
 
 ### 1. Implemented Components & SDK Architecture
 * **Official v2 SDK**: `@modelcontextprotocol/server@2.0.0` and `@modelcontextprotocol/core@2.0.0` (published 2026-07-27, 2026-07-28 protocol standard). Removed legacy v1 packages.
 * **Modern Protocol Handler**: Utilizes `createMcpHandler` with `responseMode: 'json'` and `legacy: 'allow'`, providing modern stateless per-request server dispatch without legacy initialize handshake bottlenecks.
-* **Server Wrapper**: `src/mcp/server.js` (`McpServerWrapper`, `createMcpServer`, `mapErrorToMcpResponse`) providing typed tool registration with Zod/JSON schema normalization (`toMcpInputSchema`), RBAC role enforcement (`OWNER`, `MEMBER`, `READONLY`), scope assertions, clean start/close lifecycle management, and JSON-RPC 2.0 error mapping.
+* **Server Wrapper**: `src/mcp/server.js` (`McpServerWrapper`, `createMcpServer`, `mapErrorToMcpResponse`) providing typed registration for tools (`registerTool`), resources (`registerResource`), and prompts (`registerPrompt`) with Zod/JSON schema normalization (`toMcpInputSchema`), RBAC role enforcement (`OWNER`, `MEMBER`, `READONLY`), scope assertions, clean start/close lifecycle management, and JSON-RPC 2.0 error mapping.
+* **Multi-Tier Rate Limiting**: `src/security/mcp-rate-limiter.js` (`McpRateLimiter`) enforcing sliding-window rate limits across IP tier (120 req/min), Tenant quota tier (600 req/min), and Tool compute budget tier (60 calls/min).
 * **Authentication & Context Minting**: `src/security/mcp-auth.js` (`extractBearerToken`, `hashMcpToken`, `authenticateMcpRequest`, `assertToolPermission`) validating Bearer tokens against PostgreSQL `sessions`, verifying active tenant/user status, and minting immutable `McpRequestContext` with `protocolVersion: '2026-07-28'`.
-* **Domain Schemas**: `src/domain/mcp/mcp.schemas.js` (strict Zod schemas for `McpRequestContext`, `McpToolDefinition`, `McpToolResult`, `McpAuditEvent`, `McpErrorCode`, `McpRoleEnum`, `McpScopeEnum`).
-* **Fastify Route Integration**: `src/routes/mcp.routes.js` mounted at `POST /mcp` with 1 MB payload limits, prototype pollution detection, Bearer token authentication, request correlation (`x-request-id`), Web Standards dispatch to `mcpServer.handler.fetch()`, structured JSON-RPC 2.0 error formatting, and sanitized audit logging.
+* **Domain Schemas**: `src/domain/mcp/mcp.schemas.js` (strict Zod schemas for `McpRequestContext`, `McpToolDefinition`, `McpResourceDefinition`, `McpPromptDefinition`, `McpToolResult`, `McpAuditEvent`, `McpErrorCode`, `McpRoleEnum`, `McpScopeEnum`).
+* **Fastify Route Integration**: `src/routes/mcp.routes.js` mounted at `POST /mcp` with 1 MB payload limits, prototype pollution & recursion depth defense, Content-Type negotiation, header-based routing validation (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), Bearer token authentication, request correlation (`x-request-id`), Web Standards dispatch to `mcpServer.handler.fetch()`, structured JSON-RPC 2.0 error formatting, and sanitized audit logging (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`).
 
-### 2. Modern 2026-07-28 Protocol Flow
-* **Header-Based Routing**: Requires `MCP-Protocol-Version: 2026-07-28` and `Mcp-Method: <method>` (with `Mcp-Name: <name>` for `tools/call`).
+### 2. Modern 2026-07-28 Protocol Flow & Capabilities
+* **Header-Based Routing**: Validates `MCP-Protocol-Version: 2026-07-28` and `Mcp-Method: <method>` (with `Mcp-Name: <name>` for `tools/call`, `resources/read`, and `prompts/get`).
+* **Discovery & Execution Envelopes**: Supports standard discovery and read/execute primitives:
+  * `tools/list` and `tools/call`
+  * `resources/list` and `resources/read`
+  * `prompts/list` and `prompts/get`
 * **Per-Request Metadata Envelope**: Enforces presence of `params._meta['io.modelcontextprotocol/protocolVersion']` and `params._meta['io.modelcontextprotocol/clientCapabilities']`.
 * **Result Envelope**: Emits modern 2026-07-28 responses with `resultType: "complete"` and server metadata `_meta['io.modelcontextprotocol/serverInfo']`.
-* **Legacy Interoperability**: Seamlessly supports older 2025-11-25 clients sending `initialize` requests via `legacy: 'allow'` fallback mode.
+* **Legacy Interoperability**: Seamlessly supports older 2025-11-25 clients sending `initialize` requests via `legacy: 'allow'` fallback mode over SSE.
 
 ### 3. Verified Test Suite
-* **Unit Tests**: `tests/unit/mcp-server.test.js` (**24/24 PASS** across 1 suite, including hard protocol revision assertion).
-* **Live Integration Tests**: `tests/integration/mcp-server.test.js` (**13/13 PASS** against live Fastify & PostgreSQL).
-* **Total Project Tests**: **936/936 PASS across 266 test suites** (745 unit tests, 191 live integration tests).
+* **Unit Tests**: `tests/unit/mcp-server.test.js` (**30/30 PASS** across 1 suite, including hard protocol revision assertion, resource/prompt discovery, multi-tier rate limiting, RBAC, error mapping, and lifecycle management).
+* **Live Integration Tests**: `tests/integration/mcp-server.test.js` (**20/20 PASS** against live Fastify & PostgreSQL, verifying modern tool listing & execution, resource listing & read, prompt listing & get, header routing validation, 415 media type rejection, rate limiting 429 rejection, Bearer auth failures, RBAC enforcement, tenant spoofing defense, prototype pollution defense, request correlation, zero DB mutations, and legacy SSE initialize fallback).
+* **Total Project Tests**: **949/949 PASS across 266 test suites** (751 unit tests, 198 live integration tests).

@@ -118,6 +118,7 @@ export function buildApp(opts = {}) {
     prefix: '/mcp',
     mcpServer: opts.mcpServer,
     db: opts.db,
+    rateLimiter: opts.rateLimiter,
   });
 
   // Root platform status verification endpoint

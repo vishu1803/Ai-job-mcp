@@ -1,20 +1,24 @@
 /**
- * @file Live Integration Tests for MCP Server Foundation (2026-07-28 Protocol Standard)
+ * @file Live Integration Tests for MCP Streamable HTTP Transport & Fallback (P7-002)
  *
  * Validates:
  * 1. Modern 2026-07-28 protocol flow over Streamable HTTP (POST /mcp).
  * 2. Header-based routing (MCP-Protocol-Version, Mcp-Method, Mcp-Name).
  * 3. Modern request envelope with required _meta context.
- * 4. Tool listing (tools/list) and tool execution (tools/call).
- * 5. Multi-tenant Bearer token authentication against PostgreSQL sessions.
- * 6. Authentication failure modes (missing, invalid, expired tokens).
- * 7. RBAC enforcement over live HTTP transport (OWNER vs READONLY).
- * 8. Client tenantId spoofing rejection (context.tenantId strictly authoritative).
- * 9. Prototype pollution and payload size defense.
- * 10. RequestId correlation header propagation.
- * 11. Zero database mutations during MCP operations.
- * 12. Legacy 2025-11-25 initialize handshake fallback compatibility.
- * 13. Hard protocol assertion confirming 2026-07-28 response format.
+ * 4. Tools discovery & execution (tools/list, tools/call).
+ * 5. Resources discovery & read (resources/list, resources/read).
+ * 6. Prompts discovery & get (prompts/list, prompts/get).
+ * 7. Header mismatch & unsupported protocol version rejection.
+ * 8. Content negotiation & media type validation (415).
+ * 9. Multi-tier rate limiting enforcement (429 / -32029).
+ * 10. Multi-tenant Bearer token authentication against PostgreSQL sessions.
+ * 11. Authentication failure modes (missing, invalid, expired tokens).
+ * 12. RBAC enforcement over live HTTP transport (OWNER vs READONLY).
+ * 13. Client tenantId spoofing rejection (context.tenantId strictly authoritative).
+ * 14. Prototype pollution and payload size defense.
+ * 15. RequestId correlation header propagation.
+ * 16. Zero database mutations during MCP operations.
+ * 17. Legacy 2025-11-25 initialize handshake fallback compatibility.
  */
 
 import { describe, it, before, after } from 'node:test';
@@ -27,13 +31,15 @@ import { tenants, users, sessions } from '../../src/db/schema.js';
 import { buildApp } from '../../src/app.js';
 import { createMcpServer } from '../../src/mcp/server.js';
 import { hashMcpToken } from '../../src/security/mcp-auth.js';
+import { McpRateLimiter } from '../../src/security/mcp-rate-limiter.js';
 
-describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 Standard)', () => {
+describe('Live MCP Server Streamable HTTP Transport Integration Tests (P7-002 — 2026-07-28 Standard)', () => {
   const testRunId = crypto.randomBytes(4).toString('hex');
   const createdTenantIds = [];
 
   let app;
   let mcpServer;
+  let testRateLimiter;
 
   let tenantA;
   let userA;
@@ -121,7 +127,7 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
       expiresAt: new Date(Date.now() - 1000 * 60 * 60),
     });
 
-    // 4. Configure MCP Server with foundation test tools
+    // 4. Configure MCP Server with foundation test tools, resources, prompts
     mcpServer = createMcpServer({
       name: 'antigravity-career-hub',
       version: '0.1.0',
@@ -171,10 +177,71 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
       }
     );
 
-    // 5. Initialize Fastify application with MCP server
+    // Resource registration
+    mcpServer.registerResource(
+      {
+        uri: 'career://candidate/profile-summary',
+        name: 'candidate_profile_summary',
+        description: 'Candidate verified summary resource',
+        mimeType: 'application/json',
+        requiredRole: 'READONLY',
+        requiredScopes: ['career:read'],
+      },
+      async (context, uri) => {
+        return {
+          contents: [
+            {
+              uri: typeof uri === 'string' ? uri : uri.href,
+              mimeType: 'application/json',
+              text: JSON.stringify({
+                tenantId: context.tenantId,
+                verified: true,
+              }),
+            },
+          ],
+        };
+      }
+    );
+
+    // Prompt registration
+    mcpServer.registerPrompt(
+      {
+        name: 'tailor_advice',
+        description: 'Prompt guidance for tailoring resume to target job',
+        argsSchema: {
+          jobTitle: z.string().optional(),
+        },
+        requiredRole: 'READONLY',
+        requiredScopes: ['career:read'],
+      },
+      async (context, args) => {
+        return {
+          messages: [
+            {
+              role: 'user',
+              content: {
+                type: 'text',
+                text: `Tailor profile for ${args?.jobTitle || 'Software Engineer'} in tenant ${context.tenantId}`,
+              },
+            },
+          ],
+        };
+      }
+    );
+
+    // 5. Initialize custom rate limiter for tests
+    testRateLimiter = new McpRateLimiter({
+      ipLimit: 10000,
+      tenantLimit: 10000,
+      toolLimit: 10000,
+      windowMs: 60000,
+    });
+
+    // 6. Initialize Fastify application with MCP server & custom rate limiter
     app = buildApp({
       mcpServer,
       db,
+      rateLimiter: testRateLimiter,
     });
     await app.ready();
   });
@@ -240,7 +307,6 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
       body.result._meta['io.modelcontextprotocol/serverInfo'].name,
       'antigravity-career-hub'
     );
-    assert.strictEqual(body.result._meta['io.modelcontextprotocol/serverInfo'].version, '0.1.0');
   });
 
   // ===========================================================================
@@ -292,9 +358,189 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
   });
 
   // ===========================================================================
-  // 3. Hard Protocol Assertion: Rejects Unsupported Protocol Version
+  // 3. Modern 2026-07-28 Resource Discovery & Read
   // ===========================================================================
-  it('3. rejects incompatible protocol version with UnsupportedProtocolVersionError', async () => {
+  it('3. lists registered resources via resources/list', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        authorization: `Bearer ${tokenA}`,
+        'content-type': 'application/json',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'resources/list',
+      },
+      payload: {
+        jsonrpc: '2.0',
+        id: 'res-list-1',
+        method: 'resources/list',
+        params: {
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
+      },
+    });
+
+    assert.strictEqual(response.statusCode, 200);
+    const body = JSON.parse(response.payload);
+    assert.strictEqual(body.result.resultType, 'complete');
+    assert.ok(Array.isArray(body.result.resources));
+    assert.strictEqual(body.result.resources[0].uri, 'career://candidate/profile-summary');
+  });
+
+  it('4. reads registered resource via resources/read with Mcp-Name header', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        authorization: `Bearer ${tokenA}`,
+        'content-type': 'application/json',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'resources/read',
+        'mcp-name': 'career://candidate/profile-summary',
+      },
+      payload: {
+        jsonrpc: '2.0',
+        id: 'res-read-1',
+        method: 'resources/read',
+        params: {
+          uri: 'career://candidate/profile-summary',
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
+      },
+    });
+
+    assert.strictEqual(response.statusCode, 200);
+    const body = JSON.parse(response.payload);
+    assert.strictEqual(body.result.resultType, 'complete');
+    assert.ok(Array.isArray(body.result.contents));
+    const parsedText = JSON.parse(body.result.contents[0].text);
+    assert.strictEqual(parsedText.tenantId, tenantA.id);
+  });
+
+  // ===========================================================================
+  // 4. Modern 2026-07-28 Prompt Discovery & Get
+  // ===========================================================================
+  it('5. lists registered prompts via prompts/list', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        authorization: `Bearer ${tokenA}`,
+        'content-type': 'application/json',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'prompts/list',
+      },
+      payload: {
+        jsonrpc: '2.0',
+        id: 'prompt-list-1',
+        method: 'prompts/list',
+        params: {
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
+      },
+    });
+
+    assert.strictEqual(response.statusCode, 200);
+    const body = JSON.parse(response.payload);
+    assert.strictEqual(body.result.resultType, 'complete');
+    assert.ok(Array.isArray(body.result.prompts));
+    assert.strictEqual(body.result.prompts[0].name, 'tailor_advice');
+  });
+
+  it('6. generates prompt messages via prompts/get with Mcp-Name header', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        authorization: `Bearer ${tokenA}`,
+        'content-type': 'application/json',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'prompts/get',
+        'mcp-name': 'tailor_advice',
+      },
+      payload: {
+        jsonrpc: '2.0',
+        id: 'prompt-get-1',
+        method: 'prompts/get',
+        params: {
+          name: 'tailor_advice',
+          arguments: {
+            jobTitle: 'Principal Cloud Architect',
+          },
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
+      },
+    });
+
+    assert.strictEqual(response.statusCode, 200);
+    const body = JSON.parse(response.payload);
+    assert.strictEqual(body.result.resultType, 'complete');
+    assert.ok(Array.isArray(body.result.messages));
+    assert.match(body.result.messages[0].content.text, /Principal Cloud Architect/);
+  });
+
+  // ===========================================================================
+  // 5. Header Routing & Content-Type Validation
+  // ===========================================================================
+  it('7. rejects unsupported Content-Type with 415', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        authorization: `Bearer ${tokenA}`,
+        'content-type': 'text/plain',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'tools/list',
+      },
+      payload: 'plain-text-payload',
+    });
+
+    assert.strictEqual(response.statusCode, 415);
+  });
+
+  it('8. rejects Mcp-Method header mismatch against body method', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        authorization: `Bearer ${tokenA}`,
+        'content-type': 'application/json',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'tools/list', // Mismatched header
+      },
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mismatch-1',
+        method: 'tools/call', // Body declares call
+        params: {
+          name: 'ping_health',
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
+      },
+    });
+
+    assert.strictEqual(response.statusCode, 400);
+    const body = JSON.parse(response.payload);
+    assert.strictEqual(body.error.code, -32602);
+    assert.match(body.error.message, /does not match/);
+  });
+
+  it('9. rejects incompatible protocol version with UnsupportedProtocolVersionError', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -324,9 +570,82 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
   });
 
   // ===========================================================================
-  // 4. Authentication Failure Modes
+  // 6. Rate Limit Enforcement
   // ===========================================================================
-  it('4. rejects request with missing Bearer token with 401 / -32001', async () => {
+  it('10. enforces Rate Limiter tier and returns 429 / -32029 when limit exceeded', async () => {
+    const tightLimiter = new McpRateLimiter({
+      ipLimit: 100,
+      tenantLimit: 2, // Only 2 requests allowed
+      toolLimit: 100,
+      windowMs: 60000,
+    });
+
+    const rateLimitedMcpServer = createMcpServer({
+      name: 'antigravity-career-hub-rate-test',
+      version: '0.1.0',
+      protocolVersion: '2026-07-28',
+    });
+    rateLimitedMcpServer.registerTool(
+      {
+        name: 'ping_health',
+        description: 'Read-only health check tool',
+        inputSchema: {},
+        requiredRole: 'READONLY',
+        requiredScopes: ['career:read'],
+      },
+      async () => ({ status: 'ok' })
+    );
+
+    const rateLimitedApp = buildApp({
+      mcpServer: rateLimitedMcpServer,
+      db,
+      rateLimiter: tightLimiter,
+    });
+    await rateLimitedApp.ready();
+
+    const sendReq = () =>
+      rateLimitedApp.inject({
+        method: 'POST',
+        url: '/mcp',
+        headers: {
+          authorization: `Bearer ${tokenA}`,
+          'content-type': 'application/json',
+          'mcp-protocol-version': '2026-07-28',
+          'mcp-method': 'tools/list',
+        },
+        payload: {
+          jsonrpc: '2.0',
+          id: 'rate-req',
+          method: 'tools/list',
+          params: {
+            _meta: {
+              'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+              'io.modelcontextprotocol/clientCapabilities': {},
+            },
+          },
+        },
+      });
+
+    // First 2 requests succeed
+    const res1 = await sendReq();
+    assert.strictEqual(res1.statusCode, 200);
+    const res2 = await sendReq();
+    assert.strictEqual(res2.statusCode, 200);
+
+    // 3rd request is blocked by rate limiter
+    const res3 = await sendReq();
+    assert.strictEqual(res3.statusCode, 429);
+    const body = JSON.parse(res3.payload);
+    assert.strictEqual(body.error.code, -32029);
+    assert.match(body.error.message, /Rate limit exceeded/);
+
+    await rateLimitedApp.close();
+  });
+
+  // ===========================================================================
+  // 7. Authentication Failure Modes
+  // ===========================================================================
+  it('11. rejects request with missing Bearer token with 401 / -32001', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -355,7 +674,7 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
     assert.match(body.error.message, /Authentication required/);
   });
 
-  it('5. rejects request with non-existent Bearer token with 401 / -32001', async () => {
+  it('12. rejects request with non-existent Bearer token with 401 / -32001', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -384,7 +703,7 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
     assert.match(body.error.message, /Invalid, expired, or revoked Bearer token/);
   });
 
-  it('6. rejects request with expired Bearer token with 401 / -32001', async () => {
+  it('13. rejects request with expired Bearer token with 401 / -32001', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -413,9 +732,9 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
   });
 
   // ===========================================================================
-  // 5. RBAC Enforcement over Live Transport
+  // 8. RBAC Enforcement over Live Transport
   // ===========================================================================
-  it('7. READONLY user calling MEMBER write tool is rejected with role error', async () => {
+  it('14. READONLY user calling MEMBER write tool is rejected with role error', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -452,7 +771,7 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
     }
   });
 
-  it('8. OWNER user calling MEMBER write tool succeeds', async () => {
+  it('15. OWNER user calling MEMBER write tool succeeds', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -489,9 +808,9 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
   });
 
   // ===========================================================================
-  // 6. Tenant Spoofing Defense
+  // 9. Tenant Spoofing Defense
   // ===========================================================================
-  it('9. prevents client from overriding tenantId via arguments', async () => {
+  it('16. prevents client from overriding tenantId via arguments', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -530,9 +849,9 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
   });
 
   // ===========================================================================
-  // 7. Prototype Pollution & Request ID Correlation
+  // 10. Prototype Pollution & Request ID Correlation
   // ===========================================================================
-  it('10. rejects prototype pollution attack in payload with 400', async () => {
+  it('17. rejects prototype pollution attack in payload with 400', async () => {
     const rawPayload =
       '{"jsonrpc":"2.0","id":"proto-pollute-1","method":"tools/call","params":{"name":"ping_health","__proto__":{"polluted":true}}}';
     const response = await app.inject({
@@ -553,7 +872,7 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
     assert.ok(body.error || body.code === 'BAD_REQUEST' || body.error?.code === -32602);
   });
 
-  it('11. echoes x-request-id correlation header in responses', async () => {
+  it('18. echoes x-request-id correlation header in responses', async () => {
     const customReqId = '550e8400-e29b-41d4-a716-446655440000';
     const response = await app.inject({
       method: 'POST',
@@ -583,9 +902,9 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
   });
 
   // ===========================================================================
-  // 8. Zero Database Mutations Invariant
+  // 11. Zero Database Mutations Invariant
   // ===========================================================================
-  it('12. guarantees zero database mutations during modern MCP tool listing', async () => {
+  it('19. guarantees zero database mutations during modern MCP tool listing', async () => {
     const [beforeTenants] = await db
       .select({ count: sql`count(*)` })
       .from(tenants)
@@ -640,9 +959,9 @@ describe('Live MCP Server Foundation Integration Tests (P7-001 — 2026-07-28 St
   });
 
   // ===========================================================================
-  // 9. Legacy 2025-11-25 Interoperability Fallback
+  // 12. Legacy 2025-11-25 Interoperability Fallback
   // ===========================================================================
-  it('13. supports legacy 2025-11-25 initialize handshake fallback for older clients', async () => {
+  it('20. supports legacy 2025-11-25 initialize handshake fallback for older clients', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/mcp',

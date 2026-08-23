@@ -31,7 +31,7 @@
 | **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 7** | Remote MCP Server | 6 | 1 | 0 | **IN_PROGRESS** | **16.67%** |
+| **PHASE 7** | Remote MCP Server | 6 | 2 | 0 | **IN_PROGRESS** | **33.33%** |
 | **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **40** | **0** | **IN_PROGRESS** | **50.00%** |
+| **TOTAL** | **All Phases Combined** | **80** | **41** | **0** | **IN_PROGRESS** | **51.25%** |
 
 ---
 
@@ -195,7 +195,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **P7-001A** | MCP Server Foundation Architecture & Security Review | Phase 6 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-server-architecture.md` (`ARCH-022`), ADR-042 in `docs/decisions.md`. Defined official MCP 2026-07-28 spec compliance, Streamable HTTP primary transport (`POST /mcp`), header routing (`MCP-Protocol-Version`, `Mcp-Method`), Bearer API token auth, trusted `McpRequestContext` minting, multi-tenant sovereign default-deny isolation (404), RBAC permission matrix (`OWNER`, `MEMBER`, `READONLY`), initial safe 7-tool catalog, strict internal boundary enforcement (no raw tokens/db queries), prompt injection sandboxing, 3-tier rate limiting, sanitized audit logging, and ephemeral execution with zero premature DB migrations. |
 | **P7-001** | Implement MCP Server foundation using official `@modelcontextprotocol/server` (2026-07-28 spec) | P1-005, P7-001A | **COMPLETE** | Integrated official v2 SDK `@modelcontextprotocol/server@2.0.0` and `@modelcontextprotocol/core@2.0.0` (2026-07-28 standard). Implemented `src/mcp/server.js` (`McpServerWrapper`, `createMcpServer`, `createMcpHandler`), `src/security/mcp-auth.js`, `src/domain/mcp/mcp.schemas.js`, `src/routes/mcp.routes.js`. Verified modern 2026-07-28 protocol flow (header routing `MCP-Protocol-Version: 2026-07-28`, `Mcp-Method`, `Mcp-Name`, metadata envelope `_meta`), tool registration with Zod/JSON schema normalization, RBAC role assertion (`OWNER`/`MEMBER`/`READONLY`), Bearer token auth against PostgreSQL sessions, `McpRequestContext` minting, prototype pollution rejection, request correlation (`x-request-id`), legacy 2025-11-25 initialize fallback interoperability, and zero database mutations during handshake. Unit tests: 24/24 PASS (with hard 2026-07-28 assertion); Live integration tests: 13/13 PASS; Master suite: 936/936 PASS. |
-| **P7-002** | Implement Streamable HTTP Transport with header routing (`Mcp-Method`) and fallback SSE endpoint | P7-001 | NOT_STARTED | HTTP test sending JSON-RPC 2.0 requests over Streamable HTTP and receiving responses |
+| **P7-002** | Implement Streamable HTTP Transport with header routing (`Mcp-Method`) and fallback SSE endpoint | P7-001 | **COMPLETE** | Hardened Fastify route `POST /mcp` with content negotiation, header-based routing (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), 1 MB payload limits, prototype pollution & recursion depth protection, 3-tier sliding-window rate limiting (`McpRateLimiter`: IP, Tenant, Tool compute budget), tool/resource/prompt registration & discovery, Bearer token auth against PostgreSQL sessions, `McpRequestContext` minting, legacy 2025-11-25 initialize fallback over SSE, and sanitized audit events (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`). Unit tests: 30/30 PASS; Live integration tests: 20/20 PASS; Master suite: 949/949 PASS. |
 | **P7-003** | Implement Per-User Bearer Token / OAuth 2.1 Authentication & Tenant Scoping for MCP requests | P2-002, P7-002 | NOT_STARTED | Security test: valid MCP token routes to correct user; invalid token returns 401 |
 | **P7-004** | Expose Career Read Tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit` | P4-005, P5-003, P7-001 | NOT_STARTED | Automated MCP client tool invocation test returning structured candidate data |
 | **P7-005** | Expose Application Artifact Tools: `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects` | P6-001, P6-002, P7-004 | NOT_STARTED | Automated MCP client tool invocation test returning verifiable artifacts |
@@ -1763,6 +1763,33 @@ The project is ready to proceed with Task **P3-003**:
     * `npm run test:unit` -> PASS (745/745 tests passed across 196 suites)
     * `npm run test:integration` -> PASS (191/191 tests passed across 70 suites)
     * `npm test` -> PASS (936/936 tests passed across 266 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed)
+* **P7-002 (Implement MCP Streamable HTTP Transport & Legacy SSE Compatibility — Completed & Verified)**:
+  * Deliverables Created / Updated:
+    * `src/security/mcp-rate-limiter.js`: `McpRateLimiter` class implementing sliding-window rate limiting across 3 tiers (IP connection flood guard at 120 req/min, Tenant quota tier at 600 req/min, Tool compute budget tier at 60 calls/min).
+    * `src/domain/mcp/mcp.schemas.js`: Added `McpResourceDefinitionSchema`, `McpPromptArgumentSchema`, and `McpPromptDefinitionSchema` for typed resource and prompt registration.
+    * `src/mcp/server.js`: Expanded `McpServerWrapper` with `registerResource`, `registerPrompt`, `getRegisteredResources`, `getRegisteredPrompts`, and per-request `buildServerInstance` dispatch with RBAC role assertions (`OWNER`/`MEMBER`/`READONLY`).
+    * `src/routes/mcp.routes.js`: Hardened Fastify route `POST /mcp` with content negotiation (`Content-Type: application/json` enforcement / 415 rejection), header-based routing validation (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`), 1 MB payload limits, prototype pollution & recursion depth protection (depth limit 32), multi-tier rate limiting hooks, Bearer token authentication, request correlation (`x-request-id`), Web Standards dispatch to `mcpServer.handler.fetch()`, structured JSON-RPC 2.0 error formatting, and sanitized audit logging (`mcp.tool.completed`, `mcp.tool.denied`, `mcp.tool.failed`).
+    * `src/app.js`: Passed `opts.rateLimiter` into `mcpRoutes` plugin.
+    * `docs/mcp-server-architecture.md`: Updated Section 26 recording verified implementation.
+    * `tests/unit/mcp-server.test.js`: Expanded to 30 unit tests covering server factory, hard 2026-07-28 assertion, tool/resource/prompt registration & discovery, multi-tier rate limiting, RBAC permission matrix, token extraction & hashing, error mapping, and lifecycle management (**30/30 PASS**).
+    * `tests/integration/mcp-server.test.js`: Expanded to 20 live integration tests covering modern `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, `prompts/get`, header routing validation, 415 media type rejection, rate limiting 429 rejection, Bearer auth failure modes (missing, invalid, expired), live RBAC enforcement, tenant spoofing defense, prototype pollution defense, request correlation, zero DB mutations, and legacy 2025-11-25 initialize fallback (**20/20 PASS**).
+  * Verified Invariants:
+    * **Stateless Primary Transport**: Modern 2026-07-28 requests over `POST /mcp` remain stateless without mandatory initialize handshakes.
+    * **Header Routing Integrity**: Enforces strict header-to-body agreement (`MCP-Protocol-Version`, `Mcp-Method`, `Mcp-Name`); rejects unsupported versions and mismatched methods/names with standard MCP errors.
+    * **Content Negotiation**: Strictly enforces `application/json` Content-Type on inbound POST requests, rejecting invalid types with HTTP 415.
+    * **Multi-Tier Rate Limiting**: Enforces IP flood protection, tenant quotas, and per-tool compute budgets returning structured 429 / `-32029 (RATE_LIMITED)`.
+    * **Discovery Primitives**: Foundations for tools, resources, and prompts advertise only explicitly registered definitions.
+    * **Zero Secret / PII Leakage**: Audit logs and error responses omit candidate resumes, raw evidence, tokens, full prompts, SQL queries, and stack traces.
+    * **Zero Database Mutations**: Guarantees zero DB mutations during discovery and health operations.
+  * Verification Commands & Results:
+    * `node --test tests/unit/mcp-server.test.js` -> PASS (30/30 tests passed across 1 suite)
+    * `node --test tests/integration/mcp-server.test.js` -> PASS (20/20 tests passed against live Fastify & PostgreSQL)
+    * `npm run test:unit` -> PASS (751/751 tests passed across 196 suites)
+    * `npm run test:integration` -> PASS (198/198 tests passed across 70 suites)
+    * `npm test` -> PASS (949/949 tests passed across 266 suites)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed)

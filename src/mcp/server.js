@@ -4,7 +4,7 @@
  * Implements:
  * 1. MCP Server integration using official @modelcontextprotocol/server v2 (2026-07-28 revision).
  * 2. Modern stateless per-request handler factory via createMcpHandler.
- * 3. Typed tool and resource registration with RBAC and scope assertions.
+ * 3. Typed tool, resource, and prompt registration with RBAC and scope assertions.
  * 4. Error mapping conforming to ARCH-022 and JSON-RPC 2.0 specifications.
  * 5. Lifecycle management (startup, teardown, connection cleanup).
  */
@@ -12,7 +12,12 @@
 import { z } from 'zod';
 import { McpServer, createMcpHandler, fromJsonSchema } from '@modelcontextprotocol/server';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { McpToolDefinitionSchema, McpErrorCode } from '../domain/mcp/mcp.schemas.js';
+import {
+  McpToolDefinitionSchema,
+  McpResourceDefinitionSchema,
+  McpPromptDefinitionSchema,
+  McpErrorCode,
+} from '../domain/mcp/mcp.schemas.js';
 import { assertToolPermission } from '../security/mcp-auth.js';
 import {
   AuthenticationError,
@@ -159,6 +164,8 @@ export class McpServerWrapper {
     this.version = options.version || '0.1.0';
     this.protocolVersion = options.protocolVersion || '2026-07-28';
     this.registeredTools = new Map();
+    this.registeredResources = new Map();
+    this.registeredPrompts = new Map();
     this.handler = null;
     this.isStarted = false;
   }
@@ -183,6 +190,44 @@ export class McpServerWrapper {
   }
 
   /**
+   * Registers a typed resource definition and read handler.
+   *
+   * @param {object} resourceDef Resource definition object
+   * @param {Function} handler Resource read handler: `(context, uri) => Promise<object>`
+   */
+  registerResource(resourceDef, handler) {
+    const validatedDef = McpResourceDefinitionSchema.parse(resourceDef);
+
+    if (this.registeredResources.has(validatedDef.uri)) {
+      throw new Error(`Resource with URI "${validatedDef.uri}" is already registered.`);
+    }
+
+    this.registeredResources.set(validatedDef.uri, {
+      definition: validatedDef,
+      handler,
+    });
+  }
+
+  /**
+   * Registers a typed prompt definition and generator handler.
+   *
+   * @param {object} promptDef Prompt definition object
+   * @param {Function} handler Prompt generator handler: `(context, args) => Promise<object>`
+   */
+  registerPrompt(promptDef, handler) {
+    const validatedDef = McpPromptDefinitionSchema.parse(promptDef);
+
+    if (this.registeredPrompts.has(validatedDef.name)) {
+      throw new Error(`Prompt with name "${validatedDef.name}" is already registered.`);
+    }
+
+    this.registeredPrompts.set(validatedDef.name, {
+      definition: validatedDef,
+      handler,
+    });
+  }
+
+  /**
    * Returns list of registered tool definitions.
    *
    * @returns {Array<object>} Array of tool definition objects
@@ -192,7 +237,25 @@ export class McpServerWrapper {
   }
 
   /**
-   * Builds and instantiates a per-request McpServer instance populated with all registered tools.
+   * Returns list of registered resource definitions.
+   *
+   * @returns {Array<object>} Array of resource definition objects
+   */
+  getRegisteredResources() {
+    return Array.from(this.registeredResources.values()).map((r) => r.definition);
+  }
+
+  /**
+   * Returns list of registered prompt definitions.
+   *
+   * @returns {Array<object>} Array of prompt definition objects
+   */
+  getRegisteredPrompts() {
+    return Array.from(this.registeredPrompts.values()).map((p) => p.definition);
+  }
+
+  /**
+   * Builds and instantiates a per-request McpServer instance populated with all registered tools, resources, and prompts.
    *
    * @param {object} params Factory parameters
    * @param {string} params.era Protocol era ('modern' | 'legacy')
@@ -205,6 +268,7 @@ export class McpServerWrapper {
       version: this.version,
     });
 
+    // 1. Register Tools
     for (const [toolName, { definition, handler }] of this.registeredTools) {
       server.registerTool(
         toolName,
@@ -222,13 +286,9 @@ export class McpServerWrapper {
             );
           }
 
-          // 1. Assert RBAC and scope permissions
           assertToolPermission(context, definition);
-
-          // 2. Execute underlying handler
           const result = await handler(context, args);
 
-          // 3. Ensure response is wrapped in standard content format
           if (result && Array.isArray(result.content)) {
             return result;
           }
@@ -241,6 +301,85 @@ export class McpServerWrapper {
               },
             ],
             ...(result && typeof result === 'object' ? { structuredData: result } : {}),
+          };
+        }
+      );
+    }
+
+    // 2. Register Resources
+    for (const [uri, { definition, handler }] of this.registeredResources) {
+      server.registerResource(
+        definition.name,
+        uri,
+        {
+          description: definition.description,
+          mimeType: definition.mimeType,
+        },
+        async (resourceUri, extra) => {
+          const context = authInfo || extra?.authInfo || extra?.context;
+
+          if (!context) {
+            throw new AuthenticationError(
+              'Authentication context required to read MCP resource.',
+              'UNAUTHENTICATED'
+            );
+          }
+
+          assertToolPermission(context, definition);
+          const result = await handler(context, resourceUri);
+
+          if (result && Array.isArray(result.contents)) {
+            return result;
+          }
+
+          return {
+            contents: [
+              {
+                uri: typeof resourceUri === 'string' ? resourceUri : resourceUri.href,
+                mimeType: definition.mimeType || 'application/json',
+                text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+              },
+            ],
+          };
+        }
+      );
+    }
+
+    // 3. Register Prompts
+    for (const [promptName, { definition, handler }] of this.registeredPrompts) {
+      server.registerPrompt(
+        promptName,
+        {
+          description: definition.description,
+          argsSchema: toMcpInputSchema(definition.argsSchema),
+        },
+        async (args, extra) => {
+          const context = authInfo || extra?.authInfo || extra?.context;
+
+          if (!context) {
+            throw new AuthenticationError(
+              'Authentication context required to generate MCP prompt.',
+              'UNAUTHENTICATED'
+            );
+          }
+
+          assertToolPermission(context, definition);
+          const result = await handler(context, args);
+
+          if (result && Array.isArray(result.messages)) {
+            return result;
+          }
+
+          return {
+            messages: [
+              {
+                role: 'user',
+                content: {
+                  type: 'text',
+                  text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+                },
+              },
+            ],
           };
         }
       );

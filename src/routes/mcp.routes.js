@@ -5,22 +5,33 @@
  * Handles:
  * 1. Request correlation (x-request-id).
  * 2. Payload size & prototype pollution defenses.
- * 3. Bearer token authentication & McpRequestContext minting.
- * 4. Dispatch to official @modelcontextprotocol/server v2 handler.
- * 5. Structured JSON-RPC 2.0 error mapping & sanitized audit logging.
+ * 3. Content negotiation & header-based routing validation.
+ * 4. Multi-tier rate limiting (IP, Tenant, Tool compute budget).
+ * 5. Bearer token authentication & McpRequestContext minting.
+ * 6. Dispatch to official @modelcontextprotocol/server v2 handler.
+ * 7. Structured JSON-RPC 2.0 error mapping & sanitized audit logging.
  */
 
 import { createMcpServer, mapErrorToMcpResponse } from '../mcp/server.js';
 import { authenticateMcpRequest } from '../security/mcp-auth.js';
-import { ValidationError } from '../errors/index.js';
+import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
+import { ValidationError, AppError } from '../errors/index.js';
 
 /**
- * Checks for prototype pollution attempts in JSON payloads.
+ * Checks for prototype pollution attempts and excessive nesting depth in JSON payloads.
  *
  * @param {any} obj Object to inspect
- * @throws {ValidationError} If prototype pollution keys are detected
+ * @param {number} [depth=0] Current recursion depth
+ * @throws {ValidationError} If prototype pollution keys or excessive depth are detected
  */
-function assertNoPrototypePollution(obj) {
+function assertNoPrototypePollution(obj, depth = 0) {
+  if (depth > 32) {
+    throw new ValidationError(
+      'Malformed request: payload exceeds maximum nesting depth.',
+      'EXCESSIVE_DEPTH'
+    );
+  }
+
   if (!obj || typeof obj !== 'object') {
     return;
   }
@@ -35,7 +46,56 @@ function assertNoPrototypePollution(obj) {
     }
 
     if (typeof obj[key] === 'object' && obj[key] !== null) {
-      assertNoPrototypePollution(obj[key]);
+      assertNoPrototypePollution(obj[key], depth + 1);
+    }
+  }
+}
+
+/**
+ * Validates header routing against payload body declarations.
+ *
+ * @param {import('fastify').FastifyRequest} req Fastify request
+ * @throws {ValidationError} If headers mismatch or are invalid
+ */
+function validateHeaderRouting(req) {
+  const methodHeader = req.headers['mcp-method'];
+  const nameHeader = req.headers['mcp-name'];
+  const versionHeader = req.headers['mcp-protocol-version'];
+  const body = req.body;
+
+  // 1. Content-Type check
+  const contentType = req.headers['content-type'];
+  if (contentType && !contentType.includes('application/json')) {
+    throw new AppError(
+      'Unsupported Media Type: Content-Type must be application/json.',
+      415,
+      'UNSUPPORTED_MEDIA_TYPE'
+    );
+  }
+
+  // 2. Protocol Version check
+  if (versionHeader && versionHeader !== '2026-07-28' && versionHeader !== '2025-11-25') {
+    throw new ValidationError(
+      `Unsupported protocol version "${versionHeader}". Supported: 2026-07-28, 2025-11-25.`,
+      'UNSUPPORTED_PROTOCOL_VERSION'
+    );
+  }
+
+  // 3. Mcp-Method header agreement
+  if (methodHeader && body && body.method && methodHeader !== body.method) {
+    throw new ValidationError(
+      `Header Mcp-Method "${methodHeader}" does not match payload method "${body.method}".`,
+      'HEADER_METHOD_MISMATCH'
+    );
+  }
+
+  // 4. Mcp-Name header agreement
+  if (body && body.method === 'tools/call' && body.params?.name) {
+    if (nameHeader && nameHeader !== body.params.name) {
+      throw new ValidationError(
+        `Header Mcp-Name "${nameHeader}" does not match tool name "${body.params.name}".`,
+        'HEADER_NAME_MISMATCH'
+      );
     }
   }
 }
@@ -47,10 +107,12 @@ function assertNoPrototypePollution(obj) {
  * @param {object} [opts={}] Plugin options
  * @param {import('../mcp/server.js').McpServerWrapper} [opts.mcpServer] Optional custom MCP server wrapper instance
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [opts.db] Optional database client override
+ * @param {import('../security/mcp-rate-limiter.js').McpRateLimiter} [opts.rateLimiter] Optional rate limiter override
  */
 export async function mcpRoutes(fastify, opts = {}) {
   const mcpServer = opts.mcpServer || createMcpServer();
   const db = opts.db || fastify.db;
+  const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
 
   // Ensure MCP handler is initialized
   await mcpServer.start();
@@ -70,15 +132,29 @@ export async function mcpRoutes(fastify, opts = {}) {
         // Set correlation header
         reply.header('x-request-id', requestId);
 
-        // 1. Prototype pollution guard
+        // 1. IP Rate Limiting Tier
+        const clientIp =
+          req.ip || /** @type {string} */ (req.headers['x-forwarded-for']) || '127.0.0.1';
+        rateLimiter.checkIpLimit(clientIp);
+
+        // 2. Prototype pollution & abuse guard
         if (req.body) {
           assertNoPrototypePollution(req.body);
         }
 
-        // 2. Authenticate request & mint sovereign McpRequestContext
+        // 3. Header routing & Content-Type validation
+        validateHeaderRouting(req);
+
+        // 4. Authenticate request & mint sovereign McpRequestContext
         context = await authenticateMcpRequest(req, { db });
 
-        // 3. Convert Fastify request to Web Standard Request
+        // 5. Tenant & Tool Compute Rate Limiting Tiers
+        rateLimiter.checkTenantLimit(context.tenantId);
+        if (req.body?.method === 'tools/call' && req.body?.params?.name) {
+          rateLimiter.checkToolLimit(context.tenantId, req.body.params.name);
+        }
+
+        // 6. Convert Fastify request to Web Standard Request
         const webHeaders = new globalThis.Headers();
         for (const [k, v] of Object.entries(req.headers)) {
           if (v !== undefined) {
@@ -98,13 +174,13 @@ export async function mcpRoutes(fastify, opts = {}) {
           body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
         });
 
-        // 4. Delegate to official MCP v2 handler
+        // 7. Delegate to official MCP v2 handler
         const webRes = await mcpServer.handler.fetch(webReq, {
           authInfo: context,
           parsedBody: req.body,
         });
 
-        // 5. Transfer response back to Fastify
+        // 8. Transfer response back to Fastify
         reply.status(webRes.status);
         for (const [k, v] of webRes.headers.entries()) {
           reply.header(k, v);
@@ -113,7 +189,7 @@ export async function mcpRoutes(fastify, opts = {}) {
 
         const responseText = await webRes.text();
 
-        // 6. Emit audit log
+        // 9. Emit audit log
         const durationMs = Date.now() - startTime;
         req.log.info(
           {
@@ -121,9 +197,11 @@ export async function mcpRoutes(fastify, opts = {}) {
             tenantId: context.tenantId,
             userId: context.userId,
             role: context.role,
+            toolName: req.body?.params?.name || undefined,
             requestId,
             durationMs,
             statusCode: webRes.status,
+            clientIp,
           },
           'MCP request completed'
         );
@@ -140,20 +218,28 @@ export async function mcpRoutes(fastify, opts = {}) {
               ? 403
               : mappedError.code === -32004
                 ? 404
-                : mappedError.code === -32602
-                  ? 400
-                  : 500);
+                : mappedError.code === -32029
+                  ? 429
+                  : mappedError.code === -32602
+                    ? 400
+                    : 500);
 
         req.log.warn(
           {
-            event: 'mcp.tool.failed',
+            event:
+              mappedError.code === -32003 || mappedError.code === -32029
+                ? 'mcp.tool.denied'
+                : 'mcp.tool.failed',
             tenantId: context?.tenantId || null,
             userId: context?.userId || null,
+            role: context?.role || undefined,
+            toolName: req.body?.params?.name || undefined,
             requestId,
             durationMs,
             statusCode,
             errorCode: mappedError.code,
             errorMessage: mappedError.message,
+            clientIp: req.ip || undefined,
           },
           'MCP request failed'
         );

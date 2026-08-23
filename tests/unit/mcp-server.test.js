@@ -1,15 +1,15 @@
 /**
- * @file Unit Tests for MCP Server Foundation & 2026-07-28 Protocol Layer (P7-001)
+ * @file Unit Tests for MCP Server Foundation & Transport Layer (P7-002 — 2026-07-28 Standard)
  *
  * Validates:
  * 1. McpServer factory initialization with 2026-07-28 protocol standard.
- * 2. Tool registration and schema validation.
- * 3. RBAC role-based permission assertions.
- * 4. Token scope enforcement.
+ * 2. Tool, resource, and prompt registration and discovery.
+ * 3. RBAC role-based permission assertions across tools, resources, and prompts.
+ * 4. Multi-tier rate limiting (IP, Tenant, Tool compute budgets).
  * 5. Comprehensive JSON-RPC 2.0 error mapping and information-leak prevention.
  * 6. Bearer token extraction and SHA-256 hashing.
  * 7. McpRequestContext schema validation and immutability.
- * 8. Prototype pollution detection and rejection.
+ * 8. Prototype pollution and excessive nesting depth defenses.
  * 9. Server lifecycle (start/close).
  * 10. Hard protocol assertion requiring 2026-07-28 revision.
  */
@@ -23,6 +23,7 @@ import {
   hashMcpToken,
   assertToolPermission,
 } from '../../src/security/mcp-auth.js';
+import { McpRateLimiter } from '../../src/security/mcp-rate-limiter.js';
 import { McpRequestContextSchema, McpErrorCode } from '../../src/domain/mcp/mcp.schemas.js';
 import {
   AuthenticationError,
@@ -33,7 +34,7 @@ import {
   AppError,
 } from '../../src/errors/index.js';
 
-describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', () => {
+describe('MCP Server Foundation & Transport Unit Tests (P7-002 — 2026-07-28 Standard)', () => {
   // ===========================================================================
   // 1. Server Factory & Metadata Initialization
   // ===========================================================================
@@ -44,6 +45,8 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.strictEqual(server.version, '0.1.0');
     assert.strictEqual(server.protocolVersion, '2026-07-28');
     assert.strictEqual(server.registeredTools.size, 0);
+    assert.strictEqual(server.registeredResources.size, 0);
+    assert.strictEqual(server.registeredPrompts.size, 0);
     assert.strictEqual(server.isStarted, false);
   });
 
@@ -126,9 +129,120 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
   });
 
   // ===========================================================================
-  // 4. RBAC & Scope Permissions Assertion
+  // 4. Resource & Prompt Registration Foundation
   // ===========================================================================
-  it('7. assertToolPermission permits READONLY user for READONLY tool', () => {
+  it('7. registers a valid resource definition and retrieves registered list', () => {
+    const server = createMcpServer();
+
+    const resourceDef = {
+      uri: 'career://candidate/profile',
+      name: 'candidate_profile',
+      description: 'Candidate verified profile resource',
+      mimeType: 'application/json',
+      requiredRole: 'READONLY',
+      requiredScopes: ['career:read'],
+    };
+
+    server.registerResource(resourceDef, async () => ({
+      contents: [{ uri: resourceDef.uri, mimeType: 'application/json', text: '{}' }],
+    }));
+
+    const resources = server.getRegisteredResources();
+    assert.strictEqual(resources.length, 1);
+    assert.strictEqual(resources[0].uri, 'career://candidate/profile');
+    assert.strictEqual(resources[0].name, 'candidate_profile');
+  });
+
+  it('8. rejects duplicate resource URI registration', () => {
+    const server = createMcpServer();
+    const resourceDef = {
+      uri: 'career://candidate/profile',
+      name: 'candidate_profile',
+      description: 'Desc',
+      mimeType: 'application/json',
+    };
+
+    server.registerResource(resourceDef, async () => ({}));
+    assert.throws(
+      () => server.registerResource(resourceDef, async () => ({})),
+      /Resource with URI "career:\/\/candidate\/profile" is already registered/
+    );
+  });
+
+  it('9. registers a valid prompt definition and retrieves registered list', () => {
+    const server = createMcpServer();
+
+    const promptDef = {
+      name: 'tailor_guidance',
+      description: 'Prompt guidance for resume tailoring',
+      argsSchema: {
+        jobTitle: z.string().optional(),
+      },
+      requiredRole: 'READONLY',
+      requiredScopes: ['career:read'],
+    };
+
+    server.registerPrompt(promptDef, async () => ({
+      messages: [{ role: 'user', content: { type: 'text', text: 'Tailor resume' } }],
+    }));
+
+    const prompts = server.getRegisteredPrompts();
+    assert.strictEqual(prompts.length, 1);
+    assert.strictEqual(prompts[0].name, 'tailor_guidance');
+  });
+
+  it('10. rejects duplicate prompt name registration', () => {
+    const server = createMcpServer();
+    const promptDef = {
+      name: 'duplicate_prompt',
+      description: 'Desc',
+    };
+
+    server.registerPrompt(promptDef, async () => ({}));
+    assert.throws(
+      () => server.registerPrompt(promptDef, async () => ({})),
+      /Prompt with name "duplicate_prompt" is already registered/
+    );
+  });
+
+  // ===========================================================================
+  // 5. Multi-Tier Rate Limiting Unit Tests
+  // ===========================================================================
+  it('11. McpRateLimiter enforces IP tier limits and throws 429 when exceeded', () => {
+    const limiter = new McpRateLimiter({ ipLimit: 2, windowMs: 10000 });
+
+    limiter.checkIpLimit('192.168.1.100');
+    limiter.checkIpLimit('192.168.1.100');
+
+    assert.throws(
+      () => limiter.checkIpLimit('192.168.1.100'),
+      (err) => err instanceof AppError && err.statusCode === 429 && err.code === 'RATE_LIMITED'
+    );
+
+    // Distinct IP is not affected
+    assert.doesNotThrow(() => limiter.checkIpLimit('192.168.1.101'));
+  });
+
+  it('12. McpRateLimiter enforces Tenant and Tool budget tiers', () => {
+    const limiter = new McpRateLimiter({ tenantLimit: 3, toolLimit: 2, windowMs: 10000 });
+    const tenantId = '550e8400-e29b-41d4-a716-446655440000';
+
+    limiter.checkToolLimit(tenantId, 'heavy_ai_tool');
+    limiter.checkToolLimit(tenantId, 'heavy_ai_tool');
+
+    assert.throws(
+      () => limiter.checkToolLimit(tenantId, 'heavy_ai_tool'),
+      (err) => err instanceof AppError && err.statusCode === 429
+    );
+
+    // Another tool for the same tenant is permitted under its own budget
+    assert.doesNotThrow(() => limiter.checkToolLimit(tenantId, 'light_read_tool'));
+  });
+
+  // ===========================================================================
+  // 6. RBAC & Scope Permissions Assertion
+  // ===========================================================================
+  it('13. assertToolPermission permits READONLY user for READONLY tool', () => {
     const context = {
       userId: '11111111-1111-1111-1111-111111111111',
       tenantId: '22222222-2222-2222-2222-222222222222',
@@ -147,7 +261,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.doesNotThrow(() => assertToolPermission(context, toolDef));
   });
 
-  it('8. assertToolPermission denies READONLY user attempting to invoke MEMBER or OWNER tool', () => {
+  it('14. assertToolPermission denies READONLY user attempting to invoke MEMBER or OWNER tool', () => {
     const context = {
       userId: '11111111-1111-1111-1111-111111111111',
       tenantId: '22222222-2222-2222-2222-222222222222',
@@ -166,7 +280,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.throws(() => assertToolPermission(context, memberToolDef), AuthorizationError);
   });
 
-  it('9. assertToolPermission permits MEMBER user for MEMBER and READONLY tools but denies OWNER tool', () => {
+  it('15. assertToolPermission permits MEMBER user for MEMBER and READONLY tools but denies OWNER tool', () => {
     const context = {
       userId: '11111111-1111-1111-1111-111111111111',
       tenantId: '22222222-2222-2222-2222-222222222222',
@@ -194,7 +308,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.throws(() => assertToolPermission(context, ownerToolDef), AuthorizationError);
   });
 
-  it('10. assertToolPermission permits OWNER for any tool with matching scope', () => {
+  it('16. assertToolPermission permits OWNER for any tool with matching scope', () => {
     const context = {
       userId: '11111111-1111-1111-1111-111111111111',
       tenantId: '22222222-2222-2222-2222-222222222222',
@@ -213,7 +327,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.doesNotThrow(() => assertToolPermission(context, ownerToolDef));
   });
 
-  it('11. assertToolPermission denies invocation if required token scope is missing', () => {
+  it('17. assertToolPermission denies invocation if required token scope is missing', () => {
     const context = {
       userId: '11111111-1111-1111-1111-111111111111',
       tenantId: '22222222-2222-2222-2222-222222222222',
@@ -233,14 +347,14 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
   });
 
   // ===========================================================================
-  // 5. Bearer Token Extraction & Hashing
+  // 7. Bearer Token Extraction & Hashing
   // ===========================================================================
-  it('12. extractBearerToken extracts token from standard Bearer header', () => {
+  it('18. extractBearerToken extracts token from standard Bearer header', () => {
     const token = extractBearerToken('Bearer mcp_live_0123456789abcdef0123456789abcdef');
     assert.strictEqual(token, 'mcp_live_0123456789abcdef0123456789abcdef');
   });
 
-  it('13. extractBearerToken throws AuthenticationError on missing or malformed header', () => {
+  it('19. extractBearerToken throws AuthenticationError on missing or malformed header', () => {
     assert.throws(() => extractBearerToken(undefined), AuthenticationError);
     assert.throws(() => extractBearerToken(''), AuthenticationError);
     assert.throws(() => extractBearerToken('Basic dXNlcjpwYXNz'), AuthenticationError);
@@ -248,7 +362,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.throws(() => extractBearerToken('Bearer short'), AuthenticationError);
   });
 
-  it('14. hashMcpToken computes SHA-256 hex hash deterministically', () => {
+  it('20. hashMcpToken computes SHA-256 hex hash deterministically', () => {
     const rawToken = 'mcp_test_token_1234567890';
     const hash1 = hashMcpToken(rawToken);
     const hash2 = hashMcpToken(rawToken);
@@ -259,9 +373,9 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
   });
 
   // ===========================================================================
-  // 6. McpRequestContext Schema Validation & Immutability
+  // 8. McpRequestContext Schema Validation & Immutability
   // ===========================================================================
-  it('15. McpRequestContextSchema validates well-formed security context with 2026-07-28 protocol version', () => {
+  it('21. McpRequestContextSchema validates well-formed security context with 2026-07-28 protocol version', () => {
     const rawContext = {
       requestId: '550e8400-e29b-41d4-a716-446655440000',
       tenantId: '11111111-1111-1111-1111-111111111111',
@@ -282,7 +396,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.strictEqual(parsed.clientInfo.protocolVersion, '2026-07-28');
   });
 
-  it('16. McpRequestContextSchema rejects invalid UUIDs or unknown roles', () => {
+  it('22. McpRequestContextSchema rejects invalid UUIDs or unknown roles', () => {
     const invalidContext = {
       requestId: 'not-a-uuid',
       tenantId: 'invalid-tenant',
@@ -294,9 +408,9 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
   });
 
   // ===========================================================================
-  // 7. Safe Error Mapping & Information-Leak Prevention
+  // 9. Safe Error Mapping & Information-Leak Prevention
   // ===========================================================================
-  it('17. mapErrorToMcpResponse maps AuthenticationError to -32001', () => {
+  it('23. mapErrorToMcpResponse maps AuthenticationError to -32001', () => {
     const err = new AuthenticationError('Token expired', 'UNAUTHENTICATED');
     const mapped = mapErrorToMcpResponse(err, 'req-123');
 
@@ -305,7 +419,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.deepStrictEqual(mapped.data, { requestId: 'req-123' });
   });
 
-  it('18. mapErrorToMcpResponse maps AuthorizationError to -32003', () => {
+  it('24. mapErrorToMcpResponse maps AuthorizationError to -32003', () => {
     const err = new AuthorizationError('Insufficient permissions', 'FORBIDDEN');
     const mapped = mapErrorToMcpResponse(err, 'req-123');
 
@@ -314,7 +428,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.deepStrictEqual(mapped.data, { requestId: 'req-123' });
   });
 
-  it('19. mapErrorToMcpResponse maps NotFoundError to -32004 with generic message', () => {
+  it('25. mapErrorToMcpResponse maps NotFoundError to -32004 with generic message', () => {
     const err = new NotFoundError('Candidate not found');
     const mapped = mapErrorToMcpResponse(err, 'req-123');
 
@@ -323,7 +437,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.deepStrictEqual(mapped.data, { requestId: 'req-123' });
   });
 
-  it('20. mapErrorToMcpResponse maps ValidationError to -32602 with details', () => {
+  it('26. mapErrorToMcpResponse maps ValidationError to -32602 with details', () => {
     const err = new ValidationError('Job description too short', 'INVALID_LENGTH', { min: 20 });
     const mapped = mapErrorToMcpResponse(err, 'req-123');
 
@@ -332,7 +446,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.deepStrictEqual(mapped.data?.details, { min: 20 });
   });
 
-  it('21. mapErrorToMcpResponse maps ConflictError to -32009', () => {
+  it('27. mapErrorToMcpResponse maps ConflictError to -32009', () => {
     const err = new ConflictError('Active operation in progress');
     const mapped = mapErrorToMcpResponse(err, 'req-123');
 
@@ -340,7 +454,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.strictEqual(mapped.message, 'Active operation in progress');
   });
 
-  it('22. mapErrorToMcpResponse maps RateLimitError to -32029', () => {
+  it('28. mapErrorToMcpResponse maps RateLimitError to -32029', () => {
     const err = new AppError('Rate limit exceeded', 429, 'RATE_LIMITED');
     const mapped = mapErrorToMcpResponse(err, 'req-123');
 
@@ -348,7 +462,7 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
     assert.strictEqual(mapped.message, 'Rate limit exceeded');
   });
 
-  it('23. mapErrorToMcpResponse sanitizes unexpected Error to -32603 without leaking SQL or stack traces', () => {
+  it('29. mapErrorToMcpResponse sanitizes unexpected Error to -32603 without leaking SQL or stack traces', () => {
     const databaseError = new Error(
       'SELECT * FROM "users" WHERE id = $1 -- connection timeout at /src/db/client.js:42'
     );
@@ -362,9 +476,9 @@ describe('MCP Server Foundation Unit Tests (P7-001 — 2026-07-28 Standard)', ()
   });
 
   // ===========================================================================
-  // 8. Server Lifecycle & Connection Cleanup
+  // 10. Server Lifecycle & Connection Cleanup
   // ===========================================================================
-  it('24. start() and close() manage modern MCP handler lifecycle cleanly', async () => {
+  it('30. start() and close() manage modern MCP handler lifecycle cleanly', async () => {
     const server = createMcpServer();
     assert.strictEqual(server.isStarted, false);
 

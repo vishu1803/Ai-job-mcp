@@ -153,3 +153,42 @@ export const McpToolResultSchema = z
     structuredData: z.record(z.any()).optional(),
   })
   .strict();
+
+/**
+ * Canonical resource definition schema for registration.
+ */
+export const McpResourceDefinitionSchema = z
+  .object({
+    uri: z.string().min(1).max(256),
+    name: z.string().min(1).max(64),
+    description: z.string().min(1).max(1000).optional(),
+    mimeType: z.string().default('application/json'),
+    requiredRole: McpRoleEnum.default('READONLY'),
+    requiredScopes: z.array(z.string()).default(['career:read']),
+  })
+  .strict();
+
+/**
+ * Canonical prompt definition schema for registration.
+ */
+export const McpPromptArgumentSchema = z
+  .object({
+    name: z.string().min(1).max(64),
+    description: z.string().max(1000).optional(),
+    required: z.boolean().default(false),
+  })
+  .strict();
+
+export const McpPromptDefinitionSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9_]+$/, 'Prompt name must be lowercase alphanumeric with underscores'),
+    description: z.string().min(1).max(1000).optional(),
+    argsSchema: z.record(z.any()).optional(),
+    requiredRole: McpRoleEnum.default('READONLY'),
+    requiredScopes: z.array(z.string()).default(['career:read']),
+  })
+  .strict();
