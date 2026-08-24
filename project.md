@@ -9,13 +9,13 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (P8-001A APPROVED; ready for P8-001) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; Phase 8 P8-001A verified & approved |
+| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (P8-001A APPROVED, P8-001 COMPLETE) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; Phase 8 P8-001 verified |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **44 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) verified; Phase 8 P8-001A approved |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 8 (P8-001) |
+| **Completed Tasks** | **45 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) verified; Phase 8 P8-001A approved, P8-001 complete |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 8 (P8-002) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **55.0% (44 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Overall Task Completion** | **56.25% (45 / 80 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **50.0% (8 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
@@ -32,7 +32,7 @@
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 8** | Gemini Integration | 5 | 0 | 0 | **IN_PROGRESS** | **0.0% (P8-001A Approved)** |
+| **PHASE 8** | Gemini Integration | 5 | 1 | 0 | **IN_PROGRESS** | **20.0% (P8-001 Complete)** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,8 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **44** | **0** | **IN_PROGRESS** | **55.0%** |
+| **TOTAL** | **All Phases Combined** | **80** | **45** | **0** | **IN_PROGRESS** | **56.25%** |
+
 
 ---
 
@@ -211,8 +212,9 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P8-001A** | Gemini Integration Architecture & AI Trust-Boundary Review | Phase 7 | **COMPLETE & APPROVED** | Architectural specification `docs/gemini-integration-architecture.md` (`ARCH-026`), ADR-047 in `docs/decisions.md`. Defined 5-tier provider-neutral AI architecture, dynamic model routing (Gemini 3.7 Flash workhorse, 3.6 Flash secondary, 3.1 Pro deep reasoning, 2.5 Flash fallback), inverse authority principle (zero AI authority over facts/scores/EvidenceIds), XML prompt injection sandboxing, native JSON schema structured outputs (`responseSchema`), bounded tool calling (max 3 turns), sovereign multi-tenant isolation with zero user-data context caching, and 12-scenario red-team threat model. |
-| **P8-001** | Implement Gemini API Client adapter for testing tool calling against remote MCP endpoint | P7-004, P8-001A | NOT_STARTED | Integration test: Gemini API calling MCP tools via function calling |
+| **P8-001** | Implement Gemini API Client adapter for testing tool calling against remote MCP endpoint | P7-004, P8-001A | **COMPLETE** | Integrated official `@google/genai` SDK (`^2.18.0`). Implemented provider-neutral `AiProvider` interface (`src/clients/ai/ai-provider.interface.js`), dynamic 2026 `ModelRegistry` (`src/clients/ai/model-registry.js`), `TaskPolicyRegistry` (`src/clients/ai/task-policy.js`), XML prompt sandboxing with PII/secret scrubbing (`src/clients/gemini/gemini-prompt-builder.js`), Zod & MCP tool schema conversion (`src/clients/gemini/gemini-schema-converter.js`), error normalization (`src/clients/gemini/gemini-error-normalizer.js`), and `GeminiProviderAdapter` (`src/clients/gemini/gemini-adapter.js`). Verified across 12 unit tests (`tests/unit/gemini-client.test.js`), 2 contract tests (`tests/unit/ai-provider.contract.test.js`), and 3 live Fastify/PostgreSQL integration tests (`tests/integration/gemini-client.test.js`): text generation, structured JSON output via Zod, multi-turn tool loops with approved catalog (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`, `recommend_portfolio_projects`), hard 3-turn depth cap (`AI_TOOL_LOOP_EXHAUSTED`), unapproved tool rejection, jittered retry & fallback model failover on 429/503, safety blocking (`AI_SAFETY_BLOCKED`), and caller `McpRequestContext` propagation. Full suite: 831/831 PASS across 204 suites. |
 | **P8-002** | Configure Gemini System Prompts with strict zero-hallucination and evidence-citation constraints | P8-001 | NOT_STARTED | Test prompting Gemini with job description and verifying it calls `analyze_job_fit` |
+
 | **P8-003** | Test end-to-end Golden Path with Gemini: User connects GitHub -> builds evidence -> analyzes job -> Gemini explains fit | P3-005, P5-003, P8-002 | NOT_STARTED | Full integration test executing Golden Path and asserting accurate response |
 | **P8-004** | Configure Gemini Enterprise / Gemini Developer Studio custom connector integration documentation | P7-002, P8-003 | NOT_STARTED | Live verification walkthrough connecting Gemini to remote MCP URL |
 | **P8-005** | Benchmark MCP tool execution latency with Gemini (target <1.5s for cached queries) | P8-003 | NOT_STARTED | Latency benchmarking suite recording p50, p95, and p99 response times |
@@ -1957,3 +1959,28 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
     * Zero premature code or SDK dependencies implemented.
+
+* **P8-001 (Implement Gemini Provider Adapter — Completed & Verified)**:
+  * Deliverables Created:
+    * `package.json`: Added official unified Google GenAI SDK `@google/genai@^2.18.0`.
+    * `src/errors/base.error.js`: Modular base application error class eliminating circular ESM module dependency.
+    * `src/errors/ai.errors.js`: Standardized provider-neutral AI error hierarchy (`AiProviderError`, `AiAuthenticationError`, `AiRateLimitedError`, `AiTimeoutError`, `AiOutputSchemaError`, `AiSafetyBlockedError`, `AiToolLoopExhaustedError`, `AiContextTooLargeError`, `AiInvalidRequestError`, `AiUnavailableError`).
+    * `src/domain/ai/ai.schemas.js`: Canonical Zod validation schemas for AI model metadata (`ModelMetadataSchema`), task policies (`TaskPolicySchema`), generation requests (`AiGenerationRequestSchema`, `AiStructuredRequestSchema`, `AiToolLoopRequestSchema`), and responses.
+    * `src/clients/ai/ai-provider.interface.js`: Abstract `AiProvider` contract defining standard methods (`generateText`, `generateStructured`, `executeToolLoop`, `validateHealth`).
+    * `src/clients/ai/model-registry.js`: 2026 model catalog (`gemini-3.7-flash` default workhorse, `gemini-3.6-flash` secondary, `gemini-3.1-pro-preview` preview, `gemini-2.5-flash` fallback, `gemini-2.0-flash` deprecated guard).
+    * `src/clients/ai/task-policy.js`: `TaskPolicyRegistry` configuring token budgets, temperatures, and model routing per task type (`RESUME_WORDING`, `COVER_LETTER`, `JOB_EXPLANATION`, `CAREER_COACHING`, `PROJECT_CASE_STUDY`, `SYNTHETIC_HEALTH_CHECK`).
+    * `src/clients/gemini/gemini-prompt-builder.js`: Prompt sandboxing builder wrapping inputs in structured XML tags (`<system_policy>`, `<candidate_facts>`, `<approved_assertions>`, `<untrusted_job_description>`, `<passive_repository_data>`, `<task_instruction>`) with recursive PII scrubbing (emails, phone numbers, street addresses) and credential stripping.
+    * `src/clients/gemini/gemini-schema-converter.js`: Zod/JSON Schema converter for strict Gemini `responseSchema` output and MCP tool mapping to `FunctionDeclaration` objects.
+    * `src/clients/gemini/gemini-error-normalizer.js`: Normalized upstream error handler mapping HTTP/SDK status codes (401, 403, 429, 500, 503, 504, AbortError, SAFETY) to typed `AiProviderError` subclasses without leaking vendor internals.
+    * `src/clients/gemini/gemini-adapter.js`: `GeminiProviderAdapter` implementing `AiProvider` with retry backoff (max 2 retries with jitter), automatic fallback failover to secondary model (`gemini-2.5-flash`), bounded tool execution loop (max 3 rounds) with approved catalog checking (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`, `recommend_portfolio_projects`), and caller `McpRequestContext` preservation.
+  * Automated Test Suites:
+    * `tests/unit/gemini-client.test.js`: 12 unit tests verifying model registry GA selection & deprecated rejection, XML prompt sandboxing, PII/secret scrubbing, Zod-to-Gemini schema conversion, text generation with usage token tracking, safety filter blocking (`AiSafetyBlockedError`), structured output validation & schema error trapping, tool calling loop execution, unapproved tool rejection (`AiInvalidRequestError`), tool loop turn cap enforcement (`AiToolLoopExhaustedError`), and retry/fallback failover on 429 rate limit.
+    * `tests/unit/ai-provider.contract.test.js`: 2 contract tests asserting abstract class protections and verifying `GeminiProviderAdapter` satisfies all interface methods.
+    * `tests/integration/gemini-client.test.js`: 3 live Fastify/PostgreSQL integration tests verifying multi-turn tool loops against live MCP server with `McpRequestContext` preservation, domain schema structured generation, and safe optional live Gemini API test (skipped safely when API key absent).
+  * Verification Results:
+    * `node --test tests/unit/gemini-client.test.js tests/unit/ai-provider.contract.test.js` -> PASS (14/14 tests passed across 2 suites)
+    * `node --test tests/integration/gemini-client.test.js` -> PASS (3/3 tests passed, 1 optional live test skipped cleanly)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+
