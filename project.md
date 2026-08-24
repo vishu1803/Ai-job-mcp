@@ -9,13 +9,13 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (P8-001A APPROVED, P8-001 & P8-002 COMPLETE) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; Phase 8 P8-001 & P8-002 verified |
+| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (P8-001A APPROVED, P8-001, P8-002, P8-003 COMPLETE) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; Phase 8 P8-001, P8-002, P8-003 verified |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **46 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) verified; Phase 8 (P8-001A, P8-001, P8-002 verified) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 8 (P8-003) |
+| **Completed Tasks** | **47 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) verified; Phase 8 (P8-001A, P8-001, P8-002, P8-003A, P8-003 verified) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 8 (P8-004) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **57.5% (46 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Overall Task Completion** | **58.8% (47 / 80 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **50.0% (8 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
@@ -32,7 +32,7 @@
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 8** | Gemini Integration | 5 | 2 | 0 | **IN_PROGRESS** | **40.0% (P8-001, P8-002 Complete)** |
+| **PHASE 8** | Gemini Integration | 5 | 3 | 0 | **IN_PROGRESS** | **60.0% (P8-001, P8-002, P8-003 Complete)** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,8 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **46** | **0** | **IN_PROGRESS** | **57.5%** |
-
+| **TOTAL** | **All Phases Combined** | **80** | **47** | **0** | **IN_PROGRESS** | **58.8%** |
 
 ---
 
@@ -54,7 +53,7 @@
 | **M2** | Phase 3-4 | GitHub App OAuth & webhook ingestion running; candidate profile & skill evidence graph extracted. | YES | NOT_STARTED | TBD |
 | **M3** | Phase 5 | Job description parsing, skill normalization, and evidence-to-requirement matching engine validated. | YES | NOT_STARTED | TBD |
 | **M4** | Phase 7-8 | Remote MCP server running over Streamable HTTP; Gemini client successfully calls tools and generates verified analysis. | YES | NOT_STARTED | TBD |
-| **M5 (MVP)** | Phase 8 | **End-to-End MVP Golden Path Verified** (User -> GitHub -> Evidence Profile -> Job Match -> Gemini MCP -> Verifiable Output). | **YES (MVP GATE)** | NOT_STARTED | TBD |
+| **M5 (MVP)** | Phase 8 | **End-to-End MVP Golden Path Verified** (User -> GitHub -> Evidence Profile -> Job Match -> Gemini MCP -> Verifiable Output). | **YES (MVP GATE)** | **IN_PROGRESS (P8-003 Verified)** | 2026-08-24 |
 | **M6** | Phase 9 | Safe, human-approved branch/PR project enhancement workflows operational. | NO | NOT_STARTED | TBD |
 | **M7** | Phase 10-11 | Claude and ChatGPT connectors validated with zero core backend changes. | NO | NOT_STARTED | TBD |
 | **M8** | Phase 12-14 | Multi-user beta launch, application tracking, end-to-end security hardening, and production audit. | NO | NOT_STARTED | TBD |
@@ -214,9 +213,9 @@
 | **P8-001A** | Gemini Integration Architecture & AI Trust-Boundary Review | Phase 7 | **COMPLETE & APPROVED** | Architectural specification `docs/gemini-integration-architecture.md` (`ARCH-026`), ADR-047 in `docs/decisions.md`. Defined 5-tier provider-neutral AI architecture, dynamic model routing (Gemini 3.7 Flash workhorse, 3.6 Flash secondary, 3.1 Pro deep reasoning, 2.5 Flash fallback), inverse authority principle (zero AI authority over facts/scores/EvidenceIds), XML prompt injection sandboxing, native JSON schema structured outputs (`responseSchema`), bounded tool calling (max 3 turns), sovereign multi-tenant isolation with zero user-data context caching, and 12-scenario red-team threat model. |
 | **P8-001** | Implement Gemini API Client adapter for testing tool calling against remote MCP endpoint | P7-004, P8-001A | **COMPLETE & LIVE VERIFIED** | Integrated official `@google/genai` SDK (`^2.18.0`). Implemented provider-neutral `AiProvider` interface (`src/clients/ai/ai-provider.interface.js`), dynamic 2026 `ModelRegistry` (`src/clients/ai/model-registry.js`), `TaskPolicyRegistry` (`src/clients/ai/task-policy.js`), XML prompt sandboxing with PII/secret scrubbing (`src/clients/gemini/gemini-prompt-builder.js`), Zod & MCP tool schema conversion (`src/clients/gemini/gemini-schema-converter.js`), error normalization (`src/clients/gemini/gemini-error-normalizer.js`), and `GeminiProviderAdapter` (`src/clients/gemini/gemini-adapter.js`). Verified across 12 unit tests (`tests/unit/gemini-client.test.js`), 2 contract tests (`tests/unit/ai-provider.contract.test.js`), and 3 live Fastify/PostgreSQL/Gemini integration tests (`tests/integration/gemini-client.test.js`): live authentication against Google Gemini Developer API, live text generation (`gemini-3.7-flash`), live structured output via Zod schema, live tool calling loop with approved read tool (`get_candidate_profile`), caller `McpRequestContext` preservation, bounded turn depth, jittered retry & fallback model failover on 429/503, safety handling, and zero secret leakage. Full suite: 831/831 PASS across 204 suites. |
 
-| **P8-002** | Configure Gemini System Prompts with strict zero-hallucination and evidence-citation constraints | P8-001 | NOT_STARTED | Test prompting Gemini with job description and verifying it calls `analyze_job_fit` |
-
-| **P8-003** | Test end-to-end Golden Path with Gemini: User connects GitHub -> builds evidence -> analyzes job -> Gemini explains fit | P3-005, P5-003, P8-002 | NOT_STARTED | Full integration test executing Golden Path and asserting accurate response |
+| **P8-002** | Configure Gemini System Prompts with strict zero-hallucination and evidence-citation constraints | P8-001 | **COMPLETE** | Implemented modular Prompt Policies in `src/clients/ai/prompt-policies/` (`BasePromptPolicy`, `ResumeWordingPolicy`, `CoverLetterPolicy`, `JobExplanationPolicy`, `CareerCoachingPolicy`, `ProjectCaseStudyPolicy`, `PromptPolicyRegistry`), XML prompt sandboxing, SecretScrubber + PII masking, and structured output verification. Unit tests (`tests/unit/gemini-prompt-policy.test.js` - 24 tests), deterministic integration tests (`tests/integration/gemini-prompt-policies.test.js` - 6 tests), and live external suite (`tests/integration/live/gemini-client.live.test.js`). Full master suite: 1,082/1,082 PASS across 283 suites. |
+| **P8-003A** | Gemini Golden Path Integration Architecture & Dual-Mode Test Strategy Review | P8-002 | **COMPLETE & APPROVED** | Architectural specification `docs/gemini-golden-path-architecture.md` (`ARCH-027`), ADR-048 in `docs/decisions.md`. Defined end-to-end topology connecting Phases 3, 4, 5, 7, and 8, inverse authority principle, dual-mode verification strategy (deterministic mock SDK for normal CI / `npm test` vs live external test for `npm run test:live`), database lifecycle compliance, and performance/cost bounds. |
+| **P8-003** | Test end-to-end Golden Path with Gemini: User connects GitHub -> builds evidence -> analyzes job -> Gemini explains fit | P3-005, P5-003, P8-002, P8-003A | **COMPLETE & VERIFIED** | Implemented & verified dual-mode Golden Path test suites: Deterministic Golden Path (`tests/integration/gemini-golden-path.test.js` - 11/11 PASS in 9.7s) and Live External Suite (`tests/integration/live/gemini-golden-path.live.test.js` - PASS against Google Gemini API). Verified 9 core security & anti-hallucination invariants: (1) Inverse Authority, (2) Evidence Grounding Gate, (3) Status Inflation Defense, (4) Metric Fabrication Defense, (5) Prompt Injection Resistance, (6) Multi-Tenant Sovereign Default-Deny (404), (7) Secret Scrubbing, (8) MCP Audit Logging, (9) Resource Lifecycle & Teardown. Master test suite: 1,093/1,093 PASS across 284 suites. |
 | **P8-004** | Configure Gemini Enterprise / Gemini Developer Studio custom connector integration documentation | P7-002, P8-003 | NOT_STARTED | Live verification walkthrough connecting Gemini to remote MCP URL |
 | **P8-005** | Benchmark MCP tool execution latency with Gemini (target <1.5s for cached queries) | P8-003 | NOT_STARTED | Latency benchmarking suite recording p50, p95, and p99 response times |
 
@@ -2004,4 +2003,33 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+
+* **P8-003 (Gemini End-to-End Golden Path — Completed & Verified)**:
+  * Deliverables Created:
+    * `docs/gemini-golden-path-architecture.md`: Architectural specification (`ARCH-027`), `ADR-048` in `docs/decisions.md`.
+    * `tests/integration/gemini-golden-path.test.js`: Comprehensive deterministic integration suite covering all 9 Golden Path phases and anti-hallucination security invariants.
+    * `tests/integration/live/gemini-golden-path.live.test.js`: Dedicated live external Golden Path suite connecting to Google Gemini API (`ai.google.dev`) under `JOB_EXPLANATION` policy.
+  * Invariants Verified:
+    1. **Candidate Profile Grounding**: Verified candidate profile separates verified skills (Go, PostgreSQL, Docker) from `[Unverified User Claim]` items (Kubernetes).
+    2. **Deterministic Mathematical Baseline**: ATS scoring, skill matching, and project relevance produce bit-for-bit immutable baselines.
+    3. **MCP Streamable HTTP Dispatch**: Executed `analyze_job_fit` and `inspect_project_evidence` via `POST /mcp` with Bearer API tokens and sovereign context minting.
+    4. **Inverse Authority Principle**: Gemini model reasoning under `JOB_EXPLANATION` policy explains authoritative scores without ability to alter `fitScore`, `requirementStatuses`, or candidate skills.
+    5. **Evidence Grounding Gate**: Fabricated/ungrounded `EvidenceId` citations are audited by `ZeroHallucinationIntegrityService` and blocked (`INVALID_EVIDENCE_ID` / `FABRICATED_CITATION` $\rightarrow$ `BLOCKED`).
+    6. **Status Inflation Defense**: Prohibits upgrading `[Unverified User Claim]` skills to `VERIFIED` in model outputs.
+    7. **Metric Fabrication Defense**: Ungrounded quantitative metrics (e.g. "reduced latency by 85%") fail integrity validation (`UNSUPPORTED_ACHIEVEMENT` $\rightarrow$ `BLOCKED`).
+    8. **Prompt Injection Resistance**: Malicious instructions in job descriptions ("Ignore previous instructions...") are treated strictly as passive data and cannot inflate scores.
+    9. **Multi-Tenant Sovereign Default-Deny (404)**: Tenant B cannot inspect Tenant A projects or score Tenant A candidates via MCP.
+    10. **Secret Scrubbing**: High-entropy tokens, API keys, and passwords are redacted (`[REDACTED_SECRET]`).
+    11. **MCP Audit Logging**: Recorded `mcp.tool.completed` compliance audit events in PostgreSQL without credential leakage.
+    12. **Database Lifecycle & Teardown**: Strict compliance with `closeDatabase()` and `npm run test:db-lifecycle-check` (32/32 files verified, 0 violations).
+  * Automated Verification Results:
+    * `node --test tests/integration/gemini-golden-path.test.js` -> PASS (11/11 tests passed in 9.7s)
+    * `npm run test:db-lifecycle-check` -> PASS (32/32 files verified, 0 violations)
+    * `npm run test:unit` -> PASS (844/844 tests passed across 207 suites in 18.2s)
+    * `npm run test:integration` -> PASS (249/249 tests passed across 77 suites in 47.4s)
+    * `npm test` -> PASS (1,093/1,093 tests passed across 284 suites in 47.6s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+
 

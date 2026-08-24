@@ -54,6 +54,7 @@
 | **ADR-045** | MCP Application Artifact Tools Architecture | **ACCEPTED** | 2026-08-23 |
 | **ADR-046** | Unified MCP Audit Logging Architecture & Schema Invariants | **ACCEPTED** | 2026-08-24 |
 | **ADR-047** | Gemini AI Provider & Trust-Boundary Architecture | **ACCEPTED** | 2026-08-24 |
+| **ADR-048** | Gemini End-to-End Golden Path Architecture & Dual-Mode Verification Strategy | **ACCEPTED** | 2026-08-24 |
 
 ---
 
@@ -1122,3 +1123,25 @@
 * **Consequences**:
   * Task P8-001 will implement the `GeminiClient` / `GeminiProviderAdapter` in `src/clients/gemini/` with comprehensive unit and integration test suites.
 * **Revisit Conditions**: When multi-provider AI adapters (Anthropic Claude in Phase 10, OpenAI ChatGPT in Phase 11) or enterprise Vertex AI IAM integrations (Phase 14) are introduced.
+
+---
+
+### ADR-048: Gemini End-to-End Golden Path Architecture & Dual-Mode Verification Strategy
+* **Status**: ACCEPTED
+* **Date**: 2026-08-24
+* **Context**: In Phase 8 (Task P8-003A), the platform requires establishing the complete End-to-End Golden Path verification connecting GitHub repository ingestion, cryptographic evidence extraction, candidate profile synchronization, job requirement parsing, deterministic ATS scoring, and remote MCP tool calling with Google Gemini fit explanations. We must define how this end-to-end flow is verified without introducing flaky CI failures from upstream AI rate limits, without degrading test performance, and without violating the Inverse Authority Principle.
+* **Decision**: Adopt the **Gemini End-to-End Golden Path Architecture & Dual-Mode Verification Strategy** defined in `docs/gemini-golden-path-architecture.md` (`ARCH-027`) governed by the following core architectural decisions:
+  * **End-to-End Topology & Layer Orchestration**: Golden Path seamlessly integrates Phase 3 (GitHub Ingestion), Phase 4 (Evidence Linking & Candidate Profile), Phase 5 (Career Intelligence & ATS Matching), Phase 7 (Remote MCP Server), and Phase 8 (Gemini Client & Prompt Policies).
+  * **Dual-Mode Verification Strategy**:
+    * **Deterministic Golden Path (Normal CI / `npm test`)**: `tests/integration/gemini-golden-path.test.js` tests the entire end-to-end workflow (PostgreSQL fixtures, Fastify server, MCP JSON-RPC routing, tool dispatch, and deterministic ATS evaluation) using a deterministic mock SDK response to deliver 100% stable, fast ($\le 10\text{ s}$) test passes with zero external network dependency.
+    * **Live External Golden Path (`npm run test:live`)**: `tests/integration/live/gemini-golden-path.live.test.js` tests live authentication and model execution against `ai.google.dev` using synthetic candidate fixtures, isolated from normal test runs.
+  * **Inverse Authority & Non-Negotiable Invariants**: Gemini operates strictly as a natural language synthesis and reasoning assistant. Gemini has zero authority to alter match scores, verify skills, or invent evidence.
+  * **Database Lifecycle Compliance**: All integration suites must include compliant `after()` hooks invoking `closeDatabase()` to drain and close the PostgreSQL pool.
+* **Alternatives Considered**:
+  * *Relying only on live Gemini calls for normal CI*: Rejected because upstream HTTP 429 rate limits cause CI build flakiness and worker hangs.
+  * *Skipping live Golden Path verification entirely*: Rejected because real-world API validation guarantees model adherence and schema compatibility.
+* **Reasons**: Guarantees fast, deterministic CI testing while preserving high-confidence live external verification against production AI services.
+* **Consequences**:
+  * Task P8-003 will implement the deterministic and live Golden Path integration suites.
+* **Revisit Conditions**: When multi-agent workflows or PR modification actions are introduced in Phase 9.
+
