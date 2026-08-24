@@ -353,20 +353,61 @@ export class GeminiProviderAdapter extends AiProvider {
     const maxRounds = Math.min(3, request.maxRounds || 3);
     let rounds = 0;
     let finalResponse = null;
+    let activeModelId = execConfig.modelId;
 
     while (rounds < maxRounds) {
       rounds++;
       const roundStart = Date.now();
 
-      const response = await client.models.generateContent({
-        model: execConfig.modelId,
-        contents,
-        config: {
-          systemInstruction: promptEnvelope.systemInstruction,
-          temperature: execConfig.temperature,
-          tools: geminiTools,
-        },
-      });
+      // Execute content generation with retry/fallback
+      let response = null;
+      let lastLoopError = null;
+
+      for (let attempt = 0; attempt <= execConfig.retryLimit; attempt++) {
+        try {
+          response = await client.models.generateContent({
+            model: activeModelId,
+            contents,
+            config: {
+              systemInstruction: promptEnvelope.systemInstruction,
+              temperature: execConfig.temperature,
+              tools: geminiTools,
+            },
+          });
+          break;
+        } catch (err) {
+          lastLoopError = normalizeGeminiError(err, {
+            taskType: request.taskType,
+            modelId: activeModelId,
+            attempt,
+          });
+
+          if (
+            lastLoopError.code === 'AI_AUTHENTICATION_ERROR' ||
+            lastLoopError.code === 'AI_SAFETY_BLOCKED' ||
+            lastLoopError.code === 'AI_INVALID_REQUEST'
+          ) {
+            throw lastLoopError;
+          }
+
+          if (attempt < execConfig.retryLimit) {
+            await this._backoff(attempt);
+            continue;
+          }
+
+          if (activeModelId !== execConfig.fallbackModelId && execConfig.fallbackModelId) {
+            this.logger.warn(
+              { fromModel: activeModelId, toModel: execConfig.fallbackModelId },
+              'Primary Gemini model exhausted retries in tool loop; switching to fallback model'
+            );
+            activeModelId = execConfig.fallbackModelId;
+            attempt = 0;
+            continue;
+          }
+
+          throw lastLoopError;
+        }
+      }
 
       const candidate = response?.candidates?.[0];
       const parts = candidate?.content?.parts || [];
@@ -377,7 +418,7 @@ export class GeminiProviderAdapter extends AiProvider {
         finalResponse = {
           text: response?.text || '',
           provider: 'gemini',
-          modelId: execConfig.modelId,
+          modelId: activeModelId,
           usage: {
             inputTokens: response?.usageMetadata?.promptTokenCount || 0,
             outputTokens: response?.usageMetadata?.candidatesTokenCount || 0,

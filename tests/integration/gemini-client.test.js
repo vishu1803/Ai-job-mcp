@@ -8,6 +8,7 @@
  * 4. Safe live Gemini API test (executes only when GEMINI_API_KEY is available; skips safely otherwise).
  */
 
+import '../../src/config/env.js';
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -224,9 +225,9 @@ describe('Gemini Provider Adapter Integration Tests (P8-001)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 3. Optional Live Gemini API Test
+  // 3. Live Gemini API Synthetic Test Suite
   // ---------------------------------------------------------------------------
-  it('3. Optional Live Gemini API Test (executes only if GEMINI_API_KEY is available)', async (t) => {
+  it('3. Live Gemini API Synthetic Verification (executes when GEMINI_API_KEY is available)', async (t) => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey.startsWith('AIzaSy_placeholder')) {
       t.skip('Skipping live Gemini API test: GEMINI_API_KEY is not configured.');
@@ -235,14 +236,123 @@ describe('Gemini Provider Adapter Integration Tests (P8-001)', () => {
 
     const liveAdapter = new GeminiProviderAdapter({ apiKey });
 
-    // Minimal synthetic test only: zero candidate/tenant/resume data
-    const liveResponse = await liveAdapter.generateText({
-      taskType: 'SYNTHETIC_HEALTH_CHECK',
+    // 1. Model Verification: Must resolve to gemini-3.7-flash production default
+    const defaultModel = liveAdapter.modelRegistry.getDefaultModel();
+    assert.strictEqual(
+      defaultModel.modelId,
+      'gemini-3.7-flash',
+      'Production model must be gemini-3.7-flash'
+    );
+    assert.strictEqual(defaultModel.stability, 'STABLE');
+
+    // 2. Live Text Generation (Synthetic non-sensitive prompt)
+    const textRes = await liveAdapter.generateText({
+      taskType: 'RESUME_WORDING',
       prompt: 'Respond with exactly: PONG',
     });
 
-    assert.ok(liveResponse.text);
-    assert.strictEqual(liveResponse.provider, 'gemini');
-    assert.ok(liveResponse.usage.totalTokens > 0);
+    assert.ok(textRes.text, 'generateText must return non-empty text');
+    assert.strictEqual(textRes.provider, 'gemini');
+    assert.ok(
+      ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-2.5-flash'].includes(textRes.modelId),
+      'Model used must be valid configured model'
+    );
+    assert.ok(textRes.usage.totalTokens > 0, 'usage.totalTokens must be positive');
+    assert.strictEqual(textRes.safetyResult.status, 'ALLOWED');
+    assert.strictEqual(
+      textRes.text.includes(apiKey),
+      false,
+      'API key must not appear in text output'
+    );
+
+    // 3. Live Structured Output Generation (Synthetic Schema)
+    const SyntheticStatusSchema = z.object({
+      status: z.string(),
+      message: z.string(),
+    });
+
+    const structRes = await liveAdapter.generateStructured({
+      taskType: 'RESUME_WORDING',
+      prompt:
+        'Return a JSON object conforming to the schema with status="ok" and message="synthetic Gemini connectivity test".',
+      responseSchema: SyntheticStatusSchema,
+    });
+
+    assert.ok(structRes.data, 'generateStructured must return parsed data');
+    assert.strictEqual(typeof structRes.data.status, 'string');
+    assert.strictEqual(typeof structRes.data.message, 'string');
+    assert.strictEqual(structRes.provider, 'gemini');
+    assert.ok(
+      ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-2.5-flash'].includes(structRes.modelId),
+      'Model used must be valid configured model'
+    );
+    assert.ok(structRes.usage.totalTokens > 0, 'usage.totalTokens must be positive');
+    assert.strictEqual(
+      structRes.rawText.includes(apiKey),
+      false,
+      'API key must not appear in raw structured text'
+    );
+
+    // 4. Live Tool Calling Loop with Approved Read Tool & Context Preservation
+    let contextReceivedByTool = null;
+    const syntheticToolExecutor = async (name, args, context) => {
+      assert.strictEqual(name, 'get_candidate_profile');
+      contextReceivedByTool = context;
+      return {
+        candidateId: args.candidateId,
+        displayName: 'Synthetic Candidate',
+        verifiedSkills: ['TypeScript', 'Cloud Systems'],
+      };
+    };
+
+    const liveToolRes = await liveAdapter.executeToolLoop({
+      taskType: 'CAREER_COACHING',
+      prompt:
+        'Please call get_candidate_profile for candidateId "synth-001" and summarize their skills in one sentence.',
+      tools: [
+        {
+          name: 'get_candidate_profile',
+          description: 'Retrieves candidate profile for a given candidateId',
+          inputSchema: z.object({ candidateId: z.string() }),
+        },
+      ],
+      toolExecutor: syntheticToolExecutor,
+      context: mockContext,
+      maxRounds: 3,
+    });
+
+    assert.ok(liveToolRes.rounds <= 3, 'Tool loop depth must be <= 3');
+    assert.ok(
+      liveToolRes.toolCallsExecuted.length >= 1,
+      'Gemini must execute at least one tool call'
+    );
+    assert.strictEqual(liveToolRes.toolCallsExecuted[0].name, 'get_candidate_profile');
+    assert.strictEqual(liveToolRes.toolCallsExecuted[0].isError, false);
+    assert.ok(contextReceivedByTool, 'McpRequestContext must be passed to tool executor');
+    assert.strictEqual(
+      contextReceivedByTool.tenantId,
+      mockContext.tenantId,
+      'McpRequestContext.tenantId must be preserved'
+    );
+    assert.strictEqual(
+      contextReceivedByTool.userId,
+      mockContext.userId,
+      'McpRequestContext.userId must be preserved'
+    );
+    assert.ok(
+      liveToolRes.finalResponse.text,
+      'Final response text must be generated after tool turn'
+    );
+    assert.ok(
+      ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-2.5-flash'].includes(
+        liveToolRes.finalResponse.modelId
+      ),
+      'Model used in tool loop must be valid configured model'
+    );
+    assert.strictEqual(
+      liveToolRes.finalResponse.text.includes(apiKey),
+      false,
+      'API key must not appear in final tool response'
+    );
   });
 });
