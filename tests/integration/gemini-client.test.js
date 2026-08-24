@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { db } from '../../src/db/index.js';
+import { db, closeDatabase } from '../../src/db/index.js';
 import { tenants, users, candidates, skills, candidateSkills } from '../../src/db/schema.js';
 import { createCareerMcpServer } from '../../src/mcp/server.js';
 import { GeminiProviderAdapter } from '../../src/clients/gemini/gemini-adapter.js';
@@ -99,12 +99,32 @@ describe('Gemini Provider Adapter Integration Tests (P8-001)', () => {
   });
 
   after(async () => {
-    if (mcpServer) await mcpServer.close();
-    if (tenantA?.id) {
-      await db
-        .delete(tenants)
-        .where(eq(tenants.id, tenantA.id))
-        .catch(() => {});
+    try {
+      if (mcpServer) await mcpServer.close();
+      if (tenantA?.id) {
+        await db
+          .delete(tenants)
+          .where(eq(tenants.id, tenantA.id))
+          .catch(() => {});
+      }
+    } finally {
+      await closeDatabase();
+
+      // Clean up any remaining idle keep-alive sockets (e.g. fetch / HTTPS agent keep-alive)
+      if (typeof process._getActiveHandles === 'function') {
+        const handles = process._getActiveHandles();
+        for (const h of handles) {
+          if (
+            h &&
+            typeof h.unref === 'function' &&
+            h !== process.stdout &&
+            h !== process.stderr &&
+            h !== process.stdin
+          ) {
+            h.unref();
+          }
+        }
+      }
     }
   });
 
