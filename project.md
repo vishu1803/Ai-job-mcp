@@ -9,10 +9,10 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (NOT_STARTED) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; ready for Phase 8 (Gemini Integration) |
+| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (P8-001A APPROVED; ready for P8-001) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; Phase 8 P8-001A verified & approved |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **44 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6: P7-001 through P7-006, plus P7-006A) verified |
+| **Completed Tasks** | **44 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) verified; Phase 8 P8-001A approved |
 | **In Progress Tasks** | **0 Tasks** | Ready for Phase 8 (P8-001) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
 | **Overall Task Completion** | **55.0% (44 / 80 Tasks)** | Strict calculation, zero inflation |
@@ -32,7 +32,7 @@
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 8** | Gemini Integration | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
+| **PHASE 8** | Gemini Integration | 5 | 0 | 0 | **IN_PROGRESS** | **0.0% (P8-001A Approved)** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -210,7 +210,8 @@
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P8-001** | Implement Gemini API Client adapter for testing tool calling against remote MCP endpoint | P7-004 | NOT_STARTED | Integration test: Gemini API calling MCP tools via function calling |
+| **P8-001A** | Gemini Integration Architecture & AI Trust-Boundary Review | Phase 7 | **COMPLETE & APPROVED** | Architectural specification `docs/gemini-integration-architecture.md` (`ARCH-026`), ADR-047 in `docs/decisions.md`. Defined 5-tier provider-neutral AI architecture, dynamic model routing (Gemini 3.7 Flash workhorse, 3.6 Flash secondary, 3.1 Pro deep reasoning, 2.5 Flash fallback), inverse authority principle (zero AI authority over facts/scores/EvidenceIds), XML prompt injection sandboxing, native JSON schema structured outputs (`responseSchema`), bounded tool calling (max 3 turns), sovereign multi-tenant isolation with zero user-data context caching, and 12-scenario red-team threat model. |
+| **P8-001** | Implement Gemini API Client adapter for testing tool calling against remote MCP endpoint | P7-004, P8-001A | NOT_STARTED | Integration test: Gemini API calling MCP tools via function calling |
 | **P8-002** | Configure Gemini System Prompts with strict zero-hallucination and evidence-citation constraints | P8-001 | NOT_STARTED | Test prompting Gemini with job description and verifying it calls `analyze_job_fit` |
 | **P8-003** | Test end-to-end Golden Path with Gemini: User connects GitHub -> builds evidence -> analyzes job -> Gemini explains fit | P3-005, P5-003, P8-002 | NOT_STARTED | Full integration test executing Golden Path and asserting accurate response |
 | **P8-004** | Configure Gemini Enterprise / Gemini Developer Studio custom connector integration documentation | P7-002, P8-003 | NOT_STARTED | Live verification walkthrough connecting Gemini to remote MCP URL |
@@ -1931,9 +1932,28 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | P7-006A | MCP Audit Logging Architecture | **COMPLETE & APPROVED** |
 | P7-006 | MCP Audit Logging | **COMPLETE** |
 
-**Next Phase**: Phase 8 — Gemini Integration (First Target AI Client)
-**Next Task**: P8-001 — Implement Gemini API Client adapter for testing tool calling against remote MCP endpoint
-
-
-
-
+* **P8-001A (Gemini Integration Architecture & AI Trust-Boundary Review — Completed & Approved)**:
+  * Deliverables Authored:
+    * `docs/gemini-integration-architecture.md`: Comprehensive architectural and security specification (`ARCH-026`) establishing the generative AI integration charter, 2026 Gemini model catalog (`gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.1-pro`, `gemini-3.5-flash-lite`, `gemini-2.5-flash`), Gemini Developer API vs. Vertex AI comparison, 5-tier provider-neutral AI architecture, inverse authority trust matrix, XML prompt injection sandboxing, 5-stage output verification pipeline, Zod-to-Gemini structured output (`responseSchema`), bounded tool execution (max 3 turns), context packing priority, multi-tenant caching isolation, cost/rate controls, retry/fallback policies, protected attribute anti-bias rules, factual claim safety, PII minimization, DPA data retention compliance, telemetry observability, and a 12-scenario security red-team threat model.
+    * `docs/decisions.md` (ADR-047): Formally accepted *Gemini AI Provider & Trust-Boundary Architecture*.
+  * Core Architectural Invariants Approved:
+    * **Provider-Neutral AI Layer (5-Tier Architecture)**: Defined `AiProvider` interface (`generateText`, `generateStructured`, `executeToolLoop`, `validateHealth`). All Gemini-specific SDK types (`@google/genai`), prompt templates, and REST calls are encapsulated inside `src/clients/gemini/`, completely decoupled from Tier 2 (Career Intelligence) and Tier 4 (Remote MCP Server).
+    * **Inverse Authority & Zero AI Fact Ownership**: Gemini possesses **ZERO authority** over candidate factual qualifications, employment dates, company names, metrics, match percentages, or `EvidenceIds`. The PostgreSQL database and deterministic domain services (`SkillTaxonomyEngine`, `EvidenceMatchingService`, `AtsFitScoreService`, `ProjectRelevanceService`) remain the sole authoritative source of truth.
+    * **Dynamic Model Routing**:
+      * Primary Workhorse: `gemini-3.7-flash` (Resume wording, cover letters, tool loops).
+      * Interactive Secondary: `gemini-3.6-flash` (Job summary explanations).
+      * Deep Reasoning: `gemini-3.1-pro` (Portfolio case study synthesis).
+      * Micro-Tasks: `gemini-3.5-flash-lite` (Title normalization ambiguity resolution).
+      * Stable Primary Fallback: `gemini-2.5-flash` (Automatic failover on rate limits or service degradation).
+      * Centralized in dynamic `ModelRegistry`; hardcoding model IDs in application code is prohibited.
+    * **Adversarial Prompt Sandboxing**: Untrusted job descriptions, repository READMEs, and code excerpts are strictly delimited inside XML data blocks (`<untrusted_job_description>`, `<passive_code_data>`) and evaluated beneath `systemInstruction` directives.
+    * **Mandatory Structured Output Validation**: Zod $\rightarrow$ JSON Schema $\rightarrow$ Gemini `responseSchema`. Free-form text parsing for structured data is strictly prohibited. Output must pass Zod schema validation, business rule checks, `evidence_items` UUID verification, and `ResumeIntegrityAuditService` metric/tenure/status inflation gates before release.
+    * **Bounded Tool Execution**: Restricts tool calling to approved read/artifact tools. Direct database or Git connector access is prohibited. Maximum tool loop depth is hard-capped at **3 turns**.
+    * **Sovereign Multi-Tenant Isolation & Privacy**: Context caching for user-specific candidate data is disabled to prevent cross-tenant data pooling. PII (email, phone, street address) and credentials are scrubbed before prompt dispatch. Paid API tier guarantees zero customer data usage for model training.
+    * **Zero Premature Persistence**: Phase 8 introduces zero new database tables; telemetry maps cleanly into existing `audit_logs` (ADR-046).
+  * Verification Status:
+    * `npm test` -> PASS (1,019/1,019 tests passed across 272 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+    * Zero premature code or SDK dependencies implemented.

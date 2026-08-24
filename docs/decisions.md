@@ -51,8 +51,9 @@
 | **ADR-041** | Resume Integrity Audit Tool Architecture | **ACCEPTED** | 2026-08-23 |
 | **ADR-042** | MCP Server Foundation & Career Tool Exposure Architecture | **ACCEPTED** | 2026-08-23 |
 | **ADR-043** | MCP Authentication Hybrid Model (Personal Tokens vs OAuth 2.1) | **ACCEPTED** | 2026-08-23 |
-| **ADR-044** | Career Read Tools over MCP Architecture | **ACCEPTED** | 2026-08-23 |
 | **ADR-045** | MCP Application Artifact Tools Architecture | **ACCEPTED** | 2026-08-23 |
+| **ADR-046** | Unified MCP Audit Logging Architecture & Schema Invariants | **ACCEPTED** | 2026-08-24 |
+| **ADR-047** | Gemini AI Provider & Trust-Boundary Architecture | **ACCEPTED** | 2026-08-24 |
 
 ---
 
@@ -1090,6 +1091,34 @@
   * Task P7-006 will implement the `McpAuditService` / route integration and associated unit/integration test suites verifying live PostgreSQL audit log insertion.
 * **Revisit Conditions**: When database partitioning for high-volume enterprise tenants (>10M monthly audit events) or external SIEM streaming webhooks are introduced in Phase 14.
 
+---
 
-
-
+### ADR-047: Gemini AI Provider & Trust-Boundary Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-24
+* **Context**: In Phase 8 (Task P8-001A), the platform requires establishing the first generative AI integration with **Google Gemini**. We must define where Gemini adds value, what Gemini is trusted to do, what Gemini is strictly forbidden from deciding, how prompt injection is defeated, how outputs are validated, how model lifecycle and deprecations are managed, and how the platform remains completely provider-neutral without making Gemini the source of truth for candidate qualifications, match scores, or tenant authorization.
+* **Decision**: Adopt the **Gemini Integration Architecture & AI Trust-Boundary Model** defined in `docs/gemini-integration-architecture.md` (`ARCH-026`) governed by the following core architectural decisions:
+  * **Provider-Neutral AI Adapter Layer (5-Tier Architecture)**: Tier 5 introduces a clean `AiProvider` interface (`generateText`, `generateStructured`, `executeToolLoop`, `validateHealth`). `GeminiProviderAdapter` implements this contract using the official `@google/genai` SDK / REST protocol without leaking Gemini-specific types, prompts, or configurations into the core Career Intelligence (Tier 2) or Remote MCP (Tier 4) layers.
+  * **Dynamic Model Routing & Catalog Policy**:
+    * **Flagship Workhorse**: `gemini-3.7-flash` for high-reasoning coding and resume wording tasks.
+    * **Interactive Secondary**: `gemini-3.6-flash` for fast job summary explanations.
+    * **Deep Reasoning**: `gemini-3.1-pro` for deep portfolio case study synthesis.
+    * **Micro-Tasks**: `gemini-3.5-flash-lite` for title normalization ambiguity resolution.
+    * **Stable Primary Fallback**: `gemini-2.5-flash` for automated failover on rate limits or service degradation.
+    * Models are configured through a centralized `ModelRegistry`; hardcoding model ID strings in domain code is strictly prohibited.
+  * **Inverse Authority & Zero-Hallucination Trust Boundary**:
+    * **Zero AI Authority over Facts**: Gemini is strictly prohibited from inventing employers, titles, dates, metrics, skills, or `EvidenceIds`. The PostgreSQL database and deterministic domain services (`SkillTaxonomyEngine`, `EvidenceMatchingService`, `AtsFitScoreService`, `ProjectRelevanceService`) remain the sole authoritative source of truth.
+    * Gemini operates *strictly over approved, schema-validated facts* provided in structured context envelopes.
+  * **Prompt Injection Defense & Sandboxing**: Untrusted data (raw job descriptions, repository READMEs, code snippets) is encapsulated in explicit XML data blocks (`<untrusted_job_description>`, `<passive_code_data>`) and evaluated beneath `systemInstruction` directives. Deterministic post-generation integrity gates provide absolute defense against prompt-level deceit.
+  * **Mandatory Structured Output Validation**: Structured responses enforce native JSON Schema generation via Zod $\rightarrow$ JSON Schema $\rightarrow$ Gemini `responseSchema`. Free-form text parsing for structured data is strictly prohibited. All AI outputs pass through a 5-stage verification gate (`Zod Schema` $\rightarrow$ `Domain Rules` $\rightarrow$ `Evidence Verification` $\rightarrow$ `Resume Integrity Audit Gate` $\rightarrow$ `Secret Scrubbing`).
+  * **Bounded Tool Calling & Anti-Loop Limits**: Tool calling is restricted to approved read/analysis tools (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`, `recommend_portfolio_projects`). Direct DB/connector access is prohibited. Tool loop iteration depth is hard-capped at **3 turns**.
+  * **Sovereign Multi-Tenant Isolation & Privacy**: Context caching for user-specific candidate data is disabled to prevent cross-tenant data pooling. PII (email, phone, address) and credentials are scrubbed before payload dispatch. Paid Gemini API tier guarantees zero customer data usage for model training.
+  * **Zero Premature Persistence**: Phase 8 introduces zero new database tables. All AI compliance telemetry maps cleanly into the existing PostgreSQL `audit_logs` table (ADR-046).
+* **Alternatives Considered**:
+  * *Making Gemini the primary job matching engine*: Rejected because deterministic algorithms provide 100% explainability, mathematical consistency, zero hallucination risk, and sub-50ms execution speed.
+  * *Relying on Gemini conversation memory for career history*: Rejected because PostgreSQL is the sovereign, queryable source of truth.
+  * *Hardcoding a single Gemini model ID*: Rejected because AI models evolve rapidly; dynamic routing ensures zero-code-change model upgrades.
+* **Reasons**: Establishes an enterprise-grade, evidence-backed AI client architecture that delivers compelling generative synthesis while rigorously guaranteeing data sovereignty, mathematical integrity, and provider neutrality.
+* **Consequences**:
+  * Task P8-001 will implement the `GeminiClient` / `GeminiProviderAdapter` in `src/clients/gemini/` with comprehensive unit and integration test suites.
+* **Revisit Conditions**: When multi-provider AI adapters (Anthropic Claude in Phase 10, OpenAI ChatGPT in Phase 11) or enterprise Vertex AI IAM integrations (Phase 14) are introduced.
