@@ -55,6 +55,7 @@
 | **ADR-046** | Unified MCP Audit Logging Architecture & Schema Invariants | **ACCEPTED** | 2026-08-24 |
 | **ADR-047** | Gemini AI Provider & Trust-Boundary Architecture | **ACCEPTED** | 2026-08-24 |
 | **ADR-048** | Gemini End-to-End Golden Path Architecture & Dual-Mode Verification Strategy | **ACCEPTED** | 2026-08-24 |
+| **ADR-049** | Vertex AI Gemini Provider Architecture & Google Cloud Credit Integration | **ACCEPTED** | 2026-08-24 |
 
 ---
 
@@ -1144,4 +1145,25 @@
 * **Consequences**:
   * Task P8-003 will implement the deterministic and live Golden Path integration suites.
 * **Revisit Conditions**: When multi-agent workflows or PR modification actions are introduced in Phase 9.
+
+---
+
+### ADR-049: Vertex AI Gemini Provider Architecture & Google Cloud Credit Integration
+* **Status**: ACCEPTED
+* **Date**: 2026-08-24
+* **Context**: In Phase 8 (Task P8-004A), live external verification against the Gemini Developer API (`ai.google.dev`) repeatedly encountered HTTP 429 `RESOURCE_EXHAUSTED` errors due to Google AI Studio's strict free-tier rate limits (~15 RPM). We must determine whether introducing Google Cloud Vertex AI is the appropriate next architectural step to resolve rate limits, leverage available Google Cloud promotional credits (e.g. $300 Free Trial, Google for Startups, Innovators program), and establish enterprise data governance while preserving the provider-neutral `AiProvider` abstraction.
+* **Decision**: Adopt the **Vertex AI Gemini Provider Architecture** defined in `docs/vertex-ai-gemini-architecture.md` (`ARCH-028`) governed by the following core architectural decisions:
+  * **Provider-Neutral Dual Adapter Abstraction**: The core `AiProvider` contract remains unchanged. We retain `GeminiDeveloperAdapter` (`src/clients/gemini/`) for lightweight API key access and introduce `GeminiVertexAdapter` (`src/clients/vertex/`) for Google Cloud Vertex AI execution via the unified `@google/genai` SDK (`vertexai: true`, `project`, `location`).
+  * **Zero Logic Duplication**: 100% of prompt policies (`PromptPolicyRegistry`), XML prompt sandboxing, Zod schema conversion, and error normalization are shared across both adapters without code duplication.
+  * **Promotional Credit Compatibility**: Vertex AI Foundation Model inference (`aiplatform.googleapis.com`) is confirmed fully `ELIGIBLE` for standard Google Cloud promotional credits, trial balances, and startup grants.
+  * **Credential Security & ADC**: Local development authenticates via Google Cloud Application Default Credentials (ADC) without checking in service account keys. Production/CI uses least-privilege IAM service accounts (`roles/aiplatform.user`).
+  * **Deterministic Test Integrity**: Normal CI (`npm test`, `npm run test:unit`, `npm run test:integration`) remains 100% deterministic and mock-based. Live verification is partitioned into optional suites (`npm run test:live:gemini`, `npm run test:live:vertex`).
+* **Alternatives Considered**:
+  * *Paying for higher AI Studio tiers with personal credit card*: Rejected because Google Cloud promotional credits cannot be used directly for AI Studio standalone billing, whereas Vertex AI consumes standard GCP project credits.
+  * *Creating an entirely separate AI orchestrator for Vertex*: Rejected because it violates provider neutrality and duplicates prompt sandboxing and schema conversion logic.
+* **Reasons**: Eliminates rate limit bottlenecks in live external testing, unlocks Google Cloud credit balances, enhances data governance, and prepares the platform for enterprise multi-cloud deployment.
+* **Consequences**:
+  * Task P8-004 will implement the `GeminiVertexAdapter` and dedicated live test suite with ADC support.
+* **Revisit Conditions**: When multi-provider AI adapters (Anthropic Claude in Phase 10, OpenAI ChatGPT in Phase 11) or enterprise IAM features in Phase 14 are introduced.
+
 

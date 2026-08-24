@@ -29,7 +29,9 @@ export function normalizeGeminiError(err, context = {}) {
     return err;
   }
 
-  const message = err?.message || 'Gemini generation failed';
+  const provider = context.provider || 'gemini';
+  const providerLabel = provider === 'vertex' ? 'Vertex AI' : 'Gemini API';
+  const message = err?.message || `${providerLabel} generation failed`;
   const status = err?.status || err?.statusCode || err?.response?.status || 500;
 
   // 1. Timeout / Abort
@@ -40,24 +42,30 @@ export function normalizeGeminiError(err, context = {}) {
     status === 504
   ) {
     return new AiTimeoutError(
-      'Gemini API request timed out.',
+      `${providerLabel} request timed out.`,
       { originalMessage: message, ...context },
-      'gemini'
+      provider
     );
   }
 
-  // 2. Authentication Failure (401 / 403 API_KEY_INVALID)
+  // 2. Authentication Failure (401 / 403 API_KEY_INVALID / ADC Failure / invalid_grant)
   if (
     status === 401 ||
+    message.includes('invalid_grant') ||
+    message.includes('unauthenticated') ||
+    message.includes('credentials') ||
+    message.includes('Could not load the default credentials') ||
     (status === 403 &&
       (message.includes('API_KEY') ||
         message.includes('PERMISSION_DENIED') ||
-        message.includes('API key')))
+        message.includes('API key') ||
+        message.includes('unauthenticated') ||
+        message.includes('credentials')))
   ) {
     return new AiAuthenticationError(
-      'Gemini API authentication failed. Verify GEMINI_API_KEY.',
+      `${providerLabel} authentication failed. Verify credentials.`,
       { status, ...context },
-      'gemini'
+      provider
     );
   }
 
@@ -69,9 +77,9 @@ export function normalizeGeminiError(err, context = {}) {
     message.includes('rate limit')
   ) {
     return new AiRateLimitedError(
-      'Gemini API rate limit or quota exceeded.',
+      `${providerLabel} rate limit or quota exceeded.`,
       { status, ...context },
-      'gemini'
+      provider
     );
   }
 
@@ -82,36 +90,36 @@ export function normalizeGeminiError(err, context = {}) {
     message.includes('token count exceeds')
   ) {
     return new AiContextTooLargeError(
-      'Prompt context exceeds Gemini model token limit.',
+      `Prompt context exceeds model token limit.`,
       { status, ...context },
-      'gemini'
+      provider
     );
   }
 
   // 5. Safety Filter Block
   if (message.includes('SAFETY') || message.includes('blocked by safety filters')) {
     return new AiSafetyBlockedError(
-      'Gemini generation blocked by safety filters.',
+      `${providerLabel} generation blocked by safety filters.`,
       { ...context },
-      'gemini'
+      provider
     );
   }
 
   // 6. Output Schema Validation Failure
   if (message.includes('schema') && (message.includes('validation') || message.includes('JSON'))) {
     return new AiOutputSchemaError(
-      'Gemini returned output that failed schema validation.',
+      `${providerLabel} returned output that failed schema validation.`,
       { originalMessage: message, ...context },
-      'gemini'
+      provider
     );
   }
 
   // 7. Invalid Request / Bad Arguments (400)
   if (status === 400 || message.includes('INVALID_ARGUMENT')) {
     return new AiInvalidRequestError(
-      'Invalid request sent to Gemini API.',
+      `Invalid request sent to ${providerLabel}.`,
       { originalMessage: message, status, ...context },
-      'gemini'
+      provider
     );
   }
 
@@ -123,18 +131,18 @@ export function normalizeGeminiError(err, context = {}) {
     message.includes('high demand')
   ) {
     return new AiUnavailableError(
-      'Gemini API is temporarily unavailable.',
+      `${providerLabel} is temporarily unavailable.`,
       { status, ...context },
-      'gemini'
+      provider
     );
   }
 
   // 9. Generic Fallback
   return new AiProviderError(
-    'An error occurred communicating with Google Gemini.',
+    `An error occurred communicating with ${providerLabel}.`,
     status >= 400 && status < 600 ? status : 500,
     'AI_PROVIDER_ERROR',
     { originalMessage: message, status, ...context },
-    'gemini'
+    provider
   );
 }

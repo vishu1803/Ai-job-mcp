@@ -212,12 +212,12 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **P8-001A** | Gemini Integration Architecture & AI Trust-Boundary Review | Phase 7 | **COMPLETE & APPROVED** | Architectural specification `docs/gemini-integration-architecture.md` (`ARCH-026`), ADR-047 in `docs/decisions.md`. Defined 5-tier provider-neutral AI architecture, dynamic model routing (Gemini 3.7 Flash workhorse, 3.6 Flash secondary, 3.1 Pro deep reasoning, 2.5 Flash fallback), inverse authority principle (zero AI authority over facts/scores/EvidenceIds), XML prompt injection sandboxing, native JSON schema structured outputs (`responseSchema`), bounded tool calling (max 3 turns), sovereign multi-tenant isolation with zero user-data context caching, and 12-scenario red-team threat model. |
 | **P8-001** | Implement Gemini API Client adapter for testing tool calling against remote MCP endpoint | P7-004, P8-001A | **COMPLETE & LIVE VERIFIED** | Integrated official `@google/genai` SDK (`^2.18.0`). Implemented provider-neutral `AiProvider` interface (`src/clients/ai/ai-provider.interface.js`), dynamic 2026 `ModelRegistry` (`src/clients/ai/model-registry.js`), `TaskPolicyRegistry` (`src/clients/ai/task-policy.js`), XML prompt sandboxing with PII/secret scrubbing (`src/clients/gemini/gemini-prompt-builder.js`), Zod & MCP tool schema conversion (`src/clients/gemini/gemini-schema-converter.js`), error normalization (`src/clients/gemini/gemini-error-normalizer.js`), and `GeminiProviderAdapter` (`src/clients/gemini/gemini-adapter.js`). Verified across 12 unit tests (`tests/unit/gemini-client.test.js`), 2 contract tests (`tests/unit/ai-provider.contract.test.js`), and 3 live Fastify/PostgreSQL/Gemini integration tests (`tests/integration/gemini-client.test.js`): live authentication against Google Gemini Developer API, live text generation (`gemini-3.7-flash`), live structured output via Zod schema, live tool calling loop with approved read tool (`get_candidate_profile`), caller `McpRequestContext` preservation, bounded turn depth, jittered retry & fallback model failover on 429/503, safety handling, and zero secret leakage. Full suite: 831/831 PASS across 204 suites. |
-
 | **P8-002** | Configure Gemini System Prompts with strict zero-hallucination and evidence-citation constraints | P8-001 | **COMPLETE** | Implemented modular Prompt Policies in `src/clients/ai/prompt-policies/` (`BasePromptPolicy`, `ResumeWordingPolicy`, `CoverLetterPolicy`, `JobExplanationPolicy`, `CareerCoachingPolicy`, `ProjectCaseStudyPolicy`, `PromptPolicyRegistry`), XML prompt sandboxing, SecretScrubber + PII masking, and structured output verification. Unit tests (`tests/unit/gemini-prompt-policy.test.js` - 24 tests), deterministic integration tests (`tests/integration/gemini-prompt-policies.test.js` - 6 tests), and live external suite (`tests/integration/live/gemini-client.live.test.js`). Full master suite: 1,082/1,082 PASS across 283 suites. |
 | **P8-003A** | Gemini Golden Path Integration Architecture & Dual-Mode Test Strategy Review | P8-002 | **COMPLETE & APPROVED** | Architectural specification `docs/gemini-golden-path-architecture.md` (`ARCH-027`), ADR-048 in `docs/decisions.md`. Defined end-to-end topology connecting Phases 3, 4, 5, 7, and 8, inverse authority principle, dual-mode verification strategy (deterministic mock SDK for normal CI / `npm test` vs live external test for `npm run test:live`), database lifecycle compliance, and performance/cost bounds. |
 | **P8-003** | Test end-to-end Golden Path with Gemini: User connects GitHub -> builds evidence -> analyzes job -> Gemini explains fit | P3-005, P5-003, P8-002, P8-003A | **COMPLETE & VERIFIED** | Implemented & verified dual-mode Golden Path test suites: Deterministic Golden Path (`tests/integration/gemini-golden-path.test.js` - 11/11 PASS in 9.7s) and Live External Suite (`tests/integration/live/gemini-golden-path.live.test.js` - PASS against Google Gemini API). Verified 9 core security & anti-hallucination invariants: (1) Inverse Authority, (2) Evidence Grounding Gate, (3) Status Inflation Defense, (4) Metric Fabrication Defense, (5) Prompt Injection Resistance, (6) Multi-Tenant Sovereign Default-Deny (404), (7) Secret Scrubbing, (8) MCP Audit Logging, (9) Resource Lifecycle & Teardown. Master test suite: 1,093/1,093 PASS across 284 suites. |
-| **P8-004** | Configure Gemini Enterprise / Gemini Developer Studio custom connector integration documentation | P7-002, P8-003 | NOT_STARTED | Live verification walkthrough connecting Gemini to remote MCP URL |
-| **P8-005** | Benchmark MCP tool execution latency with Gemini (target <1.5s for cached queries) | P8-003 | NOT_STARTED | Latency benchmarking suite recording p50, p95, and p99 response times |
+| **P8-004** | Implement Vertex AI Gemini Provider Adapter (`GeminiVertexAdapter`) with ADC, Workload Identity & Dedicated Live Test Suite | P8-003, P8-004A | **COMPLETE & VERIFIED** | Implemented `GeminiVertexAdapter` and `createAiProvider` factory. 17 unit tests in `tests/unit/vertex-adapter.test.js`, contract adherence verified, dedicated live integration suite in `tests/integration/live/gemini-vertex.live.test.js`. Master suite: 1,112/1,112 tests PASS across 285 suites with 0 leaks. |
+| **P8-005** | Configure Gemini Enterprise / Gemini Developer Studio custom connector integration documentation | P7-002, P8-003 | NOT_STARTED | Live verification walkthrough connecting Gemini to remote MCP URL |
+| **P8-006** | Benchmark MCP tool execution latency with Gemini (target <1.5s for cached queries) | P8-003 | NOT_STARTED | Latency benchmarking suite recording p50, p95, and p99 response times |
 
 ---
 
@@ -2032,4 +2032,39 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
 
-
+* **P8-004A (Vertex AI Gemini Provider Architecture & Google Cloud Credit Review — Completed & Approved)**:
+  * Deliverables Created:
+    * `docs/vertex-ai-gemini-architecture.md`: Architectural specification (`ARCH-028`), `ADR-049` in `docs/decisions.md`.
+  * Architectural Findings & Decisions:
+    * **Google Cloud Credit Compatibility**: Confirmed that standard Google Cloud promotional credits ($300 Free Trial, Google for Startups, Innovators program, Student credits) are fully **`ELIGIBLE`** for Vertex AI Foundation Model inference (`aiplatform.googleapis.com`), whereas AI Studio standalone billing is not directly compatible.
+    * **Provider-Neutral Abstraction**: Retains `AiProvider` interface without breaking changes. Introduces `GeminiVertexAdapter` alongside `GeminiDeveloperAdapter` with 100% shared prompt policies (`PromptPolicyRegistry`), XML prompt sandboxing, Zod schema conversion, and error normalization.
+    * **Authentication & Credential Security**: Local development leverages Application Default Credentials (ADC) via `gcloud auth application-default login`. Production/CI leverages least-privilege IAM Service Accounts (`roles/aiplatform.user`). Zero service account keys checked into source control; zero secrets exposed in logs, tests, or MCP envelopes.
+    * **Quota Resolution**: Vertex AI default project quota provides 60–300+ RPM and 4,000,000+ TPM (vs. AI Studio free-tier 15 RPM / 1M TPM), resolving the HTTP 429 bottleneck.
+    * **Test Suite Partitioning**: Normal CI (`npm test`, `npm run test:unit`, `npm run test:integration`) remains 100% deterministic with mock SDKs. Live testing will support dedicated isolated scripts (`npm run test:live:gemini`, `npm run test:live:vertex`) with synthetic fixtures and clean error handling.
+* **P8-004 (Vertex AI Gemini Provider Adapter Implementation — Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/clients/vertex/vertex-adapter.js`: Implements canonical `AiProvider` interface (`id: 'vertex'`, `name: 'Google Cloud Vertex AI'`) via unified `@google/genai` SDK with `{ vertexai: true, project, location }`. Implements `generateText`, `generateStructured`, `executeToolLoop` (max 3 turns), and `validateHealth`.
+    * `src/clients/ai/ai-provider-factory.js`: Implements provider selector (`createAiProvider`, `getDefaultAiProvider`) dynamically routing between `gemini-developer` (Google AI Studio) and `gemini-vertex` (Google Cloud Vertex AI) based on `AI_PROVIDER` configuration.
+    * `src/clients/gemini/gemini-error-normalizer.js`: Updated to support multi-provider error normalization, dynamic error attribution (`provider: 'vertex'`), and mapping `invalid_grant` / OAuth failures to `AiAuthenticationError`.
+    * `tests/unit/vertex-adapter.test.js`: 17 comprehensive unit tests verifying initialization, ADC configuration, text generation, Zod structured output, bounded tool loops, error normalization, retry/fallback, and health reporting with mock SDK clients (100% deterministic, 0 network).
+    * `tests/unit/ai-provider.contract.test.js`: Verified `GeminiVertexAdapter` and `createAiProvider` adhere to canonical `AiProvider` contract.
+    * `tests/integration/live/gemini-vertex.live.test.js`: Dedicated live Vertex AI verification suite (`npm run test:live:vertex`) with 4-step sequence (Health, Text Generation, Zod Structured Generation, Single Tool Loop Round-Trip).
+    * `package.json`: Added dedicated scripts `"test:live:vertex"` and `"test:live:gemini"`.
+    * `docs/vertex-ai-gemini-architecture.md`: Updated architecture specification with implementation signoff and verified test metrics.
+  * Invariants & Architecture Verified:
+    1. **100% Shared Kernel Reuse**: Reuses 100% of existing `ModelRegistry`, `TaskPolicyRegistry`, `GeminiPromptBuilder`, `GeminiSchemaConverter`, and domain error hierarchy with zero duplicated business logic.
+    2. **ADC & IAM Security**: Authenticates via Application Default Credentials. Zero static API keys (`VERTEX_AI_API_KEY`) used or created; zero credentials logged to Pino.
+    3. **Deterministic Master Quality Gate**: Normal `npm test` runs with 0 network dependencies and requires zero GCP credentials or live API keys.
+    4. **Database Lifecycle Compliance**: `npm run test:db-lifecycle-check` verified 32/32 DB-using files with 0 violations.
+  * Automated Verification Results:
+    * `node --test tests/unit/vertex-adapter.test.js` -> PASS (17/17 tests passed in 6.6s)
+    * `node --test tests/unit/ai-provider.contract.test.js` -> PASS (4/4 tests passed in 2.1s)
+    * `npm run test:db-lifecycle-check` -> PASS (32/32 files verified, 0 violations)
+    * `npm run test:unit` -> PASS (863/863 tests passed across 208 suites in 24.7s)
+    * `npm run test:integration` -> PASS (249/249 tests passed across 77 suites in 34.1s)
+    * `npm test` -> PASS (1,112/1,112 tests passed across 285 suites in 48.2s)
+    * `npm run test:live:vertex` -> PASS (Live ADC connectivity & synthetic verification suite)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+  * Status: **`P8-004 COMPLETE & VERIFIED`**.
