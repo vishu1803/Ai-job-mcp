@@ -19,7 +19,6 @@ import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { GeminiProviderAdapter } from '../../src/clients/gemini/gemini-adapter.js';
 import { ModelRegistry } from '../../src/clients/ai/model-registry.js';
-import { TaskPolicyRegistry } from '../../src/clients/ai/task-policy.js';
 import { buildGeminiPromptEnvelope } from '../../src/clients/gemini/gemini-prompt-builder.js';
 import {
   toGeminiResponseSchema,
@@ -28,19 +27,19 @@ import {
 import {
   AiInvalidRequestError,
   AiOutputSchemaError,
+  AiRateLimitedError,
   AiSafetyBlockedError,
+  AiTimeoutError,
   AiToolLoopExhaustedError,
 } from '../../src/errors/ai.errors.js';
 
 describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
   let modelRegistry;
-  let taskPolicyRegistry;
   let mockLogger;
   let loggedEvents;
 
   beforeEach(() => {
     modelRegistry = new ModelRegistry();
-    taskPolicyRegistry = new TaskPolicyRegistry();
     loggedEvents = [];
     mockLogger = {
       info: (obj, msg) => loggedEvents.push({ level: 'info', obj, msg }),
@@ -99,11 +98,12 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
 
     // PII & secret scrubbing checks
     assert.strictEqual(envelope.contents.includes('alice@example.com'), false);
-    assert.ok(envelope.contents.includes('[REDACTED_EMAIL]'));
     assert.strictEqual(envelope.contents.includes('555-123-4567'), false);
-    assert.ok(envelope.contents.includes('[REDACTED_PHONE]'));
     assert.strictEqual(envelope.contents.includes('123 Main Street'), false);
     assert.strictEqual(envelope.contents.includes('mcp_live_secret_key_123'), false);
+    assert.ok(envelope.contents.includes('[REDACTED_EMAIL]'));
+    assert.ok(envelope.contents.includes('[REDACTED_PHONE]'));
+    assert.ok(envelope.contents.includes('[REDACTED_ADDRESS]'));
   });
 
   // ---------------------------------------------------------------------------
@@ -161,8 +161,6 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
     const adapter = new GeminiProviderAdapter({
       sdkClient: mockSdk,
       logger: mockLogger,
-      modelRegistry,
-      taskPolicyRegistry,
     });
 
     const res = await adapter.generateText({
@@ -179,13 +177,12 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // 6. Safety Filter Block
+  // 6. Safety Filter Blocking Handling
   // ---------------------------------------------------------------------------
-  it('6. generateText throws AiSafetyBlockedError when finishReason is SAFETY', async () => {
+  it('6. generateText raises AiSafetyBlockedError when model response is blocked by safety filters', async () => {
     const mockSdk = {
       models: {
         generateContent: async () => ({
-          text: '',
           candidates: [
             {
               finishReason: 'SAFETY',
@@ -202,29 +199,33 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
     });
 
     await assert.rejects(
-      () => adapter.generateText({ taskType: 'RESUME_WORDING', prompt: 'unsafe prompt' }),
-      AiSafetyBlockedError
+      () =>
+        adapter.generateText({
+          taskType: 'RESUME_WORDING',
+          prompt: 'Unsafe prompt',
+        }),
+      (err) => err instanceof AiSafetyBlockedError
     );
   });
 
   // ---------------------------------------------------------------------------
-  // 7. Structured Output Generation & Validation
+  // 7. Structured Output Parsing & Validation
   // ---------------------------------------------------------------------------
-  it('7. generateStructured validates output against Zod schema and returns parsed data', async () => {
+  it('7. generateStructured validates and parses JSON conforming to Zod schema', async () => {
     const TargetSchema = z.object({
-      bullets: z.array(z.string()),
-      confidence: z.number(),
+      bullets: z.array(z.string()).min(1),
+      primarySkill: z.string(),
     });
 
     const mockSdk = {
       models: {
         generateContent: async () => ({
           text: JSON.stringify({
-            bullets: ['Led migration of cloud microservices.', 'Reduced P99 latency by 35%.'],
-            confidence: 0.95,
+            bullets: ['Led development of Go microservices.'],
+            primarySkill: 'Go',
           }),
           candidates: [{ finishReason: 'STOP' }],
-          usageMetadata: { promptTokenCount: 200, candidatesTokenCount: 50, totalTokenCount: 250 },
+          usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30, totalTokenCount: 150 },
         }),
       },
     };
@@ -234,18 +235,24 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
       logger: mockLogger,
     });
 
-    const result = await adapter.generateStructured({
+    const res = await adapter.generateStructured({
       taskType: 'RESUME_WORDING',
       prompt: 'Draft resume bullets',
       responseSchema: TargetSchema,
     });
 
-    assert.strictEqual(result.data.bullets.length, 2);
-    assert.strictEqual(result.data.confidence, 0.95);
-    assert.strictEqual(result.provider, 'gemini');
+    assert.strictEqual(res.data.primarySkill, 'Go');
+    assert.strictEqual(res.data.bullets.length, 1);
+    assert.strictEqual(
+      res.rawText,
+      '{"bullets":["Led development of Go microservices."],"primarySkill":"Go"}'
+    );
   });
 
-  it('8. generateStructured throws AiOutputSchemaError when returned JSON violates Zod schema', async () => {
+  // ---------------------------------------------------------------------------
+  // 8. Structured Output Schema Violation Handling
+  // ---------------------------------------------------------------------------
+  it('8. generateStructured throws AiOutputSchemaError when response violates Zod schema', async () => {
     const TargetSchema = z.object({
       bullets: z.array(z.string()),
       requiredNumber: z.number(), // Will be missing in response
@@ -434,5 +441,164 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
     assert.strictEqual(res.modelId, 'gemini-2.5-flash');
     assert.ok(modelUsed.includes('gemini-3.7-flash'));
     assert.ok(modelUsed.includes('gemini-2.5-flash'));
+  });
+
+  it('13. generateText retries transient 503 Service Unavailable and succeeds on attempt 2 without model switch', async () => {
+    let attempt = 0;
+    const modelUsed = [];
+
+    const transientFailMockSdk = {
+      models: {
+        generateContent: async ({ model }) => {
+          modelUsed.push(model);
+          attempt++;
+          if (attempt === 1) {
+            const err = new Error('Service Unavailable: 503 backend error');
+            err.status = 503;
+            throw err;
+          }
+          return {
+            text: 'Recovered from 503 successfully.',
+            candidates: [{ finishReason: 'STOP' }],
+          };
+        },
+      },
+    };
+
+    const adapter = new GeminiProviderAdapter({
+      sdkClient: transientFailMockSdk,
+      logger: mockLogger,
+    });
+
+    const res = await adapter.generateText({
+      taskType: 'RESUME_WORDING',
+      prompt: 'Test 503 retry',
+    });
+
+    assert.strictEqual(res.text, 'Recovered from 503 successfully.');
+    assert.strictEqual(res.modelId, 'gemini-3.7-flash');
+    assert.strictEqual(attempt, 2);
+    assert.strictEqual(
+      modelUsed.every((m) => m === 'gemini-3.7-flash'),
+      true
+    );
+  });
+
+  it('14. generateText throws AiTimeoutError on timeout/abort signal', async () => {
+    const timeoutMockSdk = {
+      models: {
+        generateContent: async () => {
+          const err = new Error('The operation was aborted due to timeout');
+          err.name = 'AbortError';
+          throw err;
+        },
+      },
+    };
+
+    const adapter = new GeminiProviderAdapter({
+      sdkClient: timeoutMockSdk,
+      logger: mockLogger,
+    });
+
+    await assert.rejects(
+      () =>
+        adapter.generateText({
+          taskType: 'RESUME_WORDING',
+          prompt: 'Timeout test',
+        }),
+      AiTimeoutError
+    );
+  });
+
+  it('15. generateText throws AiRateLimitedError when both primary and fallback models fail with 429', async () => {
+    const doubleExhaustionMockSdk = {
+      models: {
+        generateContent: async () => {
+          const err = new Error('Resource exhausted: 429 quota exceeded');
+          err.status = 429;
+          throw err;
+        },
+      },
+    };
+
+    const adapter = new GeminiProviderAdapter({
+      sdkClient: doubleExhaustionMockSdk,
+      logger: mockLogger,
+    });
+
+    await assert.rejects(
+      () =>
+        adapter.generateText({
+          taskType: 'RESUME_WORDING',
+          prompt: 'Double exhaustion test',
+        }),
+      AiRateLimitedError
+    );
+  });
+
+  it('16. executeToolLoop switches to fallback model when primary model fails with 429 during tool loop', async () => {
+    const modelsCalled = [];
+    let turn = 0;
+
+    const toolLoopFallbackMockSdk = {
+      models: {
+        generateContent: async ({ model }) => {
+          modelsCalled.push(model);
+          turn++;
+          if (model === 'gemini-3.7-flash') {
+            const err = new Error('Resource exhausted: 429 quota exceeded');
+            err.status = 429;
+            throw err;
+          }
+          // Secondary model gemini-3.6-flash succeeds
+          if (turn <= 4) {
+            // First successful turn on secondary model: emit function call
+            return {
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        functionCall: {
+                          name: 'get_candidate_profile',
+                          args: { candidateId: '123e4567-e89b-12d3-a456-426614174000' },
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            };
+          }
+          // Final turn: emit answer
+          return {
+            text: 'Alice is a verified architect from fallback model.',
+            candidates: [{ finishReason: 'STOP' }],
+          };
+        },
+      },
+    };
+
+    const adapter = new GeminiProviderAdapter({
+      sdkClient: toolLoopFallbackMockSdk,
+      logger: mockLogger,
+    });
+
+    const toolExecutor = async (name) => {
+      assert.strictEqual(name, 'get_candidate_profile');
+      return { displayName: 'Alice' };
+    };
+
+    const res = await adapter.executeToolLoop({
+      taskType: 'CAREER_COACHING',
+      prompt: 'Summarize candidate with fallback',
+      tools: [{ name: 'get_candidate_profile', inputSchema: {} }],
+      toolExecutor,
+    });
+
+    assert.ok(res.finalResponse.text.includes('Alice is a verified architect from fallback model'));
+    assert.strictEqual(res.finalResponse.modelId, 'gemini-3.6-flash');
+    assert.ok(modelsCalled.includes('gemini-3.7-flash'));
+    assert.ok(modelsCalled.includes('gemini-3.6-flash'));
   });
 });

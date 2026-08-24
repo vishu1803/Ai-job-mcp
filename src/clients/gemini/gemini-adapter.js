@@ -172,6 +172,8 @@ export class GeminiProviderAdapter extends AiProvider {
           durationMs,
           metadata: {
             taskType: request.taskType,
+            policyId: promptEnvelope.policyId,
+            policyVersion: promptEnvelope.policyVersion,
             attempt,
           },
         };
@@ -183,6 +185,8 @@ export class GeminiProviderAdapter extends AiProvider {
             provider: 'gemini',
             model: activeModelId,
             task: request.taskType,
+            policyId: promptEnvelope.policyId,
+            policyVersion: promptEnvelope.policyVersion,
             durationMs,
             totalTokens,
           },
@@ -197,7 +201,12 @@ export class GeminiProviderAdapter extends AiProvider {
             resourceId: activeModelId,
             durationMs,
             statusCode: 200,
-            parameters: { taskType: request.taskType, modelId: activeModelId },
+            parameters: {
+              taskType: request.taskType,
+              modelId: activeModelId,
+              policyId: promptEnvelope.policyId,
+              policyVersion: promptEnvelope.policyVersion,
+            },
           });
         }
 
@@ -427,6 +436,11 @@ export class GeminiProviderAdapter extends AiProvider {
           finishReason: candidate?.finishReason || 'STOP',
           safetyResult: { status: 'ALLOWED' },
           durationMs: Date.now() - roundStart,
+          metadata: {
+            taskType: request.taskType,
+            policyId: promptEnvelope.policyId,
+            policyVersion: promptEnvelope.policyVersion,
+          },
         };
         break;
       }

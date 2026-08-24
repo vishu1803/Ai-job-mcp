@@ -38,8 +38,8 @@ describe('GitHub Webhook HTTP & Database Integration Tests (P3-003)', () => {
   const testUserAId = crypto.randomUUID();
   const testUserBId = crypto.randomUUID();
 
-  const testInstallationAId = 88770011;
-  const testInstallationBId = 88770022;
+  const testInstallationAId = Math.floor(10000000 + Math.random() * 80000000);
+  const testInstallationBId = testInstallationAId + 1;
 
   let connectionAId;
   let connectionBId;

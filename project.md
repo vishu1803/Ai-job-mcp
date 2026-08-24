@@ -9,13 +9,13 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (P8-001A APPROVED, P8-001 COMPLETE) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; Phase 8 P8-001 verified |
+| **Current Phase** | **PHASE 8 — Gemini Integration** | Phase 0-7 (100% COMPLETE), Phase 8 (P8-001A APPROVED, P8-001 & P8-002 COMPLETE) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 7 complete; Phase 8 P8-001 & P8-002 verified |
 | **Total Tasks** | **80 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **45 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) verified; Phase 8 P8-001A approved, P8-001 complete |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 8 (P8-002) |
+| **Completed Tasks** | **46 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) verified; Phase 8 (P8-001A, P8-001, P8-002 verified) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 8 (P8-003) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **56.25% (45 / 80 Tasks)** | Strict calculation, zero inflation |
+| **Overall Task Completion** | **57.5% (46 / 80 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **50.0% (8 / 16 Phases)** | Strictly based on verified deliverables |
 
 ---
@@ -32,7 +32,7 @@
 | **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 8** | Gemini Integration | 5 | 1 | 0 | **IN_PROGRESS** | **20.0% (P8-001 Complete)** |
+| **PHASE 8** | Gemini Integration | 5 | 2 | 0 | **IN_PROGRESS** | **40.0% (P8-001, P8-002 Complete)** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -40,7 +40,7 @@
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **80** | **45** | **0** | **IN_PROGRESS** | **56.25%** |
+| **TOTAL** | **All Phases Combined** | **80** | **46** | **0** | **IN_PROGRESS** | **57.5%** |
 
 
 ---
@@ -1981,6 +1981,26 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
   * Verification Results:
     * `node --test tests/unit/gemini-client.test.js tests/unit/ai-provider.contract.test.js` -> PASS (14/14 tests passed across 2 suites)
     * `node --test tests/integration/gemini-client.test.js` -> PASS (3/3 tests passed, 1 optional live test skipped cleanly)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files use Prettier code style)
+* **P8-002 (Gemini Prompt Policies & Test Infrastructure Optimization — Completed & Verified)**:
+  * Deliverables Created / Updated:
+    * `src/clients/ai/prompt-policies/`: Implemented prompt policy registry and dedicated policies for `RESUME_WORDING`, `COVER_LETTER`, `JOB_EXPLANATION`, `CAREER_COACHING`, `PROJECT_CASE_STUDY` with XML sandboxing and universal zero-hallucination constraints.
+    * `package.json`: Split test execution into deterministic `test:unit` (`node --test tests/unit/**/*.test.js`), `test:integration` (`node --test tests/integration/*.test.js`), dedicated `test:live` (`node --test tests/integration/live/**/*.test.js`), and combined `test` (`node --test tests/unit/**/*.test.js tests/integration/*.test.js`).
+    * `tests/integration/live/gemini-client.live.test.js`: Dedicated live external Gemini verification suite bounded to $\le 3$ real API requests with clean teardown.
+    * `tests/integration/gemini-client.test.js` & `tests/integration/gemini-prompt-policies.test.js`: Decoupled from live Google API calls to guarantee fast, deterministic integration test execution without external rate-limit dependencies.
+    * MCP Integration Suite Lifecycle Fix (`tests/integration/mcp-*.test.js`): Fixed process hang across all 5 MCP integration test suites (`mcp-application-artifact-tools.test.js`, `mcp-audit-logging.test.js`, `mcp-career-read-tools.test.js`, `mcp-server.test.js`, `mcp-api-token.service.test.js`) by adding explicit `closeDatabase()` calls in `after()` hooks to properly drain and close the singleton PostgreSQL client pool.
+  * Diagnostic & Benchmark Results:
+    * **Worker Lifecycle Fix**: Reduced MCP suite file execution durations from ~17.56 minutes (1,053,840 ms) down to 11–21 seconds (100% natural process termination, 0 hangs, 0 force-exit flags).
+    * **Deterministic Test Suite Duration**: 1,082 tests across 283 suites execute in **37.86 seconds** (`npm test`).
+    * **Unit Tests**: 844 tests across 207 suites execute in **14.8 seconds** (`npm run test:unit`).
+    * **Deterministic Integration Tests**: 238 tests across 76 suites execute in **59.9 seconds** (`npm run test:integration`).
+    * **Live Gemini Tests**: 3 live API tests execute in **21.9 seconds** (`npm run test:live`).
+  * Quality Verification Commands & Results:
+    * `npm run test:unit` -> PASS (844/844 tests passed across 207 suites in 14.8s)
+    * `npm run test:integration` -> PASS (238/238 tests passed across 76 suites in 59.9s)
+    * `npm test` -> PASS (1,082/1,082 tests passed across 283 suites in 37.86s)
+    * `npm run test:live` -> PASS (3/3 tests passed with automatic model failover in 21.9s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")

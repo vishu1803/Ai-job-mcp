@@ -17,7 +17,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert';
 import crypto from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
-import { db } from '../../src/db/index.js';
+import { db, closeDatabase } from '../../src/db/index.js';
 import {
   tenants,
   users,
@@ -466,6 +466,7 @@ describe('Live MCP Career Read Tools Integration Tests (P7-004)', () => {
         .where(eq(tenants.id, tenantId))
         .catch(() => {});
     }
+    await closeDatabase();
   });
 
   // ===========================================================================

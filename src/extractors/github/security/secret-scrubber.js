@@ -35,8 +35,17 @@ export class SecretScrubber {
       replace: 'Bearer [REDACTED_SECRET]',
     },
     {
+      name: 'BEARER_GENERIC',
+      regex: /\bBearer\s+([A-Za-z0-9-_=.]{15,})\b/gi,
+      replace: 'Bearer [REDACTED_SECRET]',
+    },
+    {
       name: 'RAW_JWT',
       regex: /\b(eyJ[A-Za-z0-9-_=]{10,}\.[A-Za-z0-9-_=]{10,}\.?[A-Za-z0-9-_.+/=]*)\b/g,
+    },
+    {
+      name: 'AI_API_KEYS',
+      regex: /\b(sk-[A-Za-z0-9_-]{20,}|AIzaSy[A-Za-z0-9_-]{33})\b/g,
     },
     // 5. Database Connection Strings with embedded credentials
     {
@@ -44,6 +53,7 @@ export class SecretScrubber {
       regex: /([a-zA-Z0-9+]+:\/\/[^:\s'"/]+):([^@\s'"/]+)@/g,
       replace: '$1:[REDACTED_SECRET]@',
     },
+
     // 6. Generic Assignment Secret Patterns (password, token, secret, api_key)
     {
       name: 'ASSIGNMENT_SECRET',
