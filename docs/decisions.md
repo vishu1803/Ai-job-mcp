@@ -58,6 +58,8 @@
 | **ADR-049** | Vertex AI Gemini Provider Architecture & Google Cloud Credit Integration | **ACCEPTED** | 2026-08-24 |
 | **ADR-050** | Gemini Enterprise & Google AI Studio Remote MCP Integration Architecture | **ACCEPTED** | 2026-08-24 |
 | **ADR-051** | MCP Performance Benchmarking & Latency Target Architecture | **ACCEPTED** | 2026-08-24 |
+| **ADR-052** | Approved GitHub / Project Modification Workflows & Human-in-the-Loop Safety Architecture | **ACCEPTED** | 2026-08-25 |
+| **ADR-053** | Two-Phase Action Approval State Machine & Cryptographic Binding Architecture | **ACCEPTED** | 2026-08-25 |
 
 ---
 
@@ -1237,4 +1239,28 @@
 * **Consequences**:
   * Phase 9 tasks (`P9-001` through `P9-006`) will implement the `ProjectImprovementRecommender`, `ApprovalTicket` state machine, scoped `GitHubAppConnector` write operations, safety constraints, MCP write tools, and diff preview test suites.
 * **Revisit Conditions**: When multi-repository cross-linking or automated CI test runner execution inside isolated sandboxes are introduced in Phase 15.
+
+---
+
+### ADR-053: Two-Phase Action Approval State Machine & Cryptographic Binding Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-25
+* **Context**: In Phase 9 (Task P9-002A), we designed the authorization gate for repository modification. We must establish a formal state machine, cryptographic tamper resistance, single-use consumption semantics, optimistic concurrency controls, expiration policies, and multi-tenant isolation guarantees before implementing the `ActionApprovalTicketService` in Task P9-002.
+* **Decision**: Adopt the **Two-Phase Action Approval State Machine Architecture** defined in `docs/approval-state-machine-architecture.md` (`ARCH-032`) governed by the following core architectural decisions:
+  * **Eight-State Lifecycle Model**: Enforces strict transitions across `PENDING`, `APPROVED`, `EXECUTING`, `EXECUTED`, `REJECTED`, `CANCELLED`, `EXPIRED`, and `FAILED`. Terminal states are permanent and immutable.
+  * **Cryptographic HMAC-SHA256 Binding with HKDF Tenant Isolation**: Every ticket payload is signed with an HMAC-SHA256 signature calculated over a canonical pipe-delimited string of all mutable parameters (`tenantId`, `userId`, `candidateId`, `resourceId`, `proposalId`, `repositoryName`, `baseBranch`, `targetBranch`, `expectedHeadSha`, `patchFingerprint`, `expiresAt`). Signing keys are derived per tenant using HKDF-SHA256.
+  * **Deterministic Single-Use Atomic CAS**: Execution pickup transitions `APPROVED` $\rightarrow$ `EXECUTING` via PostgreSQL row-level locks (`SELECT FOR UPDATE`) and atomic CAS (`consumed_at IS NULL`). Concurrent execution attempts or replays fail closed with `409 Conflict`.
+  * **Optimistic Concurrency on Base HEAD SHA (`expectedHeadSha`)**: Ticket creation records the base branch's HEAD commit SHA. If the target repository has advanced before execution, execution fails closed with `StaleHeadShaError` (`409 Conflict`) rather than silently rebasing.
+  * **Dual Expiration Ceilings (15m Creation TTL / 5m Execution Window)**: Tickets expire automatically after 15 minutes if unapproved, and within 5 minutes after approval if execution is not picked up, governed strictly by authoritative PostgreSQL server time (`NOW()`).
+  * **Strict Role-Based Authorization**: Requires authenticated `MEMBER` or `OWNER` session context to approve or reject tickets. `READONLY` accounts and unauthenticated callers are rejected with `403 Forbidden`.
+  * **Comprehensive Audit Trail**: Every lifecycle transition emits an asynchronous, redacted audit event to `audit_logs` (`approval.ticket_created`, `approval.ticket_approved`, `approval.ticket_rejected`, `approval.ticket_cancelled`, `approval.ticket_expired`, `approval.execution_started`, `approval.execution_completed`, `approval.execution_failed`).
+* **Alternatives Considered**:
+  * *Stateless Signed JWT Approval Tokens*: Rejected because revocations, concurrent race prevention, and terminal execution records require durable server-side state in PostgreSQL.
+  * *Optimistic Execution without expectedHeadSha Checking*: Rejected because rebasing onto a moved `main` branch can silently invalidate code diff assumptions and break builds.
+  * *Self-Approval by AI Copilot*: Rejected because it violates the Inverse Authority Principle and OWASP LLM08.
+* **Reasons**: Guarantees that no external repository writes can occur without verified human oversight, cryptographic integrity, and race-free single-use execution semantics.
+* **Consequences**:
+  * Task P9-002 will implement `action_approval_tickets` table migration, `ActionApprovalTicketService`, repository layer, and comprehensive unit/integration test suites.
+  * Task P9-003 will consume the approved ticket as its mandatory authorization token for GitHub branch and PR creation.
+* **Revisit Conditions**: When multi-party approval policies (e.g. enterprise recruiter + candidate dual-signature) are introduced in Phase 13.
 
