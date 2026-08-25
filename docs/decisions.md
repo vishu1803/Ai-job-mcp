@@ -1338,3 +1338,29 @@
   * Task P9-005 will implement the MCP tool schemas in `src/domain/mcp/career-write-tools.schemas.js`, handlers in `src/mcp/tools/career-write-tools.js`, server registration in `src/mcp/server.js`, and comprehensive unit/integration/live test suites.
 * **Revisit Conditions**: When multi-party approval policies (e.g. recruiter + candidate dual-signature) are integrated in Phase 13.
 
+---
+
+### ADR-057: PR Diff Preview, Test Execution Reporting, and Pre-Confirmation Safety Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-25
+* **Context**: In Phase 9 (Task P9-006A), we designed the Pre-Confirmation Safety & Verification Layer operating between `propose_project_improvement` and `confirm_and_create_pr`. We must guarantee that human users and AI clients can thoroughly review exact diffs, test execution evidence, cryptographic patch fingerprints, and security warnings before authorizing remote repository modifications, and prevent blind approvals or execution of unreviewed mutations.
+* **Decision**: Adopt the **PR Diff Preview, Test Execution Reporting, and Pre-Confirmation Safety Architecture** defined in `docs/pr-diff-preview-test-reporting-architecture.md` (`ARCH-036`) governed by the following core architectural decisions:
+  * **Canonical Review Object**: Before confirmation, the system constructs a structured review object answering 9 fundamental questions (WHAT WILL CHANGE, WHY, WHERE, HOW MUCH, WHAT EVIDENCE SUPPORTS IT, WHAT TESTS WILL RUN, WHAT HAS BEEN VERIFIED, WHAT HAS NOT BEEN VERIFIED, WHAT EXACTLY WILL USER AUTHORIZE).
+  * **Structured Diff Preview & Size Clamping**: Per-file diffs format unified diff snippets (`diffPreview`) bounded at 4,000 characters per file, 500 total lines, and a 25 KB global proposal JSON ceiling over MCP to prevent AI context window exhaustion.
+  * **Cryptographic Patch Fingerprint Immutability**: A deterministic SHA-256 fingerprint (`patchFingerprint`) is computed across canonically sorted file operations (`operation:path:fileSha`), embedded in `ActionApprovalTicket.patchSummary`, and verified in the HMAC ticket signature and execution safety kernel. Zero post-approval patch regeneration is permitted.
+  * **Truthful Test Execution Reporting**: Categorical lifecycle reporting (`NOT_RUN`, `PLANNED`, `RUNNING`, `PASSED`, `FAILED`, `SKIPPED`, `BLOCKED`). The system strictly forbids reporting `status: "PASSED"` for unexecuted tests and clearly separates static safety gates, ephemeral sandbox runs, and remote GitHub CI.
+  * **Ephemeral Sandbox Security Boundary**: AI-generated code execution must never execute on the host machine or ingest production credentials (all GitHub keys, database credentials, ADC tokens, and session secrets are stripped with `env -i`, network disabled with `--net=none`, and hard resource/timeout quotas enforced).
+  * **Base Branch Staleness Invalidation (Stale HEAD)**: If live repository base branch HEAD commit SHA diverges from `expectedHeadSha` before confirmation, execution fails closed with `StaleHeadShaError` (`409 Conflict`), requiring a fresh proposal rebased on current HEAD.
+  * **Patch & Diff Invalidation**: Any mutation to patch files, target branches, or proposal parameters invalidates existing test results and approval tickets.
+  * **Explicit Security Warnings Matrix**: Unsuppressed warnings for unexecuted tests (`WARN_TESTS_NOT_RUN`), dependency manifest additions (`WARN_DEPENDENCY_ADDED`), configuration changes (`WARN_CONFIG_MODIFIED`), and large diffs (`WARN_LARGE_DIFF`).
+  * **Confirm Tool Execution-Only Boundary**: `confirm_and_create_pr` executes exclusively the exact reviewed ticket without AI re-prompting or patch re-synthesis.
+  * **Structured Audit Telemetry**: Emits distinct audit events (`mcp.write.preview_generated`, `mcp.write.test_executed`, `mcp.write.warning_emitted`, `mcp.write.approval_requested`, `mcp.write.approval_confirmed`, `mcp.write.stale_head_blocked`) with zero secret retention.
+* **Alternatives Considered**:
+  * *Relying only on GitHub's native Draft PR diff view*: Rejected because it requires mutating remote Git branches before the user can inspect the diff, violating the principle that remote writes occur only after approval.
+  * *Executing pre-confirmation tests directly on the host machine*: Rejected due to severe RCE and credential theft vulnerabilities from untrusted AI-generated code.
+  * *Allowing implicit approval through chat conversational context ("yes", "looks good")*: Rejected because conversational affirmations lack cryptographic non-repudiation and enable accidental blind approvals.
+* **Reasons**: Enforces complete transparency, cognitive review friction, cryptographic tamper-resistance, and airtight sandbox security before any remote Git Data API call is issued.
+* **Consequences**:
+  * Task P9-006 will implement domain schema enhancements in `src/domain/mcp/career-write-tools.schemas.js`, diff formatting and warning generation in `src/mcp/tools/career-write-tools.js` / `src/services/project-improvement-recommender.service.js`, and comprehensive unit/integration test suites.
+* **Revisit Conditions**: When isolated WebAssembly or Firecracker microVM test runners are deployed for on-demand cloud sandboxing in Phase 14.
+

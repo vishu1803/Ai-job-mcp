@@ -9,10 +9,10 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A, P9-002A, P9-003A, P9-004A, P9-005A Approved; P9-001, P9-002, P9-003, P9-004, P9-005 Complete & Verified) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 P9-001 through P9-005 verified; ready for P9-006 |
+| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A Approved; P9-001, P9-002, P9-003, P9-004, P9-005 Complete & Verified) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 P9-001 through P9-005 verified; P9-006A approved; ready for P9-006 |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **56 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (5) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A approved) |
+| **Completed Tasks** | **56 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (5) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A approved) |
 | **In Progress Tasks** | **0 Tasks** | Ready for P9-006 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
 | **Overall Task Completion** | **69.1% (56 / 81 Tasks)** | Strict calculation, zero inflation |
@@ -237,7 +237,8 @@
 | **P9-004A** | GitHub Write Safety Constraints Architecture & Security Review | P9-003 | **COMPLETE & APPROVED** | Architectural specification `docs/github-write-safety-architecture.md` (`ARCH-034`), `ADR-055` in `docs/decisions.md`. Established Centralized Safety Kernel (`GitHubWriteSafetyService`), static & dynamic repository default branch protection (`default_branch`), target vs base branch separation (`targetBranch !== baseBranch`), strict Git ref whitelist (`refs/heads/feat/career-hub-*`), physical force-push elimination, defense-in-depth patch policy (POSIX paths, traversal, 38 binary extensions, dot-dirs), CI/CD workflow defense matrix (`.github/workflows/*`, actions, hooks), pre-execution Shannon entropy secret scanning, optimistic concurrency locking (`expectedHeadSha`), 20-scenario threat model (T-01 to T-20), and audit event catalog. |
 | **P9-004** | Enforce Safety Constraints: write actions NEVER touch default branch (`main`/`master`); only create feature branches | P9-003, P9-004A | **COMPLETE & VERIFIED** | Implemented centralized execution safety kernel in `src/services/github-write-safety.service.js`, integrated with `GitHubWriteService`, enhanced error hierarchy (`ProtectedDefaultBranchError`, `InvalidGitRefError`, `PatchPolicyViolationError`, `WorkflowModificationError`, `SecretDetectedError`, `BranchCollisionError`), and added `getRepository` metadata method in `GitHubAppConnector`. Verified via 34 unit tests (`tests/unit/github-write-safety.service.test.js`), 8 integration tests (`tests/integration/github-write-operations.test.js`), and live sandbox test. 100% test pass with 0 DB leaks. |
 | **P9-005** | Expose MCP Write Tools: `propose_project_improvement`, `confirm_and_create_pr` | P7-001, P9-003, P9-004, P9-005A | **COMPLETE & VERIFIED** | Implemented `registerCareerWriteTools`, `handleProposeProjectImprovement`, and `handleConfirmAndCreatePr` in `src/mcp/tools/career-write-tools.js` with canonical schemas in `src/domain/mcp/career-write-tools.schemas.js`. Wired into `createCareerMcpServer`. Verified via 20 unit tests (`tests/unit/mcp-write-tools.test.js`), 8 integration tests (`tests/integration/mcp-write-tools.test.js`), and live sandbox test (`tests/integration/live/mcp-write-tools.live.test.js`). 100% test pass with 0 DB leaks. |
-| **P9-006** | Test PR diff preview and test suite execution reporting before user confirms | P9-005 | NOT_STARTED | Verify diff output and test status included in approval payload |
+| **P9-006A** | PR Diff Preview & Test Execution Reporting Architecture & Security Review | P9-005 | **COMPLETE & APPROVED** | Architectural specification `docs/pr-diff-preview-test-reporting-architecture.md` (`ARCH-036`), `ADR-057` in `docs/decisions.md`. Defined Canonical Review Object answering 9 core questions, unified diff chunk formatting ($\le 4000$ chars/file, $\le 25\text{ KB}$ total JSON ceiling), immutable SHA-256 patch fingerprinting bound to HMAC ticket, categorical test lifecycle reporting (`NOT_RUN`, `PLANNED`, `RUNNING`, `PASSED`, `FAILED`, `SKIPPED`, `BLOCKED`), zero production credential sandbox isolation (`env -i`, `--net=none`), base branch HEAD drift staleness invalidation (409 Conflict), explicit unsuppressed security warnings matrix, and confirm tool execution-only boundary. |
+| **P9-006** | Implement PR diff preview and test suite execution reporting before user confirms | P9-005, P9-006A | NOT_STARTED | Verify diff output, test execution reporting, and security warnings in approval payload |
 
 ---
 
@@ -2374,5 +2375,20 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (100% Prettier compliant)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
   * Status: **`P9-005 COMPLETE & VERIFIED`**.
+
+* **P9-006A (PR Diff Preview & Test Execution Reporting Architecture & Security Review — Completed & Approved)**:
+  * Deliverables Created:
+    * `docs/pr-diff-preview-test-reporting-architecture.md`: Comprehensive architectural specification (`ARCH-036`), `ADR-057` in `docs/decisions.md`.
+  * Architectural Findings & Design Specifications:
+    * **Canonical Review Object**: Defined the 9 core questions answered by the pre-confirmation review layer (WHAT WILL CHANGE, WHY, WHERE, HOW MUCH, WHAT EVIDENCE SUPPORTS IT, WHAT TESTS WILL RUN, WHAT HAS BEEN VERIFIED, WHAT HAS NOT BEEN VERIFIED, WHAT EXACTLY WILL USER AUTHORIZE).
+    * **Structured Diff Preview & Size Bounds**: Structured unified diff preview format with line counts, per-file operation (`CREATE`, `MODIFY`), per-file size clamping ($\le 4000$ characters), and a 25 KB global proposal JSON ceiling over MCP.
+    * **Immutable Cryptographic Patch Fingerprint**: SHA-256 fingerprint computed across sorted canonical file hashes (`operation:path:fileSha`), signed inside `ActionApprovalTicket` HMAC, and asserted by the safety kernel during execution. Zero post-approval regeneration.
+    * **Categorical Test Execution Reporting**: Distinct lifecycle states (`NOT_RUN`, `PLANNED`, `RUNNING`, `PASSED`, `FAILED`, `SKIPPED`, `BLOCKED`). Strict truthfulness principle forbidding false claims of passed tests.
+    * **Zero Production Credential Sandbox Isolation**: Generated test execution model strips all GitHub keys, database credentials, ADC tokens, and session secrets (`env -i`), disables network (`--net=none`), and enforces 30s timeouts.
+    * **Staleness Invalidation on Base HEAD Drift**: Live base branch HEAD commit SHA is compared against `expectedHeadSha`; any divergence fails closed with `409 Conflict` (`STALE_HEAD_SHA`).
+    * **Unsuppressed Security Warnings Matrix**: Explicit warnings for unexecuted tests (`WARN_TESTS_NOT_RUN`), dependency manifest additions (`WARN_DEPENDENCY_ADDED`), build configuration modifications (`WARN_CONFIG_MODIFIED`), and large diffs (`WARN_LARGE_DIFF`).
+    * **Confirm Tool Boundary**: `confirm_and_create_pr` executes strictly the approved ticket and does not accept new patches or prompt AI re-generation.
+    * **Structured Audit Telemetry**: Emits distinct audit events (`mcp.write.preview_generated`, `mcp.write.test_executed`, `mcp.write.warning_emitted`, `mcp.write.approval_requested`, `mcp.write.approval_confirmed`, `mcp.write.stale_head_blocked`).
+  * Status: **`P9-006A APPROVED`**.
 
 ---
