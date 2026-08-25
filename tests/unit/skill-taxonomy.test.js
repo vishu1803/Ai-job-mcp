@@ -511,4 +511,57 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       assert.ok(Object.isFrozen(CANONICAL_SKILLS));
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 10. AI Agent Infrastructure & GenAI Taxonomy (MCP & Gemini)
+  // ---------------------------------------------------------------------------
+  describe('10. AI Agent Infrastructure & GenAI Taxonomy (MCP & Gemini)', () => {
+    it('normalizes @modelcontextprotocol scoped packages to canonical mcp', () => {
+      const serverResult = normalizeSkill('@modelcontextprotocol/server');
+      assert.equal(serverResult.canonicalSlug, 'mcp');
+      assert.equal(serverResult.canonicalName, 'Model Context Protocol');
+      assert.equal(serverResult.category, 'TOOL');
+      assert.equal(serverResult.isKnown, true);
+
+      const coreResult = normalizeSkill('@modelcontextprotocol/core');
+      assert.equal(coreResult.canonicalSlug, 'mcp');
+      assert.equal(coreResult.isKnown, true);
+
+      const sdkResult = normalizeSkill('@modelcontextprotocol/sdk');
+      assert.equal(sdkResult.canonicalSlug, 'mcp');
+      assert.equal(sdkResult.isKnown, true);
+
+      const aliasResult = normalizeSkill('model-context-protocol');
+      assert.equal(aliasResult.canonicalSlug, 'mcp');
+      assert.equal(aliasResult.isKnown, true);
+    });
+
+    it('normalizes @google/genai scoped packages to canonical gemini', () => {
+      const genaiResult = normalizeSkill('@google/genai');
+      assert.equal(genaiResult.canonicalSlug, 'gemini');
+      assert.equal(genaiResult.canonicalName, 'Google Gemini');
+      assert.equal(genaiResult.category, 'TOOL');
+      assert.equal(genaiResult.isKnown, true);
+
+      const generativeAiResult = normalizeSkill('@google/generative-ai');
+      assert.equal(generativeAiResult.canonicalSlug, 'gemini');
+      assert.equal(generativeAiResult.isKnown, true);
+
+      const aliasResult = normalizeSkill('google-gemini');
+      assert.equal(aliasResult.canonicalSlug, 'gemini');
+      assert.equal(aliasResult.isKnown, true);
+    });
+
+    it('prevents generic un-scoped words from falsely colliding with MCP or Gemini', () => {
+      // "server" alone must NOT map to MCP
+      const serverResult = normalizeSkill('server');
+      assert.notEqual(serverResult.canonicalSlug, 'mcp');
+      assert.equal(serverResult.isKnown, false);
+
+      // "core" alone must NOT map to MCP
+      const coreResult = normalizeSkill('core');
+      assert.notEqual(coreResult.canonicalSlug, 'mcp');
+      assert.equal(coreResult.isKnown, false);
+    });
+  });
 });

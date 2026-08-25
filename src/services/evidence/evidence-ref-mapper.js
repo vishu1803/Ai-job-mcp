@@ -19,7 +19,7 @@ export class EvidenceRefMapper {
     const sourceLocation = item.sourceLocation || {};
 
     return {
-      evidenceId: item.id,
+      evidenceId: item.id || item.evidenceId,
       evidenceType: item.evidenceType,
       sourceProvider: item.sourceProvider,
       resourceId: item.resourceId,
@@ -42,12 +42,15 @@ export class EvidenceRefMapper {
     if (!item) return null;
 
     return {
-      evidenceId: item.id,
+      id: item.id || item.evidenceId,
+      evidenceId: item.id || item.evidenceId,
       tenantId: item.tenantId,
       candidateId: item.candidateId,
       resourceId: item.resourceId,
       projectId: item.projectId || null,
       skillId: item.skillId || null,
+      skillSlug: item.skillSlug || null,
+      skillName: item.skillName || null,
       evidenceType: item.evidenceType,
       sourceProvider: item.sourceProvider,
       sourceLocation: item.sourceLocation || {},

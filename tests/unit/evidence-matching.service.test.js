@@ -515,6 +515,231 @@ describe('Evidence Matching & Gap Analysis Service (P5-003)', () => {
       assert.equal(match.matchStatus, 'PARTIAL');
       assert.equal(match.relationshipType, 'IMPLEMENTS');
     });
+
+    it('evaluates DIRECT IMPLEMENTS as MATCHED (Fastify candidate for REST API requirement)', () => {
+      const candidate = createBaseCandidate({
+        skills: [
+          {
+            name: 'Fastify',
+            slug: 'fastify',
+            category: 'FRAMEWORK',
+            provenanceStatus: 'VERIFIED',
+            confidenceScore: 1.0,
+            evidence: [
+              {
+                id: randomUUID(),
+                resourceId: mockResourceId,
+                evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                sourceProvider: 'GITHUB_APP',
+                sourceLocation: { filePath: 'package.json', commitSha: 'a'.repeat(40) },
+                excerpt: '"fastify": "^5.2.1"',
+                confidenceScore: 1.0,
+              },
+            ],
+          },
+        ],
+      });
+
+      const job = createBaseJob([
+        {
+          id: randomUUID(),
+          tenantId: mockTenantId,
+          jobDescriptionId: mockJobId,
+          category: 'SKILL',
+          importance: 'REQUIRED',
+          weight: 1.0,
+          skillSlug: 'rest-api',
+          rawSnippet: 'Required: Designing and developing REST APIs',
+          extractedValue: 'REST API',
+          sourceSpan: { section: 'Requirements', snippet: 'REST API' },
+        },
+      ]);
+
+      const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
+
+      assert.equal(result.summary.matchedCount, 1);
+      assert.equal(result.summary.missingCount, 0);
+      const match = result.requirementMatches[0];
+      assert.equal(match.matchStatus, 'MATCHED');
+      assert.equal(match.relationshipType, 'IMPLEMENTS');
+      assert.equal(match.matchedSkillSlug, 'fastify');
+      assert.ok(match.explanation.includes('Fastify'));
+      assert.ok(match.explanation.includes('REST'));
+    });
+
+    it('evaluates DIRECT IMPLEMENTS as MATCHED (MCP candidate for json-rpc requirement)', () => {
+      const candidate = createBaseCandidate({
+        skills: [
+          {
+            name: 'Model Context Protocol',
+            slug: 'mcp',
+            category: 'TOOL',
+            provenanceStatus: 'VERIFIED',
+            confidenceScore: 1.0,
+            evidence: [
+              {
+                id: randomUUID(),
+                resourceId: mockResourceId,
+                evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                sourceProvider: 'GITHUB_APP',
+                sourceLocation: { filePath: 'package.json', commitSha: 'b'.repeat(40) },
+                excerpt: '"@modelcontextprotocol/server": "^0.6.0"',
+                confidenceScore: 1.0,
+              },
+            ],
+          },
+        ],
+      });
+
+      const job = createBaseJob([
+        {
+          id: randomUUID(),
+          tenantId: mockTenantId,
+          jobDescriptionId: mockJobId,
+          category: 'SKILL',
+          importance: 'REQUIRED',
+          weight: 1.0,
+          skillSlug: 'json-rpc',
+          rawSnippet: 'Required: JSON-RPC communication protocols',
+          extractedValue: 'JSON-RPC',
+          sourceSpan: { section: 'Requirements', snippet: 'JSON-RPC' },
+        },
+      ]);
+
+      const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
+
+      assert.equal(result.summary.matchedCount, 1);
+      assert.equal(result.summary.missingCount, 0);
+      const match = result.requirementMatches[0];
+      assert.equal(match.matchStatus, 'MATCHED');
+      assert.equal(match.relationshipType, 'IMPLEMENTS');
+      assert.equal(match.matchedSkillSlug, 'mcp');
+    });
+
+    it('evaluates taxonomy specialization as MATCHED (PostgreSQL candidate for relational-database requirement)', () => {
+      const candidate = createBaseCandidate({
+        skills: [
+          {
+            name: 'PostgreSQL',
+            slug: 'postgresql',
+            category: 'DATABASE',
+            provenanceStatus: 'VERIFIED',
+            confidenceScore: 1.0,
+            evidence: [
+              {
+                id: randomUUID(),
+                resourceId: mockResourceId,
+                evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                sourceProvider: 'GITHUB_APP',
+                sourceLocation: { filePath: 'package.json', commitSha: 'b'.repeat(40) },
+                excerpt: '"pg": "^8.13.3"',
+                confidenceScore: 1.0,
+              },
+            ],
+          },
+        ],
+      });
+
+      const job = createBaseJob([
+        {
+          id: randomUUID(),
+          tenantId: mockTenantId,
+          jobDescriptionId: mockJobId,
+          category: 'SKILL',
+          importance: 'REQUIRED',
+          weight: 1.0,
+          skillSlug: 'relational-database',
+          rawSnippet: 'Required: Hands-on experience with Relational Databases',
+          extractedValue: 'Relational Database',
+          sourceSpan: { section: 'Requirements', snippet: 'Relational Database' },
+        },
+      ]);
+
+      const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
+
+      assert.equal(result.summary.matchedCount, 1);
+      assert.equal(result.summary.missingCount, 0);
+      const match = result.requirementMatches[0];
+      assert.equal(match.matchStatus, 'MATCHED');
+      assert.equal(match.matchedSkillSlug, 'postgresql');
+    });
+
+    it('enforces negative relationship boundaries (prettier does not match rest-api, fastify does not match graphql/grpc)', () => {
+      const candidate = createBaseCandidate({
+        skills: [
+          {
+            name: 'Prettier',
+            slug: 'prettier',
+            category: 'TOOL',
+            provenanceStatus: 'VERIFIED',
+            confidenceScore: 1.0,
+            evidence: [
+              {
+                id: randomUUID(),
+                resourceId: mockResourceId,
+                evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                sourceProvider: 'GITHUB_APP',
+                sourceLocation: { filePath: 'package.json', commitSha: 'c'.repeat(40) },
+                excerpt: '"prettier": "^3.0.0"',
+                confidenceScore: 1.0,
+              },
+            ],
+          },
+          {
+            name: 'Fastify',
+            slug: 'fastify',
+            category: 'FRAMEWORK',
+            provenanceStatus: 'VERIFIED',
+            confidenceScore: 1.0,
+            evidence: [
+              {
+                id: randomUUID(),
+                resourceId: mockResourceId,
+                evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                sourceProvider: 'GITHUB_APP',
+                sourceLocation: { filePath: 'package.json', commitSha: 'd'.repeat(40) },
+                excerpt: '"fastify": "^5.2.1"',
+                confidenceScore: 1.0,
+              },
+            ],
+          },
+        ],
+      });
+
+      const job = createBaseJob([
+        {
+          id: randomUUID(),
+          tenantId: mockTenantId,
+          jobDescriptionId: mockJobId,
+          category: 'SKILL',
+          importance: 'REQUIRED',
+          weight: 1.0,
+          skillSlug: 'graphql',
+          rawSnippet: 'Required: GraphQL API schema design',
+          extractedValue: 'GraphQL',
+          sourceSpan: { section: 'Requirements', snippet: 'GraphQL' },
+        },
+        {
+          id: randomUUID(),
+          tenantId: mockTenantId,
+          jobDescriptionId: mockJobId,
+          category: 'SKILL',
+          importance: 'REQUIRED',
+          weight: 1.0,
+          skillSlug: 'grpc',
+          rawSnippet: 'Required: gRPC distributed messaging',
+          extractedValue: 'gRPC',
+          sourceSpan: { section: 'Requirements', snippet: 'gRPC' },
+        },
+      ]);
+
+      const result = EvidenceMatchingService.matchJobToCandidate(baseContext, job, candidate);
+
+      assert.equal(result.summary.matchedCount, 0);
+      assert.equal(result.summary.missingCount, 2);
+      assert.equal(result.requirementMatches[0].matchStatus, 'MISSING');
+      assert.equal(result.requirementMatches[1].matchStatus, 'MISSING');
+    });
   });
 
   // ===========================================================================

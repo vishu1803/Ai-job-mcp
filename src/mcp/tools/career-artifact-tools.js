@@ -355,7 +355,7 @@ export async function handleRecommendPortfolioProjects(context, rawArgs, deps = 
     context,
     jobDescription,
     candidateProfileObj.projects,
-    { candidateId: candidateProfileObj.id }
+    { candidateId: candidateProfileObj.id, skills: candidateProfileObj.skills }
   );
 
   const atsFitAnalysis = AtsFitScoreService.calculateCandidateJobFit(
@@ -482,7 +482,7 @@ export async function handleDraftCoverLetter(context, rawArgs, deps = {}) {
     context,
     jobDescription,
     candidateProfileObj.projects,
-    { candidateId: candidateProfileObj.id }
+    { candidateId: candidateProfileObj.id, skills: candidateProfileObj.skills }
   );
 
   const atsFitAnalysis = AtsFitScoreService.calculateCandidateJobFit(
@@ -622,7 +622,7 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
     context,
     jobDescription,
     candidateProfileObj.projects,
-    { candidateId: candidateProfileObj.id }
+    { candidateId: candidateProfileObj.id, skills: candidateProfileObj.skills }
   );
 
   // 5. Pre-Generation Integrity Gate

@@ -1038,4 +1038,133 @@ describe('Project Relevance Scoring Service Unit Tests (P5-004)', () => {
       assert.strictEqual(batch.projectRankings[1].projectId, id2);
     });
   });
+
+  // ===========================================================================
+  // 13. Authoritative Evidence Skill Lookup & Metadata Hardening
+  // ===========================================================================
+  describe('13. Authoritative Evidence Skill Lookup & Metadata Hardening', () => {
+    it('uses ev.skillSlug directly to compute project skill coverage and architectural density', () => {
+      const job = createMockJobDescription({
+        requirements: [
+          {
+            id: randomUUID(),
+            name: 'Fastify',
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+          },
+        ],
+      });
+
+      const project = createMockProject({
+        evidence: [
+          {
+            id: randomUUID(),
+            tenantId: TENANT_A,
+            candidateId: CANDIDATE_ID,
+            resourceId: randomUUID(),
+            projectId: randomUUID(),
+            skillSlug: 'fastify',
+            skillName: 'Fastify',
+            evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+            sourceProvider: 'GITHUB_APP',
+            sourceLocation: { filePath: 'package.json', commitSha: 'a'.repeat(40) },
+            excerpt: '"fastify": "^5.2.1"',
+            confidenceScore: 1.0,
+            metadata: {},
+          },
+        ],
+      });
+
+      const res = computeProjectRelevance({ tenantId: TENANT_A }, job, project, {
+        evaluationDate: FIXED_EVAL_DATE,
+      });
+
+      assert.ok(res.scoreBreakdown.requirementCoverageScore > 0);
+      assert.ok(res.contributingSkills.includes('fastify'));
+      assert.ok(res.architecturalSignals.includes('API_ROUTING'));
+    });
+
+    it('resolves canonical skill via ev.skillId from options.skills map', () => {
+      const pgSkillId = randomUUID();
+      const job = createMockJobDescription({
+        requirements: [
+          {
+            id: randomUUID(),
+            name: 'PostgreSQL',
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+          },
+        ],
+      });
+
+      const project = createMockProject({
+        evidence: [
+          {
+            id: randomUUID(),
+            tenantId: TENANT_A,
+            candidateId: CANDIDATE_ID,
+            resourceId: randomUUID(),
+            projectId: randomUUID(),
+            skillId: pgSkillId,
+            evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+            sourceProvider: 'GITHUB_APP',
+            sourceLocation: { filePath: 'package.json', commitSha: 'b'.repeat(40) },
+            excerpt: '"pg": "^8.13.3"',
+            confidenceScore: 1.0,
+            metadata: {},
+          },
+        ],
+      });
+
+      const res = computeProjectRelevance({ tenantId: TENANT_A }, job, project, {
+        evaluationDate: FIXED_EVAL_DATE,
+        skills: [{ id: pgSkillId, slug: 'postgresql', name: 'PostgreSQL' }],
+      });
+
+      assert.ok(res.scoreBreakdown.requirementCoverageScore > 0);
+      assert.ok(res.contributingSkills.includes('postgresql'));
+      assert.ok(res.architecturalSignals.includes('DATA_PERSISTENCE'));
+    });
+
+    it('rejects arbitrary untrusted metadata and does not fabricate project skills', () => {
+      const job = createMockJobDescription({
+        requirements: [
+          {
+            id: randomUUID(),
+            name: 'untrusted-noise-term',
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+          },
+        ],
+      });
+
+      const project = createMockProject({
+        evidence: [
+          {
+            id: randomUUID(),
+            tenantId: TENANT_A,
+            candidateId: CANDIDATE_ID,
+            resourceId: randomUUID(),
+            projectId: randomUUID(),
+            evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+            sourceProvider: 'GITHUB_APP',
+            sourceLocation: { filePath: 'package.json', commitSha: 'c'.repeat(40) },
+            excerpt: '"foo": "1.0.0"',
+            confidenceScore: 1.0,
+            metadata: { technology: 'untrusted-noise-term-12345' },
+          },
+        ],
+      });
+
+      const res = computeProjectRelevance({ tenantId: TENANT_A }, job, project, {
+        evaluationDate: FIXED_EVAL_DATE,
+      });
+
+      assert.strictEqual(res.scoreBreakdown.requirementCoverageScore, 0.0);
+      assert.strictEqual(res.contributingSkills.length, 0);
+    });
+  });
 });

@@ -254,9 +254,10 @@ function sanitizeExcerpt(excerpt) {
  * Creates a bounded EvidenceRef from an EvidenceNode matching EvidenceRefSchema.
  */
 function buildEvidenceRef(evidence, resourceMap = new Map()) {
-  const filePath = evidence.sourceLocation?.filePath || 'repository/code';
-  const commitSha = evidence.sourceLocation?.commitSha || null;
-  const rawRange = evidence.sourceLocation?.lineRange;
+  const filePath = evidence.sourceLocation?.filePath || evidence.filePath || 'repository/code';
+  const rawSha = evidence.sourceLocation?.commitSha || evidence.commitSha;
+  const commitSha = typeof rawSha === 'string' && /^[0-9a-fA-F]{40}$/.test(rawSha) ? rawSha : null;
+  const rawRange = evidence.sourceLocation?.lineRange || evidence.lineRange;
   let lineRange = null;
 
   if (rawRange && typeof rawRange === 'object') {
@@ -456,37 +457,90 @@ export class ProjectRelevanceService {
 
     const pooledEvidence = Array.from(evidenceByFingerprint.values());
 
+    // Build skill lookup map from options or project if available
+    const skillsLookup = new Map();
+    if (options.skillsMap instanceof Map) {
+      for (const [k, v] of options.skillsMap.entries()) {
+        skillsLookup.set(k, v);
+      }
+    }
+    if (Array.isArray(options.skills)) {
+      for (const s of options.skills) {
+        if (s.id) skillsLookup.set(s.id, s);
+        if (s.skillId) skillsLookup.set(s.skillId, s);
+      }
+    }
+    if (Array.isArray(project.skills)) {
+      for (const s of project.skills) {
+        if (s.id) skillsLookup.set(s.id, s);
+        if (s.skillId) skillsLookup.set(s.skillId, s);
+      }
+    }
+
     // Extract all canonical skills represented in the project
     const projectSkillsMap = new Map(); // slug -> { skill, bestEvidence, rank }
 
     for (const ev of pooledEvidence) {
-      const rawSkillName =
+      let rawSkillName = null;
+
+      let isAuthoritative = false;
+
+      // 1. ev.skillSlug or ev.skillName (authoritative)
+      if (ev.skillSlug && typeof ev.skillSlug === 'string') {
+        rawSkillName = ev.skillSlug;
+        isAuthoritative = true;
+      } else if (ev.skillName && typeof ev.skillName === 'string') {
+        rawSkillName = ev.skillName;
+        isAuthoritative = true;
+      }
+      // 2. ev.skillId -> canonical skills map (authoritative)
+      else if (ev.skillId && skillsLookup.has(ev.skillId)) {
+        const found = skillsLookup.get(ev.skillId);
+        rawSkillName = found.slug || found.name;
+        isAuthoritative = true;
+      }
+      // 3. ev.metadata?.rawImport -> SkillTaxonomyEngine.normalizeSkill()
+      else if (ev.metadata?.rawImport && typeof ev.metadata.rawImport === 'string') {
+        rawSkillName = ev.metadata.rawImport;
+      }
+      // 4. ev.metadata?.skillName / technology as final fallback only
+      else if (
         ev.metadata?.skillName ||
         ev.metadata?.technology ||
         ev.metadata?.canonicalSkill ||
-        ev.metadata?.framework ||
-        null;
-      if (rawSkillName) {
-        const norm = SkillTaxonomyEngine.normalizeSkill(rawSkillName);
-        const rank = EVIDENCE_TYPE_RANK[ev.evidenceType] || 99;
+        ev.metadata?.framework
+      ) {
+        rawSkillName =
+          ev.metadata?.skillName ||
+          ev.metadata?.technology ||
+          ev.metadata?.canonicalSkill ||
+          ev.metadata?.framework;
+      }
 
-        if (!projectSkillsMap.has(norm.canonicalSlug)) {
-          projectSkillsMap.set(norm.canonicalSlug, {
-            slug: norm.canonicalSlug,
-            name: norm.canonicalName,
-            category: norm.category,
-            bestEvidence: ev,
-            bestRank: rank,
-            confidence: ev.confidenceScore || 1.0,
-            allEvidence: [ev],
-          });
-        } else {
-          const entry = projectSkillsMap.get(norm.canonicalSlug);
-          entry.allEvidence.push(ev);
-          if (rank < entry.bestRank) {
-            entry.bestEvidence = ev;
-            entry.bestRank = rank;
-            entry.confidence = Math.max(entry.confidence, ev.confidenceScore || 1.0);
+      if (rawSkillName && typeof rawSkillName === 'string') {
+        const norm = SkillTaxonomyEngine.normalizeSkill(rawSkillName);
+        // Authoritative sources can be custom or known; metadata fallback MUST be a known canonical skill
+        if (norm && norm.canonicalSlug && (isAuthoritative || norm.isKnown)) {
+          const rank = EVIDENCE_TYPE_RANK[ev.evidenceType] || 99;
+
+          if (!projectSkillsMap.has(norm.canonicalSlug)) {
+            projectSkillsMap.set(norm.canonicalSlug, {
+              slug: norm.canonicalSlug,
+              name: norm.canonicalName,
+              category: norm.category,
+              bestEvidence: ev,
+              bestRank: rank,
+              confidence: ev.confidenceScore || 1.0,
+              allEvidence: [ev],
+            });
+          } else {
+            const entry = projectSkillsMap.get(norm.canonicalSlug);
+            entry.allEvidence.push(ev);
+            if (rank < entry.bestRank) {
+              entry.bestEvidence = ev;
+              entry.bestRank = rank;
+              entry.confidence = Math.max(entry.confidence, ev.confidenceScore || 1.0);
+            }
           }
         }
       }

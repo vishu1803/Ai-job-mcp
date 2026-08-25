@@ -691,7 +691,46 @@ export class EvidenceMatchingService {
         return { match, explanation, gap };
       }
 
-      // 4. IMPLEMENTS: Candidate skill implements same architecture/paradigm (e.g. mysql and postgresql)
+      // 4. DIRECT IMPLEMENTS: Candidate framework/tool explicitly implements target requirement (e.g. cand: Fastify -> target: REST API, cand: PostgreSQL -> target: relational-database)
+      if (
+        Array.isArray(candRelationships.implements) &&
+        candRelationships.implements.includes(targetSlug)
+      ) {
+        const matchConfidence = Number(
+          Math.min(0.95, (req.confidenceScore ?? 0.9) * 0.95).toFixed(2)
+        );
+
+        const candName = candSkill.name || candSlug;
+        const match = {
+          requirementId: req.id,
+          category: req.category,
+          importance: req.importance,
+          weight: req.weight ?? 1.0,
+          skillSlug: targetSlug,
+          extractedValue: req.extractedValue,
+          matchStatus: 'MATCHED',
+          matchConfidence,
+          isUserClaim: false,
+          claimLabel: null,
+          matchedSkillSlug: candSlug,
+          relationshipType: 'IMPLEMENTS',
+          primaryEvidence,
+          supportingEvidence: evidenceRefs.slice(1, 3),
+          explanation: `MATCHED: Candidate demonstrates verified proficiency in ${candName}, which implements required architecture/paradigm ${targetDisplayName}.`,
+        };
+
+        const explanation = {
+          requirementId: req.id,
+          status: 'MATCHED',
+          reason: match.explanation,
+          evidenceRefs,
+          matchConfidence,
+        };
+
+        return { match, explanation, gap: null };
+      }
+
+      // 5. PEER IMPLEMENTS: Candidate skill implements same architecture/paradigm (e.g. mysql and postgresql)
       const candImplements = candRelationships.implements || [];
       const targetImplements = targetRelationships.implements || [];
       const sharedImplements = candImplements.filter((imp) => targetImplements.includes(imp));

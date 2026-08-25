@@ -53,6 +53,7 @@ export class CandidateRepositoryIngestionService {
     if (
       config.GITHUB_APP_ID &&
       (config.GITHUB_APP_PRIVATE_KEY || config.GITHUB_APP_PRIVATE_KEY_BASE64) &&
+      typeof this.registry.has === 'function' &&
       !this.registry.has('GITHUB_APP')
     ) {
       const authManager = new GitHubAppAuthManager({

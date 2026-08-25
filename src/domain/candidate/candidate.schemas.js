@@ -269,6 +269,8 @@ export const EvidenceNodeSchema = z.strictObject({
   resourceId: z.string().uuid({ message: 'Resource ID must be a valid UUID' }),
   projectId: z.string().uuid().optional().nullable(),
   skillId: z.string().uuid().optional().nullable(),
+  skillSlug: SafeSlugSchema.optional().nullable(),
+  skillName: z.string().max(255).optional().nullable(),
   evidenceType: EvidenceTypeEnum,
   sourceProvider: ResourceProviderEnum,
   sourceLocation: EvidenceSourceLocationSchema,

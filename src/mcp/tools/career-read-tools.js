@@ -613,7 +613,7 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     context,
     jobDescription,
     candidateProfileObj.projects,
-    { candidateId: candidateProfileObj.id }
+    { candidateId: candidateProfileObj.id, skills: candidateProfileObj.skills }
   );
 
   // C. ATS Fit Score Calculation

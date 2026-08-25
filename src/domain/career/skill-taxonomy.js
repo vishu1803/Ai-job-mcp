@@ -1130,6 +1130,47 @@ export const CANONICAL_SKILLS = Object.freeze({
       parentOf: ['terraform'],
     },
   },
+  mcp: {
+    slug: 'mcp',
+    name: 'Model Context Protocol',
+    category: 'TOOL',
+    description:
+      'Open standard protocol for secure, contextual connectivity between AI models and external tools.',
+    aliases: [
+      'mcp',
+      'model-context-protocol',
+      'modelcontextprotocol',
+      '@modelcontextprotocol/server',
+      '@modelcontextprotocol/core',
+      '@modelcontextprotocol/sdk',
+    ],
+    relationships: {
+      builtOn: ['node-js', 'typescript'],
+      ecosystemOf: [],
+      implements: ['agent-tooling', 'json-rpc'],
+      parentOf: [],
+    },
+  },
+  gemini: {
+    slug: 'gemini',
+    name: 'Google Gemini',
+    category: 'TOOL',
+    description: "Google's family of multimodal generative AI models and GenAI SDKs.",
+    aliases: [
+      'gemini',
+      'google-gemini',
+      'gemini-ai',
+      'google-genai',
+      '@google/genai',
+      '@google/generative-ai',
+    ],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: ['google-cloud'],
+      implements: ['large-language-models', 'generative-ai'],
+      parentOf: [],
+    },
+  },
 
   // ===========================================================================
   // 6. Architecture & System Paradigms (ARCHITECTURE)
@@ -2040,6 +2081,61 @@ export const CANONICAL_SKILLS = Object.freeze({
       ecosystemOf: [],
       implements: [],
       parentOf: ['application-security', 'oauth'],
+    },
+  },
+  'agent-tooling': {
+    slug: 'agent-tooling',
+    name: 'AI Agent Tooling',
+    category: 'CONCEPT',
+    description:
+      'Tool integration, function calling, and structured protocol interfaces for autonomous AI agents.',
+    aliases: ['agent-tooling', 'ai-agent-tools', 'function-calling', 'agent-tools'],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: [],
+      parentOf: ['mcp'],
+    },
+  },
+  'json-rpc': {
+    slug: 'json-rpc',
+    name: 'JSON-RPC Protocol',
+    category: 'CONCEPT',
+    description: 'Remote procedure call protocol encoded in JSON.',
+    aliases: ['json-rpc', 'json-rpc-2.0', 'jsonrpc'],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: ['rpc'],
+      parentOf: [],
+    },
+  },
+  'large-language-models': {
+    slug: 'large-language-models',
+    name: 'Large Language Models',
+    category: 'CONCEPT',
+    description:
+      'Advanced deep learning models trained on vast amounts of text data for language processing.',
+    aliases: ['large-language-models', 'llm', 'llms', 'large-language-model'],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: ['deep-learning', 'machine-learning'],
+      parentOf: [],
+    },
+  },
+  'generative-ai': {
+    slug: 'generative-ai',
+    name: 'Generative AI',
+    category: 'CONCEPT',
+    description:
+      'Artificial intelligence techniques capable of generating text, images, or other media.',
+    aliases: ['generative-ai', 'gen-ai', 'generative-artificial-intelligence'],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: ['machine-learning'],
+      parentOf: ['large-language-models'],
     },
   },
 });

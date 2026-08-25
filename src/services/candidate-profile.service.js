@@ -120,8 +120,25 @@ export class CandidateProfileService {
 
       // Find project evidence items
       const projEvidenceRows = await db
-        .select()
+        .select({
+          id: evidenceItems.id,
+          tenantId: evidenceItems.tenantId,
+          candidateId: evidenceItems.candidateId,
+          resourceId: evidenceItems.resourceId,
+          projectId: evidenceItems.projectId,
+          skillId: evidenceItems.skillId,
+          evidenceType: evidenceItems.evidenceType,
+          sourceProvider: evidenceItems.sourceProvider,
+          sourceLocation: evidenceItems.sourceLocation,
+          excerpt: evidenceItems.excerpt,
+          confidenceScore: evidenceItems.confidenceScore,
+          metadata: evidenceItems.metadata,
+          detectedAt: evidenceItems.detectedAt,
+          skillSlug: skills.slug,
+          skillName: skills.name,
+        })
         .from(evidenceItems)
+        .leftJoin(skills, eq(evidenceItems.skillId, skills.id))
         .where(
           and(
             eq(evidenceItems.tenantId, tenantId),
@@ -142,7 +159,7 @@ export class CandidateProfileService {
         startDate: proj.startDate ? String(proj.startDate) : null,
         endDate: proj.endDate ? String(proj.endDate) : null,
         linkedResourceCount: linkedRes.length,
-        evidence: projEvidenceRows.map((e) => EvidenceRefMapper.toEvidenceRef(e, 'VERIFIED')),
+        evidence: projEvidenceRows.map((e) => EvidenceRefMapper.toEvidenceNode(e)),
         metadata: proj.metadata || {},
         createdAt: proj.createdAt ? new Date(proj.createdAt).toISOString() : null,
         updatedAt: proj.updatedAt ? new Date(proj.updatedAt).toISOString() : null,

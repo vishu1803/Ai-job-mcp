@@ -2499,3 +2499,65 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---
+
+* **CAREER JOB-FIT ENGINE CORRECTIONS (EVIDENCE MATCHING & PROJECT RELEVANCE TAXONOMY — Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/domain/career/skill-taxonomy.js`:
+      * Added canonical skill `mcp` (`Model Context Protocol`, `category: 'TOOL'`) with package aliases `@modelcontextprotocol/server`, `@modelcontextprotocol/core`, and `@modelcontextprotocol/sdk`.
+      * Added canonical skill `gemini` (`Google Gemini`, `category: 'TOOL'`) with package aliases `@google/genai`, `@google/generative-ai`, `google-genai`, and `gemini-ai`.
+      * Added canonical concepts `agent-tooling`, `json-rpc`, `large-language-models`, and `generative-ai` under `CONCEPT` category to guarantee zero dangling relationship edges in the directed acyclic graph.
+      * Fully verified via `validateTaxonomyGraph()` with zero graph discrepancies.
+    * `src/services/evidence-matching.service.js`:
+      * Implemented direct directional `candRelationships.implements.includes(targetSlug)` evaluation in `_evaluateTaxonomyRelationships()` before peer matching (`status: 'MATCHED'`, `relationshipType: 'IMPLEMENTS'`, confidence `0.90`–`0.95`).
+      * Preserved peer `implements` matching as `PARTIAL` (`0.50`) and maintained `PARENT_OF`, `BUILT_ON`, and `ECOSYSTEM_OF` invariants.
+    * `src/services/project-relevance.service.js`:
+      * Replaced metadata-first skill discovery loop with strict 4-stage authoritative lookup order:
+        1. `ev.skillSlug` / `ev.skillName` (authoritative)
+        2. `ev.skillId` $\rightarrow$ canonical skills lookup map (`options.skills`, `options.skillsMap`, or `project.skills`)
+        3. `ev.metadata?.rawImport` $\rightarrow$ `SkillTaxonomyEngine.normalizeSkill()`
+        4. `ev.metadata?.skillName` / `technology` fallback only with `norm.isKnown` guard preventing arbitrary untrusted metadata from fabricating project skills.
+      * Added Git SHA format validation in `buildEvidenceRef` to ensure non-hex references safely default to `commitSha = null`.
+    * `src/services/candidate-profile.service.js`:
+      * Joined `skills` on `evidenceItems.skillId` in project evidence query to natively populate `skillSlug` and `skillName` on all project evidence rows, mapped via `toEvidenceNode`.
+    * `src/domain/candidate/candidate.schemas.js`:
+      * Added optional `skillSlug` and `skillName` to `EvidenceNodeSchema`.
+    * `src/services/evidence/evidence-ref-mapper.js`:
+      * Updated `EvidenceRefMapper.toEvidenceNode` to carry `skillSlug` and `skillName` while preserving the lightweight contract for `EvidenceRefMapper.toEvidenceRef`.
+    * `src/mcp/tools/career-read-tools.js` & `src/mcp/tools/career-artifact-tools.js`:
+      * Injected `candidateProfileObj.skills` into `ProjectRelevanceService.computeProjectsRelevance` options across read and artifact tools.
+    * `src/services/candidate-repository-ingestion.service.js`:
+      * Safely checked `typeof this.registry.has === 'function'` in constructor before calling `this.registry.has()`.
+    * `tests/unit/skill-taxonomy.test.js`:
+      * Added 6 unit tests verifying `@modelcontextprotocol/*` $\rightarrow$ `mcp`, `@google/genai` $\rightarrow$ `gemini`, and negative guards ensuring standalone `server` and `core` remain uncataloged generic tools.
+    * `tests/unit/evidence-matching.service.test.js`:
+      * Added test cases verifying Fastify candidate $\rightarrow$ REST API requirement (`MATCHED`, `IMPLEMENTS`), MCP $\rightarrow$ JSON-RPC (`MATCHED`, `IMPLEMENTS`), PostgreSQL $\rightarrow$ relational-database (`MATCHED`, `PARENT_OF`), and negative tests for prettier, graphql, and grpc.
+    * `tests/unit/project-relevance.service.test.js`:
+      * Added Section 13 unit tests verifying `ev.skillSlug` directly contributes to project skill coverage, `ev.skillId` resolves via `options.skills`, and arbitrary untrusted metadata is strictly rejected.
+  * Live Verification on Connected Repository (`vishu1803/Ai-job-mcp`):
+    * Synced repository `vishu1803/Ai-job-mcp` into PostgreSQL database for candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`.
+    * Discovered 22 candidate skills: `@modelcontextprotocol/server` & `@modelcontextprotocol/core` resolved to `mcp` (Model Context Protocol, `VERIFIED`), `@google/genai` resolved to `gemini` (Google Gemini, `VERIFIED`), `fastify` (`VERIFIED`), `postgresql` (`VERIFIED`), and `drizzle-orm` (`VERIFIED`).
+    * Project `vishu1803/Ai-job-mcp` has 35 verified evidence items with canonical `skillSlug` and `skillName`.
+    * **Job Evaluation 1 (Software Developer Job)**:
+      * Requirements Matched: 6 (`typescript`, `javascript`, `rest-api` [via Fastify `implements`], `postgresql`, `github`, `node-js`).
+      * REST API successfully matched via Fastify direct `implements` relation.
+      * Project Relevance Score: 33.9 (LOW relevance with 35 evidence items).
+      * Raw ATS Score: 53.35. Overall Score: 24.9 (correctly capped by ATS 3+ missing critical skills gate for Docker, Containerization, Microservices).
+    * **Job Evaluation 2 (Tailored Backend AI & MCP Platform Engineer Job)**:
+      * Requirements Matched: 10/10 (100% coverage for `mcp`, `gemini`, `fastify`, `rest-api`, `postgresql`, `drizzle-orm`, `javascript`, `node-js`, `github`).
+      * Project Relevance Score: 33.9.
+      * Required Skills Score: 40.0 / 40.0. Preferred Skills Score: 15.0 / 15.0.
+      * Overall ATS Fit Score: **86.53 / 100** (**STRONG** fit, uncapped).
+  * Automated Verification Results:
+    * `npm run test:unit` -> PASS (1056/1056 tests passed across 266 suites in 32.8s)
+    * `node --test tests/unit/skill-taxonomy.test.js` -> PASS (36/36 tests passed)
+    * `node --test tests/unit/evidence-matching.service.test.js` -> PASS (31/31 tests passed)
+    * `node --test tests/unit/project-relevance.service.test.js` -> PASS (33/33 tests passed)
+    * `node --test tests/unit/ats-fit-score.service.test.js` -> PASS (32/32 tests passed)
+    * `npm run test:db-lifecycle-check` -> PASS (39 DB-using files verified, 0 violations)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (All files 100% Prettier compliant)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
