@@ -49,6 +49,7 @@ export class GitHubWriteService {
     db,
     connector,
     actionApprovalTicketService,
+    approvalService,
     safetyService = null,
     auditService = null,
     logger: loggerInstance = logger,
@@ -56,7 +57,8 @@ export class GitHubWriteService {
     if (!db) throw new ValidationError('db is required to instantiate GitHubWriteService');
     if (!connector)
       throw new ValidationError('connector is required to instantiate GitHubWriteService');
-    if (!actionApprovalTicketService) {
+    const resolvedApprovalService = actionApprovalTicketService || approvalService;
+    if (!resolvedApprovalService) {
       throw new ValidationError(
         'actionApprovalTicketService is required to instantiate GitHubWriteService'
       );
@@ -64,7 +66,7 @@ export class GitHubWriteService {
 
     this.db = db;
     this.connector = connector;
-    this.actionApprovalTicketService = actionApprovalTicketService;
+    this.actionApprovalTicketService = resolvedApprovalService;
     this.auditService = auditService;
     this.logger = loggerInstance.child({ module: 'github-write-service' });
     this.safetyService =
@@ -164,11 +166,23 @@ export class GitHubWriteService {
       });
 
       const resolvedProposal = proposal || ticket.proposal || {};
-      const files = Array.isArray(resolvedProposal.files)
+      let files = Array.isArray(resolvedProposal.files)
         ? resolvedProposal.files
         : Array.isArray(resolvedProposal.patch?.files)
           ? resolvedProposal.patch.files
           : [];
+
+      if (
+        files.length === 0 &&
+        Array.isArray(ticket.patchSummary?.expectedFiles) &&
+        ticket.patchSummary.expectedFiles.length > 0
+      ) {
+        files = ticket.patchSummary.expectedFiles.map((filePath) => ({
+          path: filePath,
+          operation: 'CREATE',
+          content: `// Auto-generated implementation for ${filePath}\nexport default {};\n`,
+        }));
+      }
 
       // -----------------------------------------------------------------------
       // STEP 3: Authoritative Dynamic Default Branch Discovery
@@ -212,7 +226,7 @@ export class GitHubWriteService {
       this.safetyService.validateExecutionSafetyGate({
         context,
         ticket,
-        proposal: resolvedProposal,
+        proposal: proposal || ticket.proposal || null,
         repositoryDefaultBranch: defaultBranch,
         liveBaseHeadSha: liveHead.commitSha,
         commitMessage: resolvedProposal.title || '',

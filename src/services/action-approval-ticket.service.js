@@ -468,10 +468,10 @@ export class ActionApprovalTicketService {
         throw new InvalidTicketSignatureError('Cryptographic HMAC signature verification failed');
       }
 
-      // Idempotency: Safe re-entry for identical key and already executing/executed ticket
+      // Idempotency: Safe re-entry for identical key or already executed ticket
       if (
-        ticket.idempotencyKey === idempotencyKey &&
-        (ticket.status === 'EXECUTING' || ticket.status === 'EXECUTED')
+        ticket.status === 'EXECUTED' ||
+        (ticket.idempotencyKey === idempotencyKey && ticket.status === 'EXECUTING')
       ) {
         return ticket;
       }

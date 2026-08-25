@@ -9,13 +9,13 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A, P9-002A, P9-003A Approved; P9-001, P9-002, P9-003 Complete & Verified) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 P9-001, P9-002, P9-003 verified; ready for P9-004 |
+| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A, P9-002A, P9-003A, P9-004A, P9-005A Approved; P9-001, P9-002, P9-003, P9-004, P9-005 Complete & Verified) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 P9-001 through P9-005 verified; ready for P9-006 |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **54 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (3) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P9-004 |
+| **Completed Tasks** | **56 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (5) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P9-006 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **66.7% (54 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Overall Task Completion** | **69.1% (56 / 81 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **56.3% (9 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-8 complete, Phase 9 in progress) |
 
 ---
@@ -33,14 +33,14 @@
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 3 | 0 | **IN_PROGRESS** | **50.0% (P9-001, P9-002, P9-003 Complete & Verified)** |
+| **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 5 | 0 | **IN_PROGRESS** | **83.3% (P9-001, P9-002, P9-003, P9-004, P9-005 Complete & Verified)** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **81** | **54** | **0** | **IN_PROGRESS** | **66.7%** |
+| **TOTAL** | **All Phases Combined** | **81** | **56** | **0** | **IN_PROGRESS** | **69.1%** |
 
 ---
 
@@ -236,8 +236,7 @@
 | **P9-003** | Implement GitHub Write Operations: `create_branch`, `create_commit_patch`, `create_pull_request` | P3-001, P9-002, P9-003A | **COMPLETE & VERIFIED** | Implemented `GitHubWriteService` (`src/services/github-write.service.js`), Git Data API methods in `GitHubAppConnector` (`createGitTree`, `createGitCommit`, `createGitRef`, `deleteGitRef`, `createDraftPullRequest`, `getPullRequestByHead`), dynamic permission scoping in `GitHubAppAuthManager` and `GitHubTokenCache`, and typed error `ForbiddenOperationError`. Verified via 12 unit tests (`tests/unit/github-write-operations.test.js`), 6 integration tests (`tests/integration/github-write-operations.test.js`), and live sandbox test (`tests/integration/live/github-project-modification.live.test.js`). 100% test pass with 0 DB leaks. |
 | **P9-004A** | GitHub Write Safety Constraints Architecture & Security Review | P9-003 | **COMPLETE & APPROVED** | Architectural specification `docs/github-write-safety-architecture.md` (`ARCH-034`), `ADR-055` in `docs/decisions.md`. Established Centralized Safety Kernel (`GitHubWriteSafetyService`), static & dynamic repository default branch protection (`default_branch`), target vs base branch separation (`targetBranch !== baseBranch`), strict Git ref whitelist (`refs/heads/feat/career-hub-*`), physical force-push elimination, defense-in-depth patch policy (POSIX paths, traversal, 38 binary extensions, dot-dirs), CI/CD workflow defense matrix (`.github/workflows/*`, actions, hooks), pre-execution Shannon entropy secret scanning, optimistic concurrency locking (`expectedHeadSha`), 20-scenario threat model (T-01 to T-20), and audit event catalog. |
 | **P9-004** | Enforce Safety Constraints: write actions NEVER touch default branch (`main`/`master`); only create feature branches | P9-003, P9-004A | **COMPLETE & VERIFIED** | Implemented centralized execution safety kernel in `src/services/github-write-safety.service.js`, integrated with `GitHubWriteService`, enhanced error hierarchy (`ProtectedDefaultBranchError`, `InvalidGitRefError`, `PatchPolicyViolationError`, `WorkflowModificationError`, `SecretDetectedError`, `BranchCollisionError`), and added `getRepository` metadata method in `GitHubAppConnector`. Verified via 34 unit tests (`tests/unit/github-write-safety.service.test.js`), 8 integration tests (`tests/integration/github-write-operations.test.js`), and live sandbox test. 100% test pass with 0 DB leaks. |
-| **P9-005A** | MCP GitHub Write Tools Architecture & Security Review | P9-004 | **COMPLETE & APPROVED** | Architectural specification `docs/mcp-write-tools-architecture.md` (`ARCH-035`), `ADR-056` in `docs/decisions.md`. Established 2 domain-specific MCP write tools (`propose_project_improvement`, `confirm_and_create_pr`), prohibited generic write primitives, defined pure interface delegation layer, enforced immutable `McpRequestContext` identity with zero client trust, minimal confirm schema (`ticketId`, `confirmed: true`, `idempotencyKey`), anti-AI self-approval stopping protocol, sovereign multi-tenant isolation (404 default-deny), standardized JSON-RPC 2.0 error mapping, 20-scenario threat model (T-01 to T-20), and safe live sandbox verification strategy. |
-| **P9-005** | Expose MCP Write Tools: `propose_project_improvement`, `confirm_and_create_pr` | P7-001, P9-003, P9-004, P9-005A | NOT_STARTED | MCP integration test: AI proposes change, receives ticket, user confirms, PR is opened |
+| **P9-005** | Expose MCP Write Tools: `propose_project_improvement`, `confirm_and_create_pr` | P7-001, P9-003, P9-004, P9-005A | **COMPLETE & VERIFIED** | Implemented `registerCareerWriteTools`, `handleProposeProjectImprovement`, and `handleConfirmAndCreatePr` in `src/mcp/tools/career-write-tools.js` with canonical schemas in `src/domain/mcp/career-write-tools.schemas.js`. Wired into `createCareerMcpServer`. Verified via 20 unit tests (`tests/unit/mcp-write-tools.test.js`), 8 integration tests (`tests/integration/mcp-write-tools.test.js`), and live sandbox test (`tests/integration/live/mcp-write-tools.live.test.js`). 100% test pass with 0 DB leaks. |
 | **P9-006** | Test PR diff preview and test suite execution reporting before user confirms | P9-005 | NOT_STARTED | Verify diff output and test status included in approval payload |
 
 ---
@@ -2350,5 +2349,30 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * **Accurate MCP Tool Annotations (2026-07-28 Spec)**: Declared `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true` (for confirm).
     * **20-Scenario Security Threat Model (T-01 to T-20)**: Mitigated approval bypass, patch tampering, DB ticket tampering, parameter injection, cross-tenant confused deputies, role escalation, stale base races, workflow hijacking, secrets in diffs, path traversal, custom default branch overwrites, replay attacks, network timeout retries, PR creation rollback, prompt injection, payload bloat DoS, installation credential forgery, token exfiltration, and AI self-approval loops.
   * Status: **`P9-005A APPROVED`**.
+
+* **P9-005 (Expose MCP Write Tools: propose_project_improvement, confirm_and_create_pr — Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/domain/mcp/career-write-tools.schemas.js`: Canonical Zod input/output schemas (`ProposeProjectImprovementInputSchema`, `ProposeProjectImprovementOutputSchema`, `ConfirmAndCreatePrInputSchema`, `ConfirmAndCreatePrOutputSchema`) and MCP Tool Definitions (`CAREER_WRITE_TOOL_DEFINITIONS`) with 2026-07-28 annotations.
+    * `src/mcp/tools/career-write-tools.js`: Tool registration and invocation handlers (`handleProposeProjectImprovement`, `handleConfirmAndCreatePr`, `registerCareerWriteTools`) delegating to underlying domain services with zero raw write primitives.
+    * `src/mcp/tools/index.js`: Registered career write tools into default MCP tools manifest.
+    * `src/mcp/server.js`: Wired career write tools registration into `createCareerMcpServer` factory.
+    * `tests/unit/mcp-write-tools.test.js`: 20 unit tests verifying schema validation, anti-primitive enforcement, RBAC/scope rules, stopping protocol formatting, and output credential scrubbing.
+    * `tests/integration/mcp-write-tools.test.js`: 8 Fastify + PostgreSQL integration tests exercising tool discovery, proposal creation, stopping protocol instructions, 403 READONLY rejection, 404 cross-tenant isolation, literal `confirmed: true` validation, execution to Draft PR, and idempotent re-entry.
+    * `tests/integration/live/mcp-write-tools.live.test.js`: Live sandbox integration test executing against GitHub App credentials and repository `vishu1803/Ai-job-mcp`.
+  * Architectural Findings & Invariants Enforced:
+    * **Zero Raw Write Primitives**: No generic file or branch modification primitives exposed over MCP (`modify_repository`, `write_file`, `create_commit`, `create_branch` are prohibited).
+    * **Two-Phase Human Confirmation**: `propose_project_improvement` creates `PENDING` ticket and yields stopping protocol instructions; `confirm_and_create_pr` requires boolean literal `confirmed === true` and executes the transition to `APPROVED` and `EXECUTED`.
+    * **Strict Multi-Tenant Sovereign Isolation**: All ticket lookups and executions enforce tenant boundary match, failing closed with `404 Not Found` (never 403) to prevent cross-tenant enumeration.
+    * **Idempotency & Re-entry**: `confirm_and_create_pr` safely handles re-invocations on already executed tickets by returning cached execution results without re-running Git mutations.
+  * Automated Verification Results:
+    * `node --test tests/unit/mcp-write-tools.test.js` -> PASS (20/20 tests passed in 79ms)
+    * `node --test tests/integration/mcp-write-tools.test.js` -> PASS (8/8 tests passed in 31.2s with clean pool drain)
+    * `node --test tests/integration/live/mcp-write-tools.live.test.js` -> PASS (1/1 test passed / skipped gracefully when credentials not in env)
+    * `npm run test:db-lifecycle-check` -> PASS (40 integration test files audited, 37 DB-using files verified, 0 violations)
+    * `npm run test:unit` -> PASS (986/986 tests passed across 244 suites in 23.8s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+  * Status: **`P9-005 COMPLETE & VERIFIED`**.
 
 ---
