@@ -4,9 +4,10 @@
  * Tests:
  * 1. SHA-256 token hashing and PKCE S256 verification.
  * 2. Redirect URI matching (exact web + RFC 8252 loopback).
- * 3. Zod schema validation for metadata, query, token requests, and revocation.
- * 4. OAuthAuthorizationService code generation, PKCE exchange, single-use invalidation,
- *    refresh token rotation (RTR), replay detection, and token revocation.
+ * 3. RFC 8707 Resource Indicator canonicalization and matching.
+ * 4. Zod schema validation for metadata, query, token requests, and revocation.
+ * 5. OAuthAuthorizationService code generation, PKCE exchange, single-use invalidation,
+ *    refresh token rotation (RTR), replay detection, resource binding, and token revocation.
  */
 
 import { describe, it, beforeEach } from 'node:test';
@@ -24,6 +25,8 @@ import {
   hashOAuthToken,
   verifyCodeChallenge,
   isMatchingRedirectUri,
+  canonicalizeResourceUrl,
+  isMatchingResource,
 } from '../../src/services/oauth-authorization.service.js';
 import { oauthAuthorizationCodes, oauthTokens, users, tenants } from '../../src/db/schema.js';
 
@@ -81,6 +84,40 @@ describe('OAuth 2.1 Cryptographic & Validation Primitives', () => {
     assert.equal(isMatchingRedirectUri(claudeDesktop, 'https://localhost/callback'), false);
     assert.equal(isMatchingRedirectUri(claudeDesktop, 'http://evil.com/callback'), false);
   });
+
+  it('canonicalizes RFC 8707 Resource Indicator URLs correctly', () => {
+    assert.equal(
+      canonicalizeResourceUrl('https://API.CareerHub.Example.com/mcp/'),
+      'https://api.careerhub.example.com/mcp'
+    );
+    assert.equal(canonicalizeResourceUrl('http://localhost:3000/mcp'), 'http://localhost:3000/mcp');
+    assert.equal(canonicalizeResourceUrl('https://example.com/mcp///'), 'https://example.com/mcp');
+
+    // Invalid scheme
+    assert.throws(() => canonicalizeResourceUrl('ftp://example.com/mcp'));
+    // Malformed URL
+    assert.throws(() => canonicalizeResourceUrl('not-a-valid-url'));
+    // Empty
+    assert.throws(() => canonicalizeResourceUrl(''));
+  });
+
+  it('verifies RFC 8707 Resource Indicator matching and rejection', () => {
+    const configured = 'https://api.careerhub.example.com/mcp';
+
+    assert.equal(isMatchingResource('https://api.careerhub.example.com/mcp', configured), true);
+    assert.equal(isMatchingResource('https://api.careerhub.example.com/mcp/', configured), true);
+    assert.equal(isMatchingResource('https://API.CAREERHUB.EXAMPLE.COM/mcp', configured), true);
+
+    // Mismatched host / attacker
+    assert.equal(isMatchingResource('https://attacker.example.com/mcp', configured), false);
+    // Mismatched scheme
+    assert.equal(isMatchingResource('http://api.careerhub.example.com/mcp', configured), false);
+    // Mismatched path
+    assert.equal(isMatchingResource('https://api.careerhub.example.com/other', configured), false);
+    // Missing / invalid
+    assert.equal(isMatchingResource(null, configured), false);
+    assert.equal(isMatchingResource('https://api.careerhub.example.com/mcp', null), false);
+  });
 });
 
 describe('OAuth 2.1 Domain Schemas Validation', () => {
@@ -106,16 +143,19 @@ describe('OAuth 2.1 Domain Schemas Validation', () => {
       grant_types_supported: ['authorization_code', 'refresh_token'],
       code_challenge_methods_supported: ['S256'],
       scopes_supported: ['career:read', 'career:write'],
+      resource_indicators_supported: true,
     };
     const parsed = OAuthAuthorizationServerMetadataSchema.parse(valid);
     assert.equal(parsed.issuer, valid.issuer);
+    assert.equal(parsed.resource_indicators_supported, true);
   });
 
-  it('validates OAuthAuthorizeQuerySchema and rejects invalid parameters', () => {
+  it('validates OAuthAuthorizeQuerySchema and requires resource parameter', () => {
     const validQuery = {
       response_type: 'code',
       client_id: 'claude-web',
       redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: 'https://api.careerhub.example.com/mcp',
       scope: 'career:read career:write',
       state: 'xyz123_csrf',
       code_challenge: 'E9Melhoa2OwvFrGMTJguCH5rtx64fZqiJ100wnqdXUQ',
@@ -123,7 +163,13 @@ describe('OAuth 2.1 Domain Schemas Validation', () => {
     };
     assert.doesNotThrow(() => OAuthAuthorizeQuerySchema.parse(validQuery));
 
-    // Missing state
+    // Missing resource rejected
+    assert.throws(() => OAuthAuthorizeQuerySchema.parse({ ...validQuery, resource: undefined }));
+
+    // Invalid resource URL rejected
+    assert.throws(() => OAuthAuthorizeQuerySchema.parse({ ...validQuery, resource: 'not-a-url' }));
+
+    // Missing state rejected
     assert.throws(() => OAuthAuthorizeQuerySchema.parse({ ...validQuery, state: undefined }));
 
     // Implicit grant rejected
@@ -140,17 +186,26 @@ describe('OAuth 2.1 Domain Schemas Validation', () => {
     );
   });
 
-  it('validates OAuthTokenRequestSchema for code exchange and refresh', () => {
+  it('validates OAuthTokenRequestSchema for code exchange and refresh with resource', () => {
     const validCodeExchange = {
       grant_type: 'authorization_code',
       client_id: 'claude-web',
       redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: 'https://api.careerhub.example.com/mcp',
       code: 'mcp_oauth_code_123',
       code_verifier: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
     };
     assert.doesNotThrow(() => OAuthTokenRequestSchema.parse(validCodeExchange));
 
-    // Missing code_verifier
+    // Missing resource in authorization_code grant rejected
+    assert.throws(() =>
+      OAuthTokenRequestSchema.parse({
+        ...validCodeExchange,
+        resource: undefined,
+      })
+    );
+
+    // Missing code_verifier rejected
     assert.throws(() =>
       OAuthTokenRequestSchema.parse({
         ...validCodeExchange,
@@ -162,10 +217,11 @@ describe('OAuth 2.1 Domain Schemas Validation', () => {
       grant_type: 'refresh_token',
       client_id: 'claude-web',
       refresh_token: 'mcp_oauth_ref_123',
+      resource: 'https://api.careerhub.example.com/mcp',
     };
     assert.doesNotThrow(() => OAuthTokenRequestSchema.parse(validRefresh));
 
-    // Missing refresh_token
+    // Missing refresh_token rejected
     assert.throws(() =>
       OAuthTokenRequestSchema.parse({
         ...validRefresh,
@@ -281,12 +337,52 @@ describe('OAuthAuthorizationService Lifecycle Logic (Mocked DB)', () => {
     const asm = service.getAuthorizationServerMetadata();
     assert.equal(asm.issuer, 'http://localhost:3000');
     assert.equal(asm.token_endpoint, 'http://localhost:3000/oauth/token');
+    assert.equal(asm.resource_indicators_supported, true);
   });
 
-  it('clamps scopes to user role ceilings during code minting', async () => {
+  it('validates authorization request with resource indicator and rejects mismatched resource', async () => {
+    const valid = await service.validateAuthorizationRequest({
+      clientId: 'claude-web',
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: 'http://localhost:3000/mcp',
+      scope: 'career:read',
+      codeChallenge: 'E9Melhoa2OwvFrGMTJguCH5rtx64fZqiJ100wnqdXUQ',
+      codeChallengeMethod: 'S256',
+    });
+    assert.equal(valid.resource, 'http://localhost:3000/mcp');
+
+    // Missing resource
+    await assert.rejects(
+      service.validateAuthorizationRequest({
+        clientId: 'claude-web',
+        redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: undefined,
+        scope: 'career:read',
+        codeChallenge: 'E9Melhoa2OwvFrGMTJguCH5rtx64fZqiJ100wnqdXUQ',
+        codeChallengeMethod: 'S256',
+      }),
+      /resource parameter is required/
+    );
+
+    // Wrong resource
+    await assert.rejects(
+      service.validateAuthorizationRequest({
+        clientId: 'claude-web',
+        redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: 'https://attacker.example.com/mcp',
+        scope: 'career:read',
+        codeChallenge: 'E9Melhoa2OwvFrGMTJguCH5rtx64fZqiJ100wnqdXUQ',
+        codeChallengeMethod: 'S256',
+      }),
+      /does not match configured MCP resource/
+    );
+  });
+
+  it('binds resource to authorization code and clamps scopes to role ceilings', async () => {
     const rawCode = await service.createAuthorizationCode({
       clientId: 'claude-web',
       redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: 'http://localhost:3000/mcp',
       codeChallenge: 'E9Melhoa2OwvFrGMTJguCH5rtx64fZqiJ100wnqdXUQ',
       codeChallengeMethod: 'S256',
       scopes: ['career:read', 'career:write'],
@@ -297,7 +393,80 @@ describe('OAuthAuthorizationService Lifecycle Logic (Mocked DB)', () => {
 
     assert.ok(rawCode.startsWith('mcp_oauth_code_'));
     assert.equal(mockCodes.length, 1);
+    assert.equal(mockCodes[0].resource, 'http://localhost:3000/mcp');
     // Scopes should be clamped to ['career:read']
     assert.deepEqual(mockCodes[0].scopes, ['career:read']);
+  });
+
+  it('exchanges code for tokens bound to resource and rejects resource mismatches', async () => {
+    const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+    const challenge = crypto.createHash('sha256').update(verifier, 'utf8').digest('base64url');
+
+    const rawCode = await service.createAuthorizationCode({
+      clientId: 'claude-web',
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: 'http://localhost:3000/mcp',
+      codeChallenge: challenge,
+      codeChallengeMethod: 'S256',
+      scopes: ['career:read'],
+      tenantId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      userId: '11111111-1111-1111-1111-111111111111',
+      userRole: 'MEMBER',
+    });
+
+    // Mismatched resource at token exchange rejected
+    await assert.rejects(
+      service.exchangeAuthorizationCode({
+        clientId: 'claude-web',
+        redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: 'https://attacker.example.com/mcp',
+        code: rawCode,
+        codeVerifier: verifier,
+      }),
+      /does not match authorization code binding/
+    );
+
+    // Valid exchange
+    const tokenResponse = await service.exchangeAuthorizationCode({
+      clientId: 'claude-web',
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: 'http://localhost:3000/mcp',
+      code: rawCode,
+      codeVerifier: verifier,
+    });
+
+    assert.ok(tokenResponse.access_token.startsWith('mcp_oauth_acc_'));
+    assert.equal(mockTokens.length, 1);
+    assert.equal(mockTokens[0].resource, 'http://localhost:3000/mcp');
+  });
+
+  it('rejects access token validation when expected resource does not match token audience', async () => {
+    const now = new Date();
+    const rawToken = 'mcp_oauth_acc_test_token_1234567890abcdef1234567890abcdef12345678';
+    mockTokens.push({
+      id: crypto.randomUUID(),
+      tenantId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      userId: '11111111-1111-1111-1111-111111111111',
+      clientId: 'claude-web',
+      accessTokenHash: hashOAuthToken(rawToken),
+      resource: 'http://localhost:3000/mcp',
+      tokenScopes: ['career:read'],
+      isRevoked: false,
+      accessTokenExpiresAt: new Date(now.getTime() + 3600 * 1000),
+    });
+
+    // Matching resource succeeds
+    const validated = await service.validateAccessToken(rawToken, {
+      expectedResource: 'http://localhost:3000/mcp',
+    });
+    assert.equal(validated.resource, 'http://localhost:3000/mcp');
+
+    // Mismatched resource fails
+    await assert.rejects(
+      service.validateAccessToken(rawToken, {
+        expectedResource: 'https://foreign-mcp-server.example.com/mcp',
+      }),
+      /OAuth access token was issued for resource/
+    );
   });
 });

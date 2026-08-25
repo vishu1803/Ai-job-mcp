@@ -27,7 +27,7 @@ export const PKCECodeChallengeMethodEnum = z.enum(['S256']);
 export const OAuthScopeEnum = z.enum(['career:read', 'career:write']);
 
 /**
- * Standard RFC 6749 OAuth Error Codes.
+ * Standard RFC 6749 & RFC 8707 OAuth Error Codes.
  */
 export const OAuthErrorCodeEnum = z.enum([
   'invalid_request',
@@ -36,6 +36,7 @@ export const OAuthErrorCodeEnum = z.enum([
   'unauthorized_client',
   'unsupported_grant_type',
   'invalid_scope',
+  'invalid_target',
   'access_denied',
   'server_error',
   'temporarily_unavailable',
@@ -69,6 +70,7 @@ export const OAuthAuthorizationServerMetadataSchema = z
     grant_types_supported: z.array(z.string()).default(['authorization_code', 'refresh_token']),
     code_challenge_methods_supported: z.array(z.string()).default(['S256']),
     scopes_supported: z.array(z.string()).default(['career:read', 'career:write']),
+    resource_indicators_supported: z.boolean().default(true),
     token_endpoint_auth_methods_supported: z
       .array(z.string())
       .default(['none', 'client_secret_post', 'client_secret_basic']),
@@ -77,7 +79,7 @@ export const OAuthAuthorizationServerMetadataSchema = z
   .strict();
 
 /**
- * Schema for GET /oauth/authorize Query Parameters.
+ * Schema for GET /oauth/authorize Query Parameters (RFC 6749 & RFC 8707).
  */
 export const OAuthAuthorizeQuerySchema = z
   .object({
@@ -86,6 +88,7 @@ export const OAuthAuthorizeQuerySchema = z
     }),
     client_id: z.string().min(1, 'client_id is required'),
     redirect_uri: z.string().url('redirect_uri must be a valid URL'),
+    resource: z.string().url('resource must be a valid URL'),
     scope: z.string().optional().default('career:read'),
     state: z.string().min(1, 'state parameter is mandatory in OAuth 2.1'),
     code_challenge: z
@@ -101,7 +104,7 @@ export const OAuthAuthorizeQuerySchema = z
   .strict();
 
 /**
- * Schema for POST /oauth/token Request Body.
+ * Schema for POST /oauth/token Request Body (RFC 6749 & RFC 8707).
  */
 export const OAuthTokenRequestSchema = z
   .object({
@@ -110,6 +113,7 @@ export const OAuthTokenRequestSchema = z
     code: z.string().optional(),
     redirect_uri: z.string().url().optional(),
     code_verifier: z.string().min(43).max(128).optional(),
+    resource: z.string().url('resource must be a valid URL').optional(),
     refresh_token: z.string().optional(),
     client_secret: z.string().optional(),
   })
@@ -134,6 +138,13 @@ export const OAuthTokenRequestSchema = z
           code: z.ZodIssueCode.custom,
           message: 'code_verifier is required for grant_type=authorization_code',
           path: ['code_verifier'],
+        });
+      }
+      if (!data.resource) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'resource is required for grant_type=authorization_code',
+          path: ['resource'],
         });
       }
     } else if (data.grant_type === 'refresh_token') {

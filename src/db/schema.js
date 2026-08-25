@@ -721,6 +721,7 @@ export const oauthAuthorizationCodes = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     redirectUri: text('redirect_uri').notNull(),
+    resource: text('resource').notNull().default('http://localhost:3000/mcp'),
     codeChallenge: text('code_challenge').notNull(),
     codeChallengeMethod: text('code_challenge_method').notNull().default('S256'),
     scopes: jsonb('scopes').notNull(), // string[]
@@ -753,6 +754,7 @@ export const oauthTokens = pgTable(
     accessTokenHash: text('access_token_hash').notNull().unique(),
     refreshTokenHash: text('refresh_token_hash').unique(),
     familyId: uuid('family_id').notNull(),
+    resource: text('resource').notNull().default('http://localhost:3000/mcp'),
     tokenScopes: jsonb('token_scopes').notNull(), // string[]
     isRevoked: boolean('is_revoked').notNull().default(false),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),

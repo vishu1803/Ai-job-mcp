@@ -2432,35 +2432,38 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 
 * **P10-001 (Configure Claude Remote MCP Custom Connector Endpoint Compatibility & OAuth 2.1 — Completed & Verified)**:
   * Deliverables Created & Modified:
-    * `src/domain/oauth/oauth.schemas.js`: Canonical Zod schemas for OAuth Protected Resource Metadata (RFC 9728), Authorization Server Metadata (RFC 8414), Authorize Query (`OAuthAuthorizeQuerySchema`), Token Request (`OAuthTokenRequestSchema`), and Revocation (`OAuthRevokeRequestSchema`).
+    * `src/domain/oauth/oauth.schemas.js`: Canonical Zod schemas for OAuth Protected Resource Metadata (RFC 9728), Authorization Server Metadata (RFC 8414 with `resource_indicators_supported: true`), Authorize Query (`OAuthAuthorizeQuerySchema` requiring RFC 8707 `resource`), Token Request (`OAuthTokenRequestSchema` requiring RFC 8707 `resource` for authorization code exchange), Revocation (`OAuthRevokeRequestSchema`), and `invalid_target` RFC 8707 error code.
     * `src/domain/mcp/mcp.schemas.js`: Extended `McpAuthMethodEnum` with `OAUTH_BEARER` and `McpClientInfoSchema` with optional `clientId`.
-    * `src/db/schema.js`: Drizzle ORM tables `oauthClients`, `oauthAuthorizationCodes`, `oauthTokens` with relational cascades and indexes.
-    * `drizzle/0005_mushy_the_initiative.sql`: PostgreSQL DDL migration creating `oauth_clients`, `oauth_authorization_codes`, and `oauth_tokens` tables.
-    * `src/config/env.js`: Environment configuration for OAuth settings (`OAUTH_PUBLIC_BASE_URL`, `OAUTH_ACCESS_TOKEN_TTL_SECONDS`, `OAUTH_REFRESH_TOKEN_TTL_SECONDS`, `OAUTH_AUTH_CODE_TTL_SECONDS`).
-    * `src/services/oauth-authorization.service.js`: Provider-neutral `OAuthAuthorizationService` implementing PKCE S256 validation (constant-time comparison), Refresh Token Rotation (RTR), token family replay detection and automatic revocation, role-based scope ceiling clamping, and constant-time token SHA-256 hashing (`mcp_oauth_acc_*`, `mcp_oauth_ref_*`).
-    * `src/security/mcp-auth.js`: Dual-authentication facade in `authenticateMcpRequest()` verifying personal API tokens (`mcp_token_*`) and OAuth Bearer tokens (`mcp_oauth_acc_*`), minting the identical frozen `McpRequestContext`.
+    * `src/db/schema.js`: Drizzle ORM tables `oauthClients`, `oauthAuthorizationCodes` (with `resource` column), and `oauthTokens` (with `resource` column) with relational cascades and indexes.
+    * `drizzle/0005_mushy_the_initiative.sql`: PostgreSQL DDL migration creating initial OAuth 2.1 tables.
+    * `drizzle/0006_opposite_marvel_boy.sql`: PostgreSQL DDL migration adding `resource` column to `oauth_authorization_codes` and `oauth_tokens`.
+    * `src/config/env.js`: Environment configuration for OAuth settings (`OAUTH_PUBLIC_BASE_URL`, `OAUTH_RESOURCE_URL`, `MCP_BASE_URL`, `OAUTH_ACCESS_TOKEN_TTL_SECONDS`, `OAUTH_REFRESH_TOKEN_TTL_SECONDS`, `OAUTH_AUTH_CODE_TTL_SECONDS`).
+    * `src/services/oauth-authorization.service.js`: Provider-neutral `OAuthAuthorizationService` implementing PKCE S256 validation (constant-time comparison), RFC 8707 Resource Indicator URL canonicalization (`canonicalizeResourceUrl`), resource target validation (`isMatchingResource`), Refresh Token Rotation (RTR), token family replay detection and automatic revocation, role-based scope ceiling clamping, resource audience verification during token validation, and constant-time token SHA-256 hashing (`mcp_oauth_acc_*`, `mcp_oauth_ref_*`).
+    * `src/security/mcp-auth.js`: Dual-authentication facade in `authenticateMcpRequest()` verifying personal API tokens (`mcp_token_*`) and OAuth Bearer tokens (`mcp_oauth_acc_*`) against expected resource indicator, minting the identical frozen `McpRequestContext`.
     * `src/routes/mcp.routes.js`: Protected MCP endpoint rejecting query parameter tokens (`400 QUERY_TOKEN_PROHIBITED`) and emitting RFC 9728 `WWW-Authenticate: Bearer realm="mcp", resource_metadata="..."` headers on unauthenticated 401 requests.
-    * `src/routes/oauth.routes.js`: Fastify OAuth 2.1 endpoints (`GET /.well-known/oauth-protected-resource`, `GET /.well-known/oauth-authorization-server`, `GET /oauth/authorize`, `POST /oauth/token`, `POST /oauth/revoke`).
+    * `src/routes/oauth.routes.js`: Fastify OAuth 2.1 endpoints (`GET /.well-known/oauth-protected-resource`, `GET /.well-known/oauth-authorization-server`, `GET /oauth/authorize`, `POST /oauth/token`, `POST /oauth/revoke`) handling RFC 8707 `resource` parameter, logging `resource` in audit telemetry, and returning standard `invalid_target` (HTTP 400) on resource mismatch.
     * `src/app.js`: Registered `oauthRoutes` and injected `oauthService` into `mcpRoutes`.
-    * `tests/unit/oauth-authorization-server.test.js`: 10 unit tests verifying cryptographic hashing, PKCE verification, client redirect matching, and OAuth service flows.
+    * `tests/unit/oauth-authorization-server.test.js`: 15 unit tests verifying cryptographic hashing, PKCE verification, client redirect matching, RFC 8707 resource canonicalization, resource matching, schema validations, and OAuth service resource binding flows.
     * `tests/unit/mcp-auth.test.js`: 7 unit tests verifying token format routing, inactive user rejection, and dual-auth facade operation.
-    * `tests/integration/claude-mcp-connector.test.js`: 17 Fastify + PostgreSQL integration tests exercising full OAuth 2.1 Authorization Code Flow with PKCE S256, metadata discovery, token refresh rotation, replay revocation, token revocation, scope ceiling clamping, and MCP tool execution (`tools/list`, `tools/call`) over OAuth Bearer token.
+    * `tests/integration/claude-mcp-connector.test.js`: 17 Fastify + PostgreSQL integration tests exercising full OAuth 2.1 Authorization Code Flow with PKCE S256 and RFC 8707 Resource Indicators, metadata discovery, token refresh rotation, replay revocation, token revocation, scope ceiling clamping, negative resource mismatch assertions, and MCP tool execution (`tools/list`, `tools/call`) over OAuth Bearer token.
   * Architectural Findings & Invariants Enforced:
+    * **RFC 8707 Resource Indicator Compatibility**: Directly satisfies official MCP authorization standard by accepting `resource` parameter on `GET /oauth/authorize` and `POST /oauth/token`, canonicalizing URLs, and relationally binding authorization codes and access tokens to the MCP endpoint.
     * **OAuth 2.1 Facade Pattern**: Personal tokens (`mcp_token_*`) and OAuth Bearer tokens (`mcp_oauth_acc_*`) converge into the identical trusted `McpRequestContext`.
     * **Strict PKCE S256 Enforcement**: Prohibits plain PKCE and grants without `code_challenge_method=S256`.
     * **Refresh Token Rotation & Replay Defense**: Replaying an expired or already-rotated refresh token immediately revokes all active access and refresh tokens in that token family.
     * **Multi-Tenant Sovereign Default-Deny**: Tenant and user IDs are cryptographically pinned inside the hashed token record in PostgreSQL. Cross-tenant MCP invocations fail closed with `404 Not Found`.
     * **Query Token Prohibition**: URL query parameter tokens are rejected with `400 Bad Request` to prevent token leakage in server logs.
   * Automated Verification Results:
-    * `node --test tests/unit/oauth-authorization-server.test.js` -> PASS (10/10 tests passed)
+    * `node --test tests/unit/oauth-authorization-server.test.js` -> PASS (15/15 tests passed)
     * `node --test tests/unit/mcp-auth.test.js` -> PASS (7/7 tests passed)
-    * `tests/integration/claude-mcp-connector.test.js` -> PASS (17/17 tests passed)
+    * `node --test tests/integration/claude-mcp-connector.test.js` -> PASS (17/17 tests passed)
     * MCP Integration Suite (5 suites, 51 tests) -> PASS (51/51 tests passed)
     * `npm run test:db-lifecycle-check` -> PASS (38 DB-using files verified, 0 violations)
-    * `npm run test:unit` -> PASS (1023/1023 tests passed across 258 suites)
+    * `npm run test:unit` -> PASS (1028/1028 tests passed across 258 suites)
+    * `npm test` -> PASS (1320/1320 tests passed across 340 suites)
     * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
-  * Status: **`P10-001 COMPLETE & VERIFIED`**.
+  * Status: **`P10-001 COMPLETE & VERIFIED (with RFC 8707 Compatibility Patch)`**.
 
 ---

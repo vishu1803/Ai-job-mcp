@@ -53,6 +53,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
   let _tenantB;
   let _userBMember;
   let candidateB;
+  let expectedResource;
 
   const validVerifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk_custom_verifier_12345678';
   const validChallenge = crypto
@@ -159,6 +160,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
 
       // 3. Setup Services & App
       oauthService = new OAuthAuthorizationService({ db });
+      expectedResource = oauthService.getExpectedResourceUrl();
       tokenService = new McpApiTokenService({ db });
       rateLimiter = new McpRateLimiter();
 
@@ -261,11 +263,11 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
   // ---------------------------------------------------------------------------
   // 2. Authorization Endpoint (GET /oauth/authorize)
   // ---------------------------------------------------------------------------
-  it('4. rejects authorization request with invalid client, missing state, or invalid redirect', async () => {
+  it('4. rejects authorization request with invalid client, missing state, missing resource, or invalid redirect', async () => {
     // Unknown client
     const res1 = await app.inject({
       method: 'GET',
-      url: `/oauth/authorize?response_type=code&client_id=unknown-client&redirect_uri=https://claude.ai/api/mcp/auth_callback&state=state123&code_challenge=${validChallenge}&code_challenge_method=S256`,
+      url: `/oauth/authorize?response_type=code&client_id=unknown-client&redirect_uri=https://claude.ai/api/mcp/auth_callback&resource=${encodeURIComponent(expectedResource)}&state=state123&code_challenge=${validChallenge}&code_challenge_method=S256`,
     });
     assert.equal(res1.statusCode, 400);
     assert.equal(JSON.parse(res1.body).error, 'invalid_client');
@@ -273,7 +275,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     // Mismatched redirect URI for Claude Web
     const res2 = await app.inject({
       method: 'GET',
-      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://attacker.com/callback&state=state123&code_challenge=${validChallenge}&code_challenge_method=S256`,
+      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://attacker.com/callback&resource=${encodeURIComponent(expectedResource)}&state=state123&code_challenge=${validChallenge}&code_challenge_method=S256`,
     });
     assert.equal(res2.statusCode, 400);
     assert.equal(JSON.parse(res2.body).error, 'invalid_request');
@@ -281,17 +283,33 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     // Missing state
     const res3 = await app.inject({
       method: 'GET',
-      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&code_challenge=${validChallenge}&code_challenge_method=S256`,
+      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&resource=${encodeURIComponent(expectedResource)}&code_challenge=${validChallenge}&code_challenge_method=S256`,
     });
     assert.equal(res3.statusCode, 400);
     assert.equal(JSON.parse(res3.body).error, 'invalid_request');
+
+    // Missing resource (Case A: RFC 8707 requirement)
+    const res4 = await app.inject({
+      method: 'GET',
+      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&state=state123&code_challenge=${validChallenge}&code_challenge_method=S256`,
+    });
+    assert.equal(res4.statusCode, 400);
+    assert.equal(JSON.parse(res4.body).error, 'invalid_request');
+
+    // Mismatched resource target (Case B: RFC 8707 invalid_target)
+    const res5 = await app.inject({
+      method: 'GET',
+      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&resource=https://attacker.example.com/mcp&state=state123&code_challenge=${validChallenge}&code_challenge_method=S256`,
+    });
+    assert.equal(res5.statusCode, 400);
+    assert.equal(JSON.parse(res5.body).error, 'invalid_target');
   });
 
   let issuedCodeMemberA;
-  it('5. successfully generates authorization code for Member A and redirects with code & state', async () => {
+  it('5. successfully generates authorization code for Member A with resource indicator and redirects with code & state', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&scope=career:read+career:write&state=csrf_test_state_123&code_challenge=${validChallenge}&code_challenge_method=S256&user_id=${userAMember.id}&tenant_id=${tenantA.id}`,
+      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&resource=${encodeURIComponent(expectedResource)}&scope=career:read+career:write&state=csrf_test_state_123&code_challenge=${validChallenge}&code_challenge_method=S256&user_id=${userAMember.id}&tenant_id=${tenantA.id}`,
     });
 
     assert.equal(res.statusCode, 302);
@@ -311,7 +329,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
   it('6. clamps requested scopes to user role ceiling (READONLY user gets only career:read)', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/oauth/authorize?response_type=code&client_id=claude-desktop&redirect_uri=http://localhost:3118/callback&scope=career:read+career:write&state=state_readonly&code_challenge=${validChallenge}&code_challenge_method=S256&user_id=${userAReadonly.id}&tenant_id=${tenantA.id}`,
+      url: `/oauth/authorize?response_type=code&client_id=claude-desktop&redirect_uri=http://localhost:3118/callback&resource=${encodeURIComponent(expectedResource)}&scope=career:read+career:write&state=state_readonly&code_challenge=${validChallenge}&code_challenge_method=S256&user_id=${userAReadonly.id}&tenant_id=${tenantA.id}`,
     });
 
     assert.equal(res.statusCode, 302);
@@ -329,12 +347,51 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     assert.ok(codeRecord);
     // Role ceiling enforced: career:write stripped
     assert.deepEqual(codeRecord.scopes, ['career:read']);
+    assert.equal(codeRecord.resource, expectedResource);
   });
 
   // ---------------------------------------------------------------------------
   // 3. Token Exchange Endpoint (POST /oauth/token)
   // ---------------------------------------------------------------------------
-  it('7. rejects authorization code exchange when PKCE code_verifier is invalid', async () => {
+  it('7. rejects authorization code exchange when PKCE code_verifier is invalid or resource is mismatched/missing', async () => {
+    // Missing resource in code exchange (Case C)
+    const resMissingResource = await app.inject({
+      method: 'POST',
+      url: '/oauth/token',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      payload: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: 'claude-web',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        code: issuedCodeMemberA,
+        code_verifier: validVerifier,
+      }).toString(),
+    });
+    assert.equal(resMissingResource.statusCode, 400);
+    assert.equal(JSON.parse(resMissingResource.body).error, 'invalid_request');
+
+    // Mismatched resource target (Case D)
+    const resMismatchedResource = await app.inject({
+      method: 'POST',
+      url: '/oauth/token',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      payload: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: 'claude-web',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: 'https://attacker.example.com/mcp',
+        code: issuedCodeMemberA,
+        code_verifier: validVerifier,
+      }).toString(),
+    });
+    assert.equal(resMismatchedResource.statusCode, 400);
+    assert.equal(JSON.parse(resMismatchedResource.body).error, 'invalid_target');
+
+    // Invalid code verifier
     const res = await app.inject({
       method: 'POST',
       url: '/oauth/token',
@@ -345,6 +402,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
         grant_type: 'authorization_code',
         client_id: 'claude-web',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: expectedResource,
         code: issuedCodeMemberA,
         code_verifier: 'invalid_code_verifier_123456789012345678901234567890',
       }).toString(),
@@ -359,7 +417,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
   let accessTokenMemberA;
   let refreshTokenMemberA;
 
-  it('8. exchanges authorization code for access token and rotating refresh token with valid PKCE', async () => {
+  it('8. exchanges authorization code for access token and rotating refresh token with valid PKCE & resource', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/oauth/token',
@@ -370,6 +428,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
         grant_type: 'authorization_code',
         client_id: 'claude-web',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: expectedResource,
         code: issuedCodeMemberA,
         code_verifier: validVerifier,
       }).toString(),
@@ -400,6 +459,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
         grant_type: 'authorization_code',
         client_id: 'claude-web',
         redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: expectedResource,
         code: issuedCodeMemberA,
         code_verifier: validVerifier,
       }).toString(),
@@ -551,6 +611,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     const readOnlyCode = await oauthService.createAuthorizationCode({
       clientId: 'claude-web',
       redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: expectedResource,
       codeChallenge: validChallenge,
       codeChallengeMethod: 'S256',
       scopes: ['career:read'],
@@ -562,6 +623,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     const readTokenRes = await oauthService.exchangeAuthorizationCode({
       clientId: 'claude-web',
       redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: expectedResource,
       code: readOnlyCode,
       codeVerifier: validVerifier,
     });
@@ -619,6 +681,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
       payload: new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: 'claude-web',
+        resource: expectedResource,
         refresh_token: refreshTokenMemberA,
       }).toString(),
     });
@@ -645,6 +708,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
       payload: new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: 'claude-web',
+        resource: expectedResource,
         refresh_token: refreshTokenMemberA, // Replay!
       }).toString(),
     });
@@ -688,6 +752,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     const rawCode = await oauthService.createAuthorizationCode({
       clientId: 'claude-web',
       redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: expectedResource,
       codeChallenge: validChallenge,
       codeChallengeMethod: 'S256',
       scopes: ['career:read'],
@@ -699,6 +764,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     const tokenRes = await oauthService.exchangeAuthorizationCode({
       clientId: 'claude-web',
       redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: expectedResource,
       code: rawCode,
       codeVerifier: validVerifier,
     });

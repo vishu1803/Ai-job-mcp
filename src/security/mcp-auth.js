@@ -108,9 +108,14 @@ export async function authenticateMcpRequest(req, options = {}) {
   const isOAuthTokenFormat = /^mcp_oauth_acc_[0-9a-fA-F]{64}$/.test(rawToken);
 
   if (isOAuthTokenFormat) {
+    const expectedResource =
+      typeof oauthService.getExpectedResourceUrl === 'function'
+        ? oauthService.getExpectedResourceUrl()
+        : undefined;
+
     const { user, tenant, effectiveScopes, clientId } = await oauthService.validateAccessToken(
       rawToken,
-      { db: database }
+      { db: database, expectedResource }
     );
 
     const rawContext = {

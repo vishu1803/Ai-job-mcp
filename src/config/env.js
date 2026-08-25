@@ -82,6 +82,7 @@ const envSchema = z
       .default(
         () =>
           process.env.OAUTH_RESOURCE_URL ||
+          process.env.MCP_BASE_URL ||
           (process.env.APP_URL ? `${process.env.APP_URL}/mcp` : 'http://localhost:3000/mcp')
       ),
     OAUTH_ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),

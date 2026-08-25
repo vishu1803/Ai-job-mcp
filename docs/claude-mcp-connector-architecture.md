@@ -1,9 +1,9 @@
 # ARCH-037: Claude Remote MCP Custom Connector & OAuth 2.1 Integration Architecture Specification
 
-**Status**: PROPOSED & REVIEWED (Task P10-001A)  
+**Status**: IMPLEMENTED & VERIFIED (Task P10-001 & RFC 8707 Compatibility Patch)  
 **Security Level**: Critical Public Perimeter & OAuth 2.1 Authorization Boundary  
 **Target AI Client**: Anthropic Claude (Claude.ai Web, Claude Desktop, Claude Code CLI)  
-**Governing Standard**: Model Context Protocol (MCP) Streamable HTTP Spec 2026-07-28, RFC 6749, RFC 7636, RFC 8414, RFC 9700 (OAuth 2.1 / BCP), RFC 9728 (Protected Resource Metadata), RFC 8252 (OAuth 2.0 for Native Apps)  
+**Governing Standard**: Model Context Protocol (MCP) Streamable HTTP Spec 2026-07-28, RFC 6749, RFC 7636, RFC 8414, RFC 8707 (Resource Indicators for OAuth 2.0), RFC 9700 (OAuth 2.1 / BCP), RFC 9728 (Protected Resource Metadata), RFC 8252 (OAuth 2.0 for Native Apps)  
 **Governing ADR**: ADR-058 (`docs/decisions.md`)  
 
 ---
@@ -15,7 +15,7 @@ In Phases 7 through 9, Career Hub established a provider-neutral Remote Model Co
 2. **Application Artifact Tools**: `generate_tailored_resume`, `generate_cover_letter`, `get_portfolio_recommendations`.
 3. **Approved GitHub Write Tools**: `propose_project_improvement`, `confirm_and_create_pr` with diff previews, test execution reporting, cryptographic patch fingerprinting, and centralized safety gating.
 
-**Phase 10 (Task P10-001A)** defines the architectural, security, and external integration boundary for connecting **Anthropic Claude** as the second major target AI client to the existing Remote MCP server over **Public HTTPS** using **OAuth 2.1**.
+**Phase 10 (Task P10-001 & Compatibility Patch)** defines and implements the architectural, security, and external integration boundary for connecting **Anthropic Claude** as the second major target AI client to the existing Remote MCP server over **Public HTTPS** using **OAuth 2.1 + RFC 8707 Resource Indicators**.
 
 ```
 +--------------------------------------------------------------------------------------------------+
@@ -32,10 +32,10 @@ In Phases 7 through 9, Career Hub established a provider-neutral Remote Model Co
 |                 | 1. Discovery (401 + RFC 9728 Metadata)            |                            |
 |                 +-------------------------------------------------->|                            |
 |                 |                                                   |                            |
-|                 | 2. OAuth 2.1 Auth Code + PKCE (S256) Flow         |                            |
+|                 | 2. OAuth 2.1 + RFC 8707 (resource param) Flow     |                            |
 |                 +-------------------------------------------------->|                            |
-|                 |    GET  /oauth/authorize (User Consent)           |                            |
-|                 |    POST /oauth/token     (Code Exchange)          |                            |
+|                 |    GET  /oauth/authorize?resource=...             |                            |
+|                 |    POST /oauth/token     (resource binding)       |                            |
 |                 |                                                   v                            |
 |                 | 3. Streamable HTTP JSON-RPC (Bearer Token)   +----+------------------------+   |
 |                 +--------------------------------------------->|   OAuth 2.1 Auth Middleware |   |
@@ -81,17 +81,25 @@ In Phases 7 through 9, Career Hub established a provider-neutral Remote Model Co
 ### 2.3 Strict Authorization Code Flow with PKCE (RFC 7636 / RFC 9700)
 - Mandatory `code_challenge_method=S256`. Plain text PKCE (`method=plain`) is strictly rejected.
 - Implicit grants (`response_type=token`) and Resource Owner Password Credentials (ROPC) are permanently disabled.
-- Authorization codes are single-use, cryptographically random (256-bit entropy), bound to the client ID, tenant ID, user ID, redirect URI, and code challenge, with a maximum TTL of 5 minutes (300 seconds).
+- Authorization codes are single-use, cryptographically random (256-bit entropy), bound to the client ID, tenant ID, user ID, redirect URI, resource indicator, and code challenge, with a maximum TTL of 5 minutes (300 seconds).
 
-### 2.4 Protected Resource & Authorization Server Metadata Discovery
+### 2.4 RFC 8707 Resource Indicators for OAuth 2.0 / MCP Compatibility
+- Official MCP authorization specification requires RFC 8707 Resource Indicators to bind tokens and authorization requests to the specific MCP endpoint:
+  1. Claude transmits `resource=https://<public-mcp-host>/mcp` on `GET /oauth/authorize`.
+  2. Server canonicalizes and validates `resource` against configured MCP resource URL (`getExpectedResourceUrl()`), rejecting mismatches with standard RFC 8707 error code `invalid_target` (HTTP 400).
+  3. Single-use authorization codes are cryptographically and relationally bound to the canonical `resource` column in `oauth_authorization_codes`.
+  4. Token exchange (`POST /oauth/token`) verifies `resource` parameter equality with authorization code binding and stores bound `resource` in `oauth_tokens`.
+  5. `authenticateMcpRequest()` verifies that incoming OAuth Bearer access tokens are bound to the current MCP server audience/resource.
+
+### 2.5 Protected Resource & Authorization Server Metadata Discovery
 - When an unauthenticated client connects to `POST /mcp`, the server returns `401 Unauthorized` with:
   ```http
   WWW-Authenticate: Bearer realm="mcp", resource_metadata="https://api.careerhub.example.com/.well-known/oauth-protected-resource"
   ```
 - Exposes standard discovery documents:
-  1. `/.well-known/oauth-protected-resource` (RFC 9728)
-  2. `/.well-known/oauth-authorization-server` (RFC 8414)
-  3. `/.well-known/jwks.json` (RFC 7517)
+  1. `/.well-known/oauth-protected-resource` (RFC 9728) with `resource` indicator.
+  2. `/.well-known/oauth-authorization-server` (RFC 8414) with `resource_indicators_supported: true`.
+  3. `/.well-known/jwks.json` (RFC 7517).
 
 ---
 

@@ -3,13 +3,14 @@
  *
  * Implements:
  * 1. RFC 9728 Protected Resource Metadata & RFC 8414 Authorization Server Metadata.
- * 2. Pre-configured & DB-backed OAuth 2.1 Public Client registry for Claude (Web, Desktop, CLI).
- * 3. Strict RFC 8252 Loopback and exact Web redirect URI matching.
- * 4. Mandatory PKCE (S256) verification.
- * 5. Single-use Authorization Codes with 5-minute TTL.
- * 6. Access Token issuance and Refresh Token Rotation (RTR) with family revocation on replay.
- * 7. Token Revocation (RFC 7009).
- * 8. Sovereign multi-tenant resolution and RBAC role ceiling clamping.
+ * 2. RFC 8707 Resource Indicators for OAuth 2.0 / MCP compatibility.
+ * 3. Pre-configured & DB-backed OAuth 2.1 Public Client registry for Claude (Web, Desktop, CLI).
+ * 4. Strict RFC 8252 Loopback and exact Web redirect URI matching.
+ * 5. Mandatory PKCE (S256) verification.
+ * 6. Single-use Authorization Codes with 5-minute TTL bound to client, user, tenant, and resource.
+ * 7. Access Token issuance and Refresh Token Rotation (RTR) with family revocation on replay.
+ * 8. Token Revocation (RFC 7009).
+ * 9. Sovereign multi-tenant resolution and RBAC role ceiling clamping.
  */
 
 import crypto from 'node:crypto';
@@ -67,6 +68,59 @@ export const PRECONFIGURED_OAUTH_CLIENTS = {
  */
 export function hashOAuthToken(rawToken) {
   return crypto.createHash('sha256').update(rawToken, 'utf8').digest('hex');
+}
+
+/**
+ * Canonicalizes an RFC 8707 Resource Indicator URL.
+ * Normalizes protocol, hostname to lowercase, strips standard ports and trailing slashes.
+ *
+ * @param {string} urlStr Resource URL to canonicalize
+ * @returns {string} Normalized canonical resource URL
+ * @throws {ValidationError} If URL is malformed or not http/https
+ */
+export function canonicalizeResourceUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') {
+    throw new ValidationError('Resource URL must be a non-empty string', 'INVALID_RESOURCE');
+  }
+  let parsed;
+  try {
+    parsed = new URL(urlStr.trim());
+  } catch {
+    throw new ValidationError(`Invalid resource URL: "${urlStr}"`, 'INVALID_RESOURCE');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ValidationError('Resource URL must have http: or https: scheme', 'INVALID_RESOURCE');
+  }
+
+  const protocol = parsed.protocol.toLowerCase();
+  const host = parsed.host.toLowerCase();
+
+  let pathname = parsed.pathname || '/';
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    pathname = pathname.replace(/\/+$/, '');
+  }
+
+  return `${protocol}//${host}${pathname}`;
+}
+
+/**
+ * Checks whether a requested resource matches the expected/configured resource URL.
+ *
+ * @param {string} requestedResource Requested resource indicator
+ * @param {string} configuredResource Configured target resource
+ * @returns {boolean} True if matching after canonicalization
+ */
+export function isMatchingResource(requestedResource, configuredResource) {
+  if (!requestedResource || !configuredResource) {
+    return false;
+  }
+  try {
+    const canonicalRequested = canonicalizeResourceUrl(requestedResource);
+    const canonicalConfigured = canonicalizeResourceUrl(configuredResource);
+    return canonicalRequested === canonicalConfigured;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -170,15 +224,26 @@ export class OAuthAuthorizationService {
   }
 
   /**
+   * Returns the canonical configured MCP resource URL.
+   *
+   * @returns {string} Canonical resource URL
+   */
+  getExpectedResourceUrl() {
+    return (
+      this.config.OAUTH_RESOURCE_URL ||
+      this.config.MCP_BASE_URL ||
+      (this.config.APP_URL ? `${this.config.APP_URL}/mcp` : 'http://localhost:3000/mcp')
+    );
+  }
+
+  /**
    * Returns RFC 9728 Protected Resource Metadata.
    *
    * @returns {object} Metadata object
    */
   getProtectedResourceMetadata() {
     const issuer = this.config.OAUTH_ISSUER_URL || this.config.APP_URL || 'http://localhost:3000';
-    const resource =
-      this.config.OAUTH_RESOURCE_URL ||
-      (this.config.APP_URL ? `${this.config.APP_URL}/mcp` : 'http://localhost:3000/mcp');
+    const resource = this.getExpectedResourceUrl();
 
     return {
       resource,
@@ -208,6 +273,7 @@ export class OAuthAuthorizationService {
       grant_types_supported: ['authorization_code', 'refresh_token'],
       code_challenge_methods_supported: ['S256'],
       scopes_supported: ['career:read', 'career:write'],
+      resource_indicators_supported: true,
       token_endpoint_auth_methods_supported: ['none', 'client_secret_post', 'client_secret_basic'],
       service_documentation: `${issuer}/docs/oauth`,
     };
@@ -242,14 +308,15 @@ export class OAuthAuthorizationService {
    * @param {object} params Query parameters
    * @param {string} params.clientId Client ID
    * @param {string} params.redirectUri Redirect URI
+   * @param {string} params.resource Requested resource indicator
    * @param {string} [params.scope] Requested scopes
    * @param {string} params.codeChallenge PKCE Code challenge
    * @param {string} [params.codeChallengeMethod='S256'] Challenge method
    * @param {object} [options={}] Options override
-   * @returns {Promise<{ client: object, scopes: string[] }>}
+   * @returns {Promise<{ client: object, scopes: string[], resource: string }>}
    */
   async validateAuthorizationRequest(params, options = {}) {
-    const { clientId, redirectUri, scope, codeChallenge, codeChallengeMethod } = params;
+    const { clientId, redirectUri, resource, scope, codeChallenge, codeChallengeMethod } = params;
 
     const client = await this.getClient(clientId, options);
     if (!client) {
@@ -260,6 +327,22 @@ export class OAuthAuthorizationService {
       throw new ValidationError(
         `redirect_uri "${redirectUri}" is not registered for client "${clientId}"`,
         'INVALID_REDIRECT_URI'
+      );
+    }
+
+    // RFC 8707 Resource Indicator validation
+    if (!resource) {
+      throw new ValidationError(
+        'resource parameter is required for MCP OAuth authorization requests.',
+        'INVALID_TARGET'
+      );
+    }
+
+    const expectedResource = this.getExpectedResourceUrl();
+    if (!isMatchingResource(resource, expectedResource)) {
+      throw new ValidationError(
+        `Requested resource "${resource}" does not match configured MCP resource "${expectedResource}".`,
+        'INVALID_TARGET'
       );
     }
 
@@ -291,15 +374,17 @@ export class OAuthAuthorizationService {
     return {
       client,
       scopes: requestedScopes.length > 0 ? requestedScopes : ['career:read'],
+      resource: canonicalizeResourceUrl(resource),
     };
   }
 
   /**
-   * Mints a single-use authorization code bound to user, tenant, client, redirect URI, and PKCE.
+   * Mints a single-use authorization code bound to user, tenant, client, redirect URI, resource, and PKCE.
    *
    * @param {object} params Code creation params
    * @param {string} params.clientId Client ID
    * @param {string} params.redirectUri Redirect URI
+   * @param {string} params.resource Resource indicator
    * @param {string} params.codeChallenge PKCE Challenge
    * @param {string} [params.codeChallengeMethod='S256'] PKCE Method
    * @param {string[]} params.scopes Granted scopes
@@ -314,6 +399,7 @@ export class OAuthAuthorizationService {
     const {
       clientId,
       redirectUri,
+      resource,
       codeChallenge,
       codeChallengeMethod = 'S256',
       scopes,
@@ -335,6 +421,7 @@ export class OAuthAuthorizationService {
 
     const ttlSeconds = this.config.OAUTH_AUTH_CODE_TTL_SECONDS || 300;
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+    const canonicalResource = canonicalizeResourceUrl(resource || this.getExpectedResourceUrl());
 
     await database.insert(oauthAuthorizationCodes).values({
       codeHash,
@@ -342,6 +429,7 @@ export class OAuthAuthorizationService {
       tenantId,
       userId,
       redirectUri,
+      resource: canonicalResource,
       codeChallenge,
       codeChallengeMethod,
       scopes: effectiveScopes,
@@ -353,11 +441,12 @@ export class OAuthAuthorizationService {
   }
 
   /**
-   * Exchanges an authorization code for an access token and rotating refresh token.
+   * Exchanges an authorization code for an access token and rotating refresh token bound to resource.
    *
    * @param {object} params Exchange parameters
    * @param {string} params.clientId Client ID
    * @param {string} params.redirectUri Redirect URI
+   * @param {string} params.resource Requested resource indicator
    * @param {string} params.code Raw authorization code
    * @param {string} params.codeVerifier Plain text PKCE verifier
    * @param {object} [options={}] Options override
@@ -365,7 +454,7 @@ export class OAuthAuthorizationService {
    */
   async exchangeAuthorizationCode(params, options = {}) {
     const database = options.db || this.db;
-    const { clientId, redirectUri, code, codeVerifier } = params;
+    const { clientId, redirectUri, resource, code, codeVerifier } = params;
 
     const client = await this.getClient(clientId, options);
     if (!client) {
@@ -405,6 +494,29 @@ export class OAuthAuthorizationService {
       throw new AuthenticationError(
         'redirect_uri does not match authorization code issuance.',
         'INVALID_GRANT'
+      );
+    }
+
+    // RFC 8707 Resource verification
+    if (!resource) {
+      throw new AuthenticationError(
+        'resource parameter is required for authorization_code token exchange.',
+        'INVALID_TARGET'
+      );
+    }
+
+    if (!isMatchingResource(resource, authCodeRecord.resource)) {
+      throw new AuthenticationError(
+        `Requested resource "${resource}" does not match authorization code binding "${authCodeRecord.resource}".`,
+        'INVALID_TARGET'
+      );
+    }
+
+    const expectedResource = this.getExpectedResourceUrl();
+    if (!isMatchingResource(resource, expectedResource)) {
+      throw new AuthenticationError(
+        `Resource "${resource}" is not served by this MCP server.`,
+        'INVALID_TARGET'
       );
     }
 
@@ -464,6 +576,7 @@ export class OAuthAuthorizationService {
 
     const accessTokenExpiresAt = new Date(now.getTime() + accessTtlSeconds * 1000);
     const refreshTokenExpiresAt = new Date(now.getTime() + refreshTtlSeconds * 1000);
+    const boundResource = canonicalizeResourceUrl(resource);
 
     await database.insert(oauthTokens).values({
       tenantId: tenant.id,
@@ -472,6 +585,7 @@ export class OAuthAuthorizationService {
       accessTokenHash,
       refreshTokenHash,
       familyId,
+      resource: boundResource,
       tokenScopes: finalScopes,
       isRevoked: false,
       accessTokenExpiresAt,
@@ -493,12 +607,13 @@ export class OAuthAuthorizationService {
    * @param {object} params Refresh parameters
    * @param {string} params.clientId Client ID
    * @param {string} params.refreshToken Raw refresh token
+   * @param {string} [params.resource] Optional resource indicator to validate
    * @param {object} [options={}] Options override
    * @returns {Promise<object>} New Token response object
    */
   async refreshAccessToken(params, options = {}) {
     const database = options.db || this.db;
-    const { clientId, refreshToken } = params;
+    const { clientId, refreshToken, resource } = params;
 
     const client = await this.getClient(clientId, options);
     if (!client) {
@@ -542,6 +657,23 @@ export class OAuthAuthorizationService {
       throw new AuthenticationError('Refresh token has expired.', 'INVALID_GRANT');
     }
 
+    // RFC 8707 Resource validation during refresh (if specified by client)
+    if (resource) {
+      if (!isMatchingResource(resource, tokenRecord.resource)) {
+        throw new AuthenticationError(
+          `Requested resource "${resource}" does not match original token resource binding "${tokenRecord.resource}".`,
+          'INVALID_TARGET'
+        );
+      }
+      const expectedResource = this.getExpectedResourceUrl();
+      if (!isMatchingResource(resource, expectedResource)) {
+        throw new AuthenticationError(
+          `Resource "${resource}" is not served by this MCP server.`,
+          'INVALID_TARGET'
+        );
+      }
+    }
+
     // Invalidate previous token
     await database
       .update(oauthTokens)
@@ -571,7 +703,7 @@ export class OAuthAuthorizationService {
     const allowedRoleScopes = ROLE_SCOPE_CEILINGS[user.role] || ['career:read'];
     const finalScopes = tokenRecord.tokenScopes.filter((s) => allowedRoleScopes.includes(s));
 
-    // Issue new pair in the same family
+    // Issue new pair in the same family with identical bound resource
     const rawAccessToken = `mcp_oauth_acc_${crypto.randomBytes(32).toString('hex')}`;
     const rawRefreshToken = `mcp_oauth_ref_${crypto.randomBytes(32).toString('hex')}`;
 
@@ -591,6 +723,7 @@ export class OAuthAuthorizationService {
       accessTokenHash: newAccessTokenHash,
       refreshTokenHash: newRefreshTokenHash,
       familyId: tokenRecord.familyId,
+      resource: tokenRecord.resource,
       tokenScopes: finalScopes,
       isRevoked: false,
       accessTokenExpiresAt,
@@ -660,11 +793,12 @@ export class OAuthAuthorizationService {
   }
 
   /**
-   * Validates an incoming OAuth 2.1 access token.
+   * Validates an incoming OAuth 2.1 access token against expiration, revocation, and audience/resource.
    *
    * @param {string} rawToken Raw Bearer access token
    * @param {object} [options={}] Options override
-   * @returns {Promise<{ user: object, tenant: object, effectiveScopes: string[], clientId: string }>}
+   * @param {string} [options.expectedResource] Expected resource indicator URL
+   * @returns {Promise<{ user: object, tenant: object, effectiveScopes: string[], clientId: string, resource: string }>}
    */
   async validateAccessToken(rawToken, options = {}) {
     const database = options.db || this.db;
@@ -685,6 +819,15 @@ export class OAuthAuthorizationService {
 
     if (!tokenRecord) {
       throw new AuthenticationError('Invalid or expired OAuth access token.', 'INVALID_TOKEN');
+    }
+
+    // RFC 8707 Resource Server audience verification
+    const expectedResource = options.expectedResource || this.getExpectedResourceUrl();
+    if (tokenRecord.resource && !isMatchingResource(tokenRecord.resource, expectedResource)) {
+      throw new AuthenticationError(
+        `OAuth access token was issued for resource "${tokenRecord.resource}", not "${expectedResource}".`,
+        'INVALID_TOKEN'
+      );
     }
 
     const [user] = await database
@@ -722,6 +865,7 @@ export class OAuthAuthorizationService {
       tenant,
       effectiveScopes,
       clientId: tokenRecord.clientId,
+      resource: tokenRecord.resource,
     };
   }
 }

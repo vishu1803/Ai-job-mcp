@@ -1,0 +1,2 @@
+ALTER TABLE "oauth_authorization_codes" ADD COLUMN "resource" text DEFAULT 'http://localhost:3000/mcp' NOT NULL;--> statement-breakpoint
+ALTER TABLE "oauth_tokens" ADD COLUMN "resource" text DEFAULT 'http://localhost:3000/mcp' NOT NULL;

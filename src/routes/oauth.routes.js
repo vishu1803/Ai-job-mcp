@@ -106,6 +106,7 @@ export async function oauthRoutes(fastify, opts = {}) {
     const {
       client_id,
       redirect_uri,
+      resource,
       scope,
       state,
       code_challenge,
@@ -119,12 +120,18 @@ export async function oauthRoutes(fastify, opts = {}) {
       validatedRequest = await oauthService.validateAuthorizationRequest({
         clientId: client_id,
         redirectUri: redirect_uri,
+        resource,
         scope,
         codeChallenge: code_challenge,
         codeChallengeMethod: code_challenge_method,
       });
     } catch (err) {
-      const errorCode = err.code === 'INVALID_CLIENT' ? 'invalid_client' : 'invalid_request';
+      const errorCode =
+        err.code === 'INVALID_CLIENT'
+          ? 'invalid_client'
+          : err.code === 'INVALID_TARGET'
+            ? 'invalid_target'
+            : 'invalid_request';
       return reply.status(400).send({
         error: errorCode,
         error_description: err.message,
@@ -201,6 +208,7 @@ export async function oauthRoutes(fastify, opts = {}) {
       parameters: {
         clientId: client_id,
         redirectUri: redirect_uri,
+        resource: validatedRequest.resource,
         scopes: validatedRequest.scopes,
       },
     });
@@ -209,6 +217,7 @@ export async function oauthRoutes(fastify, opts = {}) {
     const rawCode = await oauthService.createAuthorizationCode({
       clientId: client_id,
       redirectUri: redirect_uri,
+      resource: validatedRequest.resource,
       codeChallenge: code_challenge,
       codeChallengeMethod: code_challenge_method,
       scopes: validatedRequest.scopes,
@@ -232,6 +241,7 @@ export async function oauthRoutes(fastify, opts = {}) {
       parameters: {
         clientId: client_id,
         redirectUri: redirect_uri,
+        resource: validatedRequest.resource,
       },
     });
 
@@ -257,7 +267,7 @@ export async function oauthRoutes(fastify, opts = {}) {
       });
     }
 
-    const { grant_type, client_id, redirect_uri, code, code_verifier, refresh_token } =
+    const { grant_type, client_id, redirect_uri, resource, code, code_verifier, refresh_token } =
       parseResult.data;
 
     try {
@@ -265,6 +275,7 @@ export async function oauthRoutes(fastify, opts = {}) {
         const tokenResponse = await oauthService.exchangeAuthorizationCode({
           clientId: client_id,
           redirectUri: /** @type {string} */ (redirect_uri),
+          resource: /** @type {string} */ (resource),
           code: /** @type {string} */ (code),
           codeVerifier: /** @type {string} */ (code_verifier),
         });
@@ -278,6 +289,7 @@ export async function oauthRoutes(fastify, opts = {}) {
           parameters: {
             clientId: client_id,
             grantType: grant_type,
+            resource,
             scopes: tokenResponse.scope,
           },
         });
@@ -289,6 +301,7 @@ export async function oauthRoutes(fastify, opts = {}) {
         const tokenResponse = await oauthService.refreshAccessToken({
           clientId: client_id,
           refreshToken: /** @type {string} */ (refresh_token),
+          resource: resource || undefined,
         });
 
         await auditService.recordEvent({
@@ -300,6 +313,7 @@ export async function oauthRoutes(fastify, opts = {}) {
           parameters: {
             clientId: client_id,
             grantType: grant_type,
+            resource: resource || undefined,
             scopes: tokenResponse.scope,
           },
         });
@@ -335,7 +349,9 @@ export async function oauthRoutes(fastify, opts = {}) {
           ? 'invalid_client'
           : err.code === 'INVALID_GRANT'
             ? 'invalid_grant'
-            : 'invalid_request';
+            : err.code === 'INVALID_TARGET'
+              ? 'invalid_target'
+              : 'invalid_request';
 
       return reply.status(statusCode).send({
         error: errorCode,
