@@ -9,10 +9,10 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 ready to start |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; all 57 milestone tasks verified; ready for Phase 10 (Claude Integration) |
+| **Current Phase** | **PHASE 10 — Claude Integration (Second Target AI Client)** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 (P10-001A Approved; ready for P10-001) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; all 57 milestone tasks verified; P10-001A approved; ready for P10-001 (Claude Remote MCP Custom Connector endpoint compatibility) |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **57 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A approved) |
+| **Completed Tasks** | **57 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A, P10-001A approved) |
 | **In Progress Tasks** | **0 Tasks** | Ready for P10-001 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
 | **Overall Task Completion** | **70.4% (57 / 81 Tasks)** | Strict calculation, zero inflation |
@@ -247,7 +247,8 @@
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P10-001** | Configure Claude Remote MCP Custom Connector endpoint compatibility (Public HTTPS, OAuth 2.1) | P7-003 | NOT_STARTED | Verify Claude Desktop & Web connector handshake succeeds |
+| **P10-001A** | Claude Remote MCP Connector & OAuth 2.1 Architecture & Security Review | P9-006 | **COMPLETE & APPROVED** | Architectural specification `docs/claude-mcp-connector-architecture.md` (`ARCH-037`), `ADR-058` in `docs/decisions.md`. Established Streamable HTTP transport compatibility, OAuth 2.1 Authorization Code Flow with mandatory PKCE S256, RFC 9728 Protected Resource Metadata discovery (`/.well-known/oauth-protected-resource`), RFC 8414 OAuth Authorization Server Metadata discovery (`/.well-known/oauth-authorization-server`), public client registration for Claude Web / Desktop / CLI, immutable token claim identity mapping (`sub`, `tid`, `role`, `scope`), strict role ceiling clamping, zero write bypass / self-approval prevention, public HTTPS perimeter protection (TLS 1.2+, Origin header validation against DNS rebinding), 16-scenario threat model (T-01 to T-16), structured OAuth audit events, and live test strategy against `vishu1803/Ai-job-mcp`. |
+| **P10-001** | Configure Claude Remote MCP Custom Connector endpoint compatibility (Public HTTPS, OAuth 2.1) | P7-003, P10-001A | NOT_STARTED | Verify Claude Desktop & Web connector handshake succeeds |
 | **P10-002** | Validate Claude Free (1-connector limit) and Claude Pro/Team multi-connector compatibility | P10-001 | NOT_STARTED | Execute candidate analysis and resume tailoring tools via Claude interface |
 | **P10-003** | Verify provider-neutral prompt adherence: Claude receives identical tool responses as Gemini | P8-003, P10-002 | NOT_STARTED | Compare tool execution outputs between Gemini and Claude on identical inputs |
 | **P10-004** | Document Claude custom connector setup guide and troubleshooting instructions | P10-002 | NOT_STARTED | Step-by-step verified documentation in repository |
@@ -2412,5 +2413,21 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (100% Prettier compliant)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
   * Status: **`P9-006 COMPLETE & VERIFIED`**.
+
+* **P10-001A (Claude Remote MCP Connector & OAuth 2.1 Architecture & Security Review — Completed & Approved)**:
+  * Deliverables Created:
+    * `docs/claude-mcp-connector-architecture.md`: Comprehensive architectural specification (`ARCH-037`), `ADR-058` in `docs/decisions.md`.
+  * Architectural Findings & Design Specifications:
+    * **Provider-Neutral MCP Boundary**: Claude connects strictly as an external MCP client via Streamable HTTP (JSON-RPC 2.0). Internal AI adapters (`GeminiProviderAdapter`, `GeminiVertexAdapter`) remain completely untouched.
+    * **OAuth 2.1 Facade Pattern**: OAuth 2.1 Authorization Server facade built into Career Hub operates alongside existing personal API tokens (`mcp_token_*`). Both converge into identical frozen `McpRequestContext` with zero client-supplied identity trust.
+    * **Mandatory PKCE S256**: Enforces `code_challenge_method=S256` (RFC 7636). Plain PKCE, implicit grant, and resource owner password credentials are permanently prohibited.
+    * **Standard Metadata Discovery**: 401 Unauthorized returns `WWW-Authenticate: Bearer realm="mcp", resource_metadata="..."` pointing to RFC 9728 (`/.well-known/oauth-protected-resource`) and RFC 8414 (`/.well-known/oauth-authorization-server`).
+    * **Public Client Registration**: Supports pre-registered public clients (`claude-web`, `claude-desktop`, `claude-cli`) without client secrets. Exact string redirect match for Claude Web (`https://claude.ai/api/mcp/auth_callback`) and loopback port-agnostic matching for native desktop/CLI clients (RFC 8252).
+    * **Sovereign Multi-Tenant Isolation & Identity Mapping**: Tokens bind `sub: userId`, `tid: tenantId`, `role`, and `scope`. Claude cannot choose or override tenant identity. Cross-tenant access fails closed with 404 Not Found.
+    * **Write Safety Preservation**: Claude interacts through existing approved write tools (`propose_project_improvement`, `confirm_and_create_pr`). It cannot perform generic file writes, execute shell commands, or bypass human approval stopping protocols. `GitHubWriteSafetyService` remains authoritative.
+    * **Perimeter Security & Anti-SSRF**: TLS 1.2+, Origin header validation (`ALLOWED_ORIGINS`) to prevent DNS rebinding attacks, 1 MB request body limit, and multi-tier rate limiting.
+    * **Structured OAuth Audit Telemetry**: Emits distinct audit events (`oauth.authorize.requested`, `oauth.consent.granted`, `oauth.token.issued`, `oauth.token.refreshed`, `oauth.token.revoked`, `oauth.token.rejected`, `mcp.oauth.authenticated`).
+    * **Live Validation Strategy**: Defined safe validation workflow on sandbox repository `vishu1803/Ai-job-mcp`.
+  * Status: **`P10-001A APPROVED`**.
 
 ---

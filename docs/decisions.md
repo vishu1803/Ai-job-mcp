@@ -1364,3 +1364,28 @@
   * Task P9-006 will implement domain schema enhancements in `src/domain/mcp/career-write-tools.schemas.js`, diff formatting and warning generation in `src/mcp/tools/career-write-tools.js` / `src/services/project-improvement-recommender.service.js`, and comprehensive unit/integration test suites.
 * **Revisit Conditions**: When isolated WebAssembly or Firecracker microVM test runners are deployed for on-demand cloud sandboxing in Phase 14.
 
+---
+
+### ADR-058: Claude Remote MCP Custom Connector & OAuth 2.1 Integration Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-25
+* **Context**: In Phase 10 (Task P10-001A), we evaluated the architecture and security boundaries for integrating Anthropic Claude (Claude.ai Web, Claude Desktop, Claude Code CLI) as the second target AI client to our Remote MCP server over public HTTPS. We must establish a standard OAuth 2.1 authentication flow, ensure zero weakening of multi-tenant isolation or RBAC ceilings, protect against SSRF and DNS rebinding, and guarantee that Claude gains zero write bypass or self-approval privileges over our existing approval state machine and GitHub write safety kernel.
+* **Decision**: Adopt the **Claude Remote MCP Custom Connector & OAuth 2.1 Integration Architecture** defined in `docs/claude-mcp-connector-architecture.md` (`ARCH-037`) governed by the following core architectural decisions:
+  * **Provider-Neutral Design**: Claude connects strictly as an external MCP client via standardized Streamable HTTP transport (JSON-RPC 2.0). Zero modifications are made to internal AI provider adapters (`GeminiProviderAdapter`, `GeminiVertexAdapter`).
+  * **OAuth 2.1 Facade Pattern**: Implement an OAuth 2.1 Authorization Server facade built into Career Hub that operates alongside the existing personal API token (`mcp_token_*`) system. Both authentication methods converge into the identical frozen `McpRequestContext` (`{ tenantId, userId, role, tokenScopes, authMethod: 'OAUTH_BEARER' }`).
+  * **Mandatory PKCE S256**: All authorization code exchanges require `code_challenge_method=S256` (RFC 7636). Plain PKCE, implicit grants, and password credentials are permanently forbidden.
+  * **Protected Resource Metadata (RFC 9728 & RFC 8414)**: Unauthenticated MCP requests return `401 Unauthorized` with `WWW-Authenticate: Bearer realm="mcp", resource_metadata="..."`. Exposes standard metadata documents at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`.
+  * **Public Client Support & Redirect Matching**: Supports public clients (`claude-web`, `claude-desktop`, `claude-cli`) without requiring client secrets. Redirect URIs enforce strict string equality for Web (`https://claude.ai/api/mcp/auth_callback`) and loopback port-agnostic matching for native desktop/CLI clients (RFC 8252).
+  * **Zero Client-Supplied Identity Trust**: Tokens bind `tenantId`, `userId`, `role`, and `scopes`. Claude cannot supply or override tenant or user bindings. Cross-tenant access fails closed with `404 Not Found`.
+  * **Scope Ceilings**: Tokens grant `career:read` (read tools + application artifacts) and/or `career:write` (improvement proposals + pull requests). Scopes are clamped to the user's role ceiling (`ROLE_SCOPE_CEILINGS`).
+  * **Write Safety Preservation**: Claude interacts through the exact same 2 approved write tools (`propose_project_improvement`, `confirm_and_create_pr`). It cannot perform generic file writes, shell execution, or bypass human approval stopping protocols. `GitHubWriteSafetyService` remains authoritative.
+  * **Public HTTPS & Perimeter Defenses**: Enforces TLS 1.2+, Origin header validation (`ALLOWED_ORIGINS`) to prevent DNS rebinding attacks, 1 MB body ceiling, prototype pollution checks, and multi-tier rate limiting (IP, client, tenant).
+  * **Structured OAuth Audit Telemetry**: Emits distinct audit events (`oauth.authorize.requested`, `oauth.consent.granted`, `oauth.token.issued`, `oauth.token.refreshed`, `oauth.token.revoked`, `oauth.token.rejected`, `mcp.oauth.authenticated`) with zero token or secret retention.
+* **Alternatives Considered**:
+  * *Requiring users to manually copy/paste personal API tokens into Claude Desktop*: Rejected for Claude.ai Web which requires OAuth 2.1 custom connectors, and because OAuth 2.1 provides superior token lifecycle management (short-lived access tokens, refresh token rotation, granular scopes).
+  * *Using an external third-party identity provider (e.g. Auth0 / Okta) exclusively*: Rejected because Career Hub's sovereign multi-tenant architecture and dynamic DB-backed user/tenant hierarchy require direct binding to Career Hub identity records.
+* **Reasons**: Delivers standard, frictionless Claude integration while maintaining airtight multi-tenant security, cryptographic verification, provider independence, and complete auditability.
+* **Consequences**:
+  * Task P10-001 will implement OAuth domain schemas, database tables (`oauth_clients`, `oauth_authorization_codes`, `oauth_tokens`), `OAuthAuthorizationService`, Fastify OAuth routes, MCP auth middleware integration, and comprehensive test suites.
+* **Revisit Conditions**: When multi-tenant custom OAuth client registration (dynamic client registration) or enterprise SAML federation is required in Phase 13.
+
