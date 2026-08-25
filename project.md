@@ -9,13 +9,13 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A Approved; P9-001 Complete & Verified) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 P9-001 verified |
+| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A, P9-002A Approved; P9-001, P9-002 Complete & Verified) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 P9-001, P9-002 verified |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **52 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (1) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P9-002 |
+| **Completed Tasks** | **53 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (2) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P9-003 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **64.2% (52 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Overall Task Completion** | **65.4% (53 / 81 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **56.3% (9 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-8 complete, Phase 9 in progress) |
 
 ---
@@ -33,7 +33,7 @@
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 1 | 0 | **IN_PROGRESS** | **16.7% (P9-001A Approved; P9-001 Complete & Verified)** |
+| **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 2 | 0 | **IN_PROGRESS** | **33.3% (P9-001, P9-002 Complete & Verified)** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
@@ -231,7 +231,7 @@
 | **P9-001A** | Approved GitHub / Project Modification Workflows Architecture & Security Review | P8-006 | **COMPLETE & APPROVED** | Architectural specification `docs/github-project-modification-architecture.md` (`ARCH-031`), ADR-052 in `docs/decisions.md`. Established 10-point threat model, Inverse Authority Principle for code writes, 4-tier action matrix (`READ_ONLY`, `SAFE_WRITE`, `APPROVAL_REQUIRED`, `PROHIBITED`), Two-Phase Human-in-the-Loop Approval State Machine (`ApprovalTicket`), least-privilege GitHub App scoping (`contents: write`, `pull_requests: write`), patch safety engine (workflow blocklist, binary filter, entropy scanner), optimistic concurrency locking (`expectedHeadSha`), immutable audit logging, non-destructive rollback, and 2-tool MCP interface. |
 | **P9-001** | Implement Project Improvement Recommender (analyzes missing job skills and proposes concrete code/architecture additions) | P5-003, P9-001A | **COMPLETE & VERIFIED** | Implemented `ProjectImprovementRecommenderService`, domain schemas in `src/domain/career/project-improvement.schemas.js`, prompt policy in `src/clients/ai/prompt-policies/project-improvement.policy.js`, and documentation in `docs/project-improvement-recommender.md`. Verified via 19 unit tests (`tests/unit/project-improvement-recommender.test.js`), 2 integration tests (`tests/integration/project-improvement-recommender.test.js`), and live Vertex suite (`tests/integration/live/project-improvement-vertex.live.test.js`). 100% test pass with 0 DB leaks. |
 | **P9-002A** | Two-Phase Human-in-the-Loop Action Approval State Machine Architecture & Security Review | P9-001 | **COMPLETE & APPROVED** | Architectural specification `docs/approval-state-machine-architecture.md` (`ARCH-032`), `ADR-053` in `docs/decisions.md`. Established 8-state canonical lifecycle (`PENDING`, `APPROVED`, `EXECUTING`, `EXECUTED`, `REJECTED`, `CANCELLED`, `EXPIRED`, `FAILED`), HMAC-SHA256 payload canonicalization with HKDF tenant isolation, single-use atomic CAS row locking (`SELECT FOR UPDATE`), optimistic concurrency on base commit (`expectedHeadSha`), dual expiration ceilings (15m creation / 5m execution window), RBAC authorization matrix (`MEMBER`/`OWNER` only), and 15-scenario threat model. |
-| **P9-002** | Implement Two-Phase Human-in-the-Loop Action Approval State Machine (`propose_action` -> `ApprovalTicket` -> `confirm_action`) | P2-002, P9-001, P9-002A | NOT_STARTED | Unit test: action cannot execute without valid, unexpired approval ticket |
+| **P9-002** | Implement Two-Phase Human-in-the-Loop Action Approval State Machine (`propose_action` -> `ApprovalTicket` -> `confirm_action`) | P2-002, P9-001, P9-002A | **COMPLETE & VERIFIED** | Implemented `ActionApprovalTicketService` (`src/services/action-approval-ticket.service.js`), repository (`src/db/repositories/approval-ticket.repository.js`), crypto signer (`src/security/approval-signer.js`), domain schemas (`src/domain/career/approval-ticket.schemas.js`), typed errors (`src/errors/approval.errors.js`), and PostgreSQL migration (`0004_amused_red_shift.sql`). Verified via 11 unit tests (`tests/unit/action-approval-ticket.test.js`) and 7 transactional integration tests (`tests/integration/action-approval-ticket.test.js`). 100% test pass with 0 DB leaks. |
 | **P9-003** | Implement GitHub Write Operations: `create_branch`, `create_commit_patch`, `create_pull_request` | P3-001, P9-002 | NOT_STARTED | Integration test against test repository creating branch and draft PR |
 | **P9-004** | Enforce Safety Constraints: write actions NEVER touch default branch (`main`/`master`); only create feature branches | P9-003 | NOT_STARTED | Security test asserting attempt to write to `main` throws `ForbiddenOperationError` |
 | **P9-005** | Expose MCP Write Tools: `propose_project_improvement`, `confirm_and_create_pr` | P7-001, P9-003 | NOT_STARTED | MCP integration test: AI proposes change, receives ticket, user confirms, PR is opened |
@@ -2199,5 +2199,36 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * **15-Scenario Comprehensive Threat Model (T-01 to T-15)**: Mitigated token theft, ticket theft, ticket replay, parameter substitution, patch substitution, tenant confusion, approval impersonation, stale branch races, concurrent confirmation, indirect prompt injection, malicious CI workflows, DB record tampering, client clock skew, duplicate confirmation, and partial network failure.
     * **Comprehensive Audit Trail**: Every lifecycle transition emits an asynchronous, redacted audit event to `audit_logs` (`approval.ticket_created`, `approval.ticket_approved`, `approval.ticket_rejected`, `approval.ticket_cancelled`, `approval.ticket_expired`, `approval.execution_started`, `approval.execution_completed`, `approval.execution_failed`).
   * Status: **`P9-002A APPROVED`**.
+
+* **P9-002 (Implement Two-Phase Human-in-the-Loop Action Approval State Machine — Completed & Verified)**:
+  * Deliverables Created / Modified:
+    * `src/db/schema.js`: Added `approvalTicketStatusEnum` and `actionApprovalTickets` table with foreign keys, indexes, and unique idempotency constraint.
+    * `drizzle/0004_amused_red_shift.sql`: Applied PostgreSQL migration via `npm run db:migrate`.
+    * `src/domain/career/approval-ticket.schemas.js`: Canonical Zod domain schemas (`CreateApprovalTicketInputSchema`, `ApprovalTicketSchema`, `ApproveTicketInputSchema`, `RejectTicketInputSchema`, `CancelTicketInputSchema`, `ConsumeTicketInputSchema`, `CompleteExecutionInputSchema`, `FailExecutionInputSchema`).
+    * `src/domain/career/index.js`: Re-exported approval ticket schemas.
+    * `src/errors/approval.errors.js`: Typed error classes (`ApprovalTicketNotFoundError`, `ApprovalTicketExpiredError`, `ApprovalTicketStateError`, `StaleHeadShaError`, `InvalidTicketSignatureError`).
+    * `src/errors/index.js`: Re-exported approval error classes.
+    * `src/security/approval-signer.js`: HMAC-SHA256 signature generator and verifier with HKDF-SHA256 per-tenant key derivation and constant-time comparison.
+    * `src/db/repositories/approval-ticket.repository.js`: PostgreSQL repository with `createApprovalTicketRecord`, `getApprovalTicketById`, `getApprovalTicketForUpdate` (with row-level `SELECT FOR UPDATE`), `transitionTicketStatusAtomic`, and `listApprovalTicketsByTenant`.
+    * `src/services/action-approval-ticket.service.js`: Domain service implementing the full 8-state state machine, RBAC guards, 15m creation TTL, 5m execution window, single-use CAS, optimistic concurrency, and audit logging.
+    * `tests/unit/action-approval-ticket.test.js`: 11 unit tests covering state transitions, signer HKDF derivation, tampering rejection, and domain schema assertions.
+    * `tests/integration/action-approval-ticket.test.js`: 7 PostgreSQL integration tests covering full lifecycle happy path, rejection/cancellation terminal states, concurrent confirmation contention, single-winner consume races, idempotent re-entry, database-level tamper detection, and multi-tenant isolation with 0 connection leaks.
+  * Invariants & Security Validations:
+    * **Sole Authorization Boundary**: Action approval tickets serve as the mandatory, cryptographically signed perimeter before any external GitHub mutations.
+    * **Zero GitHub Writes**: P9-002 performs zero Git branch creations, zero commits, and zero pull request creations (reserved for P9-003).
+    * **Zero MCP Tool Exposure**: P9-002 contains zero MCP tool registrations (reserved for P9-005).
+    * **Single-Use Atomic CAS**: Transition from `APPROVED` to `EXECUTING` is guarded by row-level locks and `consumed_at IS NULL`, preventing duplicate execution.
+    * **Multi-Tenant Sovereign Isolation**: Cross-tenant lookups and state transitions return 404 NOT_FOUND.
+    * **Zero Leaked Handles**: Clean database lifecycle teardown verified via `npm run test:db-lifecycle-check` (34/34 PASS).
+  * Automated Verification Results:
+    * `node --test tests/unit/action-approval-ticket.test.js` -> PASS (11/11 tests passed across 3 suites in 18ms)
+    * `node --test tests/integration/action-approval-ticket.test.js` -> PASS (7/7 tests passed in 18.5s with clean pool drain)
+    * `npm run test:db-lifecycle-check` -> PASS (36 integration test files audited, 34 DB-using files verified, 0 violations)
+    * `npm run test:unit` -> PASS (920/920 tests passed across 227 suites in 23.0s)
+    * `npm test` -> PASS (1,178/1,178 tests passed across 306 suites in 78.2s with 0 failures, 0 cancellations, 0 skips)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+  * Status: **`P9-002 COMPLETE & VERIFIED`**.
 
 ---

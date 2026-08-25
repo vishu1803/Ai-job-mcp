@@ -143,3 +143,4 @@ export class CryptoError extends AppError {
 }
 
 export * from './ai.errors.js';
+export * from './approval.errors.js';

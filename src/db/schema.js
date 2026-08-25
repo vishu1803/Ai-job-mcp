@@ -140,6 +140,20 @@ export const mcpTokenStatusEnum = pgEnum('mcp_token_status', ['ACTIVE', 'REVOKED
 export const mcpClientTypeEnum = pgEnum('mcp_client_type', ['PERSONAL', 'THIRD_PARTY']);
 
 /**
+ * Action approval ticket lifecycle states (P9-002 / ARCH-032 / ADR-053).
+ */
+export const approvalTicketStatusEnum = pgEnum('approval_ticket_status', [
+  'PENDING',
+  'APPROVED',
+  'EXECUTING',
+  'EXECUTED',
+  'REJECTED',
+  'CANCELLED',
+  'EXPIRED',
+  'FAILED',
+]);
+
+/**
  * Foundational evidence type classifications.
  */
 export const evidenceTypeEnum = pgEnum('evidence_type', [
@@ -598,6 +612,70 @@ export const mcpApiTokens = pgTable(
   ]
 );
 
+/**
+ * Two-phase action approval tickets (P9-002 / ARCH-032 / ADR-053).
+ */
+export const actionApprovalTickets = pgTable(
+  'action_approval_tickets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    resourceId: uuid('resource_id')
+      .notNull()
+      .references(() => resourceConnections.id, { onDelete: 'cascade' }),
+    proposalId: uuid('proposal_id').notNull(),
+
+    // Action Parameters & Git Constraints
+    actionType: text('action_type').notNull().default('PROJECT_IMPROVEMENT_PR'),
+    repositoryName: text('repository_name').notNull(),
+    baseBranch: text('base_branch').notNull().default('main'),
+    targetBranch: text('target_branch').notNull(),
+    expectedHeadSha: text('expected_head_sha').notNull(),
+
+    // Cryptographic Binding & Integrity
+    patchFingerprint: text('patch_fingerprint').notNull(),
+    patchSummary: jsonb('patch_summary').notNull(),
+    hmacSignature: text('hmac_signature').notNull(),
+
+    // State Machine & Audit Details
+    status: approvalTicketStatusEnum('status').notNull().default('PENDING'),
+    rejectionReason: text('rejection_reason'),
+    failureReason: text('failure_reason'),
+
+    // Human Approval Tracking
+    approvedByUserId: uuid('approved_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+
+    // Execution Tracking
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    executedAt: timestamp('executed_at', { withTimezone: true }),
+    idempotencyKey: text('idempotency_key'),
+    executionResult: jsonb('execution_result'),
+
+    // Timestamps
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('idx_approval_tickets_tenant_status').on(table.tenantId, table.status),
+    index('idx_approval_tickets_candidate').on(table.candidateId),
+    index('idx_approval_tickets_resource').on(table.resourceId),
+    index('idx_approval_tickets_expires_at').on(table.expiresAt),
+    uniqueIndex('uq_approval_tickets_idempotency').on(table.tenantId, table.idempotencyKey),
+  ]
+);
+
 // ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
@@ -617,6 +695,7 @@ export const schema = {
   evidenceTypeEnum,
   mcpTokenStatusEnum,
   mcpClientTypeEnum,
+  approvalTicketStatusEnum,
   tenants,
   users,
   sessions,
@@ -631,4 +710,5 @@ export const schema = {
   candidateSkills,
   evidenceItems,
   mcpApiTokens,
+  actionApprovalTickets,
 };
