@@ -483,6 +483,29 @@ describe('MCP Career Write Tools Integration Tests (P9-005)', () => {
     assert.equal(parsedData.actionType, 'PROJECT_IMPROVEMENT_PR');
     assert.ok(parsedData.repository.targetBranch.startsWith('feat/career-hub-'));
     assert.equal(parsedData.patchSummary.fileCount > 0, true);
+    assert.match(parsedData.patchSummary.patchFingerprint, /^[a-f0-9]{64}$/);
+
+    // P9-006 Canonical Review Object Assertions
+    assert.ok(parsedData.review);
+    assert.equal(parsedData.review.proposalId, parsedData.proposalId);
+    assert.equal(
+      parsedData.review.patchSummary.patchFingerprint,
+      parsedData.patchSummary.patchFingerprint
+    );
+    assert.equal(parsedData.testExecutionReport.status, 'NOT_RUN');
+    assert.equal(parsedData.testExecutionReport.executionTier, 'STATIC_GATE');
+    assert.ok(parsedData.riskAssessment.securityWarnings.length > 0);
+
+    const warnNotRun = parsedData.riskAssessment.securityWarnings.find(
+      (w) => w.code === 'WARN_TESTS_NOT_RUN'
+    );
+    assert.ok(warnNotRun, 'Must include WARN_TESTS_NOT_RUN when tests have not been executed');
+
+    // Verify unified diff preview format in changed files
+    assert.ok(parsedData.patchSummary.files.length > 0);
+    const firstFile = parsedData.patchSummary.files[0];
+    assert.match(firstFile.diffPreview, /--- \/dev\/null|--- a\//);
+    assert.match(firstFile.diffPreview, /\+\+\+ b\//);
 
     // Verify stopping instructions
     assert.ok(parsedData.approvalRequirements.confirmationInstructions.includes('STOP:'));
@@ -646,5 +669,59 @@ describe('MCP Career Write Tools Integration Tests (P9-005)', () => {
     const result = JSON.parse(body.result.content[0].text);
     assert.equal(result.status, 'EXECUTED');
     assert.equal(result.ticketId, createdTicketId);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 9. Stale Base HEAD Invalidation (P9-006)
+  // ---------------------------------------------------------------------------
+  it('9. confirm_and_create_pr rejects execution when live base HEAD drifts (409 Conflict)', async () => {
+    // 1. Create a fresh proposal ticket
+    const proposeRes = await invokeMcp({
+      token: tokenMemberA,
+      method: 'tools/call',
+      toolName: 'propose_project_improvement',
+      args: {
+        candidateId: candidateA.id,
+        jobDescriptionText,
+        targetSkillSlugs: ['redis'],
+      },
+      id: 'req-propose-stale-test',
+    });
+
+    assert.equal(proposeRes.statusCode, 200);
+    const proposeBody = proposeRes.json();
+    const parsedData = JSON.parse(proposeBody.result.content[0].text);
+    const staleTicketId = parsedData.ticketId;
+
+    // 2. Simulate base branch HEAD moving forward on GitHub (drift)
+    branchHeadMap.set('main', {
+      commitSha: 'ffffffffffffffffffffffffffffffffffffffff',
+      ref: 'refs/heads/main',
+    });
+
+    try {
+      // 3. Attempt confirmation with drifted HEAD
+      const confirmRes = await invokeMcp({
+        token: tokenMemberA,
+        method: 'tools/call',
+        toolName: 'confirm_and_create_pr',
+        args: {
+          ticketId: staleTicketId,
+          confirmed: true,
+        },
+        id: 'req-confirm-stale-head',
+      });
+
+      assert.equal(confirmRes.statusCode, 200);
+      const confirmBody = confirmRes.json();
+      const isError = confirmBody.error || confirmBody.result?.isError;
+      assert.ok(isError, 'Expected StaleHeadShaError rejection due to base branch drift');
+
+      const errMsg = confirmBody.error?.message || confirmBody.result?.content?.[0]?.text || '';
+      assert.match(errMsg, /diverged from expected HEAD commit|Stale/i);
+    } finally {
+      // Restore original base SHA
+      branchHeadMap.set('main', { commitSha: baseSha, ref: 'refs/heads/main' });
+    }
   });
 });

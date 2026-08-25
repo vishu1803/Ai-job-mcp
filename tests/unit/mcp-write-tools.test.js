@@ -300,7 +300,7 @@ describe('MCP Career Write Tools Unit Tests (P9-005)', () => {
         patch: {
           fileCount: 1,
           totalDiffLines: 10,
-          patchFingerprint: 'f1e2d3c4b5a6',
+          patchFingerprint: 'f1e2d3c4b5a678901234567890abcdef1234567890abcdef1234567890abcdef',
           files: [
             {
               path: 'src/services/cache.js',

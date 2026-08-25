@@ -60,6 +60,15 @@ export const ProposeProjectImprovementInputSchema = z
     path: ['jobDescriptionText'],
   });
 
+export * from '../career/review.schemas.js';
+
+import {
+  TestExecutionReportSchema,
+  RiskAssessmentSchema,
+  ProjectImprovementReviewSchema,
+} from '../career/review.schemas.js';
+import { EvidenceRefSchema } from '../career/evidence-matching.schemas.js';
+
 /**
  * Output schema for propose_project_improvement tool.
  */
@@ -93,21 +102,36 @@ export const ProposeProjectImprovementOutputSchema = z
     }),
     patchSummary: z.object({
       fileCount: z.number().int().min(1).max(10),
-      totalDiffLines: z.number().int().min(1).max(500),
+      additionsCount: z.number().int().nonnegative().default(0),
+      deletionsCount: z.number().int().nonnegative().default(0),
+      totalDiffLines: z.number().int().min(0).max(500),
+      patchFingerprint: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/, { message: 'patchFingerprint must be a 64-char hex string' })
+        .optional(),
       files: z.array(
         z.object({
           path: z.string(),
-          changeType: z.enum(['CREATE', 'MODIFY']),
+          changeType: z.enum(['CREATE', 'MODIFY', 'DELETE']),
           additions: z.number().int().nonnegative(),
           deletions: z.number().int().nonnegative(),
+          sha256: z
+            .string()
+            .regex(/^[a-f0-9]{64}$/)
+            .optional(),
           diffPreview: z.string().max(4000),
         })
       ),
     }),
+    evidenceRefs: z.array(EvidenceRefSchema).max(10).default([]).optional(),
     verificationPlan: z.object({
       instructions: z.string().max(2000),
       recommendedTests: z.array(z.string()).max(10),
+      expectedOutcomes: z.array(z.string()).max(10).optional(),
     }),
+    testExecutionReport: TestExecutionReportSchema.optional(),
+    riskAssessment: RiskAssessmentSchema.optional(),
+    review: ProjectImprovementReviewSchema.optional(),
     approvalRequirements: z.object({
       requiredRole: z.literal('MEMBER'),
       expiresAt: z.string().datetime(),

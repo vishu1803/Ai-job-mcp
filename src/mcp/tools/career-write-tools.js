@@ -34,6 +34,7 @@ import { GitHubAppAuthManager } from '../../connectors/github/auth.js';
 import { GitHubTokenCache } from '../../connectors/github/token-cache.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import { assertToolPermission } from '../../security/mcp-auth.js';
+import { PrDiffPreviewService } from '../../services/pr-diff-preview.service.js';
 import {
   CAREER_WRITE_TOOL_DEFINITIONS,
   ProposeProjectImprovementInputSchema,
@@ -375,77 +376,60 @@ export async function handleProposeProjectImprovement(context, args, deps = {}) 
     baseBranch,
   });
 
-  // 6. Format Safe Output with Stopping Protocol
-  const ttlSeconds = Math.max(
-    0,
-    Math.round((new Date(ticket.expiresAt).getTime() - Date.now()) / 1000)
-  );
+  // 6. Construct Canonical Review Object with Diff Previews, Test Status & Warnings
+  const canonicalReview = PrDiffPreviewService.buildCanonicalReview({
+    proposal: {
+      ...proposal,
+      proposalId: proposal.id || proposal.proposalId,
+    },
+    ticket,
+  });
 
-  const files = (proposal.patch?.files || []).map((f) => ({
-    path: f.path,
-    changeType: f.changeType || 'CREATE',
-    additions: typeof f.additions === 'number' ? f.additions : (f.content || '').split('\n').length,
-    deletions: typeof f.deletions === 'number' ? f.deletions : 0,
-    diffPreview: SecretScrubber.scrub(f.diffPreview || f.content || ''),
-  }));
+  // 7. Audit Telemetry (Asynchronous / Non-Blocking)
+  const auditService = deps.mcpAuditService;
+  if (auditService && typeof auditService.logEvent === 'function') {
+    auditService
+      .logEvent(context, {
+        eventType: 'mcp.project_improvement.review_generated',
+        resourceType: 'approval_ticket',
+        resourceId: ticket.id,
+        status: 'SUCCESS',
+        metadata: {
+          proposalId: canonicalReview.proposalId,
+          repository: ticket.repositoryName,
+          baseBranch: ticket.baseBranch,
+          targetBranch: ticket.targetBranch,
+          expectedHeadSha: ticket.expectedHeadSha,
+          patchFingerprint: canonicalReview.patchSummary.patchFingerprint,
+          fileCount: canonicalReview.patchSummary.fileCount,
+          totalDiffLines: canonicalReview.patchSummary.totalDiffLines,
+          riskLevel: canonicalReview.riskAssessment?.riskLevel || 'LOW',
+          warningsCount: canonicalReview.riskAssessment?.securityWarnings?.length || 0,
+        },
+      })
+      .catch(() => {});
+  }
 
   const rawResult = {
-    proposalId: proposal.id || proposal.proposalId,
-    ticketId: ticket.id,
-    status: 'PENDING_HUMAN_APPROVAL',
-    actionType: 'PROJECT_IMPROVEMENT_PR',
-    title: proposal.title,
-    rationale: proposal.rationale,
-    targetSkill: {
-      slug:
-        proposal.targetSkillSlugs?.[0] ||
-        proposal.targetSkill?.slug ||
-        proposal.targetSkill ||
-        'skill',
-      name:
-        proposal.targetSkillNames?.[0] ||
-        proposal.targetSkill?.name ||
-        proposal.targetSkill ||
-        'Skill',
-      gapStatus:
-        proposal.gapType || proposal.gapStatus || proposal.targetSkill?.gapStatus || 'MISSING',
-      confidenceScore:
-        typeof proposal.confidenceScore === 'number'
-          ? proposal.confidenceScore
-          : typeof proposal.targetSkill?.confidenceScore === 'number'
-            ? proposal.targetSkill.confidenceScore
-            : 0.9,
-    },
-    repository: {
-      id: ticket.resourceId,
-      name: ticket.repositoryName,
-      defaultBranch: ticket.baseBranch,
-      baseBranch: ticket.baseBranch,
-      targetBranch: ticket.targetBranch,
-      expectedHeadSha: ticket.expectedHeadSha,
-    },
-    patchSummary: {
-      fileCount: proposal.patch?.fileCount || files.length,
-      totalDiffLines:
-        proposal.patch?.totalDiffLines || files.reduce((acc, f) => acc + f.additions, 0),
-      files,
-    },
+    proposalId: canonicalReview.proposalId,
+    ticketId: canonicalReview.ticketId,
+    status: canonicalReview.status,
+    actionType: canonicalReview.actionType,
+    title: canonicalReview.title,
+    rationale: canonicalReview.rationale,
+    targetSkill: canonicalReview.targetSkill,
+    repository: canonicalReview.repository,
+    patchSummary: canonicalReview.patchSummary,
+    evidenceRefs: canonicalReview.evidenceRefs || [],
     verificationPlan: {
-      instructions:
-        proposal.verificationPlan?.buildInstructions ||
-        proposal.verificationInstructions ||
-        'Review code changes and execute tests.',
-      recommendedTests: proposal.verificationPlan?.testCommands ||
-        proposal.recommendedTests || ['npm test'],
+      instructions: canonicalReview.verificationPlan.buildInstructions,
+      recommendedTests: canonicalReview.verificationPlan.testCommands,
+      expectedOutcomes: canonicalReview.verificationPlan.expectedOutcomes,
     },
-    approvalRequirements: {
-      requiredRole: 'MEMBER',
-      expiresAt: new Date(ticket.expiresAt).toISOString(),
-      ttlSeconds: ttlSeconds > 0 ? ttlSeconds : 900,
-      confirmationInstructions:
-        'STOP: Display this diff to the user. Do NOT call confirm_and_create_pr until ' +
-        'the human user explicitly confirms that the exact proposed change should be executed.',
-    },
+    testExecutionReport: canonicalReview.testExecutionReport,
+    riskAssessment: canonicalReview.riskAssessment,
+    review: canonicalReview,
+    approvalRequirements: canonicalReview.approvalRequirements,
   };
 
   const validatedResult = ProposeProjectImprovementOutputSchema.parse(rawResult);
