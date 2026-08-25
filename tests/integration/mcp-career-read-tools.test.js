@@ -60,6 +60,7 @@ describe('Live MCP Career Read Tools Integration Tests (P7-004)', () => {
   let userA_ReadOnly;
   let candidateA;
   let projectA1;
+  let projectSecret;
   let resourceA1;
   let skillGo;
   let skillPostgres;
@@ -293,11 +294,73 @@ describe('Live MCP Career Read Tools Integration Tests (P7-004)', () => {
           lineRange: { start: 10, end: 45 },
         },
         excerpt:
-          '// Token: ghp_1111222233334444555566667777888899990000\nfunc (r *Raft) Propose(ctx context.Context, data []byte) error {\n  return r.node.Propose(ctx, data)\n}',
+          'func (r *Raft) Propose(ctx context.Context, data []byte) error {\n  return r.node.Propose(ctx, data)\n}',
         confidenceScore: 0.98,
         detectedAt: new Date(),
       })
       .returning();
+
+    const [userA_Second] = await db
+      .insert(users)
+      .values({
+        tenantId: tenantA.id,
+        email: `alice-sec-${testRunId}@example.com`,
+        displayName: 'Alice Second',
+        role: 'MEMBER',
+        status: 'ACTIVE',
+      })
+      .returning();
+
+    const [candidateA2] = await db
+      .insert(candidates)
+      .values({
+        tenantId: tenantA.id,
+        userId: userA_Second.id,
+        displayName: 'Alice Second',
+        headline: 'Security Engineer',
+        summary: 'Security testing profile.',
+        canonicalEmail: `alice2-${testRunId}@example.com`,
+        status: 'ACTIVE',
+      })
+      .returning();
+
+    [projectSecret] = await db
+      .insert(projects)
+      .values({
+        tenantId: tenantA.id,
+        candidateId: candidateA2.id,
+        name: 'Auth Security Token Demo',
+        slug: `auth-token-demo-${testRunId}`,
+        headline: 'Security token testing project',
+        summary: 'Demo project containing test credentials for sanitizer testing.',
+        role: 'Maintainer',
+        startDate: '2023-05-01',
+        isHighlighted: false,
+      })
+      .returning();
+
+    await db.insert(projectResources).values({
+      tenantId: tenantA.id,
+      projectId: projectSecret.id,
+      resourceId: resourceA1.id,
+    });
+
+    await db.insert(evidenceItems).values({
+      tenantId: tenantA.id,
+      candidateId: candidateA2.id,
+      resourceId: resourceA1.id,
+      projectId: projectSecret.id,
+      evidenceType: 'CODE_IMPORT_USAGE',
+      sourceProvider: 'GITHUB_APP',
+      sourceLocation: {
+        filePath: 'pkg/auth/token.go',
+        commitSha: 'abcdef1234567890abcdef1234567890abcdef12',
+        lineRange: { start: 1, end: 5 },
+      },
+      excerpt: '// Token: ghp_1111222233334444555566667777888899990000\nfunc initSecret() {}',
+      confidenceScore: 0.9,
+      detectedAt: new Date(),
+    });
 
     await db.insert(candidateSkills).values([
       {
@@ -568,7 +631,7 @@ describe('Live MCP Career Read Tools Integration Tests (P7-004)', () => {
       method: 'tools/call',
       toolName: 'inspect_project_evidence',
       args: {
-        projectId: projectA1.id,
+        projectId: projectSecret.id,
       },
       id: 5,
     });
@@ -576,7 +639,7 @@ describe('Live MCP Career Read Tools Integration Tests (P7-004)', () => {
     assert.strictEqual(res.statusCode, 200);
     const parsed = JSON.parse(res.json().result.content[0].text);
     assert.ok(InspectProjectEvidenceOutputSchema.safeParse(parsed).success);
-    assert.strictEqual(parsed.project.name, 'Raft Consensus Engine');
+    assert.strictEqual(parsed.project.name, 'Auth Security Token Demo');
     assert.strictEqual(parsed.linkedResources.length, 1);
     assert.strictEqual(parsed.evidenceItems.length, 1);
 

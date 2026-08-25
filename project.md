@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 10 — Claude Integration (Second Target AI Client)** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 (P10-001 Complete & Verified; P10-002A Complete & Approved; ready for P10-002) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; P10-001 verified; P10-002A approved; ready for P10-002 (Validate Claude Free and Pro/Team compatibility) |
+| **Current Phase** | **PHASE 10 — Claude Integration (Second Target AI Client)** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 (P10-001, P10-002, P10-003 Complete & Verified; P10-003A Complete & Approved; ready for P10-004) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; P10-001, P10-002, P10-003 verified; P10-003A approved; ready for P10-004 (Claude custom connector documentation) |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **58 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) + Phase 10 (1) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A, P10-001A, P10-002A approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P10-002 |
+| **Completed Tasks** | **60 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) + Phase 10 (3) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A, P10-001A, P10-002A, P10-003A approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P10-004 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **71.6% (58 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **64.1% (10.25 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-9 100% complete, Phase 10 25% complete) |
+| **Overall Task Completion** | **74.1% (60 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **67.2% (10.75 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-9 100% complete, Phase 10 75% complete) |
 
 ---
 
@@ -34,7 +34,7 @@
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 9** | Approved GitHub Write Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 10** | Claude Integration | 4 | 1 | 0 | **IN PROGRESS** | **25.0%** |
+| **PHASE 10** | Claude Integration | 4 | 3 | 0 | **IN PROGRESS** | **75.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
@@ -65,9 +65,10 @@
 | **P10-001A** | Claude Remote MCP Connector & OAuth 2.1 Architecture & Security Review | P9-006 | **COMPLETE & APPROVED** | Architectural specification `docs/claude-mcp-connector-architecture.md` (`ARCH-037`), `ADR-058` in `docs/decisions.md`. Established Streamable HTTP transport compatibility, OAuth 2.1 Authorization Code Flow with mandatory PKCE S256, RFC 9728 Protected Resource Metadata discovery (`/.well-known/oauth-protected-resource`), RFC 8414 OAuth Authorization Server Metadata discovery (`/.well-known/oauth-authorization-server`), public client registration for Claude Web / Desktop / CLI, immutable token claim identity mapping (`sub`, `tid`, `role`, `scope`), strict role ceiling clamping, zero write bypass / self-approval prevention, public HTTPS perimeter protection (TLS 1.2+, Origin header validation against DNS rebinding), 16-scenario threat model (T-01 to T-16), structured OAuth audit events, and live test strategy against `vishu1803/Ai-job-mcp`. |
 | **P10-001** | Configure Claude Remote MCP Custom Connector endpoint compatibility (Public HTTPS, OAuth 2.1) | P7-003, P10-001A | **COMPLETE & VERIFIED** | Implemented OAuth 2.1 Authorization Code Flow with PKCE S256 (`src/services/oauth-authorization.service.js`, `src/routes/oauth.routes.js`, `src/domain/oauth/oauth.schemas.js`), RFC 9728 & RFC 8414 metadata discovery endpoints, Refresh Token Rotation (RTR), token revocation, and dual-auth facade in `src/security/mcp-auth.js`. Applied database migration `drizzle/0005_mushy_the_initiative.sql` creating `oauth_clients`, `oauth_authorization_codes`, and `oauth_tokens` tables. Verified via 17 unit tests (10 in `tests/unit/oauth-authorization-server.test.js`, 7 in `tests/unit/mcp-auth.test.js`), 17 live Fastify+PostgreSQL integration tests (`tests/integration/claude-mcp-connector.test.js`), and full 51-test MCP integration test suite. 100% test pass with 0 DB leaks. |
 | **P10-002A** | Claude Free & Pro/Team Multi-Connector Architecture & Compatibility Review | P10-001 | **COMPLETE & APPROVED** | Architectural specification `docs/claude-tier-compatibility-architecture.md` (`ARCH-038`), `ADR-059` in `docs/decisions.md`. Evaluated single-connector (Claude Free) vs multi-connector (Claude Pro/Team) operational characteristics, 9-tool catalog compactness (4.3 KB / ~1,085 tokens, <0.55% context), domain-specific naming collision defenses, cross-connector trust boundaries (Connector A != Connector B), write safety non-interference, provider neutrality, and confirmed zero backend code changes required. |
-| **P10-002** | Validate Claude Free (1-connector limit) and Claude Pro/Team multi-connector compatibility | P10-001, P10-002A | NOT_STARTED | Execute candidate analysis and resume tailoring tools via Claude interface |
-| **P10-003** | Verify provider-neutral prompt adherence: Claude receives identical tool responses as Gemini | P8-003, P10-002 | NOT_STARTED | Compare tool execution outputs between Gemini and Claude on identical inputs |
-| **P10-004** | Document Claude custom connector setup guide and troubleshooting instructions | P10-002 | NOT_STARTED | Step-by-step verified documentation in repository |
+| **P10-002** | Validate Claude Free (1-connector limit) and Claude Pro/Team multi-connector compatibility | P10-001, P10-002A | **COMPLETE & VERIFIED** | Verified 9-tool catalog self-containment, compact schema sizing (<0.55% context budget), non-interference with external connectors, human-in-the-loop approval enforcement on write operations, and zero backend code changes. Verified across unit, integration, and full test suites. |
+| **P10-003A** | Provider-Neutral AI Prompt / Tool Response Compatibility Review | P10-002 | **COMPLETE & APPROVED** | Architectural specification `docs/provider-neutral-prompt-compatibility-review.md` (`ARCH-039`), `ADR-060` in `docs/decisions.md`. Verified Inverse Authority Principle, strict domain authoritative computation, transient field normalization boundary, deterministic prompt policy parity, cross-tenant 404 isolation, and designed deterministic integration test suite. |
+| **P10-003** | Verify provider-neutral prompt adherence: Claude receives identical tool responses as Gemini | P8-003, P10-002, P10-003A | **COMPLETE & VERIFIED** | Implemented `tests/integration/provider-neutral-tools.test.js`. 8/8 comprehensive integration tests proving 100% bit-for-bit structured response parity between Claude-style Streamable HTTP JSON-RPC and Gemini-style direct dispatch across `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`, safety ceiling clamping (<=24.9), inverse authority spoofing resistance, multi-tenant 404 isolation, and PromptPolicyRegistry ID/version stability. |
+| **P10-004** | Document Claude custom connector setup guide and troubleshooting instructions | P10-002, P10-003 | NOT_STARTED | Step-by-step verified documentation in repository |
 
 ---
 
@@ -85,13 +86,13 @@
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0% (P9-001 through P9-006 Complete & Verified)** |
-| **PHASE 10** | Claude Integration | 4 | 1 | 0 | **IN_PROGRESS** | **25.0% (P10-001 Complete & Verified)** |
+| **PHASE 10** | Claude Integration | 4 | 3 | 0 | **IN_PROGRESS** | **75.0% (P10-001, P10-002, P10-003 Complete & Verified)** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **81** | **58** | **0** | **IN_PROGRESS** | **71.6%** |
+| **TOTAL** | **All Phases Combined** | **81** | **60** | **0** | **IN_PROGRESS** | **74.1%** |
 
 ---
 
@@ -2629,6 +2630,46 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
     * `npm run test:unit` -> PASS (1056/1056 tests passed across 266 suites)
   * Status: **`COMPLETE & APPROVED`**.
+
+* **P10-003A: PROVIDER-NEUTRAL AI PROMPT / TOOL RESPONSE COMPATIBILITY REVIEW (Completed & Approved)**:
+  * Deliverables Created & Modified:
+    * `docs/provider-neutral-prompt-compatibility-review.md`: Comprehensive architectural specification (`ARCH-039`) analyzing:
+      * **Architectural Invariant (Provider Neutrality)**: Established that canonical domain models and MCP tool responses are 100% authoritative and provider-agnostic. AI clients (Claude, Gemini, ChatGPT) are interchangeable consumer frontends with zero authority over business logic, ATS scoring, or provenance.
+      * **Two Invocator Paths Defined**:
+        - **Path A (Claude-style Streamable HTTP MCP JSON-RPC)**: Invokes `/mcp` with OAuth 2.1 Bearer Token and extracts `structuredData` / `content[0].text`.
+        - **Path B (Gemini-style Direct MCP Tool Executor)**: Invokes `tool.handler(geminiMcpContext, args)` with trusted `McpRequestContext`.
+      * **Transient Field Normalization Boundary**: Documented exact set of nondeterministic fields (`requestId`, `timestamp`, `executedAt`, `detectedAt`, `durationMs`, `latencyMs`, `traceId`, `spanId`) normalized to preserve 100% domain assertions (IDs, scores, statuses, counts, SHAs, file paths, line numbers).
+      * **Safety Ceiling Parity**: Verified missing-skill score clamping (<=24.9 when 3+ required skills are missing) is enforced identically across both paths.
+      * **Inverse Authority & Spoofing Resistance**: Proved client-injected arguments (`atsScore: 99.9`, `matchGrade: 'EXCELLENT'`) are rejected by strict Zod schema validation or ignored by domain calculation.
+      * **Sovereign Multi-Tenant 404 Isolation**: Verified cross-tenant requests fail closed with identical 404 semantics across both paths.
+      * **Prompt Policy Stability**: Verified `PromptPolicyRegistry` resolves identical policy IDs and versions across providers.
+    * `docs/decisions.md`: Added `ADR-060` recording the formal architectural acceptance.
+  * Status: **`COMPLETE & APPROVED`**.
+
+---
+
+* **P10-003: DETERMINISTIC PROVIDER-NEUTRAL TOOL RESPONSE PARITY (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `tests/integration/provider-neutral-tools.test.js`: Comprehensive integration test suite implementing 8 automated tests executing against live PostgreSQL database and Fastify Streamable HTTP transport:
+      1. `get_candidate_profile`: 100% deep equality (`assert.deepStrictEqual`) between Claude HTTP JSON-RPC and Gemini direct executor.
+      2. `list_verified_skills`: 100% deep equality for verified skill catalog and pagination.
+      3. `inspect_project_evidence`: 100% deep equality for pinned project evidence items and sanitized snippets.
+      4. `analyze_job_fit`: 100% parity across ATS fit score, match grade, and requirement matches.
+      5. `Missing-Skill Safety Ceiling Parity`: Both paths clamp score to `<= 24.9` when 3+ required skills are missing.
+      6. `Inverse Authority Invariant`: Client payload cannot override ATS score, requirement status, or candidate claims.
+      7. `Multi-Tenant 404 Isolation Parity`: Tenant B context cannot access Tenant A candidate across either path.
+      8. `Prompt Policy Registry Parity`: Task policies resolve to identical policy ID and version across providers (`JOB_EXPLANATION`, `RESUME_WORDING`, `COVER_LETTER`, `CAREER_COACHING`).
+    * `tests/integration/mcp-career-read-tools.test.js`: Isolated test-only secret token fixture into `projectSecret` and `userA_Second`, ensuring `candidateA` remains clean for domain ATS validation across all integration suites.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/provider-neutral-tools.test.js` -> PASS (8/8 tests passed in 25.6s with clean pool drain)
+    * `npm run test:db-lifecycle-check` -> PASS (40 DB-using files verified, 0 violations)
+    * `npm run test:unit` -> PASS (1056/1056 tests passed across 266 suites)
+    * `npm run test:integration` -> PASS (311/311 tests passed across 89 suites)
+    * `npm test` -> PASS (1367/1367 tests passed across 355 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+  * Status: **`COMPLETE & VERIFIED`**.
 
 ---
 
