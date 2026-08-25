@@ -11,13 +11,17 @@
 import { z } from 'zod';
 import { AuthService } from '../security/auth.service.js';
 import { revokeSession, getSessionCookieOptions } from '../security/session.service.js';
-import { OAUTH_TRANSIT_COOKIE_NAME } from '../security/oauth-state.js';
+import { OAUTH_TRANSIT_COOKIE_NAME, isValidReturnTo } from '../security/oauth-state.js';
 import { authenticate, verifyCsrf } from '../middleware/auth.middleware.js';
 import { validateRequest, validateResponse } from '../middleware/validate.js';
 import { db } from '../db/index.js';
 import { config } from '../config/env.js';
 
 // Request Validation Schemas
+const AuthGithubQuerySchema = z.object({
+  return_to: z.string().optional(),
+});
+
 const CallbackQuerySchema = z.object({
   code: z.string().min(1, 'Authorization code is required'),
   state: z.string().min(1, 'OAuth state parameter is required'),
@@ -76,20 +80,33 @@ export default async function authRoutes(app, opts = {}) {
   // -------------------------------------------------------------------------
   // 1. GET /auth/github — Start OAuth 2.1 PKCE authorization flow
   // -------------------------------------------------------------------------
-  app.get('/auth/github', async (req, reply) => {
-    const { authorizationUrl, transitCookieValue } = authService.startOAuthFlow('github');
+  app.get(
+    '/auth/github',
+    {
+      preHandler: [validateRequest({ query: AuthGithubQuerySchema })],
+    },
+    async (req, reply) => {
+      const returnTo =
+        req.query?.return_to && isValidReturnTo(req.query.return_to)
+          ? req.query.return_to
+          : undefined;
 
-    const isProd = config.NODE_ENV === 'production';
-    reply.setCookie(OAUTH_TRANSIT_COOKIE_NAME, transitCookieValue, {
-      path: '/auth/github/callback',
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'lax',
-      maxAge: 600, // 10 minutes
-    });
+      const { authorizationUrl, transitCookieValue } = authService.startOAuthFlow('github', {
+        returnTo,
+      });
 
-    return reply.redirect(authorizationUrl);
-  });
+      const isProd = config.NODE_ENV === 'production';
+      reply.setCookie(OAUTH_TRANSIT_COOKIE_NAME, transitCookieValue, {
+        path: '/auth/github/callback',
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge: 600, // 10 minutes
+      });
+
+      return reply.redirect(authorizationUrl);
+    }
+  );
 
   // -------------------------------------------------------------------------
   // 2. GET /auth/github/callback — OAuth 2.1 callback handler
@@ -128,6 +145,11 @@ export default async function authRoutes(app, opts = {}) {
         sameSite: cookieOpts.sameSite,
         maxAge: cookieOpts.maxAge,
       });
+
+      // If a validated returnTo URL was stored in transit state, follow it
+      if (result.returnTo && isValidReturnTo(result.returnTo)) {
+        return reply.redirect(result.returnTo);
+      }
 
       if (format === 'json' || req.headers['accept']?.includes('application/json')) {
         return reply.status(200).send({

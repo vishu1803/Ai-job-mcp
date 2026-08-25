@@ -21,10 +21,60 @@ export const DEFAULT_STATE_TTL_SECONDS = 600; // 10 minutes
  */
 
 /**
+ * Validates a returnTo URL against strict open-redirect defense rules.
+ *
+ * Rules:
+ * 1. Must be a non-empty string.
+ * 2. Must be a relative path beginning with '/' (not '//' or '/\\').
+ * 3. Disallows control characters, null bytes, newlines, tabs, and backslashes.
+ * 4. Pathname must start with '/oauth/authorize' or '/dashboard'.
+ * 5. Rejects external schemes (http:, https:, javascript:, data:).
+ *
+ * @param {string} returnTo URL string to validate
+ * @returns {boolean} True if returnTo is a safe, relative application path
+ */
+export function isValidReturnTo(returnTo) {
+  if (!returnTo || typeof returnTo !== 'string') {
+    return false;
+  }
+
+  const trimmed = returnTo.trim();
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.startsWith('/\\')) {
+    return false;
+  }
+
+  // Reject newlines, carriage returns, tabs, null bytes, and backslashes
+  if (/[\r\n\t\0\\]/.test(trimmed)) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(trimmed, 'http://localhost');
+    // Ensure origin is unchanged (i.e. strictly relative)
+    if (parsed.origin !== 'http://localhost') {
+      return false;
+    }
+    const pathname = parsed.pathname;
+    // Must begin with /oauth/authorize or /dashboard
+    if (
+      pathname !== '/oauth/authorize' &&
+      !pathname.startsWith('/oauth/authorize/') &&
+      pathname !== '/dashboard'
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Generates high-entropy OAuth state and PKCE verifier, encrypted in a transit cookie payload.
  *
  * @param {Object} [options={}] Options
  * @param {string} [options.provider='github'] Identity provider name
+ * @param {string} [options.returnTo] Optional validated relative return-to URL
  * @param {number} [options.ttlSeconds=600] State lifetime in seconds
  * @param {string | Buffer} [options.encryptionKey] Optional master key override for tests
  * @returns {OAuthStatePackage} Generated state package
@@ -42,6 +92,7 @@ export function generateOAuthState(options = {}) {
     state,
     codeVerifier,
     provider,
+    returnTo: options.returnTo && isValidReturnTo(options.returnTo) ? options.returnTo : null,
     createdAt: now,
     expiresAt: now + ttlSeconds * 1000,
   };
@@ -66,7 +117,7 @@ export function generateOAuthState(options = {}) {
  * @param {Object} [options={}] Validation options
  * @param {string} [options.provider='github'] Expected identity provider name
  * @param {string | Buffer} [options.encryptionKey] Optional master key override for tests
- * @returns {{ codeVerifier: string, provider: string }} Verified state contents
+ * @returns {{ codeVerifier: string, provider: string, returnTo: string | null }} Verified state contents
  * @throws {AuthenticationError} If state is missing, corrupted, expired, or mismatched
  */
 export function validateAndConsumeOAuthState(incomingState, transitCookieValue, options = {}) {
@@ -126,8 +177,11 @@ export function validateAndConsumeOAuthState(incomingState, transitCookieValue, 
     throw new AuthenticationError('OAuth authorization state has expired', 'EXPIRED_OAUTH_STATE');
   }
 
+  const returnTo = payload.returnTo && isValidReturnTo(payload.returnTo) ? payload.returnTo : null;
+
   return {
     codeVerifier: payload.codeVerifier,
     provider: payload.provider,
+    returnTo,
   };
 }

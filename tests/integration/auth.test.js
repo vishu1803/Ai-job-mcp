@@ -473,4 +473,36 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
     assert.ok(sessionCookieObj);
     assert.ok(sessionCookieObj.value);
   });
+
+  it('14. GET /auth/github/callback preserves return_to across OAuth roundtrip and redirects back to return_to', async () => {
+    const returnToUrl =
+      '/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https%3A%2F%2Fclaude.ai%2Fapi%2Fmcp%2Fauth_callback&state=state_xyz123';
+
+    const flowRes = await app.inject({
+      method: 'GET',
+      url: `/auth/github?return_to=${encodeURIComponent(returnToUrl)}`,
+    });
+    assert.strictEqual(flowRes.statusCode, 302);
+    const parsedUrl = new URL(flowRes.headers['location']);
+    const newState = parsedUrl.searchParams.get('state');
+    const newTransit = flowRes.cookies.find((c) => c.name === OAUTH_TRANSIT_COOKIE_NAME).value;
+
+    const callbackRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github/callback',
+      query: {
+        code: 'valid_mock_code',
+        state: newState,
+      },
+      cookies: {
+        [OAUTH_TRANSIT_COOKIE_NAME]: newTransit,
+      },
+    });
+
+    assert.strictEqual(callbackRes.statusCode, 302);
+    assert.strictEqual(callbackRes.headers.location, returnToUrl);
+    const sessionCookieObj = callbackRes.cookies.find((c) => c.name === 'career_hub_session');
+    assert.ok(sessionCookieObj);
+    assert.ok(sessionCookieObj.value);
+  });
 });

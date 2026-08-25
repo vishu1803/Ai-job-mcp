@@ -95,6 +95,7 @@ export class AuthService {
 
     const statePkg = generateOAuthState({
       provider: providerName,
+      returnTo: options.returnTo,
       encryptionKey: options.encryptionKey || this.encryptionKey,
     });
 
@@ -124,16 +125,20 @@ export class AuthService {
    * @param {string | null} [params.userAgent=null] Client User-Agent
    * @param {string | null} [params.requestId=null] Trace correlation ID
    * @param {string | Buffer} [params.encryptionKey] Master encryption key override
-   * @returns {Promise<{ session: { rawToken: string, sessionId: string, expiresAt: Date }, user: typeof users.$inferSelect, tenant: typeof tenants.$inferSelect, isNewUser: boolean }>} Created session and account metadata
+   * @returns {Promise<{ session: { rawToken: string, sessionId: string, expiresAt: Date }, user: typeof users.$inferSelect, tenant: typeof tenants.$inferSelect, isNewUser: boolean, returnTo: string | null }>} Created session and account metadata
    */
   async handleOAuthCallback(providerName, params) {
     const provider = this.getProvider(providerName);
 
     // 1. Validate PKCE & state integrity
-    const { codeVerifier } = validateAndConsumeOAuthState(params.state, params.transitCookieValue, {
-      provider: providerName,
-      encryptionKey: params.encryptionKey || this.encryptionKey,
-    });
+    const { codeVerifier, returnTo } = validateAndConsumeOAuthState(
+      params.state,
+      params.transitCookieValue,
+      {
+        provider: providerName,
+        encryptionKey: params.encryptionKey || this.encryptionKey,
+      }
+    );
 
     // 2. Exchange authorization code for provider access tokens
     const tokens = await provider.exchangeCode({
@@ -251,6 +256,7 @@ export class AuthService {
         user,
         tenant,
         isNewUser,
+        returnTo: returnTo || null,
       };
     });
   }

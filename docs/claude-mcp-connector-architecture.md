@@ -189,29 +189,67 @@ Claude Client                      User Browser                   Career Hub OAu
     |<----------------------------------------------------------------------+                             |
     |                                   |                                   |                             |
     | 5. Open Auth URL with PKCE S256   |                                   |                             |
-    |    (client_id, redirect_uri, scope, state, code_challenge)           |                             |
+    |    (client_id, redirect_uri, scope, state, code_challenge, resource) |                             |
     +---------------------------------->|                                   |                             |
     |                                   | 6. GET /oauth/authorize           |                             |
     |                                   +---------------------------------->|                             |
-    |                                   | 7. Authenticate User & Consent UI |                             |
+    |                                   |    (If unauthenticated):          |                             |
+    |                                   | 7a. 302 /auth/github?return_to=...|                             |
     |                                   |<----------------------------------+                             |
-    |                                   | 8. User approves consent          |                             |
+    |                                   | 7b. GitHub OAuth & Session Cookie |                             |
     |                                   +---------------------------------->|                             |
-    |                                   | 9. Redirect with code & state     |                             |
+    |                                   | 7c. 302 to return_to URL          |                             |
     |                                   |<----------------------------------+                             |
-    | 10. Capture Auth Code             |                                   |                             |
+    |                                   | 8. GET /oauth/authorize (with session)                          |
+    |                                   +---------------------------------->|                             |
+    |                                   | 9. Render 200 HTML Consent Screen |                             |
+    |                                   |<----------------------------------+                             |
+    |                                   | 10. POST /oauth/authorize/consent |                             |
+    |                                   |     (action: 'allow' or 'deny')   |                             |
+    |                                   +---------------------------------->|                             |
+    |                                   | 11. Redirect with code & state     |                             |
+    |                                   |<----------------------------------+                             |
+    | 12. Capture Auth Code             |                                   |                             |
     |<----------------------------------+                                   |                             |
     |                                                                       |                             |
-    | 11. POST /oauth/token (code, code_verifier, redirect_uri, client_id)   |                             |
+    | 13. POST /oauth/token (code, code_verifier, redirect_uri, resource)   |                             |
     +---------------------------------------------------------------------->|                             |
-    | 12. Verify PKCE, Issue Access Token (1h) & Refresh Token (30d)        |                             |
+    | 14. Verify PKCE, Issue Access Token (1h) & Refresh Token (30d)        |                             |
     |<----------------------------------------------------------------------+                             |
     |                                                                                                     |
-    | 13. POST /mcp (Authorization: Bearer <access_token>)                                                |
+    | 15. POST /mcp (Authorization: Bearer <access_token>)                                                |
     +---------------------------------------------------------------------------------------------------->|
-    | 14. Mint McpRequestContext -> Execute Tool -> Return JSON-RPC Result                                |
+    | 16. Mint McpRequestContext -> Execute Tool -> Return JSON-RPC Result                                |
     |<----------------------------------------------------------------------------------------------------+
 ```
+
+### 5.1 Unauthenticated Login Bridge & State Preservation
+1. When Claude opens `GET /oauth/authorize` without an active `career_hub_session` cookie:
+   - The server validates standard OAuth parameters (client ID, redirect URI, RFC 8707 resource, PKCE, state).
+   - The server constructs a strictly relative `return_to` path (`/oauth/authorize?...`).
+   - The server returns `302 Found` redirecting the browser to `/auth/github?return_to=${encodeURIComponent(returnTo)}`.
+2. `GET /auth/github` embeds `returnTo` into an encrypted transit cookie (`oauth_transit`, AES-256-GCM).
+3. Open-redirect defense:
+   - Must be a non-empty string.
+   - Must start with `/` and reject `//`, `/\\`, control chars (`\r\n\t\0`).
+   - Pathname must strictly equal `/oauth/authorize`, start with `/oauth/authorize/`, or equal `/dashboard`.
+   - External schemes (`https:`, `javascript:`, `data:`) are rejected.
+4. On GitHub OAuth callback (`GET /auth/github/callback`):
+   - Mints secure `career_hub_session` cookie.
+   - Decrypts transit state and redirects browser back to the preserved `return_to` authorization URL.
+
+### 5.2 Interactive Human Consent Screen & Approval Handlers
+1. Upon reaching `GET /oauth/authorize` with an authenticated session:
+   - Server resolves `user`, `tenant`, and `role` strictly from the server-side database session.
+   - Server renders an interactive, responsive HTML consent screen displaying:
+     - Client Name (`Claude (Web Client)`).
+     - Authenticated user account and workspace name.
+     - Requested permissions breakdown (`career:read`, `career:write`, `career:export`) with clear security disclaimers.
+     - Explicit notice: *"Claude never receives direct GitHub credentials. All repository modifications require explicit human confirmation and pass through GitHub write safety controls."*
+     - [Authorize Claude] button (`action="allow"`) and [Cancel] button (`action="deny"`).
+2. On `POST /oauth/authorize/consent`:
+   - If `action === 'deny'`: records `oauth.consent.denied` audit event and redirects browser to `redirect_uri` with `error=access_denied&state=...`.
+   - If `action === 'allow'`: creates single-use authorization code in database bound to tenant, user, role ceiling, and resource, records `oauth.consent.granted` audit event, and redirects browser to `redirect_uri` with `code=...&state=...`.
 
 ---
 

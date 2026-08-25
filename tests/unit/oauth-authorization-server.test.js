@@ -17,6 +17,7 @@ import {
   OAuthProtectedResourceMetadataSchema,
   OAuthAuthorizationServerMetadataSchema,
   OAuthAuthorizeQuerySchema,
+  OAuthConsentBodySchema,
   OAuthTokenRequestSchema,
 } from '../../src/domain/oauth/oauth.schemas.js';
 import {
@@ -28,6 +29,11 @@ import {
   canonicalizeResourceUrl,
   isMatchingResource,
 } from '../../src/services/oauth-authorization.service.js';
+import {
+  isValidReturnTo,
+  generateOAuthState,
+  validateAndConsumeOAuthState,
+} from '../../src/security/oauth-state.js';
 import { oauthAuthorizationCodes, oauthTokens, users, tenants } from '../../src/db/schema.js';
 
 describe('OAuth 2.1 Cryptographic & Validation Primitives', () => {
@@ -468,5 +474,108 @@ describe('OAuthAuthorizationService Lifecycle Logic (Mocked DB)', () => {
       }),
       /OAuth access token was issued for resource/
     );
+  });
+
+  it('validates returnTo URLs against open-redirect attack vectors', () => {
+    // Valid relative paths
+    assert.equal(
+      isValidReturnTo('/oauth/authorize?client_id=claude-web&redirect_uri=https%3A%2F%2Fclaude.ai'),
+      true
+    );
+    assert.equal(isValidReturnTo('/oauth/authorize'), true);
+    assert.equal(isValidReturnTo('/dashboard'), true);
+
+    // Malicious external absolute URLs
+    assert.equal(isValidReturnTo('https://attacker.example/oauth/authorize'), false);
+    assert.equal(isValidReturnTo('http://attacker.example/oauth/authorize'), false);
+    assert.equal(isValidReturnTo('javascript:alert(1)'), false);
+    assert.equal(isValidReturnTo('data:text/html,<script>alert(1)</script>'), false);
+
+    // Protocol-relative attempts
+    assert.equal(isValidReturnTo('//attacker.example/oauth/authorize'), false);
+    assert.equal(isValidReturnTo('/\\attacker.example'), false);
+
+    // Control characters / newlines
+    assert.equal(isValidReturnTo('/oauth/authorize\r\nHost: evil.com'), false);
+    assert.equal(isValidReturnTo('/oauth/authorize\0evil'), false);
+
+    // Unregistered paths
+    assert.equal(isValidReturnTo('/admin/settings'), false);
+    assert.equal(isValidReturnTo(''), false);
+    assert.equal(isValidReturnTo(null), false);
+  });
+
+  it('preserves returnTo in encrypted OAuth transit state across generation and consumption', () => {
+    const testKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const validReturnTo =
+      '/oauth/authorize?response_type=code&client_id=claude-web&state=abc123state';
+
+    const statePkg = generateOAuthState({
+      provider: 'github',
+      returnTo: validReturnTo,
+      encryptionKey: testKey,
+    });
+
+    assert.ok(statePkg.transitCookieValue);
+
+    const verified = validateAndConsumeOAuthState(statePkg.state, statePkg.transitCookieValue, {
+      provider: 'github',
+      encryptionKey: testKey,
+    });
+
+    assert.equal(verified.returnTo, validReturnTo);
+  });
+
+  it('validates OAuthConsentBodySchema and rejects unauthorized parameters or actions', () => {
+    const validConsent = {
+      client_id: 'claude-web',
+      redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: 'http://localhost:3000/mcp',
+      scope: 'career:read career:write',
+      state: 'state_123456789',
+      code_challenge: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+      code_challenge_method: 'S256',
+      action: 'allow',
+    };
+
+    assert.equal(OAuthConsentBodySchema.safeParse(validConsent).success, true);
+    assert.equal(
+      OAuthConsentBodySchema.safeParse({ ...validConsent, action: 'deny' }).success,
+      true
+    );
+
+    // Invalid action
+    assert.equal(
+      OAuthConsentBodySchema.safeParse({ ...validConsent, action: 'bypass' }).success,
+      false
+    );
+
+    // Missing required fields
+    assert.equal(
+      OAuthConsentBodySchema.safeParse({ ...validConsent, redirect_uri: undefined }).success,
+      false
+    );
+  });
+
+  it('rejects user_id and tenant_id query parameters in OAuthAuthorizeQuerySchema (strict identity isolation)', () => {
+    const validQuery = {
+      response_type: 'code',
+      client_id: 'claude-web',
+      redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: 'http://localhost:3000/mcp',
+      scope: 'career:read',
+      state: 'state12345',
+      code_challenge: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+      code_challenge_method: 'S256',
+    };
+
+    assert.equal(OAuthAuthorizeQuerySchema.safeParse(validQuery).success, true);
+
+    // Query attempting to inject client-controlled user_id or tenant_id fails validation
+    const poisonedQuery = {
+      ...validQuery,
+      user_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    };
+    assert.equal(OAuthAuthorizeQuerySchema.safeParse(poisonedQuery).success, false);
   });
 });

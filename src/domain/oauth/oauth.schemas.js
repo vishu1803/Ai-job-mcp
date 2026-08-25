@@ -98,8 +98,29 @@ export const OAuthAuthorizeQuerySchema = z
     code_challenge_method: z.literal('S256', {
       errorMap: () => ({ message: 'OAuth 2.1 requires code_challenge_method=S256.' }),
     }),
-    user_id: z.string().uuid().optional(),
-    tenant_id: z.string().uuid().optional(),
+  })
+  .strict();
+
+/**
+ * Schema for POST /oauth/authorize/consent Request Body.
+ */
+export const OAuthConsentBodySchema = z
+  .object({
+    client_id: z.string().min(1, 'client_id is required'),
+    redirect_uri: z.string().url('redirect_uri must be a valid URL'),
+    resource: z.string().url('resource must be a valid URL'),
+    scope: z.string().min(1, 'scope is required'),
+    state: z.string().min(1, 'state is required'),
+    code_challenge: z
+      .string()
+      .min(43, 'code_challenge must be at least 43 characters')
+      .max(128, 'code_challenge cannot exceed 128 characters'),
+    code_challenge_method: z.literal('S256', {
+      errorMap: () => ({ message: 'OAuth 2.1 requires code_challenge_method=S256.' }),
+    }),
+    action: z.enum(['allow', 'deny'], {
+      errorMap: () => ({ message: 'action must be either "allow" or "deny"' }),
+    }),
   })
   .strict();
 

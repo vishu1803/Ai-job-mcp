@@ -24,6 +24,7 @@ import { db, closeDatabase } from '../../src/db/index.js';
 import {
   tenants,
   users,
+  sessions,
   candidates,
   candidateSkills,
   evidenceItems,
@@ -35,6 +36,8 @@ import { createCareerMcpServer } from '../../src/mcp/server.js';
 import { McpApiTokenService } from '../../src/services/mcp-api-token.service.js';
 import { McpRateLimiter } from '../../src/security/mcp-rate-limiter.js';
 import { OAuthAuthorizationService } from '../../src/services/oauth-authorization.service.js';
+import { createSession, getSessionCookieOptions } from '../../src/security/session.service.js';
+import { config } from '../../src/config/env.js';
 
 describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', () => {
   const testRunId = crypto.randomBytes(4).toString('hex');
@@ -49,6 +52,9 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
   let userAMember;
   let userAReadonly;
   let candidateA;
+
+  let memberACookie;
+  let readonlyACookie;
 
   let _tenantB;
   let _userBMember;
@@ -158,7 +164,21 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
         })
         .returning();
 
-      // 3. Setup Services & App
+      // 3. Setup Sessions
+      const cookieOpts = getSessionCookieOptions(config);
+      const sessionMemberRecord = await createSession(db, {
+        userId: userAMember.id,
+        tenantId: tenantA.id,
+      });
+      memberACookie = `${cookieOpts.name}=${sessionMemberRecord.rawToken}`;
+
+      const sessionReadonlyRecord = await createSession(db, {
+        userId: userAReadonly.id,
+        tenantId: tenantA.id,
+      });
+      readonlyACookie = `${cookieOpts.name}=${sessionReadonlyRecord.rawToken}`;
+
+      // 4. Setup Services & App
       oauthService = new OAuthAuthorizationService({ db });
       expectedResource = oauthService.getExpectedResourceUrl();
       tokenService = new McpApiTokenService({ db });
@@ -190,6 +210,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     for (const tId of createdTenantIds) {
       await db.delete(oauthTokens).where(eq(oauthTokens.tenantId, tId));
       await db.delete(oauthAuthorizationCodes).where(eq(oauthAuthorizationCodes.tenantId, tId));
+      await db.delete(sessions).where(eq(sessions.tenantId, tId));
       await db.delete(candidateSkills).where(eq(candidateSkills.tenantId, tId));
       await db.delete(evidenceItems).where(eq(evidenceItems.tenantId, tId));
       await db.delete(candidates).where(eq(candidates.tenantId, tId));
@@ -261,7 +282,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
   });
 
   // ---------------------------------------------------------------------------
-  // 2. Authorization Endpoint (GET /oauth/authorize)
+  // 2. Authorization & Consent Endpoints (GET /oauth/authorize & POST /oauth/authorize/consent)
   // ---------------------------------------------------------------------------
   it('4. rejects authorization request with invalid client, missing state, missing resource, or invalid redirect', async () => {
     // Unknown client
@@ -305,11 +326,88 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     assert.equal(JSON.parse(res5.body).error, 'invalid_target');
   });
 
-  let issuedCodeMemberA;
-  it('5. successfully generates authorization code for Member A with resource indicator and redirects with code & state', async () => {
+  it('4b. redirects unauthenticated GET /oauth/authorize to /auth/github with preserved relative return_to', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&resource=${encodeURIComponent(expectedResource)}&scope=career:read+career:write&state=csrf_test_state_123&code_challenge=${validChallenge}&code_challenge_method=S256&user_id=${userAMember.id}&tenant_id=${tenantA.id}`,
+      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&resource=${encodeURIComponent(expectedResource)}&scope=career:read+career:write&state=csrf_test_state_123&code_challenge=${validChallenge}&code_challenge_method=S256`,
+    });
+
+    assert.equal(res.statusCode, 302);
+    const location = res.headers.location;
+    assert.ok(location);
+    assert.ok(location.startsWith('/auth/github?return_to='));
+
+    const parsed = new URL(location, 'http://localhost');
+    const returnTo = parsed.searchParams.get('return_to');
+    assert.ok(returnTo);
+    assert.ok(returnTo.startsWith('/oauth/authorize?'));
+    assert.ok(returnTo.includes('client_id=claude-web'));
+    assert.ok(returnTo.includes('state=csrf_test_state_123'));
+  });
+
+  it('5a. renders HTML consent screen for authenticated user on GET /oauth/authorize', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/oauth/authorize?response_type=code&client_id=claude-web&redirect_uri=https://claude.ai/api/mcp/auth_callback&resource=${encodeURIComponent(expectedResource)}&scope=career:read+career:write&state=csrf_test_state_123&code_challenge=${validChallenge}&code_challenge_method=S256`,
+      headers: {
+        cookie: memberACookie,
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.ok(res.headers['content-type']?.includes('text/html'));
+    assert.ok(res.body.includes('Authorize Claude (Web Client)'));
+    assert.ok(res.body.includes('career:read'));
+    assert.ok(res.body.includes('career:write'));
+    assert.ok(res.body.includes('/oauth/authorize/consent'));
+    assert.ok(res.body.includes('Claude never receives direct GitHub credentials'));
+  });
+
+  it('5b. redirects with error=access_denied when user denies consent on POST /oauth/authorize/consent', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/oauth/authorize/consent',
+      headers: {
+        cookie: memberACookie,
+      },
+      payload: {
+        client_id: 'claude-web',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: expectedResource,
+        scope: 'career:read career:write',
+        state: 'csrf_test_state_123',
+        code_challenge: validChallenge,
+        code_challenge_method: 'S256',
+        action: 'deny',
+      },
+    });
+
+    assert.equal(res.statusCode, 302);
+    const redirectUrl = new URL(res.headers.location);
+    assert.equal(redirectUrl.origin, 'https://claude.ai');
+    assert.equal(redirectUrl.pathname, '/api/mcp/auth_callback');
+    assert.equal(redirectUrl.searchParams.get('error'), 'access_denied');
+    assert.equal(redirectUrl.searchParams.get('state'), 'csrf_test_state_123');
+  });
+
+  let issuedCodeMemberA;
+  it('5c. successfully generates authorization code for Member A upon consent approval and redirects with code & state', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/oauth/authorize/consent',
+      headers: {
+        cookie: memberACookie,
+      },
+      payload: {
+        client_id: 'claude-web',
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: expectedResource,
+        scope: 'career:read career:write',
+        state: 'csrf_test_state_123',
+        code_challenge: validChallenge,
+        code_challenge_method: 'S256',
+        action: 'allow',
+      },
     });
 
     assert.equal(res.statusCode, 302);
@@ -328,8 +426,21 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
 
   it('6. clamps requested scopes to user role ceiling (READONLY user gets only career:read)', async () => {
     const res = await app.inject({
-      method: 'GET',
-      url: `/oauth/authorize?response_type=code&client_id=claude-desktop&redirect_uri=http://localhost:3118/callback&resource=${encodeURIComponent(expectedResource)}&scope=career:read+career:write&state=state_readonly&code_challenge=${validChallenge}&code_challenge_method=S256&user_id=${userAReadonly.id}&tenant_id=${tenantA.id}`,
+      method: 'POST',
+      url: '/oauth/authorize/consent',
+      headers: {
+        cookie: readonlyACookie,
+      },
+      payload: {
+        client_id: 'claude-desktop',
+        redirect_uri: 'http://localhost:3118/callback',
+        resource: expectedResource,
+        scope: 'career:read career:write',
+        state: 'state_readonly',
+        code_challenge: validChallenge,
+        code_challenge_method: 'S256',
+        action: 'allow',
+      },
     });
 
     assert.equal(res.statusCode, 302);
