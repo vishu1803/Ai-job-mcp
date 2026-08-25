@@ -56,6 +56,8 @@
 | **ADR-047** | Gemini AI Provider & Trust-Boundary Architecture | **ACCEPTED** | 2026-08-24 |
 | **ADR-048** | Gemini End-to-End Golden Path Architecture & Dual-Mode Verification Strategy | **ACCEPTED** | 2026-08-24 |
 | **ADR-049** | Vertex AI Gemini Provider Architecture & Google Cloud Credit Integration | **ACCEPTED** | 2026-08-24 |
+| **ADR-050** | Gemini Enterprise & Google AI Studio Remote MCP Integration Architecture | **ACCEPTED** | 2026-08-24 |
+| **ADR-051** | MCP Performance Benchmarking & Latency Target Architecture | **ACCEPTED** | 2026-08-24 |
 
 ---
 
@@ -1166,4 +1168,50 @@
   * Task P8-004 will implement the `GeminiVertexAdapter` and dedicated live test suite with ADC support.
 * **Revisit Conditions**: When multi-provider AI adapters (Anthropic Claude in Phase 10, OpenAI ChatGPT in Phase 11) or enterprise IAM features in Phase 14 are introduced.
 
+---
+
+### ADR-050: Gemini Enterprise & Google AI Studio Remote MCP Integration Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-24
+* **Context**: In Phase 8 (Task P8-005A), we investigated connecting Google Gemini enterprise interfaces (Gemini Enterprise in Google Workspace, Vertex AI Agent Builder, Google AI Studio, and Gemini CLI) to the Antigravity Career Hub Remote MCP Server built in Phase 7. We must define the architectural relationship between Google Discovery Engine custom connectors (batch data ingestion) and Model Context Protocol servers (real-time tool execution), and establish multi-channel integration standards with strict security, token scoping, and sovereign tenant isolation.
+* **Decision**: Adopt the **Gemini Enterprise & Google AI Studio Remote MCP Integration Architecture** defined in `docs/gemini-enterprise-mcp-integration-architecture.md` (`ARCH-029`) governed by the following core architectural decisions:
+  * **Standardization on Streamable HTTP MCP**: The primary integration contract for all Gemini enterprise and developer tools is the native Model Context Protocol over Streamable HTTP (`POST /mcp`) using scoped Bearer API tokens (`mcp_token_*`).
+  * **Disambiguation of Custom Connectors vs. MCP**: Clarifies that Discovery Engine custom connectors are for batch document ingestion/crawling, whereas the Antigravity Remote MCP Server provides real-time, zero-hallucination tool execution and deterministic candidate intelligence during agent reasoning turns.
+  * **Multi-Channel Compatibility**: Supports 3 integration channels:
+    1. *Native Streamable HTTP MCP*: Direct connection for Vertex AI Agent Builder, Agent Development Kit (ADK), Gemini CLI, Antigravity IDE, Claude, and ChatGPT.
+    2. *OpenAPI 3.0 / Function Declaration Schema Gateway*: JSON schema export for Google AI Studio prompts and Vertex AI Extensions.
+    3. *Gemini Enterprise Connected App Data Store*: Google Cloud Console integration for Google Workspace side panels.
+  * **Inverse Authority & Multi-Tenant Sovereign Isolation**: Read tools (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`) cause zero database mutations; cross-tenant accesses return default-deny `404 NOT_FOUND`; all requests record failure-isolated audit events in `audit_logs`.
+* **Alternatives Considered**:
+  * *Building a custom Discovery Engine data connector instead of MCP*: Rejected because batch document crawling cannot provide real-time ATS scoring, live GitHub commit verification, or interactive resume/cover-letter artifact generation.
+  * *Exposing unauthenticated MCP endpoints*: Rejected because multi-tenant career intelligence requires strict API token authentication (`mcp_token_*`) and immutable tenant context derivation.
+* **Reasons**: Establishes standard, secure, and future-proof tool connectivity between Google's AI agent ecosystem and the Antigravity Career Hub without code duplication or vendor lock-in.
+* **Consequences**:
+  * Task P8-005 will author comprehensive administrator and developer integration documentation (`docs/gemini-enterprise-mcp-integration.md`) with verified curl commands and step-by-step connection walkthroughs.
+* **Revisit Conditions**: When Google Workspace add-on packaging or OAuth 2.1 authorization server upgrades occur in Phase 14.
+
+---
+
+### ADR-051: MCP Performance Benchmarking & Latency Target Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-24
+* **Context**: In Phase 8 (Task P8-006A), we evaluated the performance benchmarking requirements for the Remote MCP server and the target of `<1.5s for cached queries`. We must establish an unambiguous, multi-layer benchmark decomposition, classify the 7 MCP tools by compute profile, evaluate current domain caching infrastructure, and establish realistic regression boundaries without exposing credentials or wasting cloud AI promotional credits.
+* **Decision**: Adopt the **MCP Tool Latency Benchmark Architecture** defined in `docs/mcp-performance-architecture.md` (`ARCH-030`) governed by the following core architectural decisions:
+  * **Four-Layer Latency Boundary Decomposition**: Formally separate latency measurements into:
+    1. `TOOL_ONLY`: In-memory service handler execution excluding HTTP framing.
+    2. `MCP_HTTP`: Full `POST /mcp` round-trip (transport, rate limiting, auth, execution, serialization, async audit dispatch).
+    3. `GEMINI_TOOL`: Time from Gemini SDK tool invocation decision to tool response ingestion.
+    4. `END_TO_END`: Full multi-turn agent interaction loop including user prompt, tool call, and final synthesis.
+  * **Target Applicability Scope**: The `<1.5s` target applies strictly to the `MCP_HTTP` (p95) boundary under `DB_WARM` / `MCP_WARM` conditions. End-to-end multi-turn Gemini interactions (`END_TO_END`) are budgeted separately at `<4.0s` (p95).
+  * **Three-Tier Tool Classification**: Classifies tools into `READ_FAST` (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`), `ANALYTICAL` (`analyze_job_fit`, `recommend_portfolio_projects`), and `AI_GENERATION` (`generate_tailored_resume`, `draft_cover_letter`).
+  * **Cache State Definition & Realistic Baseline**: Acknowledges that domain career services currently operate on live PostgreSQL queries (`CACHE_NOT_IMPLEMENTED`), evaluating baseline performance against warm database connection pool states.
+  * **Zero-Waste Deterministic Benchmarking**: Uses mock AI providers and direct HTTP loops for high-volume benchmark runs ($N=100$ requests per tool, $C=1, 5, 10$) to protect Google Cloud credits and avoid AI Studio HTTP 429 rate limits, reserving live Gemini runs for a small representative sample ($N \le 10$).
+  * **Performance Regression Thresholds**: Enforces a strict regression failure if any tool's $p95_{\text{MCP\_HTTP}} > 1500\text{ms}$, if $p95$ degrades by $>25\%$, or if error rate $>0\%$.
+* **Alternatives Considered**:
+  * *Measuring only end-to-end user latency*: Rejected because cloud LLM token generation latency (1.8s – 4.0s) would mask underlying MCP and database performance characteristics.
+  * *Fabricating synthetic in-memory cache hits*: Rejected because reporting artificial cache hits without implementing true caching violates execution integrity.
+* **Reasons**: Provides rigorous, reproducible, and cost-effective performance telemetry while preserving tenant isolation, evidence grounding, and security invariants.
+* **Consequences**:
+  * Task P8-006 will implement `scripts/benchmark-mcp.js`, execute deterministic benchmark suites, generate `docs/mcp-performance-baseline.md`, and verify live Golden Path latency.
+* **Revisit Conditions**: When distributed caching (e.g. Redis) or streaming MCP transports are introduced in later phases.
 
