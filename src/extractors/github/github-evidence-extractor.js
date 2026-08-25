@@ -143,7 +143,7 @@ export class GitHubEvidenceExtractorService {
           recursive: true,
         }
       );
-      treeEntries = treeResult?.tree || [];
+      treeEntries = treeResult?.entries || treeResult?.tree || [];
     } catch (err) {
       logger.warn(
         { err: err.message, resourceId, externalResourceId },

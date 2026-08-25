@@ -10,6 +10,7 @@ import integrationsRoutes from './routes/integrations.routes.js';
 import webhooksRoutes from './routes/webhooks.routes.js';
 import mcpRoutes from './routes/mcp.routes.js';
 import oauthRoutes from './routes/oauth.routes.js';
+import candidateRoutes from './routes/candidate.routes.js';
 import { config } from './config/env.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
@@ -130,6 +131,13 @@ export function buildApp(opts = {}) {
     oauthService: opts.oauthService,
     auditService: opts.auditService,
     db: opts.db,
+  });
+
+  // Candidate Repository Sync Routes (/candidate/sync-repositories)
+  app.register(candidateRoutes, {
+    prefix: '/candidate',
+    db: opts.db,
+    ingestionService: opts.ingestionService,
   });
 
   // Root platform status verification endpoint

@@ -2469,6 +2469,33 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
-  * Status: **`P10-001 COMPLETE & VERIFIED`**.
+* **CANDIDATE REPOSITORY INGESTION & EVIDENCE/SKILLS PIPELINE SYNC (P5 / MCP PIPELINE FIX — Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/services/candidate-repository-ingestion.service.js`: Provider-neutral `CandidateRepositoryIngestionService` orchestrating the complete synchronization pipeline: discovers active connected repositories for candidate, decrypts credentials transiently, executes deep static extraction (package manifests, code imports, config patterns, commits, README), ensures idempotent project genesis ($1\text{ Resource} \ne 1\text{ Project}$) with slug generation, establishes `project_resources` relations, links all extracted `evidence_items` with `projectId`, recalculates `candidate_skills` rollups (`VERIFIED` vs `INFERRED`), and auto-registers `GITHUB_APP` connector when env credentials exist.
+    * `src/routes/candidate.schemas.js`: Zod schemas validating `SyncRepositoriesBodySchema` (optional `resourceId` UUID) and `SyncRepositoriesResponseSchema` with zero credential or secret emission.
+    * `src/routes/candidate.routes.js`: Fastify route `POST /candidate/sync-repositories` protected by server-side `authenticate` session middleware and `verifyCsrf` Origin validation. Resolves candidate from authenticated user session.
+    * `src/app.js`: Registered `candidateRoutes` under `/candidate` prefix.
+    * `src/extractors/github/github-evidence-extractor.js`: Fixed `treeEntries` extraction to check `treeResult.entries` before falling back to `treeResult.tree`, enabling full directory tree traversal, manifest scanning (`package.json`), import scanning, and config matching.
+    * `tests/unit/candidate-repository-ingestion.test.js`: 14 unit tests verifying slug generation, summary building from metadata, zero-state summaries, and validation guards.
+    * `tests/integration/candidate-repository-ingestion.test.js`: 7 live PostgreSQL integration tests verifying the full golden path (`Resource` $\rightarrow$ `Project` $\rightarrow$ `Deep Evidence` $\rightarrow$ `Verified Skills`), idempotency across consecutive runs, multi-tenant 404 default-deny isolation, connector error resilience, and specific resource targeting.
+  * Live Verification on Connected Repository (`vishu1803/Ai-job-mcp`):
+    * Discovered connected GitHub App resource (`556e6240-03c2-4d46-bf62-0c8d7cf9cb35`).
+    * Generated domain project `f68e4520-52bd-4355-822f-2bc0a02d8c5f` (`vishu1803/Ai-job-mcp`, `slug: ai-job-mcp`, `highlighted: true`).
+    * Linked `project_resources` with `roleInProject: 'Primary Repository'`.
+    * Extracted 32 evidence items across manifests (18), imports (6), config patterns (2), README (3), and directory structures (3).
+    * Linked 32/32 evidence items with `projectId`.
+    * Rolled up 19 `VERIFIED` candidate skills (Drizzle ORM [1.0], Fastify [1.0], PostgreSQL [1.0], Zod [0.85], Pino [0.85], Dotenv [0.85], Node.js [0.72], JavaScript [0.64], GitHub Actions [0.72], Genai [0.85], Prettier, ESLint, etc.).
+    * Live MCP Tool Verification:
+      - `get_candidate_profile`: Returns 1 highlighted project (`Ai-job-mcp`) with 32 verified signals and top 15 verified skills.
+      - `list_verified_skills`: Returns 19 verified skills with authentic evidence and timestamps.
+      - `analyze_job_fit`: Returns ATS score, matched key skills (`javascript`, `node-js`, `fastify`, `postgresql`, `drizzle-orm`, `zod`), and project relevance ranking.
+  * Automated Verification Results:
+    * `node --test tests/unit/candidate-repository-ingestion.test.js` -> PASS (14/14 tests passed in 22ms)
+    * `node --test tests/integration/candidate-repository-ingestion.test.js` -> PASS (7/7 tests passed against PostgreSQL in 220s with clean pool drain)
+    * `npm run test:unit` -> PASS (1046/1046 tests passed across 264 suites in 26.2s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (All files 100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+  * Status: **`COMPLETE & VERIFIED`**.
 
 ---
