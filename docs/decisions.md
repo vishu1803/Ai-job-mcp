@@ -1313,3 +1313,28 @@
   * Task P9-004 will implement `GitHubWriteSafetyService`, integrate it into `GitHubWriteService`, and author comprehensive unit, fuzz/property-based, and integration test suites.
 * **Revisit Conditions**: When user-configurable branch policies or multi-branch enhancement workflows are introduced in Phase 15.
 
+---
+
+### ADR-056: Model Context Protocol (MCP) GitHub Write Tools Architecture & Human Approval Boundary
+* **Status**: ACCEPTED
+* **Date**: 2026-08-25
+* **Context**: In Phase 9 (Task P9-005A), we designed the Model Context Protocol (MCP) interface to expose safe, approved GitHub write capabilities to AI clients (Gemini, Claude, ChatGPT). We must establish strict tool boundaries, prevent the introduction of generic write primitives, eliminate AI self-approval loops, enforce sovereign multi-tenant isolation, and ensure that MCP functions strictly as a transport/interface layer over our existing domain services, approval state machine, and write safety kernel.
+* **Decision**: Adopt the **MCP GitHub Write Tools Architecture** defined in `docs/mcp-write-tools-architecture.md` (`ARCH-035`) governed by the following core architectural decisions:
+  * **Exactly Two Domain-Specific Tools**: Expose only `propose_project_improvement` and `confirm_and_create_pr`. Generic write primitives (`modify_repository`, `write_file`, `create_commit`, `create_branch`, `execute_command`) are strictly prohibited to prevent unconstrained AI code execution and comply with the Inverse Authority Principle and OWASP LLM08.
+  * **MCP as Pure Interface Layer**: The MCP handlers contain zero duplicated scoring, diff generation, or GitHub API execution logic. Handlers act as pure routing conduits: `propose` delegates to `ProjectImprovementRecommenderService` and `ActionApprovalTicketService.createTicket()`; `confirm` delegates to `ActionApprovalTicketService.approveTicket()` and `GitHubWriteService.executeApprovedTicket()`.
+  * **Zero Client-Supplied Identity Trust**: Handlers derive `tenantId`, `userId`, and `role` exclusively from the immutable `McpRequestContext` minted by `authenticateMcpRequest()`. Client payloads cannot supply or override tenant or user bindings.
+  * **Role-Based Access Control & Scope Ceilings**: Both write tools enforce `requiredRole: 'MEMBER'` and `requiredScopes: ['career:write']`. Callers with `READONLY` role or `career:read` tokens are rejected with `403 Forbidden`.
+  * **Strict Minimal Confirm Input Schema**: `confirm_and_create_pr` accepts only `{ ticketId, confirmed: true, idempotencyKey, userNotes }`. It strictly rejects arbitrary `repository`, `branch`, `patch`, `commitMessage`, or `files`. All execution parameters are sourced exclusively from the approved database ticket record.
+  * **Anti-AI Self-Approval Stopping Protocol**: Proposal tool output includes explicit machine-readable stopping instructions and requires a physical human review boundary before issuing confirmation. The approving user ID is permanently recorded in the database record and audit logs.
+  * **Sovereign Multi-Tenant Isolation (404 Default-Deny)**: Cross-tenant ticket, candidate, job, or repository access fails closed with `404 Not Found` to prevent entity enumeration.
+  * **Accurate MCP Tool Annotations (2026-07-28 Spec)**: Tools declare explicit hints (`readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true` for confirm).
+  * **Comprehensive Error Model & Data Minimization**: Internal errors map cleanly to JSON-RPC 2.0 codes (`-32001`, `-32003`, `-32004`, `-32009`, `-32029`, `-32602`) with zero credential leaks or stack traces. Outbound responses omit HMAC secrets and installation tokens.
+* **Alternatives Considered**:
+  * *Exposing a generic `write_file` or `apply_patch` MCP tool*: Rejected because raw mutation tools bypass human approval boundaries, break optimistic concurrency locks, and create severe security risks.
+  * *Allowing autonomous AI tool loops to approve tickets in the same turn*: Rejected because it destroys human-in-the-loop oversight and violates OWASP LLM08.
+  * *Passing patch diffs directly in the confirm tool payload*: Rejected because it allows clients to tamper with approved code diffs prior to execution.
+* **Reasons**: Guarantees airtight security, provider independence, strict multi-tenant isolation, and complete traceability while delivering an intuitive, powerful MCP interface for AI-assisted career enhancement.
+* **Consequences**:
+  * Task P9-005 will implement the MCP tool schemas in `src/domain/mcp/career-write-tools.schemas.js`, handlers in `src/mcp/tools/career-write-tools.js`, server registration in `src/mcp/server.js`, and comprehensive unit/integration/live test suites.
+* **Revisit Conditions**: When multi-party approval policies (e.g. recruiter + candidate dual-signature) are integrated in Phase 13.
+
