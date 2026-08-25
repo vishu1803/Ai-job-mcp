@@ -9,6 +9,7 @@ import connectionsRoutes from './routes/connections.routes.js';
 import integrationsRoutes from './routes/integrations.routes.js';
 import webhooksRoutes from './routes/webhooks.routes.js';
 import mcpRoutes from './routes/mcp.routes.js';
+import oauthRoutes from './routes/oauth.routes.js';
 import { config } from './config/env.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
@@ -120,7 +121,15 @@ export function buildApp(opts = {}) {
     db: opts.db,
     rateLimiter: opts.rateLimiter,
     tokenService: opts.tokenService,
+    oauthService: opts.oauthService,
     auditService: opts.auditService,
+  });
+
+  // OAuth 2.1 & RFC 9728 / RFC 8414 Metadata Discovery Routes (/.well-known, /oauth)
+  app.register(oauthRoutes, {
+    oauthService: opts.oauthService,
+    auditService: opts.auditService,
+    db: opts.db,
   });
 
   // Root platform status verification endpoint

@@ -677,6 +677,100 @@ export const actionApprovalTickets = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// OAuth 2.1 & Remote MCP Authorization (P10-001)
+// ---------------------------------------------------------------------------
+
+/**
+ * OAuth client type classification.
+ */
+export const oauthClientTypeEnum = pgEnum('oauth_client_type', ['PUBLIC', 'CONFIDENTIAL']);
+
+/**
+ * Registered OAuth 2.1 Clients (e.g. Anthropic Claude).
+ */
+export const oauthClients = pgTable(
+  'oauth_clients',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clientId: text('client_id').notNull().unique(),
+    clientName: text('client_name').notNull(),
+    clientType: oauthClientTypeEnum('client_type').notNull().default('PUBLIC'),
+    redirectUris: jsonb('redirect_uris').notNull(), // string[]
+    allowedGrantTypes: jsonb('allowed_grant_types').notNull(), // string[]
+    allowedScopes: jsonb('allowed_scopes').notNull(), // string[]
+    isTrusted: boolean('is_trusted').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('uq_oauth_clients_client_id').on(table.clientId)]
+);
+
+/**
+ * Single-use OAuth 2.1 Authorization Codes with PKCE (S256).
+ */
+export const oauthAuthorizationCodes = pgTable(
+  'oauth_authorization_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    codeHash: text('code_hash').notNull().unique(),
+    clientId: text('client_id').notNull(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    redirectUri: text('redirect_uri').notNull(),
+    codeChallenge: text('code_challenge').notNull(),
+    codeChallengeMethod: text('code_challenge_method').notNull().default('S256'),
+    scopes: jsonb('scopes').notNull(), // string[]
+    isConsumed: boolean('is_consumed').notNull().default(false),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_oauth_auth_codes_lookup').on(table.clientId, table.codeHash),
+    index('idx_oauth_auth_codes_expires_at').on(table.expiresAt),
+    index('idx_oauth_auth_codes_tenant_user').on(table.tenantId, table.userId),
+  ]
+);
+
+/**
+ * OAuth 2.1 Access & Refresh Tokens with Rotation & Revocation.
+ */
+export const oauthTokens = pgTable(
+  'oauth_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    clientId: text('client_id').notNull(),
+    accessTokenHash: text('access_token_hash').notNull().unique(),
+    refreshTokenHash: text('refresh_token_hash').unique(),
+    familyId: uuid('family_id').notNull(),
+    tokenScopes: jsonb('token_scopes').notNull(), // string[]
+    isRevoked: boolean('is_revoked').notNull().default(false),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }).notNull(),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_oauth_tokens_access_hash').on(table.accessTokenHash),
+    index('idx_oauth_tokens_refresh_hash').on(table.refreshTokenHash),
+    index('idx_oauth_tokens_family_id').on(table.familyId),
+    index('idx_oauth_tokens_tenant_user').on(table.tenantId, table.userId),
+    index('idx_oauth_tokens_expires_at').on(table.accessTokenExpiresAt),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
 
@@ -696,6 +790,7 @@ export const schema = {
   mcpTokenStatusEnum,
   mcpClientTypeEnum,
   approvalTicketStatusEnum,
+  oauthClientTypeEnum,
   tenants,
   users,
   sessions,
@@ -711,4 +806,7 @@ export const schema = {
   evidenceItems,
   mcpApiTokens,
   actionApprovalTickets,
+  oauthClients,
+  oauthAuthorizationCodes,
+  oauthTokens,
 };

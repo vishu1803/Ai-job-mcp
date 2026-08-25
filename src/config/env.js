@@ -72,6 +72,21 @@ const envSchema = z
     SESSION_COOKIE_SECRET: z.string().optional().default(''),
     SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(604800),
     APP_URL: z.string().default('http://localhost:3000'),
+    OAUTH_ISSUER_URL: z
+      .string()
+      .default(
+        () => process.env.OAUTH_ISSUER_URL || process.env.APP_URL || 'http://localhost:3000'
+      ),
+    OAUTH_RESOURCE_URL: z
+      .string()
+      .default(
+        () =>
+          process.env.OAUTH_RESOURCE_URL ||
+          (process.env.APP_URL ? `${process.env.APP_URL}/mcp` : 'http://localhost:3000/mcp')
+      ),
+    OAUTH_ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
+    OAUTH_REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(2592000),
+    OAUTH_AUTH_CODE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && !data.ENCRYPTION_MASTER_KEY) {

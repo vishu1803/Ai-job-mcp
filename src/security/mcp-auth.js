@@ -20,6 +20,7 @@ import {
   hashMcpToken,
   ROLE_SCOPE_CEILINGS,
 } from '../services/mcp-api-token.service.js';
+import { defaultOAuthAuthorizationService } from '../services/oauth-authorization.service.js';
 
 export { hashMcpToken };
 
@@ -56,16 +57,17 @@ export function extractBearerToken(authHeader) {
 
 /**
  * Authenticates an incoming MCP HTTP request and mints a trusted McpRequestContext.
- * Prioritizes dedicated MCP API tokens; falls back to transitional session tokens if present.
+ * Prioritizes dedicated MCP API tokens and OAuth 2.1 access tokens; falls back to transitional session tokens if present.
  *
  * @param {import('fastify').FastifyRequest} req Fastify request
- * @param {object} [options={}] Optional overrides (e.g. database client, tokenService)
+ * @param {object} [options={}] Optional overrides (e.g. database client, tokenService, oauthService)
  * @returns {Promise<import('../domain/mcp/mcp.schemas.js').McpRequestContextSchema>} Immutable trusted context
  * @throws {AuthenticationError} If authentication fails
  */
 export async function authenticateMcpRequest(req, options = {}) {
   const database = options.db || req.db || db;
   const tokenService = options.tokenService || defaultMcpApiTokenService;
+  const oauthService = options.oauthService || defaultOAuthAuthorizationService;
   const rawToken = extractBearerToken(req.headers['authorization']);
 
   const now = new Date();
@@ -93,6 +95,35 @@ export async function authenticateMcpRequest(req, options = {}) {
       tokenScopes: effectiveScopes,
       authMethod: 'MCP_API_TOKEN',
       clientInfo,
+      authenticatedAt: now.toISOString(),
+    };
+
+    const parsedContext = McpRequestContextSchema.parse(rawContext);
+    return Object.freeze(parsedContext);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Path 2: OAuth 2.1 Bearer Token (`mcp_oauth_acc_<hex>`)
+  // ---------------------------------------------------------------------------
+  const isOAuthTokenFormat = /^mcp_oauth_acc_[0-9a-fA-F]{64}$/.test(rawToken);
+
+  if (isOAuthTokenFormat) {
+    const { user, tenant, effectiveScopes, clientId } = await oauthService.validateAccessToken(
+      rawToken,
+      { db: database }
+    );
+
+    const rawContext = {
+      requestId: req.id || crypto.randomUUID(),
+      tenantId: tenant.id,
+      userId: user.id,
+      role: user.role,
+      tokenScopes: effectiveScopes,
+      authMethod: 'OAUTH_BEARER',
+      clientInfo: {
+        ...clientInfo,
+        clientId,
+      },
       authenticatedAt: now.toISOString(),
     };
 

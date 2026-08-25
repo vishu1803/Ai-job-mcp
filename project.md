@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 10 — Claude Integration (Second Target AI Client)** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 (P10-001A Approved; ready for P10-001) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; all 57 milestone tasks verified; P10-001A approved; ready for P10-001 (Claude Remote MCP Custom Connector endpoint compatibility) |
+| **Current Phase** | **PHASE 10 — Claude Integration (Second Target AI Client)** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 (P10-001 Complete & Verified; ready for P10-002A) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; P10-001 verified; ready for P10-002A (Architecture Review for Claude Free & Claude Pro/Team multi-connector compatibility) |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **57 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A, P10-001A approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P10-001 |
+| **Completed Tasks** | **58 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) + Phase 10 (1) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A, P10-001A approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P10-002A |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **70.4% (57 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **62.5% (10 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-9 100% complete) |
+| **Overall Task Completion** | **71.6% (58 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **64.1% (10.25 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-9 100% complete, Phase 10 25% complete) |
 
 ---
 
@@ -34,13 +34,13 @@
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0% (P9-001 through P9-006 Complete & Verified)** |
-| **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
+| **PHASE 10** | Claude Integration | 4 | 1 | 0 | **IN_PROGRESS** | **25.0% (P10-001 Complete & Verified)** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **81** | **57** | **0** | **IN_PROGRESS** | **70.4%** |
+| **TOTAL** | **All Phases Combined** | **81** | **58** | **0** | **IN_PROGRESS** | **71.6%** |
 
 ---
 
@@ -248,7 +248,7 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P10-001A** | Claude Remote MCP Connector & OAuth 2.1 Architecture & Security Review | P9-006 | **COMPLETE & APPROVED** | Architectural specification `docs/claude-mcp-connector-architecture.md` (`ARCH-037`), `ADR-058` in `docs/decisions.md`. Established Streamable HTTP transport compatibility, OAuth 2.1 Authorization Code Flow with mandatory PKCE S256, RFC 9728 Protected Resource Metadata discovery (`/.well-known/oauth-protected-resource`), RFC 8414 OAuth Authorization Server Metadata discovery (`/.well-known/oauth-authorization-server`), public client registration for Claude Web / Desktop / CLI, immutable token claim identity mapping (`sub`, `tid`, `role`, `scope`), strict role ceiling clamping, zero write bypass / self-approval prevention, public HTTPS perimeter protection (TLS 1.2+, Origin header validation against DNS rebinding), 16-scenario threat model (T-01 to T-16), structured OAuth audit events, and live test strategy against `vishu1803/Ai-job-mcp`. |
-| **P10-001** | Configure Claude Remote MCP Custom Connector endpoint compatibility (Public HTTPS, OAuth 2.1) | P7-003, P10-001A | NOT_STARTED | Verify Claude Desktop & Web connector handshake succeeds |
+| **P10-001** | Configure Claude Remote MCP Custom Connector endpoint compatibility (Public HTTPS, OAuth 2.1) | P7-003, P10-001A | **COMPLETE & VERIFIED** | Implemented OAuth 2.1 Authorization Code Flow with PKCE S256 (`src/services/oauth-authorization.service.js`, `src/routes/oauth.routes.js`, `src/domain/oauth/oauth.schemas.js`), RFC 9728 & RFC 8414 metadata discovery endpoints, Refresh Token Rotation (RTR), token revocation, and dual-auth facade in `src/security/mcp-auth.js`. Applied database migration `drizzle/0005_mushy_the_initiative.sql` creating `oauth_clients`, `oauth_authorization_codes`, and `oauth_tokens` tables. Verified via 17 unit tests (10 in `tests/unit/oauth-authorization-server.test.js`, 7 in `tests/unit/mcp-auth.test.js`), 17 live Fastify+PostgreSQL integration tests (`tests/integration/claude-mcp-connector.test.js`), and full 51-test MCP integration test suite. 100% test pass with 0 DB leaks. |
 | **P10-002** | Validate Claude Free (1-connector limit) and Claude Pro/Team multi-connector compatibility | P10-001 | NOT_STARTED | Execute candidate analysis and resume tailoring tools via Claude interface |
 | **P10-003** | Verify provider-neutral prompt adherence: Claude receives identical tool responses as Gemini | P8-003, P10-002 | NOT_STARTED | Compare tool execution outputs between Gemini and Claude on identical inputs |
 | **P10-004** | Document Claude custom connector setup guide and troubleshooting instructions | P10-002 | NOT_STARTED | Step-by-step verified documentation in repository |
@@ -2429,5 +2429,38 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * **Structured OAuth Audit Telemetry**: Emits distinct audit events (`oauth.authorize.requested`, `oauth.consent.granted`, `oauth.token.issued`, `oauth.token.refreshed`, `oauth.token.revoked`, `oauth.token.rejected`, `mcp.oauth.authenticated`).
     * **Live Validation Strategy**: Defined safe validation workflow on sandbox repository `vishu1803/Ai-job-mcp`.
   * Status: **`P10-001A APPROVED`**.
+
+* **P10-001 (Configure Claude Remote MCP Custom Connector Endpoint Compatibility & OAuth 2.1 — Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/domain/oauth/oauth.schemas.js`: Canonical Zod schemas for OAuth Protected Resource Metadata (RFC 9728), Authorization Server Metadata (RFC 8414), Authorize Query (`OAuthAuthorizeQuerySchema`), Token Request (`OAuthTokenRequestSchema`), and Revocation (`OAuthRevokeRequestSchema`).
+    * `src/domain/mcp/mcp.schemas.js`: Extended `McpAuthMethodEnum` with `OAUTH_BEARER` and `McpClientInfoSchema` with optional `clientId`.
+    * `src/db/schema.js`: Drizzle ORM tables `oauthClients`, `oauthAuthorizationCodes`, `oauthTokens` with relational cascades and indexes.
+    * `drizzle/0005_mushy_the_initiative.sql`: PostgreSQL DDL migration creating `oauth_clients`, `oauth_authorization_codes`, and `oauth_tokens` tables.
+    * `src/config/env.js`: Environment configuration for OAuth settings (`OAUTH_PUBLIC_BASE_URL`, `OAUTH_ACCESS_TOKEN_TTL_SECONDS`, `OAUTH_REFRESH_TOKEN_TTL_SECONDS`, `OAUTH_AUTH_CODE_TTL_SECONDS`).
+    * `src/services/oauth-authorization.service.js`: Provider-neutral `OAuthAuthorizationService` implementing PKCE S256 validation (constant-time comparison), Refresh Token Rotation (RTR), token family replay detection and automatic revocation, role-based scope ceiling clamping, and constant-time token SHA-256 hashing (`mcp_oauth_acc_*`, `mcp_oauth_ref_*`).
+    * `src/security/mcp-auth.js`: Dual-authentication facade in `authenticateMcpRequest()` verifying personal API tokens (`mcp_token_*`) and OAuth Bearer tokens (`mcp_oauth_acc_*`), minting the identical frozen `McpRequestContext`.
+    * `src/routes/mcp.routes.js`: Protected MCP endpoint rejecting query parameter tokens (`400 QUERY_TOKEN_PROHIBITED`) and emitting RFC 9728 `WWW-Authenticate: Bearer realm="mcp", resource_metadata="..."` headers on unauthenticated 401 requests.
+    * `src/routes/oauth.routes.js`: Fastify OAuth 2.1 endpoints (`GET /.well-known/oauth-protected-resource`, `GET /.well-known/oauth-authorization-server`, `GET /oauth/authorize`, `POST /oauth/token`, `POST /oauth/revoke`).
+    * `src/app.js`: Registered `oauthRoutes` and injected `oauthService` into `mcpRoutes`.
+    * `tests/unit/oauth-authorization-server.test.js`: 10 unit tests verifying cryptographic hashing, PKCE verification, client redirect matching, and OAuth service flows.
+    * `tests/unit/mcp-auth.test.js`: 7 unit tests verifying token format routing, inactive user rejection, and dual-auth facade operation.
+    * `tests/integration/claude-mcp-connector.test.js`: 17 Fastify + PostgreSQL integration tests exercising full OAuth 2.1 Authorization Code Flow with PKCE S256, metadata discovery, token refresh rotation, replay revocation, token revocation, scope ceiling clamping, and MCP tool execution (`tools/list`, `tools/call`) over OAuth Bearer token.
+  * Architectural Findings & Invariants Enforced:
+    * **OAuth 2.1 Facade Pattern**: Personal tokens (`mcp_token_*`) and OAuth Bearer tokens (`mcp_oauth_acc_*`) converge into the identical trusted `McpRequestContext`.
+    * **Strict PKCE S256 Enforcement**: Prohibits plain PKCE and grants without `code_challenge_method=S256`.
+    * **Refresh Token Rotation & Replay Defense**: Replaying an expired or already-rotated refresh token immediately revokes all active access and refresh tokens in that token family.
+    * **Multi-Tenant Sovereign Default-Deny**: Tenant and user IDs are cryptographically pinned inside the hashed token record in PostgreSQL. Cross-tenant MCP invocations fail closed with `404 Not Found`.
+    * **Query Token Prohibition**: URL query parameter tokens are rejected with `400 Bad Request` to prevent token leakage in server logs.
+  * Automated Verification Results:
+    * `node --test tests/unit/oauth-authorization-server.test.js` -> PASS (10/10 tests passed)
+    * `node --test tests/unit/mcp-auth.test.js` -> PASS (7/7 tests passed)
+    * `tests/integration/claude-mcp-connector.test.js` -> PASS (17/17 tests passed)
+    * MCP Integration Suite (5 suites, 51 tests) -> PASS (51/51 tests passed)
+    * `npm run test:db-lifecycle-check` -> PASS (38 DB-using files verified, 0 violations)
+    * `npm run test:unit` -> PASS (1023/1023 tests passed across 258 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+  * Status: **`P10-001 COMPLETE & VERIFIED`**.
 
 ---

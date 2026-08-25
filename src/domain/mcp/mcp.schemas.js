@@ -52,13 +52,14 @@ export const McpClientTypeEnum = z.enum(['PERSONAL', 'THIRD_PARTY']);
 /**
  * MCP authentication method types.
  */
-export const McpAuthMethodEnum = z.enum(['MCP_API_TOKEN', 'SESSION_FALLBACK']);
+export const McpAuthMethodEnum = z.enum(['MCP_API_TOKEN', 'SESSION_FALLBACK', 'OAUTH_BEARER']);
 
 /**
  * Client connection and environment metadata.
  */
 export const McpClientInfoSchema = z
   .object({
+    clientId: z.string().max(128).optional(),
     userAgent: z.string().max(256).optional(),
     protocolVersion: z.string().max(64).default('2026-07-28'),
     ipAddress: z.string().max(64).default('127.0.0.1'),

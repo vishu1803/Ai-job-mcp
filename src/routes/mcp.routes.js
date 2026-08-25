@@ -17,6 +17,7 @@ import { authenticateMcpRequest } from '../security/mcp-auth.js';
 import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
 import { McpAuditService, defaultMcpAuditService } from '../services/mcp-audit.service.js';
 import { ValidationError, AppError } from '../errors/index.js';
+import { config } from '../config/env.js';
 
 /**
  * Checks for prototype pollution attempts and excessive nesting depth in JSON payloads.
@@ -117,6 +118,7 @@ export async function mcpRoutes(fastify, opts = {}) {
   const mcpServer = opts.mcpServer || createCareerMcpServer({ deps: { db } });
   const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
   const tokenService = opts.tokenService || fastify.tokenService;
+  const oauthService = opts.oauthService || fastify.oauthService;
   const auditService =
     opts.auditService ||
     (db ? new McpAuditService({ db, logger: fastify.log }) : defaultMcpAuditService);
@@ -139,6 +141,14 @@ export async function mcpRoutes(fastify, opts = {}) {
         // Set correlation header
         reply.header('x-request-id', requestId);
 
+        // 0. Query token prohibition guard (RFC 9700 / MCP spec)
+        if (req.query && (req.query.token || req.query.access_token)) {
+          throw new ValidationError(
+            'Passing Bearer tokens via query parameters is strictly prohibited by MCP security specifications. Use Authorization: Bearer header.',
+            'QUERY_TOKEN_PROHIBITED'
+          );
+        }
+
         // 1. IP Rate Limiting Tier
         const clientIp =
           req.ip || /** @type {string} */ (req.headers['x-forwarded-for']) || '127.0.0.1';
@@ -153,7 +163,7 @@ export async function mcpRoutes(fastify, opts = {}) {
         validateHeaderRouting(req);
 
         // 4. Authenticate request & mint sovereign McpRequestContext
-        context = await authenticateMcpRequest(req, { db, tokenService });
+        context = await authenticateMcpRequest(req, { db, tokenService, oauthService });
 
         // 5. Tenant & Tool Compute Rate Limiting Tiers
         rateLimiter.checkTenantLimit(context.tenantId);
@@ -384,6 +394,14 @@ export async function mcpRoutes(fastify, opts = {}) {
         reply.status(statusCode);
         reply.header('content-type', 'application/json');
         reply.header('x-request-id', requestId);
+
+        if (statusCode === 401) {
+          const issuer = config.OAUTH_ISSUER_URL || config.APP_URL || 'http://localhost:3000';
+          reply.header(
+            'www-authenticate',
+            `Bearer realm="mcp", resource_metadata="${issuer}/.well-known/oauth-protected-resource"`
+          );
+        }
 
         return reply.send({
           jsonrpc: '2.0',
