@@ -61,6 +61,7 @@
 | **ADR-052** | Approved GitHub / Project Modification Workflows & Human-in-the-Loop Safety Architecture | **ACCEPTED** | 2026-08-25 |
 | **ADR-053** | Two-Phase Action Approval State Machine & Cryptographic Binding Architecture | **ACCEPTED** | 2026-08-25 |
 | **ADR-054** | GitHub Write Operations & Low-Level Git Data API Integration Architecture | **ACCEPTED** | 2026-08-25 |
+| **ADR-055** | GitHub Write Safety Constraints & Centralized Execution Kernel Architecture | **ACCEPTED** | 2026-08-25 |
 
 ---
 
@@ -1284,7 +1285,31 @@
   * *Autonomous merging of Pull Requests*: Rejected because PR merge authority must remain exclusively with repository owners.
 * **Reasons**: Guarantees atomic, verifiable, and safe repository enhancements while maintaining complete candidate control and least-privilege security boundaries.
 * **Consequences**:
-  * Task P9-003 will enhance `GitHubAppAuthManager` token scoping, implement Git Data API write methods in `GitHubAppConnector`, build `GitHubWriteService`, and author comprehensive unit/integration/live sandbox test suites.
-  * Task P9-004 will consolidate execution safety invariants.
+  * Task P9-003 implemented `GitHubAppAuthManager` dynamic token scoping, Git Data API write methods in `GitHubAppConnector`, and `GitHubWriteService`.
+  * Task P9-004 will consolidate execution safety invariants into a centralized safety kernel.
 * **Revisit Conditions**: When automated branch rebasing or sandbox CI test execution workflows are introduced in Phase 15.
+
+---
+
+### ADR-055: GitHub Write Safety Constraints & Centralized Execution Kernel Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-25
+* **Context**: In Phase 9 (Task P9-004A), we reviewed the security and architectural invariants required to guarantee that AI-driven repository write actions NEVER mutate default or protected branches, never alter CI/CD pipelines, never inject secrets, and never bypass human approval state machine boundaries.
+* **Decision**: Adopt the **Centralized Write Safety Architecture** defined in `docs/github-write-safety-architecture.md` (`ARCH-034`) governed by the following core architectural decisions:
+  * **Centralized Safety Kernel (`GitHubWriteSafetyService`)**: Introduce a dedicated, authoritative domain service owning all pre-execution validation gates (`validateBranchPolicy`, `validateGitRef`, `validatePatchPolicy`, `scanForSecrets`, `validateApprovalBinding`, `validateExpectedHeadSha`, `validateTokenPermissions`). `GitHubWriteService` and all future MCP write tools must route strictly through this kernel.
+  * **Static & Authoritative Dynamic Default Branch Protection**: Enforces a strict static blocklist (`main`, `master`, `develop`, `release/*`, `prod*`, `v*`) and queries GitHub repository metadata (`default_branch`) on every execution. Direct modification of the repository default branch is physically prohibited with `ForbiddenOperationError(PROTECTED_DEFAULT_BRANCH)`.
+  * **Target vs. Base Branch Separation**: Enforces `targetBranch !== baseBranch` on all write operations. All writes must target an isolated feature branch matching `^feat/career-hub-[a-z0-9-]+$`.
+  * **Strict Git Ref Whitelist**: Only refs matching `refs/heads/feat/career-hub-[a-z0-9-]+` are allowed for creation. Tag injection (`refs/tags/*`), remote ref tampering (`refs/remotes/*`), and ref injection are strictly blocked.
+  * **Physical Force-Push Elimination**: `createGitRef` omits force flags; `updateGitRef` is completely unexposed in `GitHubAppConnector`.
+  * **Defense-in-Depth Patch Policy**: Re-validates POSIX path normalization, blocks directory traversal (`..`), hidden control directories (`.git/`, `.husky/`), CI/CD workflow files (`.github/workflows/*`, `.gitlab-ci*`, `Jenkinsfile`), environment/credential files (`.env*`, `*.pem`, `*.key`), and 38 binary file extensions.
+  * **Pre-Execution High-Entropy Secret Scanning**: Scans all patch contents, file paths, commit messages, PR titles, and PR bodies for secrets via `SecretScrubber` before any Git Data API call.
+  * **Optimistic Concurrency & Live Base HEAD SHA Enforcement**: Live base branch HEAD commit SHA must match `ticket.expectedHeadSha` prior to tree creation. Divergence fails closed with `StaleHeadShaError` (`409 Conflict`).
+  * **Structured Audit Logging**: Every safety rejection emits an asynchronous, redacted audit record to `audit_logs` (`github.write.blocked.*`).
+* **Alternatives Considered**:
+  * *Relying solely on GitHub branch protection rules*: Rejected because GitHub branch protection rules may not be configured on personal/free repositories and do not prevent AI-generated workflow poisoning.
+  * *Decentralizing validation inside individual route/MCP handlers*: Rejected because it permits bypass by alternate callers or future tool additions.
+* **Reasons**: Guarantees non-bypassable, deterministic defense-in-depth across all repository write operations while preserving least-privilege security boundaries.
+* **Consequences**:
+  * Task P9-004 will implement `GitHubWriteSafetyService`, integrate it into `GitHubWriteService`, and author comprehensive unit, fuzz/property-based, and integration test suites.
+* **Revisit Conditions**: When user-configurable branch policies or multi-branch enhancement workflows are introduced in Phase 15.
 
