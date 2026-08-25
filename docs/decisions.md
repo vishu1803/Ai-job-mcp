@@ -60,6 +60,7 @@
 | **ADR-051** | MCP Performance Benchmarking & Latency Target Architecture | **ACCEPTED** | 2026-08-24 |
 | **ADR-052** | Approved GitHub / Project Modification Workflows & Human-in-the-Loop Safety Architecture | **ACCEPTED** | 2026-08-25 |
 | **ADR-053** | Two-Phase Action Approval State Machine & Cryptographic Binding Architecture | **ACCEPTED** | 2026-08-25 |
+| **ADR-054** | GitHub Write Operations & Low-Level Git Data API Integration Architecture | **ACCEPTED** | 2026-08-25 |
 
 ---
 
@@ -1263,4 +1264,27 @@
   * Task P9-002 will implement `action_approval_tickets` table migration, `ActionApprovalTicketService`, repository layer, and comprehensive unit/integration test suites.
   * Task P9-003 will consume the approved ticket as its mandatory authorization token for GitHub branch and PR creation.
 * **Revisit Conditions**: When multi-party approval policies (e.g. enterprise recruiter + candidate dual-signature) are introduced in Phase 13.
+
+---
+
+### ADR-054: GitHub Write Operations & Low-Level Git Data API Integration Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-25
+* **Context**: In Phase 9 (Task P9-003A), we reviewed the architecture and security for performing approved GitHub repository mutations. We must establish a safe mechanism to apply multi-file patches, verify optimistic concurrency against live repository state, enforce least-privilege token scoping, open draft pull requests, and guarantee non-destructive rollback.
+* **Decision**: Adopt the **GitHub Write Operations Architecture** defined in `docs/github-write-operations-architecture.md` (`ARCH-033`) governed by the following core architectural decisions:
+  * **Low-Level Git Data API for Atomic Multi-File Commits**: Multi-file patches are applied via GitHub's Git Data API (`POST /git/trees` $\rightarrow$ `POST /git/commits` $\rightarrow$ `POST /git/refs`) creating exactly ONE atomic commit linking all patch files. The high-level Contents API (`PUT /contents/{path}`) is rejected because it generates $N$ non-atomic commits for $N$ files.
+  * **Mandatory Action Approval Ticket Authorization Gate**: `GitHubWriteService` cannot be invoked directly by AI agents or external clients. It strictly requires consuming an `APPROVED` `ActionApprovalTicket` via `ActionApprovalTicketService.consumeTicketForExecution()`.
+  * **Repository-Scoped Least-Privilege Installation Tokens**: Installation access tokens (`ghs_*`) are minted on-demand scoped strictly to the single target repository (`repositories: [targetRepo]`) and minimal permissions (`contents: write`, `pull_requests: write`). Administration, workflows, actions, and secrets permissions are strictly prohibited.
+  * **Live Base Branch HEAD SHA Verification**: Verifies `latestHeadSha === ticket.expectedHeadSha` before creating trees/commits. Mismatches immediately fail closed with `StaleHeadShaError` (`409 Conflict`) to prevent applying diffs onto diverged base commits.
+  * **Draft Pull Request Default**: All PRs are opened with `draft: true` against the repository's base branch with sanitized markdown templates containing full skill gap provenance, confidence scores, and testing instructions.
+  * **Non-Destructive Rollback**: If PR creation fails after a branch is created, the system deletes the isolated `feat/career-hub-*` branch ref. Rollback never touches default branches (`main`, `master`) and never rewrites Git history.
+* **Alternatives Considered**:
+  * *Using GitHub Contents API per-file*: Rejected because it creates broken intermediate build states and consumes excessive API rate limits.
+  * *Directly committing to protected main/master branches*: Rejected because it bypasses repository review policies and violates candidate safety.
+  * *Autonomous merging of Pull Requests*: Rejected because PR merge authority must remain exclusively with repository owners.
+* **Reasons**: Guarantees atomic, verifiable, and safe repository enhancements while maintaining complete candidate control and least-privilege security boundaries.
+* **Consequences**:
+  * Task P9-003 will enhance `GitHubAppAuthManager` token scoping, implement Git Data API write methods in `GitHubAppConnector`, build `GitHubWriteService`, and author comprehensive unit/integration/live sandbox test suites.
+  * Task P9-004 will consolidate execution safety invariants.
+* **Revisit Conditions**: When automated branch rebasing or sandbox CI test execution workflows are introduced in Phase 15.
 

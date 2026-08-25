@@ -9,10 +9,10 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A, P9-002A Approved; P9-001, P9-002 Complete & Verified) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 P9-001, P9-002 verified |
+| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A, P9-002A, P9-003A Approved; P9-001, P9-002 Complete & Verified) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 P9-001, P9-002 verified; P9-003A approved |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **53 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (2) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A approved) |
+| **Completed Tasks** | **53 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (2) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A approved) |
 | **In Progress Tasks** | **0 Tasks** | Ready for P9-003 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
 | **Overall Task Completion** | **65.4% (53 / 81 Tasks)** | Strict calculation, zero inflation |
@@ -232,7 +232,8 @@
 | **P9-001** | Implement Project Improvement Recommender (analyzes missing job skills and proposes concrete code/architecture additions) | P5-003, P9-001A | **COMPLETE & VERIFIED** | Implemented `ProjectImprovementRecommenderService`, domain schemas in `src/domain/career/project-improvement.schemas.js`, prompt policy in `src/clients/ai/prompt-policies/project-improvement.policy.js`, and documentation in `docs/project-improvement-recommender.md`. Verified via 19 unit tests (`tests/unit/project-improvement-recommender.test.js`), 2 integration tests (`tests/integration/project-improvement-recommender.test.js`), and live Vertex suite (`tests/integration/live/project-improvement-vertex.live.test.js`). 100% test pass with 0 DB leaks. |
 | **P9-002A** | Two-Phase Human-in-the-Loop Action Approval State Machine Architecture & Security Review | P9-001 | **COMPLETE & APPROVED** | Architectural specification `docs/approval-state-machine-architecture.md` (`ARCH-032`), `ADR-053` in `docs/decisions.md`. Established 8-state canonical lifecycle (`PENDING`, `APPROVED`, `EXECUTING`, `EXECUTED`, `REJECTED`, `CANCELLED`, `EXPIRED`, `FAILED`), HMAC-SHA256 payload canonicalization with HKDF tenant isolation, single-use atomic CAS row locking (`SELECT FOR UPDATE`), optimistic concurrency on base commit (`expectedHeadSha`), dual expiration ceilings (15m creation / 5m execution window), RBAC authorization matrix (`MEMBER`/`OWNER` only), and 15-scenario threat model. |
 | **P9-002** | Implement Two-Phase Human-in-the-Loop Action Approval State Machine (`propose_action` -> `ApprovalTicket` -> `confirm_action`) | P2-002, P9-001, P9-002A | **COMPLETE & VERIFIED** | Implemented `ActionApprovalTicketService` (`src/services/action-approval-ticket.service.js`), repository (`src/db/repositories/approval-ticket.repository.js`), crypto signer (`src/security/approval-signer.js`), domain schemas (`src/domain/career/approval-ticket.schemas.js`), typed errors (`src/errors/approval.errors.js`), and PostgreSQL migration (`0004_amused_red_shift.sql`). Verified via 11 unit tests (`tests/unit/action-approval-ticket.test.js`) and 7 transactional integration tests (`tests/integration/action-approval-ticket.test.js`). 100% test pass with 0 DB leaks. |
-| **P9-003** | Implement GitHub Write Operations: `create_branch`, `create_commit_patch`, `create_pull_request` | P3-001, P9-002 | NOT_STARTED | Integration test against test repository creating branch and draft PR |
+| **P9-003A** | GitHub Write Operations Architecture & Security Review | P9-002 | **COMPLETE & APPROVED** | Architectural specification `docs/github-write-operations-architecture.md` (`ARCH-033`), `ADR-054` in `docs/decisions.md`. Established low-level Git Data API strategy (`trees` -> `commits` -> `refs`) for atomic multi-file patches, mandatory `ActionApprovalTicket` authorization gate, dynamic installation token scoping (`contents: write`, `pull_requests: write`), live base branch HEAD SHA verification, Draft PR default with sanitized markdown template, 15-scenario threat model (T-01 to T-15), non-destructive rollback (`deleteRef`), and safe live sandbox test strategy against `vishu1803/Ai-job-mcp`. |
+| **P9-003** | Implement GitHub Write Operations: `create_branch`, `create_commit_patch`, `create_pull_request` | P3-001, P9-002, P9-003A | NOT_STARTED | Integration test against test repository creating branch and draft PR |
 | **P9-004** | Enforce Safety Constraints: write actions NEVER touch default branch (`main`/`master`); only create feature branches | P9-003 | NOT_STARTED | Security test asserting attempt to write to `main` throws `ForbiddenOperationError` |
 | **P9-005** | Expose MCP Write Tools: `propose_project_improvement`, `confirm_and_create_pr` | P7-001, P9-003 | NOT_STARTED | MCP integration test: AI proposes change, receives ticket, user confirms, PR is opened |
 | **P9-006** | Test PR diff preview and test suite execution reporting before user confirms | P9-005 | NOT_STARTED | Verify diff output and test status included in approval payload |
@@ -2230,5 +2231,19 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (100% Prettier compliant)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
   * Status: **`P9-002 COMPLETE & VERIFIED`**.
+
+* **P9-003A (GitHub Write Operations Architecture & Security Review — Completed & Approved)**:
+  * Deliverables Created:
+    * `docs/github-write-operations-architecture.md`: Comprehensive architectural specification (`ARCH-033`), `ADR-054` in `docs/decisions.md`.
+  * Architectural Findings & Design Specifications:
+    * **Git Data API over Contents API for Atomic Multi-File Commits**: Prohibited high-level `PUT /contents/{path}` which creates $N$ individual commits for $N$ files. Adopted low-level Git Data API (`POST /git/trees` $\rightarrow$ `POST /git/commits` $\rightarrow$ `POST /git/refs`) creating exactly one atomic Git commit linking all patch files before branch ref creation.
+    * **Mandatory Action Approval Ticket Authorization Gate**: `GitHubWriteService` cannot be invoked directly by AI agents or external clients. It strictly requires consuming an `APPROVED` `ActionApprovalTicket` via `ActionApprovalTicketService.consumeTicketForExecution()`.
+    * **Dynamic Least-Privilege Installation Token Scoping**: Scopes installation tokens (`ghs_*`) on-demand to the single target repository (`repositories: [targetRepo]`) and minimal write permissions (`contents: write`, `pull_requests: write`). Administration, workflows, actions, and secrets permissions are strictly prohibited.
+    * **Optimistic Concurrency on Live Base Branch (`expectedHeadSha`)**: Before mutating repository state, queries live base branch HEAD SHA via `GET /repos/{owner}/{repo}/git/ref/heads/{baseBranch}`. If `liveSha !== ticket.expectedHeadSha`, fails closed immediately with `StaleHeadShaError` (`409 Conflict`). Zero silent rebases.
+    * **Draft Pull Request Default & Sanitized Markdown Envelope**: All pull requests are created with `draft: true` against the target repository's base branch with structured, escaped Markdown templates containing full skill gap provenance, confidence scores, and testing instructions.
+    * **Non-Destructive Rollback**: If PR creation fails after a branch is created, the system deletes the isolated `feat/career-hub-*` branch ref. Rollback never touches default branches (`main`, `master`) and never rewrites Git history.
+    * **15-Scenario Threat Model (T-01 to T-15)**: Mitigated token leakage, cross-tenant writes, approval bypass, stale base commits, default branch overwrites, partial commit states, duplicate PRs/branches, CI workflow hijacking, secret insertion, secondary rate limits, prompt injection in PR markdown, compromised connections, orphaned branches, unauthenticated callers, and force push history tampering.
+    * **Live Sandbox Verification Plan**: Designed safe test protocol against `vishu1803/Ai-job-mcp` verifying branch creation, atomic commit creation, draft PR creation, and automated branch cleanup with zero impact on `main`.
+  * Status: **`P9-003A APPROVED`**.
 
 ---
