@@ -18,24 +18,22 @@ import { decryptSecret } from '../security/encryption.js';
 import { SecretScrubber } from '../extractors/github/security/secret-scrubber.js';
 import { createConnectorContext } from '../connectors/base/context.js';
 import {
+  GitHubWriteSafetyService,
+  ALLOWED_BRANCH_REGEX,
+  PROTECTED_BRANCH_BLOCKLIST,
+  BLOCKED_PATH_PATTERNS,
+} from './github-write-safety.service.js';
+import {
   NotFoundError,
   ValidationError,
-  ForbiddenOperationError,
   StaleHeadShaError,
+  BranchCollisionError,
 } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
 
-export const BRANCH_NAME_REGEX = /^feat\/career-hub-[a-z0-9-]+$/;
-export const FORBIDDEN_BRANCHES = new Set(['main', 'master', 'develop', 'prod', 'production']);
-export const FORBIDDEN_PATH_PATTERNS = [
-  /^\.github\/workflows\//i,
-  /^\.env/i,
-  /id_rsa/i,
-  /\.pem$/i,
-  /\.key$/i,
-  /\.pfx$/i,
-  /\.pkcs12$/i,
-];
+export const BRANCH_NAME_REGEX = ALLOWED_BRANCH_REGEX;
+export const FORBIDDEN_BRANCHES = PROTECTED_BRANCH_BLOCKLIST;
+export const FORBIDDEN_PATH_PATTERNS = BLOCKED_PATH_PATTERNS;
 
 export class GitHubWriteService {
   /**
@@ -43,6 +41,7 @@ export class GitHubWriteService {
    * @param {import('drizzle-orm/node-postgres').NodePgDatabase} options.db - Drizzle database instance
    * @param {import('../connectors/github/github-connector.js').GitHubAppConnector} options.connector - GitHub connector
    * @param {import('./action-approval-ticket.service.js').ActionApprovalTicketService} options.actionApprovalTicketService - Approval state machine
+   * @param {GitHubWriteSafetyService} [options.safetyService] - Centralized execution safety kernel
    * @param {import('./mcp-audit.service.js').McpAuditService} [options.auditService] - Optional audit service
    * @param {import('pino').Logger} [options.logger] - Optional logger
    */
@@ -50,6 +49,7 @@ export class GitHubWriteService {
     db,
     connector,
     actionApprovalTicketService,
+    safetyService = null,
     auditService = null,
     logger: loggerInstance = logger,
   }) {
@@ -67,6 +67,8 @@ export class GitHubWriteService {
     this.actionApprovalTicketService = actionApprovalTicketService;
     this.auditService = auditService;
     this.logger = loggerInstance.child({ module: 'github-write-service' });
+    this.safetyService =
+      safetyService || new GitHubWriteSafetyService({ auditService, logger: this.logger });
   }
 
   /**
@@ -161,30 +163,6 @@ export class GitHubWriteService {
         authType: connection.authType || 'APP_INSTALLATION',
       });
 
-      // -----------------------------------------------------------------------
-      // STEP 3: Branch Safety Invariant Enforcement
-      // -----------------------------------------------------------------------
-      if (!BRANCH_NAME_REGEX.test(ticket.targetBranch)) {
-        throw new ForbiddenOperationError(
-          `Target branch '${ticket.targetBranch}' does not match required format '^feat/career-hub-[a-z0-9-]+$'`
-        );
-      }
-
-      if (FORBIDDEN_BRANCHES.has(ticket.targetBranch.toLowerCase())) {
-        throw new ForbiddenOperationError(
-          `Target branch '${ticket.targetBranch}' is a protected branch`
-        );
-      }
-
-      if (ticket.targetBranch.toLowerCase() === ticket.baseBranch.toLowerCase()) {
-        throw new ForbiddenOperationError(
-          `Target branch '${ticket.targetBranch}' cannot equal base branch '${ticket.baseBranch}'`
-        );
-      }
-
-      // -----------------------------------------------------------------------
-      // STEP 4: Proposal Re-validation & Secret Scanning
-      // -----------------------------------------------------------------------
       const resolvedProposal = proposal || ticket.proposal || {};
       const files = Array.isArray(resolvedProposal.files)
         ? resolvedProposal.files
@@ -192,44 +170,59 @@ export class GitHubWriteService {
           ? resolvedProposal.patch.files
           : [];
 
-      if (files.length === 0) {
-        throw new ValidationError('Proposal contains no files to commit');
-      }
-      if (files.length > 10) {
-        throw new ValidationError(`Proposal exceeds maximum of 10 files (found ${files.length})`);
-      }
-
-      // Validate paths and check secret scrubber
-      for (const file of files) {
-        if (!file.path || typeof file.path !== 'string') {
-          throw new ValidationError('File path is required for all patch entries');
+      // -----------------------------------------------------------------------
+      // STEP 3: Authoritative Dynamic Default Branch Discovery
+      // -----------------------------------------------------------------------
+      let defaultBranch = 'main';
+      try {
+        const repoMetadata = await this.connector.getRepository(
+          connectorContext,
+          credentials,
+          ticket.repositoryName
+        );
+        if (repoMetadata && repoMetadata.defaultBranch) {
+          defaultBranch = repoMetadata.defaultBranch;
         }
-        for (const pattern of FORBIDDEN_PATH_PATTERNS) {
-          if (pattern.test(file.path)) {
-            throw new ForbiddenOperationError(`Modification of path '${file.path}' is prohibited`);
-          }
-        }
-        if (
-          SecretScrubber.containsSecret(file.content || '') ||
-          SecretScrubber.containsSecret(file.path)
-        ) {
-          throw new ForbiddenOperationError(
-            `Secret detected in patch file '${file.path}'. Write operation rejected.`
-          );
-        }
+      } catch (repoErr) {
+        this.logger.warn({
+          msg: 'Could not fetch repository metadata for default branch discovery; using fallback',
+          err: repoErr.message,
+        });
       }
 
-      if (
-        SecretScrubber.containsSecret(resolvedProposal.title || '') ||
-        SecretScrubber.containsSecret(resolvedProposal.rationale || '')
-      ) {
-        throw new ForbiddenOperationError(
-          'Secret detected in proposal metadata. Write operation rejected.'
+      // -----------------------------------------------------------------------
+      // STEP 4: Live Base Branch HEAD SHA (Optimistic Concurrency)
+      // -----------------------------------------------------------------------
+      const liveHead = await this.connector.getBranchHeadSha(
+        connectorContext,
+        credentials,
+        ticket.repositoryName,
+        ticket.baseBranch
+      );
+
+      if (!liveHead || !liveHead.commitSha) {
+        throw new NotFoundError(
+          `Base branch '${ticket.baseBranch}' not found in repository '${ticket.repositoryName}'`
         );
       }
 
       // -----------------------------------------------------------------------
-      // STEP 5: Check Idempotency & Existing Pull Requests
+      // STEP 5: CENTRALIZED SAFETY KERNEL EXECUTION GATE (P9-004)
+      // -----------------------------------------------------------------------
+      this.safetyService.validateExecutionSafetyGate({
+        context,
+        ticket,
+        proposal: resolvedProposal,
+        repositoryDefaultBranch: defaultBranch,
+        liveBaseHeadSha: liveHead.commitSha,
+        commitMessage: resolvedProposal.title || '',
+        prTitle: resolvedProposal.title || '',
+        prBody: resolvedProposal.rationale || '',
+        tokenPermissions: { contents: 'write', pull_requests: 'write' },
+      });
+
+      // -----------------------------------------------------------------------
+      // STEP 6: Check Idempotency & Existing Pull Requests
       // -----------------------------------------------------------------------
       const existingPulls = await this.connector.getPullRequestByHead(
         connectorContext,
@@ -267,32 +260,16 @@ export class GitHubWriteService {
       }
 
       // -----------------------------------------------------------------------
-      // STEP 6: Verify Live Base Branch HEAD SHA (Optimistic Concurrency)
+      // STEP 7: Branch Collision Protection
       // -----------------------------------------------------------------------
-      const liveHead = await this.connector.getBranchHeadSha(
-        connectorContext,
-        credentials,
-        ticket.repositoryName,
-        ticket.baseBranch
-      );
+      const existingBranchRef = await this.connector
+        .getBranchHeadSha(connectorContext, credentials, ticket.repositoryName, ticket.targetBranch)
+        .catch(() => null);
 
-      if (liveHead.commitSha.toLowerCase() !== ticket.expectedHeadSha.toLowerCase()) {
-        const staleError = new StaleHeadShaError(
-          `Base branch '${ticket.baseBranch}' has diverged from expected HEAD ${ticket.expectedHeadSha} (current live HEAD: ${liveHead.commitSha})`,
-          {
-            ticketId,
-            baseBranch: ticket.baseBranch,
-            expectedHeadSha: ticket.expectedHeadSha,
-            liveHeadSha: liveHead.commitSha,
-          }
+      if (existingBranchRef && existingBranchRef.commitSha && !openExistingPr) {
+        throw new BranchCollisionError(
+          `Target branch '${ticket.targetBranch}' already exists in repository without matching open PR. Overwriting is prohibited.`
         );
-
-        await this.actionApprovalTicketService.failExecution(context, {
-          ticketId,
-          failureReason: 'STALE_BASE_HEAD_SHA',
-        });
-
-        throw staleError;
       }
 
       // -----------------------------------------------------------------------
@@ -454,14 +431,15 @@ export class GitHubWriteService {
       }
 
       // Mark ticket as FAILED in database if not already terminal
-      if (!(err instanceof StaleHeadShaError)) {
-        await this.actionApprovalTicketService
-          .failExecution(context, {
-            ticketId,
-            failureReason: (err.message || 'Execution error').slice(0, 1000),
-          })
-          .catch(() => {});
-      }
+      await this.actionApprovalTicketService
+        .failExecution(context, {
+          ticketId,
+          failureReason: (err instanceof StaleHeadShaError
+            ? 'STALE_BASE_HEAD_SHA'
+            : err.message || 'Execution error'
+          ).slice(0, 1000),
+        })
+        .catch(() => {});
 
       this._emitAuditEventSafe('github.project_improvement.execution_failed', {
         context,

@@ -138,4 +138,26 @@ describe('Live GitHub Project Modification Sandbox (P9-003)', () => {
       }
     }
   });
+
+  it('verifies safety kernel blocks attempted live writes targeting default branch main', async (t) => {
+    if (!hasLiveGitHubCredentials) {
+      t.skip('Skipping live safety test: GITHUB_APP_* credentials not configured in environment');
+      return;
+    }
+
+    const { GitHubWriteSafetyService } =
+      await import('../../../src/services/github-write-safety.service.js');
+    const { ProtectedDefaultBranchError } = await import('../../../src/errors/index.js');
+
+    const safety = new GitHubWriteSafetyService();
+    assert.throws(
+      () =>
+        safety.validateBranchPolicy({
+          targetBranch: 'main',
+          baseBranch: 'main',
+          repositoryDefaultBranch: 'main',
+        }),
+      (err) => err instanceof ProtectedDefaultBranchError
+    );
+  });
 });

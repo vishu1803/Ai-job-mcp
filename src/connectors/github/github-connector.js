@@ -1781,4 +1781,27 @@ export class GitHubAppConnector extends BaseResourceConnector {
 
     return { success: true, state: res.data?.state || 'closed' };
   }
+
+  /**
+   * Retrieves repository metadata including authoritative default branch.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId - 'owner/repo' or numeric repository ID
+   * @returns {Promise<{ name: string, fullName: string, defaultBranch: string, private: boolean }>}
+   */
+  async getRepository(context, credentials, externalResourceId) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.READ_RESOURCE);
+    this._assertActiveConnection(context);
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const res = await this._request(context, credentials, prefix);
+
+    return {
+      name: res.data.name,
+      fullName: res.data.full_name,
+      defaultBranch: res.data.default_branch || 'main',
+      private: Boolean(res.data.private),
+    };
+  }
 }

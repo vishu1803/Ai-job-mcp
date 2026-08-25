@@ -65,3 +65,68 @@ export class ForbiddenOperationError extends AppError {
     super(message, 403, 'FORBIDDEN_OPERATION', details);
   }
 }
+
+/**
+ * 403 Forbidden — Attempted Write Directly to Default or Protected Branch.
+ */
+export class ProtectedDefaultBranchError extends ForbiddenOperationError {
+  constructor(
+    message = 'Direct write to default or protected branch is prohibited',
+    details = null
+  ) {
+    super(message, details);
+    this.code = 'PROTECTED_DEFAULT_BRANCH';
+  }
+}
+
+/**
+ * 403 Forbidden — Prohibited or Malformed Git Reference.
+ */
+export class InvalidGitRefError extends ForbiddenOperationError {
+  constructor(message = 'Invalid or prohibited Git reference', details = null) {
+    super(message, details);
+    this.code = 'INVALID_GIT_REF';
+  }
+}
+
+/**
+ * 403 Forbidden — Patch Path Traversal, Binary, or Size Policy Violation.
+ */
+export class PatchPolicyViolationError extends ForbiddenOperationError {
+  constructor(message = 'Patch violates file path, binary, or size policy', details = null) {
+    super(message, details);
+    this.code = 'PATCH_POLICY_VIOLATION';
+  }
+}
+
+/**
+ * 403 Forbidden — Modification of CI/CD Workflow or Automation Files Prohibited.
+ */
+export class WorkflowModificationError extends ForbiddenOperationError {
+  constructor(
+    message = 'Modification of CI/CD workflow files is strictly prohibited',
+    details = null
+  ) {
+    super(message, details);
+    this.code = 'WORKFLOW_MODIFICATION_PROHIBITED';
+  }
+}
+
+/**
+ * 403 Forbidden — High-Entropy Secret Detected in Patch or Metadata.
+ */
+export class SecretDetectedError extends ForbiddenOperationError {
+  constructor(message = 'High-entropy secret or credential detected in payload', details = null) {
+    super(message, details);
+    this.code = 'SECRET_DETECTED_IN_PAYLOAD';
+  }
+}
+
+/**
+ * 409 Conflict — Feature Branch Already Exists and Cannot Be Overwritten.
+ */
+export class BranchCollisionError extends AppError {
+  constructor(message = 'Target feature branch already exists in repository', details = null) {
+    super(message, 409, 'BRANCH_COLLISION_DETECTED', details);
+  }
+}

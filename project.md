@@ -235,8 +235,8 @@
 | **P9-003A** | GitHub Write Operations Architecture & Security Review | P9-002 | **COMPLETE & APPROVED** | Architectural specification `docs/github-write-operations-architecture.md` (`ARCH-033`), `ADR-054` in `docs/decisions.md`. Established low-level Git Data API strategy (`trees` -> `commits` -> `refs`) for atomic multi-file patches, mandatory `ActionApprovalTicket` authorization gate, dynamic installation token scoping (`contents: write`, `pull_requests: write`), live base branch HEAD SHA verification, Draft PR default with sanitized markdown template, 15-scenario threat model (T-01 to T-15), non-destructive rollback (`deleteRef`), and safe live sandbox test strategy against `vishu1803/Ai-job-mcp`. |
 | **P9-003** | Implement GitHub Write Operations: `create_branch`, `create_commit_patch`, `create_pull_request` | P3-001, P9-002, P9-003A | **COMPLETE & VERIFIED** | Implemented `GitHubWriteService` (`src/services/github-write.service.js`), Git Data API methods in `GitHubAppConnector` (`createGitTree`, `createGitCommit`, `createGitRef`, `deleteGitRef`, `createDraftPullRequest`, `getPullRequestByHead`), dynamic permission scoping in `GitHubAppAuthManager` and `GitHubTokenCache`, and typed error `ForbiddenOperationError`. Verified via 12 unit tests (`tests/unit/github-write-operations.test.js`), 6 integration tests (`tests/integration/github-write-operations.test.js`), and live sandbox test (`tests/integration/live/github-project-modification.live.test.js`). 100% test pass with 0 DB leaks. |
 | **P9-004A** | GitHub Write Safety Constraints Architecture & Security Review | P9-003 | **COMPLETE & APPROVED** | Architectural specification `docs/github-write-safety-architecture.md` (`ARCH-034`), `ADR-055` in `docs/decisions.md`. Established Centralized Safety Kernel (`GitHubWriteSafetyService`), static & dynamic repository default branch protection (`default_branch`), target vs base branch separation (`targetBranch !== baseBranch`), strict Git ref whitelist (`refs/heads/feat/career-hub-*`), physical force-push elimination, defense-in-depth patch policy (POSIX paths, traversal, 38 binary extensions, dot-dirs), CI/CD workflow defense matrix (`.github/workflows/*`, actions, hooks), pre-execution Shannon entropy secret scanning, optimistic concurrency locking (`expectedHeadSha`), 20-scenario threat model (T-01 to T-20), and audit event catalog. |
-| **P9-004** | Enforce Safety Constraints: write actions NEVER touch default branch (`main`/`master`); only create feature branches | P9-003, P9-004A | NOT_STARTED | Security test asserting attempt to write to `main` throws `ForbiddenOperationError` |
-| **P9-005** | Expose MCP Write Tools: `propose_project_improvement`, `confirm_and_create_pr` | P7-001, P9-003 | NOT_STARTED | MCP integration test: AI proposes change, receives ticket, user confirms, PR is opened |
+| **P9-004** | Enforce Safety Constraints: write actions NEVER touch default branch (`main`/`master`); only create feature branches | P9-003, P9-004A | **COMPLETE & VERIFIED** | Implemented centralized execution safety kernel in `src/services/github-write-safety.service.js`, integrated with `GitHubWriteService`, enhanced error hierarchy (`ProtectedDefaultBranchError`, `InvalidGitRefError`, `PatchPolicyViolationError`, `WorkflowModificationError`, `SecretDetectedError`, `BranchCollisionError`), and added `getRepository` metadata method in `GitHubAppConnector`. Verified via 34 unit tests (`tests/unit/github-write-safety.service.test.js`), 8 integration tests (`tests/integration/github-write-operations.test.js`), and live sandbox test. 100% test pass with 0 DB leaks. |
+| **P9-005** | Expose MCP Write Tools: `propose_project_improvement`, `confirm_and_create_pr` | P7-001, P9-003, P9-004 | NOT_STARTED | MCP integration test: AI proposes change, receives ticket, user confirms, PR is opened |
 | **P9-006** | Test PR diff preview and test suite execution reporting before user confirms | P9-005 | NOT_STARTED | Verify diff output and test status included in approval payload |
 
 ---
@@ -2302,5 +2302,37 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * **20-Scenario Threat Model (T-01 to T-20)**: Mitigated direct default branch overwrites, custom default branch bypass, target=base branch collision, ref injection, path traversal, CI/CD workflow hijacking, hidden control directory tampering, credential files, binary artifacts, hardcoded secrets, force-push history rewrites, stale base commit races, cross-tenant confused deputies, unapproved ticket bypass, ticket tampering, token privilege escalation, branch collision, diff bloat DoS, prompt injection in PR markdown, and untrusted client repository identity.
     * **Structured Audit Logging**: Standardized audit event catalog (`github.write.blocked.*`) emitted to PostgreSQL `audit_logs` on any safety rejection.
   * Status: **`P9-004A APPROVED`**.
+
+* **P9-004 (Enforce Safety Constraints: write actions NEVER touch default branch — Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/services/github-write-safety.service.js`: Implemented centralized deterministic safety kernel (`GitHubWriteSafetyService`) exposing `validateBranchPolicy`, `validateGitRef`, `validatePatchPolicy`, `validateSecrets`, `validateApprovalBinding`, `validateExpectedHeadSha`, `validateWriteTokenScope`, and atomic `validateExecutionSafetyGate`.
+    * `src/errors/approval.errors.js` & `src/errors/index.js`: Added typed safety errors (`ProtectedDefaultBranchError`, `InvalidGitRefError`, `PatchPolicyViolationError`, `WorkflowModificationError`, `SecretDetectedError`, `BranchCollisionError`).
+    * `src/services/github-write.service.js`: Integrated `GitHubWriteSafetyService` as mandatory pre-execution safety gate prior to any Git Data API mutation.
+    * `src/connectors/github/github-connector.js`: Added `getRepository` metadata discovery method.
+    * `tests/unit/github-write-safety.service.test.js`: Created 34 unit & property-based tests covering all safety invariants.
+    * `tests/integration/github-write-operations.test.js`: Extended integration test suite with safety gate tests (default branch protection, workflow modification protection, anti-tamper).
+    * `tests/integration/live/github-project-modification.live.test.js`: Extended live test suite with live safety assertion.
+  * Architectural Findings & Invariants Enforced:
+    * **Zero Production Bypass**: Audited codebase to verify that `createGitTree`, `createGitCommit`, `createGitRef`, and `createDraftPullRequest` can only be invoked through `GitHubWriteService.executeApprovedTicket` which requires passing `validateExecutionSafetyGate`.
+    * **Authoritative Dynamic Default Branch Discovery**: Direct writes to default or protected branches are physically impossible and fail closed with `ForbiddenOperationError(PROTECTED_DEFAULT_BRANCH)`.
+    * **Target vs. Base Branch Separation**: Enforces `targetBranch !== baseBranch` on all operations. Target must match `^feat/career-hub-[a-z0-9-]+$` and base must be an existing valid branch.
+    * **Strict Git Ref Whitelist & Dangerous Sequence Rejection**: Only `refs/heads/feat/career-hub-*` refs can be created. Tag injection, remote ref hijacking, traversal sequences (`..`), null bytes (`\0`), and control characters are rejected.
+    * **Physical Force-Push Elimination**: `createGitRef` omits force flags; `updateGitRef` is completely unexposed in `GitHubAppConnector`.
+    * **Defense-in-Depth Patch Policy**: Blocks path traversal (`..`), backslashes (`\`), hidden control directories (`.git/`, `.husky/`), CI/CD workflow files (`.github/workflows/*`, `.gitlab-ci*`, `Jenkinsfile`), environment/credential files (`.env*`, `*.pem`, `*.key`, `id_rsa`), and 38 binary file extensions.
+    * **Pre-Execution High-Entropy Secret Scanning Engine**: Scans all outbound patch file contents, file paths, commit messages, PR titles, and PR bodies for secrets via `SecretScrubber` before any Git Data API call.
+    * **Optimistic Concurrency Locking**: Live base branch HEAD commit SHA must match `ticket.expectedHeadSha` prior to tree creation. Divergence fails closed with `StaleHeadShaError` (`409 Conflict`).
+  * Automated Verification Results:
+    * `node --test tests/unit/github-write-safety.service.test.js` -> PASS (34/34 tests passed across 10 suites in 80.6ms)
+    * `node --test tests/unit/github-write-operations.test.js` -> PASS (12/12 tests passed across 1 suite in 64.2ms)
+    * `node --test tests/integration/github-write-operations.test.js` -> PASS (8/8 tests passed in 15.9s with clean pool drain)
+    * `node --test tests/integration/live/github-project-modification.live.test.js` -> PASS (2/2 tests passed in 4.9ms)
+    * `npm run test:db-lifecycle-check` -> PASS (38 integration test files audited, 35 DB-using files verified, 0 violations)
+    * `npm run test:unit` -> PASS (966/966 tests passed across 238 suites in 23.6s)
+    * `npm run test:integration` -> PASS (266/266 tests passed across 80 suites in 38.5s)
+    * `npm test` -> PASS (1,232/1,232 tests passed across 318 suites in 51.7s with 0 failures, 0 cancellations, 0 skips)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+  * Status: **`P9-004 COMPLETE & VERIFIED`**.
 
 ---

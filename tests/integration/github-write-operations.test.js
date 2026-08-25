@@ -32,6 +32,7 @@ import { GitHubAppConnector } from '../../src/connectors/github/github-connector
 import { GitHubAppAuthManager } from '../../src/connectors/github/auth.js';
 import { GitHubTokenCache } from '../../src/connectors/github/token-cache.js';
 import { encryptSecret } from '../../src/security/encryption.js';
+import { computePatchFingerprint } from '../../src/domain/career/project-improvement.schemas.js';
 import { StaleHeadShaError, ApprovalTicketStateError } from '../../src/errors/index.js';
 
 describe('GitHub Write Operations Integration Tests (P9-003)', () => {
@@ -92,6 +93,19 @@ describe('GitHub Write Operations Integration Tests (P9-003)', () => {
         };
       }
 
+      // GET /repos/:owner/:repo (repository metadata)
+      if (urlStr.match(/\/repos\/[^/]+\/[^/]+$/) && method === 'GET') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            name: 'Ai-job-mcp',
+            default_branch: 'main',
+            private: false,
+          }),
+        };
+      }
+
       // GET /repos/:owner/:repo/git/ref/heads/:branch
       if (urlStr.includes('/git/ref/heads/') && method === 'GET') {
         const branchName = urlStr.split('/git/ref/heads/')[1];
@@ -135,15 +149,40 @@ describe('GitHub Write Operations Integration Tests (P9-003)', () => {
       // GET /repos/:owner/:repo/branches/:branch
       if (urlStr.includes('/branches/') && method === 'GET') {
         const branchName = urlStr.split('/branches/')[1];
+        if (branchName === 'stale-base') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              name: 'stale-base',
+              commit: { sha: 'moved_ahead_new_head_sha_999999' },
+            }),
+          };
+        }
+        if (branchName === 'main') {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              name: 'main',
+              commit: { sha: baseSha },
+            }),
+          };
+        }
+        if (mockGitHubState.branches.has(branchName)) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              name: branchName,
+              commit: { sha: mockGitHubState.branches.get(branchName) },
+            }),
+          };
+        }
         return {
-          ok: true,
-          status: 200,
-          json: async () => ({
-            name: branchName,
-            commit: {
-              sha: branchName === 'stale-base' ? 'moved_ahead_new_head_sha_999999' : baseSha,
-            },
-          }),
+          ok: false,
+          status: 404,
+          json: async () => ({ message: 'Branch not found' }),
         };
       }
 
@@ -358,8 +397,8 @@ describe('GitHub Write Operations Integration Tests (P9-003)', () => {
     }
   });
 
-  function createSampleProposal(targetBranch) {
-    const files = [
+  function createSampleProposal(targetBranch, customFiles = null) {
+    const files = customFiles || [
       {
         path: 'src/services/cache-manager.js',
         changeType: 'CREATE',
@@ -371,6 +410,7 @@ describe('GitHub Write Operations Integration Tests (P9-003)', () => {
         content: 'import { describe, it } from "node:test";\n',
       },
     ];
+    const realFingerprint = computePatchFingerprint({ files });
     return {
       proposalId: crypto.randomUUID(),
       tenantId,
@@ -381,7 +421,7 @@ describe('GitHub Write Operations Integration Tests (P9-003)', () => {
       patch: {
         fileCount: files.length,
         totalDiffLines: 60,
-        patchFingerprint: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
+        patchFingerprint: realFingerprint,
         files,
       },
       status: 'PROPOSED',
@@ -600,6 +640,63 @@ describe('GitHub Write Operations Integration Tests (P9-003)', () => {
     await assert.rejects(
       async () => writeService.executeApprovedTicket(context, { ticketId: ticket.id, proposal }),
       (err) => err instanceof ApprovalTicketStateError && err.statusCode === 409
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // 7. Safety Kernel: Default Branch Protection & Anti-Tamper
+  // ---------------------------------------------------------------------------
+  it('7. Safety Kernel: Rejects execution if target branch is default branch (main)', async () => {
+    const targetBranch = 'feat/career-hub-safe-branch';
+    const proposal = createSampleProposal(targetBranch);
+
+    const ticket = await approvalService.createTicket(context, {
+      candidateProfile,
+      proposal,
+      baseBranch: 'main',
+      expectedHeadSha: baseSha,
+    });
+
+    await approvalService.approveTicket(context, { ticketId: ticket.id });
+
+    // Mutate ticket targetBranch in database to simulate dangerous payload targeting default branch
+    await db
+      .update(actionApprovalTickets)
+      .set({ targetBranch: 'main' })
+      .where(eq(actionApprovalTickets.id, ticket.id));
+
+    await assert.rejects(
+      async () => writeService.executeApprovedTicket(context, { ticketId: ticket.id, proposal }),
+      (err) => err.statusCode === 403 || err.statusCode === 400
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // 8. Safety Kernel: Workflow Modification Protection
+  // ---------------------------------------------------------------------------
+  it('8. Safety Kernel: Rejects execution if patch modifies CI/CD workflow file', async () => {
+    const targetBranch = `feat/career-hub-wf-${Date.now()}`;
+    const workflowFiles = [
+      {
+        path: '.github/workflows/deploy.yml',
+        changeType: 'MODIFY',
+        content: 'name: Deploy\non: push\n',
+      },
+    ];
+    const proposal = createSampleProposal(targetBranch, workflowFiles);
+
+    const ticket = await approvalService.createTicket(context, {
+      candidateProfile,
+      proposal,
+      baseBranch: 'main',
+      expectedHeadSha: baseSha,
+    });
+
+    await approvalService.approveTicket(context, { ticketId: ticket.id });
+
+    await assert.rejects(
+      async () => writeService.executeApprovedTicket(context, { ticketId: ticket.id, proposal }),
+      (err) => err.statusCode === 403
     );
   });
 });
