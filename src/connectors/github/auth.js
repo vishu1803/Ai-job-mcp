@@ -176,9 +176,15 @@ export class GitHubAppAuthManager {
    * @param {string} params.tenantId - Trusted tenant UUID
    * @param {string|number} params.installationId - GitHub App installation ID
    * @param {string[]|null} [params.repositories=null] - Optional repository names scope
+   * @param {object|null} [params.permissions=null] - Optional requested permissions scope
    * @returns {Promise<{ token: string, expiresAt: Date, permissions: object, repositorySelection: string, installationId: string }>}
    */
-  async getInstallationToken({ tenantId, installationId, repositories = null }) {
+  async getInstallationToken({
+    tenantId,
+    installationId,
+    repositories = null,
+    permissions = null,
+  }) {
     if (!tenantId || typeof tenantId !== 'string') {
       throw new ValidationError('tenantId is required to get installation token');
     }
@@ -187,7 +193,13 @@ export class GitHubAppAuthManager {
     }
 
     // 1. Check in-memory partitioned cache
-    const cached = this.tokenCache.get(tenantId, installationId, repositories, this.tokenBufferMs);
+    const cached = this.tokenCache.get(
+      tenantId,
+      installationId,
+      repositories,
+      permissions,
+      this.tokenBufferMs
+    );
     if (cached) {
       return {
         token: cached.token,
@@ -199,7 +211,7 @@ export class GitHubAppAuthManager {
     }
 
     // 2. Coalesce in-flight token requests for the same cache key
-    const cacheKey = buildTokenCacheKey(tenantId, installationId, repositories);
+    const cacheKey = buildTokenCacheKey(tenantId, installationId, repositories, permissions);
     if (this.inflight.has(cacheKey)) {
       return this.inflight.get(cacheKey);
     }
@@ -208,7 +220,8 @@ export class GitHubAppAuthManager {
     const tokenPromise = this._fetchInstallationTokenWithRetry(
       tenantId,
       installationId,
-      repositories
+      repositories,
+      permissions
     ).finally(() => {
       this.inflight.delete(cacheKey);
     });
@@ -224,12 +237,13 @@ export class GitHubAppAuthManager {
    * @param {string} tenantId
    * @param {string|number} installationId
    * @param {string[]|null} repositories
+   * @param {object|null} permissions
    * @returns {Promise<{ token: string, expiresAt: Date, permissions: object, repositorySelection: string, installationId: string }>}
    */
-  async _fetchInstallationTokenWithRetry(tenantId, installationId, repositories) {
+  async _fetchInstallationTokenWithRetry(tenantId, installationId, repositories, permissions) {
     const url = `${this.baseUrl}/app/installations/${encodeURIComponent(String(installationId))}/access_tokens`;
     const requestBody = {
-      permissions: {
+      permissions: permissions || {
         contents: 'read',
         metadata: 'read',
       },
@@ -292,13 +306,13 @@ export class GitHubAppAuthManager {
         const tokenData = {
           token: data.token,
           expiresAt: new Date(data.expires_at),
-          permissions: data.permissions || { contents: 'read', metadata: 'read' },
+          permissions: data.permissions || requestBody.permissions,
           repositorySelection: data.repository_selection || (repositories ? 'selected' : 'all'),
           installationId: String(installationId),
         };
 
-        // Cache the newly minted token
-        this.tokenCache.set(tenantId, installationId, repositories, tokenData);
+        // Cache the newly minted token with permission scoping
+        this.tokenCache.set(tenantId, installationId, repositories, tokenData, permissions);
 
         return tokenData;
       } catch (err) {

@@ -186,6 +186,7 @@ export class GitHubAppConnector extends BaseResourceConnector {
       CONNECTOR_CAPABILITIES.LIST_RESOURCES,
       CONNECTOR_CAPABILITIES.READ_RESOURCE,
       CONNECTOR_CAPABILITIES.READ_CONTENT,
+      CONNECTOR_CAPABILITIES.WRITE_RESOURCE,
       CONNECTOR_CAPABILITIES.REVOKE_ACCESS,
     ]);
   }
@@ -305,6 +306,8 @@ export class GitHubAppConnector extends BaseResourceConnector {
     const tokenInfo = await this.authManager.getInstallationToken({
       tenantId: context.tenantId,
       installationId,
+      repositories: options.repositories || null,
+      permissions: options.permissions || null,
     });
 
     const maxRetries = 2;
@@ -682,6 +685,26 @@ export class GitHubAppConnector extends BaseResourceConnector {
       `Invalid repository identifier '${externalResourceId}'. Expected numeric ID or 'owner/repo'`,
       'INVALID_RESOURCE_ID'
     );
+  }
+
+  /**
+   * Extracts repository name without owner prefix for repository-scoped installation tokens.
+   *
+   * @private
+   * @param {string} externalResourceId
+   * @returns {string|null}
+   */
+  _extractRepoNameOnly(externalResourceId) {
+    if (!externalResourceId || typeof externalResourceId !== 'string') return null;
+    const trimmed = externalResourceId.trim();
+    if (trimmed.includes('/')) {
+      const parts = trimmed.split('/');
+      return parts[1] || null;
+    }
+    if (/^\d+$/.test(trimmed)) {
+      return null;
+    }
+    return trimmed;
   }
 
   /**
@@ -1420,5 +1443,342 @@ export class GitHubAppConnector extends BaseResourceConnector {
         this.cache.evict(context.tenantId, installationId);
       }
     }
+  }
+
+  /**
+   * Retrieves the latest HEAD commit SHA for a specific repository branch.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId - Numeric repository ID or 'owner/repo'
+   * @param {string} branch - Branch name (e.g. 'main', 'master')
+   * @returns {Promise<{ commitSha: string, ref: string }>}
+   */
+  async getBranchHeadSha(context, credentials, externalResourceId, branch) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.READ_RESOURCE);
+    this._assertActiveConnection(context);
+
+    if (!branch || typeof branch !== 'string' || branch.trim().length === 0) {
+      throw new ValidationError('Branch name is required', 'INVALID_BRANCH');
+    }
+
+    const cleanBranch = branch.trim().replace(/^refs\/heads\//, '');
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+
+    try {
+      const res = await this._request(
+        context,
+        credentials,
+        `${prefix}/git/ref/heads/${encodeURIComponent(cleanBranch)}`
+      );
+      return {
+        commitSha: res.data.object.sha,
+        ref: res.data.ref,
+      };
+    } catch (err) {
+      if (err instanceof ResourceNotFoundError || err.statusCode === 404) {
+        // Fallback to /branches/{branch} endpoint
+        const branchRes = await this._request(
+          context,
+          credentials,
+          `${prefix}/branches/${encodeURIComponent(cleanBranch)}`
+        );
+        return {
+          commitSha: branchRes.data.commit.sha,
+          ref: `refs/heads/${cleanBranch}`,
+        };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Creates a Git tree object containing multiple file modifications atomically.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId - Numeric repository ID or 'owner/repo'
+   * @param {object} params
+   * @param {string} params.baseTreeSha - Base commit tree SHA
+   * @param {Array<{ path: string, mode?: string, type?: string, content: string }>} params.treeEntries
+   * @returns {Promise<{ treeSha: string, url: string }>}
+   */
+  async createGitTree(context, credentials, externalResourceId, { baseTreeSha, treeEntries }) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.WRITE_RESOURCE);
+    this._assertActiveConnection(context);
+
+    if (!baseTreeSha || typeof baseTreeSha !== 'string') {
+      throw new ValidationError('baseTreeSha is required to create Git tree', 'INVALID_BASE_TREE');
+    }
+    if (!Array.isArray(treeEntries) || treeEntries.length === 0) {
+      throw new ValidationError(
+        'treeEntries array is required to create Git tree',
+        'INVALID_TREE_ENTRIES'
+      );
+    }
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const repoName = this._extractRepoNameOnly(externalResourceId);
+
+    const formattedEntries = treeEntries.map((entry) => ({
+      path: sanitizeRelativePosixPath(entry.path),
+      mode: entry.mode || '100644',
+      type: entry.type || 'blob',
+      content: entry.content,
+    }));
+
+    const res = await this._request(context, credentials, `${prefix}/git/trees`, {
+      method: 'POST',
+      body: {
+        base_tree: baseTreeSha,
+        tree: formattedEntries,
+      },
+      permissions: { contents: 'write', pull_requests: 'write' },
+      repositories: repoName ? [repoName] : null,
+    });
+
+    return {
+      treeSha: res.data.sha,
+      url: res.data.url,
+    };
+  }
+
+  /**
+   * Creates a Git commit object referencing the new tree and parent commit.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {object} params
+   * @param {string} params.message - Commit message
+   * @param {string} params.treeSha - Tree SHA
+   * @param {string[]} params.parentCommitShas - Array of parent commit SHAs
+   * @param {object} [params.author] - Optional author object
+   * @returns {Promise<{ commitSha: string, url: string|null }>}
+   */
+  async createGitCommit(
+    context,
+    credentials,
+    externalResourceId,
+    { message, treeSha, parentCommitShas, author = null }
+  ) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.WRITE_RESOURCE);
+    this._assertActiveConnection(context);
+
+    if (!message || typeof message !== 'string') {
+      throw new ValidationError('Commit message is required', 'INVALID_COMMIT_MESSAGE');
+    }
+    if (!treeSha || typeof treeSha !== 'string') {
+      throw new ValidationError('treeSha is required', 'INVALID_TREE_SHA');
+    }
+    if (!Array.isArray(parentCommitShas) || parentCommitShas.length === 0) {
+      throw new ValidationError('parentCommitShas array is required', 'INVALID_PARENT_COMMITS');
+    }
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const repoName = this._extractRepoNameOnly(externalResourceId);
+
+    const body = {
+      message,
+      tree: treeSha,
+      parents: parentCommitShas,
+      ...(author ? { author } : {}),
+    };
+
+    const res = await this._request(context, credentials, `${prefix}/git/commits`, {
+      method: 'POST',
+      body,
+      permissions: { contents: 'write', pull_requests: 'write' },
+      repositories: repoName ? [repoName] : null,
+    });
+
+    return {
+      commitSha: res.data.sha,
+      url: res.data.html_url || null,
+    };
+  }
+
+  /**
+   * Creates a new Git reference (branch) pointing to a commit SHA.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {object} params
+   * @param {string} params.ref - Full ref name (e.g. 'refs/heads/feat/career-hub-...')
+   * @param {string} params.commitSha - Commit SHA
+   * @returns {Promise<{ ref: string, commitSha: string }>}
+   */
+  async createGitRef(context, credentials, externalResourceId, { ref, commitSha }) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.WRITE_RESOURCE);
+    this._assertActiveConnection(context);
+
+    if (!ref || typeof ref !== 'string') {
+      throw new ValidationError('Ref name is required', 'INVALID_REF');
+    }
+    if (!commitSha || typeof commitSha !== 'string') {
+      throw new ValidationError('commitSha is required', 'INVALID_COMMIT_SHA');
+    }
+
+    const formattedRef = ref.startsWith('refs/') ? ref : `refs/heads/${ref}`;
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const repoName = this._extractRepoNameOnly(externalResourceId);
+
+    const res = await this._request(context, credentials, `${prefix}/git/refs`, {
+      method: 'POST',
+      body: {
+        ref: formattedRef,
+        sha: commitSha,
+      },
+      permissions: { contents: 'write', pull_requests: 'write' },
+      repositories: repoName ? [repoName] : null,
+    });
+
+    return {
+      ref: res.data.ref,
+      commitSha: res.data.object.sha,
+    };
+  }
+
+  /**
+   * Deletes a Git reference (branch) from the repository (used for rollback).
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {string} ref - Branch name or full ref (e.g. 'feat/career-hub-...')
+   * @returns {Promise<{ success: boolean }>}
+   */
+  async deleteGitRef(context, credentials, externalResourceId, ref) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.WRITE_RESOURCE);
+    this._assertActiveConnection(context);
+
+    if (!ref || typeof ref !== 'string') {
+      throw new ValidationError('Ref name is required for deletion', 'INVALID_REF');
+    }
+
+    const cleanRef = ref.replace(/^refs\//, '');
+    const refPath = cleanRef.startsWith('heads/') ? cleanRef : `heads/${cleanRef}`;
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const repoName = this._extractRepoNameOnly(externalResourceId);
+
+    await this._request(context, credentials, `${prefix}/git/refs/${refPath}`, {
+      method: 'DELETE',
+      permissions: { contents: 'write', pull_requests: 'write' },
+      repositories: repoName ? [repoName] : null,
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Opens a Draft Pull Request against the base branch.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {object} params
+   * @param {string} params.title - PR Title
+   * @param {string} params.head - Head feature branch (e.g. 'feat/career-hub-...')
+   * @param {string} params.base - Base branch (e.g. 'main')
+   * @param {string} params.body - PR description body
+   * @returns {Promise<{ prNumber: number, prUrl: string, state: string, draft: boolean, headRef: string, baseRef: string }>}
+   */
+  async createDraftPullRequest(
+    context,
+    credentials,
+    externalResourceId,
+    { title, head, base, body }
+  ) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.WRITE_RESOURCE);
+    this._assertActiveConnection(context);
+
+    if (!title || typeof title !== 'string') {
+      throw new ValidationError('PR title is required', 'INVALID_PR_TITLE');
+    }
+    if (!head || typeof head !== 'string') {
+      throw new ValidationError('PR head branch is required', 'INVALID_HEAD_BRANCH');
+    }
+    if (!base || typeof base !== 'string') {
+      throw new ValidationError('PR base branch is required', 'INVALID_BASE_BRANCH');
+    }
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const repoName = this._extractRepoNameOnly(externalResourceId);
+
+    const res = await this._request(context, credentials, `${prefix}/pulls`, {
+      method: 'POST',
+      body: {
+        title,
+        head,
+        base,
+        body: body || '',
+        draft: true,
+      },
+      permissions: { contents: 'write', pull_requests: 'write' },
+      repositories: repoName ? [repoName] : null,
+    });
+
+    return {
+      prNumber: res.data.number,
+      prUrl: res.data.html_url,
+      state: res.data.state,
+      draft: Boolean(res.data.draft),
+      headRef: res.data.head?.ref || head,
+      baseRef: res.data.base?.ref || base,
+    };
+  }
+
+  /**
+   * Finds existing pull requests matching a head branch name.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {object} params
+   * @param {string} params.headBranch - Head branch name
+   * @returns {Promise<Array<any>>}
+   */
+  async getPullRequestByHead(context, credentials, externalResourceId, { headBranch }) {
+    this._assertActiveConnection(context);
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const cleanHead = headBranch.replace(/^refs\/heads\//, '');
+
+    try {
+      const res = await this._request(
+        context,
+        credentials,
+        `${prefix}/pulls?head=${encodeURIComponent(cleanHead)}&state=all`
+      );
+      return Array.isArray(res.data) ? res.data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Closes a Pull Request.
+   *
+   * @param {import('../base/context.js').ConnectorContext} context
+   * @param {Record<string, unknown>} credentials
+   * @param {string} externalResourceId
+   * @param {number} pullNumber - Pull Request number
+   * @returns {Promise<{ success: boolean, state: string }>}
+   */
+  async closePullRequest(context, credentials, externalResourceId, pullNumber) {
+    this.assertCapability(CONNECTOR_CAPABILITIES.WRITE_RESOURCE);
+    this._assertActiveConnection(context);
+
+    const prefix = this._resolveRepoEndpointPrefix(externalResourceId);
+    const repoName = this._extractRepoNameOnly(externalResourceId);
+
+    const res = await this._request(context, credentials, `${prefix}/pulls/${pullNumber}`, {
+      method: 'PATCH',
+      body: { state: 'closed' },
+      permissions: { pull_requests: 'write' },
+      repositories: repoName ? [repoName] : null,
+    });
+
+    return { success: true, state: res.data?.state || 'closed' };
   }
 }

@@ -56,3 +56,12 @@ export class InvalidTicketSignatureError extends AppError {
     super(message, 400, 'INVALID_TICKET_SIGNATURE', details);
   }
 }
+
+/**
+ * 403 Forbidden — Prohibited Branch or Write Operation Error.
+ */
+export class ForbiddenOperationError extends AppError {
+  constructor(message = 'Requested repository write operation is prohibited', details = null) {
+    super(message, 403, 'FORBIDDEN_OPERATION', details);
+  }
+}

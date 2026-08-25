@@ -98,8 +98,9 @@ describe('GitHubAppConnector Unit Tests (P3-004)', () => {
       assert.ok(capabilities.has(CONNECTOR_CAPABILITIES.LIST_RESOURCES));
       assert.ok(capabilities.has(CONNECTOR_CAPABILITIES.READ_RESOURCE));
       assert.ok(capabilities.has(CONNECTOR_CAPABILITIES.READ_CONTENT));
+      assert.ok(capabilities.has(CONNECTOR_CAPABILITIES.WRITE_RESOURCE));
       assert.ok(capabilities.has(CONNECTOR_CAPABILITIES.REVOKE_ACCESS));
-      assert.strictEqual(capabilities.size, 5);
+      assert.strictEqual(capabilities.size, 6);
     });
 
     it('rejects initialization when authManager is missing', () => {

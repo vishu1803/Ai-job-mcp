@@ -14,9 +14,15 @@ import { ValidationError } from '../../errors/index.js';
  * @param {string} tenantId - Trusted tenant UUID
  * @param {string|number} installationId - GitHub App installation ID
  * @param {string[]|null} [repositories=null] - Selected repository list
+ * @param {object|null} [permissions=null] - Requested permission scopes
  * @returns {string} Partitioned cache key
  */
-export function buildTokenCacheKey(tenantId, installationId, repositories = null) {
+export function buildTokenCacheKey(
+  tenantId,
+  installationId,
+  repositories = null,
+  permissions = null
+) {
   if (!tenantId || typeof tenantId !== 'string') {
     throw new ValidationError('tenantId is mandatory for token cache key');
   }
@@ -29,8 +35,17 @@ export function buildTokenCacheKey(tenantId, installationId, repositories = null
       ? [...repositories].map(String).sort().join(',')
       : '*';
 
-  const repoHash = crypto.createHash('sha256').update(repoPart).digest('hex').slice(0, 16);
-  return `gh_token:${tenantId}:${installationId}:${repoHash}`;
+  let permPart = 'default';
+  if (permissions && typeof permissions === 'object') {
+    permPart = Object.keys(permissions)
+      .sort()
+      .map((k) => `${k}:${permissions[k]}`)
+      .join(';');
+  }
+
+  const combined = `${repoPart}|${permPart}`;
+  const scopeHash = crypto.createHash('sha256').update(combined).digest('hex').slice(0, 16);
+  return `gh_token:${tenantId}:${installationId}:${scopeHash}`;
 }
 
 export class GitHubTokenCache {
@@ -52,11 +67,28 @@ export class GitHubTokenCache {
    * @param {string} tenantId
    * @param {string|number} installationId
    * @param {string[]|null} [repositories=null]
+   * @param {object|number|null} [permissionsOrBuffer=null]
    * @param {number} [bufferMs=this.defaultBufferMs]
    * @returns {{ token: string, expiresAt: Date, permissions: object, repositorySelection?: string } | null}
    */
-  get(tenantId, installationId, repositories = null, bufferMs = this.defaultBufferMs) {
-    const key = buildTokenCacheKey(tenantId, installationId, repositories);
+  get(
+    tenantId,
+    installationId,
+    repositories = null,
+    permissionsOrBuffer = null,
+    bufferMs = this.defaultBufferMs
+  ) {
+    let perms = null;
+    let actualBufferMs = bufferMs;
+
+    if (typeof permissionsOrBuffer === 'number') {
+      actualBufferMs = permissionsOrBuffer;
+      perms = null;
+    } else if (permissionsOrBuffer && typeof permissionsOrBuffer === 'object') {
+      perms = permissionsOrBuffer;
+    }
+
+    const key = buildTokenCacheKey(tenantId, installationId, repositories, perms);
     const entry = this.cache.get(key);
 
     if (!entry) {
@@ -70,7 +102,7 @@ export class GitHubTokenCache {
         : new Date(entry.expiresAt).getTime();
 
     // If remaining lifetime is less than buffer window, evict and report cache miss
-    if (now >= expiryTime - bufferMs) {
+    if (now >= expiryTime - actualBufferMs) {
       this.cache.delete(key);
       return null;
     }
@@ -85,16 +117,17 @@ export class GitHubTokenCache {
    * @param {string|number} installationId
    * @param {string[]|null} repositories
    * @param {{ token: string, expiresAt: Date|string, permissions: object, repositorySelection?: string }} tokenData
+   * @param {object|null} [permissions=null]
    */
-  set(tenantId, installationId, repositories, tokenData) {
-    const key = buildTokenCacheKey(tenantId, installationId, repositories);
+  set(tenantId, installationId, repositories, tokenData, permissions = null) {
+    const key = buildTokenCacheKey(tenantId, installationId, repositories, permissions);
     const expiresAt =
       tokenData.expiresAt instanceof Date ? tokenData.expiresAt : new Date(tokenData.expiresAt);
 
     this.cache.set(key, {
       token: tokenData.token,
       expiresAt,
-      permissions: tokenData.permissions || { contents: 'read', metadata: 'read' },
+      permissions: permissions || tokenData.permissions || { contents: 'read', metadata: 'read' },
       repositorySelection: tokenData.repositorySelection,
     });
   }
@@ -105,10 +138,11 @@ export class GitHubTokenCache {
    * @param {string} tenantId
    * @param {string|number} installationId
    * @param {string[]|null} [repositories]
+   * @param {object|null} [permissions]
    */
-  evict(tenantId, installationId, repositories = null) {
+  evict(tenantId, installationId, repositories = null, permissions = null) {
     if (repositories !== null && repositories !== undefined) {
-      const key = buildTokenCacheKey(tenantId, installationId, repositories);
+      const key = buildTokenCacheKey(tenantId, installationId, repositories, permissions);
       this.cache.delete(key);
       return;
     }
