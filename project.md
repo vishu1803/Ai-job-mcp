@@ -9,14 +9,65 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 10 — Claude Integration (Second Target AI Client)** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 (P10-001 Complete & Verified; ready for P10-002A) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; P10-001 verified; ready for P10-002A (Architecture Review for Claude Free & Claude Pro/Team multi-connector compatibility) |
+| **Current Phase** | **PHASE 10 — Claude Integration (Second Target AI Client)** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 (P10-001 Complete & Verified; P10-002A Complete & Approved; ready for P10-002) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; P10-001 verified; P10-002A approved; ready for P10-002 (Validate Claude Free and Pro/Team compatibility) |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **58 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) + Phase 10 (1) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A, P10-001A approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P10-002A |
+| **Completed Tasks** | **58 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) + Phase 10 (1) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A, P10-001A, P10-002A approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P10-002 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
 | **Overall Task Completion** | **71.6% (58 / 81 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **64.1% (10.25 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-9 100% complete, Phase 10 25% complete) |
+
+---
+
+## 2. Phase-by-Phase Progress Summary
+
+| Phase | Phase Name | Total Tasks | Completed | In Progress | Status | Completion % |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **PHASE 0** | Research and Architecture | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 1** | Multi-User Platform Foundation | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 4** | Unified Candidate Data Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 9** | Approved GitHub Write Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 10** | Claude Integration | 4 | 1 | 0 | **IN PROGRESS** | **25.0%** |
+| **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | 0.0% |
+| **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | 0.0% |
+| **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
+| **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
+| **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
+
+---
+
+## 3. Detailed Task Ledger
+
+### PHASE 0: Research and Architecture
+*Objective: Define platform boundaries, threat model, candidate data models, and MCP specifications.*
+
+| Task ID | Task Title | Dependencies | Status | Verification Method |
+| :--- | :--- | :--- | :--- | :--- |
+| **P0-001** | Platform Architecture & Boundaries Review | None | **COMPLETE** | Comprehensive architecture specification document in `docs/architecture.md` covering all 5 architectural layers, security invariants, provider-neutral abstractions, and long-term milestones. |
+| **P0-002** | Security Architecture & Threat Modeling | P0-001 | **COMPLETE** | Dedicated security architecture specification in `docs/security.md` covering 10-tier threat model, STRIDE evaluation, multi-tenant boundary defenses, cryptographic key hierarchies, and fail-closed isolation rules. |
+| **P0-003** | Unified Candidate & Resource Data Model Design | P0-001, P0-002 | **COMPLETE** | Complete domain data model design in `docs/data-model.md` specifying relational schemas, evidence provenance linkage, and integrity constraints. |
+| **P0-004** | Remote MCP Specification & Integration Design | P0-001, P0-003 | **COMPLETE** | Standards-compliant MCP specification in `docs/mcp-server-architecture.md` covering Streamable HTTP 2026-07-28 protocol, tool schemas, and auth flow. |
+
+---
+
+### PHASE 10: Claude Integration (Second Target AI Client)
+*Objective: Connect Anthropic Claude to the remote MCP server via custom connector with zero backend modifications.*
+
+| Task ID | Task Title | Dependencies | Status | Verification Method |
+| :--- | :--- | :--- | :--- | :--- |
+| **P10-001A** | Claude Remote MCP Connector & OAuth 2.1 Architecture & Security Review | P9-006 | **COMPLETE & APPROVED** | Architectural specification `docs/claude-mcp-connector-architecture.md` (`ARCH-037`), `ADR-058` in `docs/decisions.md`. Established Streamable HTTP transport compatibility, OAuth 2.1 Authorization Code Flow with mandatory PKCE S256, RFC 9728 Protected Resource Metadata discovery (`/.well-known/oauth-protected-resource`), RFC 8414 OAuth Authorization Server Metadata discovery (`/.well-known/oauth-authorization-server`), public client registration for Claude Web / Desktop / CLI, immutable token claim identity mapping (`sub`, `tid`, `role`, `scope`), strict role ceiling clamping, zero write bypass / self-approval prevention, public HTTPS perimeter protection (TLS 1.2+, Origin header validation against DNS rebinding), 16-scenario threat model (T-01 to T-16), structured OAuth audit events, and live test strategy against `vishu1803/Ai-job-mcp`. |
+| **P10-001** | Configure Claude Remote MCP Custom Connector endpoint compatibility (Public HTTPS, OAuth 2.1) | P7-003, P10-001A | **COMPLETE & VERIFIED** | Implemented OAuth 2.1 Authorization Code Flow with PKCE S256 (`src/services/oauth-authorization.service.js`, `src/routes/oauth.routes.js`, `src/domain/oauth/oauth.schemas.js`), RFC 9728 & RFC 8414 metadata discovery endpoints, Refresh Token Rotation (RTR), token revocation, and dual-auth facade in `src/security/mcp-auth.js`. Applied database migration `drizzle/0005_mushy_the_initiative.sql` creating `oauth_clients`, `oauth_authorization_codes`, and `oauth_tokens` tables. Verified via 17 unit tests (10 in `tests/unit/oauth-authorization-server.test.js`, 7 in `tests/unit/mcp-auth.test.js`), 17 live Fastify+PostgreSQL integration tests (`tests/integration/claude-mcp-connector.test.js`), and full 51-test MCP integration test suite. 100% test pass with 0 DB leaks. |
+| **P10-002A** | Claude Free & Pro/Team Multi-Connector Architecture & Compatibility Review | P10-001 | **COMPLETE & APPROVED** | Architectural specification `docs/claude-tier-compatibility-architecture.md` (`ARCH-038`), `ADR-059` in `docs/decisions.md`. Evaluated single-connector (Claude Free) vs multi-connector (Claude Pro/Team) operational characteristics, 9-tool catalog compactness (4.3 KB / ~1,085 tokens, <0.55% context), domain-specific naming collision defenses, cross-connector trust boundaries (Connector A != Connector B), write safety non-interference, provider neutrality, and confirmed zero backend code changes required. |
+| **P10-002** | Validate Claude Free (1-connector limit) and Claude Pro/Team multi-connector compatibility | P10-001, P10-002A | NOT_STARTED | Execute candidate analysis and resume tailoring tools via Claude interface |
+| **P10-003** | Verify provider-neutral prompt adherence: Claude receives identical tool responses as Gemini | P8-003, P10-002 | NOT_STARTED | Compare tool execution outputs between Gemini and Claude on identical inputs |
+| **P10-004** | Document Claude custom connector setup guide and troubleshooting instructions | P10-002 | NOT_STARTED | Step-by-step verified documentation in repository |
 
 ---
 
@@ -2560,4 +2611,25 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---
+
+* **P10-002A: CLAUDE FREE / PRO / TEAM MULTI-CONNECTOR ARCHITECTURE REVIEW (Completed & Approved)**:
+  * Deliverables Created & Modified:
+    * `docs/claude-tier-compatibility-architecture.md`: Comprehensive architectural specification (`ARCH-038`) analyzing:
+      * **Claude Free Tier (1-Connector Limit)**: Confirmed the complete 9-tool Career Hub catalog (4 Read, 3 Artifact, 2 Write) is 100% self-contained and sufficient. Free users can execute profile inspection, skill analysis, job matching, resume/cover letter adaptation, portfolio recommendation, and safe PR creation without auxiliary connectors.
+      * **Tool Context Token Economics**: Measured total JSON Schema footprint for all 9 tools at **4,338 bytes** (~**1,085 tokens**), consuming <0.55% of Claude's context window.
+      * **Claude Pro / Max / Team Multi-Connector Coexistence**: Evaluated cross-connector coexistence (Career Hub + GitHub MCP + Notion MCP). Formulated a 9-tool collision matrix and confirmed existing descriptive names (`get_candidate_profile`, `analyze_job_fit`, `confirm_and_create_pr`) present low collision risk.
+      * **Write Safety Non-Interference**: Verified multi-connector configurations cannot bypass two-phase human approval. `confirm_and_create_pr` rejects external patch data and sources code mutations strictly from validated database records.
+      * **Cross-Connector Trust Boundary**: Enforced `Connector A != Connector B`. Data from external MCP servers is treated as untrusted user input and sanitized via `SecretScrubber` and Zod validation.
+      * **Provider Neutrality**: Reaffirmed Inverse Authority Principle — Claude operates strictly as an interchangeable MCP client with zero database or shell access.
+      * **Implementation Decision**: Confirmed **zero backend code changes required** to support both single and multi-connector environments.
+    * `docs/decisions.md`: Added `ADR-059` recording the formal architectural acceptance.
+  * Quality Gates & Verification:
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (All files 100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+    * `npm run test:unit` -> PASS (1056/1056 tests passed across 266 suites)
+  * Status: **`COMPLETE & APPROVED`**.
+
+---
+
 

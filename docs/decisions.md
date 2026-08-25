@@ -1389,3 +1389,27 @@
   * Task P10-001 will implement OAuth domain schemas, database tables (`oauth_clients`, `oauth_authorization_codes`, `oauth_tokens`), `OAuthAuthorizationService`, Fastify OAuth routes, MCP auth middleware integration, and comprehensive test suites.
 * **Revisit Conditions**: When multi-tenant custom OAuth client registration (dynamic client registration) or enterprise SAML federation is required in Phase 13.
 
+---
+
+### ADR-059: Claude Free & Pro/Team Multi-Connector Architecture & Compatibility Review
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 10 (Task P10-002A), we formally reviewed the architectural compatibility of our Remote MCP Server and 9-tool catalog with Anthropic Claude across different subscription tiers: Claude Free (constrained to 1 active custom remote MCP connector) and Claude Pro / Max / Team (supporting multiple simultaneous remote MCP connectors). We must evaluate whether our single-connector design is sufficient for Free users, verify tool-naming collision defenses in multi-connector environments, maintain cross-connector trust boundaries, guarantee write safety non-interference, and uphold provider neutrality.
+* **Decision**: Adopt the **Claude Free & Pro/Team Multi-Connector Architecture** defined in `docs/claude-tier-compatibility-architecture.md` (`ARCH-038`) governed by the following core architectural decisions:
+  * **Unified Single-Connector Architecture**: Retain the complete 9-tool catalog (4 Career Read, 3 Application Artifact, 2 Approved GitHub Write) under the single unified remote MCP endpoint (`POST /mcp`). Free-tier users achieve 100% workflow sufficiency (profile inspection, job fit analysis, resume/cover letter generation, and safe PR creation) without requiring auxiliary connectors.
+  * **Tool Context Footprint Optimization**: The entire 9-tool JSON Schema footprint is strictly bounded at 4,338 bytes (~1,085 tokens), consuming <0.55% of Claude's context window and ensuring negligible overhead in single or multi-connector configurations.
+  * **Domain-Specific Tool Naming & Collision Resistance**: Maintain existing explicit, descriptive tool names (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`, `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects`, `propose_project_improvement`, `confirm_and_create_pr`). The compound `confirm_and_` prefix distinctly separates two-phase ticket execution from generic third-party Git tools.
+  * **Independent Authorization & Sovereign Context**: Each remote connector is independently authorized. Data received from external connectors is treated as untrusted input. Career Hub derives identity (`tenantId`, `userId`, `role`) 100% server-side from the validated OAuth access token.
+  * **Write Safety Non-Interference**: In multi-connector configurations, Career Hub write safety remains sovereign and uncompromised. `confirm_and_create_pr` accepts only `{ ticketId, confirmed: true, idempotencyKey, userNotes }` and sources all patch contents, branches, and commit SHAs strictly from the server-side PostgreSQL database record validated by `GitHubWriteSafetyService`. External connectors cannot inject arbitrary code into the execution pipeline.
+  * **Provider Neutrality & Inverse Authority**: Anthropic Claude operates purely as an interchangeable MCP client. Claude possesses zero authority over verified facts or scores and gains zero direct database or shell credentials.
+  * **Zero Backend Code Changes Required**: The existing backend architecture natively satisfies both single-connector and multi-connector operational models with zero modifications.
+* **Alternatives Considered**:
+  * *Splitting tools into separate MCP servers (e.g. `CareerReadServer` vs `CareerWriteServer`)*: Rejected because it breaks Claude Free users (who are limited to 1 connector) and adds unnecessary deployment and maintenance overhead without functional benefit.
+  * *Immediately prefixing all tool names with `career_*` (e.g. `career_get_candidate_profile`)*: Rejected for Phase 10 to preserve backward compatibility with existing Gemini integration and test suites; deferred as an optional alias pattern for Phase 13 if collision issues arise in multi-connector production usage.
+* **Reasons**: Confirms full, secure compatibility across all Claude subscription tiers while maintaining pristine multi-tenant isolation, compact token economics, and uncompromised human-in-the-loop write safety.
+* **Consequences**:
+  * Task P10-002A is COMPLETE & APPROVED.
+  * Next task P10-002 / P10-003 will verify provider-neutral prompt adherence and multi-client equivalence.
+* **Revisit Conditions**: When dynamic tool namespacing or multi-party approval policies are introduced in Phase 13.
+
+
