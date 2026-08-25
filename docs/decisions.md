@@ -1215,3 +1215,26 @@
   * Task P8-006 will implement `scripts/benchmark-mcp.js`, execute deterministic benchmark suites, generate `docs/mcp-performance-baseline.md`, and verify live Golden Path latency.
 * **Revisit Conditions**: When distributed caching (e.g. Redis) or streaming MCP transports are introduced in later phases.
 
+---
+
+### ADR-052: Approved GitHub / Project Modification Workflows & Human-in-the-Loop Safety Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-25
+* **Context**: In Phase 9 (Task P9-001A), we investigated enabling the AI career copilot to propose and execute legitimate code/project additions to bridge missing skill gaps identified from target job descriptions without fabricating claims. We must establish an airtight security model, threat mitigations, authority boundaries, human approval protocols, least-privilege GitHub App permissions, patch safety rules, and tenant isolation invariants before implementing write operations or MCP write tools.
+* **Decision**: Adopt the **GitHub Project Modification Architecture** defined in `docs/github-project-modification-architecture.md` (`ARCH-031`) governed by the following core architectural decisions:
+  * **Inverse Authority Principle for Repository Writes**: The AI (Gemini/Claude/ChatGPT) acts strictly as a proposer of improvement plans and code diffs; it has ZERO execution authority. All modifications require deterministic pre-validation and interactive human approval.
+  * **Two-Phase Human-in-the-Loop Approval State Machine**: Implements an explicit two-phase protocol (`propose_project_improvement` $\rightarrow$ `ApprovalTicket` $\rightarrow$ `confirm_and_create_pr`). The `ApprovalTicket` is stored in PostgreSQL with a 15-minute TTL, SHA-256 HMAC patch fingerprint, and optimistic concurrency lock (`expectedHeadSha`). Re-use attempts or unapproved executions fail closed.
+  * **Isolated Feature Branch Invariant & Default Branch Protection**: All automated writes are restricted to dedicated feature branches matching `^feat/career-hub-[a-z0-9-]+$`. Direct commits to default/protected branches (`main`, `master`), force pushing, branch deletions, and PR auto-merging are physically prohibited in code.
+  * **Least-Privilege GitHub App Token Sourcing**: Scopes write installation access tokens down to the single target repository (`repositories: [targetRepo]`) and minimal permissions (`contents: write`, `pull_requests: write`), completely excluding workflow and administration permissions.
+  * **Comprehensive Patch Safety & Workflow Blocklist**: Rejects path traversal (`..`), absolute paths, binary files, high-entropy secrets, diffs exceeding 10 files or 500 lines, and strictly prohibits modifications to `.github/workflows/*` or CI configurations.
+  * **Immutable Audit Trail & Non-Destructive Rollback**: Records full provenance in PostgreSQL (`audit_logs`) including base commit, created commit, PR URL, and patch hash. Rollback is performed non-destructively by closing the draft PR and deleting the feature branch without rewriting Git history.
+  * **Constrained MCP Interface**: Exposes exactly two domain-specific tools (`propose_project_improvement` for proposal/preview and `confirm_and_create_pr` for confirmed execution); never exposes generic shell or repository modification tools.
+* **Alternatives Considered**:
+  * *Granting the AI autonomous commit authority*: Rejected because autonomous code modification on external user repositories creates severe security, prompt injection, and hallucination risks.
+  * *Exposing generic write_file() or execute_command() MCP tools*: Rejected because excessive agency turns the platform into an unconstrained coding agent violating OWASP LLM08.
+  * *Committing directly to default branches without PRs*: Rejected because it bypasses repository branch protection and eliminates human oversight.
+* **Reasons**: Enables candidates to legitimately acquire and prove missing job skills through safe, auditable, and human-verified repository enhancements while upholding uncompromising multi-tenant security and repository integrity.
+* **Consequences**:
+  * Phase 9 tasks (`P9-001` through `P9-006`) will implement the `ProjectImprovementRecommender`, `ApprovalTicket` state machine, scoped `GitHubAppConnector` write operations, safety constraints, MCP write tools, and diff preview test suites.
+* **Revisit Conditions**: When multi-repository cross-linking or automated CI test runner execution inside isolated sandboxes are introduced in Phase 15.
+

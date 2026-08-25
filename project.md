@@ -9,11 +9,11 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 8 — Gemini Integration (COMPLETE)** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified; ready for Phase 9) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 ready for kickoff |
+| **Current Phase** | **PHASE 9 — Approved GitHub / Project Modification Workflows** | Phase 0-8 (100% COMPLETE: 51/51 tasks verified), Phase 9 (P9-001A Approved; ready for P9-001) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 8 complete; Phase 9 architecture review approved |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **51 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6 verified: P8-001..P8-006, plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 9 kickoff (P9-001) |
+| **Completed Tasks** | **51 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A approved) |
+| **In Progress Tasks** | **1 Task** | Phase 9 (P9-001) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
 | **Overall Task Completion** | **63.0% (51 / 81 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **56.3% (9 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-8 complete) |
@@ -33,14 +33,14 @@
 | **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
+| **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 0 | 1 | **IN_PROGRESS** | **0.0% (P9-001A Approved; P9-001 Ready)** |
 | **PHASE 10** | Claude Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **81** | **51** | **0** | **IN_PROGRESS** | **63.0%** |
+| **TOTAL** | **All Phases Combined** | **81** | **51** | **1** | **IN_PROGRESS** | **63.0%** |
 
 ---
 
@@ -228,7 +228,8 @@
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P9-001** | Implement Project Improvement Recommender (analyzes missing job skills and proposes concrete code/architecture additions) | P5-003 | NOT_STARTED | Test generating legitimate enhancement plan for a sample repository |
+| **P9-001A** | Approved GitHub / Project Modification Workflows Architecture & Security Review | P8-006 | **COMPLETE & APPROVED** | Architectural specification `docs/github-project-modification-architecture.md` (`ARCH-031`), ADR-052 in `docs/decisions.md`. Established 10-point threat model, Inverse Authority Principle for code writes, 4-tier action matrix (`READ_ONLY`, `SAFE_WRITE`, `APPROVAL_REQUIRED`, `PROHIBITED`), Two-Phase Human-in-the-Loop Approval State Machine (`ApprovalTicket`), least-privilege GitHub App scoping (`contents: write`, `pull_requests: write`), patch safety engine (workflow blocklist, binary filter, entropy scanner), optimistic concurrency locking (`expectedHeadSha`), immutable audit logging, non-destructive rollback, and 2-tool MCP interface. |
+| **P9-001** | Implement Project Improvement Recommender (analyzes missing job skills and proposes concrete code/architecture additions) | P5-003, P9-001A | **IN_PROGRESS** | Test generating legitimate enhancement plan for a sample repository |
 | **P9-002** | Implement Two-Phase Human-in-the-Loop Action Approval State Machine (`propose_action` -> `ApprovalTicket` -> `confirm_action`) | P2-002, P9-001 | NOT_STARTED | Unit test: action cannot execute without valid, unexpired approval ticket |
 | **P9-003** | Implement GitHub Write Operations: `create_branch`, `create_commit_patch`, `create_pull_request` | P3-001, P9-002 | NOT_STARTED | Integration test against test repository creating branch and draft PR |
 | **P9-004** | Enforce Safety Constraints: write actions NEVER touch default branch (`main`/`master`); only create feature branches | P9-003 | NOT_STARTED | Security test asserting attempt to write to `main` throws `ForbiddenOperationError` |
@@ -2139,5 +2140,23 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (All matched files use Prettier code style)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
   * Status: **`P8-006 COMPLETE & VERIFIED`**.
+
+---
+
+### PHASE 9: Approved GitHub / Project Modification Workflows
+
+* **P9-001A (Approved GitHub / Project Modification Workflows Architecture & Security Review — Completed & Approved)**:
+  * Deliverables Created:
+    * `docs/github-project-modification-architecture.md`: Architectural specification (`ARCH-031`), `ADR-052` in `docs/decisions.md`.
+  * Architectural Findings & Design Specifications:
+    * **10-Point Comprehensive Threat Model**: Mitigated prompt injection, CI/CD workflow hijacking, protected branch corruption, cross-tenant confused deputy execution, credential introduction, path traversal, replay/duplicate execution, stale base commit race conditions, diff bloat DoS, and binary artifact injection.
+    * **Inverse Authority Principle for Repository Writes**: AI clients (Gemini, Claude, ChatGPT) act strictly as proposers of candidate skill gap additions and code diffs with ZERO write or execution authority. All modifications require deterministic pre-validation and interactive human approval.
+    * **Two-Phase Human-in-the-Loop State Machine**: Formally specified the `ApprovalTicket` model (stored in PostgreSQL with 15-minute TTL, SHA-256 HMAC patch fingerprint, and optimistic concurrency lock on `expectedHeadSha`). Re-use attempts fail closed (`409 Conflict`).
+    * **Isolated Feature Branch Invariant**: All writes are strictly confined to disposable feature branches matching `^feat/career-hub-[a-z0-9-]+$`. Direct commits to default/protected branches (`main`, `master`), force pushes, branch deletions, and PR auto-merges are physically prohibited in code.
+    * **Least-Privilege GitHub App Token Sourcing**: Scopes write installation tokens down to the single target repository (`repositories: [targetRepo]`) and minimal permissions (`contents: write`, `pull_requests: write`), completely excluding workflow and administration permissions.
+    * **Deterministic Patch Safety Engine**: Enforces POSIX path normalization, protected workflow blocklist (`.github/workflows/*`), binary exclusion, max 10 files / 500 lines limits, and high-entropy secret scanning.
+    * **Immutable Audit Trail & Non-Destructive Rollback**: Full write provenance recorded in PostgreSQL (`audit_logs`) without token leakage. Non-destructive rollback via draft PR closure and feature branch deletion.
+    * **Constrained MCP Exposure**: Exposes exactly two domain-specific tools (`propose_project_improvement` for proposal/preview and `confirm_and_create_pr` for confirmed execution), preventing excessive agency and generic coding agent drift.
+  * Status: **`P9-001A APPROVED`**.
 
 ---
