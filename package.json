@@ -18,7 +18,7 @@
     "test:integration": "node --test tests/integration/*.test.js",
     "test:live": "node --test tests/integration/live/**/*.test.js",
     "test:live:gemini": "node --test tests/integration/live/gemini-client.live.test.js tests/integration/live/gemini-golden-path.live.test.js",
-    "test:live:vertex": "node --test tests/integration/live/gemini-vertex.live.test.js",
+    "test:live:vertex": "node --test tests/integration/live/gemini-vertex.live.test.js tests/integration/live/project-improvement-vertex.live.test.js",
     "test:db-lifecycle-check": "node scripts/check-db-lifecycle.js",
     "test:vertex:smoke": "node scripts/test-vertex-ai.js",
     "db:generate": "drizzle-kit generate",

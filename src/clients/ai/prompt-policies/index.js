@@ -16,6 +16,7 @@ import { CoverLetterPolicy } from './cover-letter.policy.js';
 import { JobExplanationPolicy } from './job-explanation.policy.js';
 import { CareerCoachingPolicy } from './career-coaching.policy.js';
 import { ProjectCaseStudyPolicy } from './project-case-study.policy.js';
+import { ProjectImprovementPolicy } from './project-improvement.policy.js';
 
 export {
   BasePromptPolicy,
@@ -24,6 +25,7 @@ export {
   JobExplanationPolicy,
   CareerCoachingPolicy,
   ProjectCaseStudyPolicy,
+  ProjectImprovementPolicy,
   UNIVERSAL_ZERO_HALLUCINATION_POLICY,
   sanitizeData,
   scrubPii,
@@ -40,6 +42,7 @@ export class PromptPolicyRegistry {
       ['JOB_EXPLANATION', new JobExplanationPolicy()],
       ['CAREER_COACHING', new CareerCoachingPolicy()],
       ['PROJECT_CASE_STUDY', new ProjectCaseStudyPolicy()],
+      ['PROJECT_IMPROVEMENT', new ProjectImprovementPolicy()],
     ]);
 
     this._defaultPolicy = new BasePromptPolicy({
