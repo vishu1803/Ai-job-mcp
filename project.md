@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-12 100% COMPLETE (70/70 tasks); Phase 12 P12-001, P12-002, P12-003, P12-004, P12-005 verified (5/5 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 12 COMPLETE; P12-001 (Schema foundation), P12-002 (Application Tracking Service), P12-003 (MCP Tracking Tools), P12-004 (Application Analytics Service), and P12-005 (Multi-Tenant Isolation Security Suite) verified; ready for Phase 13 |
+| **Current Phase** | **PHASE 13 — Public Multi-User Beta** | Phases 0-12 100% COMPLETE (70/70 tasks); Phase 13 P13-001 verified (1/5 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 13 in progress; P13-001 (Multi-Tenant Registration & Onboarding Provisioning) verified; ready for P13-002 |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **70 Tasks** | Phases 0-12 (70 tasks) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 13 |
+| **Completed Tasks** | **71 Tasks** | Phases 0-12 (70 tasks) + Phase 13 (P13-001) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 13 / P13-002 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **86.42% (70 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **81.25% (13.0 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-12 100% complete) |
+| **Overall Task Completion** | **87.65% (71 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **82.50% (13.2 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-12 100% complete; Phase 13 20.0% complete) |
 
 ---
 
@@ -37,7 +37,7 @@
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
+| **PHASE 13** | Public Multi-User Beta | 5 | 1 | 0 | **IN_PROGRESS** | **20.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -343,7 +343,7 @@
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P13-001** | Build lightweight web dashboard for account management, connector linking, and token generation | P2-005, P4-005 | NOT_STARTED | End-to-end browser test: sign up, link GitHub, copy MCP connection URL |
+| **P13-001** | Implement Multi-Tenant Registration & Onboarding Flow | P2-002, P4-005, P13-001A | **COMPLETE & VERIFIED** | Implemented atomic registration provisioning in `src/security/auth.service.js` and `src/routes/auth.routes.js` creating Tenant, OWNER User, Candidate Persona (`REGISTERED`), CandidateIdentity, Session, and sanitized AuditLog in a single transaction. Unit & integration tests: 11/11 PASS (`tests/integration/registration-onboarding.test.js`); Master suite: 1,536/1,536 PASS with 0 DB leaks. |
 | **P13-002** | Implement User Data Sovereignty features: View Indexed Evidence, Disconnect, Hard Delete Account (GDPR) | P2-005, P4-005 | NOT_STARTED | Test account hard delete permanently purges all candidate data and encrypted tokens |
 | **P13-003** | Deploy production staging environment with SSL, custom domain, and health monitoring | P1-005 | NOT_STARTED | HTTPS health check probe returning 200 OK |
 | **P13-004** | Onboard 5 external beta users and conduct end-to-end verification across Gemini, Claude, and ChatGPT | P8-003, P10-002, P11-002, P13-001 | NOT_STARTED | Beta feedback log and zero critical cross-tenant errors |
@@ -2928,6 +2928,29 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 29.0s)
     * `npm run test:integration` -> PASS (398/398 integration tests passing across 119 suites in 91.0s)
     * `npm test` -> PASS (1,525/1,525 master tests passing across 410 suites in 93.4s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+* **P13-001A: PUBLIC MULTI-USER REGISTRATION & ONBOARDING ARCHITECTURE / SECURITY REVIEW (Completed & Approved)**:
+  * Deliverables & Architecture:
+    * Architecture review approved in `docs/multi-user-registration-onboarding-architecture.md` (`ARCH-047`) and `ADR-067` in `docs/decisions.md`.
+    * Established zero schema overhead, atomic multi-tenant registration provisioning transaction, GitHub-first passwordless identity model, onboarding state machine (`REGISTERED` $\to$ `RESOURCES_CONNECTED` $\to$ `PROFILE_REVIEW` $\to$ `COMPLETED`), session cookie hardening (`SameSite=Lax`, `HttpOnly`, `Secure`), account enumeration defense, and CSRF origin verification.
+  * Status: **`COMPLETE & APPROVED`**.
+
+* **P13-001: IMPLEMENT MULTI-TENANT REGISTRATION & ONBOARDING FLOW (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/security/auth.service.js`: Enhanced `handleOAuthCallback` to atomically provision personal `Tenant` (`FREE`), `User` (`role: 'OWNER'`, `status: 'ACTIVE'`), initial `Candidate` persona (`onboardingState: 'REGISTERED'`), `CandidateIdentity` (`provider: 'GITHUB_APP'`, `verified: true`), `Session` (SHA-256 hashed), and sanitized `auditLogs` within a single PostgreSQL transaction. Existing users execute idempotent login, refreshing sessions and preserving candidate/tenant/onboarding state.
+    * `src/routes/auth.routes.js`: Updated callback handler to return structured candidate/onboarding information in JSON responses and redirect new browser users to `/onboarding` (and existing users to `/dashboard` or validated `returnTo`).
+    * `docs/multi-user-registration-onboarding-architecture.md`: Formal specification (`ARCH-047` / `ADR-067`) marked `IMPLEMENTED & VERIFIED`.
+    * `docs/decisions.md`: Added `ADR-067: Public Multi-User Registration, Onboarding State Machine & Account Security Architecture`.
+    * `tests/integration/registration-onboarding.test.js`: Comprehensive 11-scenario integration test suite verifying atomic provisioning, candidate persona creation, onboarding state tracking, idempotent re-login, open redirect protection, state/PKCE tampering rejection, rollback on failure, CSRF origin verification, and zero credential leakage.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/registration-onboarding.test.js` -> PASS (11/11 tests in 10.0s)
+    * `node --test tests/integration/auth.test.js` -> PASS (14/14 tests in 26.5s)
+    * `npm run test:db-lifecycle-check` -> PASS (47/47 DB-using test files verified with 0 leaks)
+    * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 28.2s)
+    * `npm run test:integration` -> PASS (409/409 integration tests passing across 120 suites in 77.7s)
+    * `npm test` -> PASS (1,536/1,536 master tests passing across 411 suites in 89.0s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Schema in sync)

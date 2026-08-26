@@ -9,8 +9,8 @@
  */
 
 import crypto from 'node:crypto';
-import { eq } from 'drizzle-orm';
-import { tenants, users, auditLogs } from '../db/schema.js';
+import { eq, and } from 'drizzle-orm';
+import { tenants, users, candidates, candidateIdentities, auditLogs } from '../db/schema.js';
 import { generateOAuthState, validateAndConsumeOAuthState } from './oauth-state.js';
 import { createSession } from './session.service.js';
 import { sanitizeAuditDetails } from '../utils/audit-sanitizer.js';
@@ -125,7 +125,7 @@ export class AuthService {
    * @param {string | null} [params.userAgent=null] Client User-Agent
    * @param {string | null} [params.requestId=null] Trace correlation ID
    * @param {string | Buffer} [params.encryptionKey] Master encryption key override
-   * @returns {Promise<{ session: { rawToken: string, sessionId: string, expiresAt: Date }, user: typeof users.$inferSelect, tenant: typeof tenants.$inferSelect, isNewUser: boolean, returnTo: string | null }>} Created session and account metadata
+   * @returns {Promise<{ session: { rawToken: string, sessionId: string, expiresAt: Date }, user: typeof users.$inferSelect, tenant: typeof tenants.$inferSelect, candidate: typeof candidates.$inferSelect | null, isNewUser: boolean, onboardingState: string, returnTo: string | null }>} Created session and account metadata
    */
   async handleOAuthCallback(providerName, params) {
     const provider = this.getProvider(providerName);
@@ -150,14 +150,16 @@ export class AuthService {
     // 3. Fetch normalized user profile
     const profile = await provider.getUserProfile(tokens.accessToken);
 
-    // 4. Resolve or create user & tenant atomically in a transaction
+    // 4. Resolve or create user, tenant, candidate & candidateIdentity atomically in a transaction
     return await this.db.transaction(async (tx) => {
       // Find existing user by verified email
       const existingUsers = await tx.select().from(users).where(eq(users.email, profile.email));
 
       let user;
       let tenant;
+      let candidate = null;
       let isNewUser = false;
+      let onboardingState = 'COMPLETED';
 
       if (existingUsers.length > 0) {
         user = existingUsers[0];
@@ -189,9 +191,22 @@ export class AuthService {
             .where(eq(users.id, user.id));
           user.avatarUrl = profile.avatarUrl;
         }
+
+        // Fetch existing candidate profile for this user and tenant
+        const candidateRows = await tx
+          .select()
+          .from(candidates)
+          .where(and(eq(candidates.tenantId, tenant.id), eq(candidates.userId, user.id)));
+
+        if (candidateRows.length > 0) {
+          candidate = candidateRows[0];
+          onboardingState =
+            candidate.profileMetadata?.systemInferred?.onboardingState || 'COMPLETED';
+        }
       } else {
         // Provision new personal workspace tenant
         isNewUser = true;
+        onboardingState = 'REGISTERED';
         const tenantSlug = generateTenantSlug(profile.displayName, profile.email);
         const [newTenant] = await tx
           .insert(tenants)
@@ -218,6 +233,48 @@ export class AuthService {
           .returning();
 
         user = newUser;
+
+        // Provision initial candidate persona with REGISTERED onboarding state
+        const initialMetadata = {
+          userCustom: {},
+          systemInferred: {
+            onboardingState: 'REGISTERED',
+          },
+        };
+
+        const [newCandidate] = await tx
+          .insert(candidates)
+          .values({
+            tenantId: tenant.id,
+            userId: user.id,
+            displayName: profile.displayName,
+            canonicalEmail: profile.email,
+            profileMetadata: initialMetadata,
+            status: 'ACTIVE',
+          })
+          .returning();
+
+        candidate = newCandidate;
+
+        // Provision candidate identity for GitHub
+        const resourceProvider =
+          providerName.toLowerCase() === 'github' ? 'GITHUB_APP' : providerName.toUpperCase();
+
+        await tx
+          .insert(candidateIdentities)
+          .values({
+            tenantId: tenant.id,
+            candidateId: candidate.id,
+            provider: resourceProvider,
+            externalAccountId: profile.providerUserId,
+            externalUsername: profile.displayName,
+            externalEmail: profile.email,
+            avatarUrl: profile.avatarUrl,
+            verified: true,
+            verifiedAt: new Date(),
+            metadata: {},
+          })
+          .returning();
       }
 
       // 5. Mint server-side database session
@@ -234,6 +291,7 @@ export class AuthService {
           provider: providerName,
           providerUserId: profile.providerUserId,
           isNewUser,
+          candidateId: candidate?.id || null,
         });
 
         await tx.insert(auditLogs).values({
@@ -255,7 +313,9 @@ export class AuthService {
         session,
         user,
         tenant,
+        candidate,
         isNewUser,
+        onboardingState,
         returnTo: returnTo || null,
       };
     });

@@ -1519,5 +1519,21 @@
 * **Reasons**: Guarantees zero multi-tenant data contamination or unauthorized cross-tenant intelligence access across the platform.
 * **Consequences**: Task P12-005A is COMPLETE & APPROVED; Task P12-005 implemented the dedicated 14-scenario security test suite.
 
+---
+
+### ADR-067: Public Multi-User Registration, Onboarding State Machine & Account Security Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 13 (Task P13-001A), we evaluated public multi-tenant registration, personal workspace provisioning, session security, and onboarding lifecycle management for the public multi-user beta.
+* **Decision**: Adopt the **Multi-User Registration & Onboarding Architecture** defined in `docs/multi-user-registration-onboarding-architecture.md` (`ARCH-047`):
+  * **Zero Schema Overhead**: Reuse existing tables (`tenants`, `users`, `candidates`, `candidate_identities`, `sessions`, `audit_logs`).
+  * **Atomic Transactional Provisioning**: Registration executes in a single PostgreSQL transaction creating `Tenant (OWNER)` $\to$ `User` $\to$ `Candidate Persona` $\to$ `CandidateIdentity` $\to$ `Session` $\to$ `AuditLog`. Any partial failure rolls back 100% cleanly.
+  * **Onboarding State Machine**: Initial candidate provisioning sets `onboardingState = 'REGISTERED'`; new browser users are redirected to `/onboarding`.
+  * **Idempotent Login**: Existing user OAuth callbacks refresh sessions and preserve existing candidate personas and onboarding progression.
+  * **Session & CSRF Hardening**: `SameSite=Lax`, `HttpOnly`, `Secure` cookies with SHA-256 hashed token storage in PostgreSQL; state-changing routes enforce `verifyCsrf`.
+* **Reasons**: Enables friction-free public onboarding grounded in authorized GitHub resources without managing passwords while maintaining sovereign multi-tenant isolation and account enumeration resistance.
+* **Consequences**: Task P13-001A is COMPLETE & APPROVED; Task P13-001 implemented atomic registration provisioning and verified test suite.
+
+
 
 

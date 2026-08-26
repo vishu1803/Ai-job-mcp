@@ -166,7 +166,19 @@ export default async function authRoutes(app, opts = {}) {
             name: result.tenant.name,
             slug: result.tenant.slug,
           },
+          candidate: result.candidate
+            ? {
+                id: result.candidate.id,
+                displayName: result.candidate.displayName,
+                onboardingState: result.onboardingState,
+              }
+            : null,
+          onboardingState: result.onboardingState,
         });
+      }
+
+      if (result.isNewUser) {
+        return reply.redirect('/onboarding');
       }
 
       return reply.redirect('/dashboard');
