@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 13 — Public Multi-User Beta** | Phases 0-12 100% COMPLETE (70/70 tasks); Phase 13 P13-001, P13-002, P13-003, P13-004 verified (4/5 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 13 in progress; P13-004 (Synthetic 5-User Beta Verification in Isolated DB) verified; ready for P13-005 |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13 100% COMPLETE (75/75 tasks across Phases 0-13); Phase 13 fully verified (5/5 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 13 (Public Multi-User Beta) 100% complete; ready to transition to Phase 14 |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **74 Tasks** | Phases 0-12 (70 tasks) + Phase 13 (P13-001, P13-002, P13-003, P13-004) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 13 / P13-005 |
+| **Completed Tasks** | **75 Tasks** | Phases 0-13 (75 tasks) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 14 / P14-001 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **91.35% (74 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **86.25% (13.8 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-12 100% complete; Phase 13 80.0% complete) |
+| **Overall Task Completion** | **92.59% (75 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **87.50% (14.0 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-13 100% complete) |
 
 ---
 
@@ -37,7 +37,7 @@
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 13** | Public Multi-User Beta | 5 | 4 | 0 | **IN_PROGRESS** | **80.0%** |
+| **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -3024,5 +3024,16 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 
 ---
 
+* **P13-005: DOCUMENT USER GUIDE, ONBOARDING WALKTHROUGH, AND VIDEO DEMO SCRIPT (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `docs/user-guide.md`: Comprehensive user-facing guide explaining the complete Career Hub workflow, least-privilege repository connection model, evidence-to-skill rollup pipeline, ATS fit scoring, tailored artifact generation (resumes, cover letters, portfolio recommendations), sovereign application tracking, complete 16-tool MCP catalog, two-phase human-approved write safety workflows, and GDPR Article 17 hard deletion with full feature status matrix (`VERIFIED`, `AVAILABLE`, `MANUAL SETUP REQUIRED`, `BLOCKED UNTIL PUBLIC STAGING`).
+    * `docs/onboarding-walkthrough.md`: 16-step operational walkthrough structured into Phase A (Local/Demo Environment) and Phase B (Future Public Staging/Beta), documenting candidate registration, onboarding wizard, repository selection, AST ingestion, skill inspection, job-fit analysis, artifact generation, application tracking, multi-AI connection (Gemini, Claude, ChatGPT), unified diff review, and PR creation with failure modes and security notes for every step.
+    * `docs/video-demo-script.md`: Realistic 10–12 minute product demonstration script with precise timecodes (00:00 to 12:00), synthetic candidate profile (`Alex Mercer` / `CloudScale Inc`), visual cues, narration transcripts, and production safeguards (zero PII, zero credentials, `.test` domains).
+  * Quality Gates & Verification:
+    * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 30.8s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * Verified all relative links and verified zero secret leakage.
+  * Status: **`COMPLETE & VERIFIED`**.
 
-
+---
