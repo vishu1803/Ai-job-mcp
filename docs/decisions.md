@@ -1471,3 +1471,20 @@
   * **Immutable Patch Fingerprinting & Truthful Test Reports**: Diffs are formatted in unified format with line bounds; patches are SHA-256 fingerprinted; test reports reflect truthful lifecycle states (`NOT_RUN` default).
 * **Reasons**: Guarantees total human oversight and airtight repository protection before any remote Git Data API call is issued.
 * **Consequences**: Task P11-003A is COMPLETE & APPROVED; Task P11-003 will verify write tool execution and safety gate enforcement.
+
+---
+
+### ADR-064: Job & Application Tracking Relational Schema & State Machine
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 12 (Task P12-001A), we evaluated the data architecture for job application tracking, stage history event logging, immutable tailored artifact snapshots, and multi-tenant security boundaries.
+* **Decision**: Adopt the **Job & Application Tracking Architecture** defined in `docs/job-application-tracking-architecture.md` (`ARCH-043`):
+  * **3-Table Aggregate**: `job_applications` (root aggregate), `application_stages` (child event history), and `tailored_documents` (immutable artifact snapshots).
+  * **Explicit Directed State Graph**: Application status transitions follow a validated directed graph (`SAVED` -> `APPLIED` -> `SCREENING` -> `INTERVIEWING` -> `OFFER_RECEIVED` -> `OFFER_ACCEPTED`), strictly preventing illegal leaps such as `SAVED -> OFFER_ACCEPTED`.
+  * **Chronological Stage Event Log**: Preserves interview rounds, feedback, and outcomes with monotonic `order_index` without overwriting aggregate application status.
+  * **Immutable Document Snapshots**: Resumes and cover letters attached to applications are append-only snapshots with deterministic SHA-256 `content_hash` and pinned `citation_refs`.
+  * **Multi-Tenant Sovereign Isolation**: Strict default-deny `404 NOT_FOUND` for cross-tenant access attempts.
+  * **Zero Spam / Anti-Bot Preservation**: In compliance with `goal.md` §8.1, the platform tracks candidate applications and NEVER performs autonomous third-party job board submissions.
+* **Reasons**: Provides an evidence-linked system of record for technical job searches while maintaining strict multi-tenant isolation, cryptographic veracity, and human sovereignty.
+* **Consequences**: Task P12-001A is COMPLETE & APPROVED; Task P12-001 will implement the Drizzle schema and migrations.
+

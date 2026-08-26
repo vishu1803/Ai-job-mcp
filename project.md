@@ -36,7 +36,7 @@
 | **PHASE 9** | Approved GitHub Write Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | 0.0% |
+| **PHASE 12** | Job / Application Tracking | 5 | 1 | 0 | **IN_PROGRESS** | **20.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
@@ -329,7 +329,7 @@
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P12-001** | Create database tables: `job_applications`, `application_stages`, `tailored_documents` | P1-004 | NOT_STARTED | Database migration and query tests |
+| **P12-001** | Create database tables: `job_applications`, `application_stages`, `tailored_documents` | P1-004 | **COMPLETE & VERIFIED** | Implemented 3-table aggregate in `src/db/schema.js`, migration `0007_wonderful_black_crow.sql`, 23/23 schema unit tests, 19/19 state machine unit tests, and 8/8 DB integration tests with cascade isolation. |
 | **P12-002** | Implement Application Tracking Service (create application, update status, link tailored resume/cover letter) | P12-001 | NOT_STARTED | Integration test: track application through stages (`Applied`, `Screening`, `Interview`, `Offer`) |
 | **P12-003** | Expose MCP Tracking Tools: `track_job_application`, `update_application_status`, `list_active_applications` | P7-001, P12-002 | NOT_STARTED | MCP tool invocation tests via AI client |
 | **P12-004** | Implement Application Analytics (match score vs. response rate, skill gap frequencies across targets) | P12-002 | NOT_STARTED | Test computing aggregate statistics across tracked applications |
@@ -2786,6 +2786,42 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
       8. 6-scenario troubleshooting matrix.
   * Quality Gates & Verification:
     * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+### PHASE 12: Job / Application Tracking (Execution Ledger)
+
+* **P12-001A: JOB & APPLICATION TRACKING ARCHITECTURE, STAGE STATE MACHINE & SCHEMA REVIEW (Completed & Approved)**:
+  * Deliverables Created & Modified:
+    * `docs/job-application-tracking-architecture.md`: Comprehensive architectural specification (`ARCH-043`) detailing:
+      * **3-Table Relational Aggregate**: `job_applications` (root aggregate), `application_stages` (child chronological interview log), and `tailored_documents` (immutable artifact snapshots).
+      * **Directed State Machine**: Validated state transition graph (`SAVED` -> `APPLIED` -> `SCREENING` -> `INTERVIEWING` -> `OFFER_RECEIVED` -> `OFFER_ACCEPTED`) with strict rejection of illegal leaps (e.g. `SAVED -> OFFER_ACCEPTED`).
+      * **Chronological Stage Event Log**: Preserves interview rounds, feedback, and outcomes with monotonic `order_index`.
+      * **Immutable Document Snapshots**: Resumes and cover letters attached to applications are append-only snapshots with deterministic SHA-256 `content_hash` and pinned `citation_refs`.
+      * **Multi-Tenant Sovereign Isolation**: Strict default-deny `404 NOT_FOUND` for cross-tenant access attempts.
+      * **Zero Spam / Anti-Bot Preservation**: Strictly preserves `goal.md` §8.1 non-goal; zero automated job board submissions.
+    * `docs/decisions.md`: Added `ADR-064` recording architectural approval.
+  * Status: **`COMPLETE & APPROVED`**.
+
+* **P12-001: CREATE DATABASE TABLES: `job_applications`, `application_stages`, `tailored_documents` (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/db/schema.js`: Added 4 enums (`application_status`, `stage_type`, `stage_outcome`, `tailored_document_type`) and 3 tables (`job_applications`, `application_stages`, `tailored_documents`) with 10 performance indexes.
+    * `drizzle/0007_wonderful_black_crow.sql`: Generated and executed clean Drizzle migration.
+    * `src/domain/career/job-application.schemas.js`: Comprehensive Zod validation schemas for applications, stages, documents, and compensation.
+    * `src/domain/career/application-state-machine.js`: Pure deterministic state machine engine and recursive SHA-256 content hashing.
+    * `tests/unit/job-application.schemas.test.js`: 23/23 passing unit tests.
+    * `tests/unit/application-state-machine.test.js`: 19/19 passing unit tests.
+    * `tests/integration/job-application-schema.test.js`: 8/8 passing database integration tests validating CRUD, multi-tenant 404 boundary isolation, cascade deletions, and clean pool teardown.
+  * Quality Gates & Verification:
+    * `npm run db:migrate` -> PASS (Migration applied cleanly)
+    * `npm run db:check` -> PASS (Schema in sync)
+    * `npm run test:db-lifecycle-check` -> PASS (42/42 DB-using test files verified with 0 leaks)
+    * `npm run test:unit` -> PASS (1,098/1,098 unit tests passing across 278 suites)
+    * `npm run test:integration` -> PASS (347/347 integration tests passing across 102 suites)
+    * `npm test` -> PASS (1,445/1,445 tests passing across 380 suites in 125.8s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
   * Status: **`COMPLETE & VERIFIED`**.
 

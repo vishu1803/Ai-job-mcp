@@ -1,0 +1,1148 @@
+{
+  "timestamp": "2026-08-25T03:24:14.017Z",
+  "runId": "76993b59",
+  "environment": "development",
+  "nodeVersion": "v24.13.0",
+  "databaseEnvironment": "Aiven PostgreSQL 17 (Remote Staging)",
+  "iterations": 10,
+  "concurrencyTiers": [1, 5, 10],
+  "targetBoundary": "MCP_HTTP",
+  "globalP95CeilingMs": 1500,
+  "results": [
+    {
+      "tool": "get_candidate_profile",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 604.66,
+        "maxMs": 912.58,
+        "meanMs": 656.47,
+        "p50Ms": 620.47,
+        "p95Ms": 801.2,
+        "p99Ms": 890.3,
+        "stddevMs": 92.51,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "get_candidate_profile",
+        "status": "WARN",
+        "reasons": ["p95 (801.2ms) exceeds tool-specific target (350ms) by 451.2ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 451.2
+      }
+    },
+    {
+      "tool": "get_candidate_profile",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 604.18,
+        "maxMs": 1035.73,
+        "meanMs": 783.45,
+        "p50Ms": 628.01,
+        "p95Ms": 1034.12,
+        "p99Ms": 1035.41,
+        "stddevMs": 207.3,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "get_candidate_profile",
+        "status": "WARN",
+        "reasons": ["p95 (1034.1ms) exceeds tool-specific target (350ms) by 684.1ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 684.1
+      }
+    },
+    {
+      "tool": "get_candidate_profile",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1190.84,
+        "maxMs": 1297.82,
+        "meanMs": 1239.3,
+        "p50Ms": 1244.27,
+        "p95Ms": 1285.28,
+        "p99Ms": 1295.31,
+        "stddevMs": 34.61,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "get_candidate_profile",
+        "status": "WARN",
+        "reasons": ["p95 (1285.3ms) exceeds tool-specific target (350ms) by 935.3ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 935.3
+      }
+    },
+    {
+      "tool": "get_candidate_profile",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 761.98,
+        "maxMs": 1255.2,
+        "meanMs": 849.35,
+        "p50Ms": 788.58,
+        "p95Ms": 1119.55,
+        "p99Ms": 1228.07,
+        "stddevMs": 153,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "get_candidate_profile",
+        "status": "WARN",
+        "reasons": ["p95 (1119.5ms) exceeds tool-specific target (350ms) by 769.5ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 769.5
+      }
+    },
+    {
+      "tool": "get_candidate_profile",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 810.88,
+        "maxMs": 919.45,
+        "meanMs": 849.58,
+        "p50Ms": 848.28,
+        "p95Ms": 901.08,
+        "p99Ms": 915.77,
+        "stddevMs": 36.41,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "get_candidate_profile",
+        "status": "WARN",
+        "reasons": ["p95 (901.1ms) exceeds tool-specific target (350ms) by 551.1ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 551.1
+      }
+    },
+    {
+      "tool": "get_candidate_profile",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1506.06,
+        "maxMs": 1613.88,
+        "meanMs": 1565.14,
+        "p50Ms": 1561.68,
+        "p95Ms": 1613.24,
+        "p99Ms": 1613.75,
+        "stddevMs": 35.39,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "get_candidate_profile",
+        "status": "FAIL",
+        "reasons": ["p95 (1613.2ms) exceeds the 1500ms global MCP_HTTP SLA ceiling."],
+        "targetMs": 350,
+        "toolDeviationMs": 1263.2
+      }
+    },
+    {
+      "tool": "list_verified_skills",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 158.14,
+        "maxMs": 713.98,
+        "meanMs": 219.91,
+        "p50Ms": 162.59,
+        "p95Ms": 474.88,
+        "p99Ms": 666.16,
+        "stddevMs": 173.76,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "list_verified_skills",
+        "status": "WARN",
+        "reasons": ["p95 (474.9ms) exceeds tool-specific target (300ms) by 174.9ms."],
+        "targetMs": 300,
+        "toolDeviationMs": 174.9
+      }
+    },
+    {
+      "tool": "list_verified_skills",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 161.47,
+        "maxMs": 170.29,
+        "meanMs": 166.04,
+        "p50Ms": 165.9,
+        "p95Ms": 170.03,
+        "p99Ms": 170.23,
+        "stddevMs": 3.09,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "list_verified_skills",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 300,
+        "toolDeviationMs": -130
+      }
+    },
+    {
+      "tool": "list_verified_skills",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 268.83,
+        "maxMs": 337.68,
+        "meanMs": 304.69,
+        "p50Ms": 304.36,
+        "p95Ms": 336.63,
+        "p99Ms": 337.47,
+        "stddevMs": 29.71,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "list_verified_skills",
+        "status": "WARN",
+        "reasons": ["p95 (336.6ms) exceeds tool-specific target (300ms) by 36.6ms."],
+        "targetMs": 300,
+        "toolDeviationMs": 36.6
+      }
+    },
+    {
+      "tool": "list_verified_skills",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 312.46,
+        "maxMs": 336.74,
+        "meanMs": 322.19,
+        "p50Ms": 321.08,
+        "p95Ms": 332.08,
+        "p99Ms": 335.81,
+        "stddevMs": 6.79,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "list_verified_skills",
+        "status": "WARN",
+        "reasons": ["p95 (332.1ms) exceeds tool-specific target (300ms) by 32.1ms."],
+        "targetMs": 300,
+        "toolDeviationMs": 32.1
+      }
+    },
+    {
+      "tool": "list_verified_skills",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 344.54,
+        "maxMs": 729.94,
+        "meanMs": 484.68,
+        "p50Ms": 401.51,
+        "p95Ms": 705.63,
+        "p99Ms": 725.08,
+        "stddevMs": 154.7,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "list_verified_skills",
+        "status": "WARN",
+        "reasons": ["p95 (705.6ms) exceeds tool-specific target (300ms) by 405.6ms."],
+        "targetMs": 300,
+        "toolDeviationMs": 405.6
+      }
+    },
+    {
+      "tool": "list_verified_skills",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 717.15,
+        "maxMs": 816.85,
+        "meanMs": 757.28,
+        "p50Ms": 766.63,
+        "p95Ms": 803.22,
+        "p99Ms": 814.12,
+        "stddevMs": 34.12,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "list_verified_skills",
+        "status": "WARN",
+        "reasons": ["p95 (803.2ms) exceeds tool-specific target (300ms) by 503.2ms."],
+        "targetMs": 300,
+        "toolDeviationMs": 503.2
+      }
+    },
+    {
+      "tool": "inspect_project_evidence",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 212.93,
+        "maxMs": 223.01,
+        "meanMs": 216.86,
+        "p50Ms": 215.87,
+        "p95Ms": 222.93,
+        "p99Ms": 222.99,
+        "stddevMs": 3.49,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "inspect_project_evidence",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 350,
+        "toolDeviationMs": -127.1
+      }
+    },
+    {
+      "tool": "inspect_project_evidence",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 217.95,
+        "maxMs": 231.94,
+        "meanMs": 224.99,
+        "p50Ms": 223.98,
+        "p95Ms": 231.66,
+        "p99Ms": 231.88,
+        "stddevMs": 4.64,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "inspect_project_evidence",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 350,
+        "toolDeviationMs": -118.3
+      }
+    },
+    {
+      "tool": "inspect_project_evidence",
+      "category": "READ_FAST",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 384.08,
+        "maxMs": 462.92,
+        "meanMs": 423.54,
+        "p50Ms": 420.76,
+        "p95Ms": 459.95,
+        "p99Ms": 462.33,
+        "stddevMs": 30.13,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "inspect_project_evidence",
+        "status": "WARN",
+        "reasons": ["p95 (459.9ms) exceeds tool-specific target (350ms) by 109.9ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 109.9
+      }
+    },
+    {
+      "tool": "inspect_project_evidence",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 367.44,
+        "maxMs": 394.43,
+        "meanMs": 378.24,
+        "p50Ms": 375.15,
+        "p95Ms": 392.03,
+        "p99Ms": 393.95,
+        "stddevMs": 9.25,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "inspect_project_evidence",
+        "status": "WARN",
+        "reasons": ["p95 (392.0ms) exceeds tool-specific target (350ms) by 42.0ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 42
+      }
+    },
+    {
+      "tool": "inspect_project_evidence",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 387.99,
+        "maxMs": 451.52,
+        "meanMs": 415.26,
+        "p50Ms": 404.28,
+        "p95Ms": 450.61,
+        "p99Ms": 451.34,
+        "stddevMs": 25.12,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "inspect_project_evidence",
+        "status": "WARN",
+        "reasons": ["p95 (450.6ms) exceeds tool-specific target (350ms) by 100.6ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 100.6
+      }
+    },
+    {
+      "tool": "inspect_project_evidence",
+      "category": "READ_FAST",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1014.74,
+        "maxMs": 1083.93,
+        "meanMs": 1050.04,
+        "p50Ms": 1048.62,
+        "p95Ms": 1083.6,
+        "p99Ms": 1083.86,
+        "stddevMs": 30.68,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "inspect_project_evidence",
+        "status": "WARN",
+        "reasons": ["p95 (1083.6ms) exceeds tool-specific target (350ms) by 733.6ms."],
+        "targetMs": 350,
+        "toolDeviationMs": 733.6
+      }
+    },
+    {
+      "tool": "analyze_job_fit",
+      "category": "ANALYTICAL",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 647.02,
+        "maxMs": 815.81,
+        "meanMs": 676.64,
+        "p50Ms": 658.73,
+        "p95Ms": 760.15,
+        "p99Ms": 804.68,
+        "stddevMs": 50.86,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "analyze_job_fit",
+        "status": "WARN",
+        "reasons": ["p95 (760.1ms) exceeds tool-specific target (650ms) by 110.1ms."],
+        "targetMs": 650,
+        "toolDeviationMs": 110.1
+      }
+    },
+    {
+      "tool": "analyze_job_fit",
+      "category": "ANALYTICAL",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 600.21,
+        "maxMs": 667.75,
+        "meanMs": 635.8,
+        "p50Ms": 636.97,
+        "p95Ms": 665.59,
+        "p99Ms": 667.32,
+        "stddevMs": 22.72,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "analyze_job_fit",
+        "status": "WARN",
+        "reasons": ["p95 (665.6ms) exceeds tool-specific target (650ms) by 15.6ms."],
+        "targetMs": 650,
+        "toolDeviationMs": 15.6
+      }
+    },
+    {
+      "tool": "analyze_job_fit",
+      "category": "ANALYTICAL",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1156.26,
+        "maxMs": 1312.99,
+        "meanMs": 1249.42,
+        "p50Ms": 1252.23,
+        "p95Ms": 1306.97,
+        "p99Ms": 1311.79,
+        "stddevMs": 47.44,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "analyze_job_fit",
+        "status": "WARN",
+        "reasons": ["p95 (1307.0ms) exceeds tool-specific target (650ms) by 657.0ms."],
+        "targetMs": 650,
+        "toolDeviationMs": 657
+      }
+    },
+    {
+      "tool": "analyze_job_fit",
+      "category": "ANALYTICAL",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 758.82,
+        "maxMs": 1605.67,
+        "meanMs": 962.03,
+        "p50Ms": 783.37,
+        "p95Ms": 1474.46,
+        "p99Ms": 1579.43,
+        "stddevMs": 293.75,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "analyze_job_fit",
+        "status": "WARN",
+        "reasons": ["p95 (1474.5ms) exceeds tool-specific target (650ms) by 824.5ms."],
+        "targetMs": 650,
+        "toolDeviationMs": 824.5
+      }
+    },
+    {
+      "tool": "analyze_job_fit",
+      "category": "ANALYTICAL",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 758.97,
+        "maxMs": 861.37,
+        "meanMs": 811.42,
+        "p50Ms": 813.43,
+        "p95Ms": 858.78,
+        "p99Ms": 860.85,
+        "stddevMs": 36.24,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "analyze_job_fit",
+        "status": "WARN",
+        "reasons": ["p95 (858.8ms) exceeds tool-specific target (650ms) by 208.8ms."],
+        "targetMs": 650,
+        "toolDeviationMs": 208.8
+      }
+    },
+    {
+      "tool": "analyze_job_fit",
+      "category": "ANALYTICAL",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1492.08,
+        "maxMs": 1631.75,
+        "meanMs": 1574.09,
+        "p50Ms": 1579.54,
+        "p95Ms": 1626.76,
+        "p99Ms": 1630.75,
+        "stddevMs": 44.34,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "analyze_job_fit",
+        "status": "FAIL",
+        "reasons": ["p95 (1626.8ms) exceeds the 1500ms global MCP_HTTP SLA ceiling."],
+        "targetMs": 650,
+        "toolDeviationMs": 976.8
+      }
+    },
+    {
+      "tool": "recommend_portfolio_projects",
+      "category": "ANALYTICAL",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 644.71,
+        "maxMs": 1146.95,
+        "meanMs": 710.09,
+        "p50Ms": 663.39,
+        "p95Ms": 935.99,
+        "p99Ms": 1104.76,
+        "stddevMs": 153.86,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "recommend_portfolio_projects",
+        "status": "WARN",
+        "reasons": ["p95 (936.0ms) exceeds tool-specific target (750ms) by 186.0ms."],
+        "targetMs": 750,
+        "toolDeviationMs": 186
+      }
+    },
+    {
+      "tool": "recommend_portfolio_projects",
+      "category": "ANALYTICAL",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 604.77,
+        "maxMs": 682.87,
+        "meanMs": 652.49,
+        "p50Ms": 655.19,
+        "p95Ms": 682.1,
+        "p99Ms": 682.72,
+        "stddevMs": 24.44,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "recommend_portfolio_projects",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 750,
+        "toolDeviationMs": -67.9
+      }
+    },
+    {
+      "tool": "recommend_portfolio_projects",
+      "category": "ANALYTICAL",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1166.82,
+        "maxMs": 1343.02,
+        "meanMs": 1260.3,
+        "p50Ms": 1264.16,
+        "p95Ms": 1334.13,
+        "p99Ms": 1341.25,
+        "stddevMs": 56.51,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "recommend_portfolio_projects",
+        "status": "WARN",
+        "reasons": ["p95 (1334.1ms) exceeds tool-specific target (750ms) by 584.1ms."],
+        "targetMs": 750,
+        "toolDeviationMs": 584.1
+      }
+    },
+    {
+      "tool": "recommend_portfolio_projects",
+      "category": "ANALYTICAL",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 731.64,
+        "maxMs": 819.79,
+        "meanMs": 768.29,
+        "p50Ms": 760.56,
+        "p95Ms": 811.48,
+        "p99Ms": 818.13,
+        "stddevMs": 30.66,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "recommend_portfolio_projects",
+        "status": "WARN",
+        "reasons": ["p95 (811.5ms) exceeds tool-specific target (750ms) by 61.5ms."],
+        "targetMs": 750,
+        "toolDeviationMs": 61.5
+      }
+    },
+    {
+      "tool": "recommend_portfolio_projects",
+      "category": "ANALYTICAL",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 780.34,
+        "maxMs": 874.03,
+        "meanMs": 823.51,
+        "p50Ms": 824.43,
+        "p95Ms": 872.71,
+        "p99Ms": 873.76,
+        "stddevMs": 33.13,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "recommend_portfolio_projects",
+        "status": "WARN",
+        "reasons": ["p95 (872.7ms) exceeds tool-specific target (750ms) by 122.7ms."],
+        "targetMs": 750,
+        "toolDeviationMs": 122.7
+      }
+    },
+    {
+      "tool": "recommend_portfolio_projects",
+      "category": "ANALYTICAL",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1556.06,
+        "maxMs": 1646.46,
+        "meanMs": 1599.11,
+        "p50Ms": 1601.48,
+        "p95Ms": 1642.37,
+        "p99Ms": 1645.64,
+        "stddevMs": 32.2,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "recommend_portfolio_projects",
+        "status": "FAIL",
+        "reasons": ["p95 (1642.4ms) exceeds the 1500ms global MCP_HTTP SLA ceiling."],
+        "targetMs": 750,
+        "toolDeviationMs": 892.4
+      }
+    },
+    {
+      "tool": "generate_tailored_resume",
+      "category": "AI_GENERATION",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 597.81,
+        "maxMs": 1448.23,
+        "meanMs": 725.08,
+        "p50Ms": 611.67,
+        "p95Ms": 1210.5,
+        "p99Ms": 1400.69,
+        "stddevMs": 272.26,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "generate_tailored_resume",
+        "status": "WARN",
+        "reasons": ["p95 (1210.5ms) exceeds tool-specific target (950ms) by 260.5ms."],
+        "targetMs": 950,
+        "toolDeviationMs": 260.5
+      }
+    },
+    {
+      "tool": "generate_tailored_resume",
+      "category": "AI_GENERATION",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 604.71,
+        "maxMs": 692.47,
+        "meanMs": 646.23,
+        "p50Ms": 646.22,
+        "p95Ms": 686.87,
+        "p99Ms": 691.35,
+        "stddevMs": 28.8,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "generate_tailored_resume",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 950,
+        "toolDeviationMs": -263.1
+      }
+    },
+    {
+      "tool": "generate_tailored_resume",
+      "category": "AI_GENERATION",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1174.97,
+        "maxMs": 1302.14,
+        "meanMs": 1238.25,
+        "p50Ms": 1238.22,
+        "p95Ms": 1296.4,
+        "p99Ms": 1300.99,
+        "stddevMs": 43.68,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "generate_tailored_resume",
+        "status": "WARN",
+        "reasons": ["p95 (1296.4ms) exceeds tool-specific target (950ms) by 346.4ms."],
+        "targetMs": 950,
+        "toolDeviationMs": 346.4
+      }
+    },
+    {
+      "tool": "generate_tailored_resume",
+      "category": "AI_GENERATION",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 775.57,
+        "maxMs": 1159.96,
+        "meanMs": 856.57,
+        "p50Ms": 791.35,
+        "p95Ms": 1094.6,
+        "p99Ms": 1146.89,
+        "stddevMs": 130.54,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "generate_tailored_resume",
+        "status": "WARN",
+        "reasons": ["p95 (1094.6ms) exceeds tool-specific target (950ms) by 144.6ms."],
+        "targetMs": 950,
+        "toolDeviationMs": 144.6
+      }
+    },
+    {
+      "tool": "generate_tailored_resume",
+      "category": "AI_GENERATION",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 796.23,
+        "maxMs": 930.38,
+        "meanMs": 864.09,
+        "p50Ms": 864.1,
+        "p95Ms": 912.91,
+        "p99Ms": 926.89,
+        "stddevMs": 36.56,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "generate_tailored_resume",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 950,
+        "toolDeviationMs": -37.1
+      }
+    },
+    {
+      "tool": "generate_tailored_resume",
+      "category": "AI_GENERATION",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1586.61,
+        "maxMs": 1681.1,
+        "meanMs": 1628.71,
+        "p50Ms": 1633.08,
+        "p95Ms": 1675.07,
+        "p99Ms": 1679.89,
+        "stddevMs": 33.11,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "generate_tailored_resume",
+        "status": "FAIL",
+        "reasons": ["p95 (1675.1ms) exceeds the 1500ms global MCP_HTTP SLA ceiling."],
+        "targetMs": 950,
+        "toolDeviationMs": 725.1
+      }
+    },
+    {
+      "tool": "draft_cover_letter",
+      "category": "AI_GENERATION",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 615.91,
+        "maxMs": 638.17,
+        "meanMs": 625.35,
+        "p50Ms": 624.46,
+        "p95Ms": 636.25,
+        "p99Ms": 637.79,
+        "stddevMs": 6.95,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "draft_cover_letter",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 850,
+        "toolDeviationMs": -213.8
+      }
+    },
+    {
+      "tool": "draft_cover_letter",
+      "category": "AI_GENERATION",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 606.14,
+        "maxMs": 708.47,
+        "meanMs": 656.22,
+        "p50Ms": 661.97,
+        "p95Ms": 703.22,
+        "p99Ms": 707.42,
+        "stddevMs": 35.68,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "draft_cover_letter",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 850,
+        "toolDeviationMs": -146.8
+      }
+    },
+    {
+      "tool": "draft_cover_letter",
+      "category": "AI_GENERATION",
+      "boundary": "TOOL_ONLY",
+      "cacheState": "DB_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1153.77,
+        "maxMs": 1272.98,
+        "meanMs": 1214.41,
+        "p50Ms": 1214.87,
+        "p95Ms": 1267.34,
+        "p99Ms": 1271.85,
+        "stddevMs": 40.12,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "draft_cover_letter",
+        "status": "WARN",
+        "reasons": ["p95 (1267.3ms) exceeds tool-specific target (850ms) by 417.3ms."],
+        "targetMs": 850,
+        "toolDeviationMs": 417.3
+      }
+    },
+    {
+      "tool": "draft_cover_letter",
+      "category": "AI_GENERATION",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 1,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 776.83,
+        "maxMs": 827.99,
+        "meanMs": 799.13,
+        "p50Ms": 797.69,
+        "p95Ms": 823.04,
+        "p99Ms": 827,
+        "stddevMs": 17.39,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "draft_cover_letter",
+        "status": "PASS",
+        "reasons": [],
+        "targetMs": 850,
+        "toolDeviationMs": -27
+      }
+    },
+    {
+      "tool": "draft_cover_letter",
+      "category": "AI_GENERATION",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 5,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 787.02,
+        "maxMs": 935.44,
+        "meanMs": 877.54,
+        "p50Ms": 882.54,
+        "p95Ms": 925.66,
+        "p99Ms": 933.49,
+        "stddevMs": 41.72,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "draft_cover_letter",
+        "status": "WARN",
+        "reasons": ["p95 (925.7ms) exceeds tool-specific target (850ms) by 75.7ms."],
+        "targetMs": 850,
+        "toolDeviationMs": 75.7
+      }
+    },
+    {
+      "tool": "draft_cover_letter",
+      "category": "AI_GENERATION",
+      "boundary": "MCP_HTTP",
+      "cacheState": "MCP_WARM",
+      "concurrency": 10,
+      "iterations": 10,
+      "distribution": {
+        "count": 10,
+        "totalRequests": 10,
+        "minMs": 1712.27,
+        "maxMs": 1873.94,
+        "meanMs": 1778.76,
+        "p50Ms": 1767.31,
+        "p95Ms": 1865.09,
+        "p99Ms": 1872.17,
+        "stddevMs": 62.73,
+        "errorRate": 0
+      },
+      "regression": {
+        "tool": "draft_cover_letter",
+        "status": "FAIL",
+        "reasons": ["p95 (1865.1ms) exceeds the 1500ms global MCP_HTTP SLA ceiling."],
+        "targetMs": 850,
+        "toolDeviationMs": 1015.1
+      }
+    }
+  ],
+  "liveAiSample": null
+}

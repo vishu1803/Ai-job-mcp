@@ -166,6 +166,58 @@ export const evidenceTypeEnum = pgEnum('evidence_type', [
   'DOCUMENT_CLAIM',
 ]);
 
+/**
+ * Job application lifecycle status classifications (Phase 12 / ARCH-043 / ADR-064).
+ */
+export const applicationStatusEnum = pgEnum('application_status', [
+  'SAVED',
+  'APPLIED',
+  'SCREENING',
+  'INTERVIEWING',
+  'OFFER_RECEIVED',
+  'OFFER_ACCEPTED',
+  'REJECTED',
+  'WITHDRAWN',
+  'ARCHIVED',
+]);
+
+/**
+ * Application interview & assessment stage classifications (Phase 12 / ARCH-043 / ADR-064).
+ */
+export const stageTypeEnum = pgEnum('stage_type', [
+  'DISCOVERY',
+  'RESUME_SUBMITTED',
+  'RECRUITER_SCREEN',
+  'TECHNICAL_ASSESSMENT',
+  'SYSTEM_DESIGN',
+  'BEHAVIORAL',
+  'ONSITE_LOOP',
+  'OFFER_NEGOTIATION',
+  'POST_OFFER',
+  'OTHER',
+]);
+
+/**
+ * Application stage outcome classifications.
+ */
+export const stageOutcomeEnum = pgEnum('stage_outcome', [
+  'PENDING',
+  'PASSED',
+  'FAILED',
+  'SKIPPED',
+  'RESCHEDULED',
+]);
+
+/**
+ * Tailored document artifact types attached to job applications.
+ */
+export const tailoredDocumentTypeEnum = pgEnum('tailored_document_type', [
+  'TAILORED_RESUME',
+  'TAILORED_COVER_LETTER',
+  'PORTFOLIO_RECOMMENDATION',
+  'CUSTOM_NOTE',
+]);
+
 // ---------------------------------------------------------------------------
 // 1. Tenants Table (Multi-Tenant Workspace Root)
 // ---------------------------------------------------------------------------
@@ -773,6 +825,117 @@ export const oauthTokens = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 18. Job Applications Table (Root Application Aggregate - Phase 12 / ARCH-043)
+// ---------------------------------------------------------------------------
+
+export const jobApplications = pgTable(
+  'job_applications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    companyName: text('company_name').notNull(),
+    jobTitle: text('job_title').notNull(),
+    jobUrl: text('job_url'),
+    source: text('source').notNull().default('MANUAL'),
+    location: text('location'),
+    workplaceType: text('workplace_type'),
+    employmentType: text('employment_type'),
+    rawJobDescription: text('raw_job_description'),
+    parsedJobDescription: jsonb('parsed_job_description'),
+    atsFitSnapshot: jsonb('ats_fit_snapshot'),
+    status: applicationStatusEnum('status').notNull().default('SAVED'),
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    compensation: jsonb('compensation').notNull().default('{}'),
+    notes: text('notes'),
+    metadata: jsonb('metadata').notNull().default('{}'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_job_applications_tenant_id').on(table.tenantId),
+    index('idx_job_applications_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_job_applications_tenant_status').on(table.tenantId, table.status),
+    index('idx_job_applications_tenant_company').on(table.tenantId, table.companyName),
+    index('idx_job_applications_tenant_applied').on(table.tenantId, table.appliedAt.desc()),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 19. Application Stages Table (Chronological Interview Log - Phase 12 / ARCH-043)
+// ---------------------------------------------------------------------------
+
+export const applicationStages = pgTable(
+  'application_stages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    applicationId: uuid('application_id')
+      .notNull()
+      .references(() => jobApplications.id, { onDelete: 'cascade' }),
+    stageType: stageTypeEnum('stage_type').notNull(),
+    title: text('title').notNull(),
+    scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    outcome: stageOutcomeEnum('outcome').notNull().default('PENDING'),
+    interviewerNames: jsonb('interviewer_names').notNull().default('[]'),
+    feedback: text('feedback'),
+    orderIndex: integer('order_index').notNull().default(0),
+    metadata: jsonb('metadata').notNull().default('{}'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_application_stages_tenant_application').on(table.tenantId, table.applicationId),
+    index('idx_application_stages_app_order').on(table.applicationId, table.orderIndex),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 20. Tailored Documents Table (Immutable Application Snapshots - Phase 12 / ARCH-043)
+// ---------------------------------------------------------------------------
+
+export const tailoredDocuments = pgTable(
+  'tailored_documents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    applicationId: uuid('application_id')
+      .notNull()
+      .references(() => jobApplications.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    documentType: tailoredDocumentTypeEnum('document_type').notNull(),
+    version: integer('version').notNull().default(1),
+    title: text('title').notNull(),
+    content: jsonb('content').notNull(),
+    renderedMarkdown: text('rendered_markdown'),
+    renderedPlainText: text('rendered_plain_text'),
+    contentHash: text('content_hash').notNull(),
+    citationRefs: jsonb('citation_refs').notNull().default('[]'),
+    integrityScore: real('integrity_score'),
+    atsFitScore: real('ats_fit_score'),
+    metadata: jsonb('metadata').notNull().default('{}'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_tailored_docs_tenant_application').on(table.tenantId, table.applicationId),
+    index('idx_tailored_docs_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_tailored_docs_content_hash').on(table.contentHash),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
 
@@ -793,6 +956,10 @@ export const schema = {
   mcpClientTypeEnum,
   approvalTicketStatusEnum,
   oauthClientTypeEnum,
+  applicationStatusEnum,
+  stageTypeEnum,
+  stageOutcomeEnum,
+  tailoredDocumentTypeEnum,
   tenants,
   users,
   sessions,
@@ -811,4 +978,7 @@ export const schema = {
   oauthClients,
   oauthAuthorizationCodes,
   oauthTokens,
+  jobApplications,
+  applicationStages,
+  tailoredDocuments,
 };
