@@ -1549,6 +1549,21 @@
 * **Reasons**: Guarantees total user autonomy, GDPR Article 15/17 compliance, zero orphan records, and strict multi-tenant isolation.
 * **Consequences**: Tasks P13-002A and P13-002 are COMPLETE & VERIFIED with 13/13 passing integration tests.
 
+---
+
+### ADR-069: Production Staging Deployment Architecture, Named Tunnel Ingress & Health Monitoring
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 13 (Task P13-003A / P13-003), we designed and verified the production staging deployment architecture transitioning Career Hub from ephemeral Quick Tunnels to a persistent, secure staging infrastructure.
+* **Decision**: Adopt the **Production Staging Deployment Architecture** defined in `docs/staging-deployment-runbook.md` (`ARCH-049`):
+  * **Ingress & TLS**: Enforce Cloudflare Named Tunnels (`cloudflared`) routing a dedicated custom domain directly to the local/containerized Fastify loopback interface (`http://127.0.0.1:3000`). No public inbound firewall ports are opened. Edge TLS 1.3 with automated certificate renewal and HSTS is enforced.
+  * **Secure Cookies & Origin Validation**: In `NODE_ENV=production`, session cookies enforce the `__Host-` prefix (`__Host-career_hub_session`), `Secure=true`, `HttpOnly=true`, `SameSite=Lax`, and `Path=/`. Fastify `verifyCsrf` validates state-changing request origins against `config.APP_URL`.
+  * **Dual Health Probes**: `GET /livez` operates as a zero-dependency process liveness probe for process supervisors/containers. `GET /healthz` operates as a dependency readiness probe executing `SELECT 1 AS alive;` on the PostgreSQL pool and returning `200` (healthy) or `503` (unhealthy) with latency metrics.
+  * **Database & Migration Strategy**: Managed PostgreSQL database requires TLS (`DATABASE_SSL=require`). Schema migrations follow the expand-and-contract pattern with zero breaking changes, enabling immediate application rollback to previous container/image versions without data loss.
+  * **Provider & AI Client Stability**: Stable custom domain replaces ephemeral tunnel URLs across GitHub OAuth (`/auth/github/callback`), GitHub App installation (`/integrations/github/install/callback`), GitHub webhooks (`/webhooks/github`), RFC 9728/8414 metadata discovery, and Claude / ChatGPT remote MCP connections (`/mcp`).
+* **Reasons**: Eliminates URL churn, protects the backend behind Cloudflare Edge without exposing open ports, maintains zero secrets in Git, and provides deterministic monitoring and rollback readiness.
+* **Consequences**: Tasks P13-003A and P13-003 are COMPLETE & VERIFIED across all 1,549 master tests.
+
 
 
 
