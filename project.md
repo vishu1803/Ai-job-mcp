@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 13 — Public Multi-User Beta** | Phases 0-12 100% COMPLETE (70/70 tasks); Phase 13 P13-001, P13-002, P13-003 verified (3/5 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 13 in progress; P13-003 (Production Staging Deployment Architecture & Named Tunnel) verified; ready for P13-004 |
+| **Current Phase** | **PHASE 13 — Public Multi-User Beta** | Phases 0-12 100% COMPLETE (70/70 tasks); Phase 13 P13-001, P13-002, P13-003, P13-004 verified (4/5 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 13 in progress; P13-004 (Synthetic 5-User Beta Verification in Isolated DB) verified; ready for P13-005 |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **73 Tasks** | Phases 0-12 (70 tasks) + Phase 13 (P13-001, P13-002, P13-003) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 13 / P13-004 |
+| **Completed Tasks** | **74 Tasks** | Phases 0-12 (70 tasks) + Phase 13 (P13-001, P13-002, P13-003, P13-004) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 13 / P13-005 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **90.12% (73 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **85.00% (13.6 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-12 100% complete; Phase 13 60.0% complete) |
+| **Overall Task Completion** | **91.35% (74 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **86.25% (13.8 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-12 100% complete; Phase 13 80.0% complete) |
 
 ---
 
@@ -37,7 +37,7 @@
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 13** | Public Multi-User Beta | 5 | 3 | 0 | **IN_PROGRESS** | **60.0%** |
+| **PHASE 13** | Public Multi-User Beta | 5 | 4 | 0 | **IN_PROGRESS** | **80.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -2995,5 +2995,34 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---
+
+* **P13-004A: FIVE-USER BETA ONBOARDING ARCHITECTURE & VERIFICATION CRITERIA REVIEW (Completed & Approved)**:
+  * Deliverables & Architecture:
+    * Architecture review approved in `docs/decisions.md` (`ADR-070`) and verified criteria for onboarding 5 external/synthetic beta users across Gemini, Claude, and ChatGPT.
+    * Defined database-level safety protocol to prevent mock data pollution of development databases, 5 independent candidate personas, 7-vector adversarial isolation attacks, hermetic multi-AI client authentication (Gemini personal token, Claude OAuth 2.1 authorization code flow, ChatGPT RFC 9728/8414 metadata discovery), and GDPR Article 17 cascade verification with global taxonomy retention.
+  * Status: **`COMPLETE & APPROVED`**.
+
+---
+
+* **P13-004: EXECUTE ISOLATED FIVE-USER BETA VERIFICATION ACROSS GEMINI, CLAUDE & CHATGPT (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `tests/integration/synthetic-beta-p13-004.test.js`: Dedicated multi-user beta verification suite executing in a 100% hermetic, dynamically created PostgreSQL database (`career_hub_beta_p13_004_<hex>`). Verified:
+      1. Provisions 5 isolated beta tenants, users, candidates, candidate identities, GitHub connections, repositories, projects, evidence items, verified candidate skills, job applications, interview stages, tailored document snapshots, personal MCP API tokens, and OAuth 2.1 tokens.
+      2. Multi-tenant default-deny isolation: 7 adversarial attacks across candidate profiles, evidence items, job applications, application stage mutations, indexed resource deletions, non-owner deletion requests, and cross-tenant action approval tickets all fail closed (`404 NOT_FOUND` or `403 FORBIDDEN`).
+      3. Multi-AI client simulation: Authenticates Gemini via personal MCP API tokens (`mcp_<env>_<hex>`), Claude via OAuth 2.1 access tokens (`claude-web`), and ChatGPT via OAuth 2.1 access tokens (`chatgpt-custom-gpt`), confirming proper role, scope, candidate profile read, and application analytics isolation.
+      4. Account lifecycle & GDPR Article 17 Hard Delete: Verifies GitHub disconnect with credential scrubbing, OAuth token revocation (producing immediate 401 on subsequent requests), and hard deletion of User A cascading across all 18 database tables while confirming Users B–E and the global `skills` taxonomy remain 100% intact.
+      5. Strict DB safety assertions: Confirms `current_database()` before writes, drops isolated database upon completion, and verifies `SELECT count(*) FROM tenants WHERE name LIKE '%Beta User%' === 0` on the main database.
+    * `docs/decisions.md`: Added `ADR-070: Isolated Multi-Tenant Beta Verification & Hermetic Multi-AI Simulation Architecture`.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/synthetic-beta-p13-004.test.js` -> PASS (4/4 test suites passing in 59.9s)
+    * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 29.8s)
+    * `npm test` -> PASS (1,553/1,553 master tests passing across 413 suites in 114.6s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
 
 

@@ -1564,6 +1564,22 @@
 * **Reasons**: Eliminates URL churn, protects the backend behind Cloudflare Edge without exposing open ports, maintains zero secrets in Git, and provides deterministic monitoring and rollback readiness.
 * **Consequences**: Tasks P13-003A and P13-003 are COMPLETE & VERIFIED across all 1,549 master tests.
 
+---
+
+### ADR-070: Isolated Multi-Tenant Beta Verification & Hermetic Multi-AI Simulation Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 13 (Tasks P13-004A / P13-004), we needed to execute comprehensive multi-tenant beta user onboarding and verification across Gemini, Claude, and ChatGPT without owning a live production domain and while strictly guaranteeing zero mock/synthetic data contamination of the primary development database (`defaultdb`).
+* **Decision**: Adopt the **Isolated Beta Database Verification Architecture** (`ARCH-050`):
+  * **Database-Level Isolation**: Provision a completely separate PostgreSQL database (`career_hub_beta_p13_004_<hex>`) via administrative connection, execute full Drizzle schema migrations (`./drizzle`), verify `current_database()` before any write operation, assert strict difference (`betaDb !== mainDb`), and execute forced teardown (`DROP DATABASE ... WITH (FORCE);`) in the test after-hook. Main database invariance is validated post-run (`SELECT count(*) FROM tenants WHERE name LIKE '%Beta User%' === 0`).
+  * **Five Synthetic User Topologies**: Seed 5 independent candidate personas (`Beta User Alex` [Full-Stack Architect], `Beta User Beth` [Backend Systems Engineer], `Beta User Carlos` [ML/AI Engineer], `Beta User Diana` [DevOps & Cloud Engineer], `Beta User Elena` [Security Architect]) with distinct personal tenants, candidates, verified skills, GitHub connections, projects, evidence items, job applications, stages, tailored documents, personal MCP API tokens, and OAuth 2.1 access tokens.
+  * **7-Vector Adversarial Attack Suite**: Formally verify that foreign access attempts across candidate profiles, evidence items, job applications, stage modifications, indexed resource deletions, non-owner account erasures, and two-phase write tickets fail closed with `404 NOT_FOUND` default-deny or `403 FORBIDDEN`.
+  * **Hermetic Multi-AI Simulation**: Validate Gemini personal MCP API token authentication (`mcp_<env>_<hex>`), Claude OAuth 2.1 Bearer access token authorization (`claude-web`), and ChatGPT OAuth 2.1 access token authorization (`chatgpt-custom-gpt`), asserting independent tenant context minting, correct role resolution, and strict analytical boundary isolation.
+  * **GDPR Article 17 Hard Delete Cascade & Invariance**: Verify atomic erasure of Tenant A across all 18 tables upon valid confirmation (`"DELETE MY ACCOUNT"`), while proving Tenants B–E and the shared global `skills` taxonomy remain 100% intact.
+* **Reasons**: Enables rigorous, end-to-end multi-tenant validation without exposing mock data to production or staging environments, ensuring complete hermetic testability.
+* **Consequences**: Tasks P13-004A and P13-004 are COMPLETE & VERIFIED.
+
+
 
 
 
