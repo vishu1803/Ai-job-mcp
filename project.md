@@ -3127,23 +3127,22 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `src/services/resume-parser.service.js`: Robust multi-format resume parser service validating magic bytes (`%PDF-`, `PK\x03\x04`, plain text), rejecting executable binaries (`MZ`, `ELF`), enforcing a 10MB ceiling, sandboxed text extraction from PDF (`/FlateDecode` decompression & text stream tokenization), DOCX (PKZip XML extraction), and TXT, secret scrubbing (PATs, API keys, passwords), section parsing, and claim extraction with immutable `CLAIMED` truth labeling.
     * `src/db/repositories/resume.repository.js`: Data access layer for resume versions, parsed sections, candidate claims, and base resume promotion.
     * `src/services/source-resume-ingestion.service.js`: Lifecycle coordinator managing resume upload, encrypted storage, parsing, version incrementation (`nextVersion = maxVersion + 1`), review and claim approval, base resume promotion (adding `CLAIMED` skills without downgrading existing `VERIFIED` skills), decrypted download, deletion, and sanitized audit logging.
-    * `src/views/resumes.page.js`: Responsive server-side rendered resume index (`GET /resumes`) with 10MB upload form, Truth-in-AI alert banner, version history table with SHA-256 hashes, status badges, review links, download actions, delete actions, and deep detail review page (`GET /resumes/:id`) with parsed sections inspector, extracted claims table, and Base Resume promotion form.
-    * `src/views/layout.js`: Added `Resumes` link in authenticated navigation bar.
+    * `src/views/layout.js`: Refactored navigation information architecture into clean responsive conceptual groupings: **Career** (`/dashboard`, `/projects`, `/skills`, `/dashboard#applications`), **Sources** (`/sources`, `/resumes`), **AI Connect** (`/connect`), **MCP Docs** (`/docs/mcp`), and right-side **User Account Menu** (`user.displayName`, `user.email`, `Settings & Privacy` `/settings`, and `Sign Out` `POST /auth/logout`).
+    * `src/routes/web.routes.js`: Updated `GET /resumes` and `GET /resumes/:id` to pass trusted `user: sessionContext.user` and `tenant: sessionContext.tenant` to page views, guaranteeing candidate context parity with `/dashboard`.
+    * `src/views/resumes.page.js`: Added authenticated Candidate Context banner (`candidateName`, `candidateHeadline`, `candidateEmail`, `versionCount`) and fixed `renderLayout` invocation to pass `user` and `activeNav: 'resumes'`.
     * `src/app.js`: Registered `@fastify/multipart` with 10MB file limit.
-    * `src/routes/web.routes.js`: Registered handlers for `GET /resumes`, `POST /resumes/upload`, `GET /resumes/:id`, `POST /resumes/:id/approve`, `GET /resumes/:id/download`, and `POST /resumes/:id/delete`.
     * `tests/unit/document-storage.service.test.js`: 5 unit tests verifying encryption, decryption, tamper rejection, traversal rejection, and deletion.
     * `tests/unit/resume-parser.service.test.js`: 8 unit tests verifying magic bytes, format detection, executable rejection, 10MB limit, secret scrubbing, section splitting, and `CLAIMED` truth labeling.
-    * `tests/integration/source-resume-ingestion.test.js`: 10 integration tests covering complete upload lifecycle, multi-version preservation, claim approval, non-downgrading of verified skills, decrypted download, multi-tenant IDOR denial (404), deletion, sanitized audit logging, and unauthenticated redirects.
+    * `tests/integration/source-resume-ingestion.test.js`: 10 integration tests covering complete upload lifecycle, multi-version preservation, claim approval, non-downgrading of verified skills, decrypted download, multi-tenant IDOR denial (404), deletion, candidate context HTML rendering, empty state handling without session loss, sanitized audit logging, and unauthenticated redirects.
+    * `tests/integration/web-application-routes.test.js`: 17 integration tests verifying full route coverage, grouped navigation IA, and `/resumes` candidate identity parity with `/dashboard`.
   * Quality Gates & Verification:
-    * `node --test tests/unit/document-storage.service.test.js tests/unit/resume-parser.service.test.js` -> PASS (13/13 unit tests passing in 0.5s)
-    * `node --test tests/integration/source-resume-ingestion.test.js` -> PASS (10/10 integration tests passing in 14.9s)
-    * `node --test tests/integration/web-application-routes.test.js` -> PASS (15/15 integration tests passing in 14.2s)
-    * `npm run test:unit` -> PASS (1,140/1,140 unit tests passing across 293 suites in 33.8s)
-    * `npm run test:integration` -> PASS (455/455 integration tests passing across 124 suites in 192.9s)
+    * `node --test tests/integration/web-application-routes.test.js tests/integration/auth.test.js tests/integration/source-resume-ingestion.test.js` -> PASS (45/45 tests passing in 24.8s)
+    * `npm run test:unit` -> PASS (1,140/1,140 unit tests passing across 293 suites in 33.2s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Schema in sync)
     * `git diff --check` -> PASS (0 whitespace errors)
+    * **Live Browser Subagent Verification**: Verified candidate context banner on `/resumes` for logged-in user, clean non-overcrowded grouped navigation across `/dashboard`, `/projects`, `/skills`, `/sources`, `/connect`, `/settings`, and `/resumes`, functional user profile dropdown, and unauthenticated login redirects.
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---

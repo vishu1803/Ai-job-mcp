@@ -60,12 +60,18 @@ function renderResumeStatusBadge(status, isBase = false) {
  * @returns {string}
  */
 export function renderResumesPage({
-  candidate,
+  user = null,
+  tenant: _tenant = null,
+  candidate = null,
   resumesList = [],
   csrfToken = '',
   flashMessage = '',
   errorMessage = '',
 }) {
+  const candidateName = candidate?.displayName || user?.displayName || 'Authenticated Candidate';
+  const candidateEmail = candidate?.canonicalEmail || user?.email || '';
+  const candidateHeadline = candidate?.headline || 'Candidate Profile';
+
   const content = `
     <div style="margin-bottom: 2rem;">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
@@ -74,6 +80,27 @@ export function renderResumesPage({
           <p style="color: #94a3b8; font-size: 0.95rem; max-width: 700px;">
             Upload your source resume (PDF, DOCX, TXT) to establish your baseline narrative. Documents are stored with AES-256-GCM encryption and parsed with strict truth separation.
           </p>
+        </div>
+      </div>
+
+      <!-- Authenticated Candidate Context Banner -->
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; background: rgba(30, 41, 59, 0.45); border: 1px solid var(--border-subtle); padding: 0.85rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.85rem;">
+          <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; color: #FFF; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);">
+            ${escapeHtml(candidateName.charAt(0).toUpperCase())}
+          </div>
+          <div>
+            <div style="font-weight: 600; color: #F8FAFC; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span>${escapeHtml(candidateName)}</span>
+              <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 0.7rem;">CANDIDATE</span>
+            </div>
+            <div style="font-size: 0.8rem; color: #94A3B8;">
+              ${escapeHtml(candidateHeadline)} • ${escapeHtml(candidateEmail)}
+            </div>
+          </div>
+        </div>
+        <div style="font-size: 0.8rem; color: #64748B;">
+          ${resumesList.length} ${resumesList.length === 1 ? 'version' : 'versions'} indexed
         </div>
       </div>
 
@@ -127,11 +154,11 @@ export function renderResumesPage({
         ${
           resumesList.length === 0
             ? `
-          <div class="card" style="text-align: center; padding: 3rem 1.5rem; color: #94a3b8;">
-            <div style="font-size: 2.5rem; margin-bottom: 1rem;">📄</div>
-            <h3 style="color: #f8fafc; font-size: 1.125rem; margin-bottom: 0.5rem;">No Source Resumes Uploaded Yet</h3>
-            <p style="font-size: 0.875rem; max-width: 480px; margin: 0 auto 1.5rem auto;">
-              Upload your existing resume above to seed your candidate narrative, extract structured claims, and establish your active Base Resume.
+          <div class="card" style="text-align: center; padding: 3.5rem 1.5rem; color: #94a3b8; border: 1px dashed rgba(148, 163, 184, 0.2);">
+            <div style="font-size: 2.75rem; margin-bottom: 1rem;">📄</div>
+            <h3 style="color: #f8fafc; font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem;">No Source Resumes Uploaded Yet</h3>
+            <p style="font-size: 0.9rem; max-width: 520px; margin: 0 auto 1.5rem auto; line-height: 1.6; color: #94a3b8;">
+              Upload your existing resume (PDF, DOCX, TXT) above to seed your baseline candidate narrative, extract structured claims, and establish your active Base Resume for <strong>${escapeHtml(candidateName)}</strong>.
             </p>
           </div>
         `
@@ -206,9 +233,9 @@ export function renderResumesPage({
 
   return renderLayout({
     title: 'Source Resumes & Document Lifecycle — Antigravity Career Hub',
-    activeNav: 'Resumes',
+    activeNav: 'resumes',
     content,
-    user: candidate ? { name: candidate.displayName, email: candidate.primaryEmail } : null,
+    user,
   });
 }
 
@@ -216,6 +243,8 @@ export function renderResumesPage({
  * Renders the Resume Detail, Parsed Sections, and Claim Review Inspector.
  *
  * @param {object} params
+ * @param {object} [params.user=null]
+ * @param {object} [params.tenant=null]
  * @param {object} params.candidate
  * @param {object} params.resume
  * @param {Array<object>} params.sections
@@ -226,7 +255,9 @@ export function renderResumesPage({
  * @returns {string}
  */
 export function renderResumeDetailPage({
-  candidate,
+  user = null,
+  tenant: _tenant = null,
+  candidate = null,
   resume,
   sections = [],
   claims = [],
@@ -313,11 +344,11 @@ export function renderResumeDetailPage({
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
             <div class="form-group">
               <label class="form-label" for="headlineInput">Candidate Professional Headline</label>
-              <input type="text" id="headlineInput" name="headline" class="form-control" value="${escapeHtml(candidate.headline || '')}" placeholder="e.g. Senior Distributed Systems Engineer">
+              <input type="text" id="headlineInput" name="headline" class="form-control" value="${escapeHtml(candidate?.headline || '')}" placeholder="e.g. Senior Distributed Systems Engineer">
             </div>
             <div class="form-group">
               <label class="form-label" for="bioInput">Candidate Bio Narrative Summary</label>
-              <textarea id="bioInput" name="bio" class="form-control form-textarea" rows="2" placeholder="Brief career narrative...">${escapeHtml(candidate.bio || '')}</textarea>
+              <textarea id="bioInput" name="bio" class="form-control form-textarea" rows="2" placeholder="Brief career narrative...">${escapeHtml(candidate?.bio || '')}</textarea>
             </div>
           </div>
 
@@ -420,8 +451,8 @@ export function renderResumeDetailPage({
 
   return renderLayout({
     title: `Resume v${resume.version} Review — Antigravity Career Hub`,
-    activeNav: 'Resumes',
+    activeNav: 'resumes',
     content,
-    user: candidate ? { name: candidate.displayName, email: candidate.primaryEmail } : null,
+    user,
   });
 }

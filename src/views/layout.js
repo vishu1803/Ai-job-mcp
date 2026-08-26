@@ -154,22 +154,215 @@ export function renderLayout({
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 28px;
+      gap: 12px;
       list-style: none;
     }
     .nav-link {
       color: var(--text-muted);
-      font-size: 0.925rem;
+      font-size: 0.9rem;
       font-weight: 500;
-      transition: color 0.15s ease;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .nav-link:hover, .nav-link.active {
       color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
     }
+    .nav-link.active {
+      color: #818CF8;
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    /* Dropdown Menus */
+    .nav-dropdown {
+      position: relative;
+    }
+    .nav-dropdown-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .nav-dropdown-btn:hover,
+    .nav-dropdown-btn.active,
+    .nav-dropdown:hover .nav-dropdown-btn,
+    .nav-dropdown:focus-within .nav-dropdown-btn {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .nav-dropdown-btn.active {
+      color: #818CF8;
+      background: rgba(99, 102, 241, 0.1);
+    }
+    .nav-chevron {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      transition: transform 0.2s ease;
+    }
+    .nav-dropdown:hover .nav-chevron,
+    .nav-dropdown:focus-within .nav-chevron {
+      transform: translateY(1px);
+    }
+    .nav-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 220px;
+      background: #111827;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      padding: 6px;
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 200;
+    }
+    .nav-dropdown:hover .nav-dropdown-menu,
+    .nav-dropdown:focus-within .nav-dropdown-menu {
+      display: flex;
+    }
+    .nav-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .nav-dropdown-item:hover, .nav-dropdown-item.active {
+      background: rgba(99, 102, 241, 0.15);
+      color: #F8FAFC;
+    }
+    .nav-dropdown-item .item-icon {
+      font-size: 1rem;
+    }
+    .nav-dropdown-item .item-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .nav-dropdown-item .item-title {
+      font-weight: 500;
+      color: #F8FAFC;
+    }
+    .nav-dropdown-item .item-desc {
+      font-size: 0.725rem;
+      color: var(--text-dim);
+    }
+
+    /* User Account Dropdown */
+    .user-dropdown {
+      position: relative;
+    }
+    .user-dropdown-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 4px 12px 4px 6px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .user-dropdown-btn:hover,
+    .user-dropdown:hover .user-dropdown-btn,
+    .user-dropdown:focus-within .user-dropdown-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .user-avatar-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #FFF;
+    }
+    .user-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      left: auto;
+      min-width: 230px;
+    }
+    .user-dropdown-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 4px;
+    }
+    .user-dropdown-name {
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: #F8FAFC;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .user-dropdown-email {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+    .user-dropdown-divider {
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 4px 0;
+    }
+    .logout-form-btn {
+      width: 100%;
+      background: none;
+      border: none;
+      text-align: left;
+      color: #F87171;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.15s ease;
+    }
+    .logout-form-btn:hover {
+      background: rgba(239, 68, 68, 0.12);
+      color: #FCA5A5;
+    }
+
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
     }
 
     /* Buttons */
@@ -496,13 +689,71 @@ export function renderLayout({
           ${
             userLoggedIn
               ? `
-          <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Dashboard</a></li>
-          <li><a href="/resumes" class="nav-link ${activeNav === 'Resumes' ? 'active' : ''}">Resumes</a></li>
-          <li><a href="/projects" class="nav-link ${activeNav === 'projects' ? 'active' : ''}">Projects</a></li>
-          <li><a href="/skills" class="nav-link ${activeNav === 'skills' ? 'active' : ''}">Skills</a></li>
-          <li><a href="/sources" class="nav-link ${activeNav === 'sources' ? 'active' : ''}">Sources</a></li>
-          <li><a href="/connect" class="nav-link ${activeNav === 'connect' ? 'active' : ''}">AI Connect</a></li>
-          <li><a href="/settings" class="nav-link ${activeNav === 'settings' ? 'active' : ''}">Settings</a></li>
+          <li class="nav-dropdown">
+            <button class="nav-dropdown-btn ${['dashboard', 'projects', 'skills', 'applications'].includes(activeNav) ? 'active' : ''}" aria-expanded="false" aria-haspopup="true">
+              <span>Career</span>
+              <span class="nav-chevron">▾</span>
+            </button>
+            <div class="nav-dropdown-menu">
+              <a href="/dashboard" class="nav-dropdown-item ${activeNav === 'dashboard' ? 'active' : ''}">
+                <span class="item-icon">📊</span>
+                <div class="item-text">
+                  <div class="item-title">Dashboard</div>
+                  <div class="item-desc">Overview & metrics</div>
+                </div>
+              </a>
+              <a href="/projects" class="nav-dropdown-item ${activeNav === 'projects' ? 'active' : ''}">
+                <span class="item-icon">💼</span>
+                <div class="item-text">
+                  <div class="item-title">Projects</div>
+                  <div class="item-desc">Portfolio & code evidence</div>
+                </div>
+              </a>
+              <a href="/skills" class="nav-dropdown-item ${activeNav === 'skills' ? 'active' : ''}">
+                <span class="item-icon">⚡</span>
+                <div class="item-text">
+                  <div class="item-title">Skills</div>
+                  <div class="item-desc">Verified taxonomy</div>
+                </div>
+              </a>
+              <a href="/dashboard#applications" class="nav-dropdown-item">
+                <span class="item-icon">🎯</span>
+                <div class="item-text">
+                  <div class="item-title">Applications</div>
+                  <div class="item-desc">Pipeline tracking</div>
+                </div>
+              </a>
+            </div>
+          </li>
+
+          <li class="nav-dropdown">
+            <button class="nav-dropdown-btn ${['sources', 'resumes'].includes(activeNav) ? 'active' : ''}" aria-expanded="false" aria-haspopup="true">
+              <span>Sources</span>
+              <span class="nav-chevron">▾</span>
+            </button>
+            <div class="nav-dropdown-menu">
+              <a href="/sources" class="nav-dropdown-item ${activeNav === 'sources' ? 'active' : ''}">
+                <span class="item-icon">🔗</span>
+                <div class="item-text">
+                  <div class="item-title">Connected Sources</div>
+                  <div class="item-desc">GitHub repositories</div>
+                </div>
+              </a>
+              <a href="/resumes" class="nav-dropdown-item ${activeNav === 'resumes' ? 'active' : ''}">
+                <span class="item-icon">📄</span>
+                <div class="item-text">
+                  <div class="item-title">Resumes</div>
+                  <div class="item-desc">Upload & claim review</div>
+                </div>
+              </a>
+            </div>
+          </li>
+
+          <li>
+            <a href="/connect" class="nav-link ${activeNav === 'connect' ? 'active' : ''}">
+              <span>AI Connect</span>
+            </a>
+          </li>
           `
               : ''
           }
@@ -514,12 +765,35 @@ export function renderLayout({
         ${
           userLoggedIn
             ? `
-          <a href="/dashboard" class="btn btn-secondary btn-sm">
-            <span>${escapeHtml(user.displayName || user.email || 'My Account')}</span>
-          </a>
-          <form action="/auth/logout" method="POST" style="display:inline;">
-            <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--text-muted);">Sign Out</button>
-          </form>
+          <div class="user-dropdown">
+            <button class="user-dropdown-btn" aria-haspopup="true" aria-expanded="false" title="Account Menu">
+              <div class="user-avatar-badge">${escapeHtml((user.displayName || user.email || 'U').charAt(0).toUpperCase())}</div>
+              <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${escapeHtml(user.displayName || user.email || 'My Account')}
+              </span>
+              <span class="nav-chevron">▾</span>
+            </button>
+            <div class="user-dropdown-menu">
+              <div class="user-dropdown-header">
+                <div class="user-dropdown-name">${escapeHtml(user.displayName || 'Candidate')}</div>
+                <div class="user-dropdown-email">${escapeHtml(user.email || '')}</div>
+              </div>
+              <a href="/settings" class="nav-dropdown-item ${activeNav === 'settings' ? 'active' : ''}">
+                <span class="item-icon">⚙️</span>
+                <div class="item-text">
+                  <div class="item-title">Settings & Privacy</div>
+                  <div class="item-desc">Account & GDPR controls</div>
+                </div>
+              </a>
+              <div class="user-dropdown-divider"></div>
+              <form action="/auth/logout" method="POST" style="margin: 0;">
+                <button type="submit" class="logout-form-btn">
+                  <span>🚪</span>
+                  <span>Sign Out</span>
+                </button>
+              </form>
+            </div>
+          </div>
           `
             : `
           <a href="/login" class="btn btn-primary btn-sm">

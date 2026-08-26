@@ -854,6 +854,8 @@ export default async function webRoutes(app, opts = {}) {
     const errorMessage = req.query?.error ? String(req.query.error) : '';
 
     const html = renderResumesPage({
+      user: sessionContext.user,
+      tenant: sessionContext.tenant,
       candidate,
       resumesList,
       csrfToken: sessionContext.session.token,
@@ -999,6 +1001,8 @@ export default async function webRoutes(app, opts = {}) {
         : '';
 
     const html = renderResumeDetailPage({
+      user: sessionContext.user,
+      tenant: sessionContext.tenant,
       candidate,
       resume: details.resume,
       sections: details.sections,

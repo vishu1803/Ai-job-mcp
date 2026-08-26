@@ -540,10 +540,10 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       '/dashboard',
       '/onboarding',
       '/projects',
+      `/projects/${projectIdA}`,
       '/skills',
       '/sources',
-      '/connect',
-      '/settings',
+      '/resumes',
     ];
 
     for (const url of protectedUrls) {
@@ -565,6 +565,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       `/projects/${projectIdA}`,
       '/skills',
       '/sources',
+      '/resumes',
     ];
 
     for (const url of urls) {
@@ -584,10 +585,57 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
     }
   });
 
+  it('14. Grouped navigation IA renders grouped Career, Sources, AI Connect, MCP Docs, and user profile dropdown', async () => {
+    const cookieOpts = getSessionCookieOptions(config);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/dashboard',
+      cookies: {
+        [cookieOpts.name]: rawSessionTokenA,
+        career_hub_session: rawSessionTokenA,
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    // Grouped links
+    assert.ok(res.payload.includes('Career'));
+    assert.ok(res.payload.includes('Sources'));
+    assert.ok(res.payload.includes('AI Connect'));
+    assert.ok(res.payload.includes('MCP Docs'));
+    assert.ok(res.payload.includes('Alex Mercer'));
+    assert.ok(res.payload.includes('Sign Out'));
+    assert.ok(res.payload.includes('href="/projects"'));
+    assert.ok(res.payload.includes('href="/skills"'));
+    assert.ok(res.payload.includes('href="/sources"'));
+    assert.ok(res.payload.includes('href="/resumes"'));
+    assert.ok(res.payload.includes('href="/settings"'));
+  });
+
+  it('15. GET /resumes has full session, candidate identity, and tenant authority parity with GET /dashboard', async () => {
+    const cookieOpts = getSessionCookieOptions(config);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/resumes',
+      cookies: {
+        [cookieOpts.name]: rawSessionTokenA,
+        career_hub_session: rawSessionTokenA,
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.match(res.headers['content-type'], /text\/html/);
+    // Confirms authenticated candidate profile is rendered with correct identity
+    assert.ok(res.payload.includes('Alex Mercer (Updated)'));
+    assert.ok(res.payload.includes('Principal Distributed Systems Engineer'));
+    assert.ok(res.payload.includes('alex.updated@example.test'));
+    // Confirms authenticated navbar is rendered
+    assert.ok(res.payload.includes('Sign Out'));
+  });
+
   // ---------------------------------------------------------------------------
   // 7. MCP & OAuth Protocol Invariants
   // ---------------------------------------------------------------------------
-  it('14. POST /mcp remains purely JSON-RPC machine protocol and rejects unauthenticated requests with JSON-RPC error', async () => {
+  it('16. POST /mcp remains purely JSON-RPC machine protocol and rejects unauthenticated requests with JSON-RPC error', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -605,7 +653,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
     assert.match(res.headers['content-type'], /application\/json/);
   });
 
-  it('15. RFC 8414 & RFC 9728 OAuth discovery endpoints return standard JSON metadata', async () => {
+  it('17. RFC 8414 & RFC 9728 OAuth discovery endpoints return standard JSON metadata', async () => {
     const resAuthServer = await app.inject({
       method: 'GET',
       url: '/.well-known/oauth-authorization-server',

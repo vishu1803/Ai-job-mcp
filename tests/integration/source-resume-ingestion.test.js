@@ -253,8 +253,9 @@ Go, Rust, PostgreSQL, Raft, Kubernetes
     assert.equal(dbResumes.length, 2);
   });
 
-  it('3. GET /resumes lists all resume versions for the candidate', async () => {
-    const res = await app.inject({
+  it('3. GET /resumes lists all resume versions for the candidate (JSON & HTML)', async () => {
+    // 3a. JSON API format
+    const resJson = await app.inject({
       method: 'GET',
       url: '/resumes',
       headers: {
@@ -263,21 +264,59 @@ Go, Rust, PostgreSQL, Raft, Kubernetes
       },
     });
 
-    assert.equal(res.statusCode, 200);
-    const body = res.json();
+    assert.equal(resJson.statusCode, 200);
+    const body = resJson.json();
     assert.equal(body.success, true);
     assert.equal(body.data.length, 2);
     assert.equal(body.data[0].version, 2); // Ordered descending
     assert.equal(body.data[1].version, 1);
+
+    // 3b. HTML View format with Candidate Context & Grouped Navigation
+    const resHtml = await app.inject({
+      method: 'GET',
+      url: '/resumes',
+      headers: {
+        cookie: `career_hub_session=${rawSessionTokenA}`,
+        accept: 'text/html',
+      },
+    });
+
+    assert.equal(resHtml.statusCode, 200);
+    assert.match(resHtml.headers['content-type'], /text\/html/);
+    assert.ok(resHtml.body.includes(`Alice Developer ${testRunId}`));
+    assert.ok(resHtml.body.includes(`user-a-${testRunId}@example.test`));
+    assert.ok(resHtml.body.includes('alpha_resume_v1.txt'));
+    assert.ok(resHtml.body.includes('alpha_resume_v2.txt'));
+    assert.ok(resHtml.body.includes('Career'));
+    assert.ok(resHtml.body.includes('Sources'));
+    assert.ok(resHtml.body.includes('AI Connect'));
+    assert.ok(resHtml.body.includes('Sign Out'));
+
+    // 3c. Empty State HTML for User B (Recognizes authenticated Candidate B, not missing session)
+    const resHtmlEmpty = await app.inject({
+      method: 'GET',
+      url: '/resumes',
+      headers: {
+        cookie: `career_hub_session=${rawSessionTokenB}`,
+        accept: 'text/html',
+      },
+    });
+
+    assert.equal(resHtmlEmpty.statusCode, 200);
+    assert.ok(resHtmlEmpty.body.includes(`Bob Builder ${testRunId}`));
+    assert.ok(resHtmlEmpty.body.includes('No Source Resumes Uploaded Yet'));
+    assert.ok(resHtmlEmpty.body.includes('Upload your existing resume'));
+    assert.ok(resHtmlEmpty.body.includes('Sign Out'));
   });
 
-  it('4. GET /resumes/:id returns full detail, parsed sections, and claims', async () => {
+  it('4. GET /resumes/:id returns full detail, parsed sections, and claims (JSON & HTML)', async () => {
     const [resumeV1] = await db
       .select()
       .from(resumes)
       .where(and(eq(resumes.tenantId, tenantIdA), eq(resumes.version, 1)));
 
-    const res = await app.inject({
+    // 4a. JSON API format
+    const resJson = await app.inject({
       method: 'GET',
       url: `/resumes/${resumeV1.id}`,
       headers: {
@@ -286,12 +325,29 @@ Go, Rust, PostgreSQL, Raft, Kubernetes
       },
     });
 
-    assert.equal(res.statusCode, 200);
-    const body = res.json();
+    assert.equal(resJson.statusCode, 200);
+    const body = resJson.json();
     assert.equal(body.success, true);
     assert.equal(body.data.resume.id, resumeV1.id);
     assert.ok(body.data.sections.length > 0);
     assert.ok(body.data.claims.length > 0);
+
+    // 4b. HTML View format
+    const resHtml = await app.inject({
+      method: 'GET',
+      url: `/resumes/${resumeV1.id}`,
+      headers: {
+        cookie: `career_hub_session=${rawSessionTokenA}`,
+        accept: 'text/html',
+      },
+    });
+
+    assert.equal(resHtml.statusCode, 200);
+    assert.match(resHtml.headers['content-type'], /text\/html/);
+    assert.ok(resHtml.body.includes(`Alice Developer ${testRunId}`));
+    assert.ok(resHtml.body.includes('alpha_resume_v1.txt'));
+    assert.ok(resHtml.body.includes('CLAIMED [Unverified User Claim]'));
+    assert.ok(resHtml.body.includes('Sign Out'));
   });
 
   it('5. POST /resumes/:id/approve approves claims, promotes to Base Resume, and adds CLAIMED skills without downgrading VERIFIED skills', async () => {
