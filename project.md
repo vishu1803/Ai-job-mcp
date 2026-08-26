@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-11 100% COMPLETE (65/65 tasks); Phase 12 P12-001, P12-002, P12-003 verified (3/5 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 12 in progress; P12-001 (Schema foundation), P12-002 (Application Tracking Service), and P12-003 (MCP Tracking Tools) verified |
+| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-11 100% COMPLETE (65/65 tasks); Phase 12 P12-001, P12-002, P12-003, P12-004 verified (4/5 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 12 in progress; P12-001 (Schema foundation), P12-002 (Application Tracking Service), P12-003 (MCP Tracking Tools), and P12-004 (Application Analytics Service) verified |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **68 Tasks** | Phases 0-11 (65 tasks) + Phase 12 (P12-001, P12-002, P12-003) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 12 / P12-004 |
+| **Completed Tasks** | **69 Tasks** | Phases 0-11 (65 tasks) + Phase 12 (P12-001, P12-002, P12-003, P12-004) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 12 / P12-005 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **83.95% (68 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **77.5% (12.4 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-11 100% complete; Phase 12 60.0% complete) |
+| **Overall Task Completion** | **85.19% (69 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **80.0% (12.8 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-11 100% complete; Phase 12 80.0% complete) |
 
 ---
 
@@ -36,7 +36,7 @@
 | **PHASE 9** | Approved GitHub Write Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 12** | Job / Application Tracking | 5 | 3 | 0 | **IN_PROGRESS** | **60.0%** |
+| **PHASE 12** | Job / Application Tracking | 5 | 4 | 0 | **IN_PROGRESS** | **80.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
@@ -333,7 +333,7 @@
 | **P12-002** | Implement Application Tracking Service (create application, update status, link tailored resume/cover letter) | P12-001 | **COMPLETE & VERIFIED** | Implemented `ApplicationTrackingService` in `src/services/application-tracking.service.js`. Unit tests: 5/5 PASS (`tests/unit/application-tracking.service.test.js`); Live transactional integration tests: 19/19 PASS (`tests/integration/application-tracking.service.test.js`). 100% test pass with 0 DB leaks. |
 | **P12-003A** | Application Tracking MCP Tools Architecture & Security Review | P12-002 | **COMPLETE & APPROVED** | Architectural specification in review ledger defining 7-tool catalog (`track_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`, `get_job_application`, `list_active_applications`), advisory annotations (MCP 2026-07-28), output budgets (<= 25 KB get, <= 15 KB list), candidate identity binding, multi-tenant 404 default-deny, and zero external job-board submission boundary (`goal.md` §8.1). |
 | **P12-003** | Expose MCP Tracking Tools: `track_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`, `get_job_application`, `list_active_applications` | P7-001, P12-002, P12-003A | **COMPLETE & VERIFIED** | Implemented 7 tracking MCP tools in `src/mcp/tools/career-tracking-tools.js` with canonical Zod contracts in `src/domain/mcp/career-tracking-tools.schemas.js`. Wired into `createCareerMcpServer` expanding MCP catalog to 16 tools. Unit tests: 10/10 PASS (`tests/unit/mcp-career-tracking-tools.test.js`); Live integration tests: 12/12 PASS (`tests/integration/mcp-career-tracking-tools.test.js`); Provider parity: 9/9 PASS (`tests/integration/provider-neutral-tools.test.js`). Master suite: 1,496/1,496 PASS with 0 DB leaks. |
-| **P12-004** | Implement Application Analytics (match score vs. response rate, skill gap frequencies across targets) | P12-002 | NOT_STARTED | Test computing aggregate statistics across tracked applications |
+| **P12-004** | Implement Application Analytics (match score vs. response rate, skill gap frequencies across targets) | P12-002, P12-004A | **COMPLETE & VERIFIED** | Implemented `ApplicationAnalyticsService` (`src/services/application-analytics.service.js`) and canonical strict Zod domain schemas (`src/domain/career/application-analytics.schemas.js`). Unit tests: 10/10 PASS (`tests/unit/application-analytics.service.test.js`); Live integration tests: 4/4 PASS (`tests/integration/application-analytics.service.test.js`); Master suite: 1,511/1,511 PASS with 0 DB leaks. |
 | **P12-005** | Multi-tenant isolation verification for job application records | P12-001 | NOT_STARTED | Security test asserting User A cannot query User B application records |
 
 ---
@@ -2868,6 +2868,32 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run test:unit` -> PASS (1,116/1,116 unit tests passing across 285 suites)
     * `npm run test:integration` -> PASS (380/380 integration tests passing across 115 suites)
     * `npm test` -> PASS (1,496/1,496 master tests passing across 400 suites in 92.3s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+* **P12-004A: APPLICATION ANALYTICS ARCHITECTURE & STATISTICAL SAFETY REVIEW (Completed & Approved)**:
+  * Deliverables & Architecture:
+    * Architecture review approved in `docs/application-analytics-architecture.md` (`ARCH-045`) and `ADR-065` in `docs/decisions.md`.
+    * Established zero schema changes (dynamic SQL aggregation over existing tables), point-in-time snapshot score integrity (immutable `ats_fit_snapshot.overallScore`), deterministic funnel & response-rate denominator definitions (`SAVED` bookmark exclusion, pre-response withdrawal subtractions), 5 deterministic score correlation tiers (85-100 `EXCELLENT`, 70-84.9 `STRONG`, 50-69.9 `MODERATE`, 0-49.9 `LOW`, and `UNSCORED`), canonical skill taxonomy slug normalization (`SkillTaxonomyEngine`), 3 explicit gap metrics (target demand frequency, overall gap rate, conditional gap rate), small-sample suppression ($N < 5 \to \text{null rate} + \text{INSUFFICIENT\_DATA}$), non-causal descriptive disclaimers, and 404 multi-tenant default-deny isolation.
+  * Status: **`COMPLETE & APPROVED`**.
+
+* **P12-004: IMPLEMENT APPLICATION ANALYTICS (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/domain/career/application-analytics.schemas.js`: Canonical strict Zod schemas defining filter options, time window enums, funnel metrics, score-band correlation envelopes, skill-gap distributions, small-sample suppression constants (`MIN_SAMPLE_SIZE_FOR_RATES = 5`), and non-causal disclaimer string.
+    * `src/services/application-analytics.service.js`: Domain service implementing `getCandidateAnalytics`, `getScoreProgressionCorrelation`, and `getSkillGapFrequency` with multi-tenant 404 security checks, deterministic funnel calculations, 5-tier score correlation, and canonical skill slug aggregation.
+    * `docs/application-analytics-architecture.md`: Formal specification (`ARCH-045` / `ADR-065`) marked `IMPLEMENTED & VERIFIED`.
+    * `docs/decisions.md`: Added `ADR-065: Application Analytics Architecture, Statistical Safety & Descriptive Progress Metrics`.
+    * `tests/unit/application-analytics.service.test.js`: 10/10 unit tests verifying tenant scoping, SAVED exclusion, withdrawal subtraction, rejection after interview preservation, score band boundaries, UNSCORED handling, $N < 5$ suppression, skill alias deduplication, and non-causal disclaimers.
+    * `tests/integration/application-analytics.service.test.js`: 4/4 live PostgreSQL integration tests verifying multi-tenant 404 isolation, full candidate summary generation, score band correlation with sample adequacy checks, and canonical skill-gap frequencies.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/application-analytics.service.test.js` -> PASS (10/10 tests in 1.5s)
+    * `node --test tests/integration/application-analytics.service.test.js` -> PASS (4/4 tests in 7.1s)
+    * `npm run test:db-lifecycle-check` -> PASS (45/45 DB-using test files verified with 0 leaks)
+    * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 29.5s)
+    * `npm run test:integration` -> PASS (384/384 integration tests passing across 118 suites in 86.5s)
+    * `npm test` -> PASS (1,511/1,511 master tests passing across 409 suites in 120.0s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Schema in sync)

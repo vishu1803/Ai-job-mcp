@@ -1488,3 +1488,21 @@
 * **Reasons**: Provides an evidence-linked system of record for technical job searches while maintaining strict multi-tenant isolation, cryptographic veracity, and human sovereignty.
 * **Consequences**: Task P12-001A is COMPLETE & APPROVED; Task P12-001 will implement the Drizzle schema and migrations.
 
+---
+
+### ADR-065: Application Analytics Architecture, Statistical Safety & Descriptive Progress Metrics
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 12 (Task P12-004A), we evaluated the architecture for computing descriptive application funnel metrics, match score vs. response rate correlation, and normalized skill-gap frequency distributions.
+* **Decision**: Adopt the **Application Analytics Architecture** defined in `docs/application-analytics-architecture.md` (`ARCH-045`):
+  * **Zero Schema Changes**: Derive all metrics dynamically from existing PostgreSQL tables (`job_applications`, `application_stages`, `skills`).
+  * **Point-in-Time Snapshot Integrity**: Score correlations strictly consume immutable `ats_fit_snapshot.overallScore` values captured at application time without dynamic recalculation.
+  * **Deterministic Funnel & Response Rate Logic**: `SAVED` applications are strictly excluded from response-rate denominators; withdrawn applications prior to response are subtracted from effective denominators; reopened applications maintain single identity.
+  * **5-Tier Score Correlation Bands**: 85-100 (`EXCELLENT`), 70-84.9 (`STRONG`), 50-69.9 (`MODERATE`), 0-49.9 (`LOW`), and `UNSCORED`.
+  * **Canonical Skill-Gap Normalization**: Normalize missing skills through `SkillTaxonomyEngine` (`skills.slug`) with 3 explicit metrics (demand frequency, overall gap rate, conditional gap rate).
+  * **Statistical Safety & Small-Sample Suppression**: Cohorts with $N < 5$ suppress percentage rates with `INSUFFICIENT_DATA`; all outputs enforce strictly descriptive, non-causal language.
+  * **Multi-Tenant Sovereign Isolation**: 404 default-deny on any cross-tenant candidate analytics query.
+* **Reasons**: Provides candidates and AI advisors with actionable, high-integrity feedback loops on application efficacy while enforcing rigorous statistical validity and privacy.
+* **Consequences**: Task P12-004A is COMPLETE & APPROVED; Task P12-004 will implement `ApplicationAnalyticsService`.
+
+
