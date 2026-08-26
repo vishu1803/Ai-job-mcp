@@ -50,23 +50,6 @@ const MeResponseSchema = z.object({
   }),
 });
 
-const LogoutResponseSchema = z.object({
-  message: z.string(),
-});
-
-const DashboardResponseSchema = z.object({
-  message: z.string(),
-  user: z.object({
-    id: z.string().uuid(),
-    displayName: z.string(),
-    role: z.enum(['OWNER', 'MEMBER', 'READONLY']),
-  }),
-  tenant: z.object({
-    id: z.string().uuid(),
-    name: z.string(),
-  }),
-});
-
 /**
  * Registers authentication routes with the Fastify application.
  *
@@ -225,11 +208,20 @@ export default async function authRoutes(app, opts = {}) {
     '/auth/logout',
     {
       preHandler: [verifyCsrf],
-      preSerialization: [validateResponse(LogoutResponseSchema)],
     },
     async (req, reply) => {
       const cookieOpts = getSessionCookieOptions(config);
-      const rawToken = req.cookies[cookieOpts.name] || req.cookies['career_hub_session'];
+      let rawToken = req.cookies?.[cookieOpts.name] || req.cookies?.['career_hub_session'];
+
+      if (!rawToken && req.headers?.cookie) {
+        const header = req.headers.cookie;
+        const match =
+          header.match(new RegExp(`(?:^|; )${cookieOpts.name}=([^;]*)`)) ||
+          header.match(/(?:^|; )career_hub_session=([^;]*)/);
+        if (match) {
+          rawToken = decodeURIComponent(match[1]);
+        }
+      }
 
       if (rawToken) {
         const database = req.db || db;
@@ -242,35 +234,70 @@ export default async function authRoutes(app, opts = {}) {
         secure: cookieOpts.secure,
         sameSite: 'lax',
       });
+      reply.clearCookie('career_hub_session', {
+        path: '/',
+        httpOnly: true,
+        secure: cookieOpts.secure,
+        sameSite: 'lax',
+      });
 
-      return {
+      const accept = req.headers['accept'] || '';
+      const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
+
+      if (wantsJson) {
+        return reply.send({
+          message: 'Successfully logged out',
+        });
+      }
+
+      return reply.redirect('/login');
+    }
+  );
+
+  // -------------------------------------------------------------------------
+  // 5. GET /auth/logout — Safe browser logout navigation fallback
+  // -------------------------------------------------------------------------
+  app.get('/auth/logout', async (req, reply) => {
+    const cookieOpts = getSessionCookieOptions(config);
+    let rawToken = req.cookies?.[cookieOpts.name] || req.cookies?.['career_hub_session'];
+
+    if (!rawToken && req.headers?.cookie) {
+      const header = req.headers.cookie;
+      const match =
+        header.match(new RegExp(`(?:^|; )${cookieOpts.name}=([^;]*)`)) ||
+        header.match(/(?:^|; )career_hub_session=([^;]*)/);
+      if (match) {
+        rawToken = decodeURIComponent(match[1]);
+      }
+    }
+
+    if (rawToken) {
+      const database = req.db || db;
+      await revokeSession(database, rawToken);
+    }
+
+    reply.clearCookie(cookieOpts.name, {
+      path: '/',
+      httpOnly: true,
+      secure: cookieOpts.secure,
+      sameSite: 'lax',
+    });
+    reply.clearCookie('career_hub_session', {
+      path: '/',
+      httpOnly: true,
+      secure: cookieOpts.secure,
+      sameSite: 'lax',
+    });
+
+    const accept = req.headers['accept'] || '';
+    const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
+
+    if (wantsJson) {
+      return reply.send({
         message: 'Successfully logged out',
-      };
+      });
     }
-  );
 
-  // -------------------------------------------------------------------------
-  // 5. GET /dashboard — Protected post-authentication dashboard placeholder
-  // -------------------------------------------------------------------------
-  app.get(
-    '/dashboard',
-    {
-      preHandler: [authenticate],
-      preSerialization: [validateResponse(DashboardResponseSchema)],
-    },
-    async (req) => {
-      return {
-        message: 'Welcome to Antigravity Career Hub Dashboard',
-        user: {
-          id: req.user.id,
-          displayName: req.user.displayName,
-          role: req.user.role,
-        },
-        tenant: {
-          id: req.tenant.id,
-          name: req.tenant.name,
-        },
-      };
-    }
-  );
+    return reply.redirect('/login');
+  });
 }

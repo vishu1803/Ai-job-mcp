@@ -244,10 +244,13 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
     assert.strictEqual(body.error.code, 'INVALID_SESSION');
   });
 
-  it('7. POST /auth/logout revokes session in database and clears session cookie', async () => {
+  it('7. POST /auth/logout (JSON API) revokes session in database and returns JSON confirmation', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/auth/logout',
+      headers: {
+        accept: 'application/json',
+      },
       cookies: {
         career_hub_session: sessionCookie,
       },
@@ -271,6 +274,113 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
       },
     });
     assert.strictEqual(meRes.statusCode, 401);
+  });
+
+  it('7a. POST /auth/logout (HTML Form) revokes session and redirects browser to /login', async () => {
+    // Provision fresh session
+    const flowRes = await app.inject({ method: 'GET', url: '/auth/github' });
+    const parsedUrl = new URL(flowRes.headers['location']);
+    const newState = parsedUrl.searchParams.get('state');
+    const newTransit = flowRes.cookies.find((c) => c.name === OAUTH_TRANSIT_COOKIE_NAME).value;
+
+    const callbackRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github/callback',
+      query: { code: 'valid_mock_code', state: newState, format: 'json' },
+      cookies: { [OAUTH_TRANSIT_COOKIE_NAME]: newTransit },
+    });
+
+    const activeCookie = callbackRes.cookies.find((c) => c.name === 'career_hub_session').value;
+    const activeSessionId = crypto.createHash('sha256').update(activeCookie).digest('hex');
+
+    // Submit standard HTML Form (x-www-form-urlencoded)
+    const logoutRes = await app.inject({
+      method: 'POST',
+      url: '/auth/logout',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'text/html,application/xhtml+xml',
+      },
+      cookies: {
+        career_hub_session: activeCookie,
+      },
+    });
+
+    assert.strictEqual(logoutRes.statusCode, 302);
+    assert.strictEqual(logoutRes.headers['location'], '/login');
+
+    // Verify session row is deleted from PostgreSQL
+    const remaining = await db.select().from(sessions).where(eq(sessions.id, activeSessionId));
+    assert.strictEqual(remaining.length, 0);
+  });
+
+  it('7b. GET /auth/logout (Browser Fallback) revokes session and redirects browser to /login', async () => {
+    // Provision fresh session
+    const flowRes = await app.inject({ method: 'GET', url: '/auth/github' });
+    const parsedUrl = new URL(flowRes.headers['location']);
+    const newState = parsedUrl.searchParams.get('state');
+    const newTransit = flowRes.cookies.find((c) => c.name === OAUTH_TRANSIT_COOKIE_NAME).value;
+
+    const callbackRes = await app.inject({
+      method: 'GET',
+      url: '/auth/github/callback',
+      query: { code: 'valid_mock_code', state: newState, format: 'json' },
+      cookies: { [OAUTH_TRANSIT_COOKIE_NAME]: newTransit },
+    });
+
+    const activeCookie = callbackRes.cookies.find((c) => c.name === 'career_hub_session').value;
+    const activeSessionId = crypto.createHash('sha256').update(activeCookie).digest('hex');
+
+    const getLogoutRes = await app.inject({
+      method: 'GET',
+      url: '/auth/logout',
+      cookies: {
+        career_hub_session: activeCookie,
+      },
+    });
+
+    assert.strictEqual(getLogoutRes.statusCode, 302);
+    assert.strictEqual(getLogoutRes.headers['location'], '/login');
+
+    // Verify session is revoked
+    const remaining = await db.select().from(sessions).where(eq(sessions.id, activeSessionId));
+    assert.strictEqual(remaining.length, 0);
+  });
+
+  it('7c. POST /auth/logout rejects cross-site request forgery with 403 CSRF_DETECTED', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/logout',
+      headers: {
+        origin: 'https://evil-attacker.com',
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+    });
+
+    assert.strictEqual(res.statusCode, 403);
+    const body = JSON.parse(res.payload);
+    assert.strictEqual(body.error.code, 'CSRF_DETECTED');
+  });
+
+  it('7d. Repeated unauthenticated logout requests execute safely and idempotently', async () => {
+    // Repeated POST
+    const postRes = await app.inject({
+      method: 'POST',
+      url: '/auth/logout',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+    });
+    assert.strictEqual(postRes.statusCode, 302);
+    assert.strictEqual(postRes.headers['location'], '/login');
+
+    // Repeated GET
+    const getRes = await app.inject({
+      method: 'GET',
+      url: '/auth/logout',
+    });
+    assert.strictEqual(getRes.statusCode, 302);
+    assert.strictEqual(getRes.headers['location'], '/login');
   });
 
   it('8. Re-login for existing user updates session without creating duplicate tenant', async () => {
@@ -343,6 +453,9 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
     const res = await app.inject({
       method: 'GET',
       url: '/dashboard',
+      headers: {
+        accept: 'application/json',
+      },
     });
 
     assert.strictEqual(res.statusCode, 401);
@@ -380,6 +493,9 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
     const res = await app.inject({
       method: 'GET',
       url: '/dashboard',
+      headers: {
+        accept: 'application/json',
+      },
       cookies: {
         career_hub_session: activeSessionCookie,
       },
@@ -432,6 +548,7 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
       method: 'GET',
       url: `/dashboard?tenant_id=${spoofedTenantId}`,
       headers: {
+        accept: 'application/json',
         'x-tenant-id': spoofedTenantId,
         'tenant-id': spoofedTenantId,
       },

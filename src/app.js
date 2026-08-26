@@ -12,6 +12,7 @@ import mcpRoutes from './routes/mcp.routes.js';
 import oauthRoutes from './routes/oauth.routes.js';
 import candidateRoutes from './routes/candidate.routes.js';
 import accountRoutes from './routes/account.routes.js';
+import webRoutes from './routes/web.routes.js';
 import { config } from './config/env.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
@@ -60,6 +61,20 @@ export function buildApp(opts = {}) {
   app.register(fastifyCookie, {
     secret: config.SESSION_COOKIE_SECRET || undefined,
   });
+
+  // Support standard HTML form submissions (application/x-www-form-urlencoded)
+  app.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_req, body, done) => {
+      try {
+        const parsed = Object.fromEntries(new URLSearchParams(body));
+        done(null, parsed);
+      } catch (err) {
+        done(err, undefined);
+      }
+    }
+  );
 
   // Global Error and Not Found Handlers
   app.setErrorHandler(errorHandler);
@@ -148,14 +163,9 @@ export function buildApp(opts = {}) {
     dataSovereigntyService: opts.dataSovereigntyService,
   });
 
-  // Root platform status verification endpoint
-  app.get('/', async (_request, _reply) => {
-    return {
-      name: 'Antigravity Career Hub API',
-      version: '0.1.0',
-      status: 'operational',
-      mcpEndpoint: '/mcp',
-    };
+  // Human Web Application & View Routes (/, /login, /onboarding, /dashboard, /connect, /settings, /docs/mcp)
+  app.register(webRoutes, {
+    db: opts.db,
   });
 
   return app;

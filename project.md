@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13 100% COMPLETE (75/75 tasks across Phases 0-13); Phase 13 fully verified (5/5 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 13 (Public Multi-User Beta) 100% complete; ready to transition to Phase 14 |
-| **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **75 Tasks** | Phases 0-13 (75 tasks) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 14 / P14-001 |
+| **Current Phase** | **PHASE 13.5 — Product Experience, Public MCP & Career Document Onboarding** | Phases 0-13 100% COMPLETE (75/75 tasks); Phase 13.5 P13.5-001 COMPLETE & VERIFIED (1/6 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phases 0-13 100% verified; Phase 13.5 in progress bridging human web UX and MCP Apps |
+| **Total Tasks** | **91 Tasks** | Across Phases 0 to 15 (including Phase 13.5) |
+| **Completed Tasks** | **76 Tasks** | Phases 0-13 (75 tasks) + P13.5-001 (1 task) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P13.5-002 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **92.59% (75 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **87.50% (14.0 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-13 100% complete) |
+| **Overall Task Completion** | **83.52% (76 / 91 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **83.35% (14.17 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -38,6 +38,7 @@
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 6 | 1 | 0 | **IN_PROGRESS** | **16.7%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -3035,5 +3036,83 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * Verified all relative links and verified zero secret leakage.
   * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+## PHASE 13.5: Product Experience, Public MCP & Career Document Onboarding
+*Objective: Implement the human-facing web application, source resume upload & claim separation pipeline, AI Connection Center UI, public MCP documentation, MCP Registry publication manifest, and MCP Apps UI extension.*
+
+| Task ID | Task Title | Dependencies | Status | Verification Method |
+| :--- | :--- | :--- | :--- | :--- |
+| **P13.5-001A** | Product Experience, Public MCP, Career Documents & MCP Apps Architecture Review | P13-005 | **COMPLETE & APPROVED** | Architectural specifications in `docs/product-experience-public-mcp-architecture.md` (`ARCH-051`) and `docs/source-resume-document-architecture.md` (`ARCH-052`). Approved clean web routing topology (`/` landing page vs `/mcp` protocol), hybrid encrypted document storage model, resume parsing with `CLAIMED` truth model separation, AI connection center, official MCP Registry `server.json` manifest, and `io.modelcontextprotocol/ui` MCP Apps extensions. |
+| **P13.5-001** | Implement Human-Facing Web Application Architecture & Public Landing Page | P13.5-001A | **COMPLETE & VERIFIED** | Built modern, high-performance HTML5/Vanilla CSS design system, responsive glassmorphic dark-mode layout, Fastify static/SSR routing (`/`, `/login`, `/onboarding`, `/dashboard`, `/connect`, `/settings`, `/docs/mcp`), and secure browser logout (`POST /auth/logout` with PRG redirect & `GET /auth/logout` safe fallback) while keeping `POST /mcp` strictly reserved for protocol JSON-RPC. Tested with 19 web route integration tests and 18 auth integration tests verifying 0 secret leaks, content negotiation, session authentication, CSRF defense, and protocol integrity. |
+| **P13.5-002** | Implement Candidate Web Onboarding, Dashboard & Connected Sources UI | P13.5-001 | NOT_STARTED | Implement interactive `/onboarding` wizard, candidate profile manager, visual GitHub repository selector with least-privilege grants, real-time AST ingestion progress view, and verified skills cloud explorer. |
+| **P13.5-003** | Implement Source Resume Upload, Encrypted Document Storage, and Claim Separation Pipeline | P13.5-001 | NOT_STARTED | Implement `/resumes` uploader supporting PDF, DOCX, and Plain Text; sandboxed text extraction; AES-256-GCM encrypted document blob storage; structured entity parser; automatic classification of resume statements as `CLAIMED` (`[Unverified User Claim]`); and immutable version lifecycle (`SOURCE` $\to$ `PARSED` $\to$ `USER_APPROVED` $\to$ `BASE_RESUME` $\to$ `TAILORED_VERSION` $\to$ `EXPORT_SNAPSHOT`). |
+| **P13.5-004** | Implement AI Connection Center UI & Public MCP Documentation Explorer | P13.5-001 | NOT_STARTED | Build `/connect` AI hub with visual connection status badges for Claude, ChatGPT, and Gemini; personal MCP API token generator with role ceiling controls; one-click token revocation; and `/docs/mcp` interactive tool catalog explorer with JSON Schema inspector. |
+| **P13.5-005** | Implement MCP Registry Metadata & MCP Apps UI Extension Architecture | P13.5-004 | NOT_STARTED | Author official MCP Registry `server.json` manifest conforming to `registry.modelcontextprotocol.io`; implement `io.modelcontextprotocol/ui` standard serving sandboxed iframes for `job-fit-radar` (`analyze_job_fit`), `evidence-graph` (`inspect_project_evidence`), `pr-diff-inspector` (`propose_project_improvement`), and `application-pipeline` (`track_job_application`). |
+| **P13.5-006** | End-to-End Multi-Tenant Web, Document & MCP Apps Integration Verification | P13.5-001 through P13.5-005 | NOT_STARTED | Implement dedicated integration test suite verifying web routing, multi-user document uploads, PDF/DOCX parsing, encrypted storage, claim separation, AI token lifecycle, and MCP Apps sandboxed rendering in an isolated PostgreSQL database. |
+
+---
+
+### Detailed Execution Ledger: Phase 13.5
+
+* **P13.5-001A: PRODUCT EXPERIENCE, PUBLIC MCP & CAREER DOCUMENT ONBOARDING ARCHITECTURE REVIEW (Completed & Approved)**:
+  * Deliverables Authored:
+    * `docs/product-experience-public-mcp-architecture.md`: Comprehensive architectural specification (`ARCH-051`) detailing human-facing web application topology, pure CSS tokens & responsive design system, AI connection center, interactive MCP documentation explorer, official MCP Registry `server.json` manifest specifications, and `io.modelcontextprotocol/ui` MCP Apps sandboxed iframe integration.
+    * `docs/source-resume-document-architecture.md`: Comprehensive architectural specification (`ARCH-052`) detailing hybrid encrypted document storage, PDF/DOCX parsing pipeline, strict `CLAIMED` truth model separation, and immutable application snapshot lifecycle.
+    * `docs/decisions.md`: Added `ADR-071: Human Web Application Architecture, Public Landing Page & MCP Protocol Invariant` and `ADR-072: Source Resume Document Pipeline, Claim Separation & MCP Apps Extensions`.
+  * Status: **`COMPLETE & APPROVED`**.
+
+---
+
+* **P13.5-001: IMPLEMENT HUMAN-FACING WEB APPLICATION ARCHITECTURE & PUBLIC LANDING PAGE (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/utils/html-escaper.js`: Safe server-side HTML entity escaping utility (`&`, `<`, `>`, `"`, `'`).
+    * `src/views/layout.js`: Responsive dark-mode glassmorphic HTML5 shell with `Inter` / `JetBrains Mono` typography, navigation bar, active indicator, and footer.
+    * `src/views/landing.page.js`: Public landing page (`GET /`) with high-impact hero banner, Truth-in-AI vs Hallucination comparison matrix, 6 core feature highlights, multi-AI client badges (Claude, ChatGPT, Gemini), and CTA buttons.
+    * `src/views/login.page.js`: Human authentication entry point (`GET /login`) with GitHub OAuth CTA, dynamic `returnTo` handling, and security guarantees.
+    * `src/views/dashboard.page.js`: Authenticated candidate workspace (`GET /dashboard`) rendering live candidate headline, verified skills badges, project cards, and active applications.
+    * `src/views/onboarding.page.js`: 3-step candidate onboarding wizard shell (`GET /onboarding`).
+    * `src/views/connect.page.js`: AI Connection Center shell (`GET /connect`) with connector cards for Claude, ChatGPT, and Gemini.
+    * `src/views/settings.page.js`: Account & privacy controls (`GET /settings`) with GDPR Article 17 hard delete form.
+    * `src/views/mcp-docs.page.js`: Public developer MCP documentation (`GET /docs/mcp`) detailing `/mcp` Streamable HTTP, OAuth 2.1 discovery, 16 registered MCP tools catalog, and two-phase write safety.
+    * `src/routes/web.routes.js`: Fastify web route plugin registering all 7 human web routes with content negotiation (HTML default vs JSON API) and session protection.
+    * `src/app.js`: Registered `webRoutes` plugin with Fastify instance.
+    * `tests/integration/web-application-routes.test.js`: Comprehensive 19-scenario integration test suite verifying landing page HTML, JSON content negotiation, login redirect, documentation rendering, unauthenticated redirect for protected shells, session hydration, multi-tenant isolation, 0 secret leakage, MCP JSON-RPC protocol invariance, OAuth discovery endpoints, and navbar Sign Out form/fallback behavior.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/web-application-routes.test.js` -> PASS (19/19 tests passing in 11.5s)
+    * `node --test tests/integration/auth.test.js` -> PASS (18/18 tests passing in 13.5s)
+    * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 44.9s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+    * `git diff --check` -> PASS (0 whitespace errors)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+## PHASE 14: Security Hardening & Production Readiness
+*Objective: Execute comprehensive penetration testing, AST sandbox hardening, cryptographic audit, rate-limiting, and staging/production domain deployment.*
+
+| Task ID | Task Title | Dependencies | Status | Verification Method |
+| :--- | :--- | :--- | :--- | :--- |
+| **P14-001A** | Review Penetration Testing, Dependency Vulnerability & Secrets Audit Architecture | P13.5-006 | NOT_STARTED | Architecture review covering automated DAST/SAST penetration testing, npm audit vulnerability gates, cryptographic key rotation runbooks, and zero-trust perimeter auditing. |
+| **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | NOT_STARTED | Automated `npm audit` CI gates, git-secrets / gitleaks pre-commit hooks, and dependency vulnerability remediation. |
+| **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | NOT_STARTED | Automated DAST penetration test suite simulating IDOR, SQL injection, AST sandbox escape, SSRF, session hijacking, and CSRF attacks. |
+| **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | NOT_STARTED | In-memory / Redis token-bucket rate limiting across `/mcp`, `/oauth/*`, `/auth/*`, `/resumes`, and `/api/*`; connection pool saturation testing under 500 concurrent connections. |
+| **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | NOT_STARTED | Configure production domain (`staging.careerhub.ai`), Cloudflare Named Tunnel (`cloudflared`), Managed PostgreSQL staging database with TLS, stable GitHub OAuth/webhook callbacks, and uptime monitoring probes. |
+| **P14-005** | Production Readiness Audit & Final Signoff | P14-004 | NOT_STARTED | End-to-end multi-tenant live verification, automated rollback testing, database disaster recovery drills, and final production signoff report. |
+
+---
+
+## PHASE 15: Advanced Automation & Future Connectors
+*Objective: Expand data source connectivity and continuous career portfolio synchronization.*
+
+| Task ID | Task Title | Dependencies | Status | Verification Method |
+| :--- | :--- | :--- | :--- | :--- |
+| **P15-001** | GitLab Resource Connector Integration | P14-005 | NOT_STARTED | OAuth 2.0 & webhook integration with GitLab.com and self-hosted GitLab instances for multi-repo candidate ingestion. |
+| **P15-002** | Cloud Document Connectors (Google Drive, OneDrive, Notion) | P14-005 | NOT_STARTED | Connectors for cloud storage providers to continuously sync candidate resumes, certifications, and portfolio documents. |
+| **P15-003** | Continuous Background Repository Sync & Automated Skill Drift Detection | P14-005 | NOT_STARTED | Scheduled background workers periodically inspecting connected repositories for new commits, tags, and dependencies, emitting skill growth notifications. |
+| **P15-004** | Autonomous Job Application Preparation & Interview Intelligence Assistant | P15-003 | NOT_STARTED | Advanced multi-agent interview coaching pipelines generating customized technical mock interviews based on candidate's exact verified AST code evidence. |
 
 ---

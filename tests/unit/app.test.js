@@ -43,14 +43,27 @@ describe('Fastify Application & Health Endpoints (P1-005)', () => {
     assert.equal(response.headers['cache-control'], 'no-store, no-cache, must-revalidate');
   });
 
-  test('3. GET / returns 200 OK and root platform status', async () => {
-    const response = await app.inject({
+  test('3. GET / returns 200 OK and rendered landing page or JSON status via content negotiation', async () => {
+    // Default browser navigation returns HTML
+    const htmlRes = await app.inject({
       method: 'GET',
       url: '/',
     });
+    assert.equal(htmlRes.statusCode, 200);
+    assert.match(htmlRes.headers['content-type'], /text\/html/);
+    assert.match(htmlRes.payload, /The Evidence-Backed AI Career Platform/);
 
-    assert.equal(response.statusCode, 200);
-    const body = JSON.parse(response.payload);
+    // Explicit Accept: application/json returns operational JSON status
+    const jsonRes = await app.inject({
+      method: 'GET',
+      url: '/',
+      headers: {
+        accept: 'application/json',
+      },
+    });
+    assert.equal(jsonRes.statusCode, 200);
+    assert.match(jsonRes.headers['content-type'], /application\/json/);
+    const body = JSON.parse(jsonRes.payload);
     assert.equal(body.status, 'operational');
     assert.equal(body.version, '0.1.0');
     assert.equal(body.mcpEndpoint, '/mcp');

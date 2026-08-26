@@ -68,15 +68,19 @@ export function errorHandler(error, request, reply) {
     });
   }
 
-  // 3. Fastify syntax/malformed body parsing error (400)
-  if (/** @type {any} */ (error).statusCode === 400) {
-    request.log.warn({ requestId, err: error }, 'Bad request syntax');
-    return reply.code(400).send({
+  // 3. Fastify framework client errors (400 Bad Request, 415 Unsupported Media Type, etc.)
+  const fastifyStatusCode = /** @type {any} */ (error).statusCode;
+  if (fastifyStatusCode && fastifyStatusCode >= 400 && fastifyStatusCode < 500) {
+    request.log.warn({ requestId, err: error, statusCode: fastifyStatusCode }, error.message);
+    const code =
+      /** @type {any} */ (error).code ||
+      (fastifyStatusCode === 400 ? 'BAD_REQUEST' : 'CLIENT_ERROR');
+    return reply.code(fastifyStatusCode).send({
       success: false,
       data: null,
       error: {
-        code: 'BAD_REQUEST',
-        message: 'Malformed or invalid JSON request syntax',
+        code,
+        message: error.message || 'Client request error',
         details: null,
         requestId,
       },
