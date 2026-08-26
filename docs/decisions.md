@@ -1505,4 +1505,19 @@
 * **Reasons**: Provides candidates and AI advisors with actionable, high-integrity feedback loops on application efficacy while enforcing rigorous statistical validity and privacy.
 * **Consequences**: Task P12-004A is COMPLETE & APPROVED; Task P12-004 will implement `ApplicationAnalyticsService`.
 
+---
+
+### ADR-066: Job Application Multi-Tenant Isolation & IDOR Security Verification
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 12 (Task P12-005A), we evaluated multi-tenant isolation, IDOR resistance, and information leakage prevention across `job_applications`, `application_stages`, `tailored_documents`, `ApplicationTrackingService`, `ApplicationAnalyticsService`, and MCP tracking tools.
+* **Decision**: Adopt the **Multi-Tenant Application Isolation Architecture** defined in `docs/job-application-isolation-security-review.md` (`ARCH-046`):
+  * **Sovereign 404 Default-Deny**: All cross-tenant lookups, mutations, and analytics queries return `404 NOT_FOUND` with zero information leakage about entity existence or attributes.
+  * **Context Authority**: Authentication contexts securely bind `tenantId` and `candidateId` from verified OAuth/MCP tokens; client-supplied overrides in payloads are strictly stripped/rejected at Zod schema boundaries and overridden at service layers.
+  * **Cross-Tenant Relationship Resistance**: Compound `WHERE (id, tenantId)` clauses prevent attaching or updating foreign tenant stages or documents.
+  * **Cascade Isolation**: Deletions within Tenant A cascade only to Tenant A child records, preserving Tenant B records completely intact.
+* **Reasons**: Guarantees zero multi-tenant data contamination or unauthorized cross-tenant intelligence access across the platform.
+* **Consequences**: Task P12-005A is COMPLETE & APPROVED; Task P12-005 implemented the dedicated 14-scenario security test suite.
+
+
 

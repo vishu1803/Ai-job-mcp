@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-11 100% COMPLETE (65/65 tasks); Phase 12 P12-001, P12-002, P12-003, P12-004 verified (4/5 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 12 in progress; P12-001 (Schema foundation), P12-002 (Application Tracking Service), P12-003 (MCP Tracking Tools), and P12-004 (Application Analytics Service) verified |
+| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-12 100% COMPLETE (70/70 tasks); Phase 12 P12-001, P12-002, P12-003, P12-004, P12-005 verified (5/5 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 12 COMPLETE; P12-001 (Schema foundation), P12-002 (Application Tracking Service), P12-003 (MCP Tracking Tools), P12-004 (Application Analytics Service), and P12-005 (Multi-Tenant Isolation Security Suite) verified; ready for Phase 13 |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **69 Tasks** | Phases 0-11 (65 tasks) + Phase 12 (P12-001, P12-002, P12-003, P12-004) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 12 / P12-005 |
+| **Completed Tasks** | **70 Tasks** | Phases 0-12 (70 tasks) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 13 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **85.19% (69 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **80.0% (12.8 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-11 100% complete; Phase 12 80.0% complete) |
+| **Overall Task Completion** | **86.42% (70 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **81.25% (13.0 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-12 100% complete) |
 
 ---
 
@@ -36,7 +36,7 @@
 | **PHASE 9** | Approved GitHub Write Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 12** | Job / Application Tracking | 5 | 4 | 0 | **IN_PROGRESS** | **80.0%** |
+| **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
@@ -334,7 +334,7 @@
 | **P12-003A** | Application Tracking MCP Tools Architecture & Security Review | P12-002 | **COMPLETE & APPROVED** | Architectural specification in review ledger defining 7-tool catalog (`track_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`, `get_job_application`, `list_active_applications`), advisory annotations (MCP 2026-07-28), output budgets (<= 25 KB get, <= 15 KB list), candidate identity binding, multi-tenant 404 default-deny, and zero external job-board submission boundary (`goal.md` §8.1). |
 | **P12-003** | Expose MCP Tracking Tools: `track_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`, `get_job_application`, `list_active_applications` | P7-001, P12-002, P12-003A | **COMPLETE & VERIFIED** | Implemented 7 tracking MCP tools in `src/mcp/tools/career-tracking-tools.js` with canonical Zod contracts in `src/domain/mcp/career-tracking-tools.schemas.js`. Wired into `createCareerMcpServer` expanding MCP catalog to 16 tools. Unit tests: 10/10 PASS (`tests/unit/mcp-career-tracking-tools.test.js`); Live integration tests: 12/12 PASS (`tests/integration/mcp-career-tracking-tools.test.js`); Provider parity: 9/9 PASS (`tests/integration/provider-neutral-tools.test.js`). Master suite: 1,496/1,496 PASS with 0 DB leaks. |
 | **P12-004** | Implement Application Analytics (match score vs. response rate, skill gap frequencies across targets) | P12-002, P12-004A | **COMPLETE & VERIFIED** | Implemented `ApplicationAnalyticsService` (`src/services/application-analytics.service.js`) and canonical strict Zod domain schemas (`src/domain/career/application-analytics.schemas.js`). Unit tests: 10/10 PASS (`tests/unit/application-analytics.service.test.js`); Live integration tests: 4/4 PASS (`tests/integration/application-analytics.service.test.js`); Master suite: 1,511/1,511 PASS with 0 DB leaks. |
-| **P12-005** | Multi-tenant isolation verification for job application records | P12-001 | NOT_STARTED | Security test asserting User A cannot query User B application records |
+| **P12-005** | Multi-tenant isolation verification for job application records | P12-001, P12-005A | **COMPLETE & VERIFIED** | Implemented dedicated 14-scenario multi-tenant isolation and IDOR security test suite in `tests/integration/multi-tenant-application-isolation.test.js`. Verified 404 default-deny across MCP & service lookups/mutations/analytics, Zod payload schema defense against tenantId injection, zero metadata leakage, and cascade isolation. 14/14 PASS; Master suite: 1,525/1,525 PASS with 0 DB leaks. |
 
 ---
 
@@ -2894,6 +2894,40 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 29.5s)
     * `npm run test:integration` -> PASS (384/384 integration tests passing across 118 suites in 86.5s)
     * `npm test` -> PASS (1,511/1,511 master tests passing across 409 suites in 120.0s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+* **P12-005A: JOB APPLICATION MULTI-TENANT ISOLATION SECURITY REVIEW (Completed & Approved)**:
+  * Deliverables & Architecture:
+    * Architecture review approved in `docs/job-application-isolation-security-review.md` (`ARCH-046`) and `ADR-066` in `docs/decisions.md`.
+    * Established sovereign 404 default-deny policy for all cross-tenant access attempts, context authority (rejecting client-supplied payload overrides), compound WHERE clause protection against cross-tenant stage/document injection, error message homogeneity (zero foreign metadata leakage), and scoped cascade isolation.
+  * Status: **`COMPLETE & APPROVED`**.
+
+* **P12-005: IMPLEMENT MULTI-TENANT APPLICATION ISOLATION SECURITY TEST SUITE (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `tests/integration/multi-tenant-application-isolation.test.js`: Dedicated 14-scenario security test suite formally verifying:
+      1. Cross-tenant `get_job_application` returns 404 with zero metadata leakage (company name, title, notes, salary redacted).
+      2. Cross-tenant `list_active_applications` returns empty list, never reflecting foreign tenant rows.
+      3. Cross-tenant `track_job_application` with foreign `candidateId` fails with 404.
+      4. Cross-tenant `update_application_status` fails with 404 without mutating record.
+      5. Cross-tenant `add_application_stage` fails with 404 without creating stage.
+      6. Cross-tenant `update_application_stage_outcome` fails with 404 without altering outcome.
+      7. Cross-tenant `attach_application_document` fails with 404 without attaching document.
+      8. Cross-tenant `deleteApplication` fails with 404; application and children remain intact.
+      9. Cross-tenant `getCandidateAnalytics` returns 404 with zero aggregate metrics leaked.
+      10. Cross-tenant `getScoreProgressionCorrelation` returns 404.
+      11. Cross-tenant `getSkillGapFrequency` returns 404.
+      12. Client-injected `tenantId` in MCP payload is strictly rejected at Zod schema boundary and bound to context at service layer.
+      13. Cross-tenant stage outcome update with spoofed `tenantId` in payload rejected at MCP and fails closed with 404 in service.
+      14. Cascade deletion isolation: Deleting Tenant A application deletes only Tenant A rows, preserving Tenant B records 100% intact.
+    * `docs/job-application-isolation-security-review.md`: Formal specification (`ARCH-046` / `ADR-066`) marked `IMPLEMENTED & VERIFIED`.
+    * `docs/decisions.md`: Added `ADR-066: Job Application Multi-Tenant Isolation & IDOR Security Verification`.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/multi-tenant-application-isolation.test.js` -> PASS (14/14 tests in 18.3s)
+    * `npm run test:db-lifecycle-check` -> PASS (46/46 DB-using test files verified with 0 leaks)
+    * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 29.0s)
+    * `npm run test:integration` -> PASS (398/398 integration tests passing across 119 suites in 91.0s)
+    * `npm test` -> PASS (1,525/1,525 master tests passing across 410 suites in 93.4s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Schema in sync)
