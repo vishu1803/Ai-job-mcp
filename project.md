@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 10 — Claude Integration (Second Target AI Client)** | Phase 0-9 (100% COMPLETE: 57/57 tasks verified), Phase 10 (P10-001, P10-002, P10-003 Complete & Verified; P10-003A Complete & Approved; ready for P10-004) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 0 through Phase 9 complete; P10-001, P10-002, P10-003 verified; P10-003A approved; ready for P10-004 (Claude custom connector documentation) |
+| **Current Phase** | **PHASE 11 — ChatGPT Integration (Third Target AI Client)** | Phases 0-10 (100% COMPLETE: 61/61 tasks verified), ready for Phase 11 (P11-001A / ChatGPT MCP Integration Architecture Review) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phases 0 through 10 complete; P10-001, P10-002, P10-003, P10-004 verified; ready for Phase 11 (ChatGPT Developer Mode Integration) |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **60 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) + Phase 10 (3) (plus P8-001A, P8-003A, P8-004A, P8-005A, P8-006A, P9-001A, P9-002A, P9-003A, P9-004A, P9-005A, P9-006A, P10-001A, P10-002A, P10-003A approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P10-004 |
+| **Completed Tasks** | **61 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) + Phase 10 (4) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 11 / P11-001A |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **74.1% (60 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **67.2% (10.75 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-9 100% complete, Phase 10 75% complete) |
+| **Overall Task Completion** | **75.3% (61 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **68.8% (11.0 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-10 100% complete) |
 
 ---
 
@@ -34,7 +34,7 @@
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 9** | Approved GitHub Write Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 10** | Claude Integration | 4 | 3 | 0 | **IN PROGRESS** | **75.0%** |
+| **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
@@ -68,7 +68,7 @@
 | **P10-002** | Validate Claude Free (1-connector limit) and Claude Pro/Team multi-connector compatibility | P10-001, P10-002A | **COMPLETE & VERIFIED** | Verified 9-tool catalog self-containment, compact schema sizing (<0.55% context budget), non-interference with external connectors, human-in-the-loop approval enforcement on write operations, and zero backend code changes. Verified across unit, integration, and full test suites. |
 | **P10-003A** | Provider-Neutral AI Prompt / Tool Response Compatibility Review | P10-002 | **COMPLETE & APPROVED** | Architectural specification `docs/provider-neutral-prompt-compatibility-review.md` (`ARCH-039`), `ADR-060` in `docs/decisions.md`. Verified Inverse Authority Principle, strict domain authoritative computation, transient field normalization boundary, deterministic prompt policy parity, cross-tenant 404 isolation, and designed deterministic integration test suite. |
 | **P10-003** | Verify provider-neutral prompt adherence: Claude receives identical tool responses as Gemini | P8-003, P10-002, P10-003A | **COMPLETE & VERIFIED** | Implemented `tests/integration/provider-neutral-tools.test.js`. 8/8 comprehensive integration tests proving 100% bit-for-bit structured response parity between Claude-style Streamable HTTP JSON-RPC and Gemini-style direct dispatch across `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`, safety ceiling clamping (<=24.9), inverse authority spoofing resistance, multi-tenant 404 isolation, and PromptPolicyRegistry ID/version stability. |
-| **P10-004** | Document Claude custom connector setup guide and troubleshooting instructions | P10-002, P10-003 | NOT_STARTED | Step-by-step verified documentation in repository |
+| **P10-004** | Document Claude custom connector setup guide and troubleshooting instructions | P10-002, P10-003 | **COMPLETE & VERIFIED** | Authored `docs/claude-custom-connector-guide.md` covering local tunnel setup (`cloudflared`), environment configuration, GitHub App OAuth callback, Claude UI custom connector setup with `claude-web` Client ID and PKCE S256, complete 9-tool catalog specifications, read-only first verification prompts, two-phase write safety workflows, 12-scenario troubleshooting matrix, and production deployment guide. |
 
 ---
 
@@ -86,13 +86,13 @@
 | **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0% (P9-001 through P9-006 Complete & Verified)** |
-| **PHASE 10** | Claude Integration | 4 | 3 | 0 | **IN_PROGRESS** | **75.0% (P10-001, P10-002, P10-003 Complete & Verified)** |
+| **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0% (P10-001 through P10-004 Complete & Verified)** |
 | **PHASE 11** | ChatGPT Integration | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **81** | **60** | **0** | **IN_PROGRESS** | **74.1%** |
+| **TOTAL** | **All Phases Combined** | **81** | **61** | **0** | **IN_PROGRESS** | **75.3%** |
 
 ---
 
@@ -2669,6 +2669,26 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Drizzle Kit check passed: "Everything's fine 🐶🔥")
+  * Status: **`COMPLETE & VERIFIED`**.
+
+* **P10-004: CLAUDE CUSTOM CONNECTOR SETUP & TROUBLESHOOTING GUIDE (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `docs/claude-custom-connector-guide.md`: Comprehensive, step-by-step developer and user guide covering:
+      1. **Overview & Inverse Authority**: Architecture diagram, provider-neutral abstractions, and sovereign domain authority.
+      2. **Supported Claude Clients**: Protocol matrix for Claude.ai Web (`claude-web`), Claude Desktop (`claude-desktop`), and Claude Code CLI (`claude-cli`).
+      3. **Prerequisites**: Node.js, PostgreSQL, GitHub App, `cloudflared` CLI, and Claude account.
+      4. **Local Development Quickstart**: Complete walkthrough for `npm run dev`, `cloudflared tunnel --url http://localhost:3000`, environment variable configuration (`MCP_PUBLIC_URL`, `OAUTH_ISSUER_URL`), and GitHub App callback synchronization (`https://<tunnel-domain>/auth/github/callback`).
+      5. **Claude Custom Connector Setup**: Step-by-step UI guide for Claude.ai, endpoint configuration (`https://<tunnel-domain>/mcp`), pre-registered Client ID `claude-web`, empty Client Secret (PKCE S256 public client), Authorization Session Bridge, and interactive consent screen.
+      6. **Complete 9-Tool MCP Catalog**: Detailed specifications for 4 Career Read tools (`get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`), 3 Application Artifact tools (`generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects`), and 2 Approved GitHub Write tools (`propose_project_improvement`, `confirm_and_create_pr`).
+      7. **First Read-Only Verification Tests**: Exact conversational prompt templates for skill listing and ATS job-fit analysis with safety ceiling enforcement.
+      8. **Two-Phase Write Safety Workflow**: Detailed diagram and operational rules for diff previews, test reports, SHA-256 patch fingerprints, human review stopping protocols, and dynamic default branch protection.
+      9. **Comprehensive Troubleshooting Matrix**: Detailed diagnostic checks and exact resolutions for all 12 verified failure modes (dynamic registration errors, RFC 8707 resource parameters, unauthenticated redirects, 401 Bearer challenges, routing errors, localhost discovery leaks, connection errors, GitHub callback mismatches, tunnel URL drift, missing tools, token expiry, and stale HEAD rejections).
+      10. **Local vs Production Matrix**: Clear architectural distinction between temporary Quick Tunnels and production cloud deployments.
+      11. **Security Invariants & Data Protection**: Zero credential transmission, PKCE S256 protection, server-side sovereign identity minting, secret scrubbing, and human-in-the-loop write gates.
+      12. **Quick Verification Checklist**: Concise 10-point operational validation checklist.
+  * Quality Gates & Verification:
+    * `npm run lint` -> PASS (0 errors, 0 warnings across whole repository)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---
