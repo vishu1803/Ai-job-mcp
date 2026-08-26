@@ -218,6 +218,31 @@ export const tailoredDocumentTypeEnum = pgEnum('tailored_document_type', [
   'CUSTOM_NOTE',
 ]);
 
+/**
+ * Resume document lifecycle states (Phase 13.5 / ARCH-052 / ADR-072).
+ */
+export const resumeLifecycleStateEnum = pgEnum('resume_lifecycle_state', [
+  'SOURCE',
+  'PARSED',
+  'USER_APPROVED',
+  'BASE_RESUME',
+  'ARCHIVED',
+]);
+
+/**
+ * Parsed resume section classifications (Phase 13.5 / ARCH-052 / ADR-072).
+ */
+export const resumeSectionTypeEnum = pgEnum('resume_section_type', [
+  'SUMMARY',
+  'WORK_EXPERIENCE',
+  'EDUCATION',
+  'SKILLS',
+  'PROJECTS',
+  'CERTIFICATIONS',
+  'CONTACT_INFO',
+  'OTHER',
+]);
+
 // ---------------------------------------------------------------------------
 // 1. Tenants Table (Multi-Tenant Workspace Root)
 // ---------------------------------------------------------------------------
@@ -936,6 +961,107 @@ export const tailoredDocuments = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 21. Resumes Table (Source Upload & Version Lifecycle - Phase 13.5 / ARCH-052)
+// ---------------------------------------------------------------------------
+
+export const resumes = pgTable(
+  'resumes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull().default(1),
+    fileName: text('file_name').notNull(),
+    fileSizeBytes: integer('file_size_bytes').notNull(),
+    mimeType: text('mime_type').notNull(),
+    contentHash: text('content_hash').notNull(),
+    storageKey: text('storage_key').notNull(),
+    lifecycleState: resumeLifecycleStateEnum('lifecycle_state').notNull().default('SOURCE'),
+    isBaseResume: boolean('is_base_resume').notNull().default(false),
+    parseError: text('parse_error'),
+    parsedAt: timestamp('parsed_at', { withTimezone: true }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    metadata: jsonb('metadata').notNull().default('{}'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_resumes_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_resumes_tenant_state').on(table.tenantId, table.lifecycleState),
+    index('idx_resumes_content_hash').on(table.contentHash),
+    index('idx_resumes_candidate_version').on(table.candidateId, table.version),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 22. Resume Sections Table (Structured Parsed Artifacts - Phase 13.5 / ARCH-052)
+// ---------------------------------------------------------------------------
+
+export const resumeSections = pgTable(
+  'resume_sections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    resumeId: uuid('resume_id')
+      .notNull()
+      .references(() => resumes.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    sectionType: resumeSectionTypeEnum('section_type').notNull(),
+    rawText: text('raw_text').notNull(),
+    structuredData: jsonb('structured_data').notNull().default('{}'),
+    orderIndex: integer('order_index').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_resume_sections_tenant_resume').on(table.tenantId, table.resumeId),
+    index('idx_resume_sections_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_resume_sections_resume_order').on(table.resumeId, table.orderIndex),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// 23. Candidate Claims Table (Extracted Assertions & Truth Separation - Phase 13.5 / ARCH-052)
+// ---------------------------------------------------------------------------
+
+export const candidateClaims = pgTable(
+  'candidate_claims',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    resumeId: uuid('resume_id').references(() => resumes.id, { onDelete: 'cascade' }),
+    claimType: text('claim_type').notNull(), // 'SKILL' | 'EXPERIENCE' | 'EDUCATION' | 'PROJECT' | 'ACHIEVEMENT'
+    statement: text('statement').notNull(),
+    context: text('context'),
+    provenanceStatus: provenanceStatusEnum('provenance_status').notNull().default('CLAIMED'),
+    isCorroborated: boolean('is_corroborated').notNull().default(false),
+    corroboratingEvidenceId: uuid('corroborating_evidence_id').references(() => evidenceItems.id, {
+      onDelete: 'set null',
+    }),
+    metadata: jsonb('metadata').notNull().default('{}'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_candidate_claims_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_candidate_claims_resume').on(table.resumeId),
+    index('idx_candidate_claims_status').on(table.tenantId, table.provenanceStatus),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
 
@@ -960,6 +1086,8 @@ export const schema = {
   stageTypeEnum,
   stageOutcomeEnum,
   tailoredDocumentTypeEnum,
+  resumeLifecycleStateEnum,
+  resumeSectionTypeEnum,
   tenants,
   users,
   sessions,
@@ -981,4 +1109,7 @@ export const schema = {
   jobApplications,
   applicationStages,
   tailoredDocuments,
+  resumes,
+  resumeSections,
+  candidateClaims,
 };

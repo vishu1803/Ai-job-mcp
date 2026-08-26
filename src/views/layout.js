@@ -240,6 +240,21 @@ export function renderLayout({
       color: #34D399;
       border: 1px solid rgba(16, 185, 129, 0.3);
     }
+    .badge-inferred {
+      background: rgba(6, 182, 212, 0.15);
+      color: #22D3EE;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+    .badge-claimed {
+      background: rgba(245, 158, 11, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .badge-missing {
+      background: rgba(244, 63, 94, 0.15);
+      color: #FB7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
     .badge-cyan {
       background: rgba(6, 182, 212, 0.15);
       color: #22D3EE;
@@ -256,6 +271,157 @@ export function renderLayout({
       border: 1px solid rgba(245, 158, 11, 0.3);
     }
 
+    /* Form Controls */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+    .form-control, .form-select, .form-textarea {
+      width: 100%;
+      background: rgba(11, 15, 25, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: 0.925rem;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      transition: all 0.2s ease;
+      outline: none;
+    }
+    .form-control:focus, .form-select:focus, .form-textarea:focus {
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+    .form-hint {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    /* Tables */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: rgba(11, 15, 25, 0.4);
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    .data-table th {
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .data-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    .data-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Metric Cards */
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+    .stat-val {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Stepper */
+    .stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 32px;
+      position: relative;
+    }
+    .step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      text-align: center;
+      position: relative;
+    }
+    .step-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+    }
+    .step-badge.active {
+      background: var(--accent-indigo);
+      border-color: var(--accent-indigo);
+      color: #FFF;
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+    }
+    .step-badge.completed {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: var(--accent-emerald);
+      color: var(--accent-emerald);
+    }
+    .step-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    .step-title.active {
+      color: var(--text-main);
+    }
+
     /* Main Content */
     main {
       flex: 1;
@@ -268,7 +434,7 @@ export function renderLayout({
       background: rgba(11, 15, 25, 0.95);
       padding: 32px 0;
       color: var(--text-dim);
-      font-size: 0.85rem;
+      font-size: 0.875rem;
       margin-top: auto;
     }
     .footer-inner {
@@ -282,6 +448,13 @@ export function renderLayout({
       display: flex;
       gap: 20px;
       list-style: none;
+    }
+    .footer-links a {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+    .footer-links a:hover {
+      color: var(--text-main);
     }
 
     /* Code styling */
@@ -324,6 +497,10 @@ export function renderLayout({
             userLoggedIn
               ? `
           <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Dashboard</a></li>
+          <li><a href="/resumes" class="nav-link ${activeNav === 'Resumes' ? 'active' : ''}">Resumes</a></li>
+          <li><a href="/projects" class="nav-link ${activeNav === 'projects' ? 'active' : ''}">Projects</a></li>
+          <li><a href="/skills" class="nav-link ${activeNav === 'skills' ? 'active' : ''}">Skills</a></li>
+          <li><a href="/sources" class="nav-link ${activeNav === 'sources' ? 'active' : ''}">Sources</a></li>
           <li><a href="/connect" class="nav-link ${activeNav === 'connect' ? 'active' : ''}">AI Connect</a></li>
           <li><a href="/settings" class="nav-link ${activeNav === 'settings' ? 'active' : ''}">Settings</a></li>
           `

@@ -142,5 +142,23 @@ export class CryptoError extends AppError {
   }
 }
 
+/**
+ * 403 Security / Violation Error.
+ */
+export class SecurityError extends AppError {
+  /**
+   * @param {string} [message='Security check violation detected']
+   * @param {string} [code='SECURITY_VIOLATION'] Machine-readable error code
+   * @param {any} [details=null] Safe structured metadata
+   */
+  constructor(
+    message = 'Security check violation detected',
+    code = 'SECURITY_VIOLATION',
+    details = null
+  ) {
+    super(message, 403, code, details);
+  }
+}
+
 export * from './ai.errors.js';
 export * from './approval.errors.js';

@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 13.5 — Product Experience, Public MCP & Career Document Onboarding** | Phases 0-13 100% COMPLETE (75/75 tasks); Phase 13.5 P13.5-001 COMPLETE & VERIFIED (1/6 tasks) |
+| **Current Phase** | **PHASE 13.5 — Product Experience, Public MCP & Career Document Onboarding** | Phases 0-13 100% COMPLETE (75/75 tasks); Phase 13.5 P13.5-001 & P13.5-002 COMPLETE & VERIFIED (2/6 tasks) |
 | **Project State** | **ACTIVE / IN PROGRESS** | Phases 0-13 100% verified; Phase 13.5 in progress bridging human web UX and MCP Apps |
 | **Total Tasks** | **91 Tasks** | Across Phases 0 to 15 (including Phase 13.5) |
-| **Completed Tasks** | **76 Tasks** | Phases 0-13 (75 tasks) + P13.5-001 (1 task) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P13.5-002 |
+| **Completed Tasks** | **77 Tasks** | Phases 0-13 (75 tasks) + P13.5-001 + P13.5-002 (2 tasks) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P13.5-003 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **83.52% (76 / 91 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **83.35% (14.17 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **84.62% (77 / 91 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **84.31% (14.33 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -38,7 +38,7 @@
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 6 | 1 | 0 | **IN_PROGRESS** | **16.7%** |
+| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 6 | 2 | 0 | **IN_PROGRESS** | **33.3%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -89,11 +89,12 @@
 | **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0% (P9-001 through P9-006 Complete & Verified)** |
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0% (P10-001 through P10-004 Complete & Verified)** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0% (P11-001 through P11-004 Complete & Verified)** |
-| **PHASE 12** | Job / Application Tracking | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | **0.0%** |
+| **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0% (P12-001 through P12-005 Complete & Verified)** |
+| **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0% (P13-001 through P13-005 Complete & Verified)** |
+| **PHASE 13.5** | Product Experience, Public MCP & Career Documents | 6 | 3 | 0 | **IN_PROGRESS** | **50.0% (P13.5-001, P13.5-002, P13.5-003 Complete & Verified)** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
 | **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **81** | **65** | **0** | **IN_PROGRESS** | **80.2%** |
+| **TOTAL** | **All Phases Combined** | **91** | **78** | **0** | **IN_PROGRESS** | **85.71%** |
 
 ---
 
@@ -3046,8 +3047,8 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | :--- | :--- | :--- | :--- | :--- |
 | **P13.5-001A** | Product Experience, Public MCP, Career Documents & MCP Apps Architecture Review | P13-005 | **COMPLETE & APPROVED** | Architectural specifications in `docs/product-experience-public-mcp-architecture.md` (`ARCH-051`) and `docs/source-resume-document-architecture.md` (`ARCH-052`). Approved clean web routing topology (`/` landing page vs `/mcp` protocol), hybrid encrypted document storage model, resume parsing with `CLAIMED` truth model separation, AI connection center, official MCP Registry `server.json` manifest, and `io.modelcontextprotocol/ui` MCP Apps extensions. |
 | **P13.5-001** | Implement Human-Facing Web Application Architecture & Public Landing Page | P13.5-001A | **COMPLETE & VERIFIED** | Built modern, high-performance HTML5/Vanilla CSS design system, responsive glassmorphic dark-mode layout, Fastify static/SSR routing (`/`, `/login`, `/onboarding`, `/dashboard`, `/connect`, `/settings`, `/docs/mcp`), and secure browser logout (`POST /auth/logout` with PRG redirect & `GET /auth/logout` safe fallback) while keeping `POST /mcp` strictly reserved for protocol JSON-RPC. Tested with 19 web route integration tests and 18 auth integration tests verifying 0 secret leaks, content negotiation, session authentication, CSRF defense, and protocol integrity. |
-| **P13.5-002** | Implement Candidate Web Onboarding, Dashboard & Connected Sources UI | P13.5-001 | NOT_STARTED | Implement interactive `/onboarding` wizard, candidate profile manager, visual GitHub repository selector with least-privilege grants, real-time AST ingestion progress view, and verified skills cloud explorer. |
-| **P13.5-003** | Implement Source Resume Upload, Encrypted Document Storage, and Claim Separation Pipeline | P13.5-001 | NOT_STARTED | Implement `/resumes` uploader supporting PDF, DOCX, and Plain Text; sandboxed text extraction; AES-256-GCM encrypted document blob storage; structured entity parser; automatic classification of resume statements as `CLAIMED` (`[Unverified User Claim]`); and immutable version lifecycle (`SOURCE` $\to$ `PARSED` $\to$ `USER_APPROVED` $\to$ `BASE_RESUME` $\to$ `TAILORED_VERSION` $\to$ `EXPORT_SNAPSHOT`). |
+| **P13.5-002** | Implement Candidate Web Onboarding, Dashboard & Connected Sources UI | P13.5-001 | **COMPLETE & VERIFIED** | Implemented interactive 5-step `/onboarding` wizard, live candidate profile configuration, visual GitHub repository selector with least-privilege scoping, real-time AST ingestion execution pipeline, upgraded candidate workspace `/dashboard`, dedicated project portfolio explorer `/projects` and deep evidence inspection `/projects/:id`, verified skills taxonomy explorer `/skills`, and connected sources hub `/sources`. Verified via 15/15 comprehensive integration tests covering full wizard progression, multi-tenant IDOR protection, CSRF safety, and zero secret leakage. |
+| **P13.5-003** | Implement Source Resume Upload, Encrypted Document Storage, and Claim Separation Pipeline | P13.5-001 | **COMPLETE & VERIFIED** | Implemented direct candidate resume uploader (`/resumes`) supporting PDF, DOCX, and TXT (<=10MB); AES-256-GCM authenticated blob encryption; multi-format parsing and secret scrubbing; automatic structured section and candidate claim extraction strictly tagged with `CLAIMED` (`[Unverified User Claim]`); immutable versioning (`resumes` v1, v2, v3); candidate review and promotion to Base Resume without downgrading verified skills; authenticated decrypted download; multi-tenant IDOR defense; and sanitized audit logging. Verified via 10/10 dedicated integration tests and 13/13 unit tests. |
 | **P13.5-004** | Implement AI Connection Center UI & Public MCP Documentation Explorer | P13.5-001 | NOT_STARTED | Build `/connect` AI hub with visual connection status badges for Claude, ChatGPT, and Gemini; personal MCP API token generator with role ceiling controls; one-click token revocation; and `/docs/mcp` interactive tool catalog explorer with JSON Schema inspector. |
 | **P13.5-005** | Implement MCP Registry Metadata & MCP Apps UI Extension Architecture | P13.5-004 | NOT_STARTED | Author official MCP Registry `server.json` manifest conforming to `registry.modelcontextprotocol.io`; implement `io.modelcontextprotocol/ui` standard serving sandboxed iframes for `job-fit-radar` (`analyze_job_fit`), `evidence-graph` (`inspect_project_evidence`), `pr-diff-inspector` (`propose_project_improvement`), and `application-pipeline` (`track_job_application`). |
 | **P13.5-006** | End-to-End Multi-Tenant Web, Document & MCP Apps Integration Verification | P13.5-001 through P13.5-005 | NOT_STARTED | Implement dedicated integration test suite verifying web routing, multi-user document uploads, PDF/DOCX parsing, encrypted storage, claim separation, AI token lifecycle, and MCP Apps sandboxed rendering in an isolated PostgreSQL database. |
@@ -3083,6 +3084,62 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `node --test tests/integration/web-application-routes.test.js` -> PASS (19/19 tests passing in 11.5s)
     * `node --test tests/integration/auth.test.js` -> PASS (18/18 tests passing in 13.5s)
     * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 44.9s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+    * `git diff --check` -> PASS (0 whitespace errors)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+* **P13.5-002: IMPLEMENT CANDIDATE WEB ONBOARDING, DASHBOARD & CONNECTED SOURCES UI (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/views/onboarding.page.js`: Complete 5-step guided candidate onboarding experience:
+      1. Step 1 (Profile & Specialization): Form updating candidate headline, bio summary, target engineering domain, and canonical email.
+      2. Step 2 (Connect GitHub App): Real-time connection status card, installation permissions overview (`contents:read`, `metadata:read`), and dynamic `/integrations/github/install` actions.
+      3. Step 3 (Discover & Select Repositories): Visual repo selection cards with visibility badges (`PUBLIC`/`PRIVATE`), status tags (`INDEXED`/`AVAILABLE`), least-privilege scoping notices, and bulk save.
+      4. Step 4 (Execute AST Ingestion): Direct trigger calling `CandidateRepositoryIngestionService.syncCandidateRepositories()` with real breakdown (repos processed, projects indexed, evidence citations extracted, verified skills added).
+      5. Step 5 (Completion): Summary metrics and direct launch CTA to `/dashboard`.
+    * `src/views/dashboard.page.js`: Upgraded candidate workspace featuring candidate profile banner, live profile completeness meter, 5 key executive metric cards, verified skills cloud with strict truth badges (`VERIFIED`, `INFERRED`, `CLAIMED [Unverified User Claim]`), featured projects list with evidence drill-downs, connected sources widget, AI assistant connection status, and job application pipeline tracker.
+    * `src/views/projects.page.js`: Dedicated portfolio projects explorer (`GET /projects`) and deep evidence inspection page (`GET /projects/:id`) displaying source file paths, commit provenance, sanitized code excerpts, linked skills, and AST confidence scores.
+    * `src/views/skills.page.js`: Dedicated verified skills taxonomy explorer (`GET /skills`) grouped into Languages, Frameworks, Cloud & Databases, Architecture & Protocols, and Other Skills with confidence scores and evidence counts.
+    * `src/views/sources.page.js`: Connected sources management center (`GET /sources`) displaying GitHub App connector status, indexed repository resources, disconnect action (`POST /sources/disconnect`), and Phase 15 roadmap previews (GitLab, Drive, OneDrive, Notion).
+    * `src/views/layout.js`: Enhanced with navigation links (`Dashboard`, `Projects`, `Skills`, `Sources`, `AI Connect`, `Settings`, `MCP Docs`), form control styles, data tables, steppers, stat cards, and truth badges.
+    * `src/routes/web.routes.js`: Expanded with route handlers for `GET /onboarding`, `POST /onboarding/profile`, `POST /onboarding/repositories/select`, `POST /onboarding/sync`, `GET /dashboard`, `GET /projects`, `GET /projects/:id` (with 404 cross-tenant denial), `GET /skills`, `GET /sources`, and `POST /sources/disconnect`.
+    * `tests/integration/web-application-routes.test.js`: Comprehensive 15-scenario integration test suite verifying onboarding wizard progression, profile mutations, repo selection, ingestion triggering, dashboard rendering, project list/detail inspection, skills taxonomy, sources management, cross-tenant IDOR protection, unauthenticated redirects, 0 secret leakage, and MCP/OAuth protocol invariance.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/web-application-routes.test.js` -> PASS (15/15 tests passing in 15.3s)
+    * `node --test tests/integration/auth.test.js tests/integration/registration-onboarding.test.js` -> PASS (29/29 tests passing in 25.4s)
+    * `npm test` -> PASS (1,572/1,572 master tests passing across 414 suites in 118.2s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+    * `git diff --check` -> PASS (0 whitespace errors)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+* **P13.5-003: IMPLEMENT SOURCE RESUME UPLOAD, ENCRYPTED DOCUMENT STORAGE & CLAIM SEPARATION PIPELINE (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/db/schema.js`: Added `resumeLifecycleStateEnum` (`'SOURCE'`, `'PARSED'`, `'USER_APPROVED'`, `'BASE_RESUME'`, `'ARCHIVED'`), `resumeSectionTypeEnum` (`'SUMMARY'`, `'WORK_EXPERIENCE'`, `'EDUCATION'`, `'SKILLS'`, `'PROJECTS'`, `'CERTIFICATIONS'`, `'CONTACT_INFO'`, `'OTHER'`), `resumes` table (with `version`, `fileName`, `fileSizeBytes`, `mimeType`, `contentHash`, `storageKey`, `lifecycleState`, `isBaseResume`, `parseError`), `resume_sections` table (for extracted chunks with `structuredData` JSON), and `candidate_claims` table (strictly tagged with `provenanceStatus: 'CLAIMED'` and context `[Unverified User Claim]`).
+    * `drizzle/0008_material_peter_quill.sql`: Applied schema migration adding new resume tables, indexes, enums, and foreign key cascades.
+    * `src/services/document-storage.service.js`: Cryptographic blob storage service implementing AES-256-GCM authenticated encryption with random 12-byte IVs, 16-byte authentication tags, SHA-256 integrity verification, safe tenant path traversal defenses, authenticated decryption, and secure deletion.
+    * `src/services/resume-parser.service.js`: Robust multi-format resume parser service validating magic bytes (`%PDF-`, `PK\x03\x04`, plain text), rejecting executable binaries (`MZ`, `ELF`), enforcing a 10MB ceiling, sandboxed text extraction from PDF (`/FlateDecode` decompression & text stream tokenization), DOCX (PKZip XML extraction), and TXT, secret scrubbing (PATs, API keys, passwords), section parsing, and claim extraction with immutable `CLAIMED` truth labeling.
+    * `src/db/repositories/resume.repository.js`: Data access layer for resume versions, parsed sections, candidate claims, and base resume promotion.
+    * `src/services/source-resume-ingestion.service.js`: Lifecycle coordinator managing resume upload, encrypted storage, parsing, version incrementation (`nextVersion = maxVersion + 1`), review and claim approval, base resume promotion (adding `CLAIMED` skills without downgrading existing `VERIFIED` skills), decrypted download, deletion, and sanitized audit logging.
+    * `src/views/resumes.page.js`: Responsive server-side rendered resume index (`GET /resumes`) with 10MB upload form, Truth-in-AI alert banner, version history table with SHA-256 hashes, status badges, review links, download actions, delete actions, and deep detail review page (`GET /resumes/:id`) with parsed sections inspector, extracted claims table, and Base Resume promotion form.
+    * `src/views/layout.js`: Added `Resumes` link in authenticated navigation bar.
+    * `src/app.js`: Registered `@fastify/multipart` with 10MB file limit.
+    * `src/routes/web.routes.js`: Registered handlers for `GET /resumes`, `POST /resumes/upload`, `GET /resumes/:id`, `POST /resumes/:id/approve`, `GET /resumes/:id/download`, and `POST /resumes/:id/delete`.
+    * `tests/unit/document-storage.service.test.js`: 5 unit tests verifying encryption, decryption, tamper rejection, traversal rejection, and deletion.
+    * `tests/unit/resume-parser.service.test.js`: 8 unit tests verifying magic bytes, format detection, executable rejection, 10MB limit, secret scrubbing, section splitting, and `CLAIMED` truth labeling.
+    * `tests/integration/source-resume-ingestion.test.js`: 10 integration tests covering complete upload lifecycle, multi-version preservation, claim approval, non-downgrading of verified skills, decrypted download, multi-tenant IDOR denial (404), deletion, sanitized audit logging, and unauthenticated redirects.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/document-storage.service.test.js tests/unit/resume-parser.service.test.js` -> PASS (13/13 unit tests passing in 0.5s)
+    * `node --test tests/integration/source-resume-ingestion.test.js` -> PASS (10/10 integration tests passing in 14.9s)
+    * `node --test tests/integration/web-application-routes.test.js` -> PASS (15/15 integration tests passing in 14.2s)
+    * `npm run test:unit` -> PASS (1,140/1,140 unit tests passing across 293 suites in 33.8s)
+    * `npm run test:integration` -> PASS (455/455 integration tests passing across 124 suites in 192.9s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Schema in sync)

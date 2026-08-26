@@ -40,6 +40,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
+    "@fastify/multipart": "^10.1.1",
     "@google/genai": "^2.18.0",
     "@modelcontextprotocol/core": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",

@@ -242,15 +242,18 @@ export default async function authRoutes(app, opts = {}) {
       });
 
       const accept = req.headers['accept'] || '';
-      const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
+      const contentType = req.headers['content-type'] || '';
+      const isBrowserForm =
+        contentType.includes('application/x-www-form-urlencoded') ||
+        (accept.includes('text/html') && !accept.includes('application/json'));
 
-      if (wantsJson) {
-        return reply.send({
-          message: 'Successfully logged out',
-        });
+      if (isBrowserForm) {
+        return reply.redirect('/login');
       }
 
-      return reply.redirect('/login');
+      return reply.send({
+        message: 'Successfully logged out',
+      });
     }
   );
 

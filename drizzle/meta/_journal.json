@@ -57,6 +57,13 @@
       "when": 1787723406204,
       "tag": "0007_wonderful_black_crow",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787763378954,
+      "tag": "0008_material_peter_quill",
+      "breakpoints": true
     }
   ]
 }

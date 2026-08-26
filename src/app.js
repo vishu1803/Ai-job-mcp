@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { randomUUID } from 'node:crypto';
 import fastifyCookie from '@fastify/cookie';
+import fastifyMultipart from '@fastify/multipart';
 import { getLoggerConfig } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './plugins/error-handler.js';
 import { healthRoutes } from './routes/health.routes.js';
@@ -60,6 +61,15 @@ export function buildApp(opts = {}) {
   // Global Cookie Support
   app.register(fastifyCookie, {
     secret: config.SESSION_COOKIE_SECRET || undefined,
+  });
+
+  // Multipart File Upload Support (PDF, DOCX, TXT <= 10MB)
+  app.register(fastifyMultipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB
+      files: 1,
+    },
+    attachFieldsToBody: false,
   });
 
   // Support standard HTML form submissions (application/x-www-form-urlencoded)
