@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-11 (100% COMPLETE: 65/65 tasks verified), ready for Phase 12 (Job Ingestion, Tracking & Application State) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phases 0 through 11 complete; P11-001, P11-002, P11-003, P11-004 verified; ready for Phase 12 |
+| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-11 100% COMPLETE (65/65 tasks); Phase 12 P12-001 and P12-002 verified (2/5 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 12 in progress; P12-001 (Schema foundation) and P12-002 (Application Tracking Service) verified |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **65 Tasks** | Phase 0 (4) + Phase 1 (6) + Phase 2 (6) + Phase 3 (6) + Phase 4 (6) + Phase 5 (6) + Phase 6 (5) + Phase 7 (6) + Phase 8 (6) + Phase 9 (6) + Phase 10 (4) + Phase 11 (4) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 12 / P12-001A |
+| **Completed Tasks** | **67 Tasks** | Phases 0-11 (65 tasks) + Phase 12 (P12-001, P12-002) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 12 / P12-003A / P12-003 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **80.2% (65 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **75.0% (12.0 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-11 100% complete) |
+| **Overall Task Completion** | **82.7% (67 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **76.25% (12.2 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-11 100% complete; Phase 12 40% complete) |
 
 ---
 
@@ -36,7 +36,7 @@
 | **PHASE 9** | Approved GitHub Write Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 12** | Job / Application Tracking | 5 | 1 | 0 | **IN_PROGRESS** | **20.0%** |
+| **PHASE 12** | Job / Application Tracking | 5 | 2 | 0 | **IN_PROGRESS** | **40.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
@@ -330,7 +330,7 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P12-001** | Create database tables: `job_applications`, `application_stages`, `tailored_documents` | P1-004 | **COMPLETE & VERIFIED** | Implemented 3-table aggregate in `src/db/schema.js`, migration `0007_wonderful_black_crow.sql`, 23/23 schema unit tests, 19/19 state machine unit tests, and 8/8 DB integration tests with cascade isolation. |
-| **P12-002** | Implement Application Tracking Service (create application, update status, link tailored resume/cover letter) | P12-001 | NOT_STARTED | Integration test: track application through stages (`Applied`, `Screening`, `Interview`, `Offer`) |
+| **P12-002** | Implement Application Tracking Service (create application, update status, link tailored resume/cover letter) | P12-001 | **COMPLETE & VERIFIED** | Implemented `ApplicationTrackingService` in `src/services/application-tracking.service.js`. Unit tests: 5/5 PASS (`tests/unit/application-tracking.service.test.js`); Live transactional integration tests: 19/19 PASS (`tests/integration/application-tracking.service.test.js`). 100% test pass with 0 DB leaks. |
 | **P12-003** | Expose MCP Tracking Tools: `track_job_application`, `update_application_status`, `list_active_applications` | P7-001, P12-002 | NOT_STARTED | MCP tool invocation tests via AI client |
 | **P12-004** | Implement Application Analytics (match score vs. response rate, skill gap frequencies across targets) | P12-002 | NOT_STARTED | Test computing aggregate statistics across tracked applications |
 | **P12-005** | Multi-tenant isolation verification for job application records | P12-001 | NOT_STARTED | Security test asserting User A cannot query User B application records |
@@ -2823,6 +2823,29 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm test` -> PASS (1,445/1,445 tests passing across 380 suites in 125.8s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+* **P12-002A: APPLICATION TRACKING SERVICE ARCHITECTURE & SECURITY REVIEW (Completed & Approved)**:
+  * Deliverables & Architecture:
+    * Architecture review approved for `ApplicationTrackingService` establishing domain boundary, operations (`createApplication`, `updateApplicationStatus`, `addApplicationStage`, `updateStageOutcome`, `attachTailoredDocument`, `getApplicationDetails`, `listApplications`, `deleteApplication`), strict candidate ownership, server-authoritative SHA-256 content hashing, server-generated monotonic stage `orderIndex`, monotonic document versioning, sensitive data redaction in audit logs, and atomic transaction encapsulation.
+  * Status: **`COMPLETE & APPROVED`**.
+
+* **P12-002: IMPLEMENT APPLICATION TRACKING SERVICE (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/services/application-tracking.service.js`: Comprehensive `ApplicationTrackingService` implementing transactional lifecycle management, state machine validation, chronological interview stages, immutable document attachments, 404 default-deny multi-tenant isolation, and atomic audit logging (`job_application.created`, `job_application.status_changed`, `job_application.archived`, `job_application.reopened`, `job_application.stage_added`, `job_application.stage_outcome_updated`, `job_application.document_attached`, `job_application.deleted`).
+    * `src/domain/career/job-application.schemas.js`: Adjusted snapshot schemas for flexible JSON records with strict field limits.
+    * `tests/unit/application-tracking.service.test.js`: 5/5 passing unit tests covering context checks, RBAC `READONLY` rejection (403), input validation, state machine errors, and Zod enum validation.
+    * `tests/integration/application-tracking.service.test.js`: 19/19 passing integration tests covering live PostgreSQL creation, stage progression (`SAVED` -> `APPLIED` -> `SCREENING` -> `INTERVIEWING` -> `OFFER_RECEIVED` -> `OFFER_ACCEPTED`), illegal state leaps rejection, reopening, stage ordering (0, 1, 2), stage outcome updates (`PASSED`, `RESCHEDULED`), document versioning with server SHA-256 verification, list filtering/pagination, multi-tenant 404 isolation, cascade deletion, and audit logging.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/application-tracking.service.test.js` -> PASS (5/5 tests in 2.1s)
+    * `node --test tests/integration/application-tracking.service.test.js` -> PASS (19/19 tests in 26.4s)
+    * `npm run test:db-lifecycle-check` -> PASS (43/43 DB-using test files verified with 0 leaks)
+    * `npm run test:unit` -> PASS (1,107/1,107 unit tests passing across 281 suites)
+    * `npm run test:integration` -> PASS (366/366 integration tests passing across 111 suites)
+    * `npm test` -> PASS (1,473/1,473 tests passing across 392 suites in 98.8s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---

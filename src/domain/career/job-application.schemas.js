@@ -10,8 +10,6 @@
  */
 
 import { z } from 'zod';
-import { JobDescriptionSchema } from './job-description.schemas.js';
-import { CandidateJobFitAnalysisSchema } from './ats-fit-score.schemas.js';
 
 // ---------------------------------------------------------------------------
 // 1. Enums
@@ -113,8 +111,8 @@ export const CreateJobApplicationInputSchema = z.object({
   workplaceType: WorkplaceTypeEnum.optional().nullable(),
   employmentType: EmploymentTypeEnum.optional().nullable(),
   rawJobDescription: z.string().max(102400).optional().nullable(), // 100 KB max
-  parsedJobDescription: JobDescriptionSchema.optional().nullable(),
-  atsFitSnapshot: CandidateJobFitAnalysisSchema.optional().nullable(),
+  parsedJobDescription: z.record(z.unknown()).optional().nullable(),
+  atsFitSnapshot: z.record(z.unknown()).optional().nullable(),
   status: ApplicationStatusEnum.default('SAVED'),
   appliedAt: z.coerce.date().optional().nullable(),
   compensation: CompensationSchema.default({}),
