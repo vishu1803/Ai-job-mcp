@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-11 100% COMPLETE (65/65 tasks); Phase 12 P12-001 and P12-002 verified (2/5 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 12 in progress; P12-001 (Schema foundation) and P12-002 (Application Tracking Service) verified |
+| **Current Phase** | **PHASE 12 — Job / Application Tracking** | Phases 0-11 100% COMPLETE (65/65 tasks); Phase 12 P12-001, P12-002, P12-003 verified (3/5 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 12 in progress; P12-001 (Schema foundation), P12-002 (Application Tracking Service), and P12-003 (MCP Tracking Tools) verified |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **67 Tasks** | Phases 0-11 (65 tasks) + Phase 12 (P12-001, P12-002) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 12 / P12-003A / P12-003 |
+| **Completed Tasks** | **68 Tasks** | Phases 0-11 (65 tasks) + Phase 12 (P12-001, P12-002, P12-003) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 12 / P12-004 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **82.7% (67 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **76.25% (12.2 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-11 100% complete; Phase 12 40% complete) |
+| **Overall Task Completion** | **83.95% (68 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **77.5% (12.4 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-11 100% complete; Phase 12 60.0% complete) |
 
 ---
 
@@ -36,7 +36,7 @@
 | **PHASE 9** | Approved GitHub Write Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 12** | Job / Application Tracking | 5 | 2 | 0 | **IN_PROGRESS** | **40.0%** |
+| **PHASE 12** | Job / Application Tracking | 5 | 3 | 0 | **IN_PROGRESS** | **60.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
@@ -331,7 +331,8 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **P12-001** | Create database tables: `job_applications`, `application_stages`, `tailored_documents` | P1-004 | **COMPLETE & VERIFIED** | Implemented 3-table aggregate in `src/db/schema.js`, migration `0007_wonderful_black_crow.sql`, 23/23 schema unit tests, 19/19 state machine unit tests, and 8/8 DB integration tests with cascade isolation. |
 | **P12-002** | Implement Application Tracking Service (create application, update status, link tailored resume/cover letter) | P12-001 | **COMPLETE & VERIFIED** | Implemented `ApplicationTrackingService` in `src/services/application-tracking.service.js`. Unit tests: 5/5 PASS (`tests/unit/application-tracking.service.test.js`); Live transactional integration tests: 19/19 PASS (`tests/integration/application-tracking.service.test.js`). 100% test pass with 0 DB leaks. |
-| **P12-003** | Expose MCP Tracking Tools: `track_job_application`, `update_application_status`, `list_active_applications` | P7-001, P12-002 | NOT_STARTED | MCP tool invocation tests via AI client |
+| **P12-003A** | Application Tracking MCP Tools Architecture & Security Review | P12-002 | **COMPLETE & APPROVED** | Architectural specification in review ledger defining 7-tool catalog (`track_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`, `get_job_application`, `list_active_applications`), advisory annotations (MCP 2026-07-28), output budgets (<= 25 KB get, <= 15 KB list), candidate identity binding, multi-tenant 404 default-deny, and zero external job-board submission boundary (`goal.md` §8.1). |
+| **P12-003** | Expose MCP Tracking Tools: `track_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`, `get_job_application`, `list_active_applications` | P7-001, P12-002, P12-003A | **COMPLETE & VERIFIED** | Implemented 7 tracking MCP tools in `src/mcp/tools/career-tracking-tools.js` with canonical Zod contracts in `src/domain/mcp/career-tracking-tools.schemas.js`. Wired into `createCareerMcpServer` expanding MCP catalog to 16 tools. Unit tests: 10/10 PASS (`tests/unit/mcp-career-tracking-tools.test.js`); Live integration tests: 12/12 PASS (`tests/integration/mcp-career-tracking-tools.test.js`); Provider parity: 9/9 PASS (`tests/integration/provider-neutral-tools.test.js`). Master suite: 1,496/1,496 PASS with 0 DB leaks. |
 | **P12-004** | Implement Application Analytics (match score vs. response rate, skill gap frequencies across targets) | P12-002 | NOT_STARTED | Test computing aggregate statistics across tracked applications |
 | **P12-005** | Multi-tenant isolation verification for job application records | P12-001 | NOT_STARTED | Security test asserting User A cannot query User B application records |
 
@@ -2843,6 +2844,30 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run test:unit` -> PASS (1,107/1,107 unit tests passing across 281 suites)
     * `npm run test:integration` -> PASS (366/366 integration tests passing across 111 suites)
     * `npm test` -> PASS (1,473/1,473 tests passing across 392 suites in 98.8s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+* **P12-003A: APPLICATION TRACKING MCP TOOLS ARCHITECTURE & SECURITY REVIEW (Completed & Approved)**:
+  * Deliverables & Architecture:
+    * Architecture review approved for 7 MCP tracking tools (`track_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`, `get_job_application`, `list_active_applications`) establishing strict schema contracts, advisory annotations under MCP 2026-07-28 specification, strict output bounds ($\le 25\text{ KB}$ for get details, $\le 15\text{ KB}$ for list summaries), candidate identity binding via authenticated session, multi-tenant 404 default-deny isolation, and non-goal boundary (no external job-board submissions per `goal.md` §8.1).
+  * Status: **`COMPLETE & APPROVED`**.
+
+* **P12-003: IMPLEMENT APPLICATION TRACKING MCP TOOLS (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/domain/mcp/career-tracking-tools.schemas.js`: Canonical Zod schemas, advisory annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`), cost metadata, and bounded output constraints for all 7 tracking tools.
+    * `src/mcp/tools/career-tracking-tools.js`: Thin transport and authorization adapters delegating cleanly to `ApplicationTrackingService` with SecretScrubber sanitization and 404 default-deny multi-tenant isolation.
+    * `src/mcp/tools/index.js` & `src/mcp/server.js`: Registered all 7 tracking tools in `createCareerMcpServer`, expanding total catalog from 9 to 16 tools.
+    * `tests/unit/mcp-career-tracking-tools.test.js`: 10/10 unit tests verifying schema parsing, required fields, rejection of client-provided `orderIndex`/`contentHash`, annotations, RBAC `READONLY` rejection (403), and service delegation.
+    * `tests/integration/mcp-career-tracking-tools.test.js`: 12/12 live PostgreSQL integration tests verifying tool catalog registration (16 tools), creation, status transition, invalid state rejection, stage appending with server-computed `orderIndex`, stage outcome update, document attachment with SHA-256 hash & versioning, output budget ceilings ($\le 25\text{ KB}$ get, $\le 15\text{ KB}$ list), compensation redaction, and multi-tenant 404 isolation.
+    * `tests/integration/provider-neutral-tools.test.js`: Extended provider-neutral parity matrix with Test 9 verifying bit-for-bit structured parity between Claude HTTP RPC and Gemini direct tool dispatch.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/mcp-career-tracking-tools.test.js` -> PASS (10/10 tests in 2.0s)
+    * `node --test tests/integration/mcp-career-tracking-tools.test.js` -> PASS (12/12 tests in 12.5s)
+    * `node --test tests/integration/provider-neutral-tools.test.js` -> PASS (9/9 tests in 35.1s)
+    * `npm run test:db-lifecycle-check` -> PASS (44/44 DB-using test files verified with 0 leaks)
+    * `npm run test:unit` -> PASS (1,116/1,116 unit tests passing across 285 suites)
+    * `npm run test:integration` -> PASS (380/380 integration tests passing across 115 suites)
+    * `npm test` -> PASS (1,496/1,496 master tests passing across 400 suites in 92.3s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Schema in sync)

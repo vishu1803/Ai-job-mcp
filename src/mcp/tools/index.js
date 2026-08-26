@@ -7,3 +7,4 @@
 export * from './career-read-tools.js';
 export * from './career-artifact-tools.js';
 export * from './career-write-tools.js';
+export * from './career-tracking-tools.js';

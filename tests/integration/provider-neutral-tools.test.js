@@ -948,4 +948,48 @@ describe('Provider-Neutral Tool Response Parity Tests (P10-003)', () => {
     assert.strictEqual(taskPolicy.taskType, 'JOB_EXPLANATION');
     assert.strictEqual(taskPolicy.costTier, 'LOW');
   });
+
+  it('9. Application Tracking Tools Parity: get_job_application yields identical structured data across Claude and Gemini paths', async () => {
+    // 1. Create a job application via Gemini tool path
+    const trackRes = await invokeGeminiMcpTool('track_job_application', {
+      companyName: 'Stripe',
+      jobTitle: 'Staff Backend Architect',
+      source: 'COMPANY_CAREERS',
+      workplaceType: 'REMOTE',
+      employmentType: 'FULL_TIME',
+      status: 'SAVED',
+    });
+    assert.strictEqual(trackRes.isError, false);
+    const appId = trackRes.data.application.id;
+
+    // 2. Fetch via Claude HTTP RPC path
+    const claudeResult = await invokeClaudeMcpTool('get_job_application', {
+      applicationId: appId,
+    });
+    assert.strictEqual(claudeResult.isError, false, 'Claude get_job_application failed');
+
+    // 3. Fetch via Gemini Direct Tool dispatch path
+    const geminiResult = await invokeGeminiMcpTool('get_job_application', {
+      applicationId: appId,
+    });
+    assert.strictEqual(geminiResult.isError, false, 'Gemini get_job_application failed');
+
+    // 4. Assert bit-for-bit structured response parity
+    assert.strictEqual(claudeResult.data.application.id, geminiResult.data.application.id);
+    assert.strictEqual(
+      claudeResult.data.application.companyName,
+      geminiResult.data.application.companyName
+    );
+    assert.strictEqual(
+      claudeResult.data.application.jobTitle,
+      geminiResult.data.application.jobTitle
+    );
+    assert.strictEqual(claudeResult.data.application.status, geminiResult.data.application.status);
+    assert.strictEqual(claudeResult.data.application.source, geminiResult.data.application.source);
+    assert.deepStrictEqual(claudeResult.data.stages, geminiResult.data.stages);
+    assert.deepStrictEqual(
+      claudeResult.data.tailoredDocuments,
+      geminiResult.data.tailoredDocuments
+    );
+  });
 });
