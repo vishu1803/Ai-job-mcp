@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 13 — Public Multi-User Beta** | Phases 0-12 100% COMPLETE (70/70 tasks); Phase 13 P13-001 verified (1/5 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 13 in progress; P13-001 (Multi-Tenant Registration & Onboarding Provisioning) verified; ready for P13-002 |
+| **Current Phase** | **PHASE 13 — Public Multi-User Beta** | Phases 0-12 100% COMPLETE (70/70 tasks); Phase 13 P13-001 & P13-002 verified (2/5 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 13 in progress; P13-002 (User Data Sovereignty & GDPR Deletion) verified; ready for P13-003 |
 | **Total Tasks** | **81 Tasks** | Across Phases 0 to 15 |
-| **Completed Tasks** | **71 Tasks** | Phases 0-12 (70 tasks) + Phase 13 (P13-001) (plus all architecture reviews approved) |
-| **In Progress Tasks** | **0 Tasks** | Ready for Phase 13 / P13-002 |
+| **Completed Tasks** | **72 Tasks** | Phases 0-12 (70 tasks) + Phase 13 (P13-001, P13-002) (plus all architecture reviews approved) |
+| **In Progress Tasks** | **0 Tasks** | Ready for Phase 13 / P13-003 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **87.65% (71 / 81 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **82.50% (13.2 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-12 100% complete; Phase 13 20.0% complete) |
+| **Overall Task Completion** | **88.89% (72 / 81 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **83.75% (13.4 / 16 Phases)** | Strictly based on verified deliverables (Phases 0-12 100% complete; Phase 13 40.0% complete) |
 
 ---
 
@@ -37,7 +37,7 @@
 | **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 13** | Public Multi-User Beta | 5 | 1 | 0 | **IN_PROGRESS** | **20.0%** |
+| **PHASE 13** | Public Multi-User Beta | 5 | 2 | 0 | **IN_PROGRESS** | **40.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -344,7 +344,7 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P13-001** | Implement Multi-Tenant Registration & Onboarding Flow | P2-002, P4-005, P13-001A | **COMPLETE & VERIFIED** | Implemented atomic registration provisioning in `src/security/auth.service.js` and `src/routes/auth.routes.js` creating Tenant, OWNER User, Candidate Persona (`REGISTERED`), CandidateIdentity, Session, and sanitized AuditLog in a single transaction. Unit & integration tests: 11/11 PASS (`tests/integration/registration-onboarding.test.js`); Master suite: 1,536/1,536 PASS with 0 DB leaks. |
-| **P13-002** | Implement User Data Sovereignty features: View Indexed Evidence, Disconnect, Hard Delete Account (GDPR) | P2-005, P4-005 | NOT_STARTED | Test account hard delete permanently purges all candidate data and encrypted tokens |
+| **P13-002** | Implement User Data Sovereignty features: View Indexed Evidence, Disconnect, Hard Delete Account (GDPR) | P2-005, P4-005, P13-002A | **COMPLETE & VERIFIED** | Implemented `DataSovereigntyService` (`src/services/data-sovereignty.service.js`), `accountRoutes` (`src/routes/account.routes.js`), and updated candidate routes (`src/routes/candidate.routes.js`). Exposes `GET /candidate/evidence`, `GET /candidate/evidence/:id`, `POST /connections/:id/disconnect`, `DELETE /candidate/resources/:id` (with skill rollup recomputation), and `DELETE /account` (GDPR Article 17 hard delete requiring OWNER role + confirmation phrase). Integration tests: 13/13 PASS (`tests/integration/data-sovereignty.test.js`); Master suite: 1,549/1,549 PASS with 0 DB leaks. |
 | **P13-003** | Deploy production staging environment with SSL, custom domain, and health monitoring | P1-005 | NOT_STARTED | HTTPS health check probe returning 200 OK |
 | **P13-004** | Onboard 5 external beta users and conduct end-to-end verification across Gemini, Claude, and ChatGPT | P8-003, P10-002, P11-002, P13-001 | NOT_STARTED | Beta feedback log and zero critical cross-tenant errors |
 | **P13-005** | Document User Guide, Onboarding Walkthrough, and Video Demo | P13-001 | NOT_STARTED | Documentation and demo published |
@@ -2951,6 +2951,28 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 28.2s)
     * `npm run test:integration` -> PASS (409/409 integration tests passing across 120 suites in 77.7s)
     * `npm test` -> PASS (1,536/1,536 master tests passing across 411 suites in 89.0s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+* **P13-002: IMPLEMENT USER DATA SOVEREIGNTY / GDPR DATA LIFECYCLE (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/services/data-sovereignty.service.js`: Domain service providing `getIndexedEvidence` (paginated evidence list with provenance citations and filters), `getEvidenceItem` (single provenance citation inspection), `disconnectConnection` (delegates to connection service to scrub credentials while preserving historical artifacts), `deleteIndexedResource` (transactionally removes indexed repository and derived evidence items, recomputing candidate skill rollups via `SkillRollupCalculator.calculateRollup()` and removing unsupported skills), and `hardDeleteAccount` (verifies `role: 'OWNER'`, validates confirmation phrase `"DELETE MY ACCOUNT"`, revokes upstream OAuth tokens, and executes atomic `DELETE FROM tenants WHERE id = :tenantId` cascading across all 18 tenant tables while preserving global taxonomy).
+    * `src/routes/account.schemas.js` & `src/routes/account.routes.js`: Fastify route plugin exposing `DELETE /account` with `authenticate`, `verifyCsrf`, and session cookie invalidation.
+    * `src/routes/candidate.schemas.js` & `src/routes/candidate.routes.js`: Added schemas and routes for `GET /candidate/evidence`, `GET /candidate/evidence/:id`, and `DELETE /candidate/resources/:id` with CSRF protection.
+    * `src/app.js`: Registered `accountRoutes` at `/account` prefix and wired `dataSovereigntyService` into candidate and account route plugins.
+    * `docs/user-data-sovereignty-gdpr-architecture.md`: Formal specification (`ARCH-048` / `ADR-068`) marked `IMPLEMENTED & VERIFIED`.
+    * `docs/decisions.md`: Added `ADR-068: User Data Sovereignty, Evidence Inspection, and GDPR Article 17 Hard Deletion Architecture`.
+    * `tests/integration/data-sovereignty.test.js`: Comprehensive 13-scenario integration test suite verifying evidence inspection, cross-tenant evidence protection (404), connection disconnect with credential scrubbing, resource deletion with evidence cascade and skill rollup recalculation, preservation of job applications and tailored documents, hard account delete RBAC (`OWNER` check), confirmation phrase enforcement, CSRF origin verification, full 18-table tenant cascade, immediate session invalidation (401), and idempotency.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/data-sovereignty.test.js` -> PASS (13/13 tests in 12.9s)
+    * `npm run test:db-lifecycle-check` -> PASS (48/48 DB-using test files verified with 0 leaks)
+    * `npm run test:unit` -> PASS (1,127/1,127 unit tests passing across 291 suites in 31.0s)
+    * `npm run test:integration` -> PASS (422/422 integration tests passing across 121 suites in 76.3s)
+    * `npm test` -> PASS (1,549/1,549 master tests passing across 412 suites in 87.5s)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run db:check` -> PASS (Schema in sync)

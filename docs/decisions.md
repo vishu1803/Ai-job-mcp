@@ -1534,6 +1534,21 @@
 * **Reasons**: Enables friction-free public onboarding grounded in authorized GitHub resources without managing passwords while maintaining sovereign multi-tenant isolation and account enumeration resistance.
 * **Consequences**: Task P13-001A is COMPLETE & APPROVED; Task P13-001 implemented atomic registration provisioning and verified test suite.
 
+---
+
+### ADR-068: User Data Sovereignty, Evidence Inspection, and GDPR Article 17 Hard Deletion Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 13 (Task P13-002A / P13-002), we designed and implemented user data sovereignty controls, evidence provenance inspection, resource disconnection vs deletion, and GDPR Article 17 hard account deletion.
+* **Decision**: Adopt the **User Data Sovereignty & GDPR Data Lifecycle Architecture** defined in `docs/user-data-sovereignty-gdpr-architecture.md` (`ARCH-048`):
+  * **Evidence Provenance Views**: `GET /candidate/evidence` and `GET /candidate/evidence/:id` expose paginated, tenant-isolated citations including commit SHAs, file paths, line ranges, and safe excerpt snippets ($\le 1000$ chars) without credential leakage.
+  * **Resource Disconnect**: `POST /connections/:id/disconnect` scrubs stored credentials and halts future background sync while preserving historical evidence, candidate skills, job applications, and tailored documents.
+  * **Indexed Resource Deletion**: `DELETE /candidate/resources/:id` explicitly and transactionally purges indexed resources and derived evidence, while invoking `SkillRollupCalculator.calculateRollup()` to recompute skill confidence scores and remove unsupported skills. Job applications and tailored documents remain preserved.
+  * **GDPR Hard Deletion**: `DELETE /account` requires `OWNER` role and confirmation phrase `"DELETE MY ACCOUNT"`. It performs best-effort upstream OAuth token revocation, executes an atomic `DELETE FROM tenants WHERE id = :tenantId` cascading across all 18 tenant tables, clears session cookies, and preserves the global `skills` taxonomy.
+  * **Security Guards**: Destructive endpoints enforce strict CSRF origin verification and default-deny 404 responses on cross-tenant access attempts.
+* **Reasons**: Guarantees total user autonomy, GDPR Article 15/17 compliance, zero orphan records, and strict multi-tenant isolation.
+* **Consequences**: Tasks P13-002A and P13-002 are COMPLETE & VERIFIED with 13/13 passing integration tests.
+
 
 
 

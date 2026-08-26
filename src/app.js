@@ -11,6 +11,7 @@ import webhooksRoutes from './routes/webhooks.routes.js';
 import mcpRoutes from './routes/mcp.routes.js';
 import oauthRoutes from './routes/oauth.routes.js';
 import candidateRoutes from './routes/candidate.routes.js';
+import accountRoutes from './routes/account.routes.js';
 import { config } from './config/env.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
@@ -138,6 +139,13 @@ export function buildApp(opts = {}) {
     prefix: '/candidate',
     db: opts.db,
     ingestionService: opts.ingestionService,
+    dataSovereigntyService: opts.dataSovereigntyService,
+  });
+
+  // Account Management & GDPR Deletion Routes (/account)
+  app.register(accountRoutes, {
+    prefix: '/account',
+    dataSovereigntyService: opts.dataSovereigntyService,
   });
 
   // Root platform status verification endpoint
