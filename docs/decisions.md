@@ -1412,4 +1412,62 @@
   * Next task P10-002 / P10-003 will verify provider-neutral prompt adherence and multi-client equivalence.
 * **Revisit Conditions**: When dynamic tool namespacing or multi-party approval policies are introduced in Phase 13.
 
+---
 
+### ADR-060: Provider-Neutral Prompt Compatibility & Multi-Client Equivalence Review
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 10 (Task P10-003A), we evaluated whether our MCP tool responses and career intelligence outputs maintain strict determinism, domain authority, and structured parity across diverse AI clients (Gemini direct dispatch vs Claude Streamable HTTP JSON-RPC). We must ensure that AI clients remain interchangeable consumer interfaces with zero authority over business logic, ATS scoring, or provenance.
+* **Decision**: Adopt the **Provider-Neutral Prompt Compatibility Architecture** defined in `docs/provider-neutral-prompt-compatibility-review.md` (`ARCH-039`):
+  * **Inverse Authority Principle**: Domain calculation is authoritative. Client-injected arguments cannot alter ATS scores, skill provenance, or candidate claims.
+  * **Transient Field Normalization**: Transient timestamps and request IDs are normalized during testing while preserving 100% domain assertions (IDs, scores, statuses, counts, SHAs, file paths).
+  * **Safety Ceiling Parity**: Enforces missing-skill score clamping (<= 24.9 when 3+ required skills are missing) identically across all clients.
+  * **Multi-Tenant 404 Parity**: Sovereign 404 default-deny isolation is enforced uniformly across all access paths.
+* **Reasons**: Guarantees that switching between Gemini, Claude, and ChatGPT produces identical career insights and verifiable artifacts without vendor lock-in.
+* **Consequences**: Verified via `tests/integration/provider-neutral-tools.test.js` (8/8 PASS).
+
+---
+
+### ADR-061: ChatGPT Remote MCP Custom Connector & OAuth 2.1 Integration Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 11 (Task P11-001A), we evaluated the architecture and security boundaries for integrating OpenAI ChatGPT (ChatGPT Web, ChatGPT Desktop, Developer Mode, Custom Actions) as the third major target AI client to our Remote MCP server over public HTTPS. We must establish standard OAuth 2.1 authentication with RFC 8707 Resource Indicators, validate pre-configured clients (`chatgpt-web`, `chatgpt-desktop`), ensure multi-tenant isolation, and uphold provider neutrality.
+* **Decision**: Adopt the **ChatGPT Remote MCP Custom Connector & OAuth 2.1 Integration Architecture** defined in `docs/chatgpt-mcp-connector-architecture.md` (`ARCH-040`) governed by the following core architectural decisions:
+  * **Provider-Neutral Design**: ChatGPT connects strictly as an external MCP client via standardized Streamable HTTP transport (JSON-RPC 2.0). Zero modifications to internal AI adapters or domain services.
+  * **OAuth 2.1 Facade Reuse**: Reuses the OAuth 2.1 Authorization Server facade built into Career Hub. Pre-configured public clients `chatgpt-web` (`https://chatgpt.com/api/mcp/oauth_callback`, `https://chat.openai.com/api/mcp/oauth_callback`) and `chatgpt-desktop` (`http://localhost/callback`, `http://127.0.0.1/callback`) are validated with mandatory PKCE S256 (RFC 7636) and loopback port-agnostic matching (RFC 8252).
+  * **RFC 8707 Resource Indicators**: Mandates `resource` parameter on authorization and token requests, binding authorization codes and access tokens relationally to the MCP server endpoint.
+  * **Protected Resource Metadata (RFC 9728 & RFC 8414)**: Unauthenticated requests return 401 with `WWW-Authenticate: Bearer realm="mcp", resource_metadata="..."` pointing to standard discovery endpoints.
+  * **Zero Client-Supplied Identity Trust**: Tokens bind `tenantId`, `userId`, `role`, and `scopes`. ChatGPT cannot supply or override tenant or user bindings. Cross-tenant access fails closed with `404 Not Found`.
+  * **Structured OAuth Audit Telemetry**: Emits distinct audit events (`oauth.authorize.requested`, `oauth.consent.granted`, `oauth.token.issued`, `oauth.token.refreshed`, `oauth.token.revoked`, `mcp.oauth.authenticated`) with zero secret leakage.
+* **Reasons**: Delivers standard, frictionless ChatGPT integration while maintaining airtight multi-tenant security, cryptographic verification, provider independence, and complete auditability.
+* **Consequences**: Task P11-001A is COMPLETE & APPROVED; Task P11-001 integration tests will verify full OAuth 2.1 exchange and tool execution for ChatGPT.
+
+---
+
+### ADR-062: ChatGPT Tier Compatibility, Tool Context Economics & Multi-Connector Coexistence
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 11 (Task P11-002A), we evaluated ChatGPT's operational tiers (Free Developer Mode, Plus, Pro, Team, Enterprise, Edu), tool catalog context token economics, and multi-connector coexistence in workspace environments.
+* **Decision**: Adopt the **ChatGPT Tier Compatibility & Multi-Connector Coexistence Architecture** defined in `docs/chatgpt-tier-compatibility-architecture.md` (`ARCH-041`):
+  * **Single Unified Remote MCP Server**: Retain the complete 9-tool catalog (4 Career Read, 3 Application Artifact, 2 Approved GitHub Write) under the unified endpoint (`POST /mcp`).
+  * **Compact Context Token Footprint**: Total JSON schema size for all 9 tools is bounded at 4,338 bytes (~1,035 tokens), consuming < 0.85% of ChatGPT's 128k context window.
+  * **Multi-Connector Collision Resistance**: Distinct, domain-specific tool names prevent naming conflicts with generic third-party tools in enterprise workspaces.
+  * **Cross-Connector Trust Boundary**: External MCP connector data is treated as untrusted user input; candidate skills and evidence are verified strictly through Career Hub's authenticated resource connectors.
+  * **Zero Backend Code Changes Required**: The platform natively satisfies all ChatGPT subscription tiers with zero backend modifications.
+* **Reasons**: Confirms full, secure compatibility across all ChatGPT subscription tiers while maintaining pristine multi-tenant isolation, compact token economics, and uncompromised human-in-the-loop write safety.
+* **Consequences**: Task P11-002A is COMPLETE & APPROVED; Task P11-002 will verify read & artifact tool execution.
+
+---
+
+### ADR-063: ChatGPT Consequential Action Execution & Human-in-the-Loop Write Safety Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-26
+* **Context**: In Phase 11 (Task P11-003A), we evaluated consequential write actions executed through ChatGPT, preventing unauthorized code modifications, supply-chain attacks, or automated self-approval loops.
+* **Decision**: Adopt the **ChatGPT Consequential Action & Write Safety Architecture** defined in `docs/chatgpt-write-safety-architecture.md` (`ARCH-042`):
+  * **Zero Raw Write Primitives**: ChatGPT receives zero raw file write or commit primitives (`write_file`, `create_commit`, `push_branch` are prohibited).
+  * **Two-Phase Human Approval State Machine**: `propose_project_improvement` creates a PENDING `ActionApprovalTicket`; `confirm_and_create_pr` requires boolean `confirmed: true` and an unexpired ticket ID.
+  * **Anti-AI Self-Approval Stopping Protocol**: Proposal output includes explicit stopping instructions mandating human review before confirmation.
+  * **Centralized Safety Kernel (`GitHubWriteSafetyService`)**: Dynamic default branch protection (`main`/`master` immutable), strict `feat/career-hub-*` branch whitelisting, workflow config blocklists, entropy secret scanning, and live base branch HEAD SHA optimistic concurrency locking (409 on drift).
+  * **Immutable Patch Fingerprinting & Truthful Test Reports**: Diffs are formatted in unified format with line bounds; patches are SHA-256 fingerprinted; test reports reflect truthful lifecycle states (`NOT_RUN` default).
+* **Reasons**: Guarantees total human oversight and airtight repository protection before any remote Git Data API call is issued.
+* **Consequences**: Task P11-003A is COMPLETE & APPROVED; Task P11-003 will verify write tool execution and safety gate enforcement.

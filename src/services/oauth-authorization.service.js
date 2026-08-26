@@ -28,7 +28,7 @@ import { AuthenticationError, AuthorizationError, ValidationError } from '../err
 import { ROLE_SCOPE_CEILINGS } from './mcp-api-token.service.js';
 
 /**
- * Pre-configured OAuth 2.1 Clients for Anthropic Claude.
+ * Pre-configured OAuth 2.1 Clients for Anthropic Claude and OpenAI ChatGPT.
  */
 export const PRECONFIGURED_OAUTH_CLIENTS = {
   'claude-web': {
@@ -54,6 +54,39 @@ export const PRECONFIGURED_OAUTH_CLIENTS = {
     clientName: 'Anthropic Claude Code (CLI)',
     clientType: 'PUBLIC',
     redirectUris: ['http://localhost/callback', 'http://127.0.0.1/callback'],
+    allowedGrantTypes: ['authorization_code', 'refresh_token'],
+    allowedScopes: ['career:read', 'career:write'],
+    isTrusted: true,
+  },
+  'chatgpt-web': {
+    clientId: 'chatgpt-web',
+    clientName: 'OpenAI ChatGPT (Web & Developer Mode)',
+    clientType: 'PUBLIC',
+    redirectUris: [
+      'https://chatgpt.com/api/mcp/oauth_callback',
+      'https://chat.openai.com/api/mcp/oauth_callback',
+    ],
+    allowedGrantTypes: ['authorization_code', 'refresh_token'],
+    allowedScopes: ['career:read', 'career:write'],
+    isTrusted: true,
+  },
+  'chatgpt-desktop': {
+    clientId: 'chatgpt-desktop',
+    clientName: 'OpenAI ChatGPT Desktop',
+    clientType: 'PUBLIC',
+    redirectUris: ['http://localhost/callback', 'http://127.0.0.1/callback'],
+    allowedGrantTypes: ['authorization_code', 'refresh_token'],
+    allowedScopes: ['career:read', 'career:write'],
+    isTrusted: true,
+  },
+  'chatgpt-custom-gpt': {
+    clientId: 'chatgpt-custom-gpt',
+    clientName: 'OpenAI ChatGPT Custom GPT Action',
+    clientType: 'PUBLIC',
+    redirectUris: [
+      'https://chatgpt.com/aip/oauth/callback',
+      'https://chat.openai.com/aip/oauth/callback',
+    ],
     allowedGrantTypes: ['authorization_code', 'refresh_token'],
     allowedScopes: ['career:read', 'career:write'],
     isTrusted: true,

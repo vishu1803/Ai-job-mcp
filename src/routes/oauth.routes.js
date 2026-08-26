@@ -55,7 +55,10 @@ function escapeHtml(str) {
  * @returns {string} HTML markup string
  */
 function renderConsentHtml({ client, user, tenant, scopes, params }) {
-  const clientName = client?.name || 'Claude (Web Client)';
+  const clientName =
+    client?.name ||
+    (client?.clientId === 'claude-web' ? 'Claude (Web Client)' : client?.clientName) ||
+    'AI Client';
   const userDisplayName = user?.displayName || user?.email || 'Authenticated User';
   const tenantName = tenant?.name || 'Personal Workspace';
   const roleName = user?.role || 'MEMBER';
