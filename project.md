@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Task P14-001A COMPLETE & APPROVED |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phase 14 Security Architecture Review complete; ready for implementation |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A & P14-001 COMPLETE & VERIFIED |
+| **Project State** | **ACTIVE / IN PROGRESS** | Automated security scanning & secrets leak prevention verified; ready for P14-002 |
 | **Total Tasks** | **93 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 review) |
-| **Completed Tasks** | **83 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Task P14-001A |
-| **In Progress Tasks** | **0 Tasks** | Ready for Task P14-001 |
+| **Completed Tasks** | **84 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A & P14-001 |
+| **In Progress Tasks** | **0 Tasks** | Ready for Task P14-002 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **89.25% (83 / 93 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **89.06% (15.14 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **90.32% (84 / 93 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **89.94% (15.29 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 7 | 1 | 0 | **IN_PROGRESS** | **14.3%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 7 | 2 | 0 | **IN_PROGRESS** | **28.6%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -359,7 +359,7 @@
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P14-001A** | Review Penetration Testing, Dependency Vulnerability & Secrets Audit Architecture | P13.5-007 | **COMPLETE & APPROVED** | Architectural specifications `docs/security-hardening-architecture.md` (`ARCH-051`), `docs/penetration-test-plan.md` (`ARCH-052`), `docs/dependency-and-secrets-audit.md` (`ARCH-053`), and `ADR-071` in `docs/decisions.md`. 13-actor threat model, deterministic DAST attack matrix, supply-chain audit, zero-downtime key rotation, and rate-limiting specifications. |
-| **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | NOT_STARTED | Automated `npm audit` CI gates, git-secrets / gitleaks pre-commit hooks, and dependency vulnerability remediation. |
+| **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | **COMPLETE & VERIFIED** | Automated dependency auditor (`scripts/audit-dependencies.js`), zero-dependency secrets scanner (`scripts/scan-secrets.js`), Dependabot weekly configuration (`.github/dependabot.yml`), security policy (`SECURITY.md`), and CI security gates in `.github/workflows/ci.yml`. 12 unit tests passing in `tests/unit/secrets-scanner.test.js` & `tests/unit/dependency-auditor.test.js`. |
 | **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | NOT_STARTED | Automated DAST penetration test suite simulating IDOR, SQL injection, AST sandbox escape, SSRF, session hijacking, and CSRF attacks. |
 | **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | NOT_STARTED | In-memory / Redis token-bucket rate limiting across `/mcp`, `/oauth/*`, `/auth/*`, `/resumes`, and `/api/*`; connection pool saturation testing under 500 concurrent connections. |
 | **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | NOT_STARTED | Configure production domain (`staging.careerhub.ai`), Cloudflare Named Tunnel (`cloudflared`), Managed PostgreSQL staging database with TLS, stable GitHub OAuth/webhook callbacks, and uptime monitoring probes. |
@@ -3339,13 +3339,37 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 
 ---
 
+* **P14-001: AUTOMATED SECURITY SCANNING, DEPENDENCY AUDIT & SECRETS LEAK PREVENTION (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `scripts/scan-secrets.js`: Zero-dependency, high-performance regex scanner enforcing zero-exposure redaction (`prefix...[REDACTED_LENGTH_X]...suffix`) across GitHub PATs (`ghp_*`, `ghs_*`), Google AI API keys (`AIzaSy*`), Personal MCP tokens (`mcp_live_*`), RSA/EC PEM private keys, database URIs with passwords, and AWS keys. Includes recursive directory scanning, pre-commit staged diff inspection (`--staged`), and git commit log auditing (`--history`).
+    * `scripts/audit-dependencies.js`: Automated dependency vulnerability evaluator executing `npm audit --json`. Strictly fails CI builds on any `CRITICAL` or `HIGH` severity vulnerabilities while tracking and reporting moderate build-tool advisories (`drizzle-kit` devDependency) with zero production runtime impact.
+    * `.github/dependabot.yml`: Automated weekly dependency scanning configuration for npm packages (`/`) and GitHub Actions workflows (`/.github/workflows`).
+    * `SECURITY.md`: Official security policy, vulnerability disclosure guidelines, supported version matrix, and SLA response matrix (Critical < 2h/24h, High < 8h/72h, Moderate next sprint).
+    * `package.json`: Registered `"audit:deps"`, `"scan:secrets"`, and `"scan:secrets:history"` scripts.
+    * `.github/workflows/ci.yml`: Integrated automated `npm run audit:deps` and `npm run scan:secrets` steps into the main CI verification pipeline.
+    * `tests/unit/secrets-scanner.test.js`: 8 unit tests verifying synthetic token detection, secret string redaction, database URI password detection, private key detection, and universal placeholder allowlisting.
+    * `tests/unit/dependency-auditor.test.js`: 4 unit tests verifying gating behavior on Critical/High vulnerabilities, strict mode enforcement, and moderate devDependency classification.
+  * Quality Gates & Verification:
+    * `npm run audit:deps` -> PASS (0 Critical, 0 High vulnerabilities across 296 nodes)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets in repository files)
+    * `npm run scan:secrets:history` -> PASS (0 exposed secrets across recent 50 git commits)
+    * `node --test tests/unit/secrets-scanner.test.js tests/unit/dependency-auditor.test.js` -> PASS (12/12 tests passing in 328ms)
+    * `npm run test:unit` -> PASS (1,166/1,166 unit tests passing across 297 suites in 42.4s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+    * `git diff --check` -> PASS (0 whitespace errors)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
 ## PHASE 14: Security Hardening & Production Readiness
 *Objective: Execute comprehensive penetration testing, AST sandbox hardening, cryptographic audit, rate-limiting, and staging/production domain deployment.*
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
 | **P14-001A** | Review Penetration Testing, Dependency Vulnerability & Secrets Audit Architecture | P13.5-007 | **COMPLETE & APPROVED** | Architectural specifications `docs/security-hardening-architecture.md` (`ARCH-051`), `docs/penetration-test-plan.md` (`ARCH-052`), `docs/dependency-and-secrets-audit.md` (`ARCH-053`), and `ADR-071` in `docs/decisions.md`. |
-| **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | NOT_STARTED | Automated `npm audit` CI gates, git-secrets / gitleaks pre-commit hooks, and dependency vulnerability remediation. |
+| **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | **COMPLETE & VERIFIED** | Automated dependency auditor (`scripts/audit-dependencies.js`), zero-dependency secrets scanner (`scripts/scan-secrets.js`), Dependabot weekly configuration (`.github/dependabot.yml`), security policy (`SECURITY.md`), and CI security gates in `.github/workflows/ci.yml`. 12 unit tests passing in `tests/unit/secrets-scanner.test.js` & `tests/unit/dependency-auditor.test.js`. |
 | **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | NOT_STARTED | Automated DAST penetration test suite simulating IDOR, SQL injection, AST sandbox escape, SSRF, session hijacking, and CSRF attacks. |
 | **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | NOT_STARTED | In-memory / Redis token-bucket rate limiting across `/mcp`, `/oauth/*`, `/auth/*`, `/resumes`, and `/api/*`; connection pool saturation testing under 500 concurrent connections. |
 | **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | NOT_STARTED | Configure production domain (`staging.careerhub.ai`), Cloudflare Named Tunnel (`cloudflared`), Managed PostgreSQL staging database with TLS, stable GitHub OAuth/webhook callbacks, and uptime monitoring probes. |

@@ -60,6 +60,12 @@ jobs:
       - name: Run static analysis (ESLint)
         run: npm run lint
 
+      - name: Run automated dependency vulnerability audit (npm audit)
+        run: npm run audit:deps
+
+      - name: Scan repository for secret & credential leaks
+        run: npm run scan:secrets
+
       - name: Validate Drizzle ORM configuration & schema
         run: npm run db:check
 

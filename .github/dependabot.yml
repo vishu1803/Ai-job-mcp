@@ -1,0 +1,32 @@
+# Dependabot configuration for Antigravity Career Hub
+version: 2
+updates:
+  # Maintain Node.js npm dependencies weekly
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'sunday'
+      time: '04:00'
+      timezone: 'UTC'
+    open-pull-requests-limit: 5
+    reviewers:
+      - 'vishu1803'
+    labels:
+      - 'dependencies'
+      - 'security'
+
+  # Maintain GitHub Actions workflow dependencies weekly
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'sunday'
+      time: '04:00'
+      timezone: 'UTC'
+    open-pull-requests-limit: 3
+    reviewers:
+      - 'vishu1803'
+    labels:
+      - 'dependencies'
+      - 'ci'
