@@ -23,6 +23,12 @@ import { GitHubAppAuthManager } from './connectors/github/auth.js';
 /**
  * Builds and configures the core Fastify application instance.
  *
+ * Connection-level hardening (P14-003):
+ * - keepAliveTimeout: 30s (matches typical LB/proxy timeout, prevents stale connections)
+ * - headersTimeout: 15s (prevents slowloris-style header flooding)
+ * - maxRequestsPerSocket: 100 (prevents HTTP pipelining abuse on single connection)
+ * - bodyLimit: set per-route (1MB for MCP, 10MB for upload)
+ *
  * @param {object} [opts={}] Optional Fastify instance configuration overrides
  * @returns {import('fastify').FastifyInstance} Configured Fastify instance
  */
@@ -49,6 +55,15 @@ export function buildApp(opts = {}) {
       );
     },
     requestIdHeader: 'x-request-id',
+    // Connection-level hardening
+    keepAliveTimeout: 30000, // 30s — close idle keep-alive connections
+    headersTimeout: 15000, // 15s — reject slow header senders (slowloris defense)
+    maxRequestsPerSocket: 100, // Limit HTTP pipelining on a single connection
+    // Trust proxy for correct client IP behind Cloudflare/reverse proxy.
+    // Cloudflare sends X-Forwarded-For: <client-ip>, <cf-ip>. We need the
+    // leftmost IP (the original client), so we trust all hops.
+    // In local dev, this defaults to false (no proxy — spoofed headers ignored).
+    trustProxy: config.NODE_ENV === 'production' ? true : false,
     ...fastifyOpts,
   });
 
@@ -122,10 +137,17 @@ export function buildApp(opts = {}) {
   }
 
   // Health and Liveness Routes (/livez, /healthz)
-  app.register(healthRoutes);
+  app.register(healthRoutes, {
+    rateLimiter: opts.rateLimiter,
+    concurrencySemaphore: opts.concurrencySemaphore,
+    dbPoolGuard: opts.dbPoolGuard,
+  });
 
   // Authentication Routes (/auth/github, /auth/github/callback, /auth/me, /auth/logout)
-  app.register(authRoutes, opts.authService ? { authService: opts.authService } : {});
+  app.register(authRoutes, {
+    ...(opts.authService ? { authService: opts.authService } : {}),
+    rateLimiter: opts.rateLimiter,
+  });
 
   // Resource Connection Lifecycle Routes (/connections)
   app.register(connectionsRoutes, {
@@ -148,6 +170,7 @@ export function buildApp(opts = {}) {
     tokenCache: opts.tokenCache,
     connectorCache: opts.connectorCache,
     db: opts.db,
+    rateLimiter: opts.rateLimiter,
   });
 
   // Model Context Protocol (MCP) Streamable HTTP Route (/mcp)
@@ -156,6 +179,8 @@ export function buildApp(opts = {}) {
     mcpServer: opts.mcpServer,
     db: opts.db,
     rateLimiter: opts.rateLimiter,
+    concurrencySemaphore: opts.concurrencySemaphore,
+    dbPoolGuard: opts.dbPoolGuard,
     tokenService: opts.tokenService,
     oauthService: opts.oauthService,
     auditService: opts.auditService,

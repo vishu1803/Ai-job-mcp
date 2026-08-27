@@ -9,6 +9,8 @@
  */
 
 import { GitHubWebhookService } from '../services/github-webhook.service.js';
+import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
+import { extractClientIp } from '../utils/extract-client-ip.js';
 
 /**
  * Fastify route plugin for webhook ingress.
@@ -19,6 +21,7 @@ import { GitHubWebhookService } from '../services/github-webhook.service.js';
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [opts.db]
  * @param {import('../connectors/github/token-cache.js').GitHubTokenCache} [opts.tokenCache]
  * @param {import('../connectors/github/github-connector-cache.js').GitHubConnectorCache} [opts.connectorCache]
+ * @param {import('../security/mcp-rate-limiter.js').McpRateLimiter} [opts.rateLimiter]
  */
 export default async function webhooksRoutes(fastify, opts = {}) {
   const webhookService =
@@ -28,6 +31,8 @@ export default async function webhooksRoutes(fastify, opts = {}) {
       tokenCache: opts.tokenCache,
       connectorCache: opts.connectorCache,
     });
+
+  const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
 
   // Scoped Content-Type parser capturing raw request body Buffer for HMAC verification
   fastify.addContentTypeParser(
@@ -53,6 +58,18 @@ export default async function webhooksRoutes(fastify, opts = {}) {
     '/github',
     {
       bodyLimit: 10 * 1024 * 1024,
+      preHandler: [
+        // Pre-auth IP rate limit for webhook ingress
+        async (request, reply) => {
+          const clientIp = extractClientIp(request);
+          const result = rateLimiter.checkIpLimitResult(clientIp, 300); // 300/min for webhooks (generous)
+          if (!result.allowed) {
+            const retryAfterSec = Math.ceil(result.retryAfterMs / 1000);
+            reply.header('Retry-After', String(retryAfterSec));
+            return reply.status(429).send({ error: 'Rate limit exceeded' });
+          }
+        },
+      ],
     },
     async (request, reply) => {
       const result = await webhookService.processWebhook({

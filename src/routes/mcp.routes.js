@@ -6,18 +6,56 @@
  * 1. Request correlation (x-request-id).
  * 2. Payload size & prototype pollution defenses.
  * 3. Content negotiation & header-based routing validation.
- * 4. Multi-tier rate limiting (IP, Tenant, Tool compute budget).
- * 5. Bearer token authentication & McpRequestContext minting.
- * 6. Dispatch to official @modelcontextprotocol/server v2 handler.
- * 7. Structured JSON-RPC 2.0 error mapping & sanitized audit logging.
+ * 4. Multi-tier rate limiting (IP pre-auth, Token post-auth, Tenant, Tool cost-aware).
+ * 5. Concurrency control (inflight operation limits).
+ * 6. DB pool guard (circuit breaker against pool exhaustion).
+ * 7. Bearer token authentication & McpRequestContext minting.
+ * 8. Dispatch to official @modelcontextprotocol/server v2 handler.
+ * 9. Structured JSON-RPC 2.0 error mapping & sanitized audit logging.
+ *
+ * Rate limit architecture (P14-003):
+ *
+ *   [BEFORE AUTH] IP rate limit (30/min/IP using CF-Connecting-IP)
+ *       ↓
+ *   [BEFORE AUTH] Payload validation (body size, prototype pollution)
+ *       ↓
+ *   [AUTH] Bearer token / OAuth validation
+ *       ↓
+ *   [AFTER AUTH] Per-token rate limit (cost-aware, tool-specific)
+ *       ↓
+ *   [AFTER AUTH] Per-tenant rate limit
+ *       ↓
+ *   [AFTER AUTH] DB pool guard check
+ *       ↓
+ *   [AFTER AUTH] Concurrency semaphore acquire
+ *       ↓
+ *   [EXECUTE] Tool handler
+ *       ↓
+ *   [AFTER] Concurrency semaphore release
  */
 
+import crypto from 'node:crypto';
 import { createCareerMcpServer, mapErrorToMcpResponse } from '../mcp/server.js';
 import { authenticateMcpRequest } from '../security/mcp-auth.js';
 import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
+import { defaultConcurrencySemaphore } from '../security/concurrency-semaphore.js';
 import { McpAuditService, defaultMcpAuditService } from '../services/mcp-audit.service.js';
 import { ValidationError, AppError } from '../errors/index.js';
 import { config } from '../config/env.js';
+import { extractClientIp } from '../utils/extract-client-ip.js';
+
+/**
+ * Hashes a bearer token for use as a rate-limit key.
+ * Uses only the last 16 chars + prefix to avoid storing full tokens in memory.
+ *
+ * @param {string} token Raw bearer token
+ * @returns {string} Short hash suitable for rate-limit keys
+ */
+function tokenKey(token) {
+  if (!token) return '';
+  // Use SHA-256 but only first 16 hex chars for compactness
+  return crypto.createHash('sha256').update(token).digest('hex').slice(0, 16);
+}
 
 /**
  * Checks for prototype pollution attempts and excessive nesting depth in JSON payloads.
@@ -110,6 +148,8 @@ function validateHeaderRouting(req) {
  * @param {import('../mcp/server.js').McpServerWrapper} [opts.mcpServer] Optional custom MCP server wrapper instance
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [opts.db] Optional database client override
  * @param {import('../security/mcp-rate-limiter.js').McpRateLimiter} [opts.rateLimiter] Optional rate limiter override
+ * @param {import('../security/concurrency-semaphore.js').ConcurrencySemaphore} [opts.concurrencySemaphore] Optional concurrency semaphore
+ * @param {import('../security/db-pool-guard.js').DbPoolGuard} [opts.dbPoolGuard] Optional DB pool guard
  * @param {import('../services/mcp-api-token.service.js').McpApiTokenService} [opts.tokenService] Optional token service override
  * @param {import('../services/mcp-audit.service.js').McpAuditService} [opts.auditService] Optional audit service override
  */
@@ -117,6 +157,8 @@ export async function mcpRoutes(fastify, opts = {}) {
   const db = opts.db || fastify.db;
   const mcpServer = opts.mcpServer || createCareerMcpServer({ deps: { db } });
   const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
+  const concurrencySemaphore = opts.concurrencySemaphore || defaultConcurrencySemaphore;
+  const dbPoolGuard = opts.dbPoolGuard || null;
   const tokenService = opts.tokenService || fastify.tokenService;
   const oauthService = opts.oauthService || fastify.oauthService;
   const auditService =
@@ -135,12 +177,14 @@ export async function mcpRoutes(fastify, opts = {}) {
   fastify.post(
     '/',
     {
-      bodyLimit: 1048576, // 1 MB request size limit
+      bodyLimit: 1048576, // 1 MB request size limit for MCP JSON-RPC
     },
     async (req, reply) => {
       const startTime = Date.now();
       const requestId = req.id;
       let context = null;
+      let tokenHashForLimits = null;
+      let concurrencyIdentity = null;
 
       try {
         // Set correlation header
@@ -154,10 +198,46 @@ export async function mcpRoutes(fastify, opts = {}) {
           );
         }
 
-        // 1. IP Rate Limiting Tier
-        const clientIp =
-          req.ip || /** @type {string} */ (req.headers['x-forwarded-for']) || '127.0.0.1';
-        rateLimiter.checkIpLimit(clientIp);
+        // 1. IP Rate Limiting Tier (PRE-AUTH)
+        //    Uses CF-Connecting-IP when available, falls back to req.ip
+        const clientIp = extractClientIp(req);
+        const ipResult = rateLimiter.checkIpLimitResult(clientIp);
+        if (!ipResult.allowed) {
+          const retryAfterSec = Math.ceil(ipResult.retryAfterMs / 1000);
+          // Record rate limit denial for audit (no auth context available pre-auth)
+          const durationMs = Date.now() - startTime;
+          await auditService
+            .recordEvent({
+              context: null,
+              eventType: 'mcp.tool.denied',
+              resourceType: 'mcp_protocol',
+              resourceId: 'rate_limit_ip',
+              requestId,
+              clientIp,
+              userAgent:
+                typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+              durationMs,
+              statusCode: 429,
+              errorCode: -32029,
+              errorMessage: 'IP rate limit exceeded',
+              isError: true,
+              protocolVersion: req.headers['mcp-protocol-version'] || undefined,
+            })
+            .catch(() => {});
+          reply.header('Retry-After', String(retryAfterSec));
+          reply.header('x-request-id', requestId);
+          reply.status(429);
+          reply.header('content-type', 'application/json');
+          return reply.send({
+            jsonrpc: '2.0',
+            id: req.body?.id !== undefined ? req.body.id : null,
+            error: {
+              code: -32029,
+              message: `Rate limit exceeded. Retry after ${retryAfterSec} seconds.`,
+              data: { requestId, retryAfterSec, tier: 'ip' },
+            },
+          });
+        }
 
         // 2. Prototype pollution & abuse guard
         if (req.body) {
@@ -170,39 +250,217 @@ export async function mcpRoutes(fastify, opts = {}) {
         // 4. Authenticate request & mint sovereign McpRequestContext
         context = await authenticateMcpRequest(req, { db, tokenService, oauthService });
 
-        // 5. Tenant & Tool Compute Rate Limiting Tiers
-        rateLimiter.checkTenantLimit(context.tenantId);
-        if (req.body?.method === 'tools/call' && req.body?.params?.name) {
-          rateLimiter.checkToolLimit(context.tenantId, req.body.params.name);
+        // Compute token hash for rate limiting (before any rate limit checks)
+        const rawAuthHeader = req.headers['authorization'] || '';
+        const rawToken = rawAuthHeader.replace(/^Bearer\s+/i, '').trim();
+        tokenHashForLimits = rawToken ? tokenKey(rawToken) : null;
+
+        // 5. Per-Token Rate Limiting (POST-AUTH)
+        // checkTokenLimit already returns result (non-throwing)
+        const tokenResult = rateLimiter.checkTokenLimit(tokenHashForLimits);
+        if (!tokenResult.allowed) {
+          const retryAfterSec = Math.ceil(tokenResult.retryAfterMs / 1000);
+          const durationMs = Date.now() - startTime;
+          await auditService
+            .recordEvent({
+              context,
+              eventType: 'mcp.tool.denied',
+              resourceType: 'mcp_protocol',
+              resourceId: 'rate_limit_token',
+              requestId,
+              clientIp,
+              userAgent:
+                typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+              durationMs,
+              statusCode: 429,
+              errorCode: -32029,
+              errorMessage: 'Token rate limit exceeded',
+              isError: true,
+              protocolVersion: req.headers['mcp-protocol-version'] || undefined,
+            })
+            .catch(() => {});
+          reply.header('Retry-After', String(retryAfterSec));
+          reply.header('x-request-id', requestId);
+          reply.status(429);
+          reply.header('content-type', 'application/json');
+          return reply.send({
+            jsonrpc: '2.0',
+            id: req.body?.id !== undefined ? req.body.id : null,
+            error: {
+              code: -32029,
+              message: `Token rate limit exceeded. Retry after ${retryAfterSec} seconds.`,
+              data: { requestId, retryAfterSec, tier: 'token' },
+            },
+          });
         }
 
-        // 6. Convert Fastify request to Web Standard Request
-        const webHeaders = new globalThis.Headers();
-        for (const [k, v] of Object.entries(req.headers)) {
-          if (v !== undefined) {
-            if (Array.isArray(v)) {
-              v.forEach((item) => webHeaders.append(k, item));
-            } else {
-              webHeaders.set(k, v);
-            }
+        // 6. Per-Tenant Rate Limiting (POST-AUTH)
+        const tenantResult = rateLimiter.checkTenantLimitResult(context.tenantId);
+        if (!tenantResult.allowed) {
+          const retryAfterSec = Math.ceil(tenantResult.retryAfterMs / 1000);
+          const durationMs = Date.now() - startTime;
+          await auditService
+            .recordEvent({
+              context,
+              eventType: 'mcp.tool.denied',
+              resourceType: 'mcp_tool',
+              resourceId: req.body?.params?.name || req.body?.method || 'mcp',
+              requestId,
+              clientIp,
+              userAgent:
+                typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+              durationMs,
+              statusCode: 429,
+              errorCode: -32029,
+              errorMessage: 'Tenant rate limit exceeded',
+              isError: true,
+              parameters: req.body?.params?.arguments || undefined,
+              protocolVersion: req.headers['mcp-protocol-version'] || undefined,
+            })
+            .catch(() => {});
+          reply.header('Retry-After', String(retryAfterSec));
+          reply.header('x-request-id', requestId);
+          reply.status(429);
+          reply.header('content-type', 'application/json');
+          return reply.send({
+            jsonrpc: '2.0',
+            id: req.body?.id !== undefined ? req.body.id : null,
+            error: {
+              code: -32029,
+              message: `Tenant rate limit exceeded. Retry after ${retryAfterSec} seconds.`,
+              data: { requestId, retryAfterSec, tier: 'tenant' },
+            },
+          });
+        }
+
+        // 7. Per-Tool Cost-Aware Rate Limiting (POST-AUTH, for tools/call only)
+        if (req.body?.method === 'tools/call' && req.body?.params?.name) {
+          const toolResult = rateLimiter.checkToolLimitResult(
+            context.tenantId,
+            req.body.params.name,
+            tokenHashForLimits
+          );
+          if (!toolResult.allowed) {
+            const retryAfterSec = Math.ceil(toolResult.retryAfterMs / 1000);
+            const durationMs = Date.now() - startTime;
+            await auditService
+              .recordEvent({
+                context,
+                eventType: 'mcp.tool.denied',
+                resourceType: 'mcp_tool',
+                resourceId: req.body.params.name,
+                requestId,
+                clientIp,
+                userAgent:
+                  typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+                durationMs,
+                statusCode: 429,
+                errorCode: -32029,
+                errorMessage: `Tool rate limit exceeded for "${req.body.params.name}"`,
+                isError: true,
+                parameters: req.body?.params?.arguments || undefined,
+                protocolVersion: req.headers['mcp-protocol-version'] || undefined,
+              })
+              .catch(() => {});
+            reply.header('Retry-After', String(retryAfterSec));
+            reply.header('x-request-id', requestId);
+            reply.status(429);
+            reply.header('content-type', 'application/json');
+            return reply.send({
+              jsonrpc: '2.0',
+              id: req.body?.id !== undefined ? req.body.id : null,
+              error: {
+                code: -32029,
+                message: `Tool rate limit exceeded for "${req.body.params.name}" (${toolResult.tier} tier). Retry after ${retryAfterSec} seconds.`,
+                data: {
+                  requestId,
+                  retryAfterSec,
+                  tier: 'tool',
+                  tool: req.body.params.name,
+                  costTier: toolResult.tier,
+                },
+              },
+            });
           }
         }
-        webHeaders.set('x-request-id', requestId);
 
-        const url = 'http://' + (req.headers.host || 'localhost') + req.url;
-        const webReq = new globalThis.Request(url, {
-          method: req.method,
-          headers: webHeaders,
-          body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
-        });
+        // 8. DB Pool Guard (circuit breaker)
+        if (dbPoolGuard) {
+          const poolCheck = dbPoolGuard.check();
+          if (!poolCheck.allowed) {
+            reply.header('Retry-After', '30');
+            reply.header('x-request-id', requestId);
+            reply.status(503);
+            reply.header('content-type', 'application/json');
+            return reply.send({
+              jsonrpc: '2.0',
+              id: req.body?.id !== undefined ? req.body.id : null,
+              error: {
+                code: -32603,
+                message: 'Service temporarily unavailable due to database pool saturation.',
+                data: { requestId, circuitState: poolCheck.state },
+              },
+            });
+          }
+        }
 
-        // 7. Delegate to official MCP v2 handler
-        const webRes = await mcpServer.handler.fetch(webReq, {
-          authInfo: context,
-          parsedBody: req.body,
-        });
+        // 9. Concurrency Semaphore (inflight control)
+        concurrencyIdentity = {
+          tenantId: context.tenantId,
+          tokenHash: tokenHashForLimits,
+          userId: context.userId,
+        };
 
-        // 8. Transfer response back to Fastify
+        const concurrencyResult = concurrencySemaphore.acquire(concurrencyIdentity);
+        if (!concurrencyResult.acquired) {
+          reply.header('Retry-After', '5');
+          reply.header('x-request-id', requestId);
+          reply.status(429);
+          reply.header('content-type', 'application/json');
+          return reply.send({
+            jsonrpc: '2.0',
+            id: req.body?.id !== undefined ? req.body.id : null,
+            error: {
+              code: -32029,
+              message: 'Concurrency limit exceeded. Too many concurrent operations.',
+              data: { requestId, tier: 'concurrency' },
+            },
+          });
+        }
+
+        // 10. Convert Fastify request to Web Standard Request
+        let webRes;
+        try {
+          const webHeaders = new globalThis.Headers();
+          for (const [k, v] of Object.entries(req.headers)) {
+            if (v !== undefined) {
+              if (Array.isArray(v)) {
+                v.forEach((item) => webHeaders.append(k, item));
+              } else {
+                webHeaders.set(k, v);
+              }
+            }
+          }
+          webHeaders.set('x-request-id', requestId);
+
+          const url = 'http://' + (req.headers.host || 'localhost') + req.url;
+          const webReq = new globalThis.Request(url, {
+            method: req.method,
+            headers: webHeaders,
+            body: typeof req.body === 'string' ? req.body : JSON.stringify(req.body),
+          });
+
+          // 11. Delegate to official MCP v2 handler
+          webRes = await mcpServer.handler.fetch(webReq, {
+            authInfo: context,
+            parsedBody: req.body,
+          });
+        } finally {
+          // Always release concurrency slot
+          concurrencySemaphore.release(concurrencyIdentity);
+        }
+
+        // 12. Transfer response back to Fastify
         reply.status(webRes.status);
         for (const [k, v] of webRes.headers.entries()) {
           reply.header(k, v);
@@ -281,7 +539,7 @@ export async function mcpRoutes(fastify, opts = {}) {
             : 'mcp.tool.failed'
           : 'mcp.tool.completed';
 
-        // 9. Emit audit log (Operational Pino + PostgreSQL Compliance Ledger)
+        // 13. Emit audit log (Operational Pino + PostgreSQL Compliance Ledger)
         const durationMs = Date.now() - startTime;
         if (isError) {
           req.log.warn(
@@ -337,6 +595,15 @@ export async function mcpRoutes(fastify, opts = {}) {
 
         return reply.send(responseText);
       } catch (err) {
+        // Release concurrency slot if acquired before exception
+        if (concurrencySemaphore && context) {
+          try {
+            concurrencySemaphore.release(concurrencyIdentity);
+          } catch {
+            // Ignore release errors in catch block
+          }
+        }
+
         const durationMs = Date.now() - startTime;
         const mappedError = mapErrorToMcpResponse(err, requestId);
         const statusCode =
@@ -399,6 +666,11 @@ export async function mcpRoutes(fastify, opts = {}) {
         reply.status(statusCode);
         reply.header('content-type', 'application/json');
         reply.header('x-request-id', requestId);
+
+        // Add Retry-After for rate limit errors
+        if (statusCode === 429) {
+          reply.header('Retry-After', '60');
+        }
 
         if (statusCode === 401) {
           const issuer = config.OAUTH_ISSUER_URL || config.APP_URL || 'http://localhost:3000';

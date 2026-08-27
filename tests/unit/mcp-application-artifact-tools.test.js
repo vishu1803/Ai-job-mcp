@@ -584,6 +584,7 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
   });
 
   it('13. rejects cross-tenant candidateId lookup with NotFoundError (404 / -32004)', async () => {
+    const freshLimiter = new McpRateLimiter({ ipLimit: 1000, tenantLimit: 1000, tokenLimit: 1000 });
     const mockDb = {
       select: () => ({
         from: () => ({
@@ -602,7 +603,7 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
             candidateId: foreignCandidateId,
             jobDescriptionText: sampleJobDescriptionText,
           },
-          { db: mockDb }
+          { db: mockDb, rateLimiter: freshLimiter }
         );
       },
       (err) => {

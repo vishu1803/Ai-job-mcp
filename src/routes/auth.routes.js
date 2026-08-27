@@ -16,6 +16,31 @@ import { authenticate, verifyCsrf } from '../middleware/auth.middleware.js';
 import { validateRequest, validateResponse } from '../middleware/validate.js';
 import { db } from '../db/index.js';
 import { config } from '../config/env.js';
+import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
+import { extractClientIp } from '../utils/extract-client-ip.js';
+
+/**
+ * Fastify preHandler hook for pre-auth IP rate limiting.
+ * Returns HTTP 429 with Retry-After if rate limit exceeded.
+ *
+ * @param {import('fastify').FastifyRequest} req
+ * @param {import('fastify').FastifyReply} reply
+ * @param {import('../security/mcp-rate-limiter.js').McpRateLimiter} rateLimiter
+ */
+async function preAuthRateLimit(req, reply, rateLimiter) {
+  const clientIp = extractClientIp(req);
+  const result = rateLimiter.checkAuthLimit(clientIp);
+  if (!result.allowed) {
+    const retryAfterSec = Math.ceil(result.retryAfterMs / 1000);
+    reply.header('Retry-After', String(retryAfterSec));
+    reply.status(429).send({
+      error: 'Too Many Requests',
+      message: `Rate limit exceeded. Retry after ${retryAfterSec} seconds.`,
+      retryAfter: retryAfterSec,
+    });
+    return reply;
+  }
+}
 
 // Request Validation Schemas
 const AuthGithubQuerySchema = z.object({
@@ -59,6 +84,7 @@ const MeResponseSchema = z.object({
  */
 export default async function authRoutes(app, opts = {}) {
   const authService = opts.authService || new AuthService({ db: app.db || db });
+  const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
 
   // -------------------------------------------------------------------------
   // 1. GET /auth/github — Start OAuth 2.1 PKCE authorization flow
@@ -66,7 +92,10 @@ export default async function authRoutes(app, opts = {}) {
   app.get(
     '/auth/github',
     {
-      preHandler: [validateRequest({ query: AuthGithubQuerySchema })],
+      preHandler: [
+        async (req, reply) => preAuthRateLimit(req, reply, rateLimiter),
+        validateRequest({ query: AuthGithubQuerySchema }),
+      ],
     },
     async (req, reply) => {
       const returnTo =
@@ -207,7 +236,7 @@ export default async function authRoutes(app, opts = {}) {
   app.post(
     '/auth/logout',
     {
-      preHandler: [verifyCsrf],
+      preHandler: [async (req, reply) => preAuthRateLimit(req, reply, rateLimiter), verifyCsrf],
     },
     async (req, reply) => {
       const cookieOpts = getSessionCookieOptions(config);
@@ -260,47 +289,53 @@ export default async function authRoutes(app, opts = {}) {
   // -------------------------------------------------------------------------
   // 5. GET /auth/logout — Safe browser logout navigation fallback
   // -------------------------------------------------------------------------
-  app.get('/auth/logout', async (req, reply) => {
-    const cookieOpts = getSessionCookieOptions(config);
-    let rawToken = req.cookies?.[cookieOpts.name] || req.cookies?.['career_hub_session'];
+  app.get(
+    '/auth/logout',
+    {
+      preHandler: [async (req, reply) => preAuthRateLimit(req, reply, rateLimiter)],
+    },
+    async (req, reply) => {
+      const cookieOpts = getSessionCookieOptions(config);
+      let rawToken = req.cookies?.[cookieOpts.name] || req.cookies?.['career_hub_session'];
 
-    if (!rawToken && req.headers?.cookie) {
-      const header = req.headers.cookie;
-      const match =
-        header.match(new RegExp(`(?:^|; )${cookieOpts.name}=([^;]*)`)) ||
-        header.match(/(?:^|; )career_hub_session=([^;]*)/);
-      if (match) {
-        rawToken = decodeURIComponent(match[1]);
+      if (!rawToken && req.headers?.cookie) {
+        const header = req.headers.cookie;
+        const match =
+          header.match(new RegExp(`(?:^|; )${cookieOpts.name}=([^;]*)`)) ||
+          header.match(/(?:^|; )career_hub_session=([^;]*)/);
+        if (match) {
+          rawToken = decodeURIComponent(match[1]);
+        }
       }
-    }
 
-    if (rawToken) {
-      const database = req.db || db;
-      await revokeSession(database, rawToken);
-    }
+      if (rawToken) {
+        const database = req.db || db;
+        await revokeSession(database, rawToken);
+      }
 
-    reply.clearCookie(cookieOpts.name, {
-      path: '/',
-      httpOnly: true,
-      secure: cookieOpts.secure,
-      sameSite: 'lax',
-    });
-    reply.clearCookie('career_hub_session', {
-      path: '/',
-      httpOnly: true,
-      secure: cookieOpts.secure,
-      sameSite: 'lax',
-    });
-
-    const accept = req.headers['accept'] || '';
-    const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
-
-    if (wantsJson) {
-      return reply.send({
-        message: 'Successfully logged out',
+      reply.clearCookie(cookieOpts.name, {
+        path: '/',
+        httpOnly: true,
+        secure: cookieOpts.secure,
+        sameSite: 'lax',
       });
-    }
+      reply.clearCookie('career_hub_session', {
+        path: '/',
+        httpOnly: true,
+        secure: cookieOpts.secure,
+        sameSite: 'lax',
+      });
 
-    return reply.redirect('/login');
-  });
+      const accept = req.headers['accept'] || '';
+      const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
+
+      if (wantsJson) {
+        return reply.send({
+          message: 'Successfully logged out',
+        });
+      }
+
+      return reply.redirect('/login');
+    }
+  );
 }

@@ -637,7 +637,7 @@ describe('Live MCP Server Streamable HTTP Transport Integration Tests (P7-002 â€
     assert.strictEqual(res3.statusCode, 429);
     const body = JSON.parse(res3.payload);
     assert.strictEqual(body.error.code, -32029);
-    assert.match(body.error.message, /Rate limit exceeded/);
+    assert.match(body.error.message, /[Rr]ate limit exceeded/);
 
     await rateLimitedApp.close();
   });
