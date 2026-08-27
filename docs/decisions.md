@@ -62,6 +62,7 @@
 | **ADR-053** | Two-Phase Action Approval State Machine & Cryptographic Binding Architecture | **ACCEPTED** | 2026-08-25 |
 | **ADR-054** | GitHub Write Operations & Low-Level Git Data API Integration Architecture | **ACCEPTED** | 2026-08-25 |
 | **ADR-055** | GitHub Write Safety Constraints & Centralized Execution Kernel Architecture | **ACCEPTED** | 2026-08-25 |
+| **ADR-071** | Phase 14 Security Hardening, Penetration Testing & Automated Auditing Architecture | **ACCEPTED** | 2026-08-27 |
 
 ---
 
@@ -1579,7 +1580,18 @@
 * **Reasons**: Enables rigorous, end-to-end multi-tenant validation without exposing mock data to production or staging environments, ensuring complete hermetic testability.
 * **Consequences**: Tasks P13-004A and P13-004 are COMPLETE & VERIFIED.
 
+---
 
-
-
-
+### ADR-071: Phase 14 Security Hardening, Penetration Testing & Automated Auditing Architecture
+* **Status**: ACCEPTED
+* **Date**: 2026-08-27
+* **Context**: Prior to public staging deployment and internet exposure, the platform requires a comprehensive security review and deterministic verification strategy covering automated DAST penetration testing, supply-chain dependency auditing, secrets leak prevention, rate limiting, and disaster recovery.
+* **Decision**: Adopt the **Phase 14 Security Hardening Architecture** defined in `docs/security-hardening-architecture.md` (`ARCH-051`), `docs/penetration-test-plan.md` (`ARCH-052`), and `docs/dependency-and-secrets-audit.md` (`ARCH-053`):
+  * **13-Actor Threat Model**: Formally define assets, attack vectors, trust boundaries, defenses, and fail-closed verification methods across 13 distinct threat actors.
+  * **Deterministic Automated Penetration Testing**: Build a dedicated integration test suite (`tests/integration/penetration-testing.test.js`) executed against an isolated database to rigorously assault authentication, authorization/IDOR, remote MCP gateway, web UI/XSS/CSRF, document decompression/polyglots, and GitHub webhooks/write safety.
+  * **Multi-Tiered Rate Limiting**: Implement token-bucket rate limiting across Auth (10 req/min/IP), Document Upload (5 uploads/min/user), MCP Tool Invocation (60 calls/min/token), and Ingestion Sync (2 syncs/5min/tenant).
+  * **Supply Chain & Secrets Gating**: Enforce `npm audit --audit-level=high` in CI, static pre-commit secret scanning, and automated logger/audit payload redaction.
+  * **Zero-Downtime Key Rotation**: Enforce versioned AAD metadata (`v1`, `v2`) for AES-256-GCM encrypted records and emergency revocation runbooks.
+  * **Backup & DR Objectives**: Target RPO $\le 1\text{h}$ and RTO $\le 4\text{h}$ with automated logical dump encryption and ephemeral database restoration drills.
+* **Reasons**: Proactively eliminates security vulnerabilities, guarantees fail-closed multi-tenant boundaries, protects user credentials, and establishes production operational readiness.
+* **Consequences**: Task P14-001A is COMPLETE & APPROVED; Phase 14 implementation tasks P14-001 through P14-006 are formally specified and ready for execution.

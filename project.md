@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Ready for Phase 14 |
-| **Project State** | **ACTIVE / READY FOR PHASE 14** | All Phases 0 through 13.5 100% verified locally & hermetically |
-| **Total Tasks** | **92 Tasks** | Across Phases 0 to 15 (including Phase 13.5) |
-| **Completed Tasks** | **82 Tasks** | Phases 0-13 (75 tasks) + Phase 13.5 (7 tasks: P13.5-001 through P13.5-007) |
-| **In Progress Tasks** | **0 Tasks** | Phase 13.5 complete |
-| **Blocked Tasks** | **0 Tasks** | Ready for Phase 14 |
-| **Overall Task Completion** | **89.13% (82 / 92 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **88.24% (15.00 / 17 Phases)** | Strictly based on verified deliverables |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Task P14-001A COMPLETE & APPROVED |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phase 14 Security Architecture Review complete; ready for implementation |
+| **Total Tasks** | **93 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 review) |
+| **Completed Tasks** | **83 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Task P14-001A |
+| **In Progress Tasks** | **0 Tasks** | Ready for Task P14-001 |
+| **Blocked Tasks** | **0 Tasks** | No active blockers |
+| **Overall Task Completion** | **89.25% (83 / 93 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **89.06% (15.14 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
+| **PHASE 14** | Security Hardening & Production Readiness | 7 | 1 | 0 | **IN_PROGRESS** | **14.3%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -354,16 +354,17 @@
 ---
 
 ### PHASE 14: Security Hardening & Production Readiness
-*Objective: Perform rigorous security audits, vulnerability scans, rate limiting, and performance optimization.*
+*Objective: Execute comprehensive penetration testing, AST sandbox hardening, cryptographic audit, rate-limiting, and staging/production domain deployment.*
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P14-001** | Implement Global and Per-User Rate Limiting on API and MCP endpoints (Redis token bucket) | P1-005, P7-002 | NOT_STARTED | Load test triggering 429 Too Many Requests upon limit breach |
-| **P14-002** | Perform Automated Security Vulnerability Scan (`npm audit`, Snyk, SonarQube / static analysis) | P1-001 | NOT_STARTED | 0 high or critical vulnerabilities in dependency tree |
-| **P14-003** | Execute Penetration Testing suite (cross-tenant IDOR, SQL injection, prompt injection in evidence, CSRF) | P2-006, P4-006, P7-003 | NOT_STARTED | Automated security test suite passing 100% |
-| **P14-004** | Implement Structured Metrics & Tracing (OpenTelemetry / Prometheus) | P1-005 | NOT_STARTED | Verify metrics export endpoint exposes request rates and latency |
-| **P14-005** | Implement Automated Database Backup & Disaster Recovery Runbook | P1-003 | NOT_STARTED | Execute automated backup and test restoration to clean database |
-| **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements |
+| **P14-001A** | Review Penetration Testing, Dependency Vulnerability & Secrets Audit Architecture | P13.5-007 | **COMPLETE & APPROVED** | Architectural specifications `docs/security-hardening-architecture.md` (`ARCH-051`), `docs/penetration-test-plan.md` (`ARCH-052`), `docs/dependency-and-secrets-audit.md` (`ARCH-053`), and `ADR-071` in `docs/decisions.md`. 13-actor threat model, deterministic DAST attack matrix, supply-chain audit, zero-downtime key rotation, and rate-limiting specifications. |
+| **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | NOT_STARTED | Automated `npm audit` CI gates, git-secrets / gitleaks pre-commit hooks, and dependency vulnerability remediation. |
+| **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | NOT_STARTED | Automated DAST penetration test suite simulating IDOR, SQL injection, AST sandbox escape, SSRF, session hijacking, and CSRF attacks. |
+| **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | NOT_STARTED | In-memory / Redis token-bucket rate limiting across `/mcp`, `/oauth/*`, `/auth/*`, `/resumes`, and `/api/*`; connection pool saturation testing under 500 concurrent connections. |
+| **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | NOT_STARTED | Configure production domain (`staging.careerhub.ai`), Cloudflare Named Tunnel (`cloudflared`), Managed PostgreSQL staging database with TLS, stable GitHub OAuth/webhook callbacks, and uptime monitoring probes. |
+| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004 | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
+| **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---
 
@@ -3306,17 +3307,50 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 
 ---
 
+### Phase 14: Security Hardening & Production Readiness
+
+* **P14-001A: PENETRATION TESTING, DEPENDENCY VULNERABILITY & SECRETS AUDIT ARCHITECTURE REVIEW (Completed & Approved)**:
+  * Deliverables Created & Modified:
+    * `docs/security-hardening-architecture.md` (`ARCH-051`): Comprehensive security specification establishing:
+      1. 13-Actor Threat Model: Detailed STRIDE/DREAD asset, attack vector, trust boundary, existing defense, remaining gap, and verification method analysis across Unauthenticated Attacker, Authenticated Malicious User, Foreign Tenant Actor, Compromised AI, Malicious MCP Client, Stolen MCP Token, Stolen/Replayed OAuth Token, Malicious Document Upload, Malicious Repo Content, Forged Webhook, Compromised Connector, Malicious Admin/DB Dump, and Supply Chain Attacker.
+      2. Core Security Controls: Server-derived context authority, `__Host-` session cookie hardening, OAuth 2.1 PKCE S256 verification, stateless MCP gateway isolation, Two-Phase Human Write Safety Kernel, authenticated AES-256-GCM encryption, and GDPR Article 17 hard delete cascades.
+      3. Distributed Token-Bucket Rate Limiting Architecture: Specifications for Auth (10 req/min/IP), Document Upload (5 req/min/user), MCP Tool Calls (60 req/min/token), and Ingestion Sync (2 req/5min/tenant).
+      4. Logging, Data Redaction & Observability: Automated sensitive key/pattern scrubbers (PATs, Google keys, PEM keys) and Prometheus/OpenTelemetry security metric definitions.
+      5. Backup & Disaster Recovery Design: RPO $\le 1\text{h}$, RTO $\le 4\text{h}$, encrypted logical dump snapshots, and automated ephemeral restore verification.
+      6. Public Staging Architecture: Cloudflare Named Tunnel (`cloudflared`) loopback ingress (zero open inbound ports), Edge TLS 1.3/HSTS, and CSP headers.
+    * `docs/penetration-test-plan.md` (`ARCH-052`): Deterministic, safe DAST penetration test suite specification covering:
+      1. Authentication: Session fixation, session theft/invalidation, OAuth code reuse, PKCE bypass, redirect URI manipulation, refresh token family revocation, and scope escalation.
+      2. Authorization & IDOR: Cross-tenant candidate switching, project/evidence switching, source resume download, job application updates, approval ticket bypass, and token revocation IDOR.
+      3. Remote MCP Gateway: Unauthenticated tool access, schema fuzzing, prompt injection in tool arguments, oversized payload DoS, and context spoofing.
+      4. Web UI, XSS & CSRF: Stored XSS, reflected XSS, CSRF origin verification on state routes, open redirects, and host header poisoning.
+      5. Document Uploads: Executable binary rejection, polyglot PDF/HTML isolation, zip/XML decompression bombs, path traversal in filenames, and secret extraction scrubbing.
+      6. GitHub Integration: Webhook signature forgery, webhook replay, protected branch direct push blocks, CI/CD workflow tampering blocks, and stale HEAD SHA concurrency guards.
+      7. 37-Vector Security Test Matrix with automation strategy and severity classification.
+    * `docs/dependency-and-secrets-audit.md` (`ARCH-053`): Supply-chain, secrets, and cryptographic hygiene audit specification establishing:
+      1. `npm audit` Findings: 0 Critical, 0 High, 4 Moderate in devDependencies (`drizzle-kit`/`esbuild` dev-server advisory with 0 production runtime impact), 123 production dependencies with 0 known vulnerabilities.
+      2. Multi-Channel Secrets Audit: Verification of 0 plaintext secrets across Git, logs, audit payloads, HTML views, MCP tool outputs, and error envelopes.
+      3. Cryptographic Key Management: Master 256-bit AES key format, versioned AAD key rotation (`v1` $\to$ `v2`), and emergency secret compromise revocation protocol.
+    * `docs/decisions.md`: Added **ADR-071: Phase 14 Security Hardening, Penetration Testing & Automated Auditing Architecture**.
+  * Quality Gates & Verification:
+    * `npm audit --json` -> Verified 0 Critical, 0 High in dependency tree
+    * `git diff --check` -> PASS (0 whitespace errors)
+    * `npx prettier --check docs/security-hardening-architecture.md docs/penetration-test-plan.md docs/dependency-and-secrets-audit.md docs/decisions.md` -> PASS
+  * Status: **`COMPLETE & APPROVED`**.
+
+---
+
 ## PHASE 14: Security Hardening & Production Readiness
 *Objective: Execute comprehensive penetration testing, AST sandbox hardening, cryptographic audit, rate-limiting, and staging/production domain deployment.*
 
 | Task ID | Task Title | Dependencies | Status | Verification Method |
 | :--- | :--- | :--- | :--- | :--- |
-| **P14-001A** | Review Penetration Testing, Dependency Vulnerability & Secrets Audit Architecture | P13.5-006 | NOT_STARTED | Architecture review covering automated DAST/SAST penetration testing, npm audit vulnerability gates, cryptographic key rotation runbooks, and zero-trust perimeter auditing. |
+| **P14-001A** | Review Penetration Testing, Dependency Vulnerability & Secrets Audit Architecture | P13.5-007 | **COMPLETE & APPROVED** | Architectural specifications `docs/security-hardening-architecture.md` (`ARCH-051`), `docs/penetration-test-plan.md` (`ARCH-052`), `docs/dependency-and-secrets-audit.md` (`ARCH-053`), and `ADR-071` in `docs/decisions.md`. |
 | **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | NOT_STARTED | Automated `npm audit` CI gates, git-secrets / gitleaks pre-commit hooks, and dependency vulnerability remediation. |
 | **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | NOT_STARTED | Automated DAST penetration test suite simulating IDOR, SQL injection, AST sandbox escape, SSRF, session hijacking, and CSRF attacks. |
 | **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | NOT_STARTED | In-memory / Redis token-bucket rate limiting across `/mcp`, `/oauth/*`, `/auth/*`, `/resumes`, and `/api/*`; connection pool saturation testing under 500 concurrent connections. |
 | **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | NOT_STARTED | Configure production domain (`staging.careerhub.ai`), Cloudflare Named Tunnel (`cloudflared`), Managed PostgreSQL staging database with TLS, stable GitHub OAuth/webhook callbacks, and uptime monitoring probes. |
-| **P14-005** | Production Readiness Audit & Final Signoff | P14-004 | NOT_STARTED | End-to-end multi-tenant live verification, automated rollback testing, database disaster recovery drills, and final production signoff report. |
+| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004 | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
+| **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---
 
