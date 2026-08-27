@@ -2,7 +2,7 @@
  * @file MCP Registry Metadata Validator.
  *
  * Implements strict schema validation and security assertion for server.json
- * conforming to the official Model Context Protocol Registry specification
+ * conforming strictly to the official Model Context Protocol Registry ServerDetail schema
  * (https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json).
  */
 
@@ -11,7 +11,43 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * Zod schema defining the official MCP Registry manifest format.
+ * Zod schema defining the official RemoteTransport object.
+ */
+export const RemoteTransportSchema = z
+  .object({
+    type: z.enum(['streamable-http', 'sse']),
+    url: z
+      .string()
+      .regex(
+        /^(https?:\/\/[^\s]+|\{[a-zA-Z_][a-zA-Z0-9_]*\}[^\s]*)$/,
+        'Must be a valid HTTP/HTTPS URL'
+      ),
+    headers: z
+      .array(
+        z.object({
+          name: z.string(),
+          value: z.string().optional(),
+        })
+      )
+      .optional(),
+    variables: z.record(z.any()).optional(),
+  })
+  .strict();
+
+/**
+ * Zod schema defining the official Repository metadata object.
+ */
+export const RepositorySchema = z
+  .object({
+    url: z.string().url(),
+    source: z.string().min(1),
+    id: z.string().optional(),
+    subfolder: z.string().optional(),
+  })
+  .strict();
+
+/**
+ * Zod schema defining the official MCP Registry ServerDetail manifest format.
  */
 export const McpRegistryManifestSchema = z
   .object({
@@ -25,79 +61,36 @@ export const McpRegistryManifestSchema = z
     name: z
       .string()
       .min(3)
-      .max(128)
+      .max(200)
       .regex(
-        /^[a-z0-9_.-]+\/[a-z0-9_.-]+$/,
+        /^[a-zA-Z0-9.-]+\/[a-zA-Z0-9._-]+$/,
         'Name must follow reverse-DNS or scoped namespace format (e.g. "namespace/server-name")'
       ),
-    title: z.string().min(2).max(128),
-    description: z.string().min(10).max(2000),
+    title: z.string().min(1).max(100).optional(),
+    description: z.string().min(1).max(100),
     version: z
       .string()
       .regex(
         /^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$/,
         'Version must follow semantic versioning (SemVer 2.0.0)'
       ),
-    homepage: z.string().url(),
-    documentation: z.string().url(),
-    repository: z
-      .object({
-        type: z.literal('git'),
-        url: z.string().url(),
-      })
-      .strict(),
-    license: z.string().min(1).max(64),
-    categories: z.array(z.string()).min(1).default(['developer-tools']),
+    websiteUrl: z.string().url().optional(),
+    repository: RepositorySchema.optional(),
+    remotes: z.array(RemoteTransportSchema).min(1).optional(),
+    packages: z.array(z.record(z.any())).optional(),
     icons: z
       .array(
         z.object({
           src: z.string().url(),
-          mimeType: z.string(),
-          sizes: z.string().optional(),
+          mimeType: z
+            .enum(['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'])
+            .optional(),
+          sizes: z.array(z.string()).optional(),
+          theme: z.enum(['light', 'dark']).optional(),
         })
       )
       .optional(),
-    transport: z
-      .object({
-        type: z.enum(['http', 'stdio']),
-        url: z.string().url().optional(),
-        command: z.string().optional(),
-        args: z.array(z.string()).optional(),
-        protocolVersion: z.string().default('2026-07-28'),
-      })
-      .strict()
-      .refine(
-        (t) => (t.type === 'http' ? Boolean(t.url) : Boolean(t.command)),
-        'HTTP transport requires url; stdio transport requires command'
-      ),
-    authentication: z
-      .object({
-        type: z.enum(['oauth2', 'bearer', 'none']),
-        authorizationUrl: z.string().url().optional(),
-        tokenUrl: z.string().url().optional(),
-        discoveryUrl: z.string().url().optional(),
-        scopes: z.record(z.string()).optional(),
-      })
-      .strict(),
-    capabilities: z
-      .object({
-        tools: z.boolean().default(true),
-        resources: z.boolean().default(true),
-        prompts: z.boolean().default(true),
-        extensions: z
-          .object({
-            'io.modelcontextprotocol/ui': z
-              .object({
-                version: z.string(),
-                resources: z.array(z.string()).min(1),
-              })
-              .optional(),
-          })
-          .optional(),
-      })
-      .strict(),
-    status: z.enum(['PLANNED / NOT PUBLISHED', 'PUBLISHED', 'DEPRECATED']),
-    publicationPrerequisites: z.array(z.string()).optional(),
+    _meta: z.record(z.any()).optional(),
   })
   .strict();
 
@@ -124,7 +117,7 @@ const FORBIDDEN_SECRET_PATTERNS = [
 export function validateRegistryManifest(rawManifest) {
   const errors = [];
 
-  // 1. Zod schema validation
+  // 1. Zod schema validation against official ServerDetail schema
   const parseResult = McpRegistryManifestSchema.safeParse(rawManifest);
   if (!parseResult.success) {
     for (const issue of parseResult.error.issues) {
@@ -144,29 +137,32 @@ export function validateRegistryManifest(rawManifest) {
   }
 
   // 3. Remote URL security: verify HTTPS in non-local domains
-  if (manifest.transport.type === 'http' && manifest.transport.url) {
-    const parsed = new URL(manifest.transport.url);
-    if (
-      parsed.protocol !== 'https:' &&
-      parsed.hostname !== 'localhost' &&
-      parsed.hostname !== '127.0.0.1'
-    ) {
-      errors.push('Remote transport URL must use HTTPS for non-localhost endpoints.');
+  if (manifest.remotes) {
+    for (const remote of manifest.remotes) {
+      if (remote.url && !remote.url.startsWith('{')) {
+        try {
+          const parsed = new URL(remote.url);
+          if (
+            parsed.protocol !== 'https:' &&
+            parsed.hostname !== 'localhost' &&
+            parsed.hostname !== '127.0.0.1'
+          ) {
+            errors.push(
+              `Remote transport URL "${remote.url}" must use HTTPS for non-localhost endpoints.`
+            );
+          }
+        } catch {
+          errors.push(`Invalid URL format: "${remote.url}"`);
+        }
+      }
     }
   }
 
-  // 4. OAuth discovery validation
-  if (manifest.authentication.type === 'oauth2') {
-    if (!manifest.authentication.authorizationUrl && !manifest.authentication.discoveryUrl) {
-      errors.push('OAuth2 authentication requires either authorizationUrl or discoveryUrl.');
-    }
-  }
-
-  // 5. Extensions check
-  if (manifest.capabilities.extensions?.['io.modelcontextprotocol/ui']) {
-    const uiExt = manifest.capabilities.extensions['io.modelcontextprotocol/ui'];
+  // 4. Extensions check inside _meta
+  const uiExt = manifest._meta?.['io.modelcontextprotocol/ui'];
+  if (uiExt && Array.isArray(uiExt.resources)) {
     for (const uri of uiExt.resources) {
-      if (!uri.startsWith('ui://')) {
+      if (typeof uri !== 'string' || !uri.startsWith('ui://')) {
         errors.push(`MCP App resource URI "${uri}" must begin with "ui://" scheme.`);
       }
     }

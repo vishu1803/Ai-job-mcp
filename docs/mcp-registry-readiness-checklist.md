@@ -3,7 +3,7 @@
 **Target Registry**: `registry.modelcontextprotocol.io`  
 **Manifest Standard**: `server.json` (Revision `2025-12-11` / `2026-07-28`)  
 **Current Status**: `PLANNED / NOT PUBLISHED`  
-**Dependency**: `BLOCKED UNTIL PUBLIC STAGING (Phase 14)`
+**Publication Blocker**: `BLOCKED UNTIL PUBLIC STAGING (Phase 14)` — Requires permanent public HTTPS domain (`staging.careerhub.ai`)
 
 ---
 
@@ -13,6 +13,9 @@ This document establishes the official operational readiness criteria, technical
 
 > [!IMPORTANT]
 > **No Public Publication During Phase 13.5**: Career Hub is configured with full registry metadata in `server.json` and verified with automated validation tests, but **must not be published** until a stable, permanent public HTTPS domain (`staging.careerhub.ai`) and Cloudflare Named Tunnel are active in Phase 14.
+>
+> **Public Reachability Invariant**: Official MCP Registry documentation strictly mandates that all registered remote servers must be publicly reachable at their declared endpoint URLs. Because local development environments have no persistent public domain, publication is explicitly marked:
+> `BLOCKED UNTIL PUBLIC STAGING`.
 
 ---
 
@@ -23,8 +26,9 @@ This document establishes the official operational readiness criteria, technical
    - The central public catalog hosted at `registry.modelcontextprotocol.io`.
 2. **Is publishing done through `server.json` or another mechanism?**
    - Publishing is performed via a `server.json` manifest conforming to `https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json` using the `mcp-publisher` CLI or Git repository webhook.
-3. **What exact metadata fields are required?**
-   - `$schema`, `name`, `title`, `description`, `version`, `homepage`, `documentation`, `repository`, `license`, `transport`, `authentication`, and `capabilities`.
+3. **What exact metadata fields are allowed and required?**
+   - **Required Top-Level Fields**: `name` (reverse-DNS format `^[a-zA-Z0-9.-]+/[a-zA-Z0-9._-]+$`), `description` (1–100 chars), `version` (SemVer 2.0.0).
+   - **Allowed Optional Fields**: `$schema`, `title` (1–100 chars), `websiteUrl` (URI), `repository` (`url`, `source`), `remotes` (array of `RemoteTransport`), `packages` (array of `Package`), `icons` (array of `Icon`), and `_meta` (reverse-DNS namespaced vendor extensions).
 4. **How are namespaces established?**
    - Namespaces use reverse-DNS or GitHub organization/user scoping (e.g. `ai.careerhub/mcp-server` or `io.github.vishu1803/ai-career-agent`) to prevent namespace squatting.
 5. **How is domain/ownership verification performed?**
@@ -33,15 +37,15 @@ This document establishes the official operational readiness criteria, technical
 
 ### 2.2 Transport, Security & Remote Auth
 6. **What transport/protocol metadata must be declared?**
-   - `transport.type: "http"`, `transport.url: "https://<domain>/mcp"`, `transport.protocolVersion: "2026-07-28"`.
+   - `remotes: [{ "type": "streamable-http", "url": "https://staging.careerhub.ai/mcp" }]`.
 7. **How should remote OAuth/authentication be represented?**
-   - `authentication.type: "oauth2"` with `authorizationUrl`, `tokenUrl`, `discoveryUrl`, and explicit scope definitions (`career:read`, `career:write`).
+   - Under `_meta['ai.careerhub/auth']` with `type: "oauth2"`, `discoveryUrl: "https://staging.careerhub.ai/.well-known/oauth-authorization-server"`, and scopes (`career:read`, `career:write`).
 8. **How are versions managed?**
    - Strict Semantic Versioning 2.0.0 (`MAJOR.MINOR.PATCH`). Each registry release is immutable and pinned to a commit tag.
 9. **How are updates published?**
    - Updated `server.json` is submitted via `mcp-publisher update` or automated CI/CD pipeline upon git tag release.
 10. **What deprecation/removal model exists?**
-    - `status: "DEPRECATED"` field with `migrationTarget` metadata. Active servers remain accessible until grace period expiration.
+    - Deprecation metadata in `_meta`. Active servers remain accessible until grace period expiration.
 11. **What icon/documentation/privacy/terms metadata is required?**
     - High-resolution SVG/PNG icons (`512x512`), documentation URL (`/docs/mcp`), privacy policy URL, and terms of service URL.
 
@@ -80,58 +84,45 @@ This document establishes the official operational readiness criteria, technical
 
 ---
 
-## 4. Manifest Representation (`server.json`)
+## 4. Official Manifest Representation (`server.json`)
 
 ```json
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.careerhub/mcp-server",
   "title": "Antigravity Career Hub",
-  "description": "Evidence-backed AI career intelligence and developer portfolio MCP server with verifiable AST provenance, two-phase human-approved PR workflows, and ATS job-fit analysis.",
+  "description": "Evidence-backed career intelligence and multi-tenant MCP server with zero hallucination.",
   "version": "0.1.0",
-  "homepage": "https://staging.careerhub.ai",
-  "documentation": "https://staging.careerhub.ai/docs/mcp",
+  "websiteUrl": "https://staging.careerhub.ai",
   "repository": {
-    "type": "git",
-    "url": "https://github.com/vishu1803/Ai-job-mcp"
+    "url": "https://github.com/vishu1803/ai-career-agent",
+    "source": "github"
   },
-  "license": "Apache-2.0",
-  "categories": ["developer-tools", "productivity", "career"],
-  "icons": [
+  "remotes": [
     {
-      "src": "https://staging.careerhub.ai/static/icons/mcp-icon.png",
-      "mimeType": "image/png",
-      "sizes": "512x512"
+      "type": "streamable-http",
+      "url": "https://staging.careerhub.ai/mcp"
     }
   ],
-  "transport": {
-    "type": "http",
-    "url": "https://staging.careerhub.ai/mcp",
-    "protocolVersion": "2026-07-28"
-  },
-  "authentication": {
-    "type": "oauth2",
-    "authorizationUrl": "https://staging.careerhub.ai/oauth/authorize",
-    "tokenUrl": "https://staging.careerhub.ai/oauth/token",
-    "scopes": {
-      "career:read": "Read verified candidate profile, skills, projects, and evidence graph",
-      "career:write": "Generate tailored resumes, cover letters, and manage job applications"
+  "_meta": {
+    "io.modelcontextprotocol/ui": {
+      "version": "1.0.0",
+      "resources": [
+        "ui://career-hub/job-fit-radar/v1"
+      ]
     },
-    "discoveryUrl": "https://staging.careerhub.ai/.well-known/oauth-authorization-server"
-  },
-  "capabilities": {
-    "tools": true,
-    "resources": true,
-    "prompts": true,
-    "extensions": {
-      "io.modelcontextprotocol/ui": {
-        "version": "1.0.0",
-        "resources": [
-          "ui://career-hub/job-fit-radar/v1"
-        ]
+    "ai.careerhub/auth": {
+      "type": "oauth2",
+      "discoveryUrl": "https://staging.careerhub.ai/.well-known/oauth-authorization-server",
+      "scopes": {
+        "career:read": "Read verified evidence graph, AST metrics, and ATS scores",
+        "career:write": "Generate career artifacts, resumes, and project proposals"
       }
+    },
+    "ai.careerhub/publication": {
+      "status": "BLOCKED UNTIL PUBLIC STAGING",
+      "blockerReason": "Remote MCP server requires permanent public HTTPS domain (staging.careerhub.ai) and DNS TXT verification before registry submission."
     }
-  },
-  "status": "PLANNED / NOT PUBLISHED"
+  }
 }
 ```

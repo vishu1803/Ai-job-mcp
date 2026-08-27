@@ -303,7 +303,7 @@ A public developer documentation portal detailing:
 | :--- | :--- | :--- | :--- |
 | **Remote MCP Server (16 Tools)** | Phase 7–13.5 | `VERIFIED & OPERATIONAL` | Fully operational over Streamable HTTP with OAuth 2.1 & Personal Tokens. |
 | **AI Connection Center & Docs** | Phase 13.5 (P13.5-004) | `VERIFIED & OPERATIONAL` | Web UI available at `/connect` and `/docs/mcp`. |
-| **Official MCP Registry Listing** | Phase 13.5 / 14 | `PLANNED / NOT PUBLISHED` | Verified `server.json` catalog entry ready for `registry.modelcontextprotocol.io`; blocked on public staging domain. |
-| **MCP Apps UI Extensions** | Phase 13.5 (P13.5-005) | `VERIFIED & OPERATIONAL (MVP)` | Sandboxed `ui://career-hub/job-fit-radar/v1` interactive SVG radar chart & ATS widget for `analyze_job_fit` (SEP-1865). |
-| **Public Staging Deployment** | Phase 14 | `REQUIRES FUTURE DOMAIN` | Cloudflare Named Tunnel with verified staging domain. |
+| **Official MCP Registry Listing** | Phase 13.5 / 14 | `READY FOR SUBMISSION (NOT PUBLISHED)` | Verified `server.json` manifest conforming to official schema; publication blocked until permanent HTTPS domain (Phase 14). |
+| **MCP Apps UI Extensions** | Phase 13.5 (P13.5-005) | `IMPLEMENTED (JOB-FIT RADAR)` | Sandboxed `ui://career-hub/job-fit-radar/v1` interactive SVG radar chart & ATS widget for `analyze_job_fit` (SEP-1865); host support must be verified per client. |
+| **Public Staging Deployment** | Phase 14 | `BLOCKED UNTIL PUBLIC STAGING` | Cloudflare Named Tunnel with verified staging domain (`staging.careerhub.ai`). |
 | **Local MCP Testing** | Phase 1–13.5 | `LOCAL DEVELOPMENT ONLY` | Localhost (`http://localhost:3000/mcp`) for local processes; requires HTTPS tunnel for hosted AI. |

@@ -2,54 +2,35 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.careerhub/mcp-server",
   "title": "Antigravity Career Hub",
-  "description": "Evidence-backed AI career intelligence and developer portfolio MCP server with verifiable AST provenance, two-phase human-approved PR workflows, and ATS job-fit analysis.",
+  "description": "Evidence-backed career intelligence and multi-tenant MCP server with zero hallucination.",
   "version": "0.1.0",
-  "homepage": "https://staging.careerhub.ai",
-  "documentation": "https://staging.careerhub.ai/docs/mcp",
+  "websiteUrl": "https://staging.careerhub.ai",
   "repository": {
-    "type": "git",
-    "url": "https://github.com/vishu1803/Ai-job-mcp"
+    "url": "https://github.com/vishu1803/ai-career-agent",
+    "source": "github"
   },
-  "license": "Apache-2.0",
-  "categories": ["developer-tools", "productivity", "career"],
-  "icons": [
+  "remotes": [
     {
-      "src": "https://staging.careerhub.ai/static/icons/mcp-icon.png",
-      "mimeType": "image/png",
-      "sizes": "512x512"
+      "type": "streamable-http",
+      "url": "https://staging.careerhub.ai/mcp"
     }
   ],
-  "transport": {
-    "type": "http",
-    "url": "https://staging.careerhub.ai/mcp",
-    "protocolVersion": "2026-07-28"
-  },
-  "authentication": {
-    "type": "oauth2",
-    "authorizationUrl": "https://staging.careerhub.ai/oauth/authorize",
-    "tokenUrl": "https://staging.careerhub.ai/oauth/token",
-    "scopes": {
-      "career:read": "Read verified candidate profile, skills, projects, and evidence graph",
-      "career:write": "Generate tailored resumes, cover letters, and manage job applications"
+  "_meta": {
+    "io.modelcontextprotocol/ui": {
+      "version": "1.0.0",
+      "resources": ["ui://career-hub/job-fit-radar/v1"]
     },
-    "discoveryUrl": "https://staging.careerhub.ai/.well-known/oauth-authorization-server"
-  },
-  "capabilities": {
-    "tools": true,
-    "resources": true,
-    "prompts": true,
-    "extensions": {
-      "io.modelcontextprotocol/ui": {
-        "version": "1.0.0",
-        "resources": ["ui://career-hub/job-fit-radar/v1"]
+    "ai.careerhub/auth": {
+      "type": "oauth2",
+      "discoveryUrl": "https://staging.careerhub.ai/.well-known/oauth-authorization-server",
+      "scopes": {
+        "career:read": "Read verified evidence graph, AST metrics, and ATS scores",
+        "career:write": "Generate career artifacts, resumes, and project proposals"
       }
+    },
+    "ai.careerhub/publication": {
+      "status": "BLOCKED UNTIL PUBLIC STAGING",
+      "blockerReason": "Remote MCP server requires permanent public HTTPS domain (staging.careerhub.ai) and DNS TXT verification before registry submission."
     }
-  },
-  "status": "PLANNED / NOT PUBLISHED",
-  "publicationPrerequisites": [
-    "Permanent public HTTPS domain (staging.careerhub.ai)",
-    "DNS TXT record verification (_mcp-registry-verification.careerhub.ai)",
-    "Production Cloudflare Named Tunnel or managed cloud deployment",
-    "Production GitHub App OAuth callback domain configuration"
-  ]
+  }
 }
