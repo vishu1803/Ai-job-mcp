@@ -1,7 +1,7 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-08-26*
+*Last Updated: 2026-08-27*
 
 ---
 
@@ -9,13 +9,13 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (81/81 tasks across 15 phases); Ready for Phase 14 |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Ready for Phase 14 |
 | **Project State** | **ACTIVE / READY FOR PHASE 14** | All Phases 0 through 13.5 100% verified locally & hermetically |
-| **Total Tasks** | **91 Tasks** | Across Phases 0 to 15 (including Phase 13.5) |
-| **Completed Tasks** | **81 Tasks** | Phases 0-13 (75 tasks) + Phase 13.5 (6 tasks: P13.5-001 through P13.5-006) |
+| **Total Tasks** | **92 Tasks** | Across Phases 0 to 15 (including Phase 13.5) |
+| **Completed Tasks** | **82 Tasks** | Phases 0-13 (75 tasks) + Phase 13.5 (7 tasks: P13.5-001 through P13.5-007) |
 | **In Progress Tasks** | **0 Tasks** | Phase 13.5 complete |
 | **Blocked Tasks** | **0 Tasks** | Ready for Phase 14 |
-| **Overall Task Completion** | **89.01% (81 / 91 Tasks)** | Strict calculation, zero inflation |
+| **Overall Task Completion** | **89.13% (82 / 92 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **88.24% (15.00 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
@@ -38,7 +38,7 @@
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
+| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -3275,6 +3275,33 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
       - Resume Multi-format Parsing: ~3.3 ms
       - `analyze_job_fit` Engine Computation: ~908 ms
       - Job Fit Radar UI Resource Read: ~0.51 ms
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+* **P13.5-007: REBUILD PROFESSIONAL GITHUB README & REPOSITORY SHOWCASE (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `README.md`: Completely redesigned the root README into an open-source-quality GitHub project showcase:
+      1. **Hero & Problem Statement**: Clear positioning ("Evidence-backed AI career intelligence") explaining the core problem of AI hallucinations in career management and how Career Hub roots all assertions in verified source code evidence.
+      2. **Badges**: Added verified badges for Node.js (20+), PostgreSQL (16+), MCP (2026-07-28 Spec), Apache 2.0 License, and GitHub Actions CI Pipeline.
+      3. **Product Story & Truth Model**: Formal breakdown of the 4-tier truth model (`VERIFIED`, `INFERRED`, `CLAIMED [Unverified User Claim]`, `UNKNOWN`) explaining how GitHub repository evidence and uploaded resumes are ingested, separated, and prevented from invalid claim elevation or downgrade.
+      4. **Core Capabilities Showcase**: Grouped into Candidate Intelligence, Career Documents, Job Intelligence, Application Tracking, AI Integration, and Safe GitHub Automation.
+      5. **System Architecture**: ASCII flow diagram and Mermaid system architecture diagram illustrating the boundary between Human UI, AI Clients (Gemini, Claude, ChatGPT), Auth/Tenant Context, Career Services, and PostgreSQL, showing that AI clients never receive direct database access.
+      6. **Complete 16-Tool MCP Showcase**: Formatted catalog of all 16 registered tools across Career Read (4 tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`), Career Artifacts (3 tools: `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects`), Career Write (2 tools: `propose_project_improvement`, `confirm_and_create_pr`), and Career Tracking (7 tools: `track_job_application`, `list_active_applications`, `get_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`).
+      7. **MCP Apps Section**: Documented the Job Fit Radar HTML5 SVG widget (`ui://career-hub/job-fit-radar/v1`), highlighting its sandboxed, read-only nature with zero external CDN dependencies.
+      8. **AI Clients Matrix**: Clear status breakdown across Google Gemini (`VERIFIED LIVE`), Anthropic Claude (`VERIFIED HERMETICALLY`), and OpenAI ChatGPT (`VERIFIED HERMETICALLY`), with discovery endpoints (`/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`).
+      9. **Resume Ingestion & Document Pipeline**: Documented source upload, AES-256-GCM encrypted storage, parsing, review, base resume promotion, and immutable application snapshotting.
+      10. **Security & Multi-Tenancy**: Highlighted server-derived tenant identity, default-deny isolation (404), AES-256-GCM encryption, OAuth 2.1 PKCE, secret scrubbing, two-phase human write approval, and GDPR Article 17 hard delete.
+      11. **Product Tour**: Comprehensive overview of all 9 application views (`/dashboard`, `/projects`, `/skills`, `/sources`, `/resumes`, `/dashboard#applications`, `/connect`, `/docs/mcp`, `/settings`).
+      12. **Quick Start & Local vs. Public**: Step-by-step developer setup, environment variables guide, and clear distinction between local development capabilities and public staging prerequisites.
+      13. **Verification Evidence**: Documented latest verified test counts (1,154 unit tests, 50+ integration suites, 0 lint/formatting errors).
+      14. **Project Status & Roadmap**: Up-to-date Phase-by-Phase status table (82/92 tasks complete, 89.13%) and structured roadmap for Phase 14 and Phase 15.
+      15. **Documentation Index**: Direct links to all major architecture and setup guides in `docs/`.
+  * Quality Gates & Verification:
+    * `git diff --check README.md` -> PASS (0 whitespace errors)
+    * `npx prettier --check README.md` -> PASS (All matched files Prettier compliant)
+    * Verified 0 stale references ("9 tools", "Phase 3 status", etc.)
+    * Verified all relative links in `README.md` match real existing files in `docs/`, `goal.md`, `project.md`, `AGENTS.md`.
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---
