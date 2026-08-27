@@ -959,10 +959,132 @@ export function renderMcpDocsPage({ user = null } = {}) {
         </div>
       </section>
 
-      <!-- Section 5: Roadmap & Architectural Standards -->
+      <!-- Section 5: Official MCP Registry & MCP Apps Architecture -->
+      <section id="registry-and-apps" style="margin-bottom: 3.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
+          5. Official MCP Registry Metadata & MCP Apps (SEP-1865)
+        </h2>
+        <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+          Standards-compliant metadata for decentralized discovery on <code>registry.modelcontextprotocol.io</code> and interactive sandboxed UI extensions.
+        </p>
+
+        <!-- Subsection 5.1: MCP Registry Metadata -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">5.1 Official Registry Manifest (<code>server.json</code>)</h3>
+            <span class="badge badge-claimed">PLANNED / NOT PUBLISHED</span>
+          </div>
+          <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem;">
+            Conforms strictly to the official MCP Registry schema (<code>https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json</code>). Publication to the public registry is gated on Phase 14 public staging deployment with verified custom domain ownership.
+          </p>
+
+          <pre style="background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1rem; color: #38bdf8; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; margin-bottom: 1rem;">{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "ai.careerhub/mcp-server",
+  "title": "Antigravity Career Hub",
+  "version": "0.1.0",
+  "transport": {
+    "type": "http",
+    "url": "https://staging.careerhub.ai/mcp",
+    "protocolVersion": "2026-07-28"
+  },
+  "authentication": {
+    "type": "oauth2",
+    "discoveryUrl": "https://staging.careerhub.ai/.well-known/oauth-authorization-server",
+    "scopes": { "career:read": "Read verified evidence graph", "career:write": "Generate career artifacts" }
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": true,
+    "extensions": {
+      "io.modelcontextprotocol/ui": {
+        "version": "1.0.0",
+        "resources": ["ui://career-hub/job-fit-radar/v1"]
+      }
+    }
+  },
+  "status": "PLANNED / NOT PUBLISHED"
+}</pre>
+        </div>
+
+        <!-- Subsection 5.2: MCP Apps UI Extension -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">5.2 MCP Apps UI Extension (<code>io.modelcontextprotocol/ui</code>)</h3>
+            <span class="badge badge-verified">OPERATIONAL (MVP)</span>
+          </div>
+          <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem;">
+            Implements <strong>SEP-1865</strong> (Model Context Protocol Apps). The Career Hub server exposes interactive UI widgets rendered in sandboxed iframes inside compatible AI clients.
+          </p>
+
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+            <h4 style="font-size: 0.9rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem;">Job Fit Radar MVP (<code>ui://career-hub/job-fit-radar/v1</code>)</h4>
+            <ul style="color: #94a3b8; font-size: 0.85rem; line-height: 1.6; padding-left: 1.25rem;">
+              <li><strong>Linked Tool</strong>: <code>analyze_job_fit</code> (via <code>_meta.ui.resourceUri</code>).</li>
+              <li><strong>MIME Profile</strong>: <code>text/html;profile=mcp-app</code>.</li>
+              <li><strong>Security Sandbox</strong>: Zero write access, strict CSP (<code>connect-src 'none'</code>), zero external CDN/font dependencies, strict HTML entity escaping.</li>
+              <li><strong>Visual Components</strong>: Interactive 6-axis SVG Radar Chart, circular ATS score gauge, matched/missing skill chips, and prioritized remediation gap cards.</li>
+              <li><strong>Graceful Fallback</strong>: Hosts without MCP Apps support automatically receive the complete standard text/markdown analysis response without disruption.</li>
+            </ul>
+          </div>
+
+          <h4 style="font-size: 0.9rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.75rem;">Host Compatibility Matrix</h4>
+          <div style="overflow-x: auto;">
+            <table class="table" style="font-size: 0.825rem;">
+              <thead>
+                <tr>
+                  <th>AI Host</th>
+                  <th>Remote MCP</th>
+                  <th>OAuth 2.1</th>
+                  <th>MCP Apps (UI)</th>
+                  <th>Known Constraints</th>
+                  <th>Fallback Behavior</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Claude Web</strong></td>
+                  <td><span class="badge badge-verified">YES</span></td>
+                  <td><span class="badge badge-verified">YES (PKCE)</span></td>
+                  <td><span class="badge badge-verified">YES</span></td>
+                  <td>Requires public HTTPS tunnel (Cloudflare/staging)</td>
+                  <td>Standard text/markdown tool output</td>
+                </tr>
+                <tr>
+                  <td><strong>Claude Desktop</strong></td>
+                  <td><span class="badge badge-verified">YES</span></td>
+                  <td><span class="badge badge-verified">YES (PKCE)</span></td>
+                  <td><span class="badge badge-verified">YES</span></td>
+                  <td>Direct streamable HTTP support</td>
+                  <td>Standard text/markdown tool output</td>
+                </tr>
+                <tr>
+                  <td><strong>ChatGPT</strong></td>
+                  <td><span class="badge badge-verified">YES</span></td>
+                  <td><span class="badge badge-verified">YES (RFC 9728)</span></td>
+                  <td><span class="badge badge-verified">YES (Apps SDK)</span></td>
+                  <td>Requires public HTTPS callback URL</td>
+                  <td>Structured JSON / markdown output</td>
+                </tr>
+                <tr>
+                  <td><strong>Google Gemini</strong></td>
+                  <td><span class="badge badge-verified">YES</span></td>
+                  <td><span class="badge badge-claimed">PERSONAL TOKEN</span></td>
+                  <td><span class="badge badge-claimed">CLI / SDK ONLY</span></td>
+                  <td>Consumer Web UI does not yet host custom MCP Apps iframes</td>
+                  <td>Standard CLI/SDK JSON-RPC tool result</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6: Roadmap & Architectural Standards -->
       <section id="roadmap" style="margin-bottom: 3.5rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
-          5. Roadmap & Architectural Boundaries
+          6. Roadmap & Architectural Boundaries
         </h2>
         <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Explicit distinction between currently implemented features and future planned capabilities.
@@ -979,23 +1101,23 @@ export function renderMcpDocsPage({ user = null } = {}) {
             </p>
           </div>
 
+          <div class="card" style="border-left: 3px solid #10b981;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h4 style="font-size: 1rem; font-weight: 600; color: #f8fafc;">MCP Apps UI Extension (MVP)</h4>
+              <span class="badge badge-verified">AVAILABLE</span>
+            </div>
+            <p style="font-size: 0.825rem; color: #94a3b8; line-height: 1.5;">
+              Sandboxed <code>ui://career-hub/job-fit-radar/v1</code> visual radar chart and ATS scoring widget for <code>analyze_job_fit</code> (SEP-1865).
+            </p>
+          </div>
+
           <div class="card" style="border-left: 3px solid #f59e0b; opacity: 0.85;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
               <h4 style="font-size: 1rem; font-weight: 600; color: #f8fafc;">Official MCP Registry Listing</h4>
               <span class="badge badge-claimed">PLANNED / NOT PUBLISHED</span>
             </div>
             <p style="font-size: 0.825rem; color: #94a3b8; line-height: 1.5;">
-              Public listing on <code>registry.modelcontextprotocol.io</code> via <code>server.json</code> metadata (scheduled for Phase 13.5 / Phase 14).
-            </p>
-          </div>
-
-          <div class="card" style="border-left: 3px solid #f59e0b; opacity: 0.85;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <h4 style="font-size: 1rem; font-weight: 600; color: #f8fafc;">MCP Apps Interactive UI Extensions</h4>
-              <span class="badge badge-claimed">PLANNED / NOT IMPLEMENTED</span>
-            </div>
-            <p style="font-size: 0.825rem; color: #94a3b8; line-height: 1.5;">
-              Sandboxed <code>ui://</code> HTML/SVG visual artifacts for Job-Fit radar charts and PR diff viewers (scheduled for P13.5-005).
+              Public listing on <code>registry.modelcontextprotocol.io</code> via verified <code>server.json</code> metadata (scheduled for Phase 14 public staging).
             </p>
           </div>
         </div>

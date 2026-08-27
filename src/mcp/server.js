@@ -32,6 +32,7 @@ import {
   registerCareerWriteTools,
   registerCareerTrackingTools,
 } from './tools/index.js';
+import { registerCareerMcpApps } from './apps/index.js';
 
 /**
  * Normalizes inputSchema into a standard JSON schema wrapped with fromJsonSchema.
@@ -282,6 +283,7 @@ export class McpServerWrapper {
           description: definition.description,
           inputSchema: toMcpInputSchema(definition.inputSchema),
           ...(definition.annotations ? { annotations: definition.annotations } : {}),
+          ...(definition._meta ? { _meta: definition._meta } : {}),
         },
         async (args, extra) => {
           const context = authInfo || extra?.authInfo || extra?.context;
@@ -308,6 +310,7 @@ export class McpServerWrapper {
               },
             ],
             ...(result && typeof result === 'object' ? { structuredData: result } : {}),
+            ...(result?._meta ? { _meta: result._meta } : {}),
           };
         }
       );
@@ -438,6 +441,7 @@ export {
   registerCareerArtifactTools,
   registerCareerWriteTools,
   registerCareerTrackingTools,
+  registerCareerMcpApps,
 };
 
 /**
@@ -453,6 +457,7 @@ export function createCareerMcpServer(options = {}) {
   registerCareerArtifactTools(server, toolDeps);
   registerCareerWriteTools(server, toolDeps);
   registerCareerTrackingTools(server, toolDeps);
+  registerCareerMcpApps(server, toolDeps);
   return server;
 }
 

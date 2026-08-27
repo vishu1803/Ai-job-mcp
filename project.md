@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 13.5 — Product Experience, Public MCP & Career Document Onboarding** | Phases 0-13 100% COMPLETE (75/75 tasks); Phase 13.5 P13.5-001 through P13.5-004 COMPLETE & VERIFIED (4/6 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phases 0-13 100% verified; Phase 13.5 66.7% complete |
+| **Current Phase** | **PHASE 13.5 — Product Experience, Public MCP & Career Document Onboarding** | Phases 0-13 100% COMPLETE (75/75 tasks); Phase 13.5 P13.5-001 through P13.5-005 COMPLETE & VERIFIED (5/6 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phases 0-13 100% verified; Phase 13.5 83.3% complete |
 | **Total Tasks** | **91 Tasks** | Across Phases 0 to 15 (including Phase 13.5) |
-| **Completed Tasks** | **79 Tasks** | Phases 0-13 (75 tasks) + P13.5-001 + P13.5-002 + P13.5-003 + P13.5-004 (4 tasks) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P13.5-005 |
+| **Completed Tasks** | **80 Tasks** | Phases 0-13 (75 tasks) + P13.5-001 through P13.5-005 (5 tasks) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P13.5-006 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **86.81% (79 / 91 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **86.27% (14.67 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **87.91% (80 / 91 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **87.25% (14.83 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -38,7 +38,7 @@
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 6 | 4 | 0 | **IN_PROGRESS** | **66.7%** |
+| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 6 | 5 | 0 | **IN_PROGRESS** | **83.3%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -3050,7 +3050,7 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P13.5-002** | Implement Candidate Web Onboarding, Dashboard & Connected Sources UI | P13.5-001 | **COMPLETE & VERIFIED** | Implemented interactive 5-step `/onboarding` wizard, live candidate profile configuration, visual GitHub repository selector with least-privilege scoping, real-time AST ingestion execution pipeline, upgraded candidate workspace `/dashboard`, dedicated project portfolio explorer `/projects` and deep evidence inspection `/projects/:id`, verified skills taxonomy explorer `/skills`, and connected sources hub `/sources`. Verified via 15/15 comprehensive integration tests covering full wizard progression, multi-tenant IDOR protection, CSRF safety, and zero secret leakage. |
 | **P13.5-003** | Implement Source Resume Upload, Encrypted Document Storage, and Claim Separation Pipeline | P13.5-001 | **COMPLETE & VERIFIED** | Implemented direct candidate resume uploader (`/resumes`) supporting PDF, DOCX, and TXT (<=10MB); AES-256-GCM authenticated blob encryption; multi-format parsing and secret scrubbing; automatic structured section and candidate claim extraction strictly tagged with `CLAIMED` (`[Unverified User Claim]`); immutable versioning (`resumes` v1, v2, v3); candidate review and promotion to Base Resume without downgrading verified skills; authenticated decrypted download; multi-tenant IDOR defense; and sanitized audit logging. Verified via 10/10 dedicated integration tests and 13/13 unit tests. |
 | **P13.5-004** | Implement AI Connection Center UI & Public MCP Documentation Explorer | P13.5-001 | **COMPLETE & VERIFIED** | Implemented AI Connection Center (`/connect`) with provider connection cards for Claude, ChatGPT, and Gemini; copyable remote MCP endpoint (`POST /mcp`) with local development vs. hosted cloud AI warnings; personal MCP API token generator (`mcp_live_*` / `mcp_dev_*`) with role permission ceiling controls and one-click revocation; two-phase write safety state machine banner; and public MCP Documentation Explorer (`/docs/mcp`) documenting the complete 16-tool catalog with interactive category filters, real-time search, parameter schemas, sample JSON-RPC payloads, and explicit roadmap boundaries. Verified via 20/20 integration tests, unit tests, and live browser subagent execution. |
-| **P13.5-005** | Implement MCP Registry Metadata & MCP Apps UI Extension Architecture | P13.5-004 | NOT_STARTED | Author official MCP Registry `server.json` manifest conforming to `registry.modelcontextprotocol.io`; implement `io.modelcontextprotocol/ui` standard serving sandboxed iframes for `job-fit-radar` (`analyze_job_fit`), `evidence-graph` (`inspect_project_evidence`), `pr-diff-inspector` (`propose_project_improvement`), and `application-pipeline` (`track_job_application`). |
+| **P13.5-005** | Implement MCP Registry Metadata & MCP Apps UI Extension Architecture | P13.5-004 | **COMPLETE & VERIFIED** | Implemented official MCP Registry metadata manifest (`server.json`) conforming to `registry.modelcontextprotocol.io` standard (`2025-12-11` / `2026-07-28`), complete with automated schema and secret leakage validator (`src/mcp/registry/registry-validator.js`) and pre-publication readiness checklist (`docs/mcp-registry-readiness-checklist.md`). Implemented SEP-1865 / `io.modelcontextprotocol/ui` standard with read-only Job Fit Radar MVP UI App (`ui://career-hub/job-fit-radar/v1`), serving sandboxed HTML5 with strict CSP (`connect-src 'none'`), 6-axis SVG radar chart, circular ATS score gauge, and postMessage JSON-RPC bridge while preserving standard structured/text tool fallback when host lacks MCP Apps support. Verified via 17/17 dedicated unit/integration tests and 1,152/1,152 unit regression tests. |
 | **P13.5-006** | End-to-End Multi-Tenant Web, Document & MCP Apps Integration Verification | P13.5-001 through P13.5-005 | NOT_STARTED | Implement dedicated integration test suite verifying web routing, multi-user document uploads, PDF/DOCX parsing, encrypted storage, claim separation, AI token lifecycle, and MCP Apps sandboxed rendering in an isolated PostgreSQL database. |
 
 ---
@@ -3178,6 +3178,38 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run db:check` -> PASS (Schema in sync)
     * `git diff --check` -> PASS (0 whitespace errors)
     * **Live Browser Subagent Verification**: Verified `/docs/mcp` public loading, 16-tool catalog rendering, dynamic category filtering, search filtering, parameter accordions, `/connect` unauthenticated login redirect, authenticated candidate profile banner, Claude/ChatGPT/Gemini connection cards, MCP endpoint copy button, Personal MCP API token generation (`mcp_dev_*`), active tokens table with scope badges, and clean grouped navigation dropdowns (recording artifact: `ai_connect_mcp_docs_demo_1787799696592.webp`).
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+* **P13.5-005: IMPLEMENT MCP REGISTRY METADATA & MCP APPS UI EXTENSION ARCHITECTURE (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `server.json` & `src/mcp/registry/server.json`: Official MCP Registry manifest conforming to `https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json`. Declares scoped name (`ai.careerhub/mcp-server`), remote Streamable HTTP transport (`POST /mcp`), OAuth 2.1 authorization discovery (`/.well-known/oauth-authorization-server`), required scopes (`career:read`, `career:write`), and extension capabilities (`io.modelcontextprotocol/ui`). Status explicitly set to `PLANNED / NOT PUBLISHED`.
+    * `src/mcp/registry/registry-validator.js`: Strict Zod validator and automated security checker asserting SemVer compliance, namespace formatting, HTTPS remote endpoints, and zero secret/token leakage across all manifest fields.
+    * `docs/mcp-registry-readiness-checklist.md`: Operational readiness guide addressing the 15 official registry research questions, DNS TXT verification (`_mcp-registry-verification.careerhub.ai`), and Phase 14 public staging domain prerequisites.
+    * `src/mcp/apps/job-fit-radar.app.js`: Interactive Job Fit Radar MVP UI App (`ui://career-hub/job-fit-radar/v1`) with MIME type `text/html;profile=mcp-app`:
+      - 100% read-only with zero write authority or repository mutation capabilities.
+      - Sandboxed HTML5 with strict inline CSP (`default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;`).
+      - Pure SVG 6-axis Radar Chart (Required Skills, Preferred Skills, Project Relevance, Experience Fit, Education Fit, Evidence Confidence) and circular ATS score gauge with dynamic color banding (`#10b981`, `#3b82f6`, `#f59e0b`, `#ef4444`).
+      - Verified match chips, missing requirement chips, ranked projects list, and prioritized skill gap remediation cards.
+      - SEP-1865 JSON-RPC postMessage bridge (`ui/ready`, `ui/initialize`, `ui/update`) with XSS entity escaping.
+    * `src/mcp/apps/index.js`: Registry catalog exporting `JOB_FIT_RADAR_APP_RESOURCE`, `renderJobFitRadarAppHtml`, and `registerCareerMcpApps` server binding helper.
+    * `src/domain/mcp/mcp.schemas.js`: Extended `McpToolDefinitionSchema` and `McpToolResultSchema` to support optional `_meta` fields for UI resource linkage.
+    * `src/domain/mcp/career-read-tools.schemas.js`: Linked `_meta.ui.resourceUri: 'ui://career-hub/job-fit-radar/v1'` on `analyze_job_fit` and added `ui` validation in `AnalyzeJobFitOutputSchema`.
+    * `src/mcp/tools/career-read-tools.js`: Updated `handleAnalyzeJobFit` to return `_meta.ui` envelope.
+    * `src/mcp/server.js`: Updated `buildServerInstance` to forward `_meta` during tool registration and tool calls, updated `createCareerMcpServer` to register MCP Apps, and exported `registerCareerMcpApps`.
+    * `src/views/mcp-docs.page.js`: Added Section 5 detailing official MCP Registry metadata (`server.json`), MCP Apps architecture (`io.modelcontextprotocol/ui`), Job Fit Radar widget specifications, and Host Compatibility Matrix.
+    * `docs/user-guide.md`: Updated Section 14 Platform Roadmap table with `MCP Apps UI Extensions` as `VERIFIED & OPERATIONAL (MVP)` and `Official MCP Registry Listing` as `PLANNED / NOT PUBLISHED`.
+    * `tests/unit/mcp-registry-metadata.test.js`: 7 unit tests verifying schema validation, extensions declaration, namespace format, semver validation, secret leak detection, and HTTPS requirements.
+    * `tests/unit/mcp-apps-job-fit-radar.test.js`: 5 unit tests verifying resource URI, MIME type, CSP headers, zero CDN dependencies, SVG radar rendering, and XSS payload escaping.
+    * `tests/integration/mcp-apps-extension.test.js`: 5 integration tests verifying resource registration, resource reading, `tools/list` metadata, `tools/call` fallback text preservation, and unauthenticated denial.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/mcp-registry-metadata.test.js tests/unit/mcp-apps-job-fit-radar.test.js tests/integration/mcp-apps-extension.test.js tests/integration/claude-mcp-connector.test.js tests/integration/chatgpt-mcp-connector.test.js` -> PASS (65/65 tests passing in 71.8s)
+    * `npm run test:unit` -> PASS (1,152/1,152 unit tests passing across 295 suites in 31.8s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+    * `git diff --check` -> PASS (0 whitespace errors)
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---

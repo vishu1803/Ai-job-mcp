@@ -1,9 +1,18 @@
 import { performance } from 'node:perf_hooks';
+import dns from 'node:dns';
 import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { config } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import { schema } from './schema.js';
+
+try {
+  if (typeof dns.setDefaultResultOrder === 'function') {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+} catch {
+  // Ignore in environments where setDefaultResultOrder is unavailable
+}
 
 const { Pool } = pg;
 
@@ -79,6 +88,8 @@ export function getPoolConfig(overrides = {}) {
     statement_timeout: config.DATABASE_STATEMENT_TIMEOUT_MS,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
     ...overrides,
   };
 }

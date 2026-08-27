@@ -490,6 +490,11 @@ export const AnalyzeJobFitOutputSchema = z
             ttlMs: z.number().int().positive(),
           })
           .optional(),
+        ui: z
+          .object({
+            resourceUri: z.string(),
+          })
+          .optional(),
       })
       .optional(),
   })
@@ -539,5 +544,10 @@ export const CAREER_READ_TOOL_DEFINITIONS = Object.freeze({
     requiredRole: McpRoleEnum.enum.READONLY,
     requiredScopes: ['career:read'],
     annotations: CAREER_READ_TOOL_ANNOTATIONS,
+    _meta: {
+      ui: {
+        resourceUri: 'ui://career-hub/job-fit-radar/v1',
+      },
+    },
   },
 });

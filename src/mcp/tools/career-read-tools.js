@@ -716,6 +716,9 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     },
     _meta: {
       cacheControl: DEFAULT_CACHE_CONTROL,
+      ui: {
+        resourceUri: 'ui://career-hub/job-fit-radar/v1',
+      },
     },
   };
 

@@ -202,6 +202,7 @@ export const McpToolDefinitionSchema = z
     requiredRole: McpRoleEnum.default('READONLY'),
     requiredScopes: z.array(z.string()).default(['career:read']),
     annotations: z.record(z.any()).optional(),
+    _meta: z.record(z.any()).optional(),
   })
   .strict();
 
@@ -242,6 +243,7 @@ export const McpToolResultSchema = z
     content: z.array(McpToolContentItemSchema),
     isError: z.boolean().default(false),
     structuredData: z.record(z.any()).optional(),
+    _meta: z.record(z.any()).optional(),
   })
   .strict();
 
