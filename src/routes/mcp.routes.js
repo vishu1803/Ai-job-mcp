@@ -126,6 +126,11 @@ export async function mcpRoutes(fastify, opts = {}) {
   // Ensure MCP handler is initialized
   await mcpServer.start();
 
+  // Register graceful teardown hook
+  fastify.addHook('onClose', async () => {
+    await mcpServer.close();
+  });
+
   // Fastify route handler for MCP Streamable HTTP transport
   fastify.post(
     '/',

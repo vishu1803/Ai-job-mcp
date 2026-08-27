@@ -15,6 +15,7 @@ import candidateRoutes from './routes/candidate.routes.js';
 import accountRoutes from './routes/account.routes.js';
 import webRoutes from './routes/web.routes.js';
 import { config } from './config/env.js';
+import { db as defaultDb } from './db/index.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
 import { GitHubAppAuthManager } from './connectors/github/auth.js';
@@ -49,6 +50,14 @@ export function buildApp(opts = {}) {
     },
     requestIdHeader: 'x-request-id',
     ...fastifyOpts,
+  });
+
+  const activeDb = opts.db || defaultDb;
+  app.decorate('db', activeDb);
+  app.decorateRequest('db', {
+    getter() {
+      return this.server.db;
+    },
   });
 
   // Ensure request correlation ID is echoed in the response header

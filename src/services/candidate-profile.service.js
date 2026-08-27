@@ -32,10 +32,14 @@ import { EvidenceRefMapper } from './evidence/evidence-ref-mapper.js';
 
 export class CandidateProfileService {
   /**
-   * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [database]
+   * @param {import('drizzle-orm/node-postgres').NodePgDatabase|object} [database]
    */
   constructor(database = null) {
-    this.db = database || defaultDb;
+    if (database && typeof database === 'object' && !database.select) {
+      this.db = database.db || database.database || defaultDb;
+    } else {
+      this.db = database || defaultDb;
+    }
   }
 
   get _db() {

@@ -972,10 +972,10 @@ export function renderMcpDocsPage({ user = null } = {}) {
         <div class="card" style="margin-bottom: 1.5rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
             <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">5.1 Official Registry Manifest (<code>server.json</code>)</h3>
-            <span class="badge badge-claimed">READY FOR SUBMISSION AFTER PUBLIC STAGING</span>
+            <span class="badge badge-claimed">PLANNED / NOT PUBLISHED</span>
           </div>
           <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem;">
-            Conforms strictly to the official MCP Registry schema (<code>https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json</code>). Public submission is explicitly <strong>BLOCKED UNTIL PUBLIC STAGING</strong> because the official registry requires a permanent, publicly reachable HTTPS endpoint.
+            Conforms strictly to the official MCP Registry schema (<code>https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json</code>). Public submission is explicitly <strong>BLOCKED UNTIL PUBLIC STAGING</strong> (PLANNED / NOT PUBLISHED) because the official registry requires a permanent, publicly reachable HTTPS endpoint.
           </p>
 
           <pre style="background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1rem; color: #38bdf8; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; margin-bottom: 1rem;">{
@@ -1022,7 +1022,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
         <div class="card" style="margin-bottom: 1.5rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
             <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">5.2 MCP Apps UI Extension (<code>io.modelcontextprotocol/ui</code>)</h3>
-            <span class="badge badge-verified">IMPLEMENTED FOR JOB-FIT RADAR</span>
+            <span class="badge badge-verified">PLANNED / NOT IMPLEMENTED (MVP DEMO AVAILABLE)</span>
           </div>
           <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem;">
             Implements <strong>SEP-1865</strong> (Model Context Protocol Apps). The Career Hub server exposes interactive UI widgets rendered in sandboxed iframes. <em>Host support must be verified per client.</em>
