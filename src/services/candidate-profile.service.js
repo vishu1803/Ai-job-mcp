@@ -14,7 +14,7 @@
  */
 
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db as defaultDb } from '../db/index.js';
 import {
   users,
   candidates,
@@ -32,6 +32,16 @@ import { EvidenceRefMapper } from './evidence/evidence-ref-mapper.js';
 
 export class CandidateProfileService {
   /**
+   * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [database]
+   */
+  constructor(database = null) {
+    this.db = database || defaultDb;
+  }
+
+  get _db() {
+    return this.db || defaultDb;
+  }
+  /**
    * Retrieves a full candidate profile view aggregating identities, resources, projects,
    * verified skills, and manual user claims without sensitive credentials.
    *
@@ -48,7 +58,7 @@ export class CandidateProfileService {
     const tenantId = context.tenantId;
 
     // 1. Fetch Candidate Root
-    const [candidate] = await db
+    const [candidate] = await this._db
       .select()
       .from(candidates)
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
@@ -58,7 +68,7 @@ export class CandidateProfileService {
     }
 
     // 2. Fetch Candidate Identities (without credentials)
-    const rawIdentities = await db
+    const rawIdentities = await this._db
       .select()
       .from(candidateIdentities)
       .where(
@@ -82,7 +92,7 @@ export class CandidateProfileService {
     }));
 
     // 3. Fetch Connected Resources (scrubbed of encryptedCredentials)
-    const rawResources = await db
+    const rawResources = await this._db
       .select()
       .from(resources)
       .where(and(eq(resources.tenantId, tenantId), eq(resources.candidateId, candidateId)));
@@ -102,7 +112,7 @@ export class CandidateProfileService {
     }));
 
     // 4. Fetch Projects & Linked Evidence
-    const rawProjects = await db
+    const rawProjects = await this._db
       .select()
       .from(projects)
       .where(and(eq(projects.tenantId, tenantId), eq(projects.candidateId, candidateId)))
@@ -111,7 +121,7 @@ export class CandidateProfileService {
     const projectList = [];
     for (const proj of rawProjects) {
       // Find linked resources count
-      const linkedRes = await db
+      const linkedRes = await this._db
         .select()
         .from(projectResources)
         .where(
@@ -119,7 +129,7 @@ export class CandidateProfileService {
         );
 
       // Find project evidence items
-      const projEvidenceRows = await db
+      const projEvidenceRows = await this._db
         .select({
           id: evidenceItems.id,
           tenantId: evidenceItems.tenantId,
@@ -167,7 +177,7 @@ export class CandidateProfileService {
     }
 
     // 5. Fetch Skills & Claims
-    const rawCandidateSkills = await db
+    const rawCandidateSkills = await this._db
       .select({
         cs: candidateSkills,
         skillSlug: skills.slug,
@@ -184,7 +194,7 @@ export class CandidateProfileService {
     for (const { cs, skillSlug, skillName } of rawCandidateSkills) {
       let primaryEvidenceRef = null;
       if (cs.primaryEvidenceId) {
-        const [primaryRow] = await db
+        const [primaryRow] = await this._db
           .select()
           .from(evidenceItems)
           .where(
@@ -257,7 +267,7 @@ export class CandidateProfileService {
     const pageSize = Math.min(100, Math.max(1, parseInt(options.pageSize, 10) || 20));
     const offset = (page - 1) * pageSize;
 
-    const rows = await db
+    const rows = await this._db
       .select()
       .from(candidates)
       .where(eq(candidates.tenantId, tenantId))
@@ -265,7 +275,7 @@ export class CandidateProfileService {
       .limit(pageSize)
       .offset(offset);
 
-    const [totalRow] = await db
+    const [totalRow] = await this._db
       .select({ count: sql`count(*)` })
       .from(candidates)
       .where(eq(candidates.tenantId, tenantId));
@@ -323,7 +333,7 @@ export class CandidateProfileService {
       systemInferred: {},
     };
 
-    const [candidate] = await db
+    const [candidate] = await this._db
       .insert(candidates)
       .values({
         tenantId,
@@ -366,7 +376,7 @@ export class CandidateProfileService {
 
     const tenantId = context.tenantId;
 
-    const [existing] = await db
+    const [existing] = await this._db
       .select()
       .from(candidates)
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
@@ -411,7 +421,7 @@ export class CandidateProfileService {
       };
     }
 
-    const [updated] = await db
+    const [updated] = await this._db
       .update(candidates)
       .set(updatePayload)
       .where(eq(candidates.id, existing.id))
@@ -447,7 +457,7 @@ export class CandidateProfileService {
 
     const tenantId = context.tenantId;
 
-    const [candidate] = await db
+    const [candidate] = await this._db
       .select()
       .from(candidates)
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
@@ -460,7 +470,7 @@ export class CandidateProfileService {
 
     const normalizedSlug = skillSlug.toLowerCase().trim();
 
-    return await db.transaction(async (tx) => {
+    return await this._db.transaction(async (tx) => {
       // 1. Resolve or provision canonical skill
       let [skill] = await tx.select().from(skills).where(eq(skills.slug, normalizedSlug));
 
@@ -573,7 +583,7 @@ export class CandidateProfileService {
 
     const tenantId = context.tenantId;
 
-    const [candidate] = await db
+    const [candidate] = await this._db
       .select()
       .from(candidates)
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
@@ -584,7 +594,7 @@ export class CandidateProfileService {
 
     await this._assertCanMutateCandidate(context, candidate);
 
-    return await db.transaction(async (tx) => {
+    return await this._db.transaction(async (tx) => {
       const [existing] = await tx
         .select()
         .from(candidateSkills)
@@ -647,7 +657,7 @@ export class CandidateProfileService {
 
     const tenantId = context.tenantId;
 
-    const [candidate] = await db
+    const [candidate] = await this._db
       .select()
       .from(candidates)
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
@@ -658,7 +668,7 @@ export class CandidateProfileService {
 
     await this._assertCanMutateCandidate(context, candidate);
 
-    const [updated] = await db
+    const [updated] = await this._db
       .update(candidates)
       .set({ status: 'ARCHIVED', updatedAt: new Date() })
       .where(eq(candidates.id, candidate.id))
@@ -691,7 +701,7 @@ export class CandidateProfileService {
 
     const tenantId = context.tenantId;
 
-    const [candidate] = await db
+    const [candidate] = await this._db
       .select()
       .from(candidates)
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
@@ -702,7 +712,7 @@ export class CandidateProfileService {
 
     await this._assertCanMutateCandidate(context, candidate);
 
-    const [updated] = await db
+    const [updated] = await this._db
       .update(candidates)
       .set({ status: 'ACTIVE', updatedAt: new Date() })
       .where(eq(candidates.id, candidate.id))
@@ -736,7 +746,7 @@ export class CandidateProfileService {
 
     const tenantId = context.tenantId;
 
-    const [candidate] = await db
+    const [candidate] = await this._db
       .select()
       .from(candidates)
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
@@ -748,7 +758,7 @@ export class CandidateProfileService {
     await this._assertCanMutateCandidate(context, candidate);
 
     // Fetch connected resources for candidate
-    const connectedResources = await db
+    const connectedResources = await this._db
       .select()
       .from(resources)
       .where(and(eq(resources.tenantId, tenantId), eq(resources.candidateId, candidateId)));
@@ -761,7 +771,7 @@ export class CandidateProfileService {
     };
 
     // Update systemInferred metadata ONLY; narrative fields (displayName, headline, summary) remain untouched!
-    await db
+    await this._db
       .update(candidates)
       .set({
         profileMetadata: {
@@ -818,7 +828,7 @@ export class CandidateProfileService {
    */
   async _resolveUserRole(context) {
     if (context.userId && context.tenantId) {
-      const [u] = await db
+      const [u] = await this._db
         .select({ role: users.role })
         .from(users)
         .where(and(eq(users.id, context.userId), eq(users.tenantId, context.tenantId)));
