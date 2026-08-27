@@ -276,3 +276,34 @@ You have the absolute right to be forgotten:
 | **MCP write tool returns 403 FORBIDDEN** | Token lacks `career:write` scope | Generate an MCP API token with `MEMBER` or `OWNER` role, or authorize the `career:write` scope during OAuth consent. |
 | **Pull Request proposal fails with HEAD_SHA_MISMATCH** | Remote repository was updated after proposal generation | Re-run `propose_project_improvement` to generate a fresh ticket against the latest branch commit. |
 | **Public staging endpoint unreachable** | Public staging domain not yet configured | Feature is `BLOCKED UNTIL PUBLIC STAGING`. Follow [`docs/staging-deployment-runbook.md`](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/docs/staging-deployment-runbook.md) when a domain is provisioned. |
+
+---
+
+## 13. AI Connection Center & Public MCP Documentation Explorer
+
+### 13.1 AI Connection Center (`/connect`) (`VERIFIED`)
+Accessible from the top navigation bar, the AI Connection Center enables authenticated candidates to:
+* **View Provider Connection Status**: Live status badges and configuration guides for Anthropic Claude, OpenAI ChatGPT, and Google Gemini.
+* **Copy Universal Remote MCP Endpoint**: Copyable endpoint (`POST /mcp`) with explicit guidance on local development vs. remote hosted cloud AI tunnels.
+* **Generate & Manage Personal MCP API Tokens**: Issue high-entropy tokens (`mcp_live_*` / `mcp_dev_*`) with role permission ceiling enforcement, custom expiration windows (30, 60, 90 days, or no expiration), and immediate one-click revocation.
+* **Two-Phase Write Safety Verification**: Visual walkthrough of the non-negotiable human approval state machine.
+
+### 13.2 Public Developer Documentation Explorer (`/docs/mcp`) (`VERIFIED`)
+A public developer documentation portal detailing:
+* **Streamable HTTP Transport**: Protocol revision `2026-07-28` with SSE event streaming and JSON-RPC 2.0 error schemas.
+* **Interactive 16-Tool Catalog**: Filterable and searchable tool catalog with complete parameter specifications, scope requirements, and sample JSON-RPC payloads.
+* **OAuth 2.1 RFC 8414 & RFC 9728 Discovery**: Specifications for metadata endpoints and PKCE S256 code exchange.
+* **Client Quickstart Guides**: Copyable configuration snippets for Claude Desktop (`claude_desktop_config.json`), Custom GPT Actions, and Gemini Antigravity SDK scripts.
+
+---
+
+## 14. Platform Roadmap & Boundaries
+
+| Capability | Phase | Status | Notes |
+| :--- | :--- | :--- | :--- |
+| **Remote MCP Server (16 Tools)** | Phase 7–13.5 | `VERIFIED & OPERATIONAL` | Fully operational over Streamable HTTP with OAuth 2.1 & Personal Tokens. |
+| **AI Connection Center & Docs** | Phase 13.5 (P13.5-004) | `VERIFIED & OPERATIONAL` | Web UI available at `/connect` and `/docs/mcp`. |
+| **Official MCP Registry Listing** | Phase 13.5 / 14 | `PLANNED / NOT PUBLISHED` | `server.json` catalog entry for `registry.modelcontextprotocol.io`. |
+| **MCP Apps UI Extensions** | Phase 13.5 (P13.5-005) | `PLANNED / NOT IMPLEMENTED` | Sandboxed `ui://` interactive widgets for in-chat radar charts and PR diff reviews. |
+| **Public Staging Deployment** | Phase 14 | `REQUIRES FUTURE DOMAIN` | Cloudflare Named Tunnel with verified staging domain. |
+| **Local MCP Testing** | Phase 1–13.5 | `LOCAL DEVELOPMENT ONLY` | Localhost (`http://localhost:3000/mcp`) for local processes; requires HTTPS tunnel for hosted AI. |

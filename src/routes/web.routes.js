@@ -50,6 +50,7 @@ import { renderConnectPage } from '../views/connect.page.js';
 import { renderSettingsPage } from '../views/settings.page.js';
 import { renderMcpDocsPage } from '../views/mcp-docs.page.js';
 import { sourceResumeIngestionService as defaultSourceResumeIngestionService } from '../services/source-resume-ingestion.service.js';
+import { defaultMcpApiTokenService } from '../services/mcp-api-token.service.js';
 import { NotFoundError } from '../errors/index.js';
 
 /**
@@ -130,6 +131,7 @@ export default async function webRoutes(app, opts = {}) {
     opts.ingestionService || new CandidateRepositoryIngestionService({ db: database });
   const connectionService = opts.connectionService || defaultConnectionService;
   const resumeService = opts.resumeService || defaultSourceResumeIngestionService;
+  const tokenService = opts.tokenService || defaultMcpApiTokenService;
 
   // -------------------------------------------------------------------------
   // 1. GET / — Public Landing Page (with JSON fallback for API clients)
@@ -754,7 +756,7 @@ export default async function webRoutes(app, opts = {}) {
   });
 
   // -------------------------------------------------------------------------
-  // 14. GET /connect — Authenticated AI Connection Center
+  // 14. GET /connect — Authenticated AI Connection Center & Token Management
   // -------------------------------------------------------------------------
   app.get('/connect', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
@@ -773,11 +775,189 @@ export default async function webRoutes(app, opts = {}) {
       return reply.redirect('/login?returnTo=/connect');
     }
 
+    const { user, tenant, session } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    // List active personal tokens
+    const mcpTokens = await tokenService.listTokens(
+      {
+        tenantId: tenant.id,
+        userId: user.id,
+        role: user.role,
+      },
+      { db: database }
+    );
+
+    // Filter only ACTIVE unexpired tokens for standard view
+    const now = new Date();
+    const activeTokens = mcpTokens.filter(
+      (t) => t.status === 'ACTIVE' && (!t.expiresAt || new Date(t.expiresAt) > now)
+    );
+
+    const query = req.query || {};
+    const newRawToken = query.rawToken ? String(query.rawToken) : '';
+    const newTokenName = query.tokenName ? String(query.tokenName) : '';
+    let flashMessage = '';
+    if (query.revoked === 'true') {
+      flashMessage = 'Personal MCP API token successfully revoked.';
+    } else if (query.created === 'true') {
+      flashMessage = 'New Personal MCP API token generated successfully.';
+    }
+    const errorMessage = query.error ? String(query.error) : '';
+
+    const protocol = req.protocol || 'http';
+    const host = req.headers.host || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+
     const html = renderConnectPage({
-      user: sessionContext.user,
-      tenant: sessionContext.tenant,
+      user,
+      tenant,
+      candidate,
+      mcpTokens: activeTokens,
+      newRawToken,
+      newTokenName,
+      csrfToken: session.token,
+      flashMessage,
+      errorMessage,
+      baseUrl,
     });
     reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // -------------------------------------------------------------------------
+  // 14b. POST /connect/tokens — Generate Personal MCP API Token
+  // -------------------------------------------------------------------------
+  app.post('/connect/tokens', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const accept = req.headers['accept'] || '';
+    const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
+
+    if (!sessionContext) {
+      if (wantsJson) {
+        return reply.status(401).send({
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Authentication required. Missing session cookie.',
+          },
+        });
+      }
+      return reply.redirect('/login?returnTo=/connect');
+    }
+
+    const { user, tenant } = sessionContext;
+    const body = req.body || {};
+
+    const name = String(body.name || 'Personal Agent Token').trim();
+    let scopes = ['career:read'];
+    if (Array.isArray(body.scopes)) {
+      scopes = body.scopes.map(String);
+    } else if (typeof body.scopes === 'string') {
+      scopes = [body.scopes];
+    }
+
+    let expiryDays = 30;
+    if (body.expiryDays !== undefined && body.expiryDays !== '') {
+      expiryDays = Number(body.expiryDays);
+      if (isNaN(expiryDays)) expiryDays = 30;
+    }
+
+    try {
+      const tokenResult = await tokenService.createToken(
+        {
+          tenantId: tenant.id,
+          userId: user.id,
+          role: user.role,
+          name,
+          scopes,
+          expiryDays,
+          clientType: 'PERSONAL',
+        },
+        { db: database }
+      );
+
+      if (wantsJson) {
+        return reply.status(201).send({
+          success: true,
+          data: {
+            rawToken: tokenResult.rawToken,
+            token: tokenResult.token,
+          },
+        });
+      }
+
+      return reply.redirect(
+        `/connect?created=true&rawToken=${encodeURIComponent(tokenResult.rawToken)}&tokenName=${encodeURIComponent(tokenResult.token.name)}`
+      );
+    } catch (err) {
+      if (wantsJson) {
+        return reply.status(err.statusCode || 400).send({
+          error: {
+            code: err.code || 'VALIDATION_ERROR',
+            message: err.message || 'Failed to generate token.',
+          },
+        });
+      }
+      return reply.redirect(
+        `/connect?error=${encodeURIComponent(err.message || 'Failed to generate token.')}`
+      );
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // 14c. POST /connect/tokens/:id/revoke — Revoke Personal MCP API Token
+  // -------------------------------------------------------------------------
+  app.post('/connect/tokens/:id/revoke', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const accept = req.headers['accept'] || '';
+    const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
+
+    if (!sessionContext) {
+      if (wantsJson) {
+        return reply.status(401).send({
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Authentication required. Missing session cookie.',
+          },
+        });
+      }
+      return reply.redirect('/login?returnTo=/connect');
+    }
+
+    const { user, tenant } = sessionContext;
+    const tokenId = req.params?.id;
+
+    try {
+      await tokenService.revokeToken(
+        {
+          tenantId: tenant.id,
+          userId: user.id,
+          role: user.role,
+          tokenId,
+        },
+        { db: database }
+      );
+
+      if (wantsJson) {
+        return reply.send({
+          success: true,
+          message: 'Personal MCP API token revoked successfully.',
+        });
+      }
+
+      return reply.redirect('/connect?revoked=true');
+    } catch (err) {
+      if (wantsJson) {
+        return reply.status(err.statusCode || 404).send({
+          error: {
+            code: err.code || 'NOT_FOUND',
+            message: err.message || 'Token not found or already revoked.',
+          },
+        });
+      }
+      return reply.redirect(
+        `/connect?error=${encodeURIComponent(err.message || 'Failed to revoke token.')}`
+      );
+    }
   });
 
   // -------------------------------------------------------------------------

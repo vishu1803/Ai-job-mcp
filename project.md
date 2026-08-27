@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 13.5 — Product Experience, Public MCP & Career Document Onboarding** | Phases 0-13 100% COMPLETE (75/75 tasks); Phase 13.5 P13.5-001 & P13.5-002 COMPLETE & VERIFIED (2/6 tasks) |
-| **Project State** | **ACTIVE / IN PROGRESS** | Phases 0-13 100% verified; Phase 13.5 in progress bridging human web UX and MCP Apps |
+| **Current Phase** | **PHASE 13.5 — Product Experience, Public MCP & Career Document Onboarding** | Phases 0-13 100% COMPLETE (75/75 tasks); Phase 13.5 P13.5-001 through P13.5-004 COMPLETE & VERIFIED (4/6 tasks) |
+| **Project State** | **ACTIVE / IN PROGRESS** | Phases 0-13 100% verified; Phase 13.5 66.7% complete |
 | **Total Tasks** | **91 Tasks** | Across Phases 0 to 15 (including Phase 13.5) |
-| **Completed Tasks** | **77 Tasks** | Phases 0-13 (75 tasks) + P13.5-001 + P13.5-002 (2 tasks) |
-| **In Progress Tasks** | **0 Tasks** | Ready for P13.5-003 |
+| **Completed Tasks** | **79 Tasks** | Phases 0-13 (75 tasks) + P13.5-001 + P13.5-002 + P13.5-003 + P13.5-004 (4 tasks) |
+| **In Progress Tasks** | **0 Tasks** | Ready for P13.5-005 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **84.62% (77 / 91 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **84.31% (14.33 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **86.81% (79 / 91 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **86.27% (14.67 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -38,7 +38,7 @@
 | **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 6 | 2 | 0 | **IN_PROGRESS** | **33.3%** |
+| **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 6 | 4 | 0 | **IN_PROGRESS** | **66.7%** |
 | **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | 0.0% |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
@@ -3049,7 +3049,7 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P13.5-001** | Implement Human-Facing Web Application Architecture & Public Landing Page | P13.5-001A | **COMPLETE & VERIFIED** | Built modern, high-performance HTML5/Vanilla CSS design system, responsive glassmorphic dark-mode layout, Fastify static/SSR routing (`/`, `/login`, `/onboarding`, `/dashboard`, `/connect`, `/settings`, `/docs/mcp`), and secure browser logout (`POST /auth/logout` with PRG redirect & `GET /auth/logout` safe fallback) while keeping `POST /mcp` strictly reserved for protocol JSON-RPC. Tested with 19 web route integration tests and 18 auth integration tests verifying 0 secret leaks, content negotiation, session authentication, CSRF defense, and protocol integrity. |
 | **P13.5-002** | Implement Candidate Web Onboarding, Dashboard & Connected Sources UI | P13.5-001 | **COMPLETE & VERIFIED** | Implemented interactive 5-step `/onboarding` wizard, live candidate profile configuration, visual GitHub repository selector with least-privilege scoping, real-time AST ingestion execution pipeline, upgraded candidate workspace `/dashboard`, dedicated project portfolio explorer `/projects` and deep evidence inspection `/projects/:id`, verified skills taxonomy explorer `/skills`, and connected sources hub `/sources`. Verified via 15/15 comprehensive integration tests covering full wizard progression, multi-tenant IDOR protection, CSRF safety, and zero secret leakage. |
 | **P13.5-003** | Implement Source Resume Upload, Encrypted Document Storage, and Claim Separation Pipeline | P13.5-001 | **COMPLETE & VERIFIED** | Implemented direct candidate resume uploader (`/resumes`) supporting PDF, DOCX, and TXT (<=10MB); AES-256-GCM authenticated blob encryption; multi-format parsing and secret scrubbing; automatic structured section and candidate claim extraction strictly tagged with `CLAIMED` (`[Unverified User Claim]`); immutable versioning (`resumes` v1, v2, v3); candidate review and promotion to Base Resume without downgrading verified skills; authenticated decrypted download; multi-tenant IDOR defense; and sanitized audit logging. Verified via 10/10 dedicated integration tests and 13/13 unit tests. |
-| **P13.5-004** | Implement AI Connection Center UI & Public MCP Documentation Explorer | P13.5-001 | NOT_STARTED | Build `/connect` AI hub with visual connection status badges for Claude, ChatGPT, and Gemini; personal MCP API token generator with role ceiling controls; one-click token revocation; and `/docs/mcp` interactive tool catalog explorer with JSON Schema inspector. |
+| **P13.5-004** | Implement AI Connection Center UI & Public MCP Documentation Explorer | P13.5-001 | **COMPLETE & VERIFIED** | Implemented AI Connection Center (`/connect`) with provider connection cards for Claude, ChatGPT, and Gemini; copyable remote MCP endpoint (`POST /mcp`) with local development vs. hosted cloud AI warnings; personal MCP API token generator (`mcp_live_*` / `mcp_dev_*`) with role permission ceiling controls and one-click revocation; two-phase write safety state machine banner; and public MCP Documentation Explorer (`/docs/mcp`) documenting the complete 16-tool catalog with interactive category filters, real-time search, parameter schemas, sample JSON-RPC payloads, and explicit roadmap boundaries. Verified via 20/20 integration tests, unit tests, and live browser subagent execution. |
 | **P13.5-005** | Implement MCP Registry Metadata & MCP Apps UI Extension Architecture | P13.5-004 | NOT_STARTED | Author official MCP Registry `server.json` manifest conforming to `registry.modelcontextprotocol.io`; implement `io.modelcontextprotocol/ui` standard serving sandboxed iframes for `job-fit-radar` (`analyze_job_fit`), `evidence-graph` (`inspect_project_evidence`), `pr-diff-inspector` (`propose_project_improvement`), and `application-pipeline` (`track_job_application`). |
 | **P13.5-006** | End-to-End Multi-Tenant Web, Document & MCP Apps Integration Verification | P13.5-001 through P13.5-005 | NOT_STARTED | Implement dedicated integration test suite verifying web routing, multi-user document uploads, PDF/DOCX parsing, encrypted storage, claim separation, AI token lifecycle, and MCP Apps sandboxed rendering in an isolated PostgreSQL database. |
 
@@ -3143,6 +3143,41 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run db:check` -> PASS (Schema in sync)
     * `git diff --check` -> PASS (0 whitespace errors)
     * **Live Browser Subagent Verification**: Verified candidate context banner on `/resumes` for logged-in user, clean non-overcrowded grouped navigation across `/dashboard`, `/projects`, `/skills`, `/sources`, `/connect`, `/settings`, and `/resumes`, functional user profile dropdown, and unauthenticated login redirects.
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+* **P13.5-004: IMPLEMENT AI CONNECTION CENTER UI & PUBLIC MCP DOCUMENTATION EXPLORER (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/views/connect.page.js`: Upgraded the AI Connection Center (`GET /connect`) into a rich, responsive connection management hub:
+      1. Candidate Profile Context Header: Displays active candidate initials avatar, display name, verified canonical email, role badge, and active token count.
+      2. Universal MCP Endpoint Box: Copyable endpoint (`POST /mcp`) with clipboard feedback and prominent warning distinguishing local process access (localhost) from hosted cloud AI connections (requiring public HTTPS tunnel / staging domain).
+      3. AI Provider Connection Cards:
+         - **Anthropic Claude**: OAuth 2.1 PKCE S256 status (`Client-Managed OAuth 2.1`), discovery endpoints (`/.well-known/oauth-authorization-server`), RFC 8707 resource targeting, scope breakdown (`career:read`, `career:write`), and interactive accordion guide for Claude Desktop (`claude_desktop_config.json`) and Claude.ai Web Connectors.
+         - **OpenAI ChatGPT**: OAuth 2.1 Protected Resource discovery (`/.well-known/oauth-protected-resource`), client IDs (`chatgpt-web`, `chatgpt-desktop`), and Custom GPT Actions setup guide with callback URLs (`https://chatgpt.com/api/mcp/oauth_callback`).
+         - **Google Gemini**: High-entropy Personal MCP API Token authentication (`Bearer mcp_live_*`), Antigravity SDK agent guides, and CLI execution examples.
+      4. Personal MCP API Token Generator & Manager: Inline generation form with token label, scope selection (`career:read`, `career:write`), and expiration policy (30, 60, 90 days, or no expiration); one-time raw secret alert banner; active tokens summary table (name, prefix, scopes, created at, expires at, last used at); and one-click token revocation with CSRF protection and multi-tenant IDOR denial.
+      5. Two-Phase Write Safety State Machine Banner: Visual architectural explanation of the non-negotiable human approval state machine (`propose_project_improvement` -> HMAC Action Approval Ticket -> human review -> explicit confirmation -> `confirm_and_create_pr` on isolated `feat/career-hub-*` branch as Draft PR).
+    * `src/views/mcp-docs.page.js`: Upgraded the public developer documentation explorer (`GET /docs/mcp`):
+      1. Protocol & Endpoint Envelope: Streamable HTTP transport, JSON-RPC 2.0 error schemas, and protocol revision `2026-07-28`.
+      2. Complete 16-Tool Catalog: Detailed specifications for all 16 registered tools categorized into Career Read (4 tools: `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`), Career Artifacts (3 tools: `generate_tailored_resume`, `draft_cover_letter`, `recommend_portfolio_projects`), Career Write (2 tools: `propose_project_improvement`, `confirm_and_create_pr`), and Career Tracking (7 tools: `track_job_application`, `list_active_applications`, `get_job_application`, `update_application_status`, `add_application_stage`, `update_application_stage_outcome`, `attach_application_document`).
+      3. Interactive Filtering & Real-Time Search: Category filter chips (`All`, `Career Read`, `Career Artifacts`, `Career Write`, `Career Tracking`) and instant client-side search input without external frameworks.
+      4. Detailed Schema & Payload Inspector: Expandable parameter tables, required vs. optional indicators, JSON-RPC invocation examples, and integrity safety notes for every tool.
+      5. Authentication & Scopes Guide: Detailed documentation for OAuth 2.1 RFC 8414 & RFC 9728 discovery and Personal Token format.
+      6. Two-Phase Write Safety Deep-Dive: Exact state machine flowchart and human confirmation invariants.
+      7. Roadmap & Architectural Boundaries Matrix: Explicitly marks Official MCP Registry as `PLANNED / NOT PUBLISHED`, MCP Apps as `PLANNED / NOT IMPLEMENTED`, and Public Staging as `REQUIRES FUTURE DOMAIN`.
+    * `src/routes/web.routes.js`: Updated `GET /connect` to query `tokenService.listTokens()`, parse candidate context, and handle one-time raw token flash messages; added `POST /connect/tokens` to generate personal tokens; added `POST /connect/tokens/:id/revoke` with multi-tenant ownership enforcement; and updated `GET /docs/mcp` with full public accessibility.
+    * `docs/user-guide.md`: Updated with Section 13 (AI Connection Center & Public MCP Docs) and Section 14 (Platform Roadmap & Boundaries Matrix).
+    * `tests/integration/web-application-routes.test.js`: Added comprehensive automated tests for public accessibility of `/docs/mcp`, inclusion of all 16 tool definitions, OAuth discovery metadata, `/connect` rendering, personal token generation, token listing in table, cross-tenant revocation denial (404 IDOR defense), and token revocation.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/web-application-routes.test.js` -> PASS (20/20 tests passing in 29.8s)
+    * `node --test tests/integration/auth.test.js tests/integration/claude-mcp-connector.test.js tests/integration/chatgpt-mcp-connector.test.js` -> PASS (66/66 tests passing in 55.2s)
+    * `npm run test:unit` -> PASS (1,140/1,140 unit tests passing across 293 suites in 37.2s)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run db:check` -> PASS (Schema in sync)
+    * `git diff --check` -> PASS (0 whitespace errors)
+    * **Live Browser Subagent Verification**: Verified `/docs/mcp` public loading, 16-tool catalog rendering, dynamic category filtering, search filtering, parameter accordions, `/connect` unauthenticated login redirect, authenticated candidate profile banner, Claude/ChatGPT/Gemini connection cards, MCP endpoint copy button, Personal MCP API token generation (`mcp_dev_*`), active tokens table with scope badges, and clean grouped navigation dropdowns (recording artifact: `ai_connect_mcp_docs_demo_1787799696592.webp`).
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---

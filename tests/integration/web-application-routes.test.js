@@ -544,6 +544,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       '/skills',
       '/sources',
       '/resumes',
+      '/connect',
     ];
 
     for (const url of protectedUrls) {
@@ -566,6 +567,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       '/skills',
       '/sources',
       '/resumes',
+      '/connect',
     ];
 
     for (const url of urls) {
@@ -633,9 +635,152 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
   });
 
   // ---------------------------------------------------------------------------
-  // 7. MCP & OAuth Protocol Invariants
+  // 7. P13.5-004: AI Connection Center & Public MCP Documentation Tests
   // ---------------------------------------------------------------------------
-  it('16. POST /mcp remains purely JSON-RPC machine protocol and rejects unauthenticated requests with JSON-RPC error', async () => {
+  it('16. GET /docs/mcp is publicly accessible and documents all 16 registered MCP tools', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/docs/mcp',
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.match(res.headers['content-type'], /text\/html/);
+
+    // Verify all 16 registered tool names exist in HTML
+    const registeredTools = [
+      'get_candidate_profile',
+      'list_verified_skills',
+      'inspect_project_evidence',
+      'analyze_job_fit',
+      'generate_tailored_resume',
+      'draft_cover_letter',
+      'recommend_portfolio_projects',
+      'propose_project_improvement',
+      'confirm_and_create_pr',
+      'track_job_application',
+      'list_active_applications',
+      'get_job_application',
+      'update_application_status',
+      'add_application_stage',
+      'update_application_stage_outcome',
+      'attach_application_document',
+    ];
+
+    for (const toolName of registeredTools) {
+      assert.ok(
+        res.payload.includes(toolName),
+        `Public MCP documentation must include tool "${toolName}"`
+      );
+    }
+
+    // Verify protocol metadata, scopes, and discovery
+    assert.ok(res.payload.includes('POST /mcp'));
+    assert.ok(res.payload.includes('/.well-known/oauth-authorization-server'));
+    assert.ok(res.payload.includes('/.well-known/oauth-protected-resource'));
+    assert.ok(res.payload.includes('career:read'));
+    assert.ok(res.payload.includes('career:write'));
+    assert.ok(res.payload.includes('Two-Phase Write Safety'));
+    assert.ok(res.payload.includes('PLANNED / NOT PUBLISHED'));
+    assert.ok(res.payload.includes('PLANNED / NOT IMPLEMENTED'));
+  });
+
+  it('17. GET /connect renders AI provider cards, copyable MCP endpoint, and candidate context', async () => {
+    const cookieOpts = getSessionCookieOptions(config);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/connect',
+      cookies: {
+        [cookieOpts.name]: rawSessionTokenA,
+        career_hub_session: rawSessionTokenA,
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.match(res.headers['content-type'], /text\/html/);
+    assert.ok(res.payload.includes('AI Connection Center'));
+    assert.ok(res.payload.includes('Anthropic Claude'));
+    assert.ok(res.payload.includes('OpenAI ChatGPT'));
+    assert.ok(res.payload.includes('Google Gemini'));
+    assert.ok(res.payload.includes('/mcp'));
+    assert.ok(res.payload.includes('Local Development vs Cloud AI Hosts'));
+    assert.ok(res.payload.includes('Personal MCP API Tokens'));
+    assert.ok(res.payload.includes('Two-Phase Write Safety'));
+  });
+
+  it('18. POST /connect/tokens and POST /connect/tokens/:id/revoke manage personal MCP token lifecycle', async () => {
+    const cookieOpts = getSessionCookieOptions(config);
+
+    // 1. Create a personal token via JSON
+    const resCreate = await app.inject({
+      method: 'POST',
+      url: '/connect/tokens',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      cookies: {
+        [cookieOpts.name]: rawSessionTokenA,
+        career_hub_session: rawSessionTokenA,
+      },
+      payload: {
+        name: 'Integration Test Gemini Agent',
+        scopes: ['career:read', 'career:write'],
+        expiryDays: 30,
+      },
+    });
+
+    assert.equal(resCreate.statusCode, 201);
+    const createData = JSON.parse(resCreate.payload);
+    assert.equal(createData.success, true);
+    assert.ok(createData.data.rawToken.startsWith('mcp_'));
+    const createdTokenId = createData.data.token.id;
+
+    // 2. View /connect HTML and verify the active token appears in table
+    const resList = await app.inject({
+      method: 'GET',
+      url: '/connect',
+      cookies: {
+        [cookieOpts.name]: rawSessionTokenA,
+        career_hub_session: rawSessionTokenA,
+      },
+    });
+
+    assert.equal(resList.statusCode, 200);
+    assert.ok(resList.payload.includes('Integration Test Gemini Agent'));
+
+    // 3. User B (Tenant B) attempts to revoke User A's token -> 404 (IDOR denial)
+    const resIdorRevoke = await app.inject({
+      method: 'POST',
+      url: `/connect/tokens/${createdTokenId}/revoke`,
+      headers: {
+        accept: 'application/json',
+      },
+      cookies: {
+        [cookieOpts.name]: rawSessionTokenB,
+        career_hub_session: rawSessionTokenB,
+      },
+    });
+    assert.equal(resIdorRevoke.statusCode, 404);
+
+    // 4. User A revokes their own token -> Success
+    const resRevoke = await app.inject({
+      method: 'POST',
+      url: `/connect/tokens/${createdTokenId}/revoke`,
+      headers: {
+        accept: 'application/json',
+      },
+      cookies: {
+        [cookieOpts.name]: rawSessionTokenA,
+        career_hub_session: rawSessionTokenA,
+      },
+    });
+    assert.equal(resRevoke.statusCode, 200);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 8. MCP & OAuth Protocol Invariants
+  // ---------------------------------------------------------------------------
+  it('19. POST /mcp remains purely JSON-RPC machine protocol and rejects unauthenticated requests with JSON-RPC error', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/mcp',
@@ -653,7 +798,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
     assert.match(res.headers['content-type'], /application\/json/);
   });
 
-  it('17. RFC 8414 & RFC 9728 OAuth discovery endpoints return standard JSON metadata', async () => {
+  it('20. RFC 8414 & RFC 9728 OAuth discovery endpoints return standard JSON metadata', async () => {
     const resAuthServer = await app.inject({
       method: 'GET',
       url: '/.well-known/oauth-authorization-server',
