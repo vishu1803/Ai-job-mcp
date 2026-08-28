@@ -141,87 +141,322 @@ export class ResumeParserService {
   }
 
   /**
-   * Extracts raw text from a PDF buffer.
+   * Parses a ToUnicode CMap stream into a map: CID -> Unicode character string.
+   *
+   * @private
+   * @param {string} cmapStr
+   * @returns {Map<number, string>}
+   */
+  _parseCMap(cmapStr) {
+    const mapping = new Map();
+
+    const bfcharBlocks = cmapStr.match(/beginbfchar([\s\S]*?)endbfchar/g) || [];
+    for (const block of bfcharBlocks) {
+      const lines = block
+        .replace(/beginbfchar|endbfchar/g, '')
+        .trim()
+        .split(/\r?\n/);
+      for (const line of lines) {
+        const match = line.trim().match(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/);
+        if (match) {
+          mapping.set(parseInt(match[1], 16), String.fromCharCode(parseInt(match[2], 16)));
+        }
+      }
+    }
+
+    const bfrangeBlocks = cmapStr.match(/beginbfrange([\s\S]*?)endbfrange/g) || [];
+    for (const block of bfrangeBlocks) {
+      const lines = block
+        .replace(/beginbfrange|endbfrange/g, '')
+        .trim()
+        .split(/\r?\n/);
+      for (const line of lines) {
+        const rangeMatch = line
+          .trim()
+          .match(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/);
+        if (rangeMatch) {
+          const startCid = parseInt(rangeMatch[1], 16);
+          const endCid = parseInt(rangeMatch[2], 16);
+          let destCode = parseInt(rangeMatch[3], 16);
+          for (let cid = startCid; cid <= endCid; cid++) {
+            mapping.set(cid, String.fromCharCode(destCode));
+            destCode++;
+          }
+          continue;
+        }
+
+        const arrMatch = line.trim().match(/<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*\[([\s\S]*?)\]/);
+        if (arrMatch) {
+          const startCid = parseInt(arrMatch[1], 16);
+          const destHexes = arrMatch[3].match(/<([0-9a-fA-F]+)>/g) || [];
+          destHexes.forEach((dh, idx) => {
+            const code = parseInt(dh.slice(1, -1), 16);
+            mapping.set(startCid + idx, String.fromCharCode(code));
+          });
+        }
+      }
+    }
+
+    return mapping;
+  }
+
+  /**
+   * Multiplies two 2D affine transformation matrices [a, b, c, d, e, f].
+   *
+   * @private
+   * @param {Array<number>} m1
+   * @param {Array<number>} m2
+   * @returns {Array<number>}
+   */
+  _multMatrix(m1, m2) {
+    return [
+      m1[0] * m2[0] + m1[1] * m2[2],
+      m1[0] * m2[1] + m1[1] * m2[3],
+      m1[2] * m2[0] + m1[3] * m2[2],
+      m1[2] * m2[1] + m1[3] * m2[3],
+      m1[4] * m2[0] + m1[5] * m2[2] + m2[4],
+      m1[4] * m2[1] + m1[5] * m2[3] + m2[5],
+    ];
+  }
+
+  /**
+   * Transforms a 2D point (x, y) by an affine matrix.
+   *
+   * @private
+   * @param {Array<number>} m
+   * @param {number} x
+   * @param {number} y
+   * @returns {{ x: number, y: number }}
+   */
+  _transformPoint(m, x, y) {
+    return {
+      x: x * m[0] + y * m[2] + m[4],
+      y: x * m[1] + y * m[3] + m[5],
+    };
+  }
+
+  /**
+   * Extracts layout-accurate text from PDF documents supporting Type0 CID CMaps,
+   * graphics state stack transformations, and standard ASCII streams.
    *
    * @private
    * @param {Buffer} buffer
    * @returns {string} Extracted text
    */
   _extractTextFromPdf(buffer) {
-    const textBlocks = [];
     const content = buffer.toString('binary');
-
-    // Extract text streams: look for FlateDecode streams or plain text stream blocks
     const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
     let match;
+    const streams = [];
+    const cmaps = [];
 
     while ((match = streamRegex.exec(content)) !== null) {
       const rawStream = Buffer.from(match[1], 'binary');
       let decompressed;
       try {
-        decompressed = zlib.inflateSync(rawStream).toString('utf-8');
+        decompressed = zlib.inflateSync(rawStream);
       } catch {
         try {
-          decompressed = zlib.inflateRawSync(rawStream).toString('utf-8');
+          decompressed = zlib.inflateRawSync(rawStream);
         } catch {
-          decompressed = rawStream.toString('utf-8');
+          decompressed = rawStream;
         }
       }
+      const str = decompressed.toString('latin1');
+      if (str.includes('begincmap')) {
+        cmaps.push(this._parseCMap(str));
+      }
+      if (str.includes('BT')) {
+        streams.push(str);
+      }
+    }
 
-      // Extract text within BT ... ET blocks
-      const btRegex = /BT([\s\S]*?)ET/g;
-      let btMatch;
-      while ((btMatch = btRegex.exec(decompressed)) !== null) {
-        const textBlock = btMatch[1];
-        const blockChunks = [];
+    const unifiedCMap = new Map();
+    for (const c of cmaps) {
+      for (const [k, v] of c.entries()) unifiedCMap.set(k, v);
+    }
 
-        // Match string literals (text) e.g., (Hello World) Tj
-        const tjRegex = /\(([\s\S]*?)\)\s*T[jJ]/g;
-        let tjMatch;
-        while ((tjMatch = tjRegex.exec(textBlock)) !== null) {
-          blockChunks.push(tjMatch[1].replace(/\\([()\\])/g, '$1'));
-        }
+    const decodeHex = (hex) => {
+      let s = '';
+      const step = hex.length % 4 === 0 ? 4 : 2;
+      for (let i = 0; i < hex.length; i += step) {
+        const cid = parseInt(hex.slice(i, i + step), 16);
+        s += unifiedCMap.has(cid)
+          ? unifiedCMap.get(cid)
+          : cid >= 32 && cid <= 126
+            ? String.fromCharCode(cid)
+            : '';
+      }
+      return s;
+    };
 
-        // Match hex string arrays e.g., [(Hello) 10 (World)] TJ
-        const arrRegex = /\[([\s\S]*?)\]\s*TJ/g;
-        let arrMatch;
-        while ((arrMatch = arrRegex.exec(textBlock)) !== null) {
-          const innerStrings = arrMatch[1].match(/\((.*?)\)/g);
-          if (innerStrings) {
-            blockChunks.push(
-              innerStrings.map((s) => s.slice(1, -1).replace(/\\([()\\])/g, '$1')).join('')
-            );
+    const elements = [];
+
+    for (const streamStr of streams) {
+      const tokens = [];
+      const tokenRegex = /\((?:[^()\\]|\\.)*\)|<[0-9a-fA-F\s]+>|\[[\s\S]*?\]|(?:\S+)/g;
+      let tm;
+      while ((tm = tokenRegex.exec(streamStr)) !== null) {
+        tokens.push(tm[0]);
+      }
+
+      const stateStack = [];
+      let ctm = [1, 0, 0, 1, 0, 0];
+      let textMatrix = [1, 0, 0, 1, 0, 0];
+      let lineMatrix = [1, 0, 0, 1, 0, 0];
+      const operandStack = [];
+
+      for (let i = 0; i < tokens.length; i++) {
+        const tok = tokens[i];
+
+        if (tok === 'q') {
+          stateStack.push([...ctm]);
+        } else if (tok === 'Q') {
+          if (stateStack.length > 0) {
+            ctm = stateStack.pop();
           }
-        }
-
-        if (blockChunks.length > 0) {
-          textBlocks.push(blockChunks.join(' ').trim());
+        } else if (tok === 'cm') {
+          if (operandStack.length >= 6) {
+            const f = parseFloat(operandStack.pop());
+            const e = parseFloat(operandStack.pop());
+            const d = parseFloat(operandStack.pop());
+            const c = parseFloat(operandStack.pop());
+            const b = parseFloat(operandStack.pop());
+            const a = parseFloat(operandStack.pop());
+            ctm = this._multMatrix([a, b, c, d, e, f], ctm);
+          }
+        } else if (tok === 'BT') {
+          textMatrix = [1, 0, 0, 1, 0, 0];
+          lineMatrix = [1, 0, 0, 1, 0, 0];
+          operandStack.length = 0;
+        } else if (tok === 'ET') {
+          operandStack.length = 0;
+        } else if (tok === 'Tm') {
+          if (operandStack.length >= 6) {
+            const f = parseFloat(operandStack.pop());
+            const e = parseFloat(operandStack.pop());
+            const d = parseFloat(operandStack.pop());
+            const c = parseFloat(operandStack.pop());
+            const b = parseFloat(operandStack.pop());
+            const a = parseFloat(operandStack.pop());
+            textMatrix = [a, b, c, d, e, f];
+            lineMatrix = [...textMatrix];
+          }
+        } else if (tok === 'Td' || tok === 'TD') {
+          if (operandStack.length >= 2) {
+            const ty = parseFloat(operandStack.pop());
+            const tx = parseFloat(operandStack.pop());
+            const tdMat = [1, 0, 0, 1, tx, ty];
+            lineMatrix = this._multMatrix(tdMat, lineMatrix);
+            textMatrix = [...lineMatrix];
+          }
+        } else if (tok === 'Tj') {
+          if (operandStack.length >= 1) {
+            const raw = operandStack.pop();
+            let str = '';
+            if (raw.startsWith('(')) {
+              str = raw.slice(1, -1).replace(/\\([()\\])/g, '$1');
+            } else if (raw.startsWith('<')) {
+              str = decodeHex(raw.slice(1, -1).replace(/\s+/g, ''));
+            }
+            if (str) {
+              const textPos = this._transformPoint(textMatrix, 0, 0);
+              const finalPos = this._transformPoint(ctm, textPos.x, textPos.y);
+              elements.push({ x: finalPos.x, y: finalPos.y, text: str });
+            }
+          }
+        } else if (tok === 'TJ') {
+          if (operandStack.length >= 1) {
+            const arrContent = operandStack.pop();
+            const elReg = /\((?:[^()\\]|\\.)*\)|<[0-9a-fA-F\s]+>|(-?[\d.]+)/g;
+            let elm;
+            let str = '';
+            while ((elm = elReg.exec(arrContent)) !== null) {
+              const el = elm[0];
+              if (el.startsWith('(')) {
+                str += el.slice(1, -1).replace(/\\([()\\])/g, '$1');
+              } else if (el.startsWith('<')) {
+                str += decodeHex(el.slice(1, -1).replace(/\s+/g, ''));
+              } else {
+                const num = parseFloat(el);
+                if (num < -150) {
+                  str += ' ';
+                }
+              }
+            }
+            if (str) {
+              const textPos = this._transformPoint(textMatrix, 0, 0);
+              const finalPos = this._transformPoint(ctm, textPos.x, textPos.y);
+              elements.push({ x: finalPos.x, y: finalPos.y, text: str });
+            }
+          }
+        } else {
+          operandStack.push(tok);
         }
       }
     }
 
-    if (textBlocks.length > 0) {
-      return textBlocks
-        .join('\n')
-        .replace(/[ \t]+/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
+    // Fallback: extract plain text literals from entire buffer if CTM extraction produced no elements
+    if (elements.length === 0) {
+      const simpleLiteralRegex = /\(([a-zA-Z0-9\s.,!?:;@_#+\-()/'"]{3,})\)/g;
+      const fallbackChunks = [];
+      let litMatch;
+      while ((litMatch = simpleLiteralRegex.exec(content)) !== null) {
+        fallbackChunks.push(litMatch[1]);
+      }
+      return (
+        fallbackChunks
+          .join('\n')
+          .replace(/[ \t]+/g, ' ')
+          .trim() || 'Parsed PDF Document'
+      );
     }
 
-    // Fallback: extract plain text literals from entire buffer
-    const simpleLiteralRegex = /\(([a-zA-Z0-9\s.,!?:;@_#+\-()/'"]{3,})\)/g;
-    const fallbackChunks = [];
-    let litMatch;
-    while ((litMatch = simpleLiteralRegex.exec(content)) !== null) {
-      fallbackChunks.push(litMatch[1]);
+    // Sort elements by Y descending (top-to-bottom on page), then X ascending (left-to-right)
+    elements.sort((a, b) => {
+      if (Math.abs(a.y - b.y) > 2.5) {
+        return b.y - a.y;
+      }
+      return a.x - b.x;
+    });
+
+    // Group into coherent lines
+    const lines = [];
+    let currentGroup = [];
+    let currentY = null;
+
+    for (const el of elements) {
+      if (currentY === null || Math.abs(el.y - currentY) <= 3) {
+        currentGroup.push(el);
+        if (currentY === null) currentY = el.y;
+      } else {
+        currentGroup.sort((a, b) => a.x - b.x);
+        let lineText = '';
+        for (const c of currentGroup) {
+          lineText += c.text;
+        }
+        if (lineText.trim()) lines.push({ y: currentY, text: lineText.trim() });
+        currentGroup = [el];
+        currentY = el.y;
+      }
     }
 
-    return (
-      fallbackChunks
-        .join('\n')
-        .replace(/[ \t]+/g, ' ')
-        .trim() || 'Parsed PDF Document'
-    );
+    if (currentGroup.length > 0) {
+      currentGroup.sort((a, b) => a.x - b.x);
+      let lineText = '';
+      for (const c of currentGroup) lineText += c.text;
+      if (lineText.trim()) lines.push({ y: currentY, text: lineText.trim() });
+    }
+
+    return lines
+      .map((l) =>
+        l.text
+          .replace(/\u0000/g, '')
+          .replace(/[ \t]+/g, ' ')
+          .trim()
+      )
+      .filter((l) => l && !/^[-–—\s._]{4,}$/.test(l))
+      .join('\n');
   }
 
   /**
@@ -234,7 +469,6 @@ export class ResumeParserService {
   _extractTextFromDocx(buffer) {
     const textChunks = [];
 
-    // Simple robust ZIP local file header scanner for word/document.xml
     let offset = 0;
     while (offset < buffer.length - 30) {
       if (buffer.readUInt32LE(offset) === 0x04034b50) {
@@ -255,11 +489,9 @@ export class ResumeParserService {
               xmlContent = compData.toString('utf-8');
             }
           } catch {
-            // Fallback uncompressed
             xmlContent = compData.toString('utf-8');
           }
 
-          // Extract <w:p> paragraphs and <w:t> tags
           const pRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/g;
           let pMatch;
           while ((pMatch = pRegex.exec(xmlContent)) !== null) {
@@ -287,7 +519,6 @@ export class ResumeParserService {
       return textChunks.join('\n').replace(/\s+/g, ' ').trim();
     }
 
-    // Fallback: extract printable strings
     return (
       buffer
         .toString('utf-8')
@@ -320,7 +551,6 @@ export class ResumeParserService {
         break;
     }
 
-    // Normalize Unicode NFKC and strip non-printable control characters
     const normalized = rawText
       .normalize('NFKC')
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
@@ -331,7 +561,206 @@ export class ResumeParserService {
   }
 
   /**
-   * Splits normalized resume text into structured sections.
+   * Cleans a skill token string while preserving balanced parentheses (e.g. "JavaScript (ES6+)").
+   *
+   * @private
+   * @param {string} tok
+   * @returns {string}
+   */
+  _cleanSkillToken(tok) {
+    let s = String(tok || '')
+      .replace(/^[-*•●]\s*/, '')
+      .trim();
+    s = s.replace(/[,.:;]+$/, '').trim();
+    if (s.endsWith(')') && !s.includes('(')) {
+      s = s.slice(0, -1).trim();
+    }
+    if (s.startsWith('(') && !s.includes(')')) {
+      s = s.slice(1).trim();
+    }
+    return s;
+  }
+
+  /**
+   * Canonical Section Patterns Mapping all common resume heading variants to schema section types.
+   */
+  static CANONICAL_HEADING_PATTERNS = [
+    {
+      type: 'SUMMARY',
+      regex:
+        /^(?:professional\s+summary|executive\s+summary|career\s+summary|professional\s+profile|about\s+me|career\s+objective|summary|profile|objective)$/i,
+    },
+    {
+      type: 'SKILLS',
+      regex:
+        /^(?:technical\s+skills?|core\s+competencies|technical\s+expertise|technologies|tools\s*(?:&|and)\s*languages|languages\s*(?:&|and)\s*frameworks|skills\s*(?:&|and)\s*technologies|problem\s+solving\s*(?:&|and)\s*algorithms?|problem\s+solving|algorithms?|skills?|tech\s+stack|stack)$/i,
+    },
+    {
+      type: 'WORK_EXPERIENCE',
+      regex:
+        /^(?:work\s+experience|employment\s+history|work\s+history|professional\s+experience|career\s+history|relevant\s+experience|experience|internships?)$/i,
+    },
+    {
+      type: 'PROJECTS',
+      regex:
+        /^(?:key\s+projects?|technical\s+projects?|featured\s+projects?|open\s+source|portfolio|projects?|personal\s+projects?|academic\s+projects?)$/i,
+    },
+    {
+      type: 'EDUCATION',
+      regex:
+        /^(?:education|academic\s+background|educational\s+qualifications?|academic\s+history|academics?|university|degrees?)$/i,
+    },
+    {
+      type: 'CERTIFICATIONS',
+      regex:
+        /^(?:certifications?|licenses?|licenses?\s*(?:&|and)\s*certifications?|courses?|credentials?)$/i,
+    },
+    {
+      type: 'CONTACT_INFO',
+      regex:
+        /^(?:contact\s*(?:info(?:rmation)?|details?)?|personal\s+details?|links|profiles?|social\s+profiles?)$/i,
+    },
+  ];
+
+  static META_CATEGORIES = new Set([
+    'languages',
+    'backend & apis',
+    'backend',
+    'apis',
+    'frontend & tools',
+    'frontend',
+    'tools',
+    'cs fundamentals',
+    'fundamentals',
+    'data stores',
+    'databases',
+    'database',
+    'tools & technologies',
+    'frameworks',
+    'libraries',
+    'cloud & devops',
+    'cloud',
+    'devops',
+    'operating systems',
+    'technical skills',
+    'core competencies',
+    'skills',
+    'other',
+  ]);
+
+  /**
+   * Preprocesses resume text to ensure section headings are on their own lines.
+   * Handles concatenated single-line strings by inserting newlines around known heading phrases.
+   *
+   * @private
+   * @param {string} text
+   * @returns {string} Text with headings on their own lines
+   */
+  _preprocessHeadings(text) {
+    if (!text || typeof text !== 'string') return '';
+
+    const lines = text.split('\n');
+    let standaloneHeadingCount = 0;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      for (const h of ResumeParserService.CANONICAL_HEADING_PATTERNS) {
+        if (h.regex.test(trimmed) && trimmed.length < 60) {
+          standaloneHeadingCount++;
+          break;
+        }
+      }
+    }
+
+    if (standaloneHeadingCount >= 1) {
+      return text;
+    }
+
+    // Text has headings concatenated with content (0 standalone headings) — search and split on heading phrases
+    const HEADING_PHRASES = [
+      'professional summary',
+      'executive summary',
+      'career summary',
+      'professional profile',
+      'contact information',
+      'contact details',
+      'personal details',
+      'career objective',
+      'work experience',
+      'employment history',
+      'work history',
+      'professional experience',
+      'career history',
+      'relevant experience',
+      'academic background',
+      'educational qualifications',
+      'technical skills',
+      'core competencies',
+      'technical expertise',
+      'problem solving & algorithms',
+      'problem solving and algorithms',
+      'licenses & certifications',
+      'licenses and certifications',
+      'key projects',
+      'technical projects',
+      'featured projects',
+      'open source',
+      'certifications',
+      'internships',
+      'summary',
+      'experience',
+      'education',
+      'skills',
+      'projects',
+    ];
+
+    // Sort by length descending so longer phrases match first
+    HEADING_PHRASES.sort((a, b) => b.length - a.length);
+
+    const lowerText = text.toLowerCase();
+    const splits = [];
+
+    for (const phrase of HEADING_PHRASES) {
+      let searchFrom = 0;
+      while (searchFrom < lowerText.length) {
+        const idx = lowerText.indexOf(phrase, searchFrom);
+        if (idx === -1) break;
+        const charBefore = idx > 0 ? lowerText[idx - 1] : '';
+        const charAfter =
+          idx + phrase.length < lowerText.length ? lowerText[idx + phrase.length] : '';
+        const okBefore = !charBefore || /[^a-z0-9]/.test(charBefore);
+        const okAfter = !charAfter || /[^a-z0-9]/.test(charAfter);
+        if (okBefore && okAfter) {
+          splits.push({ pos: idx, heading: phrase.toUpperCase(), len: phrase.length });
+        }
+        searchFrom = idx + 1;
+      }
+    }
+
+    if (splits.length === 0) return text;
+
+    splits.sort((a, b) => a.pos - b.pos);
+    const deduped = [];
+    for (const s of splits) {
+      if (deduped.length === 0 || Math.abs(deduped[deduped.length - 1].pos - s.pos) >= 3) {
+        deduped.push(s);
+      }
+    }
+
+    let rebuilt = '';
+    let cursor = 0;
+    for (const s of deduped) {
+      rebuilt += text.slice(cursor, s.pos);
+      rebuilt += '\n' + s.heading + '\n';
+      cursor = s.pos + s.len;
+    }
+    rebuilt += text.slice(cursor);
+
+    return rebuilt.replace(/\n{3,}/g, '\n\n');
+  }
+
+  /**
+   * Splits normalized resume text into structured sections using canonical heading normalization.
    *
    * @param {string} fullText
    * @returns {Array<{ sectionType: string, rawText: string, structuredData: object, orderIndex: number }>}
@@ -339,55 +768,18 @@ export class ResumeParserService {
   splitIntoSections(fullText) {
     if (!fullText) return [];
 
-    const lines = fullText.split('\n');
+    const preprocessed = this._preprocessHeadings(fullText);
+    const lines = preprocessed.split('\n');
     const sections = [];
     let currentType = 'SUMMARY';
+    let currentHeading = 'SUMMARY';
     let currentLines = [];
     let orderIndex = 0;
 
-    const headingPatterns = [
-      {
-        type: 'CONTACT_INFO',
-        regex:
-          /^(?:contact|contact info|contact information|personal details|links|profiles|social profiles|contact details)/i,
-      },
-      {
-        type: 'SUMMARY',
-        regex:
-          /^(?:summary|professional summary|executive summary|career summary|profile|about me|professional profile|objective|career objective)/i,
-      },
-      {
-        type: 'WORK_EXPERIENCE',
-        regex:
-          /^(?:work experience|experience|employment history|work history|professional experience|career history|relevant experience)/i,
-      },
-      {
-        type: 'EDUCATION',
-        regex:
-          /^(?:education|academic background|degrees|academic history|educational qualifications|academics|university)/i,
-      },
-      {
-        type: 'SKILLS',
-        regex:
-          /^(?:technical skills|skills|core competencies|technologies|tools\s*(?:&|and)\s*languages|languages\s*(?:&|and)\s*frameworks|skills\s*(?:&|and)\s*technologies|technical expertise|stack)/i,
-      },
-      {
-        type: 'PROJECTS',
-        regex:
-          /^(?:projects|key projects|technical projects|portfolio|technical initiatives|open source|featured projects)/i,
-      },
-      {
-        type: 'CERTIFICATIONS',
-        regex:
-          /^(?:certifications|licenses|courses|credentials|licenses\s*(?:&|and)\s*certifications|certifications\s*(?:&|and)\s*courses)/i,
-      },
-    ];
-
-    // Strip trailing colons or bullet prefixes from heading comparison
-    const stripHeadingDecorations = (s) =>
+    const stripDecorations = (s) =>
       s
-        .replace(/^[•\-*#]+\s*/, '')
-        .replace(/:\s*$/, '')
+        .replace(/^[\u2022\u25E6\u2043\u2219\u2023\u25CF\u2700-\u27BF-]\s*/, '')
+        .replace(/\s*:\s*$/, '')
         .trim();
 
     for (const rawLine of lines) {
@@ -397,29 +789,33 @@ export class ResumeParserService {
         continue;
       }
 
-      // Check if line matches a major heading
+      const clean = stripDecorations(line);
       let matchedType = null;
-      const cleanLine = stripHeadingDecorations(line);
-      for (const heading of headingPatterns) {
-        if (heading.regex.test(cleanLine) && cleanLine.length < 60) {
-          matchedType = heading.type;
-          break;
+
+      if (clean.length < 60) {
+        for (const h of ResumeParserService.CANONICAL_HEADING_PATTERNS) {
+          if (h.regex.test(clean)) {
+            matchedType = h.type;
+            break;
+          }
         }
       }
 
       if (matchedType) {
         if (currentLines.length > 0) {
-          const sectionText = currentLines.join('\n').trim();
-          if (sectionText) {
+          const text = currentLines.join('\n').trim();
+          if (text) {
             sections.push({
               sectionType: currentType,
-              rawText: sectionText,
-              structuredData: this._extractStructuredData(currentType, sectionText),
+              heading: currentHeading,
+              rawText: text,
+              structuredData: this._extractStructuredData(currentType, currentHeading, text),
               orderIndex: orderIndex++,
             });
           }
         }
         currentType = matchedType;
+        currentHeading = clean;
         currentLines = [];
       } else {
         currentLines.push(rawLine);
@@ -427,23 +823,24 @@ export class ResumeParserService {
     }
 
     if (currentLines.length > 0) {
-      const sectionText = currentLines.join('\n').trim();
-      if (sectionText) {
+      const text = currentLines.join('\n').trim();
+      if (text) {
         sections.push({
           sectionType: currentType,
-          rawText: sectionText,
-          structuredData: this._extractStructuredData(currentType, sectionText),
+          heading: currentHeading,
+          rawText: text,
+          structuredData: this._extractStructuredData(currentType, currentHeading, text),
           orderIndex: orderIndex++,
         });
       }
     }
 
-    // Default fallback if no section headings detected
     if (sections.length === 0 && fullText.trim()) {
       sections.push({
         sectionType: 'SUMMARY',
+        heading: 'SUMMARY',
         rawText: fullText.trim(),
-        structuredData: this._extractStructuredData('SUMMARY', fullText.trim()),
+        structuredData: this._extractStructuredData('SUMMARY', 'SUMMARY', fullText.trim()),
         orderIndex: 0,
       });
     }
@@ -456,87 +853,298 @@ export class ResumeParserService {
    *
    * @private
    * @param {string} sectionType
+   * @param {string} heading
    * @param {string} text
    * @returns {object}
    */
-  _extractStructuredData(sectionType, text) {
-    if (sectionType === 'CONTACT_INFO') {
-      const urls = [];
-      const urlRegex = /https?:\/\/[^\s"'<>]+/gi;
-      let urlMatch;
-      while ((urlMatch = urlRegex.exec(text)) !== null) {
-        urls.push(urlMatch[0]);
-      }
-      const githubMatch = text.match(/github\.com\/[a-zA-Z0-9_-]+/i);
-      const linkedinMatch = text.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/i);
-      const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-
-      return {
-        urls,
-        github: githubMatch ? `https://${githubMatch[0]}` : null,
-        linkedin: linkedinMatch ? `https://${linkedinMatch[0]}` : null,
-        email: emailMatch ? emailMatch[0] : null,
-        rawText: text,
-      };
+  _extractStructuredData(sectionType, heading, text) {
+    const urls = [];
+    const urlRegex = /https?:\/\/[^\s"'<>]+/gi;
+    let m;
+    while ((m = urlRegex.exec(text)) !== null) {
+      urls.push(m[0]);
     }
+    const githubMatch = text.match(/github\.com\/([a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_.-]+)?)/i);
+    const linkedinMatch = text.match(/linkedin\.com\/in\/([a-zA-Z0-9_.-]+)/i);
+    const leetcodeMatch = text.match(/leetcode\.com\/(?:u\/)?([a-zA-Z0-9_.-]+)/i);
+    const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const phoneMatch = text.match(
+      /(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b\d{10}\b/
+    );
 
     if (sectionType === 'SKILLS') {
-      // Split by commas, bullet points, pipes, semicolons, or lines
-      const skillTokens = text
-        .replace(/^(?:languages|frameworks|tools|databases|cloud|other|libraries)\s*:\s*/gim, '')
-        .split(/[,;•|\n]/)
-        .map((s) => s.trim().replace(/^[-*•]\s*/, ''))
-        .filter((s) => s.length > 1 && s.length < 50 && !s.includes(':') && !/^\d+$/.test(s));
-      return { skills: [...new Set(skillTokens)] };
+      const skills = [];
+      const lines = text.split('\n');
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        // Piped categories table (e.g. "| Languages | Python, JavaScript (ES6+), TypeScript |")
+        if (line.includes('|')) {
+          const parts = line
+            .split('|')
+            .map((p) => p.trim())
+            .filter(Boolean);
+          for (const p of parts) {
+            if (ResumeParserService.META_CATEGORIES.has(p.toLowerCase())) continue;
+            const tokens = p
+              .split(/[,;•]/)
+              .map((t) => this._cleanSkillToken(t))
+              .filter(
+                (t) => t.length > 1 && !ResumeParserService.META_CATEGORIES.has(t.toLowerCase())
+              );
+            for (const tok of tokens) skills.push(tok);
+          }
+          continue;
+        }
+
+        // Colon-separated category (e.g. "Languages: Python, TypeScript")
+        const catMatch = line.match(/^([^:]+):\s*(.+)/);
+        if (catMatch) {
+          const items = catMatch[2];
+          const tokens = items
+            .split(/[,;•|]/)
+            .map((t) => this._cleanSkillToken(t))
+            .filter(
+              (t) => t.length > 1 && !ResumeParserService.META_CATEGORIES.has(t.toLowerCase())
+            );
+          for (const tok of tokens) skills.push(tok);
+          continue;
+        }
+
+        // Bulleted skills / algorithmic areas
+        if (/^[●•\-*]/.test(line)) {
+          const parenMatches = line.match(/\(([^)]+)\)/g) || [];
+          for (const pm of parenMatches) {
+            const inner = pm.slice(1, -1);
+            const tokens = inner
+              .split(/[,;]/)
+              .map((t) => this._cleanSkillToken(t))
+              .filter((t) => t.length > 1);
+            for (const tok of tokens) skills.push(tok);
+          }
+          if (/leetcode/i.test(line)) skills.push('LeetCode');
+          if (/\bDSA\b|data structures/i.test(line)) skills.push('Data Structures & Algorithms');
+          if (/competitive programming/i.test(line)) skills.push('Competitive Programming');
+          continue;
+        }
+
+        // Plain line items
+        const tokens = line
+          .split(/[,;•|]/)
+          .map((t) => this._cleanSkillToken(t))
+          .filter((t) => t.length > 1 && !ResumeParserService.META_CATEGORIES.has(t.toLowerCase()));
+        for (const tok of tokens) skills.push(tok);
+      }
+
+      return { skills: [...new Set(skills)] };
+    }
+
+    if (sectionType === 'PROJECTS') {
+      const projects = [];
+      const lines = text.split('\n');
+      let currentProj = null;
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const isBullet = /^[●•\-*]/.test(line);
+        const isUrlLine =
+          line.startsWith('Source Code:') ||
+          line.startsWith('Project Link:') ||
+          /^https?:\/\//.test(line);
+        const hasPipe = line.includes('|');
+
+        // Look for project title lines (with pipes or short title lines)
+        const isTitleLine =
+          !isBullet &&
+          !isUrlLine &&
+          (hasPipe ||
+            (!currentProj && line.length < 80) ||
+            (!line.includes('.') &&
+              line.length < 80 &&
+              !/^(?:built|developed|designed|implemented|engineered|reduced|improved)/i.test(
+                line
+              )));
+
+        if (isTitleLine) {
+          if (currentProj) projects.push(currentProj);
+          const parts = line.split('|').map((s) => s.trim());
+          const title = parts[0];
+          const techStr = parts.slice(1).join(', ');
+          const techs = techStr
+            ? techStr
+                .split(/[,;]/)
+                .map((t) => this._cleanSkillToken(t))
+                .filter(Boolean)
+            : [];
+          currentProj = {
+            title,
+            technologies: techs,
+            bullets: [],
+            urls: [],
+          };
+        } else if (currentProj) {
+          if (isUrlLine) {
+            const matchUrl = line.match(/https?:\/\/[^\s"'<>]+/);
+            if (matchUrl) currentProj.urls.push(matchUrl[0]);
+            currentProj.bullets.push(line);
+          } else if (isBullet) {
+            currentProj.bullets.push(line.replace(/^[●•\-*]\s*/, ''));
+          } else {
+            if (currentProj.bullets.length > 0) {
+              currentProj.bullets[currentProj.bullets.length - 1] += ' ' + line;
+            } else {
+              currentProj.bullets.push(line);
+            }
+          }
+        }
+      }
+      if (currentProj) projects.push(currentProj);
+
+      // Create backward-compatible items list
+      const items = projects.map((p) => {
+        const parts = [p.title];
+        if (p.technologies.length > 0) parts.push(`(${p.technologies.join(', ')})`);
+        if (p.urls.length > 0) parts.push(p.urls.join(' '));
+        if (p.bullets.length > 0) parts.push(p.bullets.join('\n'));
+        return parts.join('\n');
+      });
+
+      return { projects, items: items.length > 0 ? items : [text] };
+    }
+
+    if (sectionType === 'WORK_EXPERIENCE') {
+      const experiences = [];
+      const lines = text.split('\n');
+      let currentExp = null;
+
+      // Role title heuristic for line-based experience entries
+      const isRoleTitle = (line) => {
+        if (line.length > 80) return false;
+        if (
+          /^(?:worked|built|developed|implemented|created|designed|managed|led|improved|reduced|optimized|automated|deployed|configured|maintained|collaborated|conducted|assisted|provided)/i.test(
+            line
+          )
+        )
+          return false;
+        if ((line.match(/,/g) || []).length >= 2) return false;
+        if (line.includes('.')) return false;
+        const roleKeywords = [
+          'Full Stack',
+          'Frontend',
+          'Backend',
+          'Full-Stack',
+          'Front-End',
+          'Back-End',
+          'DevOps',
+          'SRE',
+          'Software Engineer',
+          'Systems Engineer',
+          'Cloud Engineer',
+          'Security Engineer',
+          'Data Engineer',
+          'ML Engineer',
+          'AI Engineer',
+          'Engineer',
+          'Developer',
+          'Architect',
+          'Tech Lead',
+          'Team Lead',
+          'Engineering Manager',
+          'Product Manager',
+          'Project Manager',
+          'Intern',
+          'Data Scientist',
+        ];
+        const lower = line.toLowerCase();
+        return roleKeywords.some((kw) => lower.includes(kw.toLowerCase()));
+      };
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const isBullet = /^[●•\-*]/.test(line);
+        const hasPipe = line.includes('|');
+        const startsNewRole = !isBullet && (hasPipe || isRoleTitle(line));
+
+        if (startsNewRole && (!currentExp || currentExp.bullets.length > 0 || hasPipe)) {
+          if (currentExp) experiences.push(currentExp);
+          const parts = line.split('|').map((s) => s.trim());
+          currentExp = {
+            role: parts[0] || '',
+            company: parts[1] || '',
+            location: parts[2] || '',
+            dates: parts[3] || '',
+            bullets: [],
+          };
+        } else if (currentExp) {
+          if (isBullet) {
+            currentExp.bullets.push(line.replace(/^[●•\-*]\s*/, ''));
+          } else {
+            // Check if line looks like date, location, or company before bullets
+            if (
+              !currentExp.company &&
+              !currentExp.dates &&
+              currentExp.bullets.length === 0 &&
+              line.length < 50
+            ) {
+              if (/\b(?:19|20)\d{2}\b/i.test(line)) {
+                currentExp.dates = line;
+              } else if (/^(?:Remote|On-site|Hybrid|[A-Z][a-z]+,\s*[A-Z]{2})/i.test(line)) {
+                currentExp.location = line;
+              } else {
+                currentExp.company = line;
+              }
+            } else {
+              if (currentExp.bullets.length > 0) {
+                currentExp.bullets[currentExp.bullets.length - 1] += ' ' + line;
+              } else {
+                currentExp.bullets.push(line);
+              }
+            }
+          }
+        }
+      }
+      if (currentExp) experiences.push(currentExp);
+
+      const items = experiences.map((exp) => {
+        const header = [exp.role, exp.company, exp.dates, exp.location].filter(Boolean).join(' | ');
+        return exp.bullets.length > 0 ? `${header}\n${exp.bullets.join('\n')}` : header;
+      });
+
+      return { experiences, items: items.length > 0 ? items : [text] };
     }
 
     if (sectionType === 'EDUCATION') {
-      const lines = text
-        .split('\n')
-        .map((l) => l.trim().replace(/^[-*•]\s*/, ''))
-        .filter((l) => l.length > 3);
-      return { degrees: lines };
-    }
-
-    if (sectionType === 'WORK_EXPERIENCE' || sectionType === 'PROJECTS') {
-      const items = text
-        .split(/(?:^|\n)[•\-*]\s*/)
-        .map((item) => item.trim())
-        .filter((item) => item.length > 5);
-      // Fallback: if no bullet items found, split by lines
-      if (items.length === 0) {
-        const lines = text
-          .split('\n')
-          .map((l) => l.trim())
-          .filter((l) => l.length > 5);
-        return { items: lines };
+      const degrees = [];
+      const lines = text.split('\n');
+      for (const l of lines) {
+        const trimmed = l.trim().replace(/^[●•\-*]\s*/, '');
+        if (trimmed.length > 3) degrees.push(trimmed);
       }
-      return { items };
+      return { degrees };
     }
 
     if (sectionType === 'CERTIFICATIONS') {
       const certs = text
         .split('\n')
-        .map((l) => l.trim().replace(/^[-*•]\s*/, ''))
+        .map((l) => l.trim().replace(/^[●•\-*]\s*/, ''))
         .filter((l) => l.length > 2);
       return { certs };
     }
 
-    // For SUMMARY, also check if URLs or skills are mentioned in the summary block
-    const summaryUrls = [];
-    const urlRegex = /https?:\/\/[^\s"'<>]+/gi;
-    let urlMatch;
-    while ((urlMatch = urlRegex.exec(text)) !== null) {
-      summaryUrls.push(urlMatch[0]);
-    }
-    const githubMatch = text.match(/github\.com\/[a-zA-Z0-9_-]+/i);
-    const linkedinMatch = text.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/i);
-
     return {
       content: text,
+      urls,
       github: githubMatch ? `https://${githubMatch[0]}` : null,
       linkedin: linkedinMatch ? `https://${linkedinMatch[0]}` : null,
-      urls: summaryUrls,
+      leetcode: leetcodeMatch ? `https://${leetcodeMatch[0]}` : null,
+      email: emailMatch ? emailMatch[0] : null,
+      phone: phoneMatch ? phoneMatch[0] : null,
     };
   }
 
@@ -562,7 +1170,6 @@ export class ResumeParserService {
       });
     };
 
-    // Common technology taxonomy for unstructured extraction fallback
     const COMMON_TECH_KEYWORDS = [
       'JavaScript',
       'TypeScript',
@@ -607,75 +1214,109 @@ export class ResumeParserService {
     let hasSkillClaims = false;
 
     for (const sec of sections) {
-      if (sec.sectionType === 'CONTACT_INFO' && sec.structuredData) {
-        if (sec.structuredData.github) {
-          addClaim(
-            'CONTACT',
-            `GitHub Profile: ${sec.structuredData.github}`,
-            'Extracted from Contact Links'
-          );
+      const sd = sec.structuredData;
+      if (!sd) continue;
+      const headingLabel = sec.heading || sec.sectionType;
+
+      // Contact and profile claims
+      if (sd.github) {
+        addClaim('CONTACT', `GitHub Profile: ${sd.github}`, `Extracted from ${headingLabel}`);
+      }
+      if (sd.linkedin) {
+        addClaim('CONTACT', `LinkedIn Profile: ${sd.linkedin}`, `Extracted from ${headingLabel}`);
+      }
+      if (sd.leetcode) {
+        addClaim('CONTACT', `LeetCode Profile: ${sd.leetcode}`, `Extracted from ${headingLabel}`);
+      }
+      if (sd.email) {
+        addClaim('CONTACT', `Email: ${sd.email}`, `Extracted from ${headingLabel}`);
+      }
+      if (sd.phone) {
+        addClaim('CONTACT', `Phone: ${sd.phone}`, `Extracted from ${headingLabel}`);
+      }
+      if (Array.isArray(sd.urls)) {
+        for (const u of sd.urls) {
+          if (
+            !u.includes('github.com') &&
+            !u.includes('linkedin.com') &&
+            !u.includes('leetcode.com')
+          ) {
+            addClaim('CONTACT', `Project/Portfolio URL: ${u}`, `Extracted from ${headingLabel}`);
+          }
         }
-        if (sec.structuredData.linkedin) {
-          addClaim(
-            'CONTACT',
-            `LinkedIn Profile: ${sec.structuredData.linkedin}`,
-            'Extracted from Contact Links'
-          );
+      }
+
+      // Skills claims
+      if (Array.isArray(sd.skills) && sd.skills.length > 0) {
+        for (const skill of sd.skills) {
+          addClaim('SKILL', skill, `Extracted from ${headingLabel}: "${skill}"`);
+          hasSkillClaims = true;
         }
-        if (sec.structuredData.email) {
-          addClaim('CONTACT', `Email: ${sec.structuredData.email}`, 'Extracted from Contact Info');
-        }
-        if (Array.isArray(sec.structuredData.urls)) {
-          for (const u of sec.structuredData.urls) {
-            if (!u.includes('github.com') && !u.includes('linkedin.com')) {
-              addClaim('CONTACT', `Portfolio URL: ${u}`, 'Extracted from Contact Links');
+      }
+
+      // Projects claims
+      if (Array.isArray(sd.projects)) {
+        for (const proj of sd.projects) {
+          const titleWithTech =
+            proj.technologies && proj.technologies.length > 0
+              ? `${proj.title} (${proj.technologies.join(', ')})`
+              : proj.title;
+          addClaim('PROJECT', `Project: ${titleWithTech}`, `Extracted from ${headingLabel}`);
+
+          for (const tech of proj.technologies) {
+            addClaim('SKILL', tech, `Used in project "${proj.title}"`);
+            hasSkillClaims = true;
+          }
+          for (const u of proj.urls) {
+            addClaim('PROJECT', `Project Repository/Link: ${u}`, `Associated with "${proj.title}"`);
+          }
+          for (const bullet of proj.bullets) {
+            if (!bullet.startsWith('Source Code:') && !bullet.startsWith('Project Link:')) {
+              addClaim('PROJECT', `${proj.title}: ${bullet}`, `Extracted from ${headingLabel}`);
             }
           }
         }
-      } else if (sec.sectionType === 'SKILLS' && sec.structuredData?.skills) {
-        for (const skill of sec.structuredData.skills) {
-          addClaim('SKILL', skill, `Extracted from Skills section: "${skill}"`);
-          hasSkillClaims = true;
+      }
+
+      // Work Experience claims
+      if (Array.isArray(sd.experiences)) {
+        for (const exp of sd.experiences) {
+          const header = `${exp.role} at ${exp.company} (${exp.dates}${exp.location ? ', ' + exp.location : ''})`;
+          addClaim('EXPERIENCE', header, `Extracted from ${headingLabel}`);
+          for (const bullet of exp.bullets) {
+            addClaim(
+              'EXPERIENCE',
+              `${exp.role} at ${exp.company}: ${bullet}`,
+              `Extracted from ${headingLabel}`
+            );
+          }
         }
-      } else if (sec.sectionType === 'WORK_EXPERIENCE' && sec.structuredData?.items) {
-        for (const exp of sec.structuredData.items) {
-          addClaim('EXPERIENCE', exp.slice(0, 300), 'Extracted from Work Experience');
+      }
+
+      // Education claims
+      if (Array.isArray(sd.degrees)) {
+        for (const deg of sd.degrees) {
+          addClaim('EDUCATION', deg, `Extracted from ${headingLabel}`);
         }
-      } else if (sec.sectionType === 'EDUCATION' && sec.structuredData?.degrees) {
-        for (const deg of sec.structuredData.degrees) {
-          addClaim('EDUCATION', deg.slice(0, 200), 'Extracted from Education');
+      }
+
+      // Certifications claims
+      if (Array.isArray(sd.certs)) {
+        for (const cert of sd.certs) {
+          addClaim('CERTIFICATION', cert, `Extracted from ${headingLabel}`);
         }
-      } else if (sec.sectionType === 'PROJECTS' && sec.structuredData?.items) {
-        for (const proj of sec.structuredData.items) {
-          addClaim('PROJECT', proj.slice(0, 300), 'Extracted from Projects');
-        }
-      } else if (sec.sectionType === 'CERTIFICATIONS' && sec.structuredData?.certs) {
-        for (const cert of sec.structuredData.certs) {
-          addClaim('CERTIFICATION', cert.slice(0, 200), 'Extracted from Certifications');
-        }
-      } else if (sec.sectionType === 'SUMMARY' && sec.structuredData) {
-        if (sec.structuredData.github) {
-          addClaim(
-            'CONTACT',
-            `GitHub Profile: ${sec.structuredData.github}`,
-            'Extracted from Summary Links'
-          );
-        }
-        if (sec.structuredData.linkedin) {
-          addClaim(
-            'CONTACT',
-            `LinkedIn Profile: ${sec.structuredData.linkedin}`,
-            'Extracted from Summary Links'
-          );
-        }
-        const summaryText = sec.structuredData.content?.trim();
+      }
+
+      // Summary claims
+      if (sec.sectionType === 'SUMMARY' && sd.content) {
+        const summaryText = sd.content.trim();
         if (summaryText && summaryText.length > 10) {
-          addClaim('SUMMARY', summaryText.slice(0, 500), 'Extracted from Professional Summary');
+          addClaim('SUMMARY', summaryText.slice(0, 500), `Extracted from ${headingLabel}`);
         }
       }
     }
 
-    // Fallback: If no explicit SKILLS section produced skill claims, extract known tech skills mentioned in text
+    // Fallback: If no explicit SKILLS section or project skills produced skill claims, extract known tech skills mentioned in text
     if (!hasSkillClaims) {
       const fullCorpus = sections.map((s) => s.rawText).join(' ');
       for (const tech of COMMON_TECH_KEYWORDS) {

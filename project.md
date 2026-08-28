@@ -1,7 +1,7 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-08-27*
+*Last Updated: 2026-08-29*
 
 ---
 
@@ -10,7 +10,7 @@
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
 | **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003 & P14-003A COMPLETE & VERIFIED |
-| **Project State** | **ACTIVE / IN PROGRESS** | Production readiness audit, UI/UX hardening, and truth model consistency verified (1,259/1,259 unit tests, 40/40 pen tests, 0 lint/format issues); ready for P14-004 |
+| **Project State** | **ACTIVE / IN PROGRESS** | Production readiness audit, UI/UX hardening, resume parser hardening, and truth model consistency verified (1,272/1,272 unit tests, 40/40 pen tests, 0 lint/format issues); ready for P14-004 |
 | **Total Tasks** | **94 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 review) |
 | **Completed Tasks** | **87 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003 & P14-003A |
 | **In Progress Tasks** | **0 Tasks** | Ready for Task P14-004 |
@@ -3418,9 +3418,9 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
       2. Embedded visual pipeline banners clearly communicating the Sources → Ingestion → Truth Model → Base Narrative → MCP AI interface flow.
       3. Unified candidate identity resolution across workspace banners and localhost endpoint usage guidance.
     * `tests/unit/resume-parser.service.test.js`:
-      1. Added unit test cases for contact URL extraction (GitHub, LinkedIn, Email, Portfolio), multi-heading recognition, PDF block extraction, and unstructured skill extraction.
+      1. Added comprehensive unit test cases for contact URL extraction (GitHub, LinkedIn, Email, Portfolio), multi-heading recognition, PDF block extraction, unstructured skill extraction, non-bullet work experience and projects grouping, en-dash/em-dash date ranges, leaked heading removal, and Type0 CIDFont hex stream CMap decoding (23/23 tests passing).
   * Quality Gates & Verification:
-    * `npm run test:unit` -> PASS (1,259/1,259 unit tests passing across 339 suites in 41.6s)
+    * `npm run test:unit` -> PASS (1,272/1,272 unit tests passing across 339 suites in 41.6s)
     * `npm run test:db-lifecycle-check` -> PASS (53/53 integration test files compliant, 0 violations)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
@@ -3438,7 +3438,7 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | **COMPLETE & VERIFIED** | Automated dependency auditor (`scripts/audit-dependencies.js`), zero-dependency secrets scanner (`scripts/scan-secrets.js`), Dependabot weekly configuration (`.github/dependabot.yml`), security policy (`SECURITY.md`), and CI security gates in `.github/workflows/ci.yml`. 12 unit tests passing in `tests/unit/secrets-scanner.test.js` & `tests/unit/dependency-auditor.test.js`. |
 | **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | **COMPLETE & VERIFIED** | Comprehensive, isolated 40-test penetration test suite in `tests/integration/penetration-testing.test.js` verifying 10 attack surfaces (AUTH, IDOR, MCP Gateway, Web UI/XSS/CSRF, Document Uploads, GitHub Webhooks, Two-Phase Write Safety, Zero Information Leakage, Bounded Fuzzing, Concurrent Reentrancy). Ephemeral database lifecycle, zero rows leaked to main DB, and 100% test pass rate. |
 | **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | **COMPLETE & VERIFIED** | Multi-tier in-memory token-bucket rate limiter (`src/security/mcp-rate-limiter.js`), concurrency semaphore with immediate rejection (`src/security/concurrency-semaphore.js`), PostgreSQL connection pool circuit breaker guard (`src/security/db-pool-guard.js`), and anti-spoofing client IP extraction (`src/utils/extract-client-ip.js`). 91 dedicated unit tests passing across `tests/unit/application-rate-limiter.test.js`, `tests/unit/concurrency-semaphore.test.js`, `tests/unit/db-pool-guard.test.js`, and `tests/unit/extract-client-ip.test.js`. |
-| **P14-003A** | Career Hub Production Readiness Audit, UI/UX Hardening & End-to-End Product Consistency | P14-003 | **COMPLETE & VERIFIED** | Fixed 10 UI/UX and evidence provenance inconsistencies: deterministic click dropdown toggle, AST skill primary evidence association, PDF multi-block text & section newline preservation, rich self-reported claim generation, unified AI Connect design and endpoint guidance, contextual back navigation & breadcrumbs across all views, visual knowledge pipeline diagrams. 1,259/1,259 unit tests passing, Prettier format 100%, zero secrets. |
+| **P14-003A** | Career Hub Production Readiness Audit, UI/UX Hardening & End-to-End Product Consistency | P14-003 | **COMPLETE & VERIFIED** | Fixed 10 UI/UX and evidence provenance inconsistencies: deterministic click dropdown toggle, AST skill primary evidence association, PDF multi-block text & section newline preservation, rich self-reported claim generation, unified AI Connect design and endpoint guidance, contextual back navigation & breadcrumbs across all views, visual knowledge pipeline diagrams, and comprehensive non-bullet resume parsing with CMap decoding. 1,272/1,272 unit tests passing, Prettier format 100%, zero secrets. |
 | **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | NOT_STARTED | Configure production domain (`staging.careerhub.ai`), Cloudflare Named Tunnel (`cloudflared`), Managed PostgreSQL staging database with TLS, stable GitHub OAuth/webhook callbacks, and uptime monitoring probes. |
 | **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004 | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
