@@ -211,9 +211,14 @@ export default async function webRoutes(app, opts = {}) {
         provenanceStatus: candidateSkills.provenanceStatus,
         confidenceScore: candidateSkills.confidenceScore,
         evidenceCount: candidateSkills.evidenceCount,
+        primaryEvidenceId: candidateSkills.primaryEvidenceId,
+        resourceDisplayName: resources.displayName,
+        resourceUrl: resources.url,
       })
       .from(candidateSkills)
       .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .leftJoin(evidenceItems, eq(candidateSkills.primaryEvidenceId, evidenceItems.id))
+      .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
       .where(
         and(eq(candidateSkills.tenantId, tenant.id), eq(candidateSkills.candidateId, candidate.id))
       )
@@ -658,19 +663,69 @@ export default async function webRoutes(app, opts = {}) {
     const skillRows = await database
       .select({
         id: candidateSkills.id,
+        skillId: candidateSkills.skillId,
         name: skills.name,
         slug: skills.slug,
         category: candidateSkills.category,
         provenanceStatus: candidateSkills.provenanceStatus,
         confidenceScore: candidateSkills.confidenceScore,
         evidenceCount: candidateSkills.evidenceCount,
+        primaryEvidenceId: candidateSkills.primaryEvidenceId,
+        evidenceType: evidenceItems.evidenceType,
+        sourceLocation: evidenceItems.sourceLocation,
+        excerpt: evidenceItems.excerpt,
+        resourceDisplayName: resources.displayName,
+        resourceUrl: resources.url,
+        resourceName: resources.name,
+        resourceProvider: resources.provider,
+        lastObservedAt: candidateSkills.lastObservedAt,
       })
       .from(candidateSkills)
       .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .leftJoin(evidenceItems, eq(candidateSkills.primaryEvidenceId, evidenceItems.id))
+      .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
       .where(
         and(eq(candidateSkills.tenantId, tenant.id), eq(candidateSkills.candidateId, candidate.id))
       )
       .orderBy(desc(candidateSkills.confidenceScore));
+
+    // Resolve provenance fallback for any skill where primaryEvidenceId was unlinked
+    for (const row of skillRows) {
+      if (!row.resourceDisplayName && !row.evidenceType && row.skillId) {
+        const [topEvidence] = await database
+          .select({
+            id: evidenceItems.id,
+            evidenceType: evidenceItems.evidenceType,
+            sourceLocation: evidenceItems.sourceLocation,
+            excerpt: evidenceItems.excerpt,
+            resourceDisplayName: resources.displayName,
+            resourceUrl: resources.url,
+            resourceName: resources.name,
+            resourceProvider: resources.provider,
+          })
+          .from(evidenceItems)
+          .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
+          .where(
+            and(
+              eq(evidenceItems.tenantId, tenant.id),
+              eq(evidenceItems.candidateId, candidate.id),
+              eq(evidenceItems.skillId, row.skillId)
+            )
+          )
+          .orderBy(desc(evidenceItems.confidenceScore))
+          .limit(1);
+
+        if (topEvidence) {
+          row.evidenceType = topEvidence.evidenceType;
+          row.sourceLocation = topEvidence.sourceLocation;
+          row.excerpt = topEvidence.excerpt;
+          row.resourceDisplayName = topEvidence.resourceDisplayName;
+          row.resourceUrl = topEvidence.resourceUrl;
+          row.resourceName = topEvidence.resourceName;
+          row.resourceProvider = topEvidence.resourceProvider;
+        }
+      }
+    }
 
     const html = renderSkillsPage({
       user,

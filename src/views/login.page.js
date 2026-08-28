@@ -26,14 +26,14 @@ export function renderLoginPage({ returnTo = '', error = '', user = null } = {})
         <div class="brand-icon" style="width:48px; height:48px; margin:0 auto 20px; font-size:1.3rem;">AG</div>
         
         <h1 style="font-size:1.6rem; font-weight:700; margin-bottom:8px;">Sign in to Career Hub</h1>
-        <p style="color:var(--text-muted); font-size:0.925rem; margin-bottom:28px;">
-          Authenticate with your GitHub account to access your candidate workspace.
+        <p style="color:var(--text-muted); font-size:0.925rem; margin-bottom:28px; line-height:1.6;">
+          Authenticate with your GitHub account to access your evidence-backed career workspace.
         </p>
 
         ${
           safeError
             ? `
-          <div style="background:rgba(244,63,94,0.12); border:1px solid rgba(244,63,94,0.3); border-radius:var(--radius-md); padding:12px; margin-bottom:20px; color:#FB7185; font-size:0.875rem;">
+          <div class="alert alert-error" style="margin-bottom:20px; font-size:0.875rem;">
             ${safeError}
           </div>
           `
@@ -45,12 +45,18 @@ export function renderLoginPage({ returnTo = '', error = '', user = null } = {})
           <span>Continue with GitHub</span>
         </a>
 
+        <p style="font-size:0.8rem; color:var(--text-dim); margin-bottom:20px; line-height:1.5;">
+          You will be redirected to GitHub for secure OAuth authentication.<br>
+          No API keys or passwords are stored — only an encrypted session token.
+        </p>
+
         <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:16px; text-align:left;">
-          <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin-bottom:8px;">Security Guarantees</h4>
-          <ul style="list-style:none; font-size:0.825rem; color:var(--text-muted); display:flex; flex-direction:column; gap:6px;">
-            <li>🔒 <strong>Least Privilege:</strong> You select which repositories to connect.</li>
-            <li>🛡️ <strong>Zero Plaintext Storage:</strong> Credentials encrypted at rest.</li>
-            <li>🗑️ <strong>Data Sovereignty:</strong> Disconnect or hard delete anytime under GDPR.</li>
+          <h4 style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin-bottom:10px;">Security Guarantees</h4>
+          <ul style="list-style:none; font-size:0.825rem; color:var(--text-muted); display:flex; flex-direction:column; gap:8px;">
+            <li style="display:flex; align-items:flex-start; gap:8px;">🔒 <span><strong>Least Privilege:</strong> You choose exactly which repositories to connect.</span></li>
+            <li style="display:flex; align-items:flex-start; gap:8px;">🛡️ <span><strong>Zero Plaintext Storage:</strong> Credentials encrypted with AES-256-GCM at rest.</span></li>
+            <li style="display:flex; align-items:flex-start; gap:8px;">🔑 <span><strong>OAuth PKCE:</strong> Industry-standard S256 proof key — no client secrets in browser.</span></li>
+            <li style="display:flex; align-items:flex-start; gap:8px;">🗑️ <span><strong>Data Sovereignty:</strong> Disconnect or hard-delete your account anytime under GDPR Article 17.</span></li>
           </ul>
         </div>
       </div>

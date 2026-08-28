@@ -54,13 +54,41 @@ export function renderLandingPage({ user = null } = {}) {
         </div>
       </section>
 
-      <!-- Architecture Comparison: Hallucination vs Verified Truth -->
+      <!-- Evidence Model: Verified vs Claimed vs Inferred -->
       <section style="margin-bottom:64px;">
-        <div style="text-align:center; margin-bottom:32px;">
-          <h2 style="font-size:1.6rem; font-weight:700; letter-spacing:-0.02em;">Truth-in-AI Architecture</h2>
-          <p style="color:var(--text-muted); font-size:0.95rem; margin-top:6px;">How Career Hub separates authentic engineering proof from generic resume claims.</p>
+        <div style="text-align:center; margin-bottom:36px;">
+          <h2 style="font-size:1.6rem; font-weight:700; letter-spacing:-0.02em;">The Evidence Truth Model</h2>
+          <p style="color:var(--text-muted); font-size:0.95rem; margin-top:6px; max-width:640px; margin-left:auto; margin-right:auto;">Every skill, project, and claim in Career Hub carries a strict truth classification. No ambiguity, no greenwashing.</p>
         </div>
 
+        <!-- Four Evidence States -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; margin-bottom:32px;">
+          <div class="card" style="border-top: 3px solid var(--accent-emerald); text-align:center; padding:24px 20px;">
+            <div class="badge badge-verified" style="font-size:0.8rem; margin-bottom:12px;">VERIFIED</div>
+            <p style="font-size:0.875rem; color:var(--text-muted); line-height:1.5;">Backed by AST syntax analysis, dependency manifests, or cryptographic commit evidence.</p>
+            <div style="margin-top:12px; font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono);">commit: a3f2c1d &bull; path: src/api/</div>
+          </div>
+
+          <div class="card" style="border-top: 3px solid var(--accent-cyan); text-align:center; padding:24px 20px;">
+            <div class="badge badge-inferred" style="font-size:0.8rem; margin-bottom:12px;">INFERRED</div>
+            <p style="font-size:0.875rem; color:var(--text-muted); line-height:1.5;">Derived through taxonomy hierarchy. E.g., expertise in Next.js implies React proficiency.</p>
+            <div style="margin-top:12px; font-size:0.75rem; color:var(--text-dim);">Logical deduction from verified foundation</div>
+          </div>
+
+          <div class="card" style="border-top: 3px solid var(--accent-amber); text-align:center; padding:24px 20px;">
+            <div class="badge badge-claimed" style="font-size:0.8rem; margin-bottom:12px;">CLAIMED</div>
+            <p style="font-size:0.875rem; color:var(--text-muted); line-height:1.5;">User-asserted from resume upload. Always labeled <code style="color:#FBBF24;">[Unverified User Claim]</code>.</p>
+            <div style="margin-top:12px; font-size:0.75rem; color:var(--text-dim);">Candidate-provided, never auto-verified</div>
+          </div>
+
+          <div class="card" style="border-top: 3px solid rgba(148,163,184,0.3); text-align:center; padding:24px 20px;">
+            <span class="badge" style="background:rgba(148,163,184,0.15); color:#94a3b8; border:1px solid rgba(148,163,184,0.3); font-size:0.8rem; margin-bottom:12px;">UNKNOWN</span>
+            <p style="font-size:0.875rem; color:var(--text-muted); line-height:1.5;">No claim or evidence available. The system explicitly shows gaps rather than fabricating skills.</p>
+            <div style="margin-top:12px; font-size:0.75rem; color:var(--text-dim);">Transparent silence over fabrication</div>
+          </div>
+        </div>
+
+        <!-- Hallucination vs Verified Comparison -->
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:24px;">
           <div class="card" style="border-left: 3px solid var(--accent-rose);">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">

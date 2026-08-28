@@ -76,52 +76,81 @@ export function renderConnectPage({
   errorMessage = '',
   baseUrl = 'http://localhost:3000',
 }) {
-  const candidateName = candidate?.displayName || user?.displayName || 'Authenticated Candidate';
-  const candidateEmail = candidate?.canonicalEmail || user?.email || '';
+  const candidateName = user?.displayName || candidate?.displayName || 'Authenticated Candidate';
+  const candidateEmail = user?.email || candidate?.canonicalEmail || '';
   const mcpEndpointUrl = `${baseUrl.replace(/\/$/, '')}/mcp`;
 
   const content = `
-    <div style="margin-bottom: 2.5rem;">
+    <div class="container">
+      <!-- Back Navigation -->
+      <a href="/dashboard" class="back-nav-link">
+        <span aria-hidden="true">←</span> Back to Dashboard
+      </a>
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <a href="/dashboard">Overview</a>
+        <span class="separator">/</span>
+        <span class="current">AI Connect</span>
+      </div>
+
+      <!-- Architecture Pipeline Banner -->
+      <div class="pipeline-banner">
+        <div class="pipeline-header">
+          <span class="pipeline-title">Model Context Protocol (MCP) Remote Architecture</span>
+          <span style="font-size:0.75rem; color:var(--text-dim);">JSON-RPC 2.0 • Protocol Version 2026-07-28</span>
+        </div>
+        <div class="pipeline-steps">
+          <div class="pipeline-step"><span>📦</span> Verified Knowledge Graph</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🔑</span> Auth (OAuth 2.1 PKCE / Bearer Token)</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step active"><span>🌐</span> Remote MCP Server (/mcp)</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🤖</span> Claude / ChatGPT / Gemini</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>⚖️</span> Two-Phase Safe Approval</div>
+        </div>
+      </div>
+
       <!-- Header -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+      <div class="page-header">
         <div>
-          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
             <span class="badge badge-indigo">AI INTEGRATION HUB</span>
-            <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3);">
-              PROTOCOL 2026-07-28
-            </span>
+            <span class="badge badge-verified">PROTOCOL 2026-07-28</span>
           </div>
-          <h1 style="font-size: 1.875rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">AI Connection Center</h1>
-          <p style="color: #94a3b8; font-size: 0.95rem; max-width: 760px; line-height: 1.6;">
+          <h1>AI Connection Center</h1>
+          <p>
             Connect your trusted AI assistants (Anthropic Claude, OpenAI ChatGPT, Google Gemini) to your sovereign Career Hub knowledge graph over the remote Model Context Protocol (MCP).
           </p>
         </div>
       </div>
 
       <!-- Authenticated Candidate Context Banner -->
-      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; background: rgba(30, 41, 59, 0.45); border: 1px solid var(--border-subtle); padding: 0.85rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.75rem;">
-        <div style="display: flex; align-items: center; gap: 0.85rem;">
-          <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem; color: #FFF; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);">
+      <div class="context-banner">
+        <div class="context-banner-inner">
+          <div class="context-banner-avatar">
             ${escapeHtml(candidateName.charAt(0).toUpperCase())}
           </div>
           <div>
-            <div style="font-weight: 600; color: #F8FAFC; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem;">
+            <div class="context-banner-meta">
               <span>${escapeHtml(candidateName)}</span>
-              <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 0.7rem;">ACTIVE WORKSPACE</span>
+              <span class="badge badge-indigo" style="font-size:0.7rem;">ACTIVE WORKSPACE</span>
             </div>
-            <div style="font-size: 0.8rem; color: #94A3B8;">
+            <div class="context-banner-sub">
               ${escapeHtml(candidateEmail)} • Role: <strong style="color:#CBD5E1;">${escapeHtml(user.role || 'OWNER')}</strong>
             </div>
           </div>
         </div>
-        <div style="font-size: 0.8rem; color: #64748B;">
+        <div style="font-size:0.8rem; color:#64748B;">
           ${mcpTokens.length} active personal ${mcpTokens.length === 1 ? 'token' : 'tokens'}
         </div>
       </div>
 
       <!-- Flash & Error Messages -->
-      ${flashMessage ? `<div class="alert alert-success" style="margin-bottom: 1.5rem;">${escapeHtml(flashMessage)}</div>` : ''}
-      ${errorMessage ? `<div class="alert alert-error" style="margin-bottom: 1.5rem;">${escapeHtml(errorMessage)}</div>` : ''}
+      ${flashMessage ? `<div class="alert alert-success">${escapeHtml(flashMessage)}</div>` : ''}
+      ${errorMessage ? `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>` : ''}
 
       <!-- One-Time Raw Token Banner (if newly created) -->
       ${
@@ -339,11 +368,11 @@ export function renderConnectPage({
       </div>
 
       <!-- Personal MCP Token Generator & Management Table -->
-      <div class="card" style="margin-bottom: 2.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+      <div class="card" style="margin-bottom:2.5rem;">
+        <div class="section-header" style="margin-bottom:1.5rem;">
           <div>
-            <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.25rem;">Personal MCP API Tokens</h2>
-            <p style="color: #94a3b8; font-size: 0.875rem;">
+            <h2>Personal MCP API Tokens</h2>
+            <p style="font-size:0.85rem; color:var(--text-dim); margin-top:2px;">
               Generate dedicated API tokens for programmatic agents, IDE sidecars, or custom MCP clients. Maximum 10 active tokens per user.
             </p>
           </div>
@@ -396,12 +425,16 @@ export function renderConnectPage({
         </form>
 
         <!-- Active Tokens List -->
-        <h3 style="font-size: 1rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.75rem;">Active Tokens (${mcpTokens.length})</h3>
+        <div class="section-header" style="margin-bottom:0.75rem;">
+          <h3 style="font-size:1rem; font-weight:600;">Active Tokens (${mcpTokens.length})</h3>
+        </div>
         ${
           mcpTokens.length === 0
             ? `
-          <div style="text-align: center; padding: 2rem; color: #64748b; font-size: 0.875rem; background: rgba(15, 23, 42, 0.3); border-radius: 6px;">
-            No personal MCP tokens generated yet. Generate a token above to connect external tools.
+          <div class="empty-state" style="padding:2rem;">
+            <div class="empty-state-icon">🔑</div>
+            <h3>No Personal MCP Tokens Yet</h3>
+            <p>Generate a token above to connect external tools like Gemini, Cursor, or custom scripts.</p>
           </div>
         `
             : `
@@ -479,6 +512,7 @@ export function renderConnectPage({
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- Interactive Copy Script -->

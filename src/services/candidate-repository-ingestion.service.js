@@ -36,6 +36,7 @@ import { GitHubAppAuthManager } from '../connectors/github/auth.js';
 import { config } from '../config/env.js';
 import { GitHubEvidenceExtractorService } from '../extractors/github/github-evidence-extractor.js';
 import { SkillRollupCalculator } from '../extractors/github/skill-rollup.js';
+import { PrimaryEvidenceSelector } from './evidence/primary-evidence-selector.js';
 
 export class CandidateRepositoryIngestionService {
   /**
@@ -540,6 +541,7 @@ export class CandidateRepositoryIngestionService {
 
     for (const [skillId, items] of evidenceBySkillId.entries()) {
       const rollup = SkillRollupCalculator.calculateRollup(items);
+      const bestPrimary = PrimaryEvidenceSelector.selectBestPrimary(items);
       const current = currentBySkillId.get(skillId);
 
       if (current) {
@@ -552,19 +554,42 @@ export class CandidateRepositoryIngestionService {
             provenanceStatus: rollup.provenanceStatus,
             confidenceScore: rollup.confidenceScore,
             evidenceCount: rollup.evidenceCount,
-            firstObservedAt: rollup.firstObservedAt,
-            lastObservedAt: rollup.lastObservedAt,
+            primaryEvidenceId: bestPrimary ? bestPrimary.id : current.primaryEvidenceId,
+            firstObservedAt: rollup.firstObservedAt || current.firstObservedAt,
+            lastObservedAt: rollup.lastObservedAt || new Date(),
             updatedAt: new Date(),
           })
           .where(eq(candidateSkills.id, current.id));
 
         if (!wasVerified && isNowVerified) {
           verifiedSkillsAdded++;
-          // We'll resolve the skill name below
         }
 
         if (isNowVerified) {
           verifiedSkills.push(skillId);
+        }
+      } else {
+        const [skillRow] = await this.db.select().from(skills).where(eq(skills.id, skillId));
+
+        if (skillRow) {
+          const isNowVerified = rollup.provenanceStatus === 'VERIFIED';
+          await this.db.insert(candidateSkills).values({
+            tenantId,
+            candidateId,
+            skillId,
+            category: skillRow.category || 'LANGUAGE',
+            provenanceStatus: rollup.provenanceStatus,
+            confidenceScore: rollup.confidenceScore,
+            evidenceCount: rollup.evidenceCount,
+            primaryEvidenceId: bestPrimary ? bestPrimary.id : null,
+            firstObservedAt: rollup.firstObservedAt || new Date(),
+            lastObservedAt: rollup.lastObservedAt || new Date(),
+          });
+
+          if (isNowVerified) {
+            verifiedSkillsAdded++;
+            verifiedSkills.push(skillId);
+          }
         }
       }
     }

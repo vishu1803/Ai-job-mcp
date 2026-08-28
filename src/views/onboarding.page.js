@@ -164,7 +164,7 @@ function renderStepContent({
     case 4:
       return renderStep4Ingestion({ selectedRepos, syncResult });
     case 5:
-      return renderStep5Complete({ syncResult, candidate, selectedRepos });
+      return renderStep5Complete({ syncResult, candidate, selectedRepos, user });
     default:
       return renderStep1Profile({ user, candidate });
   }
@@ -174,7 +174,7 @@ function renderStepContent({
  * Step 1: Candidate Identity & Profile
  */
 function renderStep1Profile({ user, candidate }) {
-  const displayName = candidate?.displayName || user.displayName || '';
+  const displayName = user.displayName || candidate?.displayName || '';
   const canonicalEmail = candidate?.canonicalEmail || user.email || '';
   const headline = candidate?.headline || '';
   const summary = candidate?.summary || '';
@@ -482,7 +482,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult }) {
 /**
  * Step 5: Onboarding Completion
  */
-function renderStep5Complete({ candidate, selectedRepos }) {
+function renderStep5Complete({ candidate, selectedRepos, user = null }) {
   return `
     <div style="text-align:center; padding:20px 0;">
       <div style="width:64px; height:64px; border-radius:50%; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); color:#34D399; display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto 20px;">
@@ -500,7 +500,7 @@ function renderStep5Complete({ candidate, selectedRepos }) {
         <div style="display:flex; flex-direction:column; gap:10px; font-size:0.875rem;">
           <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.04); padding-bottom:8px;">
             <span style="color:var(--text-muted);">Candidate Persona:</span>
-            <strong>${escapeHtml(candidate?.displayName || 'Active Candidate')}</strong>
+            <strong>${escapeHtml(user.displayName || candidate?.displayName || 'Active Candidate')}</strong>
           </div>
           <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.04); padding-bottom:8px;">
             <span style="color:var(--text-muted);">Headline:</span>

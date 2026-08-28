@@ -38,7 +38,7 @@ export function renderDashboardPage({
   const candidateSummary =
     candidate?.summary ||
     'Connect your GitHub repository to extract verified engineering evidence, projects, and skills.';
-  const candidateEmail = candidate?.canonicalEmail || user.email || '';
+  const candidateEmail = user?.email || candidate?.canonicalEmail || '';
 
   const verifiedCount = skills.filter((s) => s.provenanceStatus === 'VERIFIED').length;
   const inferredCount = skills.filter((s) => s.provenanceStatus === 'INFERRED').length;
@@ -55,17 +55,35 @@ export function renderDashboardPage({
 
   const content = `
     <div class="container">
+      <!-- Architecture Pipeline Banner -->
+      <div class="pipeline-banner">
+        <div class="pipeline-header">
+          <span class="pipeline-title">Career Intelligence Knowledge Architecture</span>
+          <span style="font-size:0.75rem; color:var(--text-dim);">Live Evidence Resolution</span>
+        </div>
+        <div class="pipeline-steps">
+          <div class="pipeline-step"><span>📦</span> 1. Connect Sources</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🔍</span> 2. AST & Claims Extraction</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>⚖️</span> 3. Truth Model (VERIFIED / CLAIMED)</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>★</span> 4. Base Narrative Graph</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🤖</span> 5. Sovereign AI MCP Access</div>
+        </div>
+      </div>
+
       <!-- Profile Header Card -->
       <div class="card" style="padding:28px 32px; margin-bottom:28px; background:linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
           <div style="display:flex; gap:20px; align-items:center;">
-            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); color:#FFF; display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:800; box-shadow:0 8px 24px rgba(99,102,241,0.35);">
-              ${escapeHtml((candidate?.displayName || user.displayName || 'Candidate').slice(0, 2).toUpperCase())}
+            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); color:#FFF; display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:800; box-shadow:0 8px 24px rgba(99,102,241,0.35);">                  ${escapeHtml((user.displayName || candidate?.displayName || 'Candidate').slice(0, 2).toUpperCase())}
             </div>
             <div>
               <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
                 <h1 style="font-size:1.6rem; font-weight:800; letter-spacing:-0.02em;">
-                  ${escapeHtml(candidate?.displayName || user.displayName || 'Candidate Profile')}
+                  ${escapeHtml(user.displayName || candidate?.displayName || 'Candidate Profile')}
                 </h1>
                 <span class="badge badge-verified">ACTIVE CANDIDATE</span>
                 <span class="badge badge-indigo">${escapeHtml(tenant.tier)} WORKSPACE</span>

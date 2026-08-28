@@ -147,4 +147,57 @@ WORK EXPERIENCE
     assert.ok(skillNames.includes('PostgreSQL'));
     assert.ok(skillNames.includes('Kubernetes'));
   });
+
+  it('extracts contact URLs, GitHub, and LinkedIn profiles as CONTACT claims', () => {
+    const resumeWithLinks = `
+CONTACT INFO
+Email: engineer@example.com
+GitHub: https://github.com/vishu1803
+LinkedIn: https://linkedin.com/in/vishw-dev
+Portfolio: https://vishw.dev
+
+SUMMARY
+Experienced systems architect.
+    `;
+
+    const sections = resumeParserService.splitIntoSections(resumeWithLinks);
+    const claims = resumeParserService.generateClaims(sections);
+
+    const contactClaims = claims.filter((c) => c.claimType === 'CONTACT');
+    assert.ok(contactClaims.length >= 3);
+    for (const c of contactClaims) {
+      assert.equal(c.provenanceStatus, 'CLAIMED');
+      assert.ok(c.context.includes('[Unverified User Claim]'));
+    }
+
+    const contactStatements = contactClaims.map((c) => c.statement);
+    assert.ok(contactStatements.some((s) => s.includes('github.com/vishu1803')));
+    assert.ok(contactStatements.some((s) => s.includes('linkedin.com/in/vishw-dev')));
+  });
+
+  it('extracts skills from unstructured resume text fallback', () => {
+    const unstructuredResume = `
+Jane Doe
+Senior Fullstack Engineer who specializes in Fastify, Node.js, TypeScript, PostgreSQL, and Docker.
+Delivered enterprise features and scaled services across AWS.
+    `;
+
+    const sections = resumeParserService.splitIntoSections(unstructuredResume);
+    const claims = resumeParserService.generateClaims(sections);
+
+    const skillClaims = claims.filter((c) => c.claimType === 'SKILL');
+    assert.ok(skillClaims.length >= 4);
+
+    const skillNames = skillClaims.map((c) => c.statement);
+    assert.ok(skillNames.includes('Fastify'));
+    assert.ok(skillNames.includes('Node.js'));
+    assert.ok(skillNames.includes('TypeScript'));
+    assert.ok(skillNames.includes('PostgreSQL'));
+    assert.ok(skillNames.includes('Docker'));
+
+    for (const c of skillClaims) {
+      assert.equal(c.provenanceStatus, 'CLAIMED');
+      assert.ok(c.context.includes('[Unverified User Claim]'));
+    }
+  });
 });

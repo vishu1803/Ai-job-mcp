@@ -38,32 +38,61 @@ export function renderProjectsPage({ user, tenant, projects = [], selectedProjec
 function renderProjectsList({ projects }) {
   return `
     <div class="container">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:28px;">
+      <!-- Back Navigation -->
+      <a href="/dashboard" class="back-nav-link">
+        <span aria-hidden="true">←</span> Back to Dashboard
+      </a>
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <a href="/dashboard">Overview</a>
+        <span class="separator">/</span>
+        <span class="current">Projects</span>
+      </div>
+
+      <!-- Architecture Pipeline Banner -->
+      <div class="pipeline-banner">
+        <div class="pipeline-header">
+          <span class="pipeline-title">Project & Portfolio Knowledge Pipeline</span>
+          <span style="font-size:0.75rem; color:var(--text-dim);">Deterministic AST Extraction</span>
+        </div>
+        <div class="pipeline-steps">
+          <div class="pipeline-step"><span>📦</span> Repository Resources</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🔍</span> Code Trees & Manifests</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step active"><span>💼</span> Verified Projects</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>📎</span> AST Evidence Citations</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🤖</span> AI Context Integration</div>
+        </div>
+      </div>
+
+      <div class="page-header">
         <div>
           <span class="badge badge-indigo" style="margin-bottom:6px;">PORTFOLIO & EVIDENCE</span>
-          <h1 style="font-size:1.85rem; font-weight:800; letter-spacing:-0.02em;">Projects & Code Evidence</h1>
-          <p style="color:var(--text-muted); font-size:0.95rem; margin-top:4px;">
+          <h1>Projects & Code Evidence</h1>
+          <p>
             Evidence-grounded project records constructed from your connected repository AST syntax trees.
           </p>
         </div>
 
-        <div style="display:flex; gap:10px;">
-          <a href="/onboarding?step=3" class="btn btn-primary btn-sm">
-            <span>+ Ingest New Repositories</span>
-          </a>
-        </div>
+        <a href="/onboarding?step=3" class="btn btn-primary btn-sm">
+          + Ingest New Repositories
+        </a>
       </div>
 
       ${
         projects.length === 0
           ? `
-        <div class="card" style="text-align:center; padding:48px 24px;">
-          <div style="font-size:2.5rem; margin-bottom:12px;">📁</div>
-          <h2 style="font-size:1.25rem; font-weight:700; margin-bottom:6px;">No Projects Ingested Yet</h2>
-          <p style="font-size:0.9rem; color:var(--text-muted); max-width:460px; margin:0 auto 20px;">
+        <div class="empty-state">
+          <div class="empty-state-icon">📁</div>
+          <h3>No Projects Ingested Yet</h3>
+          <p>
             Connect your GitHub repositories in the onboarding wizard to automatically generate verified project artifacts.
           </p>
-          <a href="/onboarding?step=3" class="btn btn-primary">Start Repository Ingestion →</a>
+          <a href="/onboarding?step=3" class="btn btn-primary btn-sm">Start Repository Ingestion →</a>
         </div>
       `
           : `
@@ -71,10 +100,10 @@ function renderProjectsList({ projects }) {
           ${projects
             .map(
               (p) => `
-            <div class="card" style="display:flex; flex-direction:column; justify-content:space-between; transition:transform 0.2s ease, border-color 0.2s ease;">
+            <div class="card" style="display:flex; flex-direction:column; justify-content:space-between;">
               <div>
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-                  <h3 style="font-size:1.15rem; font-weight:700; color:var(--text-main);">
+                  <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-main);">
                     ${escapeHtml(p.name)}
                   </h3>
                   <span class="badge badge-cyan">AST INDEXED</span>
@@ -93,7 +122,7 @@ function renderProjectsList({ projects }) {
 
               <div>
                 <div style="display:flex; justify-content:space-between; align-items:center; padding-top:14px; border-top:1px solid var(--border-subtle); font-size:0.8rem; color:var(--text-dim);">
-                  <span>Linked Repo: <code>${escapeHtml(p.slug || p.name)}</code></span>
+                  <span>Repo: <code>${escapeHtml(p.slug || p.name)}</code></span>
                   <a href="/projects/${escapeHtml(p.id)}" class="btn btn-secondary btn-sm" style="font-size:0.75rem;">
                     Inspect Evidence →
                   </a>
@@ -115,18 +144,25 @@ function renderProjectDetail({ selectedProject }) {
 
   return `
     <div class="container" style="max-width:960px;">
-      <!-- Breadcrumb & Nav -->
-      <div style="margin-bottom:20px;">
-        <a href="/projects" style="font-size:0.85rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:6px;">
-          ← Back to All Projects
-        </a>
+      <!-- Back Navigation -->
+      <a href="/projects" class="back-nav-link">
+        <span aria-hidden="true">←</span> Back to Projects
+      </a>
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <a href="/dashboard">Overview</a>
+        <span class="separator">/</span>
+        <a href="/projects">Projects</a>
+        <span class="separator">/</span>
+        <span class="current">${escapeHtml(selectedProject.name)}</span>
       </div>
 
       <!-- Project Header Card -->
       <div class="card" style="padding:32px; margin-bottom:28px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
           <div>
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
               <h1 style="font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">
                 ${escapeHtml(selectedProject.name)}
               </h1>
@@ -150,37 +186,37 @@ function renderProjectDetail({ selectedProject }) {
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; padding-top:20px; border-top:1px solid var(--border-subtle); font-size:0.85rem;">
           <div>
-            <span style="color:var(--text-dim);">Role / Contribution:</span>
-            <strong style="color:var(--text-main); display:block; margin-top:2px;">${escapeHtml(selectedProject.role || 'Author / Core Contributor')}</strong>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Role / Contribution</span>
+            <strong style="color:var(--text-main); display:block; margin-top:4px;">${escapeHtml(selectedProject.role || 'Author / Core Contributor')}</strong>
           </div>
           <div>
-            <span style="color:var(--text-dim);">Evidence Citations:</span>
-            <strong style="color:var(--accent-cyan); display:block; margin-top:2px;">${evidenceList.length} items</strong>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Evidence Citations</span>
+            <strong style="color:var(--accent-cyan); display:block; margin-top:4px;">${evidenceList.length} items</strong>
           </div>
           <div>
-            <span style="color:var(--text-dim);">Provenance Model:</span>
-            <strong style="color:var(--accent-emerald); display:block; margin-top:2px;">Deterministic AST Proof</strong>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Provenance Model</span>
+            <strong style="color:var(--accent-emerald); display:block; margin-top:4px;">Deterministic AST Proof</strong>
           </div>
         </div>
       </div>
 
       <!-- Evidence Citations Table -->
       <div class="card" style="padding:28px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div class="section-header">
           <div>
-            <h2 style="font-size:1.2rem; font-weight:700;">Code Evidence & AST Citations</h2>
+            <h2>Code Evidence & AST Citations</h2>
             <p style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">
               Individual proof nodes extracted from dependencies, commit history, and source architecture.
             </p>
           </div>
-          <span style="font-size:0.85rem; color:var(--text-muted);">${evidenceList.length} Total</span>
+          <span class="section-count">${evidenceList.length} Total</span>
         </div>
 
         ${
           evidenceList.length === 0
             ? `
-          <div style="text-align:center; padding:32px 16px; background:rgba(0,0,0,0.2); border-radius:var(--radius-md);">
-            <p style="color:var(--text-muted); font-size:0.875rem;">No detailed evidence items recorded for this project.</p>
+          <div class="empty-state" style="padding:32px 16px;">
+            <p style="color:var(--text-muted); font-size:0.875rem; margin:0;">No detailed evidence items recorded for this project.</p>
           </div>
         `
             : `
@@ -197,31 +233,33 @@ function renderProjectDetail({ selectedProject }) {
               <tbody>
                 ${evidenceList
                   .map((e) => {
-                    const locStr =
-                      typeof e.sourceLocation === 'object' && e.sourceLocation !== null
-                        ? e.sourceLocation.filePath ||
-                          e.sourceLocation.path ||
-                          JSON.stringify(e.sourceLocation)
-                        : String(e.sourceLocation || 'Repository Root');
+                    const locStr = e.sourceFilePath
+                      ? `${e.sourceFilePath}${e.lineStart ? `:${e.lineStart}` : ''}`
+                      : 'Unknown';
+                    const skillName = e.linkedSkillName || e.skillName || '—';
+                    const conf = Math.round((e.confidenceScore || 0) * 100);
                     return `
-                  <tr>
-                    <td>
-                      <span class="badge badge-indigo" style="font-size:0.7rem;">${escapeHtml(e.evidenceType || 'CODE_EVIDENCE')}</span>
-                    </td>
-                    <td>
-                      <div style="font-family:var(--font-mono); font-size:0.8rem; color:var(--text-main);">${escapeHtml(locStr)}</div>
-                      ${e.excerpt ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px; font-style:italic;">"${escapeHtml(e.excerpt.slice(0, 80))}${e.excerpt.length > 80 ? '...' : ''}"</div>` : ''}
-                    </td>
-                    <td>
-                      <span class="badge badge-verified">${escapeHtml(e.skillName || e.skillSlug || 'General')}</span>
-                    </td>
-                    <td>
-                      <strong style="color:var(--accent-emerald); font-size:0.85rem;">
-                        ${Math.round((e.confidenceScore || 0.9) * 100)}%
-                      </strong>
-                    </td>
-                  </tr>
-                `;
+                    <tr>
+                      <td>
+                        <span class="badge ${e.evidenceType === 'AST_SYNTAX' ? 'badge-verified' : e.evidenceType === 'DEPENDENCY' ? 'badge-cyan' : 'badge-inferred'}" style="font-size:0.7rem;">
+                          ${escapeHtml(e.evidenceType || 'UNKNOWN')}
+                        </span>
+                      </td>
+                      <td>
+                        <code style="font-size:0.8rem; color:#E0E7FF;">${escapeHtml(locStr)}</code>
+                        ${e.commitSha ? `<div style="font-size:0.7rem; color:var(--text-dim); margin-top:2px;">SHA: ${escapeHtml(e.commitSha.slice(0, 8))}</div>` : ''}
+                      </td>
+                      <td style="font-size:0.875rem;">${escapeHtml(skillName)}</td>
+                      <td>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                          <div style="width:60px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                            <div style="width:${conf}%; height:100%; background:${conf >= 80 ? 'var(--accent-emerald)' : conf >= 50 ? 'var(--accent-amber)' : 'var(--accent-rose)'}; border-radius:3px;"></div>
+                          </div>
+                          <span style="font-size:0.8rem; color:var(--text-muted);">${conf}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
                   })
                   .join('')}
               </tbody>

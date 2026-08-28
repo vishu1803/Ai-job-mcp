@@ -148,7 +148,7 @@ export class ResumeParserService {
    * @returns {string} Extracted text
    */
   _extractTextFromPdf(buffer) {
-    const textChunks = [];
+    const textBlocks = [];
     const content = buffer.toString('binary');
 
     // Extract text streams: look for FlateDecode streams or plain text stream blocks
@@ -173,28 +173,39 @@ export class ResumeParserService {
       let btMatch;
       while ((btMatch = btRegex.exec(decompressed)) !== null) {
         const textBlock = btMatch[1];
-        // Match string literals (text)
+        const blockChunks = [];
+
+        // Match string literals (text) e.g., (Hello World) Tj
         const tjRegex = /\(([\s\S]*?)\)\s*T[jJ]/g;
         let tjMatch;
         while ((tjMatch = tjRegex.exec(textBlock)) !== null) {
-          textChunks.push(tjMatch[1].replace(/\\([()\\])/g, '$1'));
+          blockChunks.push(tjMatch[1].replace(/\\([()\\])/g, '$1'));
         }
-        // Match hex string arrays
+
+        // Match hex string arrays e.g., [(Hello) 10 (World)] TJ
         const arrRegex = /\[([\s\S]*?)\]\s*TJ/g;
         let arrMatch;
         while ((arrMatch = arrRegex.exec(textBlock)) !== null) {
           const innerStrings = arrMatch[1].match(/\((.*?)\)/g);
           if (innerStrings) {
-            textChunks.push(
+            blockChunks.push(
               innerStrings.map((s) => s.slice(1, -1).replace(/\\([()\\])/g, '$1')).join('')
             );
           }
         }
+
+        if (blockChunks.length > 0) {
+          textBlocks.push(blockChunks.join(' ').trim());
+        }
       }
     }
 
-    if (textChunks.length > 0) {
-      return textChunks.join(' ').replace(/\s+/g, ' ').trim();
+    if (textBlocks.length > 0) {
+      return textBlocks
+        .join('\n')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
     }
 
     // Fallback: extract plain text literals from entire buffer
@@ -205,7 +216,12 @@ export class ResumeParserService {
       fallbackChunks.push(litMatch[1]);
     }
 
-    return fallbackChunks.join(' ').replace(/\s+/g, ' ').trim() || 'Parsed PDF Document';
+    return (
+      fallbackChunks
+        .join('\n')
+        .replace(/[ \t]+/g, ' ')
+        .trim() || 'Parsed PDF Document'
+    );
   }
 
   /**
@@ -243,11 +259,20 @@ export class ResumeParserService {
             xmlContent = compData.toString('utf-8');
           }
 
-          // Extract <w:t>...</w:t> tags
-          const tagRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
-          let tagMatch;
-          while ((tagMatch = tagRegex.exec(xmlContent)) !== null) {
-            textChunks.push(tagMatch[1]);
+          // Extract <w:p> paragraphs and <w:t> tags
+          const pRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/g;
+          let pMatch;
+          while ((pMatch = pRegex.exec(xmlContent)) !== null) {
+            const pContent = pMatch[1];
+            const tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
+            const lineParts = [];
+            let tMatch;
+            while ((tMatch = tRegex.exec(pContent)) !== null) {
+              lineParts.push(tMatch[1]);
+            }
+            if (lineParts.length > 0) {
+              textChunks.push(lineParts.join(''));
+            }
           }
           break;
         }
@@ -259,7 +284,7 @@ export class ResumeParserService {
     }
 
     if (textChunks.length > 0) {
-      return textChunks.join(' ').replace(/\s+/g, ' ').trim();
+      return textChunks.join('\n').replace(/\s+/g, ' ').trim();
     }
 
     // Fallback: extract printable strings
@@ -322,23 +347,48 @@ export class ResumeParserService {
 
     const headingPatterns = [
       {
+        type: 'CONTACT_INFO',
+        regex:
+          /^(?:contact|contact info|contact information|personal details|links|profiles|social profiles|contact details)/i,
+      },
+      {
         type: 'SUMMARY',
-        regex: /^(?:summary|professional summary|profile|about me|executive summary)/i,
+        regex:
+          /^(?:summary|professional summary|executive summary|career summary|profile|about me|professional profile|objective|career objective)/i,
       },
       {
         type: 'WORK_EXPERIENCE',
         regex:
-          /^(?:work experience|experience|employment history|work history|professional experience)/i,
+          /^(?:work experience|experience|employment history|work history|professional experience|career history|relevant experience)/i,
       },
-      { type: 'EDUCATION', regex: /^(?:education|academic background|degrees|academic history)/i },
+      {
+        type: 'EDUCATION',
+        regex:
+          /^(?:education|academic background|degrees|academic history|educational qualifications|academics|university)/i,
+      },
       {
         type: 'SKILLS',
-        regex: /^(?:technical skills|skills|core competencies|technologies|tools & languages)/i,
+        regex:
+          /^(?:technical skills|skills|core competencies|technologies|tools\s*(?:&|and)\s*languages|languages\s*(?:&|and)\s*frameworks|skills\s*(?:&|and)\s*technologies|technical expertise|stack)/i,
       },
-      { type: 'PROJECTS', regex: /^(?:projects|key projects|portfolio|technical initiatives)/i },
-      { type: 'CERTIFICATIONS', regex: /^(?:certifications|licenses|courses|credentials)/i },
-      { type: 'CONTACT_INFO', regex: /^(?:contact|contact information|personal details)/i },
+      {
+        type: 'PROJECTS',
+        regex:
+          /^(?:projects|key projects|technical projects|portfolio|technical initiatives|open source|featured projects)/i,
+      },
+      {
+        type: 'CERTIFICATIONS',
+        regex:
+          /^(?:certifications|licenses|courses|credentials|licenses\s*(?:&|and)\s*certifications|certifications\s*(?:&|and)\s*courses)/i,
+      },
     ];
+
+    // Strip trailing colons or bullet prefixes from heading comparison
+    const stripHeadingDecorations = (s) =>
+      s
+        .replace(/^[•\-*#]+\s*/, '')
+        .replace(/:\s*$/, '')
+        .trim();
 
     for (const rawLine of lines) {
       const line = rawLine.trim();
@@ -349,8 +399,9 @@ export class ResumeParserService {
 
       // Check if line matches a major heading
       let matchedType = null;
+      const cleanLine = stripHeadingDecorations(line);
       for (const heading of headingPatterns) {
-        if (heading.regex.test(line) && line.length < 50) {
+        if (heading.regex.test(cleanLine) && cleanLine.length < 60) {
           matchedType = heading.type;
           break;
         }
@@ -392,7 +443,7 @@ export class ResumeParserService {
       sections.push({
         sectionType: 'SUMMARY',
         rawText: fullText.trim(),
-        structuredData: { content: fullText.trim() },
+        structuredData: this._extractStructuredData('SUMMARY', fullText.trim()),
         orderIndex: 0,
       });
     }
@@ -409,19 +460,41 @@ export class ResumeParserService {
    * @returns {object}
    */
   _extractStructuredData(sectionType, text) {
+    if (sectionType === 'CONTACT_INFO') {
+      const urls = [];
+      const urlRegex = /https?:\/\/[^\s"'<>]+/gi;
+      let urlMatch;
+      while ((urlMatch = urlRegex.exec(text)) !== null) {
+        urls.push(urlMatch[0]);
+      }
+      const githubMatch = text.match(/github\.com\/[a-zA-Z0-9_-]+/i);
+      const linkedinMatch = text.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/i);
+      const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+
+      return {
+        urls,
+        github: githubMatch ? `https://${githubMatch[0]}` : null,
+        linkedin: linkedinMatch ? `https://${linkedinMatch[0]}` : null,
+        email: emailMatch ? emailMatch[0] : null,
+        rawText: text,
+      };
+    }
+
     if (sectionType === 'SKILLS') {
+      // Split by commas, bullet points, pipes, semicolons, or lines
       const skillTokens = text
+        .replace(/^(?:languages|frameworks|tools|databases|cloud|other|libraries)\s*:\s*/gim, '')
         .split(/[,;•|\n]/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 1 && s.length < 40 && !s.includes(':'));
+        .map((s) => s.trim().replace(/^[-*•]\s*/, ''))
+        .filter((s) => s.length > 1 && s.length < 50 && !s.includes(':') && !/^\d+$/.test(s));
       return { skills: [...new Set(skillTokens)] };
     }
 
     if (sectionType === 'EDUCATION') {
       const lines = text
         .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean);
+        .map((l) => l.trim().replace(/^[-*•]\s*/, ''))
+        .filter((l) => l.length > 3);
       return { degrees: lines };
     }
 
@@ -430,10 +503,41 @@ export class ResumeParserService {
         .split(/(?:^|\n)[•\-*]\s*/)
         .map((item) => item.trim())
         .filter((item) => item.length > 5);
+      // Fallback: if no bullet items found, split by lines
+      if (items.length === 0) {
+        const lines = text
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l.length > 5);
+        return { items: lines };
+      }
       return { items };
     }
 
-    return { content: text };
+    if (sectionType === 'CERTIFICATIONS') {
+      const certs = text
+        .split('\n')
+        .map((l) => l.trim().replace(/^[-*•]\s*/, ''))
+        .filter((l) => l.length > 2);
+      return { certs };
+    }
+
+    // For SUMMARY, also check if URLs or skills are mentioned in the summary block
+    const summaryUrls = [];
+    const urlRegex = /https?:\/\/[^\s"'<>]+/gi;
+    let urlMatch;
+    while ((urlMatch = urlRegex.exec(text)) !== null) {
+      summaryUrls.push(urlMatch[0]);
+    }
+    const githubMatch = text.match(/github\.com\/[a-zA-Z0-9_-]+/i);
+    const linkedinMatch = text.match(/linkedin\.com\/in\/[a-zA-Z0-9_-]+/i);
+
+    return {
+      content: text,
+      github: githubMatch ? `https://${githubMatch[0]}` : null,
+      linkedin: linkedinMatch ? `https://${linkedinMatch[0]}` : null,
+      urls: summaryUrls,
+    };
   }
 
   /**
@@ -444,43 +548,140 @@ export class ResumeParserService {
    */
   generateClaims(sections) {
     const claims = [];
+    const seenStatements = new Set();
+
+    const addClaim = (claimType, statement, context) => {
+      const cleanStmt = String(statement || '').trim();
+      if (!cleanStmt || seenStatements.has(cleanStmt.toLowerCase())) return;
+      seenStatements.add(cleanStmt.toLowerCase());
+      claims.push({
+        claimType,
+        statement: cleanStmt,
+        context: `${context} [Unverified User Claim]`,
+        provenanceStatus: 'CLAIMED',
+      });
+    };
+
+    // Common technology taxonomy for unstructured extraction fallback
+    const COMMON_TECH_KEYWORDS = [
+      'JavaScript',
+      'TypeScript',
+      'Python',
+      'Node.js',
+      'React',
+      'Next.js',
+      'Fastify',
+      'Express',
+      'PostgreSQL',
+      'Postgres',
+      'Docker',
+      'Kubernetes',
+      'AWS',
+      'GCP',
+      'Google Cloud',
+      'Azure',
+      'Git',
+      'GitHub',
+      'REST',
+      'GraphQL',
+      'Redis',
+      'Drizzle',
+      'SQL',
+      'HTML',
+      'CSS',
+      'Tailwind',
+      'Linux',
+      'Microservices',
+      'CI/CD',
+      'OAuth',
+      'MCP',
+      'Model Context Protocol',
+      'Go',
+      'Golang',
+      'Rust',
+      'Java',
+      'C++',
+      'MongoDB',
+    ];
+
+    let hasSkillClaims = false;
 
     for (const sec of sections) {
-      if (sec.sectionType === 'SKILLS' && sec.structuredData?.skills) {
+      if (sec.sectionType === 'CONTACT_INFO' && sec.structuredData) {
+        if (sec.structuredData.github) {
+          addClaim(
+            'CONTACT',
+            `GitHub Profile: ${sec.structuredData.github}`,
+            'Extracted from Contact Links'
+          );
+        }
+        if (sec.structuredData.linkedin) {
+          addClaim(
+            'CONTACT',
+            `LinkedIn Profile: ${sec.structuredData.linkedin}`,
+            'Extracted from Contact Links'
+          );
+        }
+        if (sec.structuredData.email) {
+          addClaim('CONTACT', `Email: ${sec.structuredData.email}`, 'Extracted from Contact Info');
+        }
+        if (Array.isArray(sec.structuredData.urls)) {
+          for (const u of sec.structuredData.urls) {
+            if (!u.includes('github.com') && !u.includes('linkedin.com')) {
+              addClaim('CONTACT', `Portfolio URL: ${u}`, 'Extracted from Contact Links');
+            }
+          }
+        }
+      } else if (sec.sectionType === 'SKILLS' && sec.structuredData?.skills) {
         for (const skill of sec.structuredData.skills) {
-          claims.push({
-            claimType: 'SKILL',
-            statement: skill,
-            context: `Extracted from Skills section: "${skill}" [Unverified User Claim]`,
-            provenanceStatus: 'CLAIMED',
-          });
+          addClaim('SKILL', skill, `Extracted from Skills section: "${skill}"`);
+          hasSkillClaims = true;
         }
       } else if (sec.sectionType === 'WORK_EXPERIENCE' && sec.structuredData?.items) {
         for (const exp of sec.structuredData.items) {
-          claims.push({
-            claimType: 'EXPERIENCE',
-            statement: exp.slice(0, 300),
-            context: `Extracted from Work Experience [Unverified User Claim]`,
-            provenanceStatus: 'CLAIMED',
-          });
+          addClaim('EXPERIENCE', exp.slice(0, 300), 'Extracted from Work Experience');
         }
       } else if (sec.sectionType === 'EDUCATION' && sec.structuredData?.degrees) {
         for (const deg of sec.structuredData.degrees) {
-          claims.push({
-            claimType: 'EDUCATION',
-            statement: deg.slice(0, 200),
-            context: `Extracted from Education [Unverified User Claim]`,
-            provenanceStatus: 'CLAIMED',
-          });
+          addClaim('EDUCATION', deg.slice(0, 200), 'Extracted from Education');
         }
       } else if (sec.sectionType === 'PROJECTS' && sec.structuredData?.items) {
         for (const proj of sec.structuredData.items) {
-          claims.push({
-            claimType: 'PROJECT',
-            statement: proj.slice(0, 300),
-            context: `Extracted from Projects [Unverified User Claim]`,
-            provenanceStatus: 'CLAIMED',
-          });
+          addClaim('PROJECT', proj.slice(0, 300), 'Extracted from Projects');
+        }
+      } else if (sec.sectionType === 'CERTIFICATIONS' && sec.structuredData?.certs) {
+        for (const cert of sec.structuredData.certs) {
+          addClaim('CERTIFICATION', cert.slice(0, 200), 'Extracted from Certifications');
+        }
+      } else if (sec.sectionType === 'SUMMARY' && sec.structuredData) {
+        if (sec.structuredData.github) {
+          addClaim(
+            'CONTACT',
+            `GitHub Profile: ${sec.structuredData.github}`,
+            'Extracted from Summary Links'
+          );
+        }
+        if (sec.structuredData.linkedin) {
+          addClaim(
+            'CONTACT',
+            `LinkedIn Profile: ${sec.structuredData.linkedin}`,
+            'Extracted from Summary Links'
+          );
+        }
+        const summaryText = sec.structuredData.content?.trim();
+        if (summaryText && summaryText.length > 10) {
+          addClaim('SUMMARY', summaryText.slice(0, 500), 'Extracted from Professional Summary');
+        }
+      }
+    }
+
+    // Fallback: If no explicit SKILLS section produced skill claims, extract known tech skills mentioned in text
+    if (!hasSkillClaims) {
+      const fullCorpus = sections.map((s) => s.rawText).join(' ');
+      for (const tech of COMMON_TECH_KEYWORDS) {
+        const regex = new RegExp(`\\b${tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (regex.test(fullCorpus)) {
+          addClaim('SKILL', tech, `Mentioned in resume text: "${tech}"`);
         }
       }
     }

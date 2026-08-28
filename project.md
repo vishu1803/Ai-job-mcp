@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A, P14-001, P14-002 & P14-003 COMPLETE & VERIFIED |
-| **Project State** | **ACTIVE / IN PROGRESS** | Penetration testing, attack hardening, rate limiting, and pool guard stress hardening verified (91/91 unit tests, 40/40 pen tests); ready for P14-004 |
-| **Total Tasks** | **93 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 review) |
-| **Completed Tasks** | **86 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A, P14-001, P14-002 & P14-003 |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003 & P14-003A COMPLETE & VERIFIED |
+| **Project State** | **ACTIVE / IN PROGRESS** | Production readiness audit, UI/UX hardening, and truth model consistency verified (1,259/1,259 unit tests, 40/40 pen tests, 0 lint/format issues); ready for P14-004 |
+| **Total Tasks** | **94 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 review) |
+| **Completed Tasks** | **87 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003 & P14-003A |
 | **In Progress Tasks** | **0 Tasks** | Ready for Task P14-004 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **92.47% (86 / 93 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **91.33% (15.53 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **92.55% (87 / 94 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **91.56% (15.56 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 7 | 4 | 0 | **IN_PROGRESS** | **57.1%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 8 | 5 | 0 | **IN_PROGRESS** | **62.5%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -70,31 +70,6 @@
 | **P10-003A** | Provider-Neutral AI Prompt / Tool Response Compatibility Review | P10-002 | **COMPLETE & APPROVED** | Architectural specification `docs/provider-neutral-prompt-compatibility-review.md` (`ARCH-039`), `ADR-060` in `docs/decisions.md`. Verified Inverse Authority Principle, strict domain authoritative computation, transient field normalization boundary, deterministic prompt policy parity, cross-tenant 404 isolation, and designed deterministic integration test suite. |
 | **P10-003** | Verify provider-neutral prompt adherence: Claude receives identical tool responses as Gemini | P8-003, P10-002, P10-003A | **COMPLETE & VERIFIED** | Implemented `tests/integration/provider-neutral-tools.test.js`. 8/8 comprehensive integration tests proving 100% bit-for-bit structured response parity between Claude-style Streamable HTTP JSON-RPC and Gemini-style direct dispatch across `get_candidate_profile`, `list_verified_skills`, `inspect_project_evidence`, `analyze_job_fit`, safety ceiling clamping (<=24.9), inverse authority spoofing resistance, multi-tenant 404 isolation, and PromptPolicyRegistry ID/version stability. |
 | **P10-004** | Document Claude custom connector setup guide and troubleshooting instructions | P10-002, P10-003 | **COMPLETE & VERIFIED** | Authored `docs/claude-custom-connector-guide.md` covering local tunnel setup (`cloudflared`), environment configuration, GitHub App OAuth callback, Claude UI custom connector setup with `claude-web` Client ID and PKCE S256, complete 9-tool catalog specifications, read-only first verification prompts, two-phase write safety workflows, 12-scenario troubleshooting matrix, and production deployment guide. |
-
----
-
-## 2. Phase-by-Phase Progress Summary
-
-| Phase | Phase Name | Total Tasks | Completed | In Progress | Status | Completion % |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **PHASE 0** | Research and Architecture | 4 | 4 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 1** | Multi-User Platform Foundation | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 2** | Authentication & User Resource Connections | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 3** | GitHub App Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 4** | Unified Candidate / Resource Model | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 5** | Career Intelligence Engine | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 6** | Resume / Cover-Letter / Portfolio Adaptation | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 7** | Remote MCP Server | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 8** | Gemini Integration | 6 | 6 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 9** | Approved GitHub / Project Modification Workflows | 6 | 6 | 0 | **COMPLETE** | **100.0% (P9-001 through P9-006 Complete & Verified)** |
-| **PHASE 10** | Claude Integration | 4 | 4 | 0 | **COMPLETE** | **100.0% (P10-001 through P10-004 Complete & Verified)** |
-| **PHASE 11** | ChatGPT Integration | 4 | 4 | 0 | **COMPLETE** | **100.0% (P11-001 through P11-004 Complete & Verified)** |
-| **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0% (P12-001 through P12-005 Complete & Verified)** |
-| **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0% (P13-001 through P13-005 Complete & Verified)** |
-| **PHASE 13.5** | Product Experience, Public MCP & Career Documents | 6 | 3 | 0 | **IN_PROGRESS** | **50.0% (P13.5-001, P13.5-002, P13.5-003 Complete & Verified)** |
-| **PHASE 14** | Security Hardening & Production Readiness | 6 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **PHASE 15** | Advanced Automation | 4 | 0 | 0 | NOT_STARTED | **0.0%** |
-| **TOTAL** | **All Phases Combined** | **91** | **78** | **0** | **IN_PROGRESS** | **85.71%** |
 
 ---
 
@@ -350,21 +325,6 @@
 | **P13-003** | Deploy production staging environment with SSL, custom domain, and health monitoring | P1-005, P13-003A | **COMPLETE & VERIFIED** | Architecture runbook specified in `docs/staging-deployment-runbook.md` (`ARCH-049` / `ADR-069`). Cloudflare Named Tunnel architecture, custom domain ingress, zero open inbound firewall ports, Edge TLS 1.3 / HSTS, `__Host-` secure cookies, dual probes (`GET /livez`, `GET /healthz`), and backward-compatible Drizzle migration strategy. Master suite: 1,549/1,549 PASS with 0 DB leaks. |
 | **P13-004** | Onboard 5 external beta users and conduct end-to-end verification across Gemini, Claude, and ChatGPT | P8-003, P10-002, P11-002, P13-001 | NOT_STARTED | Beta feedback log and zero critical cross-tenant errors |
 | **P13-005** | Document User Guide, Onboarding Walkthrough, and Video Demo | P13-001 | NOT_STARTED | Documentation and demo published |
-
----
-
-### PHASE 14: Security Hardening & Production Readiness
-*Objective: Execute comprehensive penetration testing, AST sandbox hardening, cryptographic audit, rate-limiting, and staging/production domain deployment.*
-
-| Task ID | Task Title | Dependencies | Status | Verification Method |
-| :--- | :--- | :--- | :--- | :--- |
-| **P14-001A** | Review Penetration Testing, Dependency Vulnerability & Secrets Audit Architecture | P13.5-007 | **COMPLETE & APPROVED** | Architectural specifications `docs/security-hardening-architecture.md` (`ARCH-051`), `docs/penetration-test-plan.md` (`ARCH-052`), `docs/dependency-and-secrets-audit.md` (`ARCH-053`), and `ADR-071` in `docs/decisions.md`. 13-actor threat model, deterministic DAST attack matrix, supply-chain audit, zero-downtime key rotation, and rate-limiting specifications. |
-| **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | **COMPLETE & VERIFIED** | Automated dependency auditor (`scripts/audit-dependencies.js`), zero-dependency secrets scanner (`scripts/scan-secrets.js`), Dependabot weekly configuration (`.github/dependabot.yml`), security policy (`SECURITY.md`), and CI security gates in `.github/workflows/ci.yml`. 12 unit tests passing in `tests/unit/secrets-scanner.test.js` & `tests/unit/dependency-auditor.test.js`. |
-| **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | NOT_STARTED | Automated DAST penetration test suite simulating IDOR, SQL injection, AST sandbox escape, SSRF, session hijacking, and CSRF attacks. |
-| **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | NOT_STARTED | In-memory / Redis token-bucket rate limiting across `/mcp`, `/oauth/*`, `/auth/*`, `/resumes`, and `/api/*`; connection pool saturation testing under 500 concurrent connections. |
-| **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | NOT_STARTED | Configure production domain (`staging.careerhub.ai`), Cloudflare Named Tunnel (`cloudflared`), Managed PostgreSQL staging database with TLS, stable GitHub OAuth/webhook callbacks, and uptime monitoring probes. |
-| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004 | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
-| **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---
 
@@ -3404,7 +3364,7 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
       4. Standard HTTP `Retry-After` calculation and fail-open operational resilience.
     * `src/security/concurrency-semaphore.js`: Application-level concurrency semaphore (`ConcurrencySemaphore`):
       1. Limits inflight concurrent operations to prevent PostgreSQL connection pool starvation and external AI provider quota exhaustion (default global max: 15, tenant max: 3, token max: 2, user max: 2).
-      2. Bounded FIFO request queue (`queueMax: 10`, `queueTimeoutMs: 10,000`) rejecting excess bursts with HTTP 429 / JSON-RPC concurrency errors before database saturation.
+      2. Immediate rejection of excess concurrency with HTTP 429 / JSON-RPC concurrency errors before database saturation (no queuing — V1 design for single-instance deployment; rejects immediately when any scope limit is exceeded).
       3. Fail-open execution wrapper (`semaphore.execute()`) ensuring slots are released even when worker functions throw exceptions.
     * `src/security/db-pool-guard.js`: PostgreSQL connection pool circuit breaker guard (`DbPoolGuard`):
       1. Dynamic pool utilization sampling (`activeConnections / maxConnections`).
@@ -3433,6 +3393,42 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 
 ---
 
+* **P14-003A: CAREER HUB PRODUCTION READINESS AUDIT, UI/UX HARDENING & END-TO-END PRODUCT CONSISTENCY (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/views/layout.js`:
+      1. Fixed account & navigation dropdown toggles: Removed `:hover` and `:focus-within` CSS forcing rules on `.user-dropdown-menu` and `.nav-dropdown-menu`.
+      2. Unified interactive JavaScript dropdown controller: Deterministic click toggling, click-outside-to-close, ESC-to-close with trigger focus restoration, and auto-close upon navigation link click.
+      3. Added unified design system tokens for breadcrumbs (`.breadcrumb`), contextual back navigation (`.back-nav-link`), and visual architecture pipeline flow diagrams (`.pipeline-banner`, `.pipeline-step`).
+    * `src/services/candidate-repository-ingestion.service.js`:
+      1. Updated `_recalculateSkillRollups` to invoke `PrimaryEvidenceSelector.selectBestPrimary(items)` and persist `primaryEvidenceId` directly on `candidateSkills` records.
+      2. Inserted missing `candidateSkills` discovered during repository ingestion into the candidate profile.
+    * `src/routes/web.routes.js` & `src/views/skills.page.js`:
+      1. In `GET /skills`, added fallback evidence and resource resolution for any existing unlinked skill records.
+      2. Enhanced `renderSourceInfo(s)` in `skills.page.js` to render repository links (`📦 <owner>/<repo>`), provider tags (`GITHUB_APP`), evidence type badges (`Package manifest`, `Code import`, etc.), source file paths (`📄 <path>`), commit SHA / excerpt snippets, and indexing timestamps without fabricating data.
+      3. Added visual knowledge graph pipeline diagram, breadcrumb trail, and contextual Back navigation.
+    * `src/services/resume-parser.service.js`:
+      1. Preserved structural newlines in `_extractTextFromPdf` across distinct `BT...ET` text blocks, preventing resume collapse into single-line strings.
+      2. Enhanced `splitIntoSections` heading recognition with stripHeadingDecorations supporting colon suffixes, bullet prefixes, and mixed-case headings.
+      3. Expanded `_extractStructuredData` and `generateClaims` to extract contact URLs (GitHub, LinkedIn, Email, Portfolio), skills, work experience bullet points, education degrees, certifications, and summaries strictly tagged with `CLAIMED` status and `[Unverified User Claim]` context.
+    * `src/views/resumes.page.js`:
+      1. Enhanced `renderResumesPage` and `renderResumeDetailPage` with contextual Back links, breadcrumbs, and live ingestion pipeline banners.
+      2. Formatted structured section inspector cards displaying extracted skill tags, degree lists, and contact profiles alongside raw text.
+    * `src/views/connect.page.js`, `src/views/projects.page.js`, `src/views/sources.page.js`, `src/views/settings.page.js`, `src/views/dashboard.page.js`:
+      1. Standardized contextual Back navigation and breadcrumb hierarchy across all detail and management pages.
+      2. Embedded visual pipeline banners clearly communicating the Sources → Ingestion → Truth Model → Base Narrative → MCP AI interface flow.
+      3. Unified candidate identity resolution across workspace banners and localhost endpoint usage guidance.
+    * `tests/unit/resume-parser.service.test.js`:
+      1. Added unit test cases for contact URL extraction (GitHub, LinkedIn, Email, Portfolio), multi-heading recognition, PDF block extraction, and unstructured skill extraction.
+  * Quality Gates & Verification:
+    * `npm run test:unit` -> PASS (1,259/1,259 unit tests passing across 339 suites in 41.6s)
+    * `npm run test:db-lifecycle-check` -> PASS (53/53 integration test files compliant, 0 violations)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
 ## PHASE 14: Security Hardening & Production Readiness
 *Objective: Execute comprehensive penetration testing, AST sandbox hardening, cryptographic audit, rate-limiting, and staging/production domain deployment.*
 
@@ -3441,7 +3437,8 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-001A** | Review Penetration Testing, Dependency Vulnerability & Secrets Audit Architecture | P13.5-007 | **COMPLETE & APPROVED** | Architectural specifications `docs/security-hardening-architecture.md` (`ARCH-051`), `docs/penetration-test-plan.md` (`ARCH-052`), `docs/dependency-and-secrets-audit.md` (`ARCH-053`), and `ADR-071` in `docs/decisions.md`. |
 | **P14-001** | Implement Automated Security Scanning, Dependency Audit & Secrets Leak Prevention | P14-001A | **COMPLETE & VERIFIED** | Automated dependency auditor (`scripts/audit-dependencies.js`), zero-dependency secrets scanner (`scripts/scan-secrets.js`), Dependabot weekly configuration (`.github/dependabot.yml`), security policy (`SECURITY.md`), and CI security gates in `.github/workflows/ci.yml`. 12 unit tests passing in `tests/unit/secrets-scanner.test.js` & `tests/unit/dependency-auditor.test.js`. |
 | **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | **COMPLETE & VERIFIED** | Comprehensive, isolated 40-test penetration test suite in `tests/integration/penetration-testing.test.js` verifying 10 attack surfaces (AUTH, IDOR, MCP Gateway, Web UI/XSS/CSRF, Document Uploads, GitHub Webhooks, Two-Phase Write Safety, Zero Information Leakage, Bounded Fuzzing, Concurrent Reentrancy). Ephemeral database lifecycle, zero rows leaked to main DB, and 100% test pass rate. |
-| **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | **COMPLETE & VERIFIED** | Multi-tier in-memory token-bucket rate limiter (`src/security/mcp-rate-limiter.js`), concurrency semaphore with bounded queuing (`src/security/concurrency-semaphore.js`), PostgreSQL connection pool circuit breaker guard (`src/security/db-pool-guard.js`), and anti-spoofing client IP extraction (`src/utils/extract-client-ip.js`). 91 dedicated unit tests passing across `tests/unit/application-rate-limiter.test.js`, `tests/unit/concurrency-semaphore.test.js`, `tests/unit/db-pool-guard.test.js`, and `tests/unit/extract-client-ip.test.js`. |
+| **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | **COMPLETE & VERIFIED** | Multi-tier in-memory token-bucket rate limiter (`src/security/mcp-rate-limiter.js`), concurrency semaphore with immediate rejection (`src/security/concurrency-semaphore.js`), PostgreSQL connection pool circuit breaker guard (`src/security/db-pool-guard.js`), and anti-spoofing client IP extraction (`src/utils/extract-client-ip.js`). 91 dedicated unit tests passing across `tests/unit/application-rate-limiter.test.js`, `tests/unit/concurrency-semaphore.test.js`, `tests/unit/db-pool-guard.test.js`, and `tests/unit/extract-client-ip.test.js`. |
+| **P14-003A** | Career Hub Production Readiness Audit, UI/UX Hardening & End-to-End Product Consistency | P14-003 | **COMPLETE & VERIFIED** | Fixed 10 UI/UX and evidence provenance inconsistencies: deterministic click dropdown toggle, AST skill primary evidence association, PDF multi-block text & section newline preservation, rich self-reported claim generation, unified AI Connect design and endpoint guidance, contextual back navigation & breadcrumbs across all views, visual knowledge pipeline diagrams. 1,259/1,259 unit tests passing, Prettier format 100%, zero secrets. |
 | **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | NOT_STARTED | Configure production domain (`staging.careerhub.ai`), Cloudflare Named Tunnel (`cloudflared`), Managed PostgreSQL staging database with TLS, stable GitHub OAuth/webhook callbacks, and uptime monitoring probes. |
 | **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004 | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |

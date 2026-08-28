@@ -3,6 +3,7 @@
  *
  * Renders categorized skill graphs with strict truth provenance:
  * VERIFIED (green), INFERRED (cyan), and CLAIMED ([Unverified User Claim] amber).
+ * Includes source/provenance information for GitHub-derived skills.
  */
 
 import { renderLayout } from './layout.js';
@@ -80,23 +81,134 @@ export function renderSkillsPage({ user, _tenant, skills = [] }) {
     }
   }
 
+  /**
+   * Renders source/provenance information for a skill card.
+   *
+   * @param {object} s Skill row with optional evidence/resource fields
+   * @returns {string} HTML source info block
+   */
+  function renderSourceInfo(s) {
+    const hasResource = s.resourceDisplayName || s.resourceUrl;
+    const hasEvidence = s.evidenceType || s.sourceLocation;
+
+    if (!hasResource && !hasEvidence) {
+      if (s.provenanceStatus === 'CLAIMED' || s.isUserClaim) {
+        return `<div style="font-size:0.72rem; color:var(--accent-amber); margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04);">
+          📝 Candidate self-reported claim from resume [Unverified User Claim]
+        </div>`;
+      }
+      return `<div style="font-size:0.72rem; color:var(--text-dim); margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04);">
+        🔍 Provenance established via repository taxonomy analysis
+      </div>`;
+    }
+
+    const parts = [];
+
+    if (s.resourceDisplayName) {
+      const repoName = escapeHtml(s.resourceDisplayName);
+      if (s.resourceUrl) {
+        parts.push(
+          `<span>📦 <a href="${escapeHtml(s.resourceUrl)}" target="_blank" rel="noopener" style="color:var(--accent-cyan); text-decoration:none; font-weight:500;">${repoName}</a></span>`
+        );
+      } else {
+        parts.push(`<span>📦 ${repoName}</span>`);
+      }
+    }
+
+    if (s.resourceProvider) {
+      parts.push(
+        `<span class="tag" style="font-size:0.65rem;">${escapeHtml(String(s.resourceProvider))}</span>`
+      );
+    }
+
+    if (s.evidenceType) {
+      const evidenceTypeLabels = {
+        PACKAGE_MANIFEST_DEPENDENCY: 'Package manifest',
+        CODE_IMPORT_USAGE: 'Code import',
+        FILE_PATTERN_MATCH: 'File pattern',
+        COMMIT_CONTRIBUTION: 'Commit evidence',
+        README_SPECIFICATION: 'README spec',
+        DIRECTORY_STRUCTURE: 'Directory structure',
+        DOCUMENT_CLAIM: 'Document claim',
+      };
+      parts.push(
+        `<span style="font-size:0.7rem; color:var(--text-dim);">📎 ${escapeHtml(evidenceTypeLabels[s.evidenceType] || s.evidenceType)}</span>`
+      );
+    }
+
+    if (s.sourceLocation) {
+      parts.push(
+        `<span style="font-size:0.65rem; color:var(--text-muted); font-family:var(--font-mono);">📄 ${escapeHtml(s.sourceLocation)}</span>`
+      );
+    }
+
+    if (s.excerpt) {
+      const truncatedExcerpt = s.excerpt.length > 80 ? s.excerpt.slice(0, 80) + '…' : s.excerpt;
+      parts.push(
+        `<span style="font-size:0.65rem; color:var(--text-dim); font-family:var(--font-mono); font-style:italic;">"${escapeHtml(truncatedExcerpt)}"</span>`
+      );
+    }
+
+    if (s.lastObservedAt) {
+      const date = new Date(s.lastObservedAt);
+      if (!isNaN(date.getTime())) {
+        parts.push(
+          `<span style="font-size:0.65rem; color:var(--text-dim);">Indexed ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>`
+        );
+      }
+    }
+
+    return `<div style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04);">
+      ${parts.join(' ')}
+    </div>`;
+  }
+
   const content = `
     <div class="container">
+      <!-- Back Navigation -->
+      <a href="/dashboard" class="back-nav-link">
+        <span aria-hidden="true">←</span> Back to Dashboard
+      </a>
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <a href="/dashboard">Overview</a>
+        <span class="separator">/</span>
+        <span class="current">Skills</span>
+      </div>
+
+      <!-- Architecture Pipeline Banner -->
+      <div class="pipeline-banner">
+        <div class="pipeline-header">
+          <span class="pipeline-title">Career Intelligence Knowledge Graph Pipeline</span>
+          <span style="font-size:0.75rem; color:var(--text-dim);">Live Evidence Resolution</span>
+        </div>
+        <div class="pipeline-steps">
+          <div class="pipeline-step"><span>📦</span> Connected Sources (GitHub)</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🔍</span> AST & File Inspection</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step active"><span>⚡</span> Verified Skills & Taxonomy</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>⚖️</span> Truth Model (VERIFIED / CLAIMED)</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🤖</span> Remote MCP Server & AI Clients</div>
+        </div>
+      </div>
+
       <!-- Header -->
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:28px;">
+      <div class="page-header">
         <div>
           <span class="badge badge-verified" style="margin-bottom:6px;">PROVENANCE & TAXONOMY</span>
-          <h1 style="font-size:1.85rem; font-weight:800; letter-spacing:-0.02em;">Verified Skills Graph</h1>
-          <p style="color:var(--text-muted); font-size:0.95rem; margin-top:4px;">
+          <h1>Verified Skills Graph</h1>
+          <p>
             Audited engineering skill graph strictly classified into Verified Facts, Inferences, and Unverified Claims.
           </p>
         </div>
 
-        <div style="display:flex; gap:10px;">
-          <a href="/onboarding?step=3" class="btn btn-primary btn-sm">
-            <span>+ Ingest Repositories for More Skills</span>
-          </a>
-        </div>
+        <a href="/onboarding?step=3" class="btn btn-primary btn-sm">
+          + Ingest Repositories for More Skills
+        </a>
       </div>
 
       <!-- Provenance Legend Cards -->
@@ -106,7 +218,7 @@ export function renderSkillsPage({ user, _tenant, skills = [] }) {
             <span class="badge badge-verified">VERIFIED</span>
             <span class="stat-val" style="color:var(--accent-emerald); font-size:1.4rem;">${verifiedList.length}</span>
           </div>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
             Backed by deterministic AST syntax analysis, dependency manifests, or commit proof.
           </p>
         </div>
@@ -116,7 +228,7 @@ export function renderSkillsPage({ user, _tenant, skills = [] }) {
             <span class="badge badge-inferred">INFERRED</span>
             <span class="stat-val" style="color:var(--accent-cyan); font-size:1.4rem;">${inferredList.length}</span>
           </div>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
             Derived logically through taxonomy hierarchy (e.g. Next.js implies React).
           </p>
         </div>
@@ -126,7 +238,7 @@ export function renderSkillsPage({ user, _tenant, skills = [] }) {
             <span class="badge badge-claimed">CLAIMED</span>
             <span class="stat-val" style="color:var(--accent-amber); font-size:1.4rem;">${claimedList.length}</span>
           </div>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
             User-asserted narrative claims marked with explicit <code>[Unverified User Claim]</code>.
           </p>
         </div>
@@ -136,57 +248,56 @@ export function renderSkillsPage({ user, _tenant, skills = [] }) {
       ${
         skills.length === 0
           ? `
-        <div class="card" style="text-align:center; padding:48px 24px;">
-          <div style="font-size:2.5rem; margin-bottom:12px;">🧬</div>
-          <h2 style="font-size:1.25rem; font-weight:700; margin-bottom:6px;">No Skills Extracted Yet</h2>
-          <p style="font-size:0.9rem; color:var(--text-muted); max-width:460px; margin:0 auto 20px;">
+        <div class="empty-state">
+          <div class="empty-state-icon">🧬</div>
+          <h3>No Skills Extracted Yet</h3>
+          <p>
             Connect your GitHub repositories in the onboarding wizard to extract verified technical skills.
           </p>
-          <a href="/onboarding?step=3" class="btn btn-primary">Start Repository Ingestion →</a>
+          <a href="/onboarding?step=3" class="btn btn-primary btn-sm">Start Repository Ingestion →</a>
         </div>
       `
           : Object.entries(categories)
-              .filter(([_, catSkills]) => catSkills.length > 0)
+              .filter(([, catSkills]) => catSkills.length > 0)
               .map(
                 ([catTitle, catSkills]) => `
-            <div class="card" style="padding:28px; margin-bottom:24px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-                <h2 style="font-size:1.15rem; font-weight:700;">${escapeHtml(catTitle)}</h2>
-                <span style="font-size:0.8rem; color:var(--text-dim);">${catSkills.length} Skills</span>
-              </div>
-
-              <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:14px;">
-                ${catSkills
-                  .map((s) => {
-                    let badgeClass = 'badge-verified';
-                    let label = 'VERIFIED';
-                    if (s.provenanceStatus === 'CLAIMED' || s.isUserClaim) {
-                      badgeClass = 'badge-claimed';
-                      label = 'CLAIMED [Unverified User Claim]';
-                    } else if (s.provenanceStatus === 'INFERRED') {
-                      badgeClass = 'badge-inferred';
-                      label = 'INFERRED';
-                    }
-                    const confidencePercent = Math.round((s.confidenceScore || 0.9) * 100);
-
-                    return `
-                    <div style="padding:14px 16px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
-                      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <strong style="font-size:0.95rem; color:var(--text-main);">${escapeHtml(s.name || s.slug)}</strong>
-                        <span class="badge ${badgeClass}" style="font-size:0.65rem;" title="${escapeHtml(label)}">${escapeHtml(s.provenanceStatus || 'VERIFIED')}</span>
-                      </div>
-
-                      <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-dim);">
-                        <span>Evidence: <strong>${s.evidenceCount || 1} citations</strong></span>
-                        <span style="color:var(--accent-emerald);">Confidence: <strong>${confidencePercent}%</strong></span>
-                      </div>
-                    </div>
-                  `;
-                  })
-                  .join('')}
-              </div>
+          <div class="card" style="padding:28px; margin-bottom:24px;">
+            <div class="section-header">
+              <h2>${escapeHtml(catTitle)}</h2>
+              <span class="section-count">${catSkills.length} Skills</span>
             </div>
-          `
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:14px;">
+              ${catSkills
+                .map((s) => {
+                  let badgeClass = 'badge-verified';
+                  if (s.provenanceStatus === 'CLAIMED' || s.isUserClaim) {
+                    badgeClass = 'badge-claimed';
+                  } else if (s.provenanceStatus === 'INFERRED') {
+                    badgeClass = 'badge-inferred';
+                  }
+                  const confidencePercent = Math.round((s.confidenceScore || 0.9) * 100);
+
+                  return `
+                  <div style="padding:14px 16px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); display:flex; flex-direction:column; justify-content:space-between; gap:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                      <strong style="font-size:0.95rem; color:var(--text-main);">${escapeHtml(s.name || s.slug)}</strong>
+                      <span class="badge ${badgeClass}" style="font-size:0.65rem; flex-shrink:0;">${escapeHtml(s.provenanceStatus || 'VERIFIED')}</span>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-dim);">
+                      <span>Evidence: <strong>${s.evidenceCount || 1} citation${(s.evidenceCount || 1) === 1 ? '' : 's'}</strong></span>
+                      <span style="color:var(--accent-emerald);">Confidence: <strong>${confidencePercent}%</strong></span>
+                    </div>
+
+                    ${renderSourceInfo(s)}
+                  </div>
+                `;
+                })
+                .join('')}
+            </div>
+          </div>
+        `
               )
               .join('')
       }
