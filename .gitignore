@@ -18,6 +18,7 @@
 *.crt
 id_rsa
 id_ecdsa
+.cloudflared/
 
 # Dependencies
 node_modules/
