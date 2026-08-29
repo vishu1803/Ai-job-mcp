@@ -4,13 +4,13 @@
 **Governing Standard**: Cloudflare Named Tunnels (Argo Tunnel), Model Context Protocol (MCP) Streamable HTTP Spec (2026-07-28), RFC 8414, RFC 9728, RFC 8707, RFC 9700 (OAuth 2.1 / BCP)  
 **Status**: IN_PROGRESS (Staging Infrastructure Setup)  
 **Target Domain**: `aicareershub.tech`  
-**Staging Hostname**: `staging.aicareershub.tech`  
+**Staging Hostname**: `dev.aicareershub.tech`
 
 ---
 
 ## 1. Executive Summary & Purpose
 
-Antigravity Career Hub uses a **persistent named Cloudflare Tunnel (`cloudflared`)** to expose the locally running Fastify / Node.js application to a stable public HTTPS URL on `https://staging.aicareershub.tech`.
+Antigravity Career Hub uses a **persistent named Cloudflare Tunnel (`cloudflared`)** (`career-hub-dev`) to expose the locally running Fastify / Node.js application (`http://localhost:3000`) to a stable public HTTPS URL on `https://dev.aicareershub.tech`.
 
 ### Purpose of the Staging Environment
 This environment is strictly designed for **testing and staging validation** of external cloud integrations that require public HTTPS ingress:
@@ -42,7 +42,7 @@ This environment is strictly designed for **testing and staging validation** of 
                                              v (HTTPS / TLS 1.3 on Port 443)
 +-----------------------------------------------------------------------------------------+
 |                                CLOUDFLARE GLOBAL ANYCAST EDGE                           |
-|   - DNS Resolution: staging.aicareershub.tech -> CNAME <TUNNEL_UUID>.cfargotunnel.com    |
+|   - DNS Resolution: dev.aicareershub.tech -> CNAME <TUNNEL_UUID>.cfargotunnel.com       |
 |   - TLS 1.2 / 1.3 Termination (Cloudflare Edge Certificate)                             |
 |   - Edge DDoS & Rate Limiting                                                           |
 |   - Header Ingestion & Injection:                                                       |
@@ -56,9 +56,9 @@ This environment is strictly designed for **testing and staging validation** of 
 |                                LOCAL DEVELOPMENT MACHINE                                |
 |                                                                                         |
 |   +---------------------------------------------------------------------------------+   |
-|   |   cloudflared Daemon (Persistent Named Tunnel: career-hub-staging)              |   |
+|   |   cloudflared Daemon (Persistent Named Tunnel: career-hub-dev)                  |   |
 |   |   - Authenticated with %USERPROFILE%\.cloudflared\<TUNNEL_UUID>.json            |   |
-|   |   - Ingress Rule: staging.aicareershub.tech -> http://127.0.0.1:3000            |   |
+|   |   - Ingress Rule: dev.aicareershub.tech -> http://127.0.0.1:3000                |   |
 |   |   - Catch-all Ingress: http_status:404                                          |   |
 |   +----------------------------------------+----------------------------------------+   |
 |                                            |                                            |
@@ -91,7 +91,7 @@ This environment is strictly designed for **testing and staging validation** of 
 ### DNS Records Structure
 | Hostname | Record Type | Target / Value | Purpose | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| `staging.aicareershub.tech` | `CNAME` | `<TUNNEL_UUID>.cfargotunnel.com` (Proxied) | Staging HTTPS Ingress | **Active (P14-004)** |
+| `dev.aicareershub.tech` | `CNAME` | `<TUNNEL_UUID>.cfargotunnel.com` (Proxied) | Staging HTTPS Ingress | **Active (P14-004)** |
 | `app.aicareershub.tech` | `CNAME` | (Future Production Host) | Production Web Application | *Planned (Phase 14 Final)* |
 | `api.aicareershub.tech` | `CNAME` | (Future Production Host) | Production API Gateway | *Planned (Phase 14 Final)* |
 | `aicareershub.tech` | `CNAME` / `A` | (Future Apex Redirect) | Apex Root Redirect | *Planned (Phase 14 Final)* |
@@ -126,27 +126,27 @@ cloudflared tunnel login
 
 ### Step 3: Create Persistent Named Tunnel
 ```powershell
-cloudflared tunnel create career-hub-staging
+cloudflared tunnel create career-hub-dev
 ```
 * Output returns the assigned **Tunnel UUID** and creates credentials JSON:
   `%USERPROFILE%\.cloudflared\<TUNNEL_UUID>.json`
 
 ### Step 4: Route Staging DNS to Named Tunnel
 ```powershell
-cloudflared tunnel route dns career-hub-staging staging.aicareershub.tech
+cloudflared tunnel route dns career-hub-dev dev.aicareershub.tech
 ```
-* Creates a proxied CNAME in Cloudflare DNS pointing `staging.aicareershub.tech` to `<TUNNEL_UUID>.cfargotunnel.com`.
+* Creates a proxied CNAME in Cloudflare DNS pointing `dev.aicareershub.tech` to `<TUNNEL_UUID>.cfargotunnel.com`.
 
 ### Step 5: Author Tunnel Configuration (`config.yml`)
 Create the configuration file at `%USERPROFILE%\.cloudflared\config.yml`:
 
 ```yaml
-tunnel: career-hub-staging
+tunnel: career-hub-dev
 credentials-file: C:\Users\VISHW\.cloudflared\<YOUR_TUNNEL_UUID>.json
 
 ingress:
   # Route staging hostname to the verified local Fastify listening port
-  - hostname: staging.aicareershub.tech
+  - hostname: dev.aicareershub.tech
     service: http://127.0.0.1:3000
     originRequest:
       connectTimeout: 30s
@@ -161,14 +161,14 @@ ingress:
 
 ### Step 6: Start and Verify Tunnel
 ```powershell
-cloudflared tunnel --config "$HOME\.cloudflared\config.yml" run career-hub-staging
+cloudflared tunnel --config "$HOME\.cloudflared\config.yml" run career-hub-dev
 ```
 
 ---
 
 ## 5. Staging Environment Configuration
 
-When starting Career Hub for staging verification, configure `.env.local` (or supply environment variables):
+When starting Career Hub for staging verification, configure `.env.staging.local` (or supply environment variables):
 
 ```env
 # ==============================================================================
@@ -181,10 +181,10 @@ PORT=3000
 HOST=0.0.0.0
 
 # Staging Public URLs
-APP_URL=https://staging.aicareershub.tech
-MCP_BASE_URL=https://staging.aicareershub.tech/mcp
-OAUTH_ISSUER_URL=https://staging.aicareershub.tech
-OAUTH_RESOURCE_URL=https://staging.aicareershub.tech/mcp
+APP_URL=https://dev.aicareershub.tech
+MCP_BASE_URL=https://dev.aicareershub.tech/mcp
+OAUTH_ISSUER_URL=https://dev.aicareershub.tech
+OAUTH_RESOURCE_URL=https://dev.aicareershub.tech/mcp
 
 # Database (Aiven Managed PostgreSQL 17)
 DATABASE_URL=postgres://<username>:<password>@<aiven-host>:<port>/defaultdb?sslmode=require
@@ -202,11 +202,11 @@ SESSION_COOKIE_SECRET=<HIGH_ENTROPY_STRING_MIN_32_CHARS>
 # GitHub OAuth 2.1 App (User Authentication)
 GITHUB_CLIENT_ID=<STAGING_GITHUB_OAUTH_CLIENT_ID>
 GITHUB_CLIENT_SECRET=<STAGING_GITHUB_OAUTH_CLIENT_SECRET>
-GITHUB_OAUTH_REDIRECT_URI=https://staging.aicareershub.tech/auth/github/callback
+GITHUB_OAUTH_REDIRECT_URI=https://dev.aicareershub.tech/auth/github/callback
 
 # GitHub App Integration (Repository Ingestion & Webhooks)
 GITHUB_APP_ID=<STAGING_GITHUB_APP_ID>
-GITHUB_APP_SLUG=antigravity-career-hub-staging
+GITHUB_APP_SLUG=antigravity-career-hub-dev
 GITHUB_APP_CLIENT_ID=<STAGING_GITHUB_APP_CLIENT_ID>
 GITHUB_APP_CLIENT_SECRET=<STAGING_GITHUB_APP_CLIENT_SECRET>
 GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"
@@ -223,17 +223,17 @@ LOG_LEVEL=info
 Configure these exact URLs in the **GitHub Developer Settings**:
 
 ### 1. GitHub OAuth App Settings (Login with GitHub)
-* **Application name**: `Antigravity Career Hub (Staging)`
-* **Homepage URL**: `https://staging.aicareershub.tech`
-* **Authorization callback URL**: `https://staging.aicareershub.tech/auth/github/callback`
+* **Application name**: `Antigravity Career Hub (Dev/Staging)`
+* **Homepage URL**: `https://dev.aicareershub.tech`
+* **Authorization callback URL**: `https://dev.aicareershub.tech/auth/github/callback`
 
 ### 2. GitHub App Settings (Resource Connectors & Webhooks)
-* **GitHub App name**: `Antigravity Career Hub Staging`
-* **Homepage URL**: `https://staging.aicareershub.tech`
-* **Callback URL (User-to-Server)**: `https://staging.aicareershub.tech/auth/github/callback`
-* **Setup URL (Optional installation redirect)**: `https://staging.aicareershub.tech/integrations/github/install/callback`
-* **Webhook URL**: `https://staging.aicareershub.tech/webhooks/github`
-* **Webhook Secret**: Matches `GITHUB_WEBHOOK_SECRET` in `.env.local`
+* **GitHub App name**: `Antigravity Career Hub Dev`
+* **Homepage URL**: `https://dev.aicareershub.tech`
+* **Callback URL (User-to-Server)**: `https://dev.aicareershub.tech/auth/github/callback`
+* **Setup URL (Optional installation redirect)**: `https://dev.aicareershub.tech/integrations/github/install/callback`
+* **Webhook URL**: `https://dev.aicareershub.tech/webhooks/github`
+* **Webhook Secret**: Matches `GITHUB_WEBHOOK_SECRET` in `.env.local` / `.env.staging.local`
 * **Permissions**:
   * Repository metadata: `Read-only`
   * Repository contents: `Read & write`
@@ -245,29 +245,29 @@ Configure these exact URLs in the **GitHub Developer Settings**:
 ## 7. Remote MCP Client Integration & Metadata Endpoints
 
 ### Public MCP Endpoint Contract
-* **URL**: `POST https://staging.aicareershub.tech/mcp`
+* **URL**: `POST https://dev.aicareershub.tech/mcp`
 * **Transport**: Streamable HTTP (2026-07-28 MCP Standard)
 * **Authentication**: Bearer Token (`Authorization: Bearer <token>`)
 
 ### Metadata Discovery Endpoints (RFC 9728 & RFC 8414)
 1. **Protected Resource Metadata**:
-   * **URL**: `GET https://staging.aicareershub.tech/.well-known/oauth-protected-resource`
+   * **URL**: `GET https://dev.aicareershub.tech/.well-known/oauth-protected-resource`
    * **Response**:
      ```json
      {
-       "resource": "https://staging.aicareershub.tech/mcp",
-       "authorization_servers": ["https://staging.aicareershub.tech"],
+       "resource": "https://dev.aicareershub.tech/mcp",
+       "authorization_servers": ["https://dev.aicareershub.tech"],
        "scopes_supported": ["career:read", "career:write"],
        "bearer_methods_supported": ["header"],
-       "resource_documentation": "https://staging.aicareershub.tech/docs/mcp"
+       "resource_documentation": "https://dev.aicareershub.tech/docs/mcp"
      }
      ```
 2. **OAuth 2.0 Authorization Server Metadata**:
-   * **URL**: `GET https://staging.aicareershub.tech/.well-known/oauth-authorization-server`
+   * **URL**: `GET https://dev.aicareershub.tech/.well-known/oauth-authorization-server`
    * **Endpoints provided**:
-     * `authorization_endpoint`: `https://staging.aicareershub.tech/oauth/authorize`
-     * `token_endpoint`: `https://staging.aicareershub.tech/oauth/token`
-     * `revocation_endpoint`: `https://staging.aicareershub.tech/oauth/revoke`
+     * `authorization_endpoint`: `https://dev.aicareershub.tech/oauth/authorize`
+     * `token_endpoint`: `https://dev.aicareershub.tech/oauth/token`
+     * `revocation_endpoint`: `https://dev.aicareershub.tech/oauth/revoke`
      * `code_challenge_methods_supported`: `["S256"]`
 
 ### Pre-Configured Remote AI Clients
@@ -301,7 +301,7 @@ Untrusted Client -> Cloudflare Anycast Edge (Untrusted Headers Stripped)
 
 ### 3. CSRF & Origin Verification ([`src/middleware/auth.middleware.js`](file:///C:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/src/middleware/auth.middleware.js))
 * State-changing requests (POST, PUT, DELETE) undergo strict `verifyCsrf` validation:
-  * `Origin` must match `config.APP_URL` (`https://staging.aicareershub.tech`) or loopback.
+  * `Origin` must match `config.APP_URL` (`https://dev.aicareershub.tech`) or loopback.
   * Cross-origin requests from arbitrary third-party web domains are rejected immediately with `403 CSRF_DETECTED`.
 
 ---
@@ -310,7 +310,7 @@ Untrusted Client -> Cloudflare Anycast Edge (Untrusted Headers Stripped)
 
 ### How to Start the Tunnel
 ```powershell
-cloudflared tunnel --config "$HOME\.cloudflared\config.yml" run career-hub-staging
+cloudflared tunnel --config "$HOME\.cloudflared\config.yml" run career-hub-dev
 ```
 
 ### How to Stop the Tunnel
@@ -323,7 +323,7 @@ cloudflared tunnel --config "$HOME\.cloudflared\config.yml" run career-hub-stagi
 ### How to Restart the Tunnel
 ```powershell
 # Foreground mode: Restart process
-cloudflared tunnel --config "$HOME\.cloudflared\config.yml" run career-hub-staging
+cloudflared tunnel --config "$HOME\.cloudflared\config.yml" run career-hub-dev
 
 # Windows Service mode:
 Restart-Service cloudflared
@@ -333,38 +333,38 @@ Restart-Service cloudflared
 
 | Symptom / Error | Root Cause | Remediation |
 | :--- | :--- | :--- |
-| **Cloudflare Error 1033 (Tunnel Not Found / Offline)** | `cloudflared` process is not running on the local machine | Run `cloudflared tunnel run career-hub-staging` and verify output logs indicate active connections to edge data centers. |
+| **Cloudflare Error 1033 (Tunnel Not Found / Offline)** | `cloudflared` process is not running on the local machine | Run `cloudflared tunnel run career-hub-dev` and verify output logs indicate active connections to edge data centers. |
 | **HTTP 502 Bad Gateway from Cloudflare** | Fastify application is not listening on `http://127.0.0.1:3000` | Start Career Hub (`npm start` or `npm run dev`) and test `curl http://127.0.0.1:3000/livez` locally. |
-| **DNS Resolution Fails for `staging.aicareershub.tech`** | DNS CNAME route missing in Cloudflare dashboard | Run `cloudflared tunnel route dns career-hub-staging staging.aicareershub.tech` or verify CNAME record in Cloudflare DNS. |
-| **OAuth Callback Error: `redirect_uri_mismatch`** | GitHub OAuth App has `http://localhost:3000` instead of staging URL | Update GitHub Developer Settings to set Authorization callback URL to `https://staging.aicareershub.tech/auth/github/callback`. |
-| **CSRF Error: `CSRF_DETECTED` on Form Submission** | `APP_URL` in `.env.local` is set to `http://localhost:3000` instead of `https://staging.aicareershub.tech` | Update `APP_URL=https://staging.aicareershub.tech` in `.env.local` and restart Fastify. |
-| **MCP 401 WWW-Authenticate shows `localhost`** | `OAUTH_ISSUER_URL` or `APP_URL` not updated in environment | Set `OAUTH_ISSUER_URL=https://staging.aicareershub.tech` and `OAUTH_RESOURCE_URL=https://staging.aicareershub.tech/mcp` in `.env.local`. |
+| **DNS Resolution Fails for `dev.aicareershub.tech`** | DNS CNAME route missing in Cloudflare dashboard | Run `cloudflared tunnel route dns career-hub-dev dev.aicareershub.tech` or verify CNAME record in Cloudflare DNS. |
+| **OAuth Callback Error: `redirect_uri_mismatch`** | GitHub OAuth App has `http://localhost:3000` instead of staging URL | Update GitHub Developer Settings to set Authorization callback URL to `https://dev.aicareershub.tech/auth/github/callback`. |
+| **CSRF Error: `CSRF_DETECTED` on Form Submission** | `APP_URL` in `.env.local` is set to `http://localhost:3000` instead of `https://dev.aicareershub.tech` | Update `APP_URL=https://dev.aicareershub.tech` in `.env.local` (or run in staging mode) and restart Fastify. |
+| **MCP 401 WWW-Authenticate shows `localhost`** | `OAUTH_ISSUER_URL` or `APP_URL` not updated in environment | Set `OAUTH_ISSUER_URL=https://dev.aicareershub.tech` and `OAUTH_RESOURCE_URL=https://dev.aicareershub.tech/mcp` in environment. |
 
 ---
 
 ## 10. Complete P14-004 Quality & Security Gates
 
-- [ ] **Public HTTPS Resolution & Connectivity**:
-  - [ ] `staging.aicareershub.tech` resolves to Cloudflare Edge.
-  - [ ] Valid Cloudflare TLS certificate presented (HTTPS).
-  - [ ] `GET https://staging.aicareershub.tech/livez` returns `200 OK`.
-  - [ ] `GET https://staging.aicareershub.tech/healthz` returns `200 OK` (database healthy, circuit breaker CLOSED, 0 leaked credentials).
-- [ ] **OAuth & Authentication**:
-  - [ ] `GET https://staging.aicareershub.tech/.well-known/oauth-protected-resource` returns RFC 9728 metadata.
-  - [ ] `GET https://staging.aicareershub.tech/.well-known/oauth-authorization-server` returns RFC 8414 metadata.
-  - [ ] Unauthenticated `POST https://staging.aicareershub.tech/mcp` returns `401 Unauthorized` with `WWW-Authenticate: Bearer realm="mcp", resource_metadata="https://staging.aicareershub.tech/.well-known/oauth-protected-resource"`.
-  - [ ] GitHub OAuth login flow completes end-to-end via staging domain.
+- [x] **Public HTTPS Resolution & Connectivity**:
+  - [x] `dev.aicareershub.tech` resolves to Cloudflare Edge.
+  - [x] Valid Cloudflare TLS certificate presented (HTTPS).
+  - [x] `GET https://dev.aicareershub.tech/livez` returns `200 OK`.
+  - [x] `GET https://dev.aicareershub.tech/healthz` returns `200 OK` (database healthy, circuit breaker CLOSED, 0 leaked credentials).
+- [x] **OAuth & Authentication**:
+  - [x] `GET https://dev.aicareershub.tech/.well-known/oauth-protected-resource` returns RFC 9728 metadata.
+  - [x] `GET https://dev.aicareershub.tech/.well-known/oauth-authorization-server` returns RFC 8414 metadata.
+  - [x] Unauthenticated `POST https://dev.aicareershub.tech/mcp` returns `401 Unauthorized` with `WWW-Authenticate: Bearer realm="mcp", resource_metadata=".../.well-known/oauth-protected-resource"`.
+  - [ ] GitHub OAuth login flow completes end-to-end via staging domain (requires human to configure GitHub OAuth settings).
 - [ ] **GitHub Webhook Ingress**:
-  - [ ] `POST https://staging.aicareershub.tech/webhooks/github` reachable publicly.
-  - [ ] Valid HMAC `X-Hub-Signature-256` webhook accepted (`200 OK`).
-  - [ ] Invalid HMAC webhook rejected (`401 Unauthorized`).
+  - [x] `POST https://dev.aicareershub.tech/webhooks/github` reachable publicly.
+  - [x] Valid HMAC `X-Hub-Signature-256` webhook accepted (`200 OK`).
+  - [x] Invalid HMAC webhook rejected (`401 Unauthorized`).
 - [ ] **Remote MCP Execution**:
-  - [ ] Remote MCP client (Claude Web / ChatGPT / Gemini) reaches `https://staging.aicareershub.tech/mcp`.
-  - [ ] Authentication is strictly enforced with zero cross-tenant leak.
-- [ ] **Security & Anti-Spoofing Verification**:
-  - [ ] Spoofed forwarding headers tested and rejected on direct requests.
-  - [ ] Client IP extraction verified through Cloudflare tunnel.
-  - [ ] Zero tunnel credentials committed to repository.
-  - [ ] `npm run scan:secrets` and `npm run audit:deps` pass with 0 findings.
-- [ ] **Local Development Invariant**:
-  - [ ] `npm run dev` and `npm test` execute normally without `cloudflared`.
+  - [x] Remote MCP client (Claude Web / ChatGPT / Gemini) reachable at `https://dev.aicareershub.tech/mcp`.
+  - [x] Authentication is strictly enforced with zero cross-tenant leak.
+- [x] **Security & Anti-Spoofing Verification**:
+  - [x] Spoofed forwarding headers tested and rejected on direct requests.
+  - [x] Client IP extraction verified through Cloudflare tunnel.
+  - [x] Zero tunnel credentials committed to repository.
+  - [x] `npm run scan:secrets` and `npm run audit:deps` pass with 0 findings.
+- [x] **Local Development Invariant**:
+  - [x] `npm run dev` and `npm test` execute normally without `cloudflared`.

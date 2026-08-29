@@ -95,6 +95,7 @@ export class AuthService {
 
     const statePkg = generateOAuthState({
       provider: providerName,
+      redirectUri: options.redirectUri,
       returnTo: options.returnTo,
       encryptionKey: options.encryptionKey || this.encryptionKey,
     });
@@ -131,20 +132,21 @@ export class AuthService {
     const provider = this.getProvider(providerName);
 
     // 1. Validate PKCE & state integrity
-    const { codeVerifier, returnTo } = validateAndConsumeOAuthState(
-      params.state,
-      params.transitCookieValue,
-      {
-        provider: providerName,
-        encryptionKey: params.encryptionKey || this.encryptionKey,
-      }
-    );
+    const {
+      codeVerifier,
+      redirectUri: storedRedirectUri,
+      returnTo,
+    } = validateAndConsumeOAuthState(params.state, params.transitCookieValue, {
+      provider: providerName,
+      encryptionKey: params.encryptionKey || this.encryptionKey,
+    });
 
-    // 2. Exchange authorization code for provider access tokens
+    // 2. Exchange authorization code for provider access tokens using stored or passed redirectUri
+    const effectiveRedirectUri = params.redirectUri || storedRedirectUri || undefined;
     const tokens = await provider.exchangeCode({
       code: params.code,
       codeVerifier,
-      redirectUri: params.redirectUri,
+      redirectUri: effectiveRedirectUri,
     });
 
     // 3. Fetch normalized user profile

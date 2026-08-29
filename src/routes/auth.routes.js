@@ -42,6 +42,52 @@ async function preAuthRateLimit(req, reply, rateLimiter) {
   }
 }
 
+/**
+ * Resolves the authoritative public redirect URI for OAuth callbacks based on the incoming request,
+ * falling back safely to the configured GITHUB_OAUTH_REDIRECT_URI / APP_URL.
+ *
+ * @param {import('fastify').FastifyRequest} req
+ * @returns {string} Fully qualified callback URL
+ */
+export function getOAuthRedirectUri(req) {
+  const proto = req.headers['x-forwarded-proto'] || (req.protocol === 'https' ? 'https' : 'http');
+  const host =
+    req.headers['x-forwarded-host'] ||
+    req.headers.host ||
+    (config.APP_URL ? new URL(config.APP_URL).host : 'localhost:3000');
+
+  // Verify host against safe allowed origins: config.APP_URL host, staging host, or localhost
+  const appHostname = new URL(config.APP_URL).hostname.toLowerCase();
+  const incomingHostname = host.split(':')[0].toLowerCase();
+
+  const isAllowedHost =
+    incomingHostname === appHostname ||
+    incomingHostname === 'dev.aicareershub.tech' ||
+    incomingHostname === 'staging.aicareershub.tech' ||
+    incomingHostname === 'localhost' ||
+    incomingHostname === '127.0.0.1';
+
+  if (isAllowedHost) {
+    return `${proto}://${host}/auth/github/callback`;
+  }
+
+  return config.GITHUB_OAUTH_REDIRECT_URI || `${config.APP_URL}/auth/github/callback`;
+}
+
+/**
+ * Determines whether the request is transmitted over HTTPS (directly or behind trusted proxy).
+ *
+ * @param {import('fastify').FastifyRequest} req
+ * @returns {boolean} True if HTTPS or in production mode
+ */
+export function isHttpsRequest(req) {
+  return (
+    req.protocol === 'https' ||
+    req.headers['x-forwarded-proto'] === 'https' ||
+    config.NODE_ENV === 'production'
+  );
+}
+
 // Request Validation Schemas
 const AuthGithubQuerySchema = z.object({
   return_to: z.string().optional(),
@@ -49,8 +95,8 @@ const AuthGithubQuerySchema = z.object({
 
 const CallbackQuerySchema = z.object({
   code: z.string().min(1, 'Authorization code is required'),
-  state: z.string().min(1, 'OAuth state parameter is required'),
-  format: z.enum(['json', 'redirect']).optional().default('redirect'),
+  state: z.string().min(1, 'State parameter is required'),
+  format: z.enum(['json', 'html']).optional(),
 });
 
 // Response Validation Schemas
@@ -59,28 +105,29 @@ const MeResponseSchema = z.object({
     id: z.string().uuid(),
     email: z.string().email(),
     displayName: z.string(),
-    role: z.enum(['OWNER', 'MEMBER', 'READONLY']),
+    role: z.string(),
     avatarUrl: z.string().nullable(),
-    status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']),
+    status: z.string(),
   }),
   tenant: z.object({
     id: z.string().uuid(),
     name: z.string(),
     slug: z.string(),
-    tier: z.enum(['FREE', 'PRO', 'ENTERPRISE']),
+    tier: z.string(),
   }),
   session: z.object({
     id: z.string(),
-    expiresAt: z.union([z.date(), z.string()]),
+    expiresAt: z.date(),
   }),
 });
 
 /**
- * Registers authentication routes with the Fastify application.
+ * Fastify Authentication Route Plugin.
  *
- * @param {import('fastify').FastifyInstance} app Fastify instance
+ * @param {import('fastify').FastifyInstance} app
  * @param {Object} [opts={}] Plugin options
- * @param {AuthService} [opts.authService] Custom AuthService instance (for testing)
+ * @param {AuthService} [opts.authService] Custom AuthService instance override
+ * @param {import('../security/mcp-rate-limiter.js').McpRateLimiter} [opts.rateLimiter] Custom rate limiter instance override
  */
 export default async function authRoutes(app, opts = {}) {
   const authService = opts.authService || new AuthService({ db: app.db || db });
@@ -103,15 +150,18 @@ export default async function authRoutes(app, opts = {}) {
           ? req.query.return_to
           : undefined;
 
+      const redirectUri = getOAuthRedirectUri(req);
+      const isSecure = isHttpsRequest(req);
+
       const { authorizationUrl, transitCookieValue } = authService.startOAuthFlow('github', {
+        redirectUri,
         returnTo,
       });
 
-      const isProd = config.NODE_ENV === 'production';
       reply.setCookie(OAUTH_TRANSIT_COOKIE_NAME, transitCookieValue, {
         path: '/auth/github/callback',
         httpOnly: true,
-        secure: isProd,
+        secure: isSecure,
         sameSite: 'lax',
         maxAge: 600, // 10 minutes
       });
@@ -131,11 +181,13 @@ export default async function authRoutes(app, opts = {}) {
     async (req, reply) => {
       const { code, state, format } = req.query;
       const transitCookie = req.cookies[OAUTH_TRANSIT_COOKIE_NAME];
+      const isSecure = isHttpsRequest(req);
 
       const result = await authService.handleOAuthCallback('github', {
         code,
         state,
         transitCookieValue: transitCookie,
+        redirectUri: getOAuthRedirectUri(req),
         ipAddress: req.ip,
         userAgent: req.headers['user-agent'],
         requestId: req.id,
@@ -145,6 +197,7 @@ export default async function authRoutes(app, opts = {}) {
       reply.clearCookie(OAUTH_TRANSIT_COOKIE_NAME, {
         path: '/auth/github/callback',
         httpOnly: true,
+        secure: isSecure,
         sameSite: 'lax',
       });
 
@@ -153,7 +206,7 @@ export default async function authRoutes(app, opts = {}) {
       reply.setCookie(cookieOpts.name, result.session.rawToken, {
         path: cookieOpts.path,
         httpOnly: cookieOpts.httpOnly,
-        secure: cookieOpts.secure,
+        secure: isSecure || cookieOpts.secure,
         sameSite: cookieOpts.sameSite,
         maxAge: cookieOpts.maxAge,
       });

@@ -139,6 +139,25 @@ describe('OAuth State & PKCE Management (P2-002)', () => {
       );
     });
 
+    it('preserves and returns redirectUri in encrypted state payload', () => {
+      const statePkg = generateOAuthState({
+        provider: 'github',
+        redirectUri: 'https://dev.aicareershub.tech/auth/github/callback',
+        returnTo: '/dashboard',
+        encryptionKey: TEST_KEY,
+      });
+
+      const result = validateAndConsumeOAuthState(statePkg.state, statePkg.transitCookieValue, {
+        provider: 'github',
+        encryptionKey: TEST_KEY,
+      });
+
+      assert.strictEqual(result.codeVerifier, statePkg.codeVerifier);
+      assert.strictEqual(result.provider, 'github');
+      assert.strictEqual(result.redirectUri, 'https://dev.aicareershub.tech/auth/github/callback');
+      assert.strictEqual(result.returnTo, '/dashboard');
+    });
+
     it('rejects provider mismatch', () => {
       const statePkg = generateOAuthState({
         provider: 'google',

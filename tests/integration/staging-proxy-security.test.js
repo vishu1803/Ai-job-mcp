@@ -41,7 +41,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
       method: 'GET',
       url: '/livez',
       headers: {
-        host: 'staging.aicareershub.tech',
+        host: 'dev.aicareershub.tech',
         'x-forwarded-proto': 'https',
         'cf-connecting-ip': realClientIp,
         'x-forwarded-for': `${realClientIp}, ${cfEdgeIp}`,
@@ -211,7 +211,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
       method: 'GET',
       url: '/.well-known/oauth-protected-resource',
       headers: {
-        host: 'staging.aicareershub.tech',
+        host: 'dev.aicareershub.tech',
         'x-forwarded-proto': 'https',
       },
     });
@@ -228,7 +228,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
       method: 'GET',
       url: '/.well-known/oauth-authorization-server',
       headers: {
-        host: 'staging.aicareershub.tech',
+        host: 'dev.aicareershub.tech',
         'x-forwarded-proto': 'https',
       },
     });
@@ -256,7 +256,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
       method: 'POST',
       url: '/mcp',
       headers: {
-        host: 'staging.aicareershub.tech',
+        host: 'dev.aicareershub.tech',
         'x-forwarded-proto': 'https',
         'content-type': 'application/json',
       },
@@ -294,7 +294,7 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
       method: 'POST',
       url: '/auth/logout',
       headers: {
-        host: 'staging.aicareershub.tech',
+        host: 'dev.aicareershub.tech',
         'x-forwarded-proto': 'https',
         origin: 'https://evil-phishing-site.com',
       },

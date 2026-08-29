@@ -6,10 +6,31 @@ import { z } from 'zod';
 // Load base .env if present
 dotenv.config();
 
-// Load .env.local if present with override priority for local development
-const envLocalPath = resolve(process.cwd(), '.env.local');
-if (existsSync(envLocalPath)) {
-  dotenv.config({ path: envLocalPath, override: true });
+// Load explicit environment file if specified (e.g., ENV_FILE=.env.staging.local or APP_ENV=staging)
+const appEnv = process.env.APP_ENV;
+const explicitEnvFile = process.env.ENV_FILE;
+
+if (explicitEnvFile) {
+  const customEnvPath = resolve(process.cwd(), explicitEnvFile);
+  if (existsSync(customEnvPath)) {
+    dotenv.config({ path: customEnvPath, override: true });
+  }
+} else if (appEnv) {
+  const appEnvPath = resolve(process.cwd(), `.env.${appEnv}.local`);
+  if (existsSync(appEnvPath)) {
+    dotenv.config({ path: appEnvPath, override: true });
+  } else {
+    const appEnvFallback = resolve(process.cwd(), `.env.${appEnv}`);
+    if (existsSync(appEnvFallback)) {
+      dotenv.config({ path: appEnvFallback, override: true });
+    }
+  }
+} else {
+  // Load .env.local if present with override priority for local development
+  const envLocalPath = resolve(process.cwd(), '.env.local');
+  if (existsSync(envLocalPath)) {
+    dotenv.config({ path: envLocalPath, override: true });
+  }
 }
 
 /**

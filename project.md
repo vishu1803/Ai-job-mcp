@@ -3429,35 +3429,56 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 
 ---
 
-* **P14-004: DEPLOY PRODUCTION STAGING INFRASTRUCTURE WITH PERSISTENT CUSTOM DOMAIN & CLOUDFLARE NAMED TUNNEL (In Progress - Infrastructure Architecture & Proxy Security Complete)**:
+* **P14-004: DEPLOY PRODUCTION STAGING INFRASTRUCTURE WITH PERSISTENT CUSTOM DOMAIN & CLOUDFLARE NAMED TUNNEL (In Progress - Local & Cloudflare Staging Configuration Verified)**:
   * Deliverables Created & Modified:
     * `docs/cloudflare-staging-architecture.md`: Comprehensive architectural specification (`ARCH-054`) and operational runbook defining:
-      1. End-to-end network topology: Public Internet -> Cloudflare Edge TLS (`aicareershub.tech`) -> Persistent Named Tunnel (`career-hub-staging`) -> Localhost `cloudflared` -> Fastify application (`http://127.0.0.1:3000`) -> Aiven PostgreSQL 17.
-      2. Domain structure & DNS routing: `staging.aicareershub.tech` CNAME `<TUNNEL_UUID>.cfargotunnel.com`.
+      1. End-to-end network topology: Public Internet -> Cloudflare Edge TLS (`aicareershub.tech`) -> Persistent Named Tunnel (`career-hub-dev`) -> Localhost `cloudflared` -> Fastify application (`http://127.0.0.1:3000`) -> Aiven PostgreSQL 17.
+      2. Domain structure & DNS routing: `dev.aicareershub.tech` CNAME `<TUNNEL_UUID>.cfargotunnel.com`.
       3. Step-by-step setup commands for Windows (`winget install Cloudflare.cloudflared`, `cloudflared tunnel login`, `create`, `route dns`, `run`).
       4. Staging environment variables (`APP_URL`, `GITHUB_OAUTH_REDIRECT_URI`, `OAUTH_ISSUER_URL`, `OAUTH_RESOURCE_URL`, `DATABASE_URL`, `ENCRYPTION_MASTER_KEY`).
       5. GitHub integration endpoints: OAuth authorization callback, GitHub App user-to-server callback, installation setup URL, and HMAC-SHA256 webhook ingress.
       6. Remote MCP client readiness: Streamable HTTP `POST /mcp`, RFC 9728 & RFC 8414 metadata discovery endpoints, preconfigured clients (`claude-web`, `chatgpt-web`, `claude-desktop`, `claude-cli`).
       7. Operational lifecycle & troubleshooting matrix (Error 1033, 502 Bad Gateway, DNS resolution, OAuth mismatch, CSRF origin issues).
+    * `src/config/env.js`: Enhanced environment loader to support explicit configuration switching via `ENV_FILE` and `APP_ENV` (`.env.staging.local`) while preserving `.env.local` default for local development.
+    * `tests/unit/env-config.test.js`: Added 4 unit tests verifying local defaults, staging variable schemas, production key enforcement, and 64-hex/44-b64 master key validation.
     * `tests/integration/staging-proxy-security.test.js`: Dedicated 8-test security integration test suite verifying:
       1. Scenario A: Real request behind Cloudflare Tunnel with authoritative `CF-Connecting-IP` extraction (`198.51.100.42`).
       2. Scenario B: Spoofed `X-Forwarded-For` ignored on direct non-proxy connection (`10.0.0.99` rejected; loopback used).
       3. Scenario C: Spoofed `CF-Connecting-IP` ignored on direct non-proxy connection (`203.0.113.199` rejected; loopback used).
       4. Scenario D: Direct localhost request without proxy headers resolves loopback IP safely.
       5. Scenario E: Rate limiter client identity isolation per real client IP behind proxy (attacker IP throttled without affecting legitimate users).
-      6. RFC 9728 Protected Resource Metadata & RFC 8414 Authorization Server Metadata discovery endpoint payloads.
+      6. RFC 9728 Protected Resource Metadata & RFC 8414 Authorization Server Metadata discovery endpoint payloads on `dev.aicareershub.tech`.
       7. Unauthenticated `POST /mcp` returning `401 Unauthorized` with `WWW-Authenticate` header containing `resource_metadata` URI.
       8. CSRF Origin header validation rejecting cross-origin requests (`403 CSRF_DETECTED`) while allowing valid staging origins.
+    * `src/security/oauth-state.js`: Enhanced `generateOAuthState` and `validateAndConsumeOAuthState` to store and verify `redirectUri` inside the authenticated AES-256-GCM encrypted payload, ensuring bit-for-bit consistency between authorization initiation and token exchange.
+    * `src/security/auth.service.js`: Updated `startOAuthFlow` to propagate dynamic `redirectUri` into `generateOAuthState` and `provider.getAuthorizationUrl`; updated `handleOAuthCallback` to use verified `storedRedirectUri` during authorization code exchange.
+    * `src/routes/auth.routes.js`: Added `getOAuthRedirectUri(req)` helper to dynamically resolve client origin from `x-forwarded-proto` and `x-forwarded-host` / `host` against safe allowed origins (`dev.aicareershub.tech`, `staging.aicareershub.tech`, `APP_URL`, `localhost`, `127.0.0.1`); added `isHttpsRequest(req)` to dynamically attach `Secure` flag on HTTPS requests (Cloudflare Edge SSL) while allowing HTTP on local development; updated cookie setting and clearance on `/auth/github` and `/auth/github/callback`.
+    * `src/views/resumes.page.js` & `src/views/projects.page.js`: Fixed candidate displayName prioritization and AST code evidence location rendering for JSONB source locations.
+    * `tests/unit/oauth-routes-redirect.test.js`: Added 7 unit tests validating dynamic redirect URI resolution, reverse proxy forwarded header extraction, direct HTTPS detection, and untrusted host fallback.
+    * `tests/unit/oauth-state.test.js`: Added unit tests verifying `redirectUri` preservation across encrypted state generation and consumption (10/10 PASS).
+    * `tests/integration/auth.test.js`: Verified end-to-end OAuth 2.1 flow with isolated rate limiting across 18 test scenarios (18/18 PASS).
+    * `tests/integration/web-application-routes.test.js`: Verified web application routes with candidate identity parity and AST code evidence citations (20/20 PASS).
     * `.gitignore`: Added targeted `.cloudflared/` rule under Credentials & Key Files to prevent repository-local credential commits.
-    * `.env.example`: Added staging domain configuration examples (`staging.aicareershub.tech`) and metadata URL documentation.
+    * `.env.example`: Updated staging domain configuration examples (`https://dev.aicareershub.tech`) and metadata URL documentation.
   * Quality Gates & Verification:
+    * Live Cloudflare Tunnel Verification: `cloudflared` process active with persistent named tunnel `career-hub-dev` routing `https://dev.aicareershub.tech` to `http://localhost:3000`.
+    * Live Local Endpoint Check: `GET http://localhost:3000/auth/github` -> `302 Found`, `location: https://github.com/login/oauth/authorize?...&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fgithub%2Fcallback...`, `Set-Cookie: oauth_transit=...; Path=/auth/github/callback; HttpOnly; SameSite=Lax`.
+    * Live Public Staging Check: `GET https://dev.aicareershub.tech/auth/github` -> `302 Found`, `location: https://github.com/login/oauth/authorize?...&redirect_uri=https%3A%2F%2Fdev.aicareershub.tech%2Fauth%2Fgithub%2Fcallback...`, `Set-Cookie: oauth_transit=...; Path=/auth/github/callback; HttpOnly; Secure; SameSite=Lax`.
+    * Live Public Health Check: `GET https://dev.aicareershub.tech/healthz` -> `200 OK` (`status: healthy`).
+    * Live Public Metadata Check: `GET https://dev.aicareershub.tech/.well-known/oauth-protected-resource` & `oauth-authorization-server` -> `200 OK`.
+    * `node --test tests/integration/auth.test.js` -> PASS (18/18 tests passing)
     * `node --test tests/integration/staging-proxy-security.test.js` -> PASS (8/8 tests passing in 1.1s)
+    * `node --test tests/integration/web-application-routes.test.js` -> PASS (20/20 tests passing)
+    * `node --test tests/unit/oauth-routes-redirect.test.js` -> PASS (7/7 tests passing)
+    * `node --test tests/unit/oauth-state.test.js` -> PASS (10/10 tests passing)
+    * `node --test tests/unit/env-config.test.js` -> PASS (4/4 tests passing)
+    * `npm run test:unit` -> PASS (1,284/1,284 unit tests passing across 343 suites)
     * `npm run test:db-lifecycle-check` -> PASS (54/54 integration test files compliant, 0 violations)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
-    * `npm run test:unit` -> PASS (1,272/1,272 unit tests passing across 339 suites)
-  * Status: **`IN_PROGRESS (Infrastructure & Proxy Security Complete; awaiting user manual cloudflared tunnel setup & external client integration)`**.
+    * `npm run db:check` -> PASS (Schema in sync)
+  * Status: **`IN_PROGRESS (Local & Cloudflare Staging Dual-Origin OAuth & Proxy Hardening Verified; awaiting user manual GitHub Developer Settings & external AI client integration)`**.
 
 ---
 
@@ -3471,7 +3492,7 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | **COMPLETE & VERIFIED** | Comprehensive, isolated 40-test penetration test suite in `tests/integration/penetration-testing.test.js` verifying 10 attack surfaces (AUTH, IDOR, MCP Gateway, Web UI/XSS/CSRF, Document Uploads, GitHub Webhooks, Two-Phase Write Safety, Zero Information Leakage, Bounded Fuzzing, Concurrent Reentrancy). Ephemeral database lifecycle, zero rows leaked to main DB, and 100% test pass rate. |
 | **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | **COMPLETE & VERIFIED** | Multi-tier in-memory token-bucket rate limiter (`src/security/mcp-rate-limiter.js`), concurrency semaphore with immediate rejection (`src/security/concurrency-semaphore.js`), PostgreSQL connection pool circuit breaker guard (`src/security/db-pool-guard.js`), and anti-spoofing client IP extraction (`src/utils/extract-client-ip.js`). 91 dedicated unit tests passing across `tests/unit/application-rate-limiter.test.js`, `tests/unit/concurrency-semaphore.test.js`, `tests/unit/db-pool-guard.test.js`, and `tests/unit/extract-client-ip.test.js`. |
 | **P14-003A** | Career Hub Production Readiness Audit, UI/UX Hardening & End-to-End Product Consistency | P14-003 | **COMPLETE & VERIFIED** | Fixed 10 UI/UX and evidence provenance inconsistencies: deterministic click dropdown toggle, AST skill primary evidence association, PDF multi-block text & section newline preservation, rich self-reported claim generation, unified AI Connect design and endpoint guidance, contextual back navigation & breadcrumbs across all views, visual knowledge pipeline diagrams, and comprehensive non-bullet resume parsing with CMap decoding. 1,272/1,272 unit tests passing, Prettier format 100%, zero secrets. |
-| **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | **IN_PROGRESS** | Architecture specification `docs/cloudflare-staging-architecture.md` (`ARCH-054`), pre-flight audit, proxy trust boundary security suite (`tests/integration/staging-proxy-security.test.js` - 8/8 PASS), and `.gitignore` / `.env.example` safety hardening verified; awaiting live user execution of `cloudflared` tunnel setup and external integration testing. |
+| **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | **IN_PROGRESS** | Architecture specification `docs/cloudflare-staging-architecture.md` (`ARCH-054`), pre-flight audit, proxy trust boundary security suite (`tests/integration/staging-proxy-security.test.js` - 8/8 PASS), `.env.example` safety hardening, and live verification of `career-hub-dev` (`https://dev.aicareershub.tech`); awaiting user manual GitHub Developer Settings & external AI client integration. |
 | **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004 | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 

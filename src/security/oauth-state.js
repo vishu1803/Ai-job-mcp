@@ -92,6 +92,7 @@ export function generateOAuthState(options = {}) {
     state,
     codeVerifier,
     provider,
+    redirectUri: options.redirectUri || null,
     returnTo: options.returnTo && isValidReturnTo(options.returnTo) ? options.returnTo : null,
     createdAt: now,
     expiresAt: now + ttlSeconds * 1000,
@@ -117,7 +118,7 @@ export function generateOAuthState(options = {}) {
  * @param {Object} [options={}] Validation options
  * @param {string} [options.provider='github'] Expected identity provider name
  * @param {string | Buffer} [options.encryptionKey] Optional master key override for tests
- * @returns {{ codeVerifier: string, provider: string, returnTo: string | null }} Verified state contents
+ * @returns {{ codeVerifier: string, provider: string, redirectUri: string | null, returnTo: string | null }} Verified state contents
  * @throws {AuthenticationError} If state is missing, corrupted, expired, or mismatched
  */
 export function validateAndConsumeOAuthState(incomingState, transitCookieValue, options = {}) {
@@ -182,6 +183,7 @@ export function validateAndConsumeOAuthState(incomingState, transitCookieValue, 
   return {
     codeVerifier: payload.codeVerifier,
     provider: payload.provider,
+    redirectUri: payload.redirectUri || null,
     returnTo,
   };
 }

@@ -8,6 +8,7 @@ import { tenants, users, sessions } from '../../src/db/schema.js';
 import { GitHubProvider } from '../../src/security/providers/github.provider.js';
 import { AuthService } from '../../src/security/auth.service.js';
 import { OAUTH_TRANSIT_COOKIE_NAME } from '../../src/security/oauth-state.js';
+import { McpRateLimiter } from '../../src/security/mcp-rate-limiter.js';
 
 describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P2-002)', () => {
   const testRunId = crypto.randomBytes(4).toString('hex');
@@ -17,6 +18,7 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
   let app;
   let authService;
   let mockFetch;
+  let testRateLimiter;
 
   before(async () => {
     // Synthetic GitHub API mock responses
@@ -75,7 +77,11 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
 
     const testEncryptionKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
     authService = new AuthService({ db, providers, encryptionKey: testEncryptionKey });
-    app = buildApp({ logger: false, authService });
+    testRateLimiter = new McpRateLimiter({
+      authLimit: 1000,
+      ipLimit: 1000,
+    });
+    app = buildApp({ logger: false, authService, rateLimiter: testRateLimiter });
 
     // Ensure Fastify is initialized
     await app.ready();

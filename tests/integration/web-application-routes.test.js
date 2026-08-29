@@ -35,6 +35,7 @@ import {
   jobApplications,
 } from '../../src/db/schema.js';
 import { createSession, getSessionCookieOptions } from '../../src/security/session.service.js';
+import { encryptSecret } from '../../src/security/encryption.js';
 import { config } from '../../src/config/env.js';
 
 describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13.5-002)', () => {
@@ -58,7 +59,15 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
   let rawSessionTokenB;
 
   before(async () => {
-    app = buildApp({ db });
+    const mockIngestionService = {
+      syncCandidateRepositories: async () => ({
+        repositoriesProcessed: 1,
+        projectsCreated: 1,
+        evidenceCreated: 1,
+        verifiedSkills: ['Distributed Systems'],
+      }),
+    };
+    app = buildApp({ db, ingestionService: mockIngestionService });
     await app.ready();
 
     // 1. Provision Tenant A & User A
@@ -129,7 +138,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       externalAccountId: '123456',
       externalAccountName: 'AlexMercer',
       installationId: '887766',
-      encryptedCredentials: 'enc_mock_credentials',
+      encryptedCredentials: encryptSecret('mock_credentials'),
       status: 'ACTIVE',
     });
 

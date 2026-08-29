@@ -210,6 +210,10 @@ export function buildApp(opts = {}) {
   // Human Web Application & View Routes (/, /login, /onboarding, /dashboard, /connect, /settings, /docs/mcp)
   app.register(webRoutes, {
     db: opts.db,
+    ingestionService: opts.ingestionService,
+    connectionService: opts.connectionService,
+    resumeService: opts.resumeService,
+    tokenService: opts.tokenService,
   });
 
   return app;

@@ -233,8 +233,14 @@ function renderProjectDetail({ selectedProject }) {
               <tbody>
                 ${evidenceList
                   .map((e) => {
-                    const locStr = e.sourceFilePath
-                      ? `${e.sourceFilePath}${e.lineStart ? `:${e.lineStart}` : ''}`
+                    const filePath =
+                      e.sourceLocation?.filePath ||
+                      e.sourceLocation?.path ||
+                      e.sourceFilePath ||
+                      '';
+                    const lineStart = e.sourceLocation?.lineStart || e.lineStart;
+                    const locStr = filePath
+                      ? `${filePath}${lineStart ? `:${lineStart}` : ''}`
                       : 'Unknown';
                     const skillName = e.linkedSkillName || e.skillName || '—';
                     const conf = Math.round((e.confidenceScore || 0) * 100);

@@ -68,8 +68,8 @@ export function renderResumesPage({
   flashMessage = '',
   errorMessage = '',
 }) {
-  const candidateName = user?.displayName || candidate?.displayName || 'Authenticated Candidate';
-  const candidateEmail = user?.email || candidate?.canonicalEmail || '';
+  const candidateName = candidate?.displayName || user?.displayName || 'Authenticated Candidate';
+  const candidateEmail = candidate?.canonicalEmail || user?.email || '';
   const candidateHeadline = candidate?.headline || 'Candidate Profile';
 
   const content = `
