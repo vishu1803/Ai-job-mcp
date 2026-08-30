@@ -10,7 +10,12 @@
  */
 
 import { z } from 'zod';
-import { McpServer, createMcpHandler, fromJsonSchema } from '@modelcontextprotocol/server';
+import {
+  McpServer,
+  ResourceTemplate,
+  createMcpHandler,
+  fromJsonSchema,
+} from '@modelcontextprotocol/server';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import {
   McpToolDefinitionSchema,
@@ -322,14 +327,25 @@ export class McpServerWrapper {
 
     // 2. Register Resources
     for (const [uri, { definition, handler }] of this.registeredResources) {
+      const isTemplate = uri.includes('{') && uri.includes('}');
+      const resourceTarget = isTemplate ? new ResourceTemplate(uri, { list: undefined }) : uri;
+
       server.registerResource(
         definition.name,
-        uri,
+        resourceTarget,
         {
           description: definition.description,
           mimeType: definition.mimeType,
         },
-        async (resourceUri, extra) => {
+        async (resourceUri, paramsOrExtra, maybeExtra) => {
+          const isTemplateCall =
+            paramsOrExtra &&
+            typeof paramsOrExtra === 'object' &&
+            !paramsOrExtra.authInfo &&
+            !paramsOrExtra.context &&
+            !paramsOrExtra.req;
+          const vars = isTemplateCall ? paramsOrExtra : {};
+          const extra = isTemplateCall ? maybeExtra : paramsOrExtra;
           const context = authInfo || extra?.authInfo || extra?.context;
 
           if (!context) {
@@ -340,7 +356,7 @@ export class McpServerWrapper {
           }
 
           assertToolPermission(context, definition);
-          const result = await handler(context, resourceUri);
+          const result = await handler(context, resourceUri, vars);
 
           if (result && Array.isArray(result.contents)) {
             return result;

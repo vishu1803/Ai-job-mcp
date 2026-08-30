@@ -33,6 +33,7 @@ import {
   skills,
   resourceConnections,
   evidenceItems,
+  projectResources,
 } from '../db/schema.js';
 import { config } from '../config/env.js';
 import { CandidateRepositoryIngestionService } from '../services/candidate-repository-ingestion.service.js';
@@ -708,6 +709,7 @@ export default async function webRoutes(app, opts = {}) {
             evidenceType: evidenceItems.evidenceType,
             sourceLocation: evidenceItems.sourceLocation,
             excerpt: evidenceItems.excerpt,
+            projectId: evidenceItems.projectId,
             resourceDisplayName: resources.displayName,
             resourceUrl: resources.url,
             resourceName: resources.name,
@@ -733,6 +735,33 @@ export default async function webRoutes(app, opts = {}) {
           row.resourceUrl = topEvidence.resourceUrl;
           row.resourceName = topEvidence.resourceName;
           row.resourceProvider = topEvidence.resourceProvider;
+
+          // If resourceId was null on evidence, resolve via projectResources
+          if (!row.resourceDisplayName && topEvidence.projectId) {
+            const [projRes] = await database
+              .select({
+                displayName: resources.displayName,
+                url: resources.url,
+                name: resources.name,
+                provider: resources.provider,
+              })
+              .from(projectResources)
+              .innerJoin(resources, eq(projectResources.resourceId, resources.id))
+              .where(
+                and(
+                  eq(projectResources.tenantId, tenant.id),
+                  eq(projectResources.projectId, topEvidence.projectId)
+                )
+              )
+              .limit(1);
+
+            if (projRes) {
+              row.resourceDisplayName = projRes.displayName;
+              row.resourceUrl = projRes.url;
+              row.resourceName = projRes.name;
+              row.resourceProvider = projRes.provider;
+            }
+          }
         }
       }
     }

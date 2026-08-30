@@ -742,7 +742,7 @@ describe('ChatGPT Remote MCP & OAuth 2.1 Connector Integration Tests (P11-001, P
         assert.strictEqual(body.jsonrpc, '2.0');
         assert.strictEqual(body.id, 101);
         const tools = body.result.tools;
-        assert.strictEqual(tools.length, 24);
+        assert.strictEqual(tools.length, 26);
         const toolNames = tools.map((t) => t.name);
         assert.ok(toolNames.includes('get_candidate_profile'));
         assert.ok(toolNames.includes('list_verified_skills'));

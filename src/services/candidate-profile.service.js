@@ -1001,6 +1001,106 @@ export class CandidateProfileService {
   }
 
   /**
+   * Lists candidate skills with linked provenance, AST evidence references, and confidence scores.
+   *
+   * @param {object} context - Trusted context with tenantId
+   * @param {string} candidateId - Candidate UUID
+   * @param {object} [options={}] - Query options (limit, category, provenanceStatus)
+   * @returns {Promise<Array<object>>} List of skills with rich evidence and provenance
+   */
+  async listSkillsWithEvidence(context, candidateId, options = {}) {
+    this._validateContext(context);
+    if (!candidateId) throw new ValidationError('candidateId is required');
+
+    const tenantId = context.tenantId;
+    const limit = Math.min(Math.max(1, Number(options.limit) || 100), 100);
+
+    const conditions = [
+      eq(candidateSkills.tenantId, tenantId),
+      eq(candidateSkills.candidateId, candidateId),
+    ];
+
+    if (options.provenanceStatus) {
+      conditions.push(eq(candidateSkills.provenanceStatus, options.provenanceStatus));
+    }
+
+    if (options.category) {
+      conditions.push(eq(candidateSkills.category, options.category));
+    }
+
+    const rawSkills = await this._db
+      .select({
+        cs: candidateSkills,
+        skillSlug: skills.slug,
+        skillName: skills.name,
+      })
+      .from(candidateSkills)
+      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .where(and(...conditions))
+      .orderBy(desc(candidateSkills.confidenceScore), desc(candidateSkills.lastObservedAt))
+      .limit(limit);
+
+    const results = [];
+    for (const { cs, skillSlug, skillName } of rawSkills) {
+      // Query top evidence items for this skill
+      const evRows = await this._db
+        .select({
+          id: evidenceItems.id,
+          evidenceType: evidenceItems.evidenceType,
+          sourceLocation: evidenceItems.sourceLocation,
+          excerpt: evidenceItems.excerpt,
+          confidenceScore: evidenceItems.confidenceScore,
+          resourceDisplayName: resources.displayName,
+          resourceUrl: resources.url,
+          resourceProvider: resources.provider,
+          detectedAt: evidenceItems.detectedAt,
+        })
+        .from(evidenceItems)
+        .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
+        .where(
+          and(
+            eq(evidenceItems.tenantId, tenantId),
+            eq(evidenceItems.candidateId, candidateId),
+            eq(evidenceItems.skillId, cs.skillId)
+          )
+        )
+        .orderBy(desc(evidenceItems.confidenceScore), desc(evidenceItems.detectedAt))
+        .limit(5);
+
+      const evidenceList = evRows.map((e) => ({
+        evidenceId: e.id,
+        evidenceType: e.evidenceType,
+        sourceLocation: e.sourceLocation,
+        excerpt: e.excerpt,
+        confidenceScore: e.confidenceScore,
+        resourceDisplayName: e.resourceDisplayName || null,
+        resourceUrl: e.resourceUrl || null,
+        resourceProvider: e.resourceProvider || null,
+        detectedAt: e.detectedAt ? new Date(e.detectedAt).toISOString() : null,
+      }));
+
+      const isUserClaim = cs.provenanceStatus === 'CLAIMED' || cs.metadata?.isUserClaim === true;
+
+      results.push({
+        skillId: cs.skillId,
+        slug: skillSlug,
+        name: skillName,
+        category: cs.category,
+        provenanceStatus: cs.provenanceStatus,
+        confidenceScore: typeof cs.confidenceScore === 'number' ? cs.confidenceScore : 0.0,
+        evidenceCount: cs.evidenceCount,
+        isUserClaim,
+        claimLabel:
+          isUserClaim && cs.provenanceStatus === 'CLAIMED' ? '[Unverified User Claim]' : null,
+        evidence: evidenceList,
+        lastObservedAt: cs.lastObservedAt ? new Date(cs.lastObservedAt).toISOString() : null,
+      });
+    }
+
+    return results;
+  }
+
+  /**
    * Validates that context carries a valid tenantId.
    *
    * @param {object} context
