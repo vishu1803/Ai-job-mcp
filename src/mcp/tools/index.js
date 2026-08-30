@@ -9,3 +9,4 @@ export * from './career-artifact-tools.js';
 export * from './career-write-tools.js';
 export * from './career-tracking-tools.js';
 export * from './job-workflow-tools.js';
+export * from './career-profile-tools.js';

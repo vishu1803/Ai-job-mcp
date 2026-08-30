@@ -49,6 +49,15 @@ import { renderResumesPage, renderResumeDetailPage } from '../views/resumes.page
 import { renderConnectPage } from '../views/connect.page.js';
 import { renderSettingsPage } from '../views/settings.page.js';
 import { renderMcpDocsPage } from '../views/mcp-docs.page.js';
+import { renderProfilePage } from '../views/profile.page.js';
+import { renderPrivacyPage } from '../views/privacy.page.js';
+import { renderCookiesPage } from '../views/cookies.page.js';
+import { renderTermsPage } from '../views/terms.page.js';
+import { renderSecurityPage } from '../views/security.page.js';
+import { renderDataDeletionPage } from '../views/data-deletion.page.js';
+import { renderAccessibilityPage } from '../views/accessibility.page.js';
+import { renderSubprocessorsPage } from '../views/subprocessors.page.js';
+import { CandidateProfileService } from '../services/candidate-profile.service.js';
 import { sourceResumeIngestionService as defaultSourceResumeIngestionService } from '../services/source-resume-ingestion.service.js';
 import { defaultMcpApiTokenService } from '../services/mcp-api-token.service.js';
 import { AiConnectionStatusService } from '../services/ai-connection-status.service.js';
@@ -1451,5 +1460,199 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     return reply.redirect('/resumes?deleted=true');
+  });
+
+  // -------------------------------------------------------------------------
+  // 22. Career Profile & Search Intent Routes (P14-004C)
+  // -------------------------------------------------------------------------
+  const candidateProfileService = new CandidateProfileService(database);
+
+  app.get('/profile', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/profile');
+    }
+
+    const candidate = await getOrCreateCandidate(
+      database,
+      sessionContext.tenant.id,
+      sessionContext.user
+    );
+
+    const context = {
+      tenantId: sessionContext.tenant.id,
+      userId: sessionContext.user.id,
+      role: sessionContext.user.role,
+    };
+
+    const profile = await candidateProfileService.getCareerProfile(context, candidate.id);
+    const flashMessage = req.query.saved === 'true' ? 'Career preferences saved successfully.' : '';
+
+    const html = renderProfilePage({
+      user: sessionContext.user,
+      tenant: sessionContext.tenant,
+      candidate,
+      preferences: profile.jobPreferences,
+      verifiedSkills: profile.verifiedSkillsSummary,
+      csrfToken: 'csrf-profile-token-2026',
+      flashMessage,
+    });
+
+    reply.type('text/html').send(html);
+  });
+
+  app.post('/profile', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/profile');
+    }
+
+    const candidate = await getOrCreateCandidate(
+      database,
+      sessionContext.tenant.id,
+      sessionContext.user
+    );
+
+    const context = {
+      tenantId: sessionContext.tenant.id,
+      userId: sessionContext.user.id,
+      role: sessionContext.user.role,
+    };
+
+    const body = req.body || {};
+    const parseList = (val) =>
+      typeof val === 'string'
+        ? val
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : Array.isArray(val)
+          ? val
+          : [];
+
+    const preferencesUpdate = {
+      targetRoles: parseList(body.targetRoles),
+      preferredLocations: parseList(body.preferredLocations),
+      remotePreference: body.remotePreference || 'FLEXIBLE',
+      employmentTypes: body.employmentTypes ? parseList(body.employmentTypes) : ['FULL_TIME'],
+      salaryFloor: body.salaryFloor ? Number(body.salaryFloor) : null,
+      salaryCurrency: body.salaryCurrency || 'USD',
+      preferredTechStack: parseList(body.preferredTechStack),
+      industries: parseList(body.industries),
+      companiesToPrioritize: parseList(body.companiesToPrioritize),
+      companiesToAvoid: parseList(body.companiesToAvoid),
+      workAuthorization: parseList(body.workAuthorization),
+      visaSponsorshipRequired:
+        body.visaSponsorshipRequired === 'true' || body.visaSponsorshipRequired === true,
+      availabilityDate: body.availabilityDate ? String(body.availabilityDate).trim() : null,
+      relocationPreference: body.relocationPreference || 'REMOTE_ONLY',
+    };
+
+    await candidateProfileService.updateCareerPreferences(context, candidate.id, preferencesUpdate);
+    return reply.redirect('/profile?saved=true');
+  });
+
+  app.post('/profile/clear-preferences', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/profile');
+    }
+
+    const candidate = await getOrCreateCandidate(
+      database,
+      sessionContext.tenant.id,
+      sessionContext.user
+    );
+
+    const context = {
+      tenantId: sessionContext.tenant.id,
+      userId: sessionContext.user.id,
+      role: sessionContext.user.role,
+    };
+
+    await candidateProfileService.updateCareerPreferences(context, candidate.id, {
+      targetRoles: [],
+      preferredLocations: [],
+      remotePreference: 'FLEXIBLE',
+      employmentTypes: ['FULL_TIME'],
+      salaryFloor: null,
+      salaryCurrency: 'USD',
+      preferredTechStack: [],
+      industries: [],
+      companiesToPrioritize: [],
+      companiesToAvoid: [],
+      workAuthorization: [],
+      visaSponsorshipRequired: false,
+      availabilityDate: null,
+      relocationPreference: 'REMOTE_ONLY',
+    });
+
+    return reply.redirect('/profile?saved=true');
+  });
+
+  // -------------------------------------------------------------------------
+  // 23. Public Legal & Compliance Routes (P14-004C)
+  // -------------------------------------------------------------------------
+  app.get('/privacy', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const html = renderPrivacyPage({
+      user: sessionContext?.user || null,
+      tenant: sessionContext?.tenant || null,
+    });
+    reply.type('text/html').send(html);
+  });
+
+  app.get('/cookies', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const html = renderCookiesPage({
+      user: sessionContext?.user || null,
+      tenant: sessionContext?.tenant || null,
+    });
+    reply.type('text/html').send(html);
+  });
+
+  app.get('/terms', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const html = renderTermsPage({
+      user: sessionContext?.user || null,
+      tenant: sessionContext?.tenant || null,
+    });
+    reply.type('text/html').send(html);
+  });
+
+  app.get('/security', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const html = renderSecurityPage({
+      user: sessionContext?.user || null,
+      tenant: sessionContext?.tenant || null,
+    });
+    reply.type('text/html').send(html);
+  });
+
+  app.get('/data-deletion', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const html = renderDataDeletionPage({
+      user: sessionContext?.user || null,
+      tenant: sessionContext?.tenant || null,
+    });
+    reply.type('text/html').send(html);
+  });
+
+  app.get('/accessibility', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const html = renderAccessibilityPage({
+      user: sessionContext?.user || null,
+      tenant: sessionContext?.tenant || null,
+    });
+    reply.type('text/html').send(html);
+  });
+
+  app.get('/subprocessors', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    const html = renderSubprocessorsPage({
+      user: sessionContext?.user || null,
+      tenant: sessionContext?.tenant || null,
+    });
+    reply.type('text/html').send(html);
   });
 }

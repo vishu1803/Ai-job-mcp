@@ -29,6 +29,11 @@ import {
 import { NotFoundError, ValidationError, AuthorizationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
 import { EvidenceRefMapper } from './evidence/evidence-ref-mapper.js';
+import {
+  CareerPreferencesSchema,
+  UpdateCareerPreferencesInputSchema,
+  CandidateCareerProfileSchema,
+} from '../domain/candidate/career-preferences.schemas.js';
 
 export class CandidateProfileService {
   /**
@@ -839,6 +844,160 @@ export class CandidateProfileService {
       if (u) return u.role;
     }
     return 'MEMBER';
+  }
+
+  /**
+   * Retrieves persistent user job search preferences.
+   *
+   * @param {object} context - Trusted context with tenantId
+   * @param {string} candidateId - Candidate UUID
+   * @returns {Promise<object>} Validated CareerPreferences object
+   */
+  async getCareerPreferences(context, candidateId) {
+    this._validateContext(context);
+    if (!candidateId) throw new ValidationError('candidateId is required');
+
+    const [candidate] = await this._db
+      .select({ profileMetadata: candidates.profileMetadata })
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
+
+    if (!candidate) throw new NotFoundError(`Candidate not found: ${candidateId}`);
+
+    const rawPreferences = candidate.profileMetadata?.careerPreferences || {};
+    return CareerPreferencesSchema.parse(rawPreferences);
+  }
+
+  /**
+   * Updates persistent user job search preferences with user sovereignty guarantee.
+   *
+   * @param {object} context - Trusted context with tenantId and role
+   * @param {string} candidateId - Candidate UUID
+   * @param {object} rawInput - Updated preferences input
+   * @returns {Promise<object>} Updated and validated CareerPreferences object
+   */
+  async updateCareerPreferences(context, candidateId, rawInput) {
+    this._validateContext(context);
+    if (!candidateId) throw new ValidationError('candidateId is required');
+
+    const [candidate] = await this._db
+      .select()
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
+
+    if (!candidate) throw new NotFoundError(`Candidate not found: ${candidateId}`);
+
+    await this._assertCanMutateCandidate(context, candidate);
+
+    const parsedInput = UpdateCareerPreferencesInputSchema.parse(rawInput || {});
+    const existingPreferences = candidate.profileMetadata?.careerPreferences || {};
+
+    const updatedPreferences = CareerPreferencesSchema.parse({
+      ...existingPreferences,
+      ...parsedInput,
+      lastUpdated: new Date().toISOString(),
+    });
+
+    const updatedMetadata = {
+      ...(candidate.profileMetadata || {}),
+      careerPreferences: updatedPreferences,
+    };
+
+    await this._db
+      .update(candidates)
+      .set({
+        profileMetadata: updatedMetadata,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
+
+    logger.info(
+      {
+        tenantId: context.tenantId,
+        candidateId,
+        operation: 'candidate.preferences_updated',
+      },
+      'Updated candidate career preferences successfully'
+    );
+
+    return updatedPreferences;
+  }
+
+  /**
+   * Retrieves a comprehensive Career Profile view with preferences, portfolio links, and verified skills summary.
+   *
+   * @param {object} context - Trusted context with tenantId
+   * @param {string} candidateId - Candidate UUID
+   * @returns {Promise<object>} Validated CandidateCareerProfileView
+   */
+  async getCareerProfile(context, candidateId) {
+    this._validateContext(context);
+    if (!candidateId) throw new ValidationError('candidateId is required');
+
+    const [candidate] = await this._db
+      .select()
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
+
+    if (!candidate) throw new NotFoundError(`Candidate not found: ${candidateId}`);
+
+    // Fetch verified skills
+    const verifiedSkillsRows = await this._db
+      .select({
+        name: skills.name,
+      })
+      .from(candidateSkills)
+      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .where(
+        and(
+          eq(candidateSkills.tenantId, context.tenantId),
+          eq(candidateSkills.candidateId, candidateId),
+          eq(candidateSkills.provenanceStatus, 'VERIFIED')
+        )
+      );
+
+    const verifiedSkillsSummary = verifiedSkillsRows.map((r) => r.name);
+
+    // Extract portfolio links from identities and resources
+    const identities = await this._db
+      .select()
+      .from(candidateIdentities)
+      .where(
+        and(
+          eq(candidateIdentities.tenantId, context.tenantId),
+          eq(candidateIdentities.candidateId, candidateId)
+        )
+      );
+
+    const portfolioLinks = [];
+    for (const idRow of identities) {
+      if (idRow.profileUrl) {
+        portfolioLinks.push({
+          label: idRow.provider,
+          url: idRow.profileUrl,
+        });
+      }
+    }
+
+    const jobPreferences = CareerPreferencesSchema.parse(
+      candidate.profileMetadata?.careerPreferences || {}
+    );
+
+    return CandidateCareerProfileSchema.parse({
+      candidateId: candidate.id,
+      tenantId: candidate.tenantId,
+      displayName: candidate.displayName,
+      headline: candidate.headline,
+      summary: candidate.summary,
+      currentRole: candidate.profileMetadata?.currentRole || candidate.headline || null,
+      seniority: candidate.profileMetadata?.seniority || null,
+      yearsOfExperience: candidate.profileMetadata?.yearsOfExperience || null,
+      canonicalEmail: candidate.canonicalEmail,
+      portfolioLinks,
+      jobPreferences,
+      verifiedSkillsSummary,
+      updatedAt: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : null,
+    });
   }
 
   /**

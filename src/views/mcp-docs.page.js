@@ -900,6 +900,100 @@ const TOOLS_CATALOG = [
     },
     safetyNotes: 'Sovereign multi-tenant isolated query.',
   },
+
+  // Category 6: Career Profile & Intent (2 tools)
+  {
+    name: 'get_career_profile',
+    category: 'Career Profile & Intent',
+    scope: 'career:read',
+    role: 'READONLY',
+    classification: 'Profile',
+    purpose:
+      'Retrieves the candidate’s persistent career profile, target roles, preferred locations, compensation floors, and verified skills summary.',
+    parameters: [
+      {
+        name: 'candidateId',
+        type: 'string (UUID)',
+        required: false,
+        description: 'Optional candidate UUID. Defaults to authenticated persona.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'get_career_profile',
+        arguments: {},
+      },
+    },
+    safetyNotes: 'Read-only query. Strictly tenant-isolated. Zero secret or token leakage.',
+  },
+  {
+    name: 'update_career_preferences',
+    category: 'Career Profile & Intent',
+    scope: 'career:write',
+    role: 'MEMBER',
+    classification: 'Profile',
+    purpose:
+      'Updates the candidate’s persistent job search preferences (target roles, locations, remote policy, salary floor, tech stack) with strict user sovereignty.',
+    parameters: [
+      {
+        name: 'targetRoles',
+        type: 'array of strings',
+        required: false,
+        description: 'List of target job titles.',
+      },
+      {
+        name: 'preferredLocations',
+        type: 'array of strings',
+        required: false,
+        description: 'List of preferred locations.',
+      },
+      {
+        name: 'remotePreference',
+        type: 'enum (REMOTE_ONLY, REMOTE_FIRST, HYBRID, ON_SITE, FLEXIBLE)',
+        required: false,
+        description: 'Remote work policy preference.',
+      },
+      {
+        name: 'salaryFloor',
+        type: 'number',
+        required: false,
+        description: 'Minimum annual base salary requirement.',
+      },
+      {
+        name: 'salaryCurrency',
+        type: 'string (3-letter code)',
+        required: false,
+        description: 'Currency code (e.g. USD, EUR, INR).',
+      },
+      {
+        name: 'preferredTechStack',
+        type: 'array of strings',
+        required: false,
+        description: 'Preferred programming languages and frameworks.',
+      },
+      {
+        name: 'workAuthorization',
+        type: 'array of strings',
+        required: false,
+        description: 'Explicit user-provided work authorization countries (never inferred).',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'update_career_preferences',
+        arguments: {
+          targetRoles: ['Staff Backend Engineer', 'Distributed Systems Architect'],
+          remotePreference: 'REMOTE_ONLY',
+          salaryFloor: 190000,
+          preferredTechStack: ['Node.js', 'Fastify', 'PostgreSQL'],
+        },
+      },
+    },
+    safetyNotes:
+      'Requires career:write scope. AI is strictly prohibited from silently overwriting preferences.',
+  },
 ];
 
 /**
@@ -920,6 +1014,8 @@ function renderClassificationBadge(classification) {
       return `<span class="badge badge-amber">Tracking</span>`;
     case 'Workflow':
       return `<span class="badge badge-emerald" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Workflow</span>`;
+    case 'Profile':
+      return `<span class="badge badge-purple" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Profile</span>`;
     default:
       return `<span class="badge">${escapeHtml(classification)}</span>`;
   }

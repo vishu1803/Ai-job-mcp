@@ -88,7 +88,7 @@ describe('MCP Career Write Tools Unit Tests (P9-005)', () => {
       assert.ok(server.registeredTools.has('draft_cover_letter'));
       assert.ok(server.registeredTools.has('propose_project_improvement'));
       assert.ok(server.registeredTools.has('confirm_and_create_pr'));
-      assert.equal(server.registeredTools.size, 24);
+      assert.equal(server.registeredTools.size, 26);
     });
 
     it('propose_project_improvement has valid MCP 2026-07-28 annotations', () => {

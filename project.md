@@ -3505,6 +3505,27 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
     * `npm run db:check` -> PASS (Schema in sync)
+* **P14-004C: CAREER HUB PRODUCT MODEL, CAREER PROFILE, MCP PROTOCOL COMPLETENESS, PRIVACY/LEGAL SURFACE & FINAL PUBLIC-READINESS AUDIT (Complete & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/domain/candidate/career-preferences.schemas.js`: Comprehensive Zod schemas modeling persistent user career preferences and search intent (`CareerPreferencesSchema`, `UpdateCareerPreferencesInputSchema`, `CandidateCareerProfileSchema`) covering target roles, preferred locations, remote work policies (`REMOTE_ONLY`, `REMOTE_FIRST`, `HYBRID`, `ON_SITE`, `FLEXIBLE`), salary floor/currency, preferred tech stack, target industries, company exclusion/prioritization lists, and explicit user-provided work authorization & eligibility (never inferred).
+    * `src/services/candidate-profile.service.js`: Added `getCareerPreferences`, `updateCareerPreferences`, and `getCareerProfile` with sovereign multi-tenant isolation, RBAC mutation guards, and verified skills aggregation.
+    * `src/services/job-discovery.service.js`: Enhanced `searchJobs` to accept saved profile preferences and automatically populate omitted search parameters (`query`, `location`, `remoteOnly`, `minSalary`, `skills`), establishing the effective search equation: `Saved Profile + Query Overrides = Effective Search Parameters`.
+    * `src/domain/mcp/career-profile-tools.schemas.js` & `src/mcp/tools/career-profile-tools.js`: Implemented and registered `get_career_profile` (`career:read`, `READONLY`) and `update_career_preferences` (`career:write`, `MEMBER`), expanding the active MCP catalog from 24 to 26 tools with strict user sovereignty (AI cannot silently overwrite preferences).
+    * `src/mcp/resources/career-resources.js` & `src/mcp/server.js`: Registered canonical read-only MCP resources (`career://profile`, `career://skills`, `career://connections`) with per-request tenant isolation and scope checks.
+    * `src/mcp/prompts/career-prompts.js` & `src/mcp/server.js`: Registered structured MCP prompts (`find_matching_jobs`, `review_resume`, `prepare_application`, `explain_skill_gap`) guiding external AI clients to discover jobs, review claims against AST evidence, and orchestrate application packages.
+    * `src/views/profile.page.js`: Dedicated human-facing Career Profile and Search Intent Web UI with professional identity, verified skills summary, preferences editor, voluntary eligibility controls, and default reset buttons.
+    * `src/views/privacy.page.js`, `src/views/cookies.page.js`, `src/views/terms.page.js`, `src/views/security.page.js`, `src/views/data-deletion.page.js`, `src/views/accessibility.page.js`, `src/views/subprocessors.page.js`: 7 comprehensive, authentic public compliance pages truthful to current architecture without unverified certifications.
+    * `src/views/layout.js`: Updated universal navigation (added Career Profile to dropdown and mobile menu) and updated universal footer with all 7 legal & compliance links.
+    * `src/routes/web.routes.js`: Connected routes for `GET /profile`, `POST /profile`, `POST /profile/clear-preferences`, and `GET` for all 7 legal endpoints (`/privacy`, `/cookies`, `/terms`, `/security`, `/data-deletion`, `/accessibility`, `/subprocessors`).
+    * `src/views/mcp-docs.page.js`: Documented all 26 MCP tools, resources, prompts, and error taxonomy.
+    * `tests/unit/career-profile.schemas.test.js`, `tests/unit/career-profile-tools.test.js`, `tests/integration/career-profile-and-compliance.test.js`: 14 dedicated unit/integration tests verifying preference persistence, search parameter merging, tool/resource/prompt execution, and public legal route accessibility (100% PASS).
+  * Quality Gates & Verification:
+    * `npm run test:unit` -> PASS (1,292/1,292 unit tests passing across 345 suites)
+    * `npm run test:db-lifecycle-check` -> PASS (56/56 integration test files compliant, 0 violations, 0 leaks)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
+    * `npm run db:check` -> PASS (Schema in sync)
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---
@@ -3522,7 +3543,8 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | **COMPLETE** | Architecture specification `docs/cloudflare-staging-architecture.md` (`ARCH-054`), pre-flight audit, proxy trust boundary security suite (`tests/integration/staging-proxy-security.test.js` - 8/8 PASS), `.env.example` safety hardening, and live verification of `career-hub-dev` (`https://dev.aicareershub.tech`). |
 | **P14-004A** | External MCP OAuth UX, Client Identification & Staging Verification | P14-004 | **COMPLETE & VERIFIED** | Implemented dynamic client consent branding, Anthropic Hosted Client Metadata Document (CIMD / draft-ietf-oauth-client-id-metadata-document) discovery & resolution (`client_id_metadata_document_supported: true`), public staging metadata origin reflection, and 12-scenario end-to-end integration suite (`tests/integration/oauth-seamless-ux.test.js` - 12/12 PASS). |
 | **P14-004B** | Expand Career MCP into End-to-End Job Application Workflow & AI Connection Status Center | P14-004A | **COMPLETE & VERIFIED** | Implemented 8 new MCP workflow tools (24 total), single-use 15-min cryptographic approval tickets bound to package SHA-256 hash, Workday manual handoff kit, real DB-derived AI connection status center for Claude/ChatGPT/Gemini, and integration test suite (`tests/integration/mcp-job-workflow.test.js` - 12/12 PASS). |
-| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004B | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
+| **P14-004C** | Career Hub Product Model, Career Profile, MCP Protocol Completeness, Privacy/Legal Surface & Public-Readiness Audit | P14-004B | **COMPLETE & VERIFIED** | Implemented persistent Candidate Career Profile & Intent model (`CareerPreferencesSchema`), Profile Web UI (`/profile`), 2 new MCP profile tools (`get_career_profile`, `update_career_preferences` -> 26 tools total), MCP Resources (`career://profile`, `career://skills`, `career://connections`), MCP Prompts (`find_matching_jobs`, `review_resume`, `prepare_application`, `explain_skill_gap`), 7 public legal & compliance pages (`/privacy`, `/cookies`, `/terms`, `/security`, `/data-deletion`, `/accessibility`, `/subprocessors`) with universal footer. 1,292 unit tests passing (100%), 0 lint errors, 0 secrets. |
+| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004C | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---

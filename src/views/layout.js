@@ -1219,8 +1219,15 @@ export function renderLayout({
                   <div class="item-desc">Verified taxonomy</div>
                 </div>
               </a>
-              <a href="/dashboard#applications" class="nav-dropdown-item">
+              <a href="/profile" class="nav-dropdown-item ${activeNav === 'profile' ? 'active' : ''}">
                 <span class="item-icon">🎯</span>
+                <div class="item-text">
+                  <div class="item-title">Profile & Intent</div>
+                  <div class="item-desc">Target roles & preferences</div>
+                </div>
+              </a>
+              <a href="/dashboard#applications" class="nav-dropdown-item">
+                <span class="item-icon">📋</span>
                 <div class="item-text">
                   <div class="item-title">Applications</div>
                   <div class="item-desc">Pipeline tracking</div>
@@ -1327,7 +1334,8 @@ export function renderLayout({
       <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">📊 Dashboard</a>
       <a href="/projects" class="${activeNav === 'projects' ? 'active' : ''}">💼 Projects</a>
       <a href="/skills" class="${activeNav === 'skills' ? 'active' : ''}">⚡ Skills</a>
-      <a href="/dashboard#applications">🎯 Applications</a>
+      <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">🎯 Profile & Intent</a>
+      <a href="/dashboard#applications">📋 Applications</a>
       <div class="mobile-section-label">Sources</div>
       <a href="/sources" class="${activeNav === 'sources' ? 'active' : ''}">🔗 Connected Sources</a>
       <a href="/resumes" class="${activeNav === 'resumes' ? 'active' : ''}">📄 Resumes</a>
@@ -1335,31 +1343,68 @@ export function renderLayout({
       <a href="/connect" class="${activeNav === 'connect' ? 'active' : ''}">🤖 AI Connect</a>
       <a href="/docs/mcp" class="${activeNav === 'docs' ? 'active' : ''}">📖 MCP Docs</a>
       <div class="nav-mobile-divider"></div>
-      <div class="mobile-section-label">Account</div>
+      <div class="mobile-section-label">Account & Legal</div>
       <a href="/settings" class="${activeNav === 'settings' ? 'active' : ''}">⚙️ Settings & Privacy</a>
-      <form action="/auth/logout" method="POST">
+      <a href="/privacy" class="${activeNav === 'privacy' ? 'active' : ''}">🛡️ Privacy Notice</a>
+      <a href="/terms" class="${activeNav === 'terms' ? 'active' : ''}">📜 Terms of Service</a>
+      <a href="/cookies" class="${activeNav === 'cookies' ? 'active' : ''}">🍪 Cookie Policy</a>
+      <a href="/security" class="${activeNav === 'security' ? 'active' : ''}">🔒 Security Architecture</a>
+      <a href="/data-deletion" class="${activeNav === 'data-deletion' ? 'active' : ''}">🗑️ Data Deletion</a>
+      <a href="/accessibility" class="${activeNav === 'accessibility' ? 'active' : ''}">♿ Accessibility</a>
+      <a href="/subprocessors" class="${activeNav === 'subprocessors' ? 'active' : ''}">🏢 Subprocessors</a>
+      <form action="/auth/logout" method="POST" style="margin-top: 0.5rem;">
         <button type="submit" class="logout-form-btn">🚪 Sign Out</button>
       </form>
     `
         : `
       <a href="/" class="${activeNav === 'home' ? 'active' : ''}">🏠 Overview</a>
       <a href="/docs/mcp" class="${activeNav === 'docs' ? 'active' : ''}">📖 MCP Docs</a>
+      <a href="/privacy" class="${activeNav === 'privacy' ? 'active' : ''}">🛡️ Privacy Notice</a>
+      <a href="/terms" class="${activeNav === 'terms' ? 'active' : ''}">📜 Terms of Service</a>
+      <a href="/cookies" class="${activeNav === 'cookies' ? 'active' : ''}">🍪 Cookie Policy</a>
+      <a href="/security" class="${activeNav === 'security' ? 'active' : ''}">🔒 Security Architecture</a>
       <a href="/login" class="btn btn-primary" style="margin-top:12px; text-align:center;">Sign In with GitHub</a>
     `
     }
   </div>
 
   <footer>
-    <div class="container footer-inner">
-      <div>
-        <p><strong>Antigravity Career Hub</strong> — Universal Model Context Protocol (MCP) Server</p>
-        <p style="margin-top:4px; font-size:0.8rem; color:var(--text-dim);">Evidence-grounded career intelligence & universal AI connectors.</p>
+    <div class="container footer-inner" style="flex-direction: column; gap: 1.5rem; padding: 2.5rem 1.5rem 2rem;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 2rem; width: 100%;">
+        <div>
+          <p style="font-size: 1.05rem; font-weight: 700; color: #f8fafc;">Antigravity Career Hub</p>
+          <p style="margin-top: 4px; font-size: 0.85rem; color: var(--text-dim); max-width: 450px; line-height: 1.5;">
+            Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
+          </p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 3rem;">
+          <div>
+            <span style="font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.6rem;">Platform</span>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; padding: 0;">
+              <li><a href="/dashboard">Dashboard</a></li>
+              <li><a href="/profile">Career Intent</a></li>
+              <li><a href="/docs/mcp">MCP Protocol</a></li>
+              <li><a href="/healthz">Health Status</a></li>
+            </ul>
+          </div>
+          <div>
+            <span style="font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.6rem;">Privacy & Legal</span>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; padding: 0;">
+              <li><a href="/privacy">Privacy Notice</a></li>
+              <li><a href="/terms">Terms of Service</a></li>
+              <li><a href="/cookies">Cookie Policy</a></li>
+              <li><a href="/security">Security Architecture</a></li>
+              <li><a href="/data-deletion">Data Deletion</a></li>
+              <li><a href="/accessibility">Accessibility</a></li>
+              <li><a href="/subprocessors">Subprocessors</a></li>
+            </ul>
+          </div>
+        </div>
       </div>
-      <ul class="footer-links">
-        <li><a href="/docs/mcp">MCP Protocol</a></li>
-        <li><a href="/healthz">Health Status</a></li>
-        <li><a href="https://github.com/vishu1803/Ai-job-mcp" target="_blank" rel="noopener">GitHub</a></li>
-      </ul>
+      <div style="border-top: 1px solid var(--border-subtle); padding-top: 1rem; width: 100%; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; font-size: 0.8rem; color: #64748b;">
+        <span>© 2026 Antigravity Career Hub. Zero-hallucination evidence model.</span>
+        <a href="https://github.com/vishu1803/Ai-job-mcp" target="_blank" rel="noopener" style="color: #94a3b8;">GitHub Repository</a>
+      </div>
     </div>
   </footer>
 

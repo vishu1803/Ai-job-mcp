@@ -280,6 +280,7 @@ export const McpPromptDefinitionSchema = z
       .max(64)
       .regex(/^[a-z0-9_]+$/, 'Prompt name must be lowercase alphanumeric with underscores'),
     description: z.string().min(1).max(1000).optional(),
+    arguments: z.array(McpPromptArgumentSchema).optional(),
     argsSchema: z.record(z.any()).optional(),
     requiredRole: McpRoleEnum.default('READONLY'),
     requiredScopes: z.array(z.string()).default(['career:read']),

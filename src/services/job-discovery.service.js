@@ -167,12 +167,47 @@ export class JobDiscoveryService {
 
   /**
    * Searches for relevant job postings across all active providers.
+   * Merges saved candidate career preferences with explicit query overrides.
    *
-   * @param {object} params Search filter parameters
-   * @returns {Promise<{ total: number, jobs: Array<object>, sources: Array<string> }>}
+   * @param {object} [params={}] Search filter parameters
+   * @param {object|null} [preferences=null] Saved candidate career preferences
+   * @returns {Promise<{ total: number, limit: number, offset: number, jobs: Array<object>, sources: Array<string> }>}
    */
-  async searchJobs(params = {}) {
-    const validated = SearchJobsInputSchema.parse(params);
+  async searchJobs(params = {}, preferences = null) {
+    const rawParams = { ...params };
+
+    // Apply saved profile defaults if explicit parameters were omitted
+    if (preferences) {
+      if (!rawParams.query && preferences.targetRoles && preferences.targetRoles.length > 0) {
+        rawParams.query = preferences.targetRoles.join(' ');
+      }
+      if (
+        !rawParams.location &&
+        preferences.preferredLocations &&
+        preferences.preferredLocations.length > 0
+      ) {
+        rawParams.location = preferences.preferredLocations[0];
+      }
+      if (
+        rawParams.remoteOnly === undefined &&
+        (preferences.remotePreference === 'REMOTE_ONLY' ||
+          preferences.remotePreference === 'REMOTE_FIRST')
+      ) {
+        rawParams.remoteOnly = true;
+      }
+      if (rawParams.minSalary === undefined && preferences.salaryFloor) {
+        rawParams.minSalary = preferences.salaryFloor;
+      }
+      if (
+        (!rawParams.skills || rawParams.skills.length === 0) &&
+        preferences.preferredTechStack &&
+        preferences.preferredTechStack.length > 0
+      ) {
+        rawParams.skills = preferences.preferredTechStack;
+      }
+    }
+
+    const validated = SearchJobsInputSchema.parse(rawParams);
     const queryTerms = validated.query.toLowerCase().split(/\s+/).filter(Boolean);
 
     const allJobs = [...this.customJobs, ...STRUCTURED_PUBLIC_JOBS];
