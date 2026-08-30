@@ -37,6 +37,7 @@ export function renderOnboardingPage({
   selectedRepos = [],
   currentStep = 1,
   syncResult = null,
+  ingestionRun = null,
   error = '',
   success = '',
 }) {
@@ -133,6 +134,7 @@ export function renderOnboardingPage({
           selectedRepos,
           selectedRepoIds,
           syncResult,
+          ingestionRun,
         })}
       </div>
     </div>
@@ -156,6 +158,7 @@ function renderStepContent({
   selectedRepos,
   selectedRepoIds,
   syncResult,
+  ingestionRun,
 }) {
   switch (step) {
     case 1:
@@ -170,7 +173,7 @@ function renderStepContent({
         isGitHubConnected,
       });
     case 4:
-      return renderStep4Ingestion({ selectedRepos, syncResult });
+      return renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun });
     case 5:
       return renderStep5Complete({ syncResult, candidate, selectedRepos, user });
     default:
@@ -626,9 +629,57 @@ function renderStep3Repositories({
 /**
  * Step 4: Repository Ingestion (Sync) Pipeline
  */
-function renderStep4Ingestion({ selectedRepos, syncResult }) {
+function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }) {
+  const isLiveRunning = ingestionRun?.state === 'RUNNING' || ingestionRun?.state === 'QUEUED';
+  const isCompleted =
+    ingestionRun?.state === 'COMPLETED' || (syncResult !== null && !isLiveRunning);
+  const isPartialFailure = ingestionRun?.state === 'PARTIAL_FAILURE';
+  const isFailed = ingestionRun?.state === 'FAILED';
+
+  const completedCount =
+    ingestionRun?.completedRepositories ??
+    syncResult?.repositoriesProcessed ??
+    (isCompleted ? selectedRepos.length : 0);
+  const totalCount = ingestionRun?.totalRepositories ?? selectedRepos.length;
+  const failedCount = ingestionRun?.failedRepositories ?? 0;
+
+  const currentSummary = ingestionRun?.summary || syncResult;
+
+  const repoList =
+    ingestionRun?.repositories && ingestionRun.repositories.length > 0
+      ? ingestionRun.repositories
+      : selectedRepos.map((r) => ({
+          id: String(r.id || r.externalResourceId || r.name),
+          name: r.name || r.displayName || 'Repository',
+          fullName: r.fullName || r.name || 'Repository',
+          state: isCompleted ? 'COMPLETED' : 'QUEUED',
+          phase: isCompleted ? 'AST + evidence complete' : 'Queued',
+          error: null,
+          projectsCreated: 0,
+          projectsUpdated: 0,
+          evidenceCreated: 0,
+          evidenceLinked: 0,
+        }));
+
   return `
-    <div>
+    <div id="step4Root">
+      <style>
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 0.85s linear infinite;
+        }
+        .pulse-subtle {
+          animation: pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulseSubtle {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.65; }
+        }
+      </style>
+
       <div style="margin-bottom:24px;">
         <span class="badge badge-indigo" style="margin-bottom:6px;">STEP 4 OF 5</span>
         <h2 style="font-size:1.4rem; font-weight:700;">Execute AST Ingestion & Evidence Extraction</h2>
@@ -637,66 +688,418 @@ function renderStep4Ingestion({ selectedRepos, syncResult }) {
         </p>
       </div>
 
-      <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:24px; margin-bottom:28px;">
-        <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">Ingestion Target Scope:</h3>
-        <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:16px;">
-          <strong>${selectedRepos.length}</strong> repository ${selectedRepos.length === 1 ? 'source' : 'sources'} queued for deep AST syntax extraction:
-        </p>
-        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px;">
-          ${
-            selectedRepos.length > 0
-              ? selectedRepos
-                  .map(
-                    (r) =>
-                      `<span class="badge badge-indigo">${escapeHtml(r.name || r.displayName)}</span>`
-                  )
-                  .join('')
-              : '<span style="font-size:0.85rem; color:var(--text-dim);">No repositories selected. Ingestion will process existing resources.</span>'
-          }
+      <!-- Main Ingestion Panel -->
+      <div id="ingestionMainPanel" style="background:rgba(255,255,255,0.02); border:1px solid ${isLiveRunning ? 'rgba(59,130,246,0.35)' : isCompleted ? 'rgba(16,185,129,0.35)' : isPartialFailure ? 'rgba(245,158,11,0.35)' : isFailed ? 'rgba(239,68,68,0.35)' : 'var(--border-subtle)'}; border-radius:var(--radius-md); padding:24px; margin-bottom:28px; transition:all 0.3s ease;">
+
+        <!-- Ingestion Target Scope Summary -->
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; border-bottom:1px solid var(--border-subtle); padding-bottom:16px;">
+          <div>
+            <h3 style="font-size:1rem; font-weight:700; margin:0 0 4px;">Target Repositories</h3>
+            <p style="font-size:0.825rem; color:var(--text-muted); margin:0;" id="scopeSubtitle">
+              <strong>${totalCount}</strong> repository ${totalCount === 1 ? 'source' : 'sources'} queued for deep AST syntax extraction:
+            </p>
+          </div>
+          <div>
+            <span class="badge ${isLiveRunning ? 'badge-cyan pulse-subtle' : isCompleted ? 'badge-success' : isPartialFailure ? 'badge-warning' : isFailed ? 'badge-danger' : 'badge-indigo'}" id="overallStatusBadge" style="font-size:0.85rem; font-weight:700; padding:6px 14px;">
+              ${isLiveRunning ? 'RUNNING' : isCompleted ? 'COMPLETED' : isPartialFailure ? 'PARTIAL FAILURE' : isFailed ? 'FAILED' : 'QUEUED'}
+            </span>
+          </div>
         </div>
 
-        ${
-          syncResult
-            ? `
-          <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-md); padding:20px; margin-top:20px;">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
-              <span style="font-size:1.2rem;">✨</span>
-              <h4 style="font-size:1.05rem; font-weight:700; color:#34D399;">Ingestion Pipeline Completed Successfully</h4>
+        <!-- Progress Counter Bar -->
+        <div id="progressStatusBar" style="display:${isLiveRunning || isCompleted || isPartialFailure ? 'flex' : 'none'}; justify-content:space-between; align-items:center; margin-bottom:16px; background:rgba(255,255,255,0.03); padding:10px 16px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);" role="status" aria-live="polite">
+          <div style="display:flex; align-items:center; gap:10px;">
+            ${isLiveRunning ? '<span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>' : ''}
+            <span style="font-size:0.875rem; font-weight:600; color:var(--text-main);" id="currentPhaseText">
+              ${escapeHtml(ingestionRun?.currentPhase || (isCompleted ? 'Ingestion complete' : 'Ready to start'))}
+            </span>
+          </div>
+          <span style="font-size:0.85rem; font-weight:700; color:var(--accent-indigo);" id="progressFractionText">
+            ${completedCount} / ${totalCount} Repositories Complete
+          </span>
+        </div>
+
+        <!-- Repository Status Item Cards -->
+        <div id="repoProgressList" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+          ${repoList
+            .map((repo) => {
+              const repoState = repo.state || (isCompleted ? 'COMPLETED' : 'QUEUED');
+              const isRepoRunning = repoState === 'RUNNING';
+              const isRepoCompleted = repoState === 'COMPLETED';
+              const isRepoFailed = repoState === 'FAILED';
+
+              let iconHtml = '<span style="color:var(--text-dim); font-size:1.1rem;">○</span>';
+              let badgeClass = 'badge-neutral';
+              if (isRepoCompleted) {
+                iconHtml =
+                  '<span style="color:#34D399; font-weight:bold; font-size:1.1rem;">✓</span>';
+                badgeClass = 'badge-success';
+              } else if (isRepoRunning) {
+                iconHtml =
+                  '<span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>';
+                badgeClass = 'badge-cyan';
+              } else if (isRepoFailed) {
+                iconHtml =
+                  '<span style="color:#EF4444; font-weight:bold; font-size:1.1rem;">✕</span>';
+                badgeClass = 'badge-danger';
+              }
+
+              return `
+                <div class="repo-card-row" id="repo_row_${escapeHtml(String(repo.id))}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding:12px 16px; background:rgba(255,255,255,0.02); border:1px solid ${isRepoRunning ? 'rgba(59,130,246,0.4)' : isRepoCompleted ? 'rgba(16,185,129,0.3)' : isRepoFailed ? 'rgba(239,68,68,0.3)' : 'var(--border-subtle)'}; border-radius:var(--radius-sm); transition:border-color 0.2s ease;">
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <div id="repo_icon_${escapeHtml(String(repo.id))}" style="display:flex; align-items:center; justify-content:center; width:20px;">
+                      ${iconHtml}
+                    </div>
+                    <div>
+                      <span style="font-weight:600; font-size:0.92rem; color:var(--text-main);">${escapeHtml(repo.name || repo.fullName)}</span>
+                      <div id="repo_phase_${escapeHtml(String(repo.id))}" style="font-size:0.775rem; color:var(--text-muted); margin-top:2px;">
+                        ${escapeHtml(repo.phase || repoState)}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <span id="repo_badge_${escapeHtml(String(repo.id))}" class="badge ${badgeClass}" style="font-size:0.725rem; text-transform:uppercase; letter-spacing:0.04em;">
+                      ${repoState}
+                    </span>
+                  </div>
+                </div>
+              `;
+            })
+            .join('')}
+        </div>
+
+        <!-- Completion Stats Card (Rendered if completed) -->
+        <div id="completionStatsCard" style="display:${isCompleted && currentSummary ? 'block' : 'none'}; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-md); padding:20px; margin-top:20px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+            <span style="font-size:1.2rem;">✨</span>
+            <h4 style="font-size:1.05rem; font-weight:700; color:#34D399; margin:0;">Ingestion Pipeline Completed Successfully</h4>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px;">
+            <div class="stat-card" style="padding:14px;">
+              <div class="stat-val" id="statReposVal" style="font-size:1.4rem; color:#34D399;">${currentSummary?.repositoriesProcessed || completedCount}</div>
+              <div class="stat-label" style="font-size:0.75rem;">Repos Processed</div>
             </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px;">
-              <div class="stat-card" style="padding:14px;">
-                <div class="stat-val" style="font-size:1.4rem; color:#34D399;">${syncResult.repositoriesProcessed || 0}</div>
-                <div class="stat-label" style="font-size:0.75rem;">Repos Processed</div>
-              </div>
-              <div class="stat-card" style="padding:14px;">
-                <div class="stat-val" style="font-size:1.4rem; color:var(--accent-indigo);">${(syncResult.projectsCreated || 0) + (syncResult.projectsUpdated || 0)}</div>
-                <div class="stat-label" style="font-size:0.75rem;">Projects Indexed</div>
-              </div>
-              <div class="stat-card" style="padding:14px;">
-                <div class="stat-val" style="font-size:1.4rem; color:var(--accent-cyan);">${syncResult.evidenceCreated || syncResult.evidenceLinked || 0}</div>
-                <div class="stat-label" style="font-size:0.75rem;">Evidence Items</div>
-              </div>
-              <div class="stat-card" style="padding:14px;">
-                <div class="stat-val" style="font-size:1.4rem; color:var(--accent-amber);">${syncResult.verifiedSkillsAdded || (syncResult.verifiedSkills ? syncResult.verifiedSkills.length : 0)}</div>
-                <div class="stat-label" style="font-size:0.75rem;">Verified Skills</div>
-              </div>
+            <div class="stat-card" style="padding:14px;">
+              <div class="stat-val" id="statProjectsVal" style="font-size:1.4rem; color:var(--accent-indigo);">${(currentSummary?.projectsCreated || 0) + (currentSummary?.projectsUpdated || 0)}</div>
+              <div class="stat-label" style="font-size:0.75rem;">Projects Indexed</div>
+            </div>
+            <div class="stat-card" style="padding:14px;">
+              <div class="stat-val" id="statEvidenceVal" style="font-size:1.4rem; color:var(--accent-cyan);">${currentSummary?.evidenceCreated || currentSummary?.evidenceLinked || 0}</div>
+              <div class="stat-label" style="font-size:0.75rem;">Evidence Items</div>
+            </div>
+            <div class="stat-card" style="padding:14px;">
+              <div class="stat-val" id="statSkillsVal" style="font-size:1.4rem; color:var(--accent-amber);">${currentSummary?.verifiedSkillsAdded || (currentSummary?.verifiedSkills ? currentSummary.verifiedSkills.length : 0)}</div>
+              <div class="stat-label" style="font-size:0.75rem;">Verified Skills</div>
             </div>
           </div>
-        `
-            : `
-          <form action="/onboarding/sync" method="POST" style="margin-top:16px;">
-            <button type="submit" class="btn btn-primary" style="padding:12px 24px; font-size:1rem;">
-              ⚡ Run Repository Ingestion Pipeline
-            </button>
-          </form>
-        `
-        }
+        </div>
+
+        <!-- Partial Failure Alert (Rendered if partial failure) -->
+        <div id="partialFailureAlert" style="display:${isPartialFailure ? 'block' : 'none'}; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:var(--radius-md); padding:16px; margin-top:20px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.1rem;">⚠️</span>
+            <h4 style="font-size:0.95rem; font-weight:700; color:#FBBF24; margin:0;" id="partialFailureTitle">
+              ${completedCount} of ${totalCount} repositories completed, ${failedCount} failed
+            </h4>
+          </div>
+          <p style="font-size:0.825rem; color:var(--text-muted); margin:6px 0 0 28px;">
+            Successful repositories are indexed and evidence is saved. You can retry the failed repositories or continue with partial results.
+          </p>
+        </div>
+
+        <!-- Fatal Failure Alert (Rendered if failed) -->
+        <div id="fatalFailureAlert" style="display:${isFailed ? 'block' : 'none'}; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-md); padding:16px; margin-top:20px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:1.1rem;">❌</span>
+            <h4 style="font-size:0.95rem; font-weight:700; color:#F87171; margin:0;">
+              Ingestion Pipeline Encountered an Error
+            </h4>
+          </div>
+          <p style="font-size:0.825rem; color:var(--text-muted); margin:6px 0 0 28px;" id="fatalFailureMsg">
+            ${escapeHtml(ingestionRun?.error || 'Failed to complete repository ingestion. Please check connection and retry.')}
+          </p>
+        </div>
       </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border-subtle);">
-        <a href="/onboarding?step=3" class="btn btn-secondary">← Back to Repositories</a>
-        <a href="/onboarding?step=5" class="btn btn-primary">${syncResult ? 'Review Profile Summary →' : 'Skip Ingestion & Complete →'}</a>
+      <!-- Action Navigation Footer -->
+      <div id="step4ActionFooter" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding-top:20px; border-top:1px solid var(--border-subtle);">
+        <a href="/onboarding?step=3" id="backToReposBtn" class="btn btn-secondary ${isLiveRunning ? 'disabled' : ''}" style="${isLiveRunning ? 'opacity:0.4; pointer-events:none; cursor:not-allowed;' : ''}" ${isLiveRunning ? 'aria-disabled="true" tabindex="-1"' : ''}>
+          ← Back to Repositories
+        </a>
+
+        <div id="actionButtonGroup" style="display:flex; align-items:center; gap:10px;">
+          ${
+            isLiveRunning
+              ? `
+            <button type="button" id="runningIndicatorBtn" class="btn btn-primary disabled" disabled style="opacity:0.65; cursor:not-allowed; display:inline-flex; align-items:center; gap:8px;">
+              <span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; display:inline-block;"></span>
+              <span>Ingestion Running...</span>
+            </button>
+          `
+              : isCompleted
+                ? `
+            <a href="/onboarding?step=5" id="continueToSummaryBtn" class="btn btn-primary" style="padding:10px 22px;">
+              Review Profile Summary →
+            </a>
+          `
+                : isPartialFailure || isFailed
+                  ? `
+            <form action="/onboarding/ingestion/retry" method="POST" style="margin:0; display:inline;">
+              <button type="submit" id="retryFailedBtn" class="btn btn-secondary">
+                🔄 Retry Failed
+              </button>
+            </form>
+            <a href="/onboarding?step=5" id="continueAnywayBtn" class="btn btn-primary" style="padding:10px 22px;">
+              Continue to Summary →
+            </a>
+          `
+                  : `
+            <a href="/onboarding?step=5" id="skipIngestionBtn" class="btn btn-secondary">
+              Skip Ingestion & Complete →
+            </a>
+            <button type="button" id="startIngestionBtn" class="btn btn-primary" style="padding:12px 24px; font-size:1rem;">
+              ⚡ Run Repository Ingestion Pipeline
+            </button>
+          `
+          }
+        </div>
       </div>
+
+      <!-- Real-Time State Controller Script -->
+      <script>
+        (function() {
+          var isRunning = ${isLiveRunning ? 'true' : 'false'};
+          var pollInterval = null;
+
+          function setRunningState(running) {
+            isRunning = running;
+            window._isIngestionRunning = running;
+
+            var backBtn = document.getElementById('backToReposBtn');
+            var skipBtn = document.getElementById('skipIngestionBtn');
+            var startBtn = document.getElementById('startIngestionBtn');
+            var actionGroup = document.getElementById('actionButtonGroup');
+            var panel = document.getElementById('ingestionMainPanel');
+            var statusBadge = document.getElementById('overallStatusBadge');
+            var statusBar = document.getElementById('progressStatusBar');
+
+            if (running) {
+              if (backBtn) {
+                backBtn.classList.add('disabled');
+                backBtn.style.opacity = '0.4';
+                backBtn.style.pointerEvents = 'none';
+                backBtn.setAttribute('aria-disabled', 'true');
+              }
+              if (panel) {
+                panel.style.borderColor = 'rgba(59,130,246,0.35)';
+              }
+              if (statusBadge) {
+                statusBadge.className = 'badge badge-cyan pulse-subtle';
+                statusBadge.innerText = 'RUNNING';
+              }
+              if (statusBar) {
+                statusBar.style.display = 'flex';
+              }
+              if (actionGroup) {
+                actionGroup.innerHTML = '<button type="button" class="btn btn-primary disabled" disabled style="opacity:0.65; cursor:not-allowed; display:inline-flex; align-items:center; gap:8px;"><span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; display:inline-block;"></span><span>Ingestion Running...</span></button>';
+              }
+            }
+          }
+
+          function updateUiFromStatus(data) {
+            if (!data) return;
+
+            var phaseText = document.getElementById('currentPhaseText');
+            var fractionText = document.getElementById('progressFractionText');
+            var statusBadge = document.getElementById('overallStatusBadge');
+            var panel = document.getElementById('ingestionMainPanel');
+            var actionGroup = document.getElementById('actionButtonGroup');
+            var backBtn = document.getElementById('backToReposBtn');
+
+            if (phaseText && data.currentPhase) {
+              phaseText.innerText = data.currentPhase;
+            }
+            if (fractionText) {
+              fractionText.innerText = (data.completedRepositories || 0) + ' / ' + (data.totalRepositories || 0) + ' Repositories Complete';
+            }
+
+            // Update individual repository cards
+            if (Array.isArray(data.repositories)) {
+              data.repositories.forEach(function(repo) {
+                var row = document.getElementById('repo_row_' + repo.id);
+                var icon = document.getElementById('repo_icon_' + repo.id);
+                var phase = document.getElementById('repo_phase_' + repo.id);
+                var badge = document.getElementById('repo_badge_' + repo.id);
+
+                if (phase) phase.innerText = repo.phase || repo.state;
+                if (badge) {
+                  badge.innerText = repo.state;
+                  if (repo.state === 'COMPLETED') {
+                    badge.className = 'badge badge-success';
+                    if (icon) icon.innerHTML = '<span style="color:#34D399; font-weight:bold; font-size:1.1rem;">✓</span>';
+                    if (row) row.style.borderColor = 'rgba(16,185,129,0.3)';
+                  } else if (repo.state === 'RUNNING') {
+                    badge.className = 'badge badge-cyan';
+                    if (icon) icon.innerHTML = '<span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>';
+                    if (row) row.style.borderColor = 'rgba(59,130,246,0.4)';
+                  } else if (repo.state === 'FAILED') {
+                    badge.className = 'badge badge-danger';
+                    if (icon) icon.innerHTML = '<span style="color:#EF4444; font-weight:bold; font-size:1.1rem;">✕</span>';
+                    if (row) row.style.borderColor = 'rgba(239,68,68,0.3)';
+                  }
+                }
+              });
+            }
+
+            // Handle terminal states
+            if (data.state === 'COMPLETED') {
+              setRunningState(false);
+              if (pollInterval) clearInterval(pollInterval);
+              if (statusBadge) {
+                statusBadge.className = 'badge badge-success';
+                statusBadge.innerText = 'COMPLETED';
+              }
+              if (panel) panel.style.borderColor = 'rgba(16,185,129,0.35)';
+              if (backBtn) {
+                backBtn.classList.remove('disabled');
+                backBtn.style.opacity = '1';
+                backBtn.style.pointerEvents = 'auto';
+                backBtn.removeAttribute('aria-disabled');
+              }
+
+              // Show completion stats card
+              var statsCard = document.getElementById('completionStatsCard');
+              if (statsCard) {
+                statsCard.style.display = 'block';
+                var sum = data.summary;
+                if (sum) {
+                  var statRepos = document.getElementById('statReposVal');
+                  var statProjects = document.getElementById('statProjectsVal');
+                  var statEvidence = document.getElementById('statEvidenceVal');
+                  var statSkills = document.getElementById('statSkillsVal');
+                  if (statRepos) statRepos.innerText = sum.repositoriesProcessed || data.completedRepositories || 0;
+                  if (statProjects) statProjects.innerText = (sum.projectsCreated || 0) + (sum.projectsUpdated || 0);
+                  if (statEvidence) statEvidence.innerText = sum.evidenceCreated || sum.evidenceLinked || 0;
+                  if (statSkills) statSkills.innerText = sum.verifiedSkillsAdded || (sum.verifiedSkills ? sum.verifiedSkills.length : 0);
+                }
+              }
+
+              if (actionGroup) {
+                actionGroup.innerHTML = '<a href="/onboarding?step=5" id="continueToSummaryBtn" class="btn btn-primary" style="padding:10px 22px;">Review Profile Summary →</a>';
+              }
+            } else if (data.state === 'PARTIAL_FAILURE') {
+              setRunningState(false);
+              if (pollInterval) clearInterval(pollInterval);
+              if (statusBadge) {
+                statusBadge.className = 'badge badge-warning';
+                statusBadge.innerText = 'PARTIAL FAILURE';
+              }
+              if (panel) panel.style.borderColor = 'rgba(245,158,11,0.35)';
+              if (backBtn) {
+                backBtn.classList.remove('disabled');
+                backBtn.style.opacity = '1';
+                backBtn.style.pointerEvents = 'auto';
+                backBtn.removeAttribute('aria-disabled');
+              }
+              var partialAlert = document.getElementById('partialFailureAlert');
+              if (partialAlert) partialAlert.style.display = 'block';
+              if (actionGroup) {
+                actionGroup.innerHTML = '<form action="/onboarding/ingestion/retry" method="POST" style="margin:0; display:inline;"><button type="submit" class="btn btn-secondary">🔄 Retry Failed</button></form><a href="/onboarding?step=5" class="btn btn-primary" style="padding:10px 22px;">Continue to Summary →</a>';
+              }
+            } else if (data.state === 'FAILED') {
+              setRunningState(false);
+              if (pollInterval) clearInterval(pollInterval);
+              if (statusBadge) {
+                statusBadge.className = 'badge badge-danger';
+                statusBadge.innerText = 'FAILED';
+              }
+              if (panel) panel.style.borderColor = 'rgba(239,68,68,0.35)';
+              if (backBtn) {
+                backBtn.classList.remove('disabled');
+                backBtn.style.opacity = '1';
+                backBtn.style.pointerEvents = 'auto';
+                backBtn.removeAttribute('aria-disabled');
+              }
+              var fatalAlert = document.getElementById('fatalFailureAlert');
+              if (fatalAlert) {
+                fatalAlert.style.display = 'block';
+                var fatalMsg = document.getElementById('fatalFailureMsg');
+                if (fatalMsg && data.error) fatalMsg.innerText = data.error;
+              }
+              if (actionGroup) {
+                actionGroup.innerHTML = '<form action="/onboarding/ingestion/retry" method="POST" style="margin:0; display:inline;"><button type="submit" class="btn btn-secondary">🔄 Retry Ingestion</button></form>';
+              }
+            }
+          }
+
+          function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(function() {
+              fetch('/onboarding/ingestion/status', {
+                headers: { 'Accept': 'application/json' }
+              })
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                  updateUiFromStatus(data);
+                })
+                .catch(function(err) {
+                  console.warn('Polling error:', err);
+                });
+            }, 1500);
+          }
+
+          // Initial poll if page loaded while already running
+          if (isRunning) {
+            setRunningState(true);
+            startPolling();
+          }
+
+          // Handle click on start ingestion button
+          var startBtn = document.getElementById('startIngestionBtn');
+          if (startBtn) {
+            startBtn.addEventListener('click', function(e) {
+              e.preventDefault();
+              setRunningState(true);
+
+              fetch('/onboarding/sync', {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json'
+                }
+              })
+                .then(function(res) {
+                  if (res.status === 202 || res.status === 200) {
+                    return res.json();
+                  } else if (res.status === 409) {
+                    // Already running in another tab/request
+                    return res.json();
+                  } else {
+                    return res.json().then(function(errData) {
+                      throw new Error(errData.error ? errData.error.message : 'Failed to start ingestion');
+                    });
+                  }
+                })
+                .then(function(data) {
+                  startPolling();
+                })
+                .catch(function(err) {
+                  setRunningState(false);
+                  alert('Could not start ingestion: ' + err.message);
+                });
+            });
+          }
+
+          // Safe unload navigation warning
+          window.addEventListener('beforeunload', function(e) {
+            if (window._isIngestionRunning) {
+              e.preventDefault();
+              e.returnValue = 'Ingestion is running. Leaving this page will not stop the background process.';
+              return e.returnValue;
+            }
+          });
+        })();
+      </script>
     </div>
   `;
 }

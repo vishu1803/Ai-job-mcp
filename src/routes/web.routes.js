@@ -62,6 +62,7 @@ import { CandidateProfileService } from '../services/candidate-profile.service.j
 import { sourceResumeIngestionService as defaultSourceResumeIngestionService } from '../services/source-resume-ingestion.service.js';
 import { defaultMcpApiTokenService } from '../services/mcp-api-token.service.js';
 import { AiConnectionStatusService } from '../services/ai-connection-status.service.js';
+import { defaultIngestionStateService } from '../services/ingestion-state.service.js';
 import { NotFoundError } from '../errors/index.js';
 
 /**
@@ -140,6 +141,7 @@ export default async function webRoutes(app, opts = {}) {
   const database = opts.db || defaultDb;
   const ingestionService =
     opts.ingestionService || new CandidateRepositoryIngestionService({ db: database });
+  const ingestionStateService = opts.ingestionStateService || defaultIngestionStateService;
   const connectionService = opts.connectionService || defaultConnectionService;
   const resumeService = opts.resumeService || defaultSourceResumeIngestionService;
   const tokenService = opts.tokenService || defaultMcpApiTokenService;
@@ -407,6 +409,11 @@ export default async function webRoutes(app, opts = {}) {
       }
     }
 
+    const activeIngestionRun = ingestionStateService.getRunByCandidate({
+      tenantId: tenant.id,
+      candidateId: candidate.id,
+    });
+
     const html = renderOnboardingPage({
       user,
       tenant,
@@ -415,6 +422,7 @@ export default async function webRoutes(app, opts = {}) {
       availableRepos,
       selectedRepos: selectedResources,
       currentStep: stepParam,
+      ingestionRun: activeIngestionRun,
       error: errorMsg,
       success: successMsg,
     });
@@ -663,9 +671,315 @@ export default async function webRoutes(app, opts = {}) {
   });
 
   // -------------------------------------------------------------------------
-  // 8. POST /onboarding/sync — Execute Ingestion Pipeline
+  // 8. POST /onboarding/sync — Execute Ingestion Pipeline with State Machine
   // -------------------------------------------------------------------------
   app.post('/onboarding/sync', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      const accept = req.headers['accept'] || '';
+      if (accept.includes('application/json') && !accept.includes('text/html')) {
+        return reply
+          .status(401)
+          .send({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+      }
+      return reply.redirect('/login?returnTo=/onboarding');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    // 1. Check for active ingestion run (Server-side Idempotency & Duplicate Start Guard)
+    const existingRun = ingestionStateService.getRunByCandidate({
+      tenantId: tenant.id,
+      candidateId: candidate.id,
+    });
+
+    if (existingRun && (existingRun.state === 'QUEUED' || existingRun.state === 'RUNNING')) {
+      req.log.warn(
+        {
+          requestId: req.id,
+          ingestionRunId: existingRun.ingestionRunId,
+          tenantId: tenant.id,
+          candidateId: candidate.id,
+          state: existingRun.state,
+        },
+        'ingestion.rejected_duplicate'
+      );
+
+      const accept = req.headers['accept'] || '';
+      if (accept.includes('application/json') && !accept.includes('text/html')) {
+        return reply.status(409).send({
+          error: {
+            code: 'INGESTION_ALREADY_RUNNING',
+            message: 'An ingestion run is already actively running for this candidate',
+          },
+          run: existingRun,
+        });
+      }
+      return reply.redirect('/onboarding?step=4&error=Ingestion+is+already+running');
+    }
+
+    // 2. Fetch candidate's active resource selections (Deduplicated snapshot)
+    const rawSelectedResources = await database
+      .select()
+      .from(resources)
+      .where(
+        and(
+          eq(resources.tenantId, tenant.id),
+          eq(resources.candidateId, candidate.id),
+          eq(resources.provider, 'GITHUB_APP'),
+          eq(resources.status, 'ACTIVE')
+        )
+      );
+
+    const seenResourceKeys = new Set();
+    const activeResources = [];
+    for (const res of rawSelectedResources) {
+      const canonicalKey = res.externalResourceId || res.name;
+      if (!seenResourceKeys.has(canonicalKey)) {
+        seenResourceKeys.add(canonicalKey);
+        activeResources.push(res);
+      }
+    }
+
+    if (activeResources.length === 0) {
+      const accept = req.headers['accept'] || '';
+      if (accept.includes('application/json') && !accept.includes('text/html')) {
+        return reply.status(400).send({
+          error: {
+            code: 'NO_REPOSITORIES_SELECTED',
+            message: 'No active repositories selected for ingestion',
+          },
+        });
+      }
+      return reply.redirect('/onboarding?step=3&error=Please+select+at+least+one+repository');
+    }
+
+    // 3. Initialize Ingestion Run with state machine & immutable snapshot
+    let run;
+    try {
+      run = ingestionStateService.startRun({
+        context: { tenantId: tenant.id, userId: user.id },
+        candidateId: candidate.id,
+        resources: activeResources,
+      });
+    } catch (err) {
+      if (err.name === 'ConflictError' || err.message === 'INGESTION_ALREADY_RUNNING') {
+        const accept = req.headers['accept'] || '';
+        if (accept.includes('application/json') && !accept.includes('text/html')) {
+          return reply.status(409).send({
+            error: {
+              code: 'INGESTION_ALREADY_RUNNING',
+              message: 'An ingestion run is already actively running for this candidate',
+            },
+          });
+        }
+        return reply.redirect('/onboarding?step=4&error=Ingestion+is+already+running');
+      }
+      throw err;
+    }
+
+    // 4. Audit Log: ingestion.started
+    req.log.info(
+      {
+        requestId: req.id,
+        ingestionRunId: run.ingestionRunId,
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+        repositoryCount: activeResources.length,
+      },
+      'ingestion.started'
+    );
+
+    // 5. Execute AST pipeline asynchronously (server owns the lifecycle)
+    const runId = run.ingestionRunId;
+    const executeSync = async () => {
+      try {
+        const syncResult = await ingestionService.syncCandidateRepositories({
+          context: { tenantId: tenant.id, userId: user.id, requestId: req.id },
+          candidateId: candidate.id,
+          onProgress: (event) => {
+            if (event.type === 'REPOSITORY_STARTED') {
+              ingestionStateService.markRepositoryRunning({
+                tenantId: tenant.id,
+                candidateId: candidate.id,
+                resourceId: event.resource.id,
+                phase: event.phase,
+              });
+              req.log.info(
+                {
+                  requestId: req.id,
+                  ingestionRunId: runId,
+                  tenantId: tenant.id,
+                  candidateId: candidate.id,
+                  repositoryId: event.resource.id,
+                  repositoryName: event.resource.name,
+                },
+                'ingestion.repository_started'
+              );
+            } else if (event.type === 'PHASE_CHANGED') {
+              if (event.resource) {
+                ingestionStateService.updateRepositoryPhase({
+                  tenantId: tenant.id,
+                  candidateId: candidate.id,
+                  resourceId: event.resource.id,
+                  phase: event.phase,
+                });
+              } else {
+                const current = ingestionStateService.getRunByCandidate({
+                  tenantId: tenant.id,
+                  candidateId: candidate.id,
+                });
+                if (current) current.currentPhase = event.phase;
+              }
+            } else if (event.type === 'REPOSITORY_COMPLETED') {
+              ingestionStateService.markRepositoryCompleted({
+                tenantId: tenant.id,
+                candidateId: candidate.id,
+                resourceId: event.resource.id,
+                result: event.result,
+              });
+              req.log.info(
+                {
+                  requestId: req.id,
+                  ingestionRunId: runId,
+                  tenantId: tenant.id,
+                  candidateId: candidate.id,
+                  repositoryId: event.resource.id,
+                  repositoryName: event.resource.name,
+                },
+                'ingestion.repository_completed'
+              );
+            } else if (event.type === 'REPOSITORY_FAILED') {
+              ingestionStateService.markRepositoryFailed({
+                tenantId: tenant.id,
+                candidateId: candidate.id,
+                resourceId: event.resource.id,
+                error: event.error,
+              });
+              req.log.warn(
+                {
+                  requestId: req.id,
+                  ingestionRunId: runId,
+                  tenantId: tenant.id,
+                  candidateId: candidate.id,
+                  repositoryId: event.resource.id,
+                  repositoryName: event.resource.name,
+                  error: event.error,
+                },
+                'ingestion.repository_failed'
+              );
+            }
+          },
+        });
+
+        const finalRun = ingestionStateService.finishRun({
+          tenantId: tenant.id,
+          candidateId: candidate.id,
+          summary: syncResult,
+        });
+
+        if (finalRun.state === 'PARTIAL_FAILURE') {
+          req.log.warn(
+            {
+              requestId: req.id,
+              ingestionRunId: runId,
+              tenantId: tenant.id,
+              candidateId: candidate.id,
+              completed: finalRun.completedRepositories,
+              failed: finalRun.failedRepositories,
+            },
+            'ingestion.partial_failure'
+          );
+        } else {
+          req.log.info(
+            {
+              requestId: req.id,
+              ingestionRunId: runId,
+              tenantId: tenant.id,
+              candidateId: candidate.id,
+              summary: syncResult,
+            },
+            'ingestion.completed'
+          );
+        }
+      } catch (err) {
+        req.log.error(
+          {
+            err,
+            requestId: req.id,
+            ingestionRunId: runId,
+            tenantId: tenant.id,
+            candidateId: candidate.id,
+          },
+          'ingestion.failed'
+        );
+        ingestionStateService.finishRun({
+          tenantId: tenant.id,
+          candidateId: candidate.id,
+          error: err.message || 'Ingestion pipeline execution failed',
+        });
+      }
+    };
+
+    // Execute asynchronously in background
+    executeSync().catch((err) => req.log.error({ err }, 'Background sync unhandled error'));
+
+    const accept = req.headers['accept'] || '';
+    if (accept.includes('application/json') && !accept.includes('text/html')) {
+      return reply.status(202).send({
+        success: true,
+        ingestionRunId: run.ingestionRunId,
+        state: 'RUNNING',
+        run,
+      });
+    }
+
+    return reply.redirect('/onboarding?step=4');
+  });
+
+  // -------------------------------------------------------------------------
+  // 8a. GET /onboarding/ingestion/status — Poll Ingestion Status
+  // -------------------------------------------------------------------------
+  app.get('/onboarding/ingestion/status', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply
+        .status(401)
+        .send({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    const run = ingestionStateService.getRunByCandidate({
+      tenantId: tenant.id,
+      candidateId: candidate.id,
+    });
+
+    if (!run) {
+      return reply.send({
+        ingestionRunId: null,
+        state: 'IDLE',
+        totalRepositories: 0,
+        completedRepositories: 0,
+        failedRepositories: 0,
+        currentRepository: null,
+        currentPhase: 'Idle',
+        repositories: [],
+        startedAt: null,
+        completedAt: null,
+        summary: null,
+      });
+    }
+
+    return reply.send(run);
+  });
+
+  // -------------------------------------------------------------------------
+  // 8b. POST /onboarding/ingestion/retry — Reset Ingestion Run for Retry
+  // -------------------------------------------------------------------------
+  app.post('/onboarding/ingestion/retry', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
     if (!sessionContext) {
       return reply.redirect('/login?returnTo=/onboarding');
@@ -674,29 +988,17 @@ export default async function webRoutes(app, opts = {}) {
     const { user, tenant } = sessionContext;
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
 
-    let syncResult;
-    try {
-      syncResult = await ingestionService.syncCandidateRepositories({
-        context: { tenantId: tenant.id, userId: user.id },
-        candidateId: candidate.id,
-      });
-    } catch (err) {
-      req.log.error({ err }, 'Onboarding repository sync failed');
-      const accept = req.headers['accept'] || '';
-      if (accept.includes('application/json') && !accept.includes('text/html')) {
-        return reply.status(500).send({ error: { message: err.message || 'Sync failed' } });
-      }
-      return reply.redirect(
-        `/onboarding?step=4&error=${encodeURIComponent(err.message || 'Ingestion failed')}`
-      );
-    }
+    ingestionStateService.resetRun({
+      tenantId: tenant.id,
+      candidateId: candidate.id,
+    });
 
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {
-      return reply.send({ success: true, syncResult });
+      return reply.send({ success: true, message: 'Ingestion run reset for retry' });
     }
 
-    return reply.redirect('/onboarding?step=5&success=Ingestion+completed+successfully');
+    return reply.redirect('/onboarding?step=4');
   });
 
   // -------------------------------------------------------------------------

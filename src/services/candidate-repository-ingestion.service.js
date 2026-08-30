@@ -102,7 +102,7 @@ export class CandidateRepositoryIngestionService {
    * @property {string[]} warnings
    * @property {number} durationMs
    */
-  async syncCandidateRepositories({ context, candidateId, options = {} }) {
+  async syncCandidateRepositories({ context, candidateId, options = {}, onProgress = null }) {
     const startTime = Date.now();
 
     // -------------------------------------------------------------------------
@@ -174,11 +174,20 @@ export class CandidateRepositoryIngestionService {
 
     for (const resource of activeResources) {
       try {
+        if (typeof onProgress === 'function') {
+          onProgress({
+            type: 'REPOSITORY_STARTED',
+            resource,
+            phase: 'Analyzing dependency manifests & AST syntax...',
+          });
+        }
+
         const result = await this._processResource({
           context,
           tenantId,
           candidateId,
           resource,
+          onProgress,
         });
 
         summary.repositoriesProcessed++;
@@ -186,12 +195,28 @@ export class CandidateRepositoryIngestionService {
         summary.projectsUpdated += result.projectUpdated ? 1 : 0;
         summary.evidenceCreated += result.evidenceCreated;
         summary.evidenceLinked += result.evidenceLinked;
+
+        if (typeof onProgress === 'function') {
+          onProgress({
+            type: 'REPOSITORY_COMPLETED',
+            resource,
+            result,
+          });
+        }
       } catch (err) {
         logger.warn(
           { err: err.message, resourceId: resource.id, resourceName: resource.name },
           'Failed to process repository resource; continuing with remaining resources'
         );
         summary.warnings.push(`Failed to process ${resource.name}: ${err.message}`);
+
+        if (typeof onProgress === 'function') {
+          onProgress({
+            type: 'REPOSITORY_FAILED',
+            resource,
+            error: err.message,
+          });
+        }
       }
     }
 
@@ -199,6 +224,12 @@ export class CandidateRepositoryIngestionService {
     // 4. Recalculate ALL Candidate Skill Rollups (Post-Extraction)
     // -------------------------------------------------------------------------
     try {
+      if (typeof onProgress === 'function') {
+        onProgress({
+          type: 'PHASE_CHANGED',
+          phase: 'Recalculating verified skill rollups...',
+        });
+      }
       const rollupResult = await this._recalculateSkillRollups({
         tenantId,
         candidateId,
