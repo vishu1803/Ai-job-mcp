@@ -430,7 +430,7 @@ describe('Live MCP Application Artifact Tools Integration Tests (P7-005)', () =>
     assert.strictEqual(body.jsonrpc, '2.0');
     assert.strictEqual(body.id, 1);
     assert.ok(Array.isArray(body.result.tools));
-    assert.strictEqual(body.result.tools.length, 16);
+    assert.strictEqual(body.result.tools.length, 24);
 
     const toolNames = body.result.tools.map((t) => t.name);
     assert.ok(toolNames.includes('get_candidate_profile'));

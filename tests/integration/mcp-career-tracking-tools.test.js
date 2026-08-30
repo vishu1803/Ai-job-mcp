@@ -168,7 +168,7 @@ describe('MCP Career Tracking Tools Integration Tests (P12-003)', () => {
     it('createCareerMcpServer registers exactly 16 total tools (4 read, 3 artifact, 2 write, 7 tracking)', () => {
       const server = createCareerMcpServer();
       const toolNames = Array.from(server.registeredTools.keys());
-      assert.strictEqual(toolNames.length, 16);
+      assert.strictEqual(toolNames.length, 24);
 
       // Verify all 7 tracking tools are present
       assert.ok(toolNames.includes('track_job_application'));

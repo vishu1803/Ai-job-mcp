@@ -249,7 +249,7 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
 
   it('2. McpServerWrapper exposes both read and artifact tools via createCareerMcpServer', () => {
     const server = createCareerMcpServer();
-    assert.strictEqual(server.registeredTools.size, 16);
+    assert.strictEqual(server.registeredTools.size, 24);
     assert.ok(server.registeredTools.has('get_candidate_profile'));
     assert.ok(server.registeredTools.has('list_verified_skills'));
     assert.ok(server.registeredTools.has('inspect_project_evidence'));

@@ -1165,7 +1165,11 @@ describe('P14-002: Automated Penetration Testing & Cross-Tenant Attack Hardening
     it('WEB-01: Stored XSS payload in candidate profile is strictly escaped on render', async () => {
       const xssPayload = '<script>alert("XSS_STORED_101")</script>';
 
-      // Update candidate with XSS payload
+      // Update candidate & user with XSS payload
+      await penDb
+        .update(users)
+        .set({ displayName: xssPayload })
+        .where(eq(users.id, tenantA.userId));
       await penDb
         .update(candidates)
         .set({ displayName: xssPayload, headline: 'XSS Headline' })

@@ -14,7 +14,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 import { config } from '../../src/config/env.js';
-import { parseSanitizedDbUrl, pool, closeDatabase } from '../../src/db/index.js';
+import { parseSanitizedDbUrl, closeDatabase } from '../../src/db/index.js';
 import * as schema from '../../src/db/schema.js';
 import {
   tenants,
@@ -853,18 +853,30 @@ describe('P13-004: Synthetic 5-User Beta Verification in Isolated Database', () 
   });
 
   after(async () => {
-    if (betaPool) await betaPool.end();
-    await closeDatabase(pool);
+    try {
+      if (betaPool) await betaPool.end();
+    } catch (err) {
+      void err;
+    }
+    try {
+      await closeDatabase();
+    } catch (err) {
+      void err;
+    }
 
     if (adminPool) {
-      await adminPool.query(`
-        SELECT pg_terminate_backend(pid)
-        FROM pg_stat_activity
-        WHERE datname = '${ISOLATED_DB_NAME}' AND pid <> pg_backend_pid();
-      `);
-      await adminPool.query(`DROP DATABASE IF EXISTS "${ISOLATED_DB_NAME}";`);
-      console.log(`✅ Isolated Beta test database "${ISOLATED_DB_NAME}" dropped cleanly.`);
-      await adminPool.end();
+      try {
+        await adminPool.query(`
+          SELECT pg_terminate_backend(pid)
+          FROM pg_stat_activity
+          WHERE datname = '${ISOLATED_DB_NAME}' AND pid <> pg_backend_pid();
+        `);
+        await adminPool.query(`DROP DATABASE IF EXISTS "${ISOLATED_DB_NAME}";`);
+        console.log(`✅ Isolated Beta test database "${ISOLATED_DB_NAME}" dropped cleanly.`);
+        await adminPool.end();
+      } catch (err) {
+        void err;
+      }
     }
   });
 });

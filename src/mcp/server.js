@@ -31,6 +31,7 @@ import {
   registerCareerArtifactTools,
   registerCareerWriteTools,
   registerCareerTrackingTools,
+  registerJobWorkflowTools,
 } from './tools/index.js';
 import { registerCareerMcpApps } from './apps/index.js';
 
@@ -441,11 +442,12 @@ export {
   registerCareerArtifactTools,
   registerCareerWriteTools,
   registerCareerTrackingTools,
+  registerJobWorkflowTools,
   registerCareerMcpApps,
 };
 
 /**
- * Factory function creating a configured MCP server wrapper instance with career read, artifact, write, and tracking tools pre-registered.
+ * Factory function creating a configured MCP server wrapper instance with career read, artifact, write, tracking, and job workflow tools pre-registered.
  *
  * @param {object} [options={}] Server configuration overrides and tool dependencies
  * @returns {McpServerWrapper} Configured MCP server instance with career tools
@@ -457,6 +459,7 @@ export function createCareerMcpServer(options = {}) {
   registerCareerArtifactTools(server, toolDeps);
   registerCareerWriteTools(server, toolDeps);
   registerCareerTrackingTools(server, toolDeps);
+  registerJobWorkflowTools(server, toolDeps);
   registerCareerMcpApps(server, toolDeps);
   return server;
 }

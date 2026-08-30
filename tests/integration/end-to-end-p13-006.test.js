@@ -39,7 +39,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
 import { config } from '../../src/config/env.js';
-import { parseSanitizedDbUrl, pool, closeDatabase } from '../../src/db/index.js';
+import { parseSanitizedDbUrl, closeDatabase } from '../../src/db/index.js';
 import * as schema from '../../src/db/schema.js';
 import {
   tenants,
@@ -639,7 +639,7 @@ B.S. Computer Science — University of California, Berkeley
     };
 
     const registeredTools = mcpServer.getRegisteredTools();
-    assert.equal(registeredTools.length, 16);
+    assert.equal(registeredTools.length, 24);
 
     // Step 11: analyze_job_fit Tool Execution & UI Resource Linkage
     const analyzeJobFitTool = mcpServer.registeredTools.get('analyze_job_fit');
@@ -1019,18 +1019,30 @@ B.S. Computer Science — University of California, Berkeley
   });
 
   after(async () => {
-    if (e2ePool) await e2ePool.end();
-    await closeDatabase(pool);
+    try {
+      if (e2ePool) await e2ePool.end();
+    } catch (err) {
+      void err;
+    }
+    try {
+      await closeDatabase();
+    } catch (err) {
+      void err;
+    }
 
     if (adminPool) {
-      await adminPool.query(`
-        SELECT pg_terminate_backend(pid)
-        FROM pg_stat_activity
-        WHERE datname = '${ISOLATED_DB_NAME}' AND pid <> pg_backend_pid();
-      `);
-      await adminPool.query(`DROP DATABASE IF EXISTS "${ISOLATED_DB_NAME}";`);
-      console.log(`✅ Isolated E2E test database "${ISOLATED_DB_NAME}" dropped cleanly.`);
-      await adminPool.end();
+      try {
+        await adminPool.query(`
+          SELECT pg_terminate_backend(pid)
+          FROM pg_stat_activity
+          WHERE datname = '${ISOLATED_DB_NAME}' AND pid <> pg_backend_pid();
+        `);
+        await adminPool.query(`DROP DATABASE IF EXISTS "${ISOLATED_DB_NAME}";`);
+        console.log(`✅ Isolated E2E test database "${ISOLATED_DB_NAME}" dropped cleanly.`);
+        await adminPool.end();
+      } catch (err) {
+        void err;
+      }
     }
   });
 });

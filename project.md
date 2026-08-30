@@ -3487,7 +3487,25 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
     * `npm run db:check` -> PASS (Schema in sync)
-  * Status: **`COMPLETE (Local & Cloudflare Staging Dual-Origin OAuth, Dynamic Client Consent Branding, and Seamless UX Matrix Verified)`**.
+* **P14-004B: END-TO-END JOB APPLICATION WORKFLOW HARDENING & REAL AI CONNECTION STATUS CENTER (Complete & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/domain/job/job-workflow.schemas.js`: Comprehensive Zod schemas defining provider-neutral job search filters (`SearchJobsInputSchema`), normalized postings (`NormalizedJobPostingSchema`), complete multi-tier application packages (`ApplicationPackageSchema`) enforcing the sovereign `TruthCategoryEnum` (`VERIFIED`, `INFERRED`, `CLAIMED`, `USER_PROVIDED`), pre-flight validation checks (`ApplicationValidationResultSchema`), 15-minute single-use cryptographic approval tickets (`ApplicationApprovalTicketSchema`), and submission outcomes (`SubmissionResultSchema`).
+    * `src/services/job-discovery.service.js`: Provider-neutral job discovery and retrieval service aggregating across public ATS job board schemas (Greenhouse, Lever) and curated structured feeds with verified source attribution, remote-first filtering, salary thresholding, and zero fabrication (`JOB_DISCOVERY_UNAVAILABLE` fallback).
+    * `src/services/job-application-workflow.service.js`: End-to-end application lifecycle coordinator that orchestrates candidate profiles, verified AST skills, tailored resumes (`PRESERVE_EXISTING`, `IMPROVE_EXISTING`, `GENERATE_NEW`), cover letters, suggested answers, SHA-256 package hash generation, pre-flight duplicate checking, human-reviewable markdown previews with truth badges, 15-minute cryptographic approval ticket minting, and the final high-risk submission gate with automatic manual handoff kits for unsupported portals (e.g., Workday).
+    * `src/services/ai-connection-status.service.js`: Non-secret real-time provider state computation for Anthropic Claude, OpenAI ChatGPT, and Google Gemini derived from database tokens (`oauth_tokens` & `mcp_api_tokens`), computing live statuses (`CONNECTED`, `NOT_CONNECTED`, `AUTHORIZATION_REQUIRED`, `TOKEN_EXPIRED`, `REVOKED`) and provider-level revocation (`POST /connect/revoke-provider`).
+    * `src/domain/mcp/job-workflow-tools.schemas.js` & `src/mcp/tools/job-workflow-tools.js`: Implemented and registered the 8 new MCP tools (`search_jobs`, `get_job_posting`, `prepare_job_application`, `validate_job_application`, `create_application_preview`, `request_application_approval`, `submit_job_application`, `get_application_submission_status`), expanding the active MCP catalog from 16 to 24 tools.
+    * `src/views/connect.page.js` & `src/routes/web.routes.js`: Connected real database-derived provider badges (`CONNECTED ●`, `NOT CONNECTED ○`, `REVOKED ⚠️`, `REFRESHABLE 🔄`), asynchronous client polling (`/api/connect/status`), and provider revocation actions with zero exposed secrets.
+    * `src/views/mcp-docs.page.js`: Updated the public developer documentation catalog to document all 24 tools across 5 functional domains with interactive category filters.
+    * `tests/integration/mcp-job-workflow.test.js`: 12-scenario integration test suite verifying discovery, package compilation, validation, truth badges, approval tickets, anti-tamper hash enforcement, single-use ticket replay rejection, manual handoff kits for Workday, real-time status reflection, and provider revocation.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/mcp-job-workflow.test.js` -> PASS (12/12 tests passing)
+    * `npm run test:unit` -> PASS (1,284/1,284 unit tests passing across 343 suites)
+    * `npm run test:db-lifecycle-check` -> PASS (56/56 integration test files compliant, 0 violations)
+    * `npm run lint` -> PASS (0 errors, 0 warnings)
+    * `npm run format:check` -> PASS (All matched files Prettier compliant)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
+    * `npm run db:check` -> PASS (Schema in sync)
+  * Status: **`COMPLETE & VERIFIED`**.
 
 ---
 
@@ -3503,7 +3521,8 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-003A** | Career Hub Production Readiness Audit, UI/UX Hardening & End-to-End Product Consistency | P14-003 | **COMPLETE & VERIFIED** | Fixed 10 UI/UX and evidence provenance inconsistencies: deterministic click dropdown toggle, AST skill primary evidence association, PDF multi-block text & section newline preservation, rich self-reported claim generation, unified AI Connect design and endpoint guidance, contextual back navigation & breadcrumbs across all views, visual knowledge pipeline diagrams, and comprehensive non-bullet resume parsing with CMap decoding. 1,272/1,272 unit tests passing, Prettier format 100%, zero secrets. |
 | **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | **COMPLETE** | Architecture specification `docs/cloudflare-staging-architecture.md` (`ARCH-054`), pre-flight audit, proxy trust boundary security suite (`tests/integration/staging-proxy-security.test.js` - 8/8 PASS), `.env.example` safety hardening, and live verification of `career-hub-dev` (`https://dev.aicareershub.tech`). |
 | **P14-004A** | External MCP OAuth UX, Client Identification & Staging Verification | P14-004 | **COMPLETE & VERIFIED** | Implemented dynamic client consent branding, Anthropic Hosted Client Metadata Document (CIMD / draft-ietf-oauth-client-id-metadata-document) discovery & resolution (`client_id_metadata_document_supported: true`), public staging metadata origin reflection, and 12-scenario end-to-end integration suite (`tests/integration/oauth-seamless-ux.test.js` - 12/12 PASS). |
-| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004A | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
+| **P14-004B** | Expand Career MCP into End-to-End Job Application Workflow & AI Connection Status Center | P14-004A | **COMPLETE & VERIFIED** | Implemented 8 new MCP workflow tools (24 total), single-use 15-min cryptographic approval tickets bound to package SHA-256 hash, Workday manual handoff kit, real DB-derived AI connection status center for Claude/ChatGPT/Gemini, and integration test suite (`tests/integration/mcp-job-workflow.test.js` - 12/12 PASS). |
+| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004B | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---

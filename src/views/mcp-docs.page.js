@@ -603,6 +603,303 @@ const TOOLS_CATALOG = [
     },
     safetyNotes: 'Encrypted storage with immutable SHA-256 content hash.',
   },
+
+  // Category 5: Job Discovery & Application Workflow (8 tools)
+  {
+    name: 'search_jobs',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:read',
+    role: 'READONLY',
+    classification: 'Workflow',
+    purpose:
+      'Query verified software engineering job listings across Greenhouse, Lever, and curated structured feeds.',
+    parameters: [
+      { name: 'query', type: 'string', required: false, description: 'Search keywords.' },
+      {
+        name: 'location',
+        type: 'string',
+        required: false,
+        description: 'Target geographic location.',
+      },
+      {
+        name: 'workplaceType',
+        type: 'enum (REMOTE, HYBRID, ONSITE)',
+        required: false,
+        description: 'Workplace model.',
+      },
+      {
+        name: 'remoteOnly',
+        type: 'boolean',
+        required: false,
+        description: 'Filter exclusively for 100% remote roles.',
+      },
+      {
+        name: 'skills',
+        type: 'array of strings',
+        required: false,
+        description: 'Required candidate skills.',
+      },
+      {
+        name: 'minSalary',
+        type: 'number',
+        required: false,
+        description: 'Minimum annual base salary.',
+      },
+      {
+        name: 'limit',
+        type: 'integer (1-50)',
+        required: false,
+        description: 'Result batch size (default: 20).',
+      },
+      { name: 'offset', type: 'integer (>=0)', required: false, description: 'Pagination offset.' },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'search_jobs',
+        arguments: { query: 'Staff Backend Engineer', remoteOnly: true },
+      },
+    },
+    safetyNotes: 'Zero hallucination. Attributed with public ATS source provenance.',
+  },
+  {
+    name: 'get_job_posting',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:read',
+    role: 'READONLY',
+    classification: 'Workflow',
+    purpose:
+      'Fetch full normalized job details including requirements, responsibilities, compensation, and direct application URL.',
+    parameters: [
+      {
+        name: 'jobId',
+        type: 'string',
+        required: true,
+        description: 'Unique job posting identifier.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'get_job_posting',
+        arguments: { jobId: 'job-gh-stripe-001' },
+      },
+    },
+    safetyNotes: 'Deterministic schema parsing with source ATS verification.',
+  },
+  {
+    name: 'prepare_job_application',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:read',
+    role: 'MEMBER',
+    classification: 'Workflow',
+    purpose:
+      'Orchestrates candidate profile, verified skills, AST project evidence, tailored resume, cover letter, answers, and SHA-256 package hash.',
+    parameters: [
+      {
+        name: 'jobPosting',
+        type: 'object',
+        required: true,
+        description: 'Normalized job posting object.',
+      },
+      { name: 'answers', type: 'record', required: false, description: 'Custom question answers.' },
+      {
+        name: 'candidateId',
+        type: 'string (UUID)',
+        required: false,
+        description: 'Target candidate ID.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'prepare_job_application',
+        arguments: {
+          jobPosting: {
+            id: 'job-gh-stripe-001',
+            company: 'Stripe',
+            title: 'Senior Backend Engineer',
+          },
+        },
+      },
+    },
+    safetyNotes:
+      'Enforces VERIFIED vs CLAIMED truth model. Computes immutable anti-tamper SHA-256 package hash.',
+  },
+  {
+    name: 'validate_job_application',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:read',
+    role: 'MEMBER',
+    classification: 'Workflow',
+    purpose:
+      'Pre-flight validation: verifies required fields, checks for duplicate active applications, and classifies portal submission method.',
+    parameters: [
+      {
+        name: 'applicationPackage',
+        type: 'object',
+        required: true,
+        description: 'Prepared application package.',
+      },
+      {
+        name: 'destinationUrl',
+        type: 'string (URL)',
+        required: false,
+        description: 'Direct application portal URL.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'validate_job_application',
+        arguments: { applicationPackage: { packageHash: '3f8e...' } },
+      },
+    },
+    safetyNotes:
+      'Identifies unsupported portals (e.g. Workday) ahead of time for instant manual handoff.',
+  },
+  {
+    name: 'create_application_preview',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:read',
+    role: 'MEMBER',
+    classification: 'Workflow',
+    purpose:
+      'Generates human-reviewable markdown preview of all submission materials with VERIFIED and CLAIMED provenance badges.',
+    parameters: [
+      {
+        name: 'applicationPackage',
+        type: 'object',
+        required: true,
+        description: 'Prepared application package.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'create_application_preview',
+        arguments: { applicationPackage: { packageHash: '3f8e...' } },
+      },
+    },
+    safetyNotes: 'Includes explicit human approval boundary notification.',
+  },
+  {
+    name: 'request_application_approval',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:write',
+    role: 'MEMBER',
+    classification: 'Workflow',
+    purpose:
+      'Mints a 15-minute single-use cryptographic approval ticket bound to the exact package SHA-256 hash and destination URL.',
+    parameters: [
+      { name: 'jobId', type: 'string', required: true, description: 'Target job ID.' },
+      {
+        name: 'destinationUrl',
+        type: 'string (URL)',
+        required: true,
+        description: 'Destination application portal URL.',
+      },
+      {
+        name: 'packageHash',
+        type: 'string (64-char hex)',
+        required: true,
+        description: 'SHA-256 package hash.',
+      },
+      {
+        name: 'candidateId',
+        type: 'string (UUID)',
+        required: false,
+        description: 'Target candidate ID.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'request_application_approval',
+        arguments: {
+          jobId: 'job-gh-stripe-001',
+          destinationUrl: 'https://boards.greenhouse.io/stripe/jobs/job-gh-stripe-001',
+          packageHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        },
+      },
+    },
+    safetyNotes:
+      'Cryptographic human approval gate. Single-use replay protection with 15-minute TTL.',
+  },
+  {
+    name: 'submit_job_application',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:write',
+    role: 'MEMBER',
+    classification: 'Workflow',
+    purpose:
+      'Final submission boundary. Verifies approval ticket and hash; submits to supported ATS or returns instant manual handoff kit for Workday.',
+    parameters: [
+      {
+        name: 'approvalTicketId',
+        type: 'string (UUID)',
+        required: true,
+        description: 'Approved single-use ticket ID.',
+      },
+      {
+        name: 'packageHash',
+        type: 'string (64-char hex)',
+        required: true,
+        description: 'SHA-256 package hash.',
+      },
+      {
+        name: 'destinationUrl',
+        type: 'string (URL)',
+        required: true,
+        description: 'Target portal URL.',
+      },
+      {
+        name: 'applicationPackage',
+        type: 'object',
+        required: true,
+        description: 'Complete application package.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'submit_job_application',
+        arguments: {
+          approvalTicketId: 'ticket-1234-uuid',
+          packageHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+          destinationUrl: 'https://boards.greenhouse.io/stripe/jobs/job-gh-stripe-001',
+          applicationPackage: {},
+        },
+      },
+    },
+    safetyNotes:
+      'Enforces human authorization gate. Automatically tracks submission in candidate tracker.',
+  },
+  {
+    name: 'get_application_submission_status',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:read',
+    role: 'READONLY',
+    classification: 'Workflow',
+    purpose:
+      'Retrieves the real-time submission outcome, tracking state, and external ATS reference for an applied role.',
+    parameters: [
+      {
+        name: 'applicationId',
+        type: 'string (UUID)',
+        required: true,
+        description: 'Application record UUID.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'get_application_submission_status',
+        arguments: { applicationId: '3c8e42f0-91a6-455b-bfa1-7f8e32906b3e' },
+      },
+    },
+    safetyNotes: 'Sovereign multi-tenant isolated query.',
+  },
 ];
 
 /**
@@ -621,6 +918,8 @@ function renderClassificationBadge(classification) {
       return `<span class="badge badge-verified">Write Safety</span>`;
     case 'Tracking':
       return `<span class="badge badge-amber">Tracking</span>`;
+    case 'Workflow':
+      return `<span class="badge badge-emerald" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Workflow</span>`;
     default:
       return `<span class="badge">${escapeHtml(classification)}</span>`;
   }
@@ -676,7 +975,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
         <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div style="font-size: 0.85rem; color: #94a3b8;">
-            Total Registered Tools: <strong style="color: #f8fafc;">16 Tools</strong> across 4 functional domains.
+            Total Registered Tools: <strong style="color: #f8fafc;">${TOOLS_CATALOG.length} Tools</strong> across 5 functional domains.
           </div>
           <a href="/connect" class="btn btn-primary btn-sm">
             <span>Open AI Connection Center →</span>
@@ -686,14 +985,14 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
       <!-- Navigation Jump Links -->
       <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2.5rem;">
-        <a href="#tools" class="btn btn-secondary btn-sm">⚡ 16-Tool Catalog</a>
+        <a href="#tools" class="btn btn-secondary btn-sm">⚡ ${TOOLS_CATALOG.length}-Tool Catalog</a>
         <a href="#auth" class="btn btn-secondary btn-sm">🔑 Authentication & Scopes</a>
         <a href="#write-safety" class="btn btn-secondary btn-sm">🛡️ Two-Phase Write Safety</a>
         <a href="#clients" class="btn btn-secondary btn-sm">🟣 Claude & ChatGPT Setup</a>
         <a href="#roadmap" class="btn btn-secondary btn-sm">🗺️ Roadmap & Standards</a>
       </div>
 
-      <!-- Section 1: Complete 16-Tool Catalog -->
+      <!-- Section 1: Complete 24-Tool Catalog -->
       <section id="tools" style="margin-bottom: 3.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
           <div>
@@ -707,7 +1006,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
           <!-- Real-Time Tool Search Filter -->
           <div style="min-width: 260px;">
-            <input type="text" id="toolSearchInput" onkeyup="filterTools()" placeholder="🔍 Filter tools (e.g. resume, pr, fit)..." class="form-control" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">
+            <input type="text" id="toolSearchInput" onkeyup="filterTools()" placeholder="🔍 Filter tools (e.g. search_jobs, resume, pr, fit)..." class="form-control" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">
           </div>
         </div>
 
@@ -718,6 +1017,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
           <button type="button" class="btn btn-secondary btn-sm" onclick="filterCategory('Career Artifacts', this)" style="font-size: 0.8rem;">Career Artifacts (3)</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="filterCategory('Career Write', this)" style="font-size: 0.8rem;">Career Write (2)</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="filterCategory('Career Tracking', this)" style="font-size: 0.8rem;">Career Tracking (7)</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="filterCategory('Job Discovery & Workflow', this)" style="font-size: 0.8rem;">Job Discovery & Workflow (8)</button>
         </div>
 
         <!-- Tool Cards Container -->

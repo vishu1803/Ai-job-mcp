@@ -62,6 +62,7 @@ function renderScopeBadges(scopes) {
  * @param {string} [params.flashMessage=''] Success flash message
  * @param {string} [params.errorMessage=''] Error flash message
  * @param {string} [params.baseUrl='http://localhost:3000'] Server base URL
+ * @param {object} [params.aiStatus=null] Real-time AI provider connection status
  * @returns {string} Full HTML document
  */
 export function renderConnectPage({
@@ -75,10 +76,51 @@ export function renderConnectPage({
   flashMessage = '',
   errorMessage = '',
   baseUrl = 'http://localhost:3000',
+  aiStatus = null,
 }) {
   const candidateName = user?.displayName || candidate?.displayName || 'Authenticated Candidate';
   const candidateEmail = user?.email || candidate?.canonicalEmail || '';
   const mcpEndpointUrl = `${baseUrl.replace(/\/$/, '')}/mcp`;
+
+  const claudeStatus = aiStatus?.providers?.find((p) => p.id === 'claude') || {
+    status: 'NOT_CONNECTED',
+    scopes: ['career:read', 'career:write'],
+    authMethod: 'OAuth 2.1 + PKCE (S256)',
+    connectedAt: null,
+    environment: baseUrl.includes('localhost') ? 'Local Development' : 'Public Staging',
+  };
+
+  const chatgptStatus = aiStatus?.providers?.find((p) => p.id === 'chatgpt') || {
+    status: 'NOT_CONNECTED',
+    scopes: ['career:read'],
+    authMethod: 'OAuth 2.1 + PKCE (S256)',
+    connectedAt: null,
+    environment: baseUrl.includes('localhost') ? 'Local Development' : 'Public Staging',
+  };
+
+  const geminiStatus = aiStatus?.providers?.find((p) => p.id === 'gemini') || {
+    status: mcpTokens.length > 0 ? 'CONNECTED' : 'NOT_CONNECTED',
+    scopes: ['career:read'],
+    authMethod: 'Personal MCP API Token (SHA-256)',
+    connectedAt: mcpTokens[0]?.createdAt || null,
+    environment: baseUrl.includes('localhost') ? 'Local Development' : 'Public Staging',
+  };
+
+  const renderStatusBadge = (status) => {
+    switch (status) {
+      case 'CONNECTED':
+        return `<span class="badge" style="background:rgba(34,197,94,0.15); color:#4ade80; border:1px solid rgba(34,197,94,0.3); font-weight:600;">● CONNECTED</span>`;
+      case 'REFRESHABLE':
+        return `<span class="badge" style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); font-weight:600;">🔄 REFRESHABLE</span>`;
+      case 'REVOKED':
+        return `<span class="badge" style="background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3); font-weight:600;">⚠️ REVOKED</span>`;
+      case 'TOKEN_EXPIRED':
+        return `<span class="badge" style="background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); font-weight:600;">⏳ EXPIRED</span>`;
+      case 'NOT_CONNECTED':
+      default:
+        return `<span class="badge" style="background:rgba(148,163,184,0.12); color:#94a3b8; border:1px solid rgba(148,163,184,0.25); font-weight:500;">○ NOT CONNECTED</span>`;
+    }
+  };
 
   const content = `
     <div class="container">
@@ -201,13 +243,18 @@ export function renderConnectPage({
         <!-- Localhost / Cloudflare Warning -->
         <div style="background: rgba(245, 158, 11, 0.08); border-left: 3px solid #f59e0b; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.825rem; color: #cbd5e1; line-height: 1.5;">
           <strong style="color: #fbbf24;">Local Development vs Cloud AI Hosts:</strong>
-          Localhost (<code>http://localhost:3000/mcp</code>) is strictly accessible from local processes (e.g. Claude Desktop, local scripts). Hosted cloud AI platforms (Claude.ai SaaS, ChatGPT Web) require a public HTTPS URL (e.g. running <code>cloudflared tunnel --url http://localhost:3000</code> or deploying on a staging domain).
+          Career Hub simultaneously supports local development (<code>http://localhost:3000/mcp</code>) and public Cloudflare staging (<code>https://dev.aicareershub.tech/mcp</code>). Cloud AI hosts (Claude.ai, ChatGPT Web) require the public HTTPS endpoint.
         </div>
       </div>
 
       <!-- Provider Status & Connection Cards -->
       <div style="margin-bottom: 2.5rem;">
-        <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 1rem;">Supported AI Providers</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; flex-wrap:wrap; gap:0.5rem;">
+          <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin:0;">Real-Time AI Provider Status</h2>
+          <button type="button" onclick="refreshAiStatus()" id="refreshStatusBtn" class="btn btn-secondary btn-sm" style="font-size:0.8rem; padding:0.4rem 0.8rem;">
+            <span>🔄 Refresh Live Status</span>
+          </button>
+        </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
           <!-- 1. Anthropic Claude Card -->
@@ -223,42 +270,61 @@ export function renderConnectPage({
                     <span style="font-size: 0.75rem; color: #94a3b8;">Claude.ai • Desktop • Code CLI</span>
                   </div>
                 </div>
-                <span class="badge badge-indigo">OAuth 2.1 + PKCE</span>
+                ${renderStatusBadge(claudeStatus.status)}
               </div>
 
               <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
-                Connect seamlessly via OAuth 2.1 with PKCE S256 and RFC 8707 resource targeting. Claude discovers scopes and authenticates interactively without sharing API secrets.
+                Connect seamlessly via OAuth 2.1 with PKCE S256 and CIMD Hosted Metadata. Claude discovers scopes and authenticates interactively without sharing API secrets.
               </p>
 
               <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
-                <div style="color: #64748b; font-size: 0.75rem; text-transform: uppercase;">Connection Status</div>
-                <div style="color: #4ade80; font-weight: 500; margin-top: 2px;">
-                  ● Ready for Connection (Client-Managed OAuth)
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                  <span style="color:#64748b;">Auth Method:</span>
+                  <span style="color:#cbd5e1; font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(claudeStatus.authMethod)}</span>
                 </div>
-                <div style="color: #94a3b8; font-size: 0.75rem; margin-top: 4px;">
-                  Discovery: <code>/.well-known/oauth-authorization-server</code>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                  <span style="color:#64748b;">Last Connected:</span>
+                  <span style="color:#cbd5e1;">${formatDate(claudeStatus.connectedAt)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="color:#64748b;">Authorized Scopes:</span>
+                  <div>${renderScopeBadges(claudeStatus.scopes)}</div>
                 </div>
               </div>
 
               <details style="font-size: 0.825rem; color: #cbd5e1; margin-bottom: 1rem;">
                 <summary style="cursor: pointer; color: #818cf8; font-weight: 500; margin-bottom: 0.5rem;">
-                  Setup Instructions (Claude.ai & Desktop)
+                  Setup & Connection Guide
                 </summary>
                 <div style="padding: 0.5rem; background: rgba(15, 23, 42, 0.4); border-radius: 6px; line-height: 1.5;">
                   <ol style="margin-left: 1.2rem;">
                     <li>Open <strong>Claude.ai</strong> -> Settings -> Connectors, or Claude Desktop.</li>
                     <li>Add Custom MCP Server: <code>${escapeHtml(mcpEndpointUrl)}</code></li>
-                    <li>Click <strong>Connect</strong>. Complete interactive login & authorize permissions.</li>
-                    <li>Scopes requested: <code>career:read</code>, <code>career:write</code>.</li>
+                    <li>Under OAuth Client: choose <strong>"Use Anthropic's hosted client metadata"</strong>.</li>
+                    <li>Authorize Career Hub permissions interactively.</li>
                   </ol>
                 </div>
               </details>
             </div>
 
             <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: auto;">
-              <a href="/docs/mcp#claude" class="btn btn-secondary btn-sm" style="width: 100%;">
-                <span>View Claude Guide →</span>
-              </a>
+              ${
+                claudeStatus.status === 'CONNECTED' || claudeStatus.status === 'REFRESHABLE'
+                  ? `
+                <form action="/connect/revoke-provider" method="POST" style="width:100%; margin:0;" onsubmit="return confirm('Revoke all active authorizations for Anthropic Claude?');">
+                  <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
+                  <input type="hidden" name="provider" value="claude">
+                  <button type="submit" class="btn btn-secondary btn-sm" style="width:100%; color:#f87171; border-color:rgba(239,68,68,0.3);">
+                    <span>Disconnect Claude</span>
+                  </button>
+                </form>
+              `
+                  : `
+                <a href="/docs/mcp#claude" class="btn btn-primary btn-sm" style="width: 100%;">
+                  <span>Connect Claude →</span>
+                </a>
+              `
+              }
             </div>
           </div>
 
@@ -275,20 +341,25 @@ export function renderConnectPage({
                     <span style="font-size: 0.75rem; color: #94a3b8;">ChatGPT Web • Desktop • Custom GPTs</span>
                   </div>
                 </div>
-                <span class="badge badge-verified">OAuth 2.1</span>
+                ${renderStatusBadge(chatgptStatus.status)}
               </div>
 
               <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
-                Connect your Custom GPT or Developer Mode actions with RFC 9728 Protected Resource metadata and automatic OAuth 2.1 token exchange.
+                Connect Custom GPT or Developer Mode actions with RFC 9728 Protected Resource metadata and automatic OAuth 2.1 token exchange.
               </p>
 
               <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
-                <div style="color: #64748b; font-size: 0.75rem; text-transform: uppercase;">Connection Status</div>
-                <div style="color: #4ade80; font-weight: 500; margin-top: 2px;">
-                  ● Ready for Connection (Client-Managed OAuth)
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                  <span style="color:#64748b;">Auth Method:</span>
+                  <span style="color:#cbd5e1; font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(chatgptStatus.authMethod)}</span>
                 </div>
-                <div style="color: #94a3b8; font-size: 0.75rem; margin-top: 4px;">
-                  Clients: <code>chatgpt-web</code>, <code>chatgpt-desktop</code>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                  <span style="color:#64748b;">Last Connected:</span>
+                  <span style="color:#cbd5e1;">${formatDate(chatgptStatus.connectedAt)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="color:#64748b;">Authorized Scopes:</span>
+                  <div>${renderScopeBadges(chatgptStatus.scopes)}</div>
                 </div>
               </div>
 
@@ -299,18 +370,32 @@ export function renderConnectPage({
                 <div style="padding: 0.5rem; background: rgba(15, 23, 42, 0.4); border-radius: 6px; line-height: 1.5;">
                   <ol style="margin-left: 1.2rem;">
                     <li>Open <strong>Explore GPTs</strong> -> Create/Edit Custom GPT.</li>
-                    <li>Add Action / MCP server with endpoint <code>${escapeHtml(mcpEndpointUrl)}</code>.</li>
+                    <li>Add Action with endpoint <code>${escapeHtml(mcpEndpointUrl)}</code>.</li>
                     <li>Set Authentication to <strong>OAuth</strong> with Client ID <code>chatgpt-web</code>.</li>
-                    <li>OAuth Callback URL: <code>https://chatgpt.com/api/mcp/oauth_callback</code>.</li>
+                    <li>Authorize Career Hub permissions interactively.</li>
                   </ol>
                 </div>
               </details>
             </div>
 
             <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: auto;">
-              <a href="/docs/mcp#chatgpt" class="btn btn-secondary btn-sm" style="width: 100%;">
-                <span>View ChatGPT Guide →</span>
-              </a>
+              ${
+                chatgptStatus.status === 'CONNECTED' || chatgptStatus.status === 'REFRESHABLE'
+                  ? `
+                <form action="/connect/revoke-provider" method="POST" style="width:100%; margin:0;" onsubmit="return confirm('Revoke all active authorizations for OpenAI ChatGPT?');">
+                  <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
+                  <input type="hidden" name="provider" value="chatgpt">
+                  <button type="submit" class="btn btn-secondary btn-sm" style="width:100%; color:#f87171; border-color:rgba(239,68,68,0.3);">
+                    <span>Disconnect ChatGPT</span>
+                  </button>
+                </form>
+              `
+                  : `
+                <a href="/docs/mcp#chatgpt" class="btn btn-primary btn-sm" style="width: 100%;">
+                  <span>Connect ChatGPT →</span>
+                </a>
+              `
+              }
             </div>
           </div>
 
@@ -323,11 +408,11 @@ export function renderConnectPage({
                     🔵
                   </div>
                   <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">Google Gemini</h3>
-                    <span style="font-size: 0.75rem; color: #94a3b8;">Antigravity SDK • IDE Agents • Scripts</span>
+                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">Google Gemini & AGY</h3>
+                    <span style="font-size: 0.75rem; color: #94a3b8;">Antigravity SDK • IDE Agents • CLI</span>
                   </div>
                 </div>
-                <span class="badge" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.3);">Personal Token</span>
+                ${renderStatusBadge(geminiStatus.status)}
               </div>
 
               <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
@@ -335,12 +420,17 @@ export function renderConnectPage({
               </p>
 
               <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
-                <div style="color: #64748b; font-size: 0.75rem; text-transform: uppercase;">Authentication Method</div>
-                <div style="color: #38bdf8; font-weight: 500; margin-top: 2px;">
-                  Bearer Token (<code style="color:#22d3ee;">mcp_live_*</code>)
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                  <span style="color:#64748b;">Auth Method:</span>
+                  <span style="color:#cbd5e1; font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(geminiStatus.authMethod)}</span>
                 </div>
-                <div style="color: #94a3b8; font-size: 0.75rem; margin-top: 4px;">
-                  Generate a personal token below to connect.
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                  <span style="color:#64748b;">Active Tokens:</span>
+                  <span style="color:#cbd5e1;">${mcpTokens.length} active</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="color:#64748b;">Authorized Scopes:</span>
+                  <div>${renderScopeBadges(geminiStatus.scopes)}</div>
                 </div>
               </div>
 
@@ -359,8 +449,8 @@ export function renderConnectPage({
             </div>
 
             <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: auto;">
-              <a href="/docs/mcp#gemini" class="btn btn-secondary btn-sm" style="width: 100%;">
-                <span>View Gemini Guide →</span>
+              <a href="#tokenGenerationSection" class="btn btn-secondary btn-sm" style="width: 100%;">
+                <span>Manage Gemini Tokens ↓</span>
               </a>
             </div>
           </div>
@@ -368,7 +458,7 @@ export function renderConnectPage({
       </div>
 
       <!-- Personal MCP Token Generator & Management Table -->
-      <div class="card" style="margin-bottom:2.5rem;">
+      <div class="card" id="tokenGenerationSection" style="margin-bottom:2.5rem;">
         <div class="section-header" style="margin-bottom:1.5rem;">
           <div>
             <h2>Personal MCP API Tokens</h2>
@@ -377,6 +467,7 @@ export function renderConnectPage({
             </p>
           </div>
         </div>
+
 
         <!-- Token Creation Form -->
         <form action="/connect/tokens" method="POST" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-subtle); margin-bottom: 2rem;">
@@ -515,7 +606,7 @@ export function renderConnectPage({
     </div>
     </div>
 
-    <!-- Interactive Copy Script -->
+    <!-- Interactive Copy & Status Refresh Script -->
     <script>
       function copyToClipboard(inputId, buttonId) {
         const input = document.getElementById(inputId);
@@ -534,6 +625,21 @@ export function renderConnectPage({
           input.select();
           document.execCommand('copy');
         });
+      }
+
+      async function refreshAiStatus() {
+        const btn = document.getElementById('refreshStatusBtn');
+        if (btn) btn.innerHTML = '<span>⏳ Checking...</span>';
+        try {
+          const res = await fetch('/api/connect/status');
+          if (res.ok) {
+            window.location.reload();
+          }
+        } catch (_err) {
+          window.location.reload();
+        } finally {
+          if (btn) btn.innerHTML = '<span>🔄 Refresh Live Status</span>';
+        }
       }
     </script>
   `;

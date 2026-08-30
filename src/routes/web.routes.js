@@ -51,6 +51,7 @@ import { renderSettingsPage } from '../views/settings.page.js';
 import { renderMcpDocsPage } from '../views/mcp-docs.page.js';
 import { sourceResumeIngestionService as defaultSourceResumeIngestionService } from '../services/source-resume-ingestion.service.js';
 import { defaultMcpApiTokenService } from '../services/mcp-api-token.service.js';
+import { AiConnectionStatusService } from '../services/ai-connection-status.service.js';
 import { NotFoundError } from '../errors/index.js';
 
 /**
@@ -864,6 +865,13 @@ export default async function webRoutes(app, opts = {}) {
     const host = req.headers.host || 'localhost:3000';
     const baseUrl = `${protocol}://${host}`;
 
+    const aiConnectionStatusService = new AiConnectionStatusService({ database });
+    const aiStatus = await aiConnectionStatusService.getConnectionStatus({
+      tenantId: tenant.id,
+      userId: user.id,
+      baseUrl,
+    });
+
     const html = renderConnectPage({
       user,
       tenant,
@@ -875,8 +883,61 @@ export default async function webRoutes(app, opts = {}) {
       flashMessage,
       errorMessage,
       baseUrl,
+      aiStatus,
     });
     reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // -------------------------------------------------------------------------
+  // 14a-ii. GET /api/connect/status — Safe Real-Time Connection Status API
+  // -------------------------------------------------------------------------
+  app.get('/api/connect/status', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.status(401).send({
+        error: {
+          code: 'UNAUTHENTICATED',
+          message: 'Authentication required. Missing session cookie.',
+        },
+      });
+    }
+
+    const { user, tenant } = sessionContext;
+    const protocol = req.protocol || 'http';
+    const host = req.headers.host || 'localhost:3000';
+    const baseUrl = `${protocol}://${host}`;
+
+    const aiConnectionStatusService = new AiConnectionStatusService({ database });
+    const status = await aiConnectionStatusService.getConnectionStatus({
+      tenantId: tenant.id,
+      userId: user.id,
+      baseUrl,
+    });
+
+    return reply.send(status);
+  });
+
+  // -------------------------------------------------------------------------
+  // 14a-iii. POST /connect/revoke-provider — Revoke Provider Authorizations
+  // -------------------------------------------------------------------------
+  app.post('/connect/revoke-provider', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/connect');
+    }
+
+    const { user, tenant } = sessionContext;
+    const body = req.body || {};
+    const provider = String(body.provider || '').trim();
+
+    const aiConnectionStatusService = new AiConnectionStatusService({ database });
+    await aiConnectionStatusService.revokeProviderConnection({
+      tenantId: tenant.id,
+      userId: user.id,
+      provider,
+    });
+
+    return reply.redirect('/connect?revoked=true');
   });
 
   // -------------------------------------------------------------------------
