@@ -580,9 +580,7 @@ export default async function webRoutes(app, opts = {}) {
             or(
               eq(resources.externalResourceId, externalId),
               eq(resources.externalResourceId, repoName),
-              eq(resources.name, repoName),
-              eq(resources.displayName, repoName),
-              eq(resources.name, repo.name)
+              eq(resources.externalResourceId, repo.fullName || repoName)
             )
           )
         )
@@ -644,6 +642,17 @@ export default async function webRoutes(app, opts = {}) {
           .where(eq(resources.id, res.id));
       }
     }
+
+    req.log.info(
+      {
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+        receivedCount: repoKeys.length,
+        validatedCount: validReposToIngest.length,
+        persistedCount: activeExternalIds.size,
+      },
+      'Onboarding repository selection processed successfully'
+    );
 
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {

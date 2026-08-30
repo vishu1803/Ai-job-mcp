@@ -26,6 +26,7 @@ import { validateSession, getSessionCookieOptions } from '../security/session.se
 import { db as defaultDb } from '../db/index.js';
 import { config } from '../config/env.js';
 import { AuthenticationError } from '../errors/index.js';
+import { parseFormBody } from '../utils/form-parser.js';
 
 /**
  * Escapes unsafe characters for HTML output.
@@ -365,7 +366,7 @@ export async function oauthRoutes(fastify, opts = {}) {
       { parseAs: 'string' },
       (req, body, done) => {
         try {
-          const parsed = Object.fromEntries(new URLSearchParams(body));
+          const parsed = parseFormBody(body);
           done(null, parsed);
         } catch (err) {
           done(err, undefined);

@@ -19,6 +19,7 @@ import { db as defaultDb } from './db/index.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
 import { GitHubAppConnector } from './connectors/github/github-connector.js';
 import { GitHubAppAuthManager } from './connectors/github/auth.js';
+import { parseFormBody } from './utils/form-parser.js';
 
 /**
  * Builds and configures the core Fastify application instance.
@@ -96,13 +97,13 @@ export function buildApp(opts = {}) {
     attachFieldsToBody: false,
   });
 
-  // Support standard HTML form submissions (application/x-www-form-urlencoded)
+  // Support standard HTML form submissions (application/x-www-form-urlencoded) with multi-value array support
   app.addContentTypeParser(
     'application/x-www-form-urlencoded',
     { parseAs: 'string' },
     (_req, body, done) => {
       try {
-        const parsed = Object.fromEntries(new URLSearchParams(body));
+        const parsed = parseFormBody(body);
         done(null, parsed);
       } catch (err) {
         done(err, undefined);
