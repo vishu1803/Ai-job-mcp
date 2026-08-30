@@ -28,8 +28,12 @@ import { CandidateProfileService } from '../../src/services/candidate-profile.se
 import { ResumeParserService } from '../../src/services/resume-parser.service.js';
 import { JobDiscoveryService } from '../../src/services/job-discovery.service.js';
 import { handleGetCandidateProfile } from '../../src/mcp/tools/career-read-tools.js';
-import { CareerPreferencesSchema } from '../../src/domain/candidate/career-preferences.schemas.js';
+import {
+  CareerPreferencesSchema,
+  CandidateCareerProfileSchema,
+} from '../../src/domain/candidate/career-preferences.schemas.js';
 import { GetCandidateProfileOutputSchema } from '../../src/domain/mcp/career-read-tools.schemas.js';
+import { renderProfilePage } from '../../src/views/profile.page.js';
 import { NotFoundError } from '../../src/errors/index.js';
 
 describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit Tests', () => {
@@ -107,52 +111,62 @@ describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit
 
   // Mock DB factory
   function createMockDb(customCandidate = mockCandidateRecord, skillsList = [], projectsList = []) {
+    const makeChain = (val) => {
+      const p = Promise.resolve(val);
+      p.where = () => makeChain(val);
+      p.orderBy = () => makeChain(val);
+      p.limit = () => makeChain(val);
+      p.innerJoin = () => makeChain(skillsList);
+      p.leftJoin = () =>
+        makeChain(
+          projectsList
+            .flatMap((p) => p.evidence || [])
+            .map((e) => ({
+              id: e.id || 'ev-1',
+              evidenceType: e.evidenceType || 'PACKAGE_MANIFEST_DEPENDENCY',
+              confidenceScore: 1.0,
+              detectedAt: new Date().toISOString(),
+            }))
+        );
+      return p;
+    };
+
     return {
       select: () => ({
-        from: () => ({
-          where: () => ({
-            orderBy: () => Promise.resolve(projectsList),
-            limit: () => Promise.resolve([customCandidate]),
-            then: (resolve) => resolve([customCandidate]),
-          }),
-          innerJoin: () => ({
-            where: () => ({
-              orderBy: () => Promise.resolve(skillsList),
-              then: (resolve) => resolve(skillsList),
-            }),
-          }),
-          leftJoin: () => ({
-            where: () => ({
-              orderBy: () => {
-                const allEvidence = projectsList
+        from: () => {
+          const chain = makeChain([customCandidate]);
+          chain.where = () => {
+            const wChain = makeChain([customCandidate]);
+            wChain.orderBy = () => {
+              const oChain = makeChain(projectsList);
+              oChain.limit = () => makeChain([customCandidate]);
+              return oChain;
+            };
+            return wChain;
+          };
+          chain.innerJoin = () => ({
+            where: () => makeChain(skillsList),
+          });
+          chain.leftJoin = () => ({
+            where: () =>
+              makeChain(
+                projectsList
                   .flatMap((p) => p.evidence || [])
                   .map((e) => ({
                     id: e.id || 'ev-1',
                     evidenceType: e.evidenceType || 'PACKAGE_MANIFEST_DEPENDENCY',
                     confidenceScore: 1.0,
                     detectedAt: new Date().toISOString(),
-                  }));
-                return Promise.resolve(allEvidence);
-              },
-              then: (resolve) => {
-                const allEvidence = projectsList
-                  .flatMap((p) => p.evidence || [])
-                  .map((e) => ({
-                    id: e.id || 'ev-1',
-                    evidenceType: e.evidenceType || 'PACKAGE_MANIFEST_DEPENDENCY',
-                    confidenceScore: 1.0,
-                    detectedAt: new Date().toISOString(),
-                  }));
-                resolve(allEvidence);
-              },
-            }),
-          }),
-        }),
+                  }))
+              ),
+          });
+          return chain;
+        },
       }),
       update: () => ({
-        set: () => ({
+        set: (data) => ({
           where: () => ({
-            returning: () => Promise.resolve([customCandidate]),
+            returning: () => Promise.resolve([{ ...customCandidate, ...data }]),
           }),
         }),
       }),
@@ -586,5 +600,788 @@ describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit
     assert.strictEqual(serialized.includes('refreshToken'), false);
     assert.strictEqual(serialized.includes('privateKey'), false);
     assert.strictEqual(serialized.includes('clientSecret'), false);
+  });
+
+  // 19. Resume data propagation into career profile
+  it('19. unifies resume experience, education, projects, and certifications into career profile', async () => {
+    const candidateWithResumeData = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        userCustom: {}, // No custom edits
+        resumeData: {
+          sourceResumeId: 'r-1',
+          sourceVersion: 1,
+          identity: {
+            name: 'Alex Rivera',
+            email: 'alex@example.com',
+            headline: 'Staff Systems Architect',
+            location: 'Austin, TX',
+            github: 'https://github.com/alexrivera',
+            linkedin: 'https://linkedin.com/in/alexrivera',
+            leetcode: 'https://leetcode.com/alexrivera',
+            portfolioUrls: ['https://alexrivera.dev'],
+          },
+          summary: 'Experienced distributed systems engineer with 10 years experience.',
+          experience: [
+            {
+              company: 'Cloud Corp',
+              title: 'Principal Engineer',
+              location: 'Austin, TX',
+              startDate: '2020-01-01',
+              endDate: null,
+              isCurrent: true,
+              bullets: ['Designed microservices architecture'],
+              verifiedSkillsUsed: [],
+              provenanceStatus: 'CLAIMED',
+            },
+          ],
+          education: [
+            {
+              institution: 'MIT',
+              degree: 'M.S. Computer Science',
+              fieldOfStudy: 'Distributed Systems',
+              startDate: null,
+              endDate: null,
+              provenanceStatus: 'CLAIMED',
+            },
+          ],
+          projects: [
+            {
+              name: 'Distributed Raft Consensus',
+              headline: 'Consensus engine in Rust',
+              technologies: ['Rust', 'Tokio'],
+              bullets: ['Implemented Raft algorithm'],
+              urls: ['https://github.com/alexrivera/raft'],
+              provenanceStatus: 'CLAIMED',
+            },
+          ],
+          certifications: ['CKA Kubernetes Administrator'],
+          skills: ['Rust', 'Distributed Systems'],
+          provenance: 'RESUME_CLAIM',
+        },
+      },
+    };
+
+    const mockDb = createMockDb(candidateWithResumeData);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+    assert.ok(profile);
+    assert.strictEqual(profile.recentExperience.length, 1);
+    assert.strictEqual(profile.recentExperience[0].company, 'Cloud Corp');
+    assert.strictEqual(profile.recentExperience[0].provenanceStatus, 'CLAIMED');
+
+    assert.strictEqual(profile.education.length, 1);
+    assert.strictEqual(profile.education[0].institution, 'MIT');
+    assert.strictEqual(profile.education[0].provenanceStatus, 'CLAIMED');
+
+    assert.ok(profile.certifications.includes('CKA Kubernetes Administrator'));
+    assert.ok(profile.portfolioLinks.some((p) => p.url === 'https://alexrivera.dev'));
+  });
+
+  // 20. Precedence: explicit user edit > resume claims
+  it('20. enforces userCustom edits taking precedence over resumeData claims', async () => {
+    const candidateWithBoth = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        userCustom: {
+          experience: [
+            {
+              company: 'User Custom Company',
+              title: 'Lead Architect',
+              startDate: '2023-01-01',
+              isCurrent: true,
+            },
+          ],
+          education: [
+            {
+              institution: 'Self-Directed University',
+              degree: 'Ph.D.',
+            },
+          ],
+        },
+        resumeData: {
+          experience: [
+            {
+              company: 'Resume Claim Company',
+              title: 'Junior Developer',
+              startDate: '2018-01-01',
+            },
+          ],
+          education: [
+            {
+              institution: 'Resume School',
+              degree: 'B.A.',
+            },
+          ],
+        },
+      },
+    };
+
+    const mockDb = createMockDb(candidateWithBoth);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+    assert.strictEqual(profile.recentExperience[0].company, 'User Custom Company');
+    assert.strictEqual(profile.recentExperience[0].provenanceStatus, 'USER_PROVIDED');
+    assert.strictEqual(profile.education[0].institution, 'Self-Directed University');
+    assert.strictEqual(profile.education[0].provenanceStatus, 'USER_PROVIDED');
+  });
+
+  // 21. Skills truth status calculation
+  it('21. cross-references skills with GitHub AST evidence and resume claims', async () => {
+    const candidateWithSkills = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['Fastify', 'Docker', 'Kubernetes'],
+        },
+      },
+    };
+
+    const skillsList = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-fastify',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 12,
+        },
+        skillSlug: 'fastify',
+        skillName: 'Fastify',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-docker',
+          provenanceStatus: 'CLAIMED',
+          confidenceScore: 0.5,
+          evidenceCount: 0,
+        },
+        skillSlug: 'docker',
+        skillName: 'Docker',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithSkills, skillsList);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+    const fastifySkill = profile.topSkills.find((s) => s.slug === 'fastify');
+    assert.ok(fastifySkill);
+    assert.strictEqual(fastifySkill.githubEvidence, true);
+    assert.strictEqual(fastifySkill.truthStatus, 'VERIFIED');
+
+    const dockerSkill = profile.topSkills.find((s) => s.slug === 'docker');
+    assert.ok(dockerSkill);
+    assert.strictEqual(dockerSkill.githubEvidence, false);
+    assert.strictEqual(dockerSkill.resumeClaim, true);
+    assert.strictEqual(dockerSkill.truthStatus, 'CLAIMED');
+
+    // Kubernetes from resumeData not in candidate_skills should also be included
+    const k8sSkill = profile.topSkills.find((s) => s.slug === 'kubernetes');
+    assert.ok(k8sSkill);
+    assert.strictEqual(k8sSkill.truthStatus, 'CLAIMED');
+    assert.strictEqual(k8sSkill.resumeClaim, true);
+  });
+
+  // 22. Project corroboration
+  it('22. marks projects with AST evidence matching resume projects as CORROBORATED', async () => {
+    const candidateWithResumeProjects = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          projects: [
+            {
+              name: 'Fastify MCP Gateway',
+              technologies: ['Fastify', 'Node.js'],
+              bullets: ['High-throughput MCP bridge'],
+              urls: ['https://github.com/vishw/fastify-mcp'],
+            },
+            {
+              name: 'Standalone Resume Project',
+              technologies: ['Python'],
+              bullets: ['Closed source tool'],
+            },
+          ],
+        },
+      },
+    };
+
+    const githubProjects = [
+      {
+        id: 'b0000000-0000-4000-a000-000000000001',
+        name: 'Fastify MCP Gateway',
+        slug: 'fastify-mcp',
+        headline: 'MCP server',
+        role: 'Creator',
+        isHighlighted: true,
+        linkedResourceCount: 1,
+        verifiedSignalCount: 5,
+        evidence: [{ id: 'ev-1', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY' }],
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithResumeProjects, [], githubProjects);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+    const matched = profile.highlightedProjects.find((p) => p.name === 'Fastify MCP Gateway');
+    assert.ok(matched);
+    assert.strictEqual(matched.provenanceStatus, 'CORROBORATED');
+
+    const unmatchedResume = profile.highlightedProjects.find(
+      (p) => p.name === 'Standalone Resume Project'
+    );
+    assert.ok(unmatchedResume);
+    assert.strictEqual(unmatchedResume.provenanceStatus, 'CLAIMED');
+  });
+
+  // 23. Independent readiness scoring
+  it('23. calculates profileReadiness independently from jobSearchReadiness', async () => {
+    const candidatePopulatedNoPreferences = {
+      ...mockCandidateRecord,
+      headline: 'Principal Systems Engineer',
+      summary: '10+ years engineering large-scale backend systems.',
+      profileMetadata: {
+        currentRole: 'Principal Systems Engineer',
+        location: 'Seattle, WA',
+        careerPreferences: {
+          targetRoles: [], // Empty intent
+          preferredLocations: [],
+          remotePreference: 'FLEXIBLE',
+        },
+        resumeData: {
+          experience: [{ company: 'Corp', title: 'Lead', startDate: '2020-01-01' }],
+          education: [{ institution: 'UW', degree: 'B.S.' }],
+          skills: ['Go', 'Kubernetes'],
+        },
+      },
+    };
+
+    const mockDb = createMockDb(candidatePopulatedNoPreferences);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+    assert.ok(profile.profileReadiness);
+    assert.strictEqual(profile.profileReadiness.isComplete, true);
+    assert.ok(profile.profileReadiness.score >= 70);
+
+    assert.ok(profile.completeness);
+    assert.strictEqual(profile.completeness.isReadyForJobSearch, false);
+  });
+
+  // 24. Low-level dependencies classified into technologySignals (tier: SIGNAL)
+  it('24. classifies low-level dependencies into technology signals and primary competencies into primarySkills', async () => {
+    const candidateSkillsWithDeps = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-fastify',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 12,
+        },
+        skillSlug: 'fastify',
+        skillName: 'Fastify',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-typescript',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 8,
+        },
+        skillSlug: 'typescript',
+        skillName: 'TypeScript',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-dotenv',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.85,
+          evidenceCount: 3,
+        },
+        skillSlug: 'dotenv',
+        skillName: 'Dotenv',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-clsx',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.85,
+          evidenceCount: 2,
+        },
+        skillSlug: 'clsx',
+        skillName: 'Clsx',
+      },
+    ];
+
+    const mockDb = createMockDb(mockCandidateRecord, candidateSkillsWithDeps);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    assert.ok(Array.isArray(profile.primarySkills));
+    assert.ok(Array.isArray(profile.technologySignals));
+
+    const primarySlugs = profile.primarySkills.map((s) => s.slug);
+    const signalSlugs = profile.technologySignals.map((s) => s.slug);
+
+    assert.ok(primarySlugs.includes('fastify'));
+    assert.ok(primarySlugs.includes('typescript'));
+    assert.ok(signalSlugs.includes('dotenv'));
+    assert.ok(signalSlugs.includes('clsx'));
+  });
+
+  // 25. Normalizes canonical variants safely
+  it('25. normalizes canonical variants safely without creating duplicates', async () => {
+    const candidateSkillsWithDuplicates = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-pg-1',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.9,
+          evidenceCount: 4,
+        },
+        skillSlug: 'postgresql',
+        skillName: 'PostgreSQL',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-pg-2',
+          provenanceStatus: 'CLAIMED',
+          confidenceScore: 0.5,
+          evidenceCount: 0,
+        },
+        skillSlug: 'postgresql-custom',
+        skillName: 'Postgresql',
+      },
+    ];
+
+    const mockDb = createMockDb(mockCandidateRecord, candidateSkillsWithDuplicates);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+    const pgSkills = profile.topSkills.filter((s) => s.slug === 'postgresql');
+
+    assert.strictEqual(pgSkills.length, 1);
+    assert.strictEqual(pgSkills[0].name, 'PostgreSQL');
+    assert.strictEqual(pgSkills[0].truthStatus, 'VERIFIED');
+    assert.strictEqual(pgSkills[0].evidenceCount, 4);
+  });
+
+  // 26. Multi-factor project matching with tech stack overlap
+  it('26. matches resume projects with GitHub projects using multi-factor technology overlap', async () => {
+    const candidateWithTechOverlap = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          projects: [
+            {
+              name: 'Enterprise Backend Gateway',
+              technologies: ['Fastify', 'PostgreSQL', 'Drizzle ORM'],
+              bullets: ['Distributed microservice API gateway'],
+            },
+          ],
+        },
+      },
+    };
+
+    const githubProjects = [
+      {
+        id: 'b0000000-0000-4000-a000-000000000002',
+        name: 'cloud-gateway-service',
+        slug: 'cloud-gateway-service',
+        headline: 'Fastify and PostgreSQL gateway',
+        role: 'Maintainer',
+        isHighlighted: true,
+        linkedResourceCount: 1,
+        verifiedSignalCount: 4,
+        evidence: [{ id: 'ev-1', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY' }],
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithTechOverlap, [], githubProjects);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+    const matched = profile.highlightedProjects.find((p) => p.name === 'cloud-gateway-service');
+    assert.ok(matched);
+    assert.strictEqual(matched.provenanceStatus, 'CORROBORATED');
+    assert.ok(matched.technologies.includes('Fastify'));
+  });
+
+  // 27. HTML Profile View rendering parity
+  it('27. renders separated primary career skills, technology signals, and readiness banner in HTML view', async () => {
+    const profile = {
+      candidateId: candidateIdA,
+      tenantId: tenantA,
+      displayName: 'Alex Mercer',
+      headline: 'Staff Backend Engineer',
+      summary: 'Specialized in distributed systems and Node.js.',
+      currentRole: 'Staff Backend Engineer',
+      location: 'San Francisco, CA',
+      seniority: 'STAFF',
+      yearsOfExperience: 10,
+      canonicalEmail: 'alex@example.com',
+      portfolioLinks: [],
+      jobPreferences: {
+        targetRoles: ['Staff Backend Engineer'],
+        preferredLocations: ['Remote'],
+        remotePreference: 'REMOTE_ONLY',
+        employmentTypes: ['FULL_TIME'],
+        salaryFloor: 200000,
+        salaryCurrency: 'USD',
+        industries: [],
+        companiesToAvoid: [],
+        companiesToPrioritize: [],
+        preferredTechStack: ['TypeScript', 'Fastify', 'PostgreSQL'],
+        relocationPreference: 'REMOTE_ONLY',
+        workAuthorization: ['US_CITIZEN'],
+        visaSponsorshipRequired: false,
+        availabilityDate: null,
+      },
+      verifiedSkillsSummary: ['TypeScript', 'Fastify'],
+      topSkills: [
+        {
+          slug: 'typescript',
+          name: 'TypeScript',
+          category: 'LANGUAGE',
+          fineCategory: 'CORE_LANGUAGE',
+          tier: 'PRIMARY',
+          confidenceScore: 0.95,
+          evidenceCount: 10,
+          provenanceStatus: 'VERIFIED',
+          truthStatus: 'VERIFIED',
+          source: 'BOTH',
+          resumeClaim: true,
+          githubEvidence: true,
+        },
+        {
+          slug: 'dotenv',
+          name: 'Dotenv',
+          category: 'TOOL',
+          fineCategory: 'DEPENDENCY_SIGNAL',
+          tier: 'SIGNAL',
+          confidenceScore: 0.8,
+          evidenceCount: 3,
+          provenanceStatus: 'VERIFIED',
+          truthStatus: 'VERIFIED',
+          source: 'GITHUB',
+          resumeClaim: false,
+          githubEvidence: true,
+        },
+      ],
+      primarySkills: [
+        {
+          slug: 'typescript',
+          name: 'TypeScript',
+          category: 'LANGUAGE',
+          fineCategory: 'CORE_LANGUAGE',
+          tier: 'PRIMARY',
+          confidenceScore: 0.95,
+          evidenceCount: 10,
+          provenanceStatus: 'VERIFIED',
+          truthStatus: 'VERIFIED',
+          source: 'BOTH',
+          resumeClaim: true,
+          githubEvidence: true,
+        },
+      ],
+      technologySignals: [
+        {
+          slug: 'dotenv',
+          name: 'Dotenv',
+          category: 'TOOL',
+          fineCategory: 'DEPENDENCY_SIGNAL',
+          tier: 'SIGNAL',
+          confidenceScore: 0.8,
+          evidenceCount: 3,
+          provenanceStatus: 'VERIFIED',
+          truthStatus: 'VERIFIED',
+          source: 'GITHUB',
+          resumeClaim: false,
+          githubEvidence: true,
+        },
+      ],
+      highlightedProjects: [
+        {
+          id: 'p-1',
+          name: 'Fastify Gateway',
+          headline: 'High throughput MCP bridge',
+          role: 'Creator',
+          summary: 'Fastify gateway with full MCP compliance',
+          technologies: ['Fastify', 'TypeScript'],
+          bullets: ['Sub-millisecond latency'],
+          urls: ['https://github.com/alex/fastify-gateway'],
+          startDate: '2024-01-01',
+          endDate: null,
+          linkedResourceCount: 1,
+          verifiedSignalCount: 12,
+          provenanceStatus: 'CORROBORATED',
+          source: 'BOTH',
+        },
+      ],
+      recentExperience: [],
+      education: [],
+      certifications: [],
+      languages: [],
+      completeness: {
+        score: 100,
+        status: 'COMPLETE FOR JOB SEARCH',
+        isReadyForJobSearch: true,
+        missingRequiredForSearch: [],
+        missingOptional: [],
+        actionableFeedback: 'Ready for search',
+      },
+      profileReadiness: {
+        score: 100,
+        status: 'PROFILE POPULATED',
+        isComplete: true,
+        missingFields: [],
+        actionableFeedback: 'Profile populated',
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    const html = renderProfilePage({
+      user: { displayName: 'Alex Mercer', email: 'alex@example.com' },
+      candidate: { displayName: 'Alex Mercer', headline: 'Staff Backend Engineer' },
+      profile,
+      csrfToken: 'test-csrf-token',
+    });
+
+    assert.ok(html.includes('Career Profile: 100% Populated'));
+    assert.ok(html.includes('Primary Career Skills (1)'));
+    assert.ok(html.includes('TypeScript'));
+    assert.ok(html.includes('Technology & Implementation Signals (1)'));
+    assert.ok(html.includes('Dotenv'));
+    assert.ok(html.includes('✓ Corroborated'));
+    assert.ok(html.includes('Fastify Gateway'));
+  });
+
+  // 28. Verification Semantics: Decoupled Tier and Truth Status
+  it('28. supports all 4 combinations: PRIMARY+VERIFIED, PRIMARY+CLAIMED, SIGNAL+VERIFIED, SIGNAL+CLAIMED', async () => {
+    const candidateWithVariedSkills = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['Python', 'Styled Components'],
+        },
+      },
+    };
+
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-fastify',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 10,
+        },
+        skillSlug: 'fastify',
+        skillName: 'Fastify',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-dotenv',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.85,
+          evidenceCount: 3,
+        },
+        skillSlug: 'dotenv',
+        skillName: 'Dotenv',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithVariedSkills, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    // 1. PRIMARY + VERIFIED: Fastify (Framework from GitHub)
+    const fastifySkill = profile.topSkills.find((s) => s.slug === 'fastify');
+    assert.ok(fastifySkill);
+    assert.strictEqual(fastifySkill.tier, 'PRIMARY');
+    assert.strictEqual(fastifySkill.truthStatus, 'VERIFIED');
+
+    // 2. PRIMARY + CLAIMED: Python (Language from Resume only)
+    const pythonSkill = profile.topSkills.find((s) => s.slug === 'python');
+    assert.ok(pythonSkill);
+    assert.strictEqual(pythonSkill.tier, 'PRIMARY');
+    assert.strictEqual(pythonSkill.truthStatus, 'CLAIMED');
+    assert.strictEqual(pythonSkill.source, 'RESUME');
+
+    // 3. SIGNAL + VERIFIED: Dotenv (Utility from GitHub)
+    const dotenvSkill = profile.topSkills.find((s) => s.slug === 'dotenv');
+    assert.ok(dotenvSkill);
+    assert.strictEqual(dotenvSkill.tier, 'SIGNAL');
+    assert.strictEqual(dotenvSkill.truthStatus, 'VERIFIED');
+
+    // 4. SIGNAL + CLAIMED: Styled Components (Library from Resume only)
+    const styledSkill = profile.topSkills.find((s) => s.slug === 'styled-components');
+    assert.ok(styledSkill);
+    assert.strictEqual(styledSkill.tier, 'SIGNAL');
+    assert.strictEqual(styledSkill.truthStatus, 'CLAIMED');
+  });
+
+  // 29. Resume-only skills remain CLAIMED
+  it('29. retains resume-only skills as CLAIMED without artificial promotion', async () => {
+    const candidateWithResumeOnly = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['Django', 'Flask', 'MongoDB', 'REST API Design'],
+        },
+      },
+    };
+
+    const mockDb = createMockDb(candidateWithResumeOnly, []);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const django = profile.topSkills.find((s) => s.slug === 'django');
+    assert.ok(django);
+    assert.strictEqual(django.truthStatus, 'CLAIMED');
+    assert.strictEqual(django.provenanceStatus, 'CLAIMED');
+    assert.strictEqual(django.githubEvidence, false);
+    assert.strictEqual(django.resumeClaim, true);
+  });
+
+  // 30. GitHub evidence corroborates resume claims
+  it('30. corroborates resume skills with GitHub evidence into VERIFIED status', async () => {
+    const candidateWithResume = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['TypeScript', 'Fastify'],
+        },
+      },
+    };
+
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-fastify',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 15,
+        },
+        skillSlug: 'fastify',
+        skillName: 'Fastify',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithResume, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const fastify = profile.topSkills.find((s) => s.slug === 'fastify');
+    assert.ok(fastify);
+    assert.strictEqual(fastify.truthStatus, 'VERIFIED');
+    assert.strictEqual(fastify.provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(fastify.source, 'BOTH');
+    assert.strictEqual(fastify.resumeClaim, true);
+    assert.strictEqual(fastify.githubEvidence, true);
+  });
+
+  // 31. Package dependency alone does not imply primary career expertise
+  it('31. classifies component packages as SIGNAL UI_COMPONENT rather than PRIMARY FRAMEWORK', async () => {
+    const candidateSkillsWithComponents = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-radix-dialog',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.8,
+          evidenceCount: 2,
+        },
+        skillSlug: 'react-dialog',
+        skillName: 'React Dialog',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-next-themes',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.8,
+          evidenceCount: 1,
+        },
+        skillSlug: 'next-themes',
+        skillName: 'Next Themes',
+      },
+    ];
+
+    const mockDb = createMockDb(mockCandidateRecord, candidateSkillsWithComponents);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const primarySlugs = profile.primarySkills.map((s) => s.slug);
+    const signalSlugs = profile.technologySignals.map((s) => s.slug);
+
+    assert.ok(!primarySlugs.includes('react-dialog'));
+    assert.ok(!primarySlugs.includes('next-themes'));
+    assert.ok(signalSlugs.includes('react-dialog'));
+    assert.ok(signalSlugs.includes('next-themes'));
+  });
+
+  // 32. Schema & MCP consistency
+  it('32. guarantees CareerProfile output validates against CandidateCareerProfileSchema', async () => {
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-fastify',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 10,
+        },
+        skillSlug: 'fastify',
+        skillName: 'Fastify',
+      },
+    ];
+
+    const mockDb = createMockDb(mockCandidateRecord, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const parsed = CandidateCareerProfileSchema.safeParse(profile);
+    assert.ok(parsed.success, `Schema validation failed: ${JSON.stringify(parsed.error?.issues)}`);
   });
 });

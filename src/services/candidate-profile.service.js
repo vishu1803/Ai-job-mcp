@@ -25,6 +25,8 @@ import {
   skills,
   candidateSkills,
   evidenceItems,
+  resumes,
+  resumeSections,
 } from '../db/schema.js';
 import { NotFoundError, ValidationError, AuthorizationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
@@ -34,6 +36,7 @@ import {
   UpdateCareerPreferencesInputSchema,
   CandidateCareerProfileSchema,
 } from '../domain/candidate/career-preferences.schemas.js';
+import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 
 export class CandidateProfileService {
   /**
@@ -934,80 +937,483 @@ export class CandidateProfileService {
     this._validateContext(context);
     if (!candidateId) throw new ValidationError('candidateId is required');
 
+    const tenantId = context.tenantId;
     const profileView = await this.getProfile(context, candidateId);
     const candidate = profileView.candidate;
 
+    // 1. Resolve Resume Data (from profileMetadata or dynamic fallback from latest parsed resume)
+    let resumeData = candidate.profileMetadata?.resumeData || null;
+    if (!resumeData) {
+      try {
+        const [latestResume] = await this._db
+          .select()
+          .from(resumes)
+          .where(and(eq(resumes.tenantId, tenantId), eq(resumes.candidateId, candidateId)))
+          .orderBy(desc(resumes.isBaseResume), desc(resumes.version))
+          .limit(1);
+
+        if (latestResume) {
+          const sections = await this._db
+            .select()
+            .from(resumeSections)
+            .where(
+              and(
+                eq(resumeSections.tenantId, tenantId),
+                eq(resumeSections.resumeId, latestResume.id)
+              )
+            )
+            .orderBy(resumeSections.orderIndex);
+
+          if (sections && sections.length > 0) {
+            resumeData = this._extractResumeDataFromSections(latestResume, sections);
+          }
+        }
+      } catch (err) {
+        logger.debug({ err, candidateId }, 'Fallback resume resolution skipped');
+      }
+    }
+
+    const userCustom = candidate.profileMetadata?.userCustom || {};
+
+    // 2. Resolve Career Job Preferences
     const jobPreferences = CareerPreferencesSchema.parse(
       candidate.profileMetadata?.careerPreferences || {}
     );
 
-    const verifiedSkillsSummary = (profileView.skills || [])
-      .filter((s) => s.provenanceStatus === 'VERIFIED')
+    // 3. Identity Precedence: EXPLICIT_USER_EDIT > RESUME_CLAIM > TRUSTED_IDENTITY
+    const headline =
+      candidate.headline || userCustom.headline || resumeData?.identity?.headline || null;
+
+    const summary = candidate.summary || userCustom.summary || resumeData?.summary || null;
+
+    const currentRole =
+      candidate.profileMetadata?.currentRole ||
+      userCustom.currentRole ||
+      resumeData?.identity?.currentRole ||
+      candidate.headline ||
+      null;
+
+    const location =
+      candidate.profileMetadata?.location ||
+      userCustom.location ||
+      resumeData?.identity?.location ||
+      null;
+
+    const canonicalEmail = candidate.canonicalEmail || resumeData?.identity?.email || null;
+
+    // 4. Portfolio Links Deduplication
+    const portfolioLinksMap = new Map();
+    for (const identity of profileView.identities || []) {
+      if (identity.profileUrl) {
+        portfolioLinksMap.set(identity.profileUrl, {
+          label: identity.provider,
+          url: identity.profileUrl,
+        });
+      }
+    }
+
+    if (resumeData?.identity) {
+      const idObj = resumeData.identity;
+      if (idObj.github && !portfolioLinksMap.has(idObj.github)) {
+        portfolioLinksMap.set(idObj.github, { label: 'GITHUB', url: idObj.github });
+      }
+      if (idObj.linkedin && !portfolioLinksMap.has(idObj.linkedin)) {
+        portfolioLinksMap.set(idObj.linkedin, { label: 'LINKEDIN', url: idObj.linkedin });
+      }
+      if (idObj.leetcode && !portfolioLinksMap.has(idObj.leetcode)) {
+        portfolioLinksMap.set(idObj.leetcode, { label: 'LEETCODE', url: idObj.leetcode });
+      }
+      if (Array.isArray(idObj.portfolioUrls)) {
+        for (const url of idObj.portfolioUrls) {
+          if (url && !portfolioLinksMap.has(url)) {
+            portfolioLinksMap.set(url, { label: 'PORTFOLIO', url });
+          }
+        }
+      }
+    }
+
+    if (Array.isArray(userCustom.portfolioLinks)) {
+      for (const pl of userCustom.portfolioLinks) {
+        if (pl?.url && !portfolioLinksMap.has(pl.url)) {
+          portfolioLinksMap.set(pl.url, { label: pl.label || 'PORTFOLIO', url: pl.url });
+        }
+      }
+    }
+
+    const portfolioLinks = Array.from(portfolioLinksMap.values());
+
+    // 5. Skills Reconciliation, Canonical Normalization & Truth Calculation
+    const resumeSkillNames = new Set(
+      (resumeData?.skills || []).map((s) => String(s).toLowerCase().trim())
+    );
+
+    const candidateSkillsList = profileView.skills || [];
+    const skillMap = new Map(); // canonicalSlug -> merged skill object
+
+    for (const s of candidateSkillsList) {
+      const normalized = SkillTaxonomyEngine.normalizeSkill(s.name, {
+        categoryHint: s.category || 'TOOL',
+      });
+      const slug =
+        normalized?.canonicalSlug || s.slug || s.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const canonicalName = normalized?.canonicalName || s.name;
+      const fineCategory =
+        normalized?.fineCategory || SkillTaxonomyEngine.classifyCategory(slug, s.category);
+      const tier = normalized?.tier || SkillTaxonomyEngine.classifyTier(slug, fineCategory);
+
+      const hasGithubEvidence =
+        s.provenanceStatus === 'VERIFIED' ||
+        (Number(s.evidenceCount) > 0 && Number(s.confidenceScore) > 0);
+
+      const hasResumeClaim =
+        s.provenanceStatus === 'CLAIMED' ||
+        s.metadata?.source === 'RESUME_UPLOAD' ||
+        s.metadata?.isUserClaim === true ||
+        resumeSkillNames.has(s.name.toLowerCase().trim()) ||
+        resumeSkillNames.has(canonicalName.toLowerCase().trim()) ||
+        resumeSkillNames.has(slug);
+
+      const incomingEvidenceCount = Number(s.evidenceCount) || 0;
+      const incomingConfidence = Number(s.confidenceScore) || 0.5;
+
+      if (skillMap.has(slug)) {
+        const existing = skillMap.get(slug);
+        existing.evidenceCount += incomingEvidenceCount;
+        existing.confidenceScore = Math.max(existing.confidenceScore, incomingConfidence);
+        if (hasGithubEvidence) existing.githubEvidence = true;
+        if (hasResumeClaim) existing.resumeClaim = true;
+        if (existing.githubEvidence) {
+          existing.truthStatus = 'VERIFIED';
+          existing.provenanceStatus = existing.resumeClaim ? 'CORROBORATED' : 'VERIFIED';
+          existing.source = existing.resumeClaim ? 'BOTH' : 'GITHUB';
+        }
+      } else {
+        const truthStatus = hasGithubEvidence ? 'VERIFIED' : 'CLAIMED';
+        const provenanceStatus = hasGithubEvidence
+          ? hasResumeClaim
+            ? 'CORROBORATED'
+            : s.provenanceStatus || 'VERIFIED'
+          : s.provenanceStatus || 'CLAIMED';
+
+        skillMap.set(slug, {
+          slug,
+          name: canonicalName,
+          category: s.category || 'TOOL',
+          fineCategory,
+          tier,
+          confidenceScore: incomingConfidence,
+          evidenceCount: incomingEvidenceCount,
+          provenanceStatus,
+          resumeClaim: Boolean(hasResumeClaim),
+          githubEvidence: Boolean(hasGithubEvidence),
+          truthStatus,
+          source: hasGithubEvidence ? (hasResumeClaim ? 'BOTH' : 'GITHUB') : 'RESUME',
+        });
+      }
+    }
+
+    // Add any parsed resume skills not yet in skillMap
+    if (resumeData?.skills && Array.isArray(resumeData.skills)) {
+      for (const rSkill of resumeData.skills) {
+        const rawName = String(rSkill).trim();
+        if (!rawName) continue;
+        const normalized = SkillTaxonomyEngine.normalizeSkill(rawName, {
+          categoryHint: 'TOOL',
+        });
+        const slug = normalized?.canonicalSlug || rawName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        const canonicalName = normalized?.canonicalName || rawName;
+        const fineCategory =
+          normalized?.fineCategory || SkillTaxonomyEngine.classifyCategory(slug, 'TOOL');
+        const tier = normalized?.tier || SkillTaxonomyEngine.classifyTier(slug, fineCategory);
+
+        if (skillMap.has(slug)) {
+          const existing = skillMap.get(slug);
+          existing.resumeClaim = true;
+          if (existing.githubEvidence) {
+            existing.truthStatus = 'VERIFIED';
+            existing.provenanceStatus = 'CORROBORATED';
+            existing.source = 'BOTH';
+          }
+        } else {
+          skillMap.set(slug, {
+            slug,
+            name: canonicalName,
+            category: 'TOOL',
+            fineCategory,
+            tier,
+            confidenceScore: 0.5,
+            evidenceCount: 0,
+            provenanceStatus: 'CLAIMED',
+            resumeClaim: true,
+            githubEvidence: false,
+            truthStatus: 'CLAIMED',
+            source: 'RESUME',
+          });
+        }
+      }
+    }
+
+    const allSkillsList = Array.from(skillMap.values());
+
+    const primarySkills = allSkillsList
+      .filter((s) => s.tier === 'PRIMARY')
+      .sort((a, b) => {
+        // 1. Domain Category Rank: Languages -> Backend -> Frontend -> DBs -> Protocols -> Platforms -> Cloud -> AI/ML -> Tools
+        const rankA = SkillTaxonomyEngine.getPrimarySkillRank(a);
+        const rankB = SkillTaxonomyEngine.getPrimarySkillRank(b);
+        if (rankA !== rankB) return rankA - rankB;
+
+        // 2. Truth status: Verified/Corroborated first, then Claimed
+        const isVerA = a.truthStatus === 'VERIFIED' || a.provenanceStatus === 'CORROBORATED';
+        const isVerB = b.truthStatus === 'VERIFIED' || b.provenanceStatus === 'CORROBORATED';
+        if (isVerA && !isVerB) return -1;
+        if (isVerB && !isVerA) return 1;
+
+        // 3. Confidence score
+        if (b.confidenceScore !== a.confidenceScore) return b.confidenceScore - a.confidenceScore;
+
+        // 4. Alphabetical
+        return a.name.localeCompare(b.name);
+      });
+
+    const technologySignals = allSkillsList
+      .filter((s) => s.tier === 'SIGNAL')
+      .sort((a, b) => {
+        if (b.evidenceCount !== a.evidenceCount) return b.evidenceCount - a.evidenceCount;
+        return a.name.localeCompare(b.name);
+      });
+
+    const topSkills = [...primarySkills, ...technologySignals];
+
+    const verifiedSkillsSummary = topSkills
+      .filter(
+        (s) =>
+          s.truthStatus === 'VERIFIED' ||
+          s.provenanceStatus === 'VERIFIED' ||
+          s.provenanceStatus === 'CORROBORATED'
+      )
       .map((s) => s.name);
 
-    const topSkills = (profileView.skills || []).slice(0, 15).map((s) => ({
-      slug: s.slug,
-      name: s.name,
-      category: s.category,
-      confidenceScore: s.confidenceScore,
-      evidenceCount: s.evidenceCount,
-      provenanceStatus: s.provenanceStatus,
-    }));
+    // 6. Highlighted Projects Reconciliation (Multi-factor: name, slug, URL, tech stack overlap)
+    const githubProjects = (profileView.projects || []).filter(
+      (p) => p.metadata?.portfolioStatus !== 'ARCHIVED' && p.metadata?.isArchived !== true
+    );
+    const resumeProjects = Array.isArray(resumeData?.projects) ? resumeData.projects : [];
+    const matchedResumeProjectIndices = new Set();
+    const highlightedProjects = [];
 
-    const highlightedProjects = (profileView.projects || [])
-      .filter((p) => p.metadata?.portfolioStatus !== 'ARCHIVED' && p.metadata?.isArchived !== true)
-      .slice(0, 10)
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        headline: p.headline || null,
-        role: p.role || null,
-        startDate: p.startDate ? String(p.startDate) : null,
-        endDate: p.endDate ? String(p.endDate) : null,
-        linkedResourceCount: p.linkedResourceCount || 0,
-        verifiedSignalCount: Array.isArray(p.evidence) ? p.evidence.length : 0,
-        provenanceStatus: p.evidence && p.evidence.length > 0 ? 'VERIFIED' : 'CLAIMED',
-      }));
+    const normalizeProjectName = (str) =>
+      String(str || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
 
-    const userCustom = candidate.profileMetadata?.userCustom || {};
-    const recentExperience = (userCustom.experience || candidate.profileMetadata?.experience || [])
-      .slice(0, 10)
-      .map((exp) => ({
+    for (const gProj of githubProjects) {
+      const gNorm = normalizeProjectName(gProj.name);
+      const gSlug = String(gProj.slug || '').toLowerCase();
+      let matchedResume = null;
+
+      for (let i = 0; i < resumeProjects.length; i++) {
+        if (matchedResumeProjectIndices.has(i)) continue;
+        const rProj = resumeProjects[i];
+        const rNorm = normalizeProjectName(rProj.name || rProj.title);
+
+        const namesMatch =
+          gNorm && rNorm && (gNorm === rNorm || gNorm.includes(rNorm) || rNorm.includes(gNorm));
+
+        const urlMatch =
+          Array.isArray(rProj.urls) &&
+          rProj.urls.some(
+            (u) =>
+              u && (u.toLowerCase().includes(gNorm) || (gSlug && u.toLowerCase().includes(gSlug)))
+          );
+
+        // Tech stack overlap match (if at least 2 technologies match repo technologies or description)
+        const techMatch =
+          Array.isArray(rProj.technologies) &&
+          rProj.technologies.length >= 2 &&
+          rProj.technologies.filter((t) => {
+            const tSlug = String(t).toLowerCase();
+            return (
+              (gProj.headline && gProj.headline.toLowerCase().includes(tSlug)) ||
+              (gProj.summary && gProj.summary.toLowerCase().includes(tSlug)) ||
+              (gProj.name && gProj.name.toLowerCase().includes(tSlug))
+            );
+          }).length >= 2;
+
+        if (namesMatch || urlMatch || techMatch) {
+          matchedResume = rProj;
+          matchedResumeProjectIndices.add(i);
+          break;
+        }
+      }
+
+      const verifiedCount = Array.isArray(gProj.evidence)
+        ? gProj.evidence.length
+        : gProj.verifiedSignalCount || 0;
+
+      const mergedTechnologies = Array.from(
+        new Set([
+          ...(matchedResume?.technologies || []),
+          ...(Array.isArray(gProj.technologies) ? gProj.technologies : []),
+        ])
+      );
+
+      const mergedUrls = Array.from(
+        new Set([
+          ...(matchedResume?.urls || []),
+          ...(Array.isArray(gProj.urls) ? gProj.urls : []),
+          ...(gProj.metadata?.repoUrl ? [gProj.metadata.repoUrl] : []),
+        ])
+      );
+
+      highlightedProjects.push({
+        id: gProj.id,
+        name: gProj.name,
+        headline: gProj.headline || matchedResume?.headline || null,
+        role: gProj.role || matchedResume?.role || null,
+        summary: gProj.summary || matchedResume?.summary || null,
+        technologies: mergedTechnologies,
+        bullets: matchedResume?.bullets || (gProj.summary ? [gProj.summary] : []),
+        urls: mergedUrls,
+        startDate: gProj.startDate ? String(gProj.startDate) : matchedResume?.startDate || null,
+        endDate: gProj.endDate ? String(gProj.endDate) : matchedResume?.endDate || null,
+        linkedResourceCount: gProj.linkedResourceCount || 1,
+        verifiedSignalCount: verifiedCount,
+        provenanceStatus:
+          verifiedCount > 0 ? (matchedResume ? 'CORROBORATED' : 'VERIFIED') : 'CLAIMED',
+        source: matchedResume ? (verifiedCount > 0 ? 'BOTH' : 'RESUME') : 'GITHUB',
+      });
+    }
+
+    // Include remaining unmatched resume projects (Never delete resume projects lacking GitHub repos)
+    for (let i = 0; i < resumeProjects.length; i++) {
+      if (matchedResumeProjectIndices.has(i)) continue;
+      const rProj = resumeProjects[i];
+      highlightedProjects.push({
+        name: rProj.name || rProj.title || 'Project',
+        headline: rProj.headline || null,
+        role: rProj.role || null,
+        summary: rProj.summary || null,
+        technologies: rProj.technologies || [],
+        bullets: rProj.bullets || [],
+        urls: rProj.urls || [],
+        startDate: rProj.startDate || null,
+        endDate: rProj.endDate || null,
+        linkedResourceCount: 0,
+        verifiedSignalCount: 0,
+        provenanceStatus: 'CLAIMED',
+        source: 'RESUME',
+      });
+    }
+
+    // 7. Recent Work Experience Reconciliation
+    const rawCustomExperience = userCustom.experience || candidate.profileMetadata?.experience;
+    let recentExperience = [];
+
+    if (Array.isArray(rawCustomExperience) && rawCustomExperience.length > 0) {
+      recentExperience = rawCustomExperience.slice(0, 10).map((exp) => ({
         company: exp.company || 'Company',
-        title: exp.title || 'Role',
+        title: exp.title || exp.role || 'Role',
+        location: exp.location || null,
         startDate: exp.startDate ? String(exp.startDate) : null,
         endDate: exp.endDate ? String(exp.endDate) : null,
         isCurrent: Boolean(exp.isCurrent),
+        bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
         verifiedSkillsUsed: Array.isArray(exp.skills) ? exp.skills : [],
+        provenanceStatus: exp.provenanceStatus || 'USER_PROVIDED',
+      }));
+    } else if (Array.isArray(resumeData?.experience) && resumeData.experience.length > 0) {
+      recentExperience = resumeData.experience.slice(0, 10).map((exp) => ({
+        company: exp.company || 'Company',
+        title: exp.title || exp.role || 'Role',
+        location: exp.location || null,
+        startDate: exp.startDate ? String(exp.startDate) : null,
+        endDate: exp.endDate ? String(exp.endDate) : null,
+        isCurrent: Boolean(exp.isCurrent),
+        bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+        verifiedSkillsUsed: Array.isArray(exp.verifiedSkillsUsed) ? exp.verifiedSkillsUsed : [],
         provenanceStatus: 'CLAIMED',
       }));
+    }
 
-    const education = (userCustom.education || candidate.profileMetadata?.education || []).map(
-      (edu) => ({
+    // 8. Education Reconciliation
+    const rawCustomEducation = userCustom.education || candidate.profileMetadata?.education;
+    let education = [];
+
+    if (Array.isArray(rawCustomEducation) && rawCustomEducation.length > 0) {
+      education = rawCustomEducation.map((edu) => ({
         institution: edu.institution || edu.school || 'Institution',
         degree: edu.degree || null,
         fieldOfStudy: edu.fieldOfStudy || edu.field || null,
         startDate: edu.startDate ? String(edu.startDate) : null,
         endDate: edu.endDate ? String(edu.endDate) : null,
-      })
-    );
+        provenanceStatus: edu.provenanceStatus || 'USER_PROVIDED',
+      }));
+    } else if (Array.isArray(resumeData?.education) && resumeData.education.length > 0) {
+      education = resumeData.education.map((edu) => ({
+        institution: edu.institution || edu.school || 'Institution',
+        degree: edu.degree || null,
+        fieldOfStudy: edu.fieldOfStudy || edu.field || null,
+        startDate: edu.startDate ? String(edu.startDate) : null,
+        endDate: edu.endDate ? String(edu.endDate) : null,
+        provenanceStatus: 'CLAIMED',
+      }));
+    }
 
-    const certifications = Array.isArray(userCustom.certifications)
-      ? userCustom.certifications
-      : Array.isArray(candidate.profileMetadata?.certifications)
-        ? candidate.profileMetadata.certifications
-        : [];
+    // 9. Certifications & Languages
+    const certifications =
+      Array.isArray(userCustom.certifications) && userCustom.certifications.length > 0
+        ? userCustom.certifications
+        : Array.isArray(resumeData?.certifications) && resumeData.certifications.length > 0
+          ? resumeData.certifications
+          : Array.isArray(candidate.profileMetadata?.certifications)
+            ? candidate.profileMetadata.certifications
+            : [];
 
-    const languages = Array.isArray(userCustom.languages)
-      ? userCustom.languages
-      : Array.isArray(candidate.profileMetadata?.languages)
-        ? candidate.profileMetadata.languages
-        : [];
+    const languages =
+      Array.isArray(userCustom.languages) && userCustom.languages.length > 0
+        ? userCustom.languages
+        : Array.isArray(resumeData?.languages) && resumeData.languages.length > 0
+          ? resumeData.languages
+          : Array.isArray(candidate.profileMetadata?.languages)
+            ? candidate.profileMetadata.languages
+            : [];
 
-    const portfolioLinks = (profileView.identities || [])
-      .filter((i) => i.profileUrl)
-      .map((i) => ({ label: i.provider, url: i.profileUrl }));
+    // 10. Distinct Career Profile Readiness vs Job Search Intent Readiness
+    const missingProfileFields = [];
+    let profileScore = 0;
+    if (candidate.displayName) profileScore += 15;
+    if (headline) profileScore += 15;
+    else missingProfileFields.push('headline');
 
+    if (summary) profileScore += 15;
+    else missingProfileFields.push('summary');
+
+    if (topSkills.length > 0) profileScore += 20;
+    else missingProfileFields.push('skills');
+
+    if (highlightedProjects.length > 0 || recentExperience.length > 0) profileScore += 20;
+    else missingProfileFields.push('experienceOrProjects');
+
+    if (education.length > 0) profileScore += 15;
+    else missingProfileFields.push('education');
+
+    profileScore = Math.min(profileScore, 100);
+    const isProfileComplete = profileScore >= 70;
+
+    const profileReadiness = {
+      score: profileScore,
+      status: isProfileComplete
+        ? 'PROFILE POPULATED'
+        : `PROFILE INCOMPLETE (${missingProfileFields.length} field(s) recommended)`,
+      isComplete: isProfileComplete,
+      missingFields: missingProfileFields,
+      actionableFeedback: isProfileComplete
+        ? 'Career profile contains comprehensive professional identity and verified qualifications.'
+        : `Consider adding: ${missingProfileFields.join(', ')} to strengthen your baseline profile.`,
+    };
+
+    // Job Search Readiness (Intent Model)
     const missingRequired = [];
     const missingOptional = [];
     if (!jobPreferences.targetRoles || jobPreferences.targetRoles.length === 0)
@@ -1029,15 +1435,14 @@ export class CandidateProfileService {
 
     const isReadyForJobSearch = missingRequired.length === 0;
 
-    let score = 20;
-    if (candidate.headline) score += 15;
-    if (candidate.summary) score += 15;
-    if (topSkills.length > 0) score += 15;
-    if (highlightedProjects.length > 0) score += 15;
-    if (jobPreferences.targetRoles && jobPreferences.targetRoles.length > 0) score += 10;
+    let score = Math.floor(profileScore * 0.6); // 60% weight from actual professional qualifications
+    if (jobPreferences.targetRoles && jobPreferences.targetRoles.length > 0) score += 15;
     if (jobPreferences.preferredLocations && jobPreferences.preferredLocations.length > 0)
-      score += 5;
+      score += 10;
     if (jobPreferences.salaryFloor != null) score += 5;
+    if (jobPreferences.preferredTechStack && jobPreferences.preferredTechStack.length > 0)
+      score += 5;
+    if (jobPreferences.workAuthorization && jobPreferences.workAuthorization.length > 0) score += 5;
     score = Math.min(score, 100);
 
     const completeness = {
@@ -1057,25 +1462,196 @@ export class CandidateProfileService {
       candidateId: candidate.id,
       tenantId: candidate.tenantId,
       displayName: candidate.displayName,
-      headline: candidate.headline || null,
-      summary: candidate.summary || null,
-      currentRole: candidate.profileMetadata?.currentRole || candidate.headline || null,
-      location: candidate.profileMetadata?.location || null,
+      headline,
+      summary,
+      currentRole,
+      location,
       seniority: candidate.profileMetadata?.seniority || null,
       yearsOfExperience: candidate.profileMetadata?.yearsOfExperience || null,
-      canonicalEmail: candidate.canonicalEmail || null,
+      canonicalEmail,
       portfolioLinks,
       jobPreferences,
       verifiedSkillsSummary,
       topSkills,
+      primarySkills,
+      technologySignals,
       highlightedProjects,
       recentExperience,
       education,
       certifications,
       languages,
       completeness,
+      profileReadiness,
       updatedAt: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : null,
     });
+  }
+
+  /**
+   * Helper extracting structured resume data from sections list.
+   *
+   * @private
+   * @param {object} resume
+   * @param {Array<object>} sections
+   * @returns {object}
+   */
+  _extractResumeDataFromSections(resume, sections) {
+    let contactName = null;
+    let contactEmail = null;
+    let contactPhone = null;
+    let contactGithub = null;
+    let contactLinkedin = null;
+    let contactLeetcode = null;
+    const contactUrls = [];
+    let detectedLocation = null;
+    let detectedHeadline = null;
+    let detectedCurrentRole = null;
+    let resumeSummary = null;
+    const resumeExperiences = [];
+    const resumeEducation = [];
+    const resumeProjects = [];
+    const resumeCerts = [];
+    const resumeSkills = [];
+
+    for (const sec of sections) {
+      const sd = sec.structuredData || {};
+      if (sec.sectionType === 'CONTACT_INFO' || sec.sectionType === 'SUMMARY') {
+        if (sd.name && !contactName) contactName = sd.name;
+        if (sd.email && !contactEmail) contactEmail = sd.email;
+        if (sd.phone && !contactPhone) contactPhone = sd.phone;
+        if (sd.github && !contactGithub) contactGithub = sd.github;
+        if (sd.linkedin && !contactLinkedin) contactLinkedin = sd.linkedin;
+        if (sd.leetcode && !contactLeetcode) contactLeetcode = sd.leetcode;
+        if (Array.isArray(sd.urls)) contactUrls.push(...sd.urls);
+      }
+
+      if (sec.sectionType === 'SUMMARY') {
+        if (typeof sd.content === 'string' && sd.content.trim()) {
+          resumeSummary = sd.content.trim();
+        } else if (sec.rawText && sec.rawText.trim()) {
+          resumeSummary = sec.rawText.trim();
+        }
+      }
+
+      if (sec.sectionType === 'WORK_EXPERIENCE' && Array.isArray(sd.experiences)) {
+        for (const exp of sd.experiences) {
+          const role = (exp.role || '').trim();
+          const company = (exp.company || '').trim();
+          const loc = (exp.location || '').trim();
+          const dates = (exp.dates || '').trim();
+          const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
+
+          if (!detectedCurrentRole && role) detectedCurrentRole = role;
+          if (!detectedHeadline && role) detectedHeadline = role;
+          if (!detectedLocation && loc) detectedLocation = loc;
+
+          resumeExperiences.push({
+            company: company || 'Company',
+            title: role || 'Role',
+            role: role || 'Role',
+            location: loc || null,
+            startDate: dates || null,
+            endDate: null,
+            isCurrent: /present|current|now/i.test(dates),
+            bullets,
+            verifiedSkillsUsed: [],
+            provenanceStatus: 'CLAIMED',
+          });
+        }
+      }
+
+      if (sec.sectionType === 'EDUCATION' && Array.isArray(sd.degrees)) {
+        for (const d of sd.degrees) {
+          const raw = String(d || '').trim();
+          if (!raw) continue;
+          const parts = raw
+            .split(/[|,]/)
+            .map((p) => p.trim())
+            .filter(Boolean);
+          if (parts.length >= 2) {
+            resumeEducation.push({
+              institution: parts[1],
+              degree: parts[0],
+              fieldOfStudy: parts[2] || null,
+              startDate: null,
+              endDate: null,
+              text: raw,
+              provenanceStatus: 'CLAIMED',
+            });
+          } else {
+            resumeEducation.push({
+              institution: raw,
+              degree: null,
+              fieldOfStudy: null,
+              startDate: null,
+              endDate: null,
+              text: raw,
+              provenanceStatus: 'CLAIMED',
+            });
+          }
+        }
+      }
+
+      if (sec.sectionType === 'PROJECTS' && Array.isArray(sd.projects)) {
+        for (const proj of sd.projects) {
+          const title = (proj.title || '').trim();
+          if (!title) continue;
+          resumeProjects.push({
+            name: title,
+            title,
+            headline: proj.bullets?.[0] || null,
+            role: null,
+            summary: proj.bullets?.join(' ') || null,
+            technologies: Array.isArray(proj.technologies) ? proj.technologies : [],
+            bullets: Array.isArray(proj.bullets) ? proj.bullets : [],
+            urls: Array.isArray(proj.urls) ? proj.urls : [],
+            startDate: null,
+            endDate: null,
+            linkedResourceCount: 0,
+            verifiedSignalCount: 0,
+            provenanceStatus: 'CLAIMED',
+          });
+        }
+      }
+
+      if (sec.sectionType === 'CERTIFICATIONS' && Array.isArray(sd.certs)) {
+        for (const c of sd.certs) {
+          const trimmed = String(c || '').trim();
+          if (trimmed) resumeCerts.push(trimmed);
+        }
+      }
+
+      if (sec.sectionType === 'SKILLS' && Array.isArray(sd.skills)) {
+        for (const s of sd.skills) {
+          const trimmed = String(s || '').trim();
+          if (trimmed && !resumeSkills.includes(trimmed)) resumeSkills.push(trimmed);
+        }
+      }
+    }
+
+    return {
+      sourceResumeId: resume.id,
+      sourceVersion: resume.version,
+      extractedAt: new Date().toISOString(),
+      identity: {
+        name: contactName,
+        email: contactEmail,
+        phone: contactPhone,
+        location: detectedLocation,
+        headline: detectedHeadline,
+        currentRole: detectedCurrentRole,
+        github: contactGithub,
+        linkedin: contactLinkedin,
+        leetcode: contactLeetcode,
+        portfolioUrls: [...new Set(contactUrls)],
+      },
+      summary: resumeSummary,
+      experience: resumeExperiences,
+      education: resumeEducation,
+      projects: resumeProjects,
+      certifications: [...new Set(resumeCerts)],
+      skills: resumeSkills,
+      provenance: 'RESUME_CLAIM',
+    };
   }
 
   /**

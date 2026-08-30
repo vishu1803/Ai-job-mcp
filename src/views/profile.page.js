@@ -34,7 +34,7 @@ export function renderProfilePage({
   candidate = null,
   profile = null,
   preferences = {},
-  verifiedSkills = [],
+  _verifiedSkills = [],
   csrfToken = '',
   flashMessage = '',
   errorMessage = '',
@@ -65,6 +65,14 @@ export function renderProfilePage({
       'Complete your target roles and preferred locations to enable job matching.',
   };
 
+  const profileReadiness = profile?.profileReadiness || {
+    score: 100,
+    status: 'PROFILE POPULATED',
+    isComplete: true,
+    actionableFeedback:
+      'Career profile contains comprehensive professional identity and verified qualifications.',
+  };
+
   const currentRole =
     profile?.currentRole || candidate?.profileMetadata?.currentRole || candidate?.headline || '';
   const userLocation = profile?.location || candidate?.profileMetadata?.location || '';
@@ -73,6 +81,14 @@ export function renderProfilePage({
   const projectsList = profile?.highlightedProjects || [];
   const educationList = profile?.education || [];
   const topSkillsList = profile?.topSkills || [];
+  const primarySkillsList =
+    profile?.primarySkills && profile.primarySkills.length > 0
+      ? profile.primarySkills
+      : topSkillsList.filter((s) => s.tier !== 'SIGNAL');
+  const technologySignalsList =
+    profile?.technologySignals && profile.technologySignals.length > 0
+      ? profile.technologySignals
+      : topSkillsList.filter((s) => s.tier === 'SIGNAL');
   const certsList = profile?.certifications || [];
 
   const content = `
@@ -108,41 +124,63 @@ export function renderProfilePage({
       ${flashMessage ? `<div class="alert alert-success" style="margin-bottom: 1.5rem;">${escapeHtml(flashMessage)}</div>` : ''}
       ${errorMessage ? `<div class="alert alert-error" style="margin-bottom: 1.5rem;">${escapeHtml(errorMessage)}</div>` : ''}
 
-      <!-- Actionable Profile Completeness & Readiness Banner -->
-      <div class="card" style="background: ${completeness.isReadyForJobSearch ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%)' : 'linear-gradient(180deg, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%)'}; border-left: 4px solid ${completeness.isReadyForJobSearch ? '#10b981' : '#f59e0b'}; margin-bottom: 2rem;">
+      <!-- 1. Canonical Career Profile Readiness Status Banner -->
+      <div class="card" style="background: linear-gradient(180deg, rgba(16, 185, 129, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%); border-left: 4px solid #10b981; margin-bottom: 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
           <div style="display: flex; gap: 1rem; align-items: flex-start;">
-            <span style="font-size: 1.75rem;">${completeness.isReadyForJobSearch ? '✅' : '⚡'}</span>
+            <span style="font-size: 1.75rem;">✅</span>
             <div>
               <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                 <strong style="color: #f8fafc; font-size: 1.1rem;">
-                  ${escapeHtml(completeness.status)}
+                  Career Profile: ${profileReadiness.score}% Populated (${escapeHtml(profileReadiness.status)})
                 </strong>
-                <span class="badge ${completeness.isReadyForJobSearch ? 'badge-verified' : 'badge-warning'}" style="font-size: 0.8rem;">
-                  ${completeness.score}% Complete
+                <span class="badge badge-verified" style="font-size: 0.8rem;">
+                  ✓ Verified Qualifications
                 </span>
               </div>
               <p style="color: #cbd5e1; font-size: 0.875rem; margin-top: 0.35rem; line-height: 1.5;">
-                ${escapeHtml(completeness.actionableFeedback)}
+                ${escapeHtml(profileReadiness.actionableFeedback || 'Career profile contains comprehensive professional identity and verified qualifications.')}
               </p>
             </div>
           </div>
-          ${
-            !completeness.isReadyForJobSearch && completeness.missingRequiredForSearch.length > 0
-              ? `
+        </div>
+      </div>
+
+      <!-- 2. Job Search Matching Intent Banner -->
+      ${
+        !completeness.isReadyForJobSearch && completeness.missingRequiredForSearch.length > 0
+          ? `
+        <div class="card" style="background: linear-gradient(180deg, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.8) 100%); border-left: 4px solid #f59e0b; margin-bottom: 2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; gap: 1rem; align-items: flex-start;">
+              <span style="font-size: 1.5rem;">🎯</span>
+              <div>
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                  <strong style="color: #f8fafc; font-size: 1rem;">
+                    Job Search Discovery: ${completeness.score}% Configured
+                  </strong>
+                  <span class="badge badge-warning" style="font-size: 0.75rem;">
+                    Needs ${completeness.missingRequiredForSearch.length} Search Preference(s)
+                  </span>
+                </div>
+                <p style="color: #cbd5e1; font-size: 0.85rem; margin-top: 0.25rem; line-height: 1.4;">
+                  ${escapeHtml(completeness.actionableFeedback)}
+                </p>
+              </div>
+            </div>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
               ${completeness.missingRequiredForSearch
                 .map(
                   (f) =>
-                    `<a href="#${escapeHtml(f)}" class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; text-decoration: none; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.8rem;">+ Add ${escapeHtml(f)}</a>`
+                    `<a href="#${escapeHtml(f)}" class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; text-decoration: none; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.8rem;">+ Set ${escapeHtml(f)}</a>`
                 )
                 .join('')}
             </div>
-          `
-              : ''
-          }
+          </div>
         </div>
-      </div>
+      `
+          : ''
+      }
 
       <!-- Main Profile Form -->
       <form action="/profile" method="POST" style="display: flex; flex-direction: column; gap: 2rem;">
@@ -201,29 +239,71 @@ export function renderProfilePage({
             Seeded from your parsed resumes and corroborated against AST syntax trees from connected repositories.
           </p>
 
-          <!-- Skills Summary -->
+          <!-- 2A. Primary Career Skills -->
           <div style="margin-bottom: 1.5rem;">
-            <h3 style="font-size: 1rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-              <span>⚡</span> Skills Profile (${topSkillsList.length + verifiedSkills.length})
+            <h3 style="font-size: 1rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <span style="display: flex; align-items: center; gap: 0.4rem;">⚡ Primary Career Skills (${primarySkillsList.length})</span>
+              <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">Core Languages, Frameworks, Databases, Protocols, Cloud, Platforms & AI/ML</span>
             </h3>
             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
               ${
-                verifiedSkills.length > 0 || topSkillsList.length > 0
-                  ? (topSkillsList.length > 0
-                      ? topSkillsList
-                      : verifiedSkills.map((s) => ({ name: s, provenanceStatus: 'VERIFIED' }))
-                    )
+                primarySkillsList.length > 0
+                  ? primarySkillsList
                       .map((s) => {
-                        const isVer = s.provenanceStatus === 'VERIFIED';
-                        return `<span class="badge ${isVer ? 'badge-verified' : 'badge-claimed'}" style="font-size: 0.8rem; padding: 0.35rem 0.65rem;">
-                          ${escapeHtml(s.name || s)} ${isVer ? '✓ [Verified]' : '[Claimed]'}
+                        const isVer =
+                          s.truthStatus === 'VERIFIED' || s.provenanceStatus === 'VERIFIED';
+                        const isBoth = s.source === 'BOTH' || (s.githubEvidence && s.resumeClaim);
+                        const label = isBoth
+                          ? '✓ [Corroborated]'
+                          : isVer
+                            ? '✓ [Verified]'
+                            : '[Claimed]';
+                        const badgeClass = isBoth
+                          ? 'badge-verified'
+                          : isVer
+                            ? 'badge-verified'
+                            : 'badge-claimed';
+
+                        return `<span class="badge ${badgeClass}" title="Category: ${escapeHtml(s.fineCategory || s.category || 'TOOL')} | Source: ${escapeHtml(s.source || 'UNKNOWN')}" style="font-size: 0.8rem; padding: 0.35rem 0.65rem; display: inline-flex; align-items: center; gap: 0.35rem;">
+                          <strong>${escapeHtml(s.name || s)}</strong>
+                          <span style="font-size: 0.7rem; opacity: 0.9;">${label}</span>
                         </span>`;
                       })
                       .join('')
-                  : `<p style="font-size: 0.85rem; color: #94a3b8;">No skills registered. Upload a resume or connect a GitHub repository.</p>`
+                  : `<p style="font-size: 0.85rem; color: #94a3b8;">No primary skills registered. Upload a resume or connect a GitHub repository.</p>`
               }
             </div>
           </div>
+
+          <!-- 2B. Technology & Implementation Signals -->
+          ${
+            technologySignalsList.length > 0
+              ? `
+            <div style="margin-bottom: 1.5rem; background: rgba(15, 23, 42, 0.4); padding: 1rem; border-radius: 6px; border: 1px dashed var(--border-subtle);">
+              <details>
+                <summary style="font-size: 0.9rem; font-weight: 600; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;">
+                  <span>🔍 Technology & Implementation Signals (${technologySignalsList.length})</span>
+                  <span style="font-size: 0.75rem; color: #64748b;">Click to expand/collapse underlying libraries & dependencies</span>
+                </summary>
+                <p style="font-size: 0.75rem; color: #64748b; margin: 0.5rem 0 0.75rem 0;">
+                  Utility packages, middleware, UI helpers, and build plugins detected via AST package manifests and entrypoint imports.
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;">
+                  ${technologySignalsList
+                    .map(
+                      (s) => `
+                    <span class="badge" style="font-size: 0.75rem; background: rgba(255, 255, 255, 0.05); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.1); padding: 0.25rem 0.5rem;" title="Category: ${escapeHtml(s.fineCategory || s.category || 'LIBRARY')} | Evidence items: ${s.evidenceCount}">
+                      ${escapeHtml(s.name || s)} <span style="color: #64748b; font-size: 0.65rem;">(${s.evidenceCount || 1} signal${s.evidenceCount === 1 ? '' : 's'})</span>
+                    </span>
+                  `
+                    )
+                    .join('')}
+                </div>
+              </details>
+            </div>
+          `
+              : ''
+          }
 
           <!-- Highlighted Projects Grid -->
           <div style="margin-bottom: 1.5rem;">
@@ -235,23 +315,48 @@ export function renderProfilePage({
                 ? `
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
                 ${projectsList
-                  .map(
-                    (p) => `
+                  .map((p) => {
+                    const isCorroborated = p.provenanceStatus === 'CORROBORATED';
+                    const isVerified = p.provenanceStatus === 'VERIFIED';
+                    const badgeText = isCorroborated
+                      ? '✓ Corroborated'
+                      : isVerified
+                        ? '✓ Verified GitHub'
+                        : 'Claimed (Resume)';
+                    const badgeClass =
+                      isCorroborated || isVerified ? 'badge-verified' : 'badge-claimed';
+
+                    return `
                   <div style="background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
                       <strong style="color: #f8fafc; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
-                      <span class="badge ${p.provenanceStatus === 'VERIFIED' || p.verifiedSignalCount > 0 ? 'badge-verified' : 'badge-claimed'}" style="font-size: 0.7rem;">
-                        ${p.provenanceStatus === 'VERIFIED' || p.verifiedSignalCount > 0 ? '✓ Verified' : 'Claimed'}
+                      <span class="badge ${badgeClass}" style="font-size: 0.7rem;">
+                        ${badgeText}
                       </span>
                     </div>
                     ${p.headline ? `<p style="color: #cbd5e1; font-size: 0.8rem; margin: 0.35rem 0;">${escapeHtml(p.headline)}</p>` : ''}
-                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem; display: flex; gap: 0.75rem;">
+                    ${
+                      Array.isArray(p.technologies) && p.technologies.length > 0
+                        ? `
+                      <div style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.5rem 0;">
+                        ${p.technologies
+                          .slice(0, 5)
+                          .map(
+                            (t) =>
+                              `<span class="badge" style="font-size: 0.65rem; background: rgba(255,255,255,0.06); color: #cbd5e1;">${escapeHtml(t)}</span>`
+                          )
+                          .join('')}
+                      </div>
+                    `
+                        : ''
+                    }
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
                       ${p.role ? `<span>Role: ${escapeHtml(p.role)}</span>` : ''}
-                      ${p.verifiedSignalCount ? `<span>Signals: ${p.verifiedSignalCount}</span>` : ''}
+                      ${p.verifiedSignalCount ? `<span>AST Signals: ${p.verifiedSignalCount}</span>` : ''}
                     </div>
                   </div>
-                `
-                  )
+                `;
+                  })
                   .join('')}
               </div>
             `

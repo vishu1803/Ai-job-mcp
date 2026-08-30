@@ -37,6 +37,9 @@ import {
 import { createSession, getSessionCookieOptions } from '../../src/security/session.service.js';
 import { encryptSecret } from '../../src/security/encryption.js';
 import { config } from '../../src/config/env.js';
+import { connectorRegistry } from '../../src/connectors/registry/connector-registry.js';
+import { MockResourceConnector } from '../../src/connectors/testing/mock-connector.js';
+import { createNormalizedResource } from '../../src/connectors/base/models.js';
 
 describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13.5-002)', () => {
   const testRunId = crypto.randomBytes(4).toString('hex');
@@ -57,8 +60,27 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
   let app;
   let rawSessionTokenA;
   let rawSessionTokenB;
+  let originalGitHubConnector = null;
 
   before(async () => {
+    if (connectorRegistry.has('GITHUB_APP')) {
+      originalGitHubConnector = connectorRegistry.get('GITHUB_APP');
+    }
+    const mockGitHubConnector = new MockResourceConnector('GITHUB_APP', {
+      responses: {
+        resources: [
+          createNormalizedResource({
+            id: '12345678',
+            name: 'new-showcase-repo',
+            fullName: 'AlexMercer/new-showcase-repo',
+            type: 'REPOSITORY',
+            defaultBranch: 'main',
+          }),
+        ],
+      },
+    });
+    connectorRegistry.register('GITHUB_APP', mockGitHubConnector, { allowOverride: true });
+
     const mockIngestionService = {
       syncCandidateRepositories: async () => ({
         repositoriesProcessed: 1,
@@ -248,9 +270,11 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
       await db.delete(users).where(eq(users.tenantId, tenantIdA));
       await db.delete(users).where(eq(users.tenantId, tenantIdB));
       await db.delete(tenants).where(eq(tenants.id, tenantIdA));
-      await db.delete(tenants).where(eq(tenants.id, tenantIdB));
     } catch {
       // Best-effort cleanup
+    }
+    if (originalGitHubConnector) {
+      connectorRegistry.register('GITHUB_APP', originalGitHubConnector, { allowOverride: true });
     }
     await closeDatabase();
   });
@@ -367,7 +391,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
     assert.equal(newRes.provider, 'GITHUB_APP');
   });
 
-  it('4. POST /onboarding/sync executes repository ingestion pipeline and redirects to Step 5', async () => {
+  it('4. POST /onboarding/sync executes repository ingestion pipeline and redirects to Step 4', async () => {
     const cookieOpts = getSessionCookieOptions(config);
     const res = await app.inject({
       method: 'POST',
@@ -382,7 +406,7 @@ describe('Candidate Web Onboarding, Dashboard & Workspace Integration Tests (P13
     });
 
     assert.equal(res.statusCode, 302);
-    assert.match(res.headers['location'], /\/onboarding\?step=5/);
+    assert.match(res.headers['location'], /\/onboarding\?step=4/);
   });
 
   // ---------------------------------------------------------------------------

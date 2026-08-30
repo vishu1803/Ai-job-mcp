@@ -93,6 +93,18 @@ export const ProfileCompletenessSchema = z.strictObject({
 });
 
 /**
+ * Career Profile Readiness Schema (Separated from Job Search Preferences).
+ */
+export const ProfileReadinessSchema = z.strictObject({
+  score: z.number().min(0).max(100),
+  status: z.string(),
+  isComplete: z.boolean(),
+  missingFields: z.array(z.string()).default([]),
+  actionableFeedback: z.string(),
+  provenance: z.record(z.string(), z.string()).optional(),
+});
+
+/**
  * Candidate Career Profile View Schema.
  */
 export const CandidateCareerProfileSchema = z.strictObject({
@@ -122,9 +134,65 @@ export const CandidateCareerProfileSchema = z.strictObject({
         slug: z.string(),
         name: z.string(),
         category: z.string().optional(),
+        fineCategory: z.string().optional(),
+        tier: z.enum(['PRIMARY', 'SIGNAL']).optional().default('PRIMARY'),
         confidenceScore: z.number().min(0).max(1).optional(),
         evidenceCount: z.number().int().nonnegative().optional(),
-        provenanceStatus: z.enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING']).optional(),
+        provenanceStatus: z
+          .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
+          .optional(),
+        resumeClaim: z.boolean().optional().default(false),
+        githubEvidence: z.boolean().optional().default(false),
+        truthStatus: z
+          .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
+          .optional(),
+        source: z.string().optional(),
+      })
+    )
+    .optional()
+    .default([]),
+  primarySkills: z
+    .array(
+      z.object({
+        slug: z.string(),
+        name: z.string(),
+        category: z.string().optional(),
+        fineCategory: z.string().optional(),
+        tier: z.enum(['PRIMARY', 'SIGNAL']).optional().default('PRIMARY'),
+        confidenceScore: z.number().min(0).max(1).optional(),
+        evidenceCount: z.number().int().nonnegative().optional(),
+        provenanceStatus: z
+          .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
+          .optional(),
+        resumeClaim: z.boolean().optional().default(false),
+        githubEvidence: z.boolean().optional().default(false),
+        truthStatus: z
+          .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
+          .optional(),
+        source: z.string().optional(),
+      })
+    )
+    .optional()
+    .default([]),
+  technologySignals: z
+    .array(
+      z.object({
+        slug: z.string(),
+        name: z.string(),
+        category: z.string().optional(),
+        fineCategory: z.string().optional(),
+        tier: z.enum(['PRIMARY', 'SIGNAL']).optional().default('SIGNAL'),
+        confidenceScore: z.number().min(0).max(1).optional(),
+        evidenceCount: z.number().int().nonnegative().optional(),
+        provenanceStatus: z
+          .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
+          .optional(),
+        resumeClaim: z.boolean().optional().default(false),
+        githubEvidence: z.boolean().optional().default(false),
+        truthStatus: z
+          .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
+          .optional(),
+        source: z.string().optional(),
       })
     )
     .optional()
@@ -136,12 +204,16 @@ export const CandidateCareerProfileSchema = z.strictObject({
         name: z.string(),
         headline: z.string().nullable().optional(),
         role: z.string().nullable().optional(),
+        summary: z.string().nullable().optional(),
+        technologies: z.array(z.string()).optional().default([]),
+        bullets: z.array(z.string()).optional().default([]),
+        urls: z.array(z.string()).optional().default([]),
         startDate: z.string().nullable().optional(),
         endDate: z.string().nullable().optional(),
         linkedResourceCount: z.number().int().nonnegative().optional(),
         verifiedSignalCount: z.number().int().nonnegative().optional(),
         provenanceStatus: z
-          .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'UNVERIFIED'])
+          .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'UNVERIFIED', 'USER_PROVIDED'])
           .optional()
           .default('CLAIMED'),
       })
@@ -153,11 +225,16 @@ export const CandidateCareerProfileSchema = z.strictObject({
       z.object({
         company: z.string(),
         title: z.string(),
+        location: z.string().nullable().optional(),
         startDate: z.string().nullable().optional(),
         endDate: z.string().nullable().optional(),
         isCurrent: z.boolean().optional().default(false),
+        bullets: z.array(z.string()).optional().default([]),
         verifiedSkillsUsed: z.array(z.string()).optional().default([]),
-        provenanceStatus: z.enum(['VERIFIED', 'CLAIMED']).optional().default('CLAIMED'),
+        provenanceStatus: z
+          .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED', 'CORROBORATED'])
+          .optional()
+          .default('CLAIMED'),
       })
     )
     .optional()
@@ -170,6 +247,10 @@ export const CandidateCareerProfileSchema = z.strictObject({
         fieldOfStudy: z.string().optional().nullable(),
         startDate: z.string().nullable().optional(),
         endDate: z.string().nullable().optional(),
+        provenanceStatus: z
+          .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED'])
+          .optional()
+          .default('CLAIMED'),
       })
     )
     .optional()
@@ -177,5 +258,6 @@ export const CandidateCareerProfileSchema = z.strictObject({
   certifications: z.array(z.string()).optional().default([]),
   languages: z.array(z.string()).optional().default([]),
   completeness: ProfileCompletenessSchema.optional(),
+  profileReadiness: ProfileReadinessSchema.optional(),
   updatedAt: DateOrIsoStringSchema.optional().nullable(),
 });

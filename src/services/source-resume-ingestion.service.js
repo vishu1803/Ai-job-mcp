@@ -306,31 +306,229 @@ export class SourceResumeIngestionService {
       });
     }
 
-    // 1. Update candidate narrative profile if provided
-    const candidateUpdates = {};
-    if (headline && typeof headline === 'string') {
-      candidateUpdates.headline = headline.trim().slice(0, 255);
-    }
-    if (bio && typeof bio === 'string') {
-      candidateUpdates.bio = bio.trim().slice(0, 4000);
+    // 1. Fetch parsed resume sections to extract rich resume qualifications
+    const sections = await this.resumeRepo.getResumeSections({
+      resumeId,
+      tenantId,
+    });
+
+    let contactName = null;
+    let contactEmail = null;
+    let contactPhone = null;
+    let contactGithub = null;
+    let contactLinkedin = null;
+    let contactLeetcode = null;
+    const contactUrls = [];
+    let detectedLocation = null;
+    let detectedHeadline = null;
+    let detectedCurrentRole = null;
+    let resumeSummary = null;
+    const resumeExperiences = [];
+    const resumeEducation = [];
+    const resumeProjects = [];
+    const resumeCerts = [];
+    const resumeSkills = [];
+
+    for (const sec of sections) {
+      const sd = sec.structuredData || {};
+      if (sec.sectionType === 'CONTACT_INFO' || sec.sectionType === 'SUMMARY') {
+        if (sd.name && !contactName) contactName = sd.name;
+        if (sd.email && !contactEmail) contactEmail = sd.email;
+        if (sd.phone && !contactPhone) contactPhone = sd.phone;
+        if (sd.github && !contactGithub) contactGithub = sd.github;
+        if (sd.linkedin && !contactLinkedin) contactLinkedin = sd.linkedin;
+        if (sd.leetcode && !contactLeetcode) contactLeetcode = sd.leetcode;
+        if (Array.isArray(sd.urls)) {
+          contactUrls.push(...sd.urls);
+        }
+      }
+
+      if (sec.sectionType === 'SUMMARY') {
+        if (typeof sd.content === 'string' && sd.content.trim()) {
+          resumeSummary = sd.content.trim();
+        } else if (sec.rawText && sec.rawText.trim()) {
+          resumeSummary = sec.rawText.trim();
+        }
+      }
+
+      if (sec.sectionType === 'WORK_EXPERIENCE') {
+        if (Array.isArray(sd.experiences) && sd.experiences.length > 0) {
+          for (const exp of sd.experiences) {
+            const role = (exp.role || '').trim();
+            const company = (exp.company || '').trim();
+            const loc = (exp.location || '').trim();
+            const dates = (exp.dates || '').trim();
+            const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
+
+            if (!detectedCurrentRole && role) detectedCurrentRole = role;
+            if (!detectedHeadline && role) detectedHeadline = role;
+            if (!detectedLocation && loc) detectedLocation = loc;
+
+            resumeExperiences.push({
+              company: company || 'Company',
+              title: role || 'Role',
+              role: role || 'Role',
+              location: loc || null,
+              startDate: dates || null,
+              endDate: null,
+              isCurrent: /present|current|now/i.test(dates),
+              bullets,
+              verifiedSkillsUsed: [],
+              provenanceStatus: 'CLAIMED',
+            });
+          }
+        }
+      }
+
+      if (sec.sectionType === 'EDUCATION') {
+        if (Array.isArray(sd.degrees) && sd.degrees.length > 0) {
+          for (const d of sd.degrees) {
+            const raw = String(d || '').trim();
+            if (!raw) continue;
+            const parts = raw
+              .split(/[|,]/)
+              .map((p) => p.trim())
+              .filter(Boolean);
+            if (parts.length >= 2) {
+              resumeEducation.push({
+                institution: parts[1],
+                degree: parts[0],
+                fieldOfStudy: parts[2] || null,
+                startDate: null,
+                endDate: null,
+                text: raw,
+                provenanceStatus: 'CLAIMED',
+              });
+            } else {
+              resumeEducation.push({
+                institution: raw,
+                degree: null,
+                fieldOfStudy: null,
+                startDate: null,
+                endDate: null,
+                text: raw,
+                provenanceStatus: 'CLAIMED',
+              });
+            }
+          }
+        }
+      }
+
+      if (sec.sectionType === 'PROJECTS') {
+        if (Array.isArray(sd.projects) && sd.projects.length > 0) {
+          for (const proj of sd.projects) {
+            const title = (proj.title || '').trim();
+            if (!title) continue;
+            const techs = Array.isArray(proj.technologies) ? proj.technologies : [];
+            const bullets = Array.isArray(proj.bullets) ? proj.bullets : [];
+            const urls = Array.isArray(proj.urls) ? proj.urls : [];
+
+            resumeProjects.push({
+              name: title,
+              title,
+              headline: bullets[0] || null,
+              role: null,
+              summary: bullets.join(' ') || null,
+              technologies: techs,
+              bullets,
+              urls,
+              startDate: null,
+              endDate: null,
+              linkedResourceCount: 0,
+              verifiedSignalCount: 0,
+              provenanceStatus: 'CLAIMED',
+            });
+          }
+        }
+      }
+
+      if (sec.sectionType === 'CERTIFICATIONS') {
+        if (Array.isArray(sd.certs)) {
+          for (const c of sd.certs) {
+            const trimmed = String(c || '').trim();
+            if (trimmed) resumeCerts.push(trimmed);
+          }
+        }
+      }
+
+      if (sec.sectionType === 'SKILLS') {
+        if (Array.isArray(sd.skills)) {
+          for (const s of sd.skills) {
+            const trimmed = String(s || '').trim();
+            if (trimmed && !resumeSkills.includes(trimmed)) {
+              resumeSkills.push(trimmed);
+            }
+          }
+        }
+      }
     }
 
-    let updatedCandidate = null;
-    if (Object.keys(candidateUpdates).length > 0) {
-      candidateUpdates.updatedAt = new Date();
-      const [res] = await this.db
-        .update(candidates)
-        .set(candidateUpdates)
-        .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)))
-        .returning();
-      updatedCandidate = res;
-    } else {
-      const [res] = await this.db
-        .select()
-        .from(candidates)
-        .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
-      updatedCandidate = res;
+    const resumeData = {
+      sourceResumeId: existingResume.id,
+      sourceVersion: existingResume.version,
+      extractedAt: new Date().toISOString(),
+      identity: {
+        name: contactName,
+        email: contactEmail,
+        phone: contactPhone,
+        location: detectedLocation,
+        headline: detectedHeadline,
+        currentRole: detectedCurrentRole,
+        github: contactGithub,
+        linkedin: contactLinkedin,
+        leetcode: contactLeetcode,
+        portfolioUrls: [...new Set(contactUrls)],
+      },
+      summary: resumeSummary,
+      experience: resumeExperiences,
+      education: resumeEducation,
+      projects: resumeProjects,
+      certifications: [...new Set(resumeCerts)],
+      skills: resumeSkills,
+      provenance: 'RESUME_CLAIM',
+    };
+
+    // 2. Fetch current candidate to preserve existing narrative and metadata
+    const [currentCandidate] = await this.db
+      .select()
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
+
+    const existingMeta = currentCandidate?.profileMetadata || {};
+    const updatedMeta = {
+      ...existingMeta,
+      resumeData,
+      location: existingMeta.location || detectedLocation || null,
+      currentRole: existingMeta.currentRole || detectedCurrentRole || null,
+    };
+
+    // 3. Update candidate narrative profile (Explicit user input > Existing > Resume default)
+    const candidateUpdates = {
+      profileMetadata: updatedMeta,
+      updatedAt: new Date(),
+    };
+
+    if (headline && typeof headline === 'string') {
+      candidateUpdates.headline = headline.trim().slice(0, 255);
+    } else if (!currentCandidate?.headline && detectedHeadline) {
+      candidateUpdates.headline = detectedHeadline.slice(0, 255);
     }
+
+    if (bio && typeof bio === 'string') {
+      candidateUpdates.summary = bio.trim().slice(0, 4000);
+    } else if (!currentCandidate?.summary && resumeSummary) {
+      candidateUpdates.summary = resumeSummary.slice(0, 4000);
+    }
+
+    if (!currentCandidate?.canonicalEmail && contactEmail) {
+      candidateUpdates.canonicalEmail = contactEmail.toLowerCase().trim();
+    }
+
+    const [updatedCandidate] = await this.db
+      .update(candidates)
+      .set(candidateUpdates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)))
+      .returning();
 
     // 2. Promote approved skill claims to candidate_skills with CLAIMED status (Never overwrite VERIFIED skills)
     if (Array.isArray(approvedSkillClaims) && approvedSkillClaims.length > 0) {

@@ -564,4 +564,145 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       assert.equal(coreResult.isKnown, false);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 11. Step 1I Semantic Classification Policy (PRIMARY vs SIGNAL)
+  // ---------------------------------------------------------------------------
+  describe('11. Step 1I Semantic Classification Policy (PRIMARY vs SIGNAL)', () => {
+    it('1. classifies React as PRIMARY FRAMEWORK', () => {
+      const cat = SkillTaxonomyEngine.classifyCategory('react');
+      const tier = SkillTaxonomyEngine.classifyTier('react', cat);
+      assert.equal(cat, 'FRAMEWORK');
+      assert.equal(tier, 'PRIMARY');
+    });
+
+    it('2. classifies React Dialog & UI components as SIGNAL UI_COMPONENT', () => {
+      const uiPackages = [
+        'React Dialog',
+        'react-dialog',
+        '@radix-ui/react-dialog',
+        'React Avatar',
+        'react-avatar',
+        'React Dropdown Menu',
+        'React Tabs',
+        'React Popover',
+        'React Select',
+        'Next Themes',
+        'next-themes',
+        'lucide-react',
+        'cmdk',
+      ];
+      for (const item of uiPackages) {
+        const cat = SkillTaxonomyEngine.classifyCategory(item);
+        const tier = SkillTaxonomyEngine.classifyTier(item, cat);
+        assert.equal(cat, 'UI_COMPONENT', `Expected ${item} to be UI_COMPONENT`);
+        assert.equal(tier, 'SIGNAL', `Expected ${item} to be SIGNAL`);
+      }
+    });
+
+    it('3. classifies Node.js as PRIMARY PLATFORM', () => {
+      const cat = SkillTaxonomyEngine.classifyCategory('node-js');
+      const tier = SkillTaxonomyEngine.classifyTier('node-js', cat);
+      assert.equal(cat, 'PLATFORM');
+      assert.equal(tier, 'PRIMARY');
+    });
+
+    it('4. classifies Node Dns and built-ins as SIGNAL BUILT_IN_MODULE', () => {
+      const builtIns = ['node:dns', 'Node Dns', 'node-dns', 'node:perf_hooks', 'Node Perf Hooks'];
+      for (const item of builtIns) {
+        const cat = SkillTaxonomyEngine.classifyCategory(item);
+        const tier = SkillTaxonomyEngine.classifyTier(item, cat);
+        assert.equal(cat, 'BUILT_IN_MODULE', `Expected ${item} to be BUILT_IN_MODULE`);
+        assert.equal(tier, 'SIGNAL', `Expected ${item} to be SIGNAL`);
+      }
+    });
+
+    it('5. classifies Python as PRIMARY CORE_LANGUAGE', () => {
+      const cat = SkillTaxonomyEngine.classifyCategory('python');
+      const tier = SkillTaxonomyEngine.classifyTier('python', cat);
+      assert.equal(cat, 'CORE_LANGUAGE');
+      assert.equal(tier, 'PRIMARY');
+    });
+
+    it('6. classifies Python Dotenv and utility packages as SIGNAL UTILITY_PACKAGE', () => {
+      const utils = [
+        'Python Dotenv',
+        'python-dotenv',
+        'dotenv',
+        'Python Jose',
+        'python-jose',
+        'cors',
+        'cookie-parser',
+        'clsx',
+        'tailwind-merge',
+        'date-fns',
+      ];
+      for (const item of utils) {
+        const cat = SkillTaxonomyEngine.classifyCategory(item);
+        const tier = SkillTaxonomyEngine.classifyTier(item, cat);
+        assert.equal(cat, 'UTILITY_PACKAGE', `Expected ${item} to be UTILITY_PACKAGE`);
+        assert.equal(tier, 'SIGNAL', `Expected ${item} to be SIGNAL`);
+      }
+    });
+
+    it('7. classifies Fastify as PRIMARY FRAMEWORK', () => {
+      const cat = SkillTaxonomyEngine.classifyCategory('fastify');
+      const tier = SkillTaxonomyEngine.classifyTier('fastify', cat);
+      assert.equal(cat, 'FRAMEWORK');
+      assert.equal(tier, 'PRIMARY');
+    });
+
+    it('8. classifies Docker as PRIMARY CLOUD', () => {
+      const cat = SkillTaxonomyEngine.classifyCategory('docker');
+      const tier = SkillTaxonomyEngine.classifyTier('docker', cat);
+      assert.equal(cat, 'CLOUD');
+      assert.equal(tier, 'PRIMARY');
+    });
+
+    it('9. classifies Docker Compose as SIGNAL TOOL', () => {
+      const cat = SkillTaxonomyEngine.classifyCategory('docker-compose');
+      const tier = SkillTaxonomyEngine.classifyTier('docker-compose', cat);
+      assert.equal(cat, 'TOOL');
+      assert.equal(tier, 'SIGNAL');
+    });
+
+    it('10. classifies React Query as LIBRARY and React Query Devtools as DEV_HELPER', () => {
+      const rqCat = SkillTaxonomyEngine.classifyCategory('react-query');
+      const rqTier = SkillTaxonomyEngine.classifyTier('react-query', rqCat);
+      assert.equal(rqCat, 'LIBRARY');
+      assert.equal(rqTier, 'SIGNAL');
+
+      const devtoolsCat = SkillTaxonomyEngine.classifyCategory('@tanstack/react-query-devtools');
+      const devtoolsTier = SkillTaxonomyEngine.classifyTier(
+        '@tanstack/react-query-devtools',
+        devtoolsCat
+      );
+      assert.equal(devtoolsCat, 'DEV_HELPER');
+      assert.equal(devtoolsTier, 'SIGNAL');
+    });
+
+    it('11. enforces primary skill priority ordering (Languages -> Backend -> Frontend -> DBs -> Protocols -> Platform -> Cloud -> AI/ML -> Tools)', () => {
+      const ts = { slug: 'typescript', fineCategory: 'CORE_LANGUAGE' };
+      const fastify = { slug: 'fastify', fineCategory: 'FRAMEWORK' };
+      const react = { slug: 'react', fineCategory: 'FRAMEWORK' };
+      const pg = { slug: 'postgresql', fineCategory: 'DATABASE' };
+      const mcp = { slug: 'mcp', fineCategory: 'PROTOCOL' };
+      const node = { slug: 'node-js', fineCategory: 'PLATFORM' };
+      const docker = { slug: 'docker', fineCategory: 'CLOUD' };
+      const gemini = { slug: 'gemini', fineCategory: 'AI_ML' };
+      const git = { slug: 'git', fineCategory: 'TOOL' };
+
+      const ranks = [ts, fastify, react, pg, mcp, node, docker, gemini, git].map((s) =>
+        SkillTaxonomyEngine.getPrimarySkillRank(s)
+      );
+
+      // Verify strictly increasing rank
+      for (let i = 1; i < ranks.length; i++) {
+        assert.ok(
+          ranks[i] > ranks[i - 1],
+          `Expected rank ${ranks[i]} to be greater than rank ${ranks[i - 1]}`
+        );
+      }
+    });
+  });
 });

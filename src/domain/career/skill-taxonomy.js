@@ -2422,13 +2422,465 @@ export class SkillTaxonomyEngine {
   }
 
   /**
+   * Classifies a skill name or slug into one of the comprehensive domain categories:
+   * CORE_LANGUAGE, FRAMEWORK, DATABASE, PROTOCOL, PLATFORM, CLOUD, AI_ML, TOOL, LIBRARY,
+   * UI_COMPONENT, UTILITY_PACKAGE, DEV_HELPER, BUILT_IN_MODULE, DEPENDENCY_SIGNAL, ARCHITECTURE, CONCEPT, OTHER
+   *
+   * @param {string} rawNameOrSlug
+   * @param {string} [fallbackCategory='TOOL']
+   * @returns {'CORE_LANGUAGE' | 'FRAMEWORK' | 'DATABASE' | 'PROTOCOL' | 'PLATFORM' | 'CLOUD' | 'AI_ML' | 'TOOL' | 'LIBRARY' | 'UI_COMPONENT' | 'UTILITY_PACKAGE' | 'DEV_HELPER' | 'BUILT_IN_MODULE' | 'DEPENDENCY_SIGNAL' | 'ARCHITECTURE' | 'CONCEPT' | 'OTHER'}
+   */
+  static classifyCategory(rawNameOrSlug, fallbackCategory = 'TOOL') {
+    if (!rawNameOrSlug || typeof rawNameOrSlug !== 'string') return 'OTHER';
+    const rawClean = rawNameOrSlug.toLowerCase().trim();
+    const unbracketed = rawClean.replace(/^@[a-z0-9_-]+\//, '');
+    const slug = unbracketed
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    const words = unbracketed
+      .replace(/[^a-z0-9]/g, ' ')
+      .trim()
+      .split(/\s+/);
+
+    // 1. Built-in runtime standard library modules (e.g. node:dns, node:perf_hooks, Node Dns)
+    if (
+      rawClean.startsWith('node:') ||
+      rawClean.startsWith('python:') ||
+      [
+        'node-dns',
+        'node-perf-hooks',
+        'node-fs',
+        'node-path',
+        'node-crypto',
+        'node-stream',
+        'node-child-process',
+        'node-util',
+        'node-os',
+        'node-net',
+        'node-tls',
+        'node-http',
+        'node-https',
+        'node-zlib',
+        'node-events',
+        'node-buffer',
+        'node-url',
+      ].includes(slug) ||
+      (words[0] === 'node' &&
+        words.length > 1 &&
+        [
+          'dns',
+          'perf',
+          'perf_hooks',
+          'fs',
+          'path',
+          'crypto',
+          'stream',
+          'child_process',
+          'util',
+          'os',
+          'net',
+          'tls',
+          'http',
+          'https',
+          'zlib',
+          'events',
+          'buffer',
+          'url',
+        ].includes(words[1]))
+    ) {
+      return 'BUILT_IN_MODULE';
+    }
+
+    // 2. DevTools, Linters, Plugins, Helpers, Loaders, Presets, Middleware
+    if (
+      slug.endsWith('-devtools') ||
+      slug.endsWith('-plugin') ||
+      slug.endsWith('-config') ||
+      slug.endsWith('-preset') ||
+      slug.endsWith('-loader') ||
+      slug.endsWith('-middleware') ||
+      slug.endsWith('-types') ||
+      slug.startsWith('eslint-') ||
+      slug.startsWith('prettier-') ||
+      slug.startsWith('babel-') ||
+      slug.startsWith('postcss-') ||
+      slug.startsWith('stylelint-') ||
+      slug.startsWith('types-') ||
+      ['nodemon', 'ts-node', 'ts-node-dev', 'supertest'].includes(slug) ||
+      slug.includes('devtools')
+    ) {
+      return 'DEV_HELPER';
+    }
+
+    // 3. UI Components, Design System Primitives, Theme Providers, Icons
+    if (
+      rawClean.startsWith('@radix-ui/') ||
+      rawClean.startsWith('@shadcn/') ||
+      rawClean.startsWith('@headlessui/') ||
+      rawClean.startsWith('@chakra-ui/') ||
+      rawClean.startsWith('@material-ui/') ||
+      rawClean.startsWith('@mui/') ||
+      [
+        'react-avatar',
+        'react-dialog',
+        'react-dropdown-menu',
+        'react-progress',
+        'react-select',
+        'react-slot',
+        'react-tabs',
+        'react-accordion',
+        'react-alert-dialog',
+        'react-checkbox',
+        'react-day-picker',
+        'react-hot-toast',
+        'react-icons',
+        'react-label',
+        'react-navigation-menu',
+        'react-popover',
+        'react-scroll-area',
+        'react-separator',
+        'react-switch',
+        'react-table',
+        'react-toast',
+        'react-tooltip',
+        'react-dropzone',
+        'react-feather',
+        'react-spinners',
+        'react-modal',
+        'react-slider',
+        'lucide-react',
+        'next-themes',
+        'cmdk',
+        'class-variance-authority',
+        'cva',
+      ].includes(slug) ||
+      (words[0] === 'react' &&
+        words.length > 1 &&
+        !['native', 'dom', 'core', 'query'].includes(words[1]))
+    ) {
+      return 'UI_COMPONENT';
+    }
+
+    // 4. Utility Packages, Middleware, Helpers
+    const KNOWN_UTILITIES = new Set([
+      'dotenv',
+      'python-dotenv',
+      'cors',
+      'cookie-parser',
+      'cookie',
+      'cookies',
+      'morgan',
+      'compression',
+      'helmet',
+      'clsx',
+      'tailwind-merge',
+      'date-fns',
+      'pydantic-settings',
+      'python-multipart',
+      'multipart',
+      'python-jose',
+      'body-parser',
+      'multer',
+      'bcryptjs',
+      'bcrypt',
+      'jsonwebtoken',
+      'jwt',
+      'crypto-js',
+      'node-crypto',
+      'email-validator',
+      'validator',
+      'express-rate-limit',
+      'rate-limiter-flexible',
+      'resolvers',
+      'parser',
+      'dayjs',
+      'moment',
+      'luxon',
+      'uuid',
+      'nanoid',
+      'swr',
+      'react-hook-form',
+      'hookform',
+    ]);
+    if (
+      KNOWN_UTILITIES.has(slug) ||
+      (words[0] === 'python' &&
+        words.length > 1 &&
+        !['django', 'fastapi', 'flask', 'pytorch'].includes(words[1]))
+    ) {
+      return 'UTILITY_PACKAGE';
+    }
+
+    // 5. Check Exact Known Canonical Skills in CANONICAL_INDEX
+    const canonical =
+      CANONICAL_INDEX[slug] ||
+      ALIAS_INDEX[slug] ||
+      ALIAS_INDEX[unbracketed] ||
+      ALIAS_INDEX[rawClean];
+    if (canonical) {
+      if (canonical.slug === 'react-query') return 'LIBRARY';
+      if (canonical.slug === 'docker-compose') return 'TOOL';
+      if (canonical.category === 'LANGUAGE') {
+        if (['node-js', 'v8', 'jvm'].includes(canonical.slug)) return 'PLATFORM';
+        return 'CORE_LANGUAGE';
+      }
+      if (canonical.category === 'FRAMEWORK') return 'FRAMEWORK';
+      if (canonical.category === 'DATABASE') return 'DATABASE';
+      if (canonical.category === 'CLOUD_DEVOPS') return 'CLOUD';
+      if (['mcp', 'grpc', 'rest-api', 'rpc'].includes(canonical.slug)) return 'PROTOCOL';
+      if (
+        ['gemini', 'pytorch', 'tensorflow', 'scikit-learn', 'pandas', 'numpy'].includes(
+          canonical.slug
+        )
+      ) {
+        return 'AI_ML';
+      }
+      if (['vitest', 'jest', 'pytest', 'test-runner', 'vite', 'git'].includes(canonical.slug)) {
+        return 'TOOL';
+      }
+      if (['zod', 'pydantic', 'serde'].includes(canonical.slug)) return 'LIBRARY';
+      if (canonical.category === 'ARCHITECTURE') return 'ARCHITECTURE';
+      if (canonical.category === 'CONCEPT') return 'CONCEPT';
+    }
+
+    // 6. Known Domain Libraries (e.g. Three.js, React Query, Zustand, Redux, Axios, Lodash)
+    const KNOWN_LIBRARIES = new Set([
+      'three',
+      'three-js',
+      'drei',
+      'postprocessing',
+      'zod',
+      'pydantic',
+      'axios',
+      'socket-io',
+      'socket-io-client',
+      'redux',
+      'zustand',
+      'mobx',
+      'framer-motion',
+      'lodash',
+      'ramda',
+      'rxjs',
+      'immutable',
+      'styled-components',
+      'emotion',
+      'cheerio',
+      'puppeteer',
+      'playwright-core',
+      'react-query',
+      'tanstack-query',
+    ]);
+    if (KNOWN_LIBRARIES.has(slug)) {
+      return 'LIBRARY';
+    }
+
+    // 7. Explicit Infrastructure Tools & Orchestration
+    if (slug === 'docker-compose') {
+      return 'TOOL';
+    }
+
+    // 8. Strict Exact Term Patterns for Core Categories (NO loose substring matching!)
+    // Exact Language Matches
+    if (
+      /^(?:typescript|javascript|python|go|golang|rust|java|kotlin|swift|ruby|php|scala|sql|html|css|c|cpp|csharp|c-sharp|shell|bash)$/i.test(
+        slug
+      )
+    ) {
+      return 'CORE_LANGUAGE';
+    }
+    // Exact Framework Matches
+    if (
+      /^(?:fastify|express|express-js|next|next-js|react|react-native|vue|vue-js|angular|svelte|nestjs|django|fastapi|flask|spring|spring-boot|gin|fiber|actix|axum|tailwind|tailwindcss)$/i.test(
+        slug
+      )
+    ) {
+      return 'FRAMEWORK';
+    }
+    // Exact Database Matches
+    if (
+      /^(?:postgres|postgresql|mysql|sqlite|mongodb|redis|kafka|drizzle|drizzle-orm|prisma|typeorm|cassandra|dynamodb|elasticsearch|couchdb)$/i.test(
+        slug
+      )
+    ) {
+      return 'DATABASE';
+    }
+    // Exact Protocol Matches
+    if (
+      /^(?:mcp|model-context-protocol|graphql|grpc|rest|restful-api|rest-api|websocket|websockets|json-rpc|oauth|oauth-2-1|oidc)$/i.test(
+        slug
+      )
+    ) {
+      return 'PROTOCOL';
+    }
+    // Exact Platform Matches
+    if (/^(?:node|nodejs|node-js|deno|bun|linux|v8|jvm)$/i.test(slug)) {
+      return 'PLATFORM';
+    }
+    // Exact Cloud / Infrastructure Matches
+    if (
+      /^(?:docker|kubernetes|k8s|terraform|aws|gcp|azure|github-actions|gitlab-ci|vercel|nginx)$/i.test(
+        slug
+      )
+    ) {
+      return 'CLOUD';
+    }
+    // Exact AI / ML Matches
+    if (
+      /^(?:gemini|google-gemini|openai|claude|anthropic|langchain|llamaindex|pytorch|tensorflow|keras|scikit-learn|pandas|numpy)$/i.test(
+        slug
+      )
+    ) {
+      return 'AI_ML';
+    }
+    // Exact Major Tool Matches
+    if (
+      /^(?:git|vitest|jest|pytest|cypress|playwright|webpack|vite|rollup|esbuild|postman|insomnia)$/i.test(
+        slug
+      )
+    ) {
+      return 'TOOL';
+    }
+
+    if (fallbackCategory === 'LANGUAGE') return 'CORE_LANGUAGE';
+    if (fallbackCategory === 'CLOUD_DEVOPS') return 'CLOUD';
+    return fallbackCategory || 'TOOL';
+  }
+
+  /**
+   * Classifies a skill into its presentation and confidence tier:
+   * - PRIMARY: Core career-defining skills (Languages, Frameworks, Databases, Protocols, Cloud, Platforms, AI/ML, Major Tools)
+   * - SIGNAL: Technology/Implementation signals (Utility libraries, UI components, middleware, dev helpers, submodules)
+   *
+   * @param {string} rawNameOrSlug
+   * @param {string} [category]
+   * @returns {'PRIMARY' | 'SIGNAL'}
+   */
+  static classifyTier(rawNameOrSlug, category) {
+    const fineCategory = SkillTaxonomyEngine.classifyCategory(rawNameOrSlug, category);
+
+    // All supporting/implementation categories are strictly SIGNAL
+    if (
+      [
+        'LIBRARY',
+        'UI_COMPONENT',
+        'UTILITY_PACKAGE',
+        'DEV_HELPER',
+        'BUILT_IN_MODULE',
+        'DEPENDENCY_SIGNAL',
+        'CONCEPT',
+        'ARCHITECTURE',
+        'OTHER',
+      ].includes(fineCategory)
+    ) {
+      return 'SIGNAL';
+    }
+
+    // Core career categories
+    if (
+      ['CORE_LANGUAGE', 'FRAMEWORK', 'DATABASE', 'PROTOCOL', 'PLATFORM', 'CLOUD', 'AI_ML'].includes(
+        fineCategory
+      )
+    ) {
+      // docker-compose specifically is SIGNAL tier (Docker is PRIMARY)
+      const slug = (rawNameOrSlug || '')
+        .toLowerCase()
+        .trim()
+        .replace(/^@[a-z0-9_-]+\//, '')
+        .replace(/[^a-z0-9-]/g, '-');
+      if (slug === 'docker-compose') {
+        return 'SIGNAL';
+      }
+      return 'PRIMARY';
+    }
+
+    if (fineCategory === 'TOOL') {
+      const slug = (rawNameOrSlug || '')
+        .toLowerCase()
+        .trim()
+        .replace(/^@[a-z0-9_-]+\//, '')
+        .replace(/[^a-z0-9-]/g, '-');
+      const MAJOR_PRIMARY_TOOLS = new Set([
+        'git',
+        'vitest',
+        'jest',
+        'pytest',
+        'cypress',
+        'playwright',
+        'webpack',
+        'vite',
+        'postman',
+        'insomnia',
+      ]);
+      if (MAJOR_PRIMARY_TOOLS.has(slug)) {
+        return 'PRIMARY';
+      }
+      return 'SIGNAL';
+    }
+
+    return 'SIGNAL';
+  }
+
+  /**
+   * Returns deterministic priority rank for primary skills sorting:
+   * 1. Languages
+   * 2. Backend frameworks
+   * 3. Frontend frameworks
+   * 4. Databases
+   * 5. Protocols
+   * 6. Platforms
+   * 7. Cloud
+   * 8. AI/ML
+   * 9. Major engineering tools
+   *
+   * @param {object} skill
+   * @returns {number} Integer ranking (1-10)
+   */
+  static getPrimarySkillRank(skill) {
+    const cat = skill.fineCategory || skill.category;
+    const slug = (skill.slug || skill.name || '').toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+    if (cat === 'CORE_LANGUAGE' || cat === 'LANGUAGE') return 1;
+    if (cat === 'FRAMEWORK') {
+      const BACKEND_FRAMEWORK_SLUGS = new Set([
+        'fastify',
+        'express',
+        'express-js',
+        'nestjs',
+        'django',
+        'fastapi',
+        'flask',
+        'spring',
+        'spring-boot',
+        'gin',
+        'fiber',
+        'actix',
+        'axum',
+      ]);
+      if (BACKEND_FRAMEWORK_SLUGS.has(slug)) return 2;
+      return 3; // Frontend frameworks (React, Next.js, Vue, Angular, etc.)
+    }
+    if (cat === 'DATABASE') return 4;
+    if (cat === 'PROTOCOL') return 5;
+    if (cat === 'PLATFORM') return 6;
+    if (cat === 'CLOUD') return 7;
+    if (cat === 'AI_ML') return 8;
+    if (cat === 'TOOL') return 9;
+    return 10;
+  }
+
+  /**
    * Assembles a structured result for a known canonical skill.
    */
   static buildKnownResult(skill, confidence, matchedAlias) {
+    const fineCategory = SkillTaxonomyEngine.classifyCategory(skill.slug, skill.category);
+    const tier = SkillTaxonomyEngine.classifyTier(skill.slug, fineCategory);
     return {
       canonicalSlug: skill.slug,
       canonicalName: skill.name,
       category: skill.category,
+      fineCategory,
+      tier,
       normalizationConfidence: confidence,
       matchedAlias,
       isKnown: true,
@@ -2448,10 +2900,14 @@ export class SkillTaxonomyEngine {
    */
   static buildUnknownResult(fallbackSlug, categoryHint) {
     const validCat = SKILL_CATEGORIES.includes(categoryHint) ? categoryHint : 'TOOL';
+    const fineCategory = SkillTaxonomyEngine.classifyCategory(fallbackSlug, validCat);
+    const tier = SkillTaxonomyEngine.classifyTier(fallbackSlug, fineCategory);
     return {
       canonicalSlug: fallbackSlug,
       canonicalName: SkillTaxonomyEngine.formatDisplayName(fallbackSlug),
       category: validCat,
+      fineCategory,
+      tier,
       normalizationConfidence: 0.0,
       matchedAlias: null,
       isKnown: false,
@@ -2577,3 +3033,6 @@ export const getAliases = SkillTaxonomyEngine.getAliases;
 export const getRelationships = SkillTaxonomyEngine.getRelationships;
 export const isKnownSkill = SkillTaxonomyEngine.isKnownSkill;
 export const validateTaxonomyGraph = SkillTaxonomyEngine.validateTaxonomyGraph;
+export const classifyCategory = SkillTaxonomyEngine.classifyCategory;
+export const classifyTier = SkillTaxonomyEngine.classifyTier;
+export const getPrimarySkillRank = SkillTaxonomyEngine.getPrimarySkillRank;
