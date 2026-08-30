@@ -222,3 +222,29 @@ node scripts/backup-export.js --out storage/backups/
 3. **Storage Critical (90%)**: Trigger if `careerhub_db_size_bytes > 966367641` (921.6 MB).
 4. **WAL Archiver Degradation**: Trigger if `careerhub_wal_health == 0` or `careerhub_wal_failed_count > 0`.
 5. **DR Drill Failure**: Trigger if weekly automated restore drill returns non-zero exit code.
+
+---
+
+## 8. Implementation Status & Deferred Pre-Production Scope
+
+### 8.1 Currently Complete & Staging-Verified
+- **Aiven Managed Daily Base Backups**: Fully operational on PostgreSQL 18.x.
+- **Continuous WAL Archiving**: Active streaming with `archive_timeout = 300s` and 0 failures.
+- **10-Day Point-In-Time-Recovery (PITR)**: Complete second-level granularity recovery window.
+- **PITR / Fork Recovery Procedure**: Formally documented and validated for Aiven console & CLI.
+- **Local Logical Backup Generation**: `BackupExportService` & `scripts/backup-export.js` generating complete relational dumps.
+- **Encrypted Backup Format**: Authenticated AES-256-GCM envelope encryption with key versioning (`v1`) and SHA-256 manifest.
+- **Document Storage Backup & Restore**: Full ciphertext preservation and decryptability verification for `storage/documents/`.
+- **Automated Restore Drill**: `scripts/test-dr-restore.js` & `tests/integration/disaster-recovery.test.js` verifying 24 tables, 1,929 rows, and 44 document blobs.
+- **Database Cleanup Verification**: 100% ephemeral database teardown with 0 orphan DBs.
+- **Operational Metrics**: Prometheus metrics service on `GET /metrics` with strict isolation from public health checks.
+- **Disaster Recovery Documentation**: Complete runbook, backup architecture, and operational guidelines.
+
+### 8.2 Deferred to Pre-Production / Phase 15 Launch
+- **Production Offsite S3/R2 Backup Bucket**: Direct cloud bucket syncing for backup packages.
+- **Production Key Escrow Integration**: Live KMS / cloud secrets manager integration.
+- **Automated Scheduled Offsite Upload**: Periodic cron/daemon background worker.
+- **Independent Provider-Loss Disaster Drill**: Full cross-cloud migration test.
+- **Production Cross-Region Document Replication**: Cloud-native object storage replication for resume documents.
+
+*Rationale*: Current project priority is completing and validating the Career Hub MCP and core application product. Aiven managed backup/PITR provides robust staging protection. Deferred backup infrastructure will be deployed prior to general production launch.
