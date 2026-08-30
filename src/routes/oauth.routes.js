@@ -318,7 +318,7 @@ function renderConsentHtml({ client, user, tenant, scopes, params }) {
     </div>
 
     <div class="security-notice">
-      🔒 <strong>Human-in-the-Loop Safety Guarantee</strong>: Claude never receives direct GitHub credentials. All repository modifications require explicit human confirmation and pass through GitHub write safety controls.
+      🔒 <strong>Human-in-the-Loop Safety Guarantee</strong>: ${escapeHtml(clientName)} never receives direct GitHub credentials. All repository modifications require explicit human confirmation and pass through GitHub write safety controls.
     </div>
 
     <form method="POST" action="/oauth/authorize/consent">
@@ -332,7 +332,7 @@ function renderConsentHtml({ client, user, tenant, scopes, params }) {
 
       <div class="actions">
         <button type="submit" name="action" value="deny" class="btn btn-secondary">Cancel</button>
-        <button type="submit" name="action" value="allow" class="btn btn-primary">Authorize Claude</button>
+        <button type="submit" name="action" value="allow" class="btn btn-primary">Authorize ${escapeHtml(clientName)}</button>
       </div>
     </form>
   </div>
@@ -374,11 +374,39 @@ export async function oauthRoutes(fastify, opts = {}) {
     );
   }
 
+  const ALLOWED_METADATA_ORIGINS = new Set([
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://dev.aicareershub.tech',
+  ]);
+
+  function getRequestMetadataOrigin(req, conf) {
+    const forwardedHost = req.headers['x-forwarded-host'];
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const host =
+      typeof forwardedHost === 'string' ? forwardedHost.split(',')[0].trim() : req.headers.host;
+    const proto =
+      typeof forwardedProto === 'string'
+        ? forwardedProto.split(',')[0].trim()
+        : req.socket?.encrypted
+          ? 'https'
+          : 'http';
+
+    if (host) {
+      const candidate = `${proto}://${host}`;
+      if (ALLOWED_METADATA_ORIGINS.has(candidate)) {
+        return candidate;
+      }
+    }
+    return conf?.OAUTH_ISSUER_URL || conf?.APP_URL || null;
+  }
+
   // ---------------------------------------------------------------------------
   // 1. RFC 9728 Protected Resource Metadata Discovery
   // ---------------------------------------------------------------------------
   fastify.get('/.well-known/oauth-protected-resource', async (req, reply) => {
-    const metadata = oauthService.getProtectedResourceMetadata();
+    const origin = getRequestMetadataOrigin(req, config);
+    const metadata = oauthService.getProtectedResourceMetadata(origin);
     reply.header('content-type', 'application/json');
     reply.header('cache-control', 'public, max-age=3600');
     return reply.send(metadata);
@@ -388,14 +416,16 @@ export async function oauthRoutes(fastify, opts = {}) {
   // 2. RFC 8414 OAuth 2.0 Authorization Server Metadata Discovery
   // ---------------------------------------------------------------------------
   fastify.get('/.well-known/oauth-authorization-server', async (req, reply) => {
-    const metadata = oauthService.getAuthorizationServerMetadata();
+    const origin = getRequestMetadataOrigin(req, config);
+    const metadata = oauthService.getAuthorizationServerMetadata(origin);
     reply.header('content-type', 'application/json');
     reply.header('cache-control', 'public, max-age=3600');
     return reply.send(metadata);
   });
 
   fastify.get('/.well-known/openid-configuration', async (req, reply) => {
-    const metadata = oauthService.getAuthorizationServerMetadata();
+    const origin = getRequestMetadataOrigin(req, config);
+    const metadata = oauthService.getAuthorizationServerMetadata(origin);
     reply.header('content-type', 'application/json');
     reply.header('cache-control', 'public, max-age=3600');
     return reply.send(metadata);

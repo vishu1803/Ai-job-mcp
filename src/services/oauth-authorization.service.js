@@ -137,6 +137,15 @@ export function canonicalizeResourceUrl(urlStr) {
 }
 
 /**
+ * Canonical allowed MCP resource endpoints for dual-origin local and public staging access.
+ */
+export const ALLOWED_OAUTH_RESOURCE_ORIGINS = new Set([
+  'http://localhost:3000/mcp',
+  'http://127.0.0.1:3000/mcp',
+  'https://dev.aicareershub.tech/mcp',
+]);
+
+/**
  * Checks whether a requested resource matches the expected/configured resource URL.
  *
  * @param {string} requestedResource Requested resource indicator
@@ -144,13 +153,24 @@ export function canonicalizeResourceUrl(urlStr) {
  * @returns {boolean} True if matching after canonicalization
  */
 export function isMatchingResource(requestedResource, configuredResource) {
-  if (!requestedResource || !configuredResource) {
+  if (!requestedResource) {
     return false;
   }
   try {
     const canonicalRequested = canonicalizeResourceUrl(requestedResource);
-    const canonicalConfigured = canonicalizeResourceUrl(configuredResource);
-    return canonicalRequested === canonicalConfigured;
+    if (configuredResource) {
+      const canonicalConfigured = canonicalizeResourceUrl(configuredResource);
+      if (canonicalRequested === canonicalConfigured) {
+        return true;
+      }
+      if (
+        ALLOWED_OAUTH_RESOURCE_ORIGINS.has(canonicalRequested) &&
+        ALLOWED_OAUTH_RESOURCE_ORIGINS.has(canonicalConfigured)
+      ) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }
@@ -259,9 +279,13 @@ export class OAuthAuthorizationService {
   /**
    * Returns the canonical configured MCP resource URL.
    *
+   * @param {string} [originOverride] Optional origin override for dual-origin staging
    * @returns {string} Canonical resource URL
    */
-  getExpectedResourceUrl() {
+  getExpectedResourceUrl(originOverride) {
+    if (originOverride) {
+      return `${originOverride}/mcp`;
+    }
     return (
       this.config.OAUTH_RESOURCE_URL ||
       this.config.MCP_BASE_URL ||
@@ -272,11 +296,16 @@ export class OAuthAuthorizationService {
   /**
    * Returns RFC 9728 Protected Resource Metadata.
    *
+   * @param {string} [originOverride] Optional origin override for dual-origin staging
    * @returns {object} Metadata object
    */
-  getProtectedResourceMetadata() {
-    const issuer = this.config.OAUTH_ISSUER_URL || this.config.APP_URL || 'http://localhost:3000';
-    const resource = this.getExpectedResourceUrl();
+  getProtectedResourceMetadata(originOverride) {
+    const issuer =
+      originOverride ||
+      this.config.OAUTH_ISSUER_URL ||
+      this.config.APP_URL ||
+      'http://localhost:3000';
+    const resource = this.getExpectedResourceUrl(originOverride);
 
     return {
       resource,
@@ -290,10 +319,15 @@ export class OAuthAuthorizationService {
   /**
    * Returns RFC 8414 OAuth 2.0 Authorization Server Metadata.
    *
+   * @param {string} [originOverride] Optional origin override for dual-origin staging
    * @returns {object} Metadata object
    */
-  getAuthorizationServerMetadata() {
-    const issuer = this.config.OAUTH_ISSUER_URL || this.config.APP_URL || 'http://localhost:3000';
+  getAuthorizationServerMetadata(originOverride) {
+    const issuer =
+      originOverride ||
+      this.config.OAUTH_ISSUER_URL ||
+      this.config.APP_URL ||
+      'http://localhost:3000';
 
     return {
       issuer,
@@ -307,6 +341,7 @@ export class OAuthAuthorizationService {
       code_challenge_methods_supported: ['S256'],
       scopes_supported: ['career:read', 'career:write'],
       resource_indicators_supported: true,
+      client_id_metadata_document_supported: true,
       token_endpoint_auth_methods_supported: ['none', 'client_secret_post', 'client_secret_basic'],
       service_documentation: `${issuer}/docs/oauth`,
     };
@@ -324,6 +359,24 @@ export class OAuthAuthorizationService {
 
     if (PRECONFIGURED_OAUTH_CLIENTS[clientId]) {
       return PRECONFIGURED_OAUTH_CLIENTS[clientId];
+    }
+
+    // Dynamic resolution for Anthropic Claude Client ID Metadata Documents (draft-ietf-oauth-client-id-metadata-document)
+    if (
+      typeof clientId === 'string' &&
+      (clientId.startsWith('https://claude.ai/') ||
+        clientId.startsWith('https://cdn.anthropic.com/')) &&
+      clientId.includes('metadata')
+    ) {
+      return {
+        clientId,
+        clientName: 'Anthropic Claude (Web - Hosted Metadata)',
+        clientType: 'PUBLIC',
+        redirectUris: ['https://claude.ai/api/mcp/auth_callback'],
+        allowedGrantTypes: ['authorization_code', 'refresh_token'],
+        allowedScopes: ['career:read', 'career:write'],
+        isTrusted: true,
+      };
     }
 
     const [foundClient] = await database

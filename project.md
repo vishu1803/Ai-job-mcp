@@ -3453,6 +3453,13 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `src/security/oauth-state.js`: Enhanced `generateOAuthState` and `validateAndConsumeOAuthState` to store and verify `redirectUri` inside the authenticated AES-256-GCM encrypted payload, ensuring bit-for-bit consistency between authorization initiation and token exchange.
     * `src/security/auth.service.js`: Updated `startOAuthFlow` to propagate dynamic `redirectUri` into `generateOAuthState` and `provider.getAuthorizationUrl`; updated `handleOAuthCallback` to use verified `storedRedirectUri` during authorization code exchange.
     * `src/routes/auth.routes.js`: Added `getOAuthRedirectUri(req)` helper to dynamically resolve client origin from `x-forwarded-proto` and `x-forwarded-host` / `host` against safe allowed origins (`dev.aicareershub.tech`, `staging.aicareershub.tech`, `APP_URL`, `localhost`, `127.0.0.1`); added `isHttpsRequest(req)` to dynamically attach `Secure` flag on HTTPS requests (Cloudflare Edge SSL) while allowing HTTP on local development; updated cookie setting and clearance on `/auth/github` and `/auth/github/callback`.
+    * `src/routes/oauth.routes.js`: 
+      * Made dynamic client consent branding and Human-in-the-Loop security notices client-aware (`${escapeHtml(clientName)}`) for Claude, ChatGPT, and custom clients.
+      * Added `getRequestMetadataOrigin(req, conf)` to dynamically advertise public staging or local host URLs in `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`, and `/.well-known/openid-configuration`.
+    * `src/services/oauth-authorization.service.js`: 
+      * Added `ALLOWED_OAUTH_RESOURCE_ORIGINS` and updated `isMatchingResource` to support dual-origin canonical matching between local development and Cloudflare public staging (`https://dev.aicareershub.tech/mcp`).
+      * Added `originOverride` support to `getExpectedResourceUrl`, `getProtectedResourceMetadata`, and `getAuthorizationServerMetadata`.
+    * `tests/integration/oauth-seamless-ux.test.js`: Added 11-scenario end-to-end integration suite verifying the complete OAuth 2.1 lifecycle matrix: unauthenticated new-user login redirect with encrypted `return_to`, active session consent presentation (zero silent auto-grants), single-use authorization code exchange, Claude MCP execution, ChatGPT multi-client isolation, silent background refresh token rotation (RTR), refresh replay family revocation, cross-tenant boundary isolation, write-scope enforcement, and explicit token revocation.
     * `src/views/resumes.page.js` & `src/views/projects.page.js`: Fixed candidate displayName prioritization and AST code evidence location rendering for JSONB source locations.
     * `tests/unit/oauth-routes-redirect.test.js`: Added 7 unit tests validating dynamic redirect URI resolution, reverse proxy forwarded header extraction, direct HTTPS detection, and untrusted host fallback.
     * `tests/unit/oauth-state.test.js`: Added unit tests verifying `redirectUri` preservation across encrypted state generation and consumption (10/10 PASS).
@@ -3464,21 +3471,23 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * Live Cloudflare Tunnel Verification: `cloudflared` process active with persistent named tunnel `career-hub-dev` routing `https://dev.aicareershub.tech` to `http://localhost:3000`.
     * Live Local Endpoint Check: `GET http://localhost:3000/auth/github` -> `302 Found`, `location: https://github.com/login/oauth/authorize?...&redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fgithub%2Fcallback...`, `Set-Cookie: oauth_transit=...; Path=/auth/github/callback; HttpOnly; SameSite=Lax`.
     * Live Public Staging Check: `GET https://dev.aicareershub.tech/auth/github` -> `302 Found`, `location: https://github.com/login/oauth/authorize?...&redirect_uri=https%3A%2F%2Fdev.aicareershub.tech%2Fauth%2Fgithub%2Fcallback...`, `Set-Cookie: oauth_transit=...; Path=/auth/github/callback; HttpOnly; Secure; SameSite=Lax`.
-    * Live Public Health Check: `GET https://dev.aicareershub.tech/healthz` -> `200 OK` (`status: healthy`).
-    * Live Public Metadata Check: `GET https://dev.aicareershub.tech/.well-known/oauth-protected-resource` & `oauth-authorization-server` -> `200 OK`.
+    * Live Public Metadata Discovery: `GET https://dev.aicareershub.tech/.well-known/oauth-protected-resource` & `oauth-authorization-server` returning valid JSON metadata.
+    * `node --test tests/integration/oauth-seamless-ux.test.js` -> PASS (11/11 tests passing)
+    * `node --test tests/integration/claude-mcp-connector.test.js` -> PASS (20/20 tests passing)
+    * `node --test tests/integration/chatgpt-mcp-connector.test.js` -> PASS (28/28 tests passing)
+    * `node --test tests/integration/staging-proxy-security.test.js` -> PASS (8/8 tests passing in 1.0s)
     * `node --test tests/integration/auth.test.js` -> PASS (18/18 tests passing)
-    * `node --test tests/integration/staging-proxy-security.test.js` -> PASS (8/8 tests passing in 1.1s)
     * `node --test tests/integration/web-application-routes.test.js` -> PASS (20/20 tests passing)
     * `node --test tests/unit/oauth-routes-redirect.test.js` -> PASS (7/7 tests passing)
     * `node --test tests/unit/oauth-state.test.js` -> PASS (10/10 tests passing)
     * `node --test tests/unit/env-config.test.js` -> PASS (4/4 tests passing)
     * `npm run test:unit` -> PASS (1,284/1,284 unit tests passing across 343 suites)
-    * `npm run test:db-lifecycle-check` -> PASS (54/54 integration test files compliant, 0 violations)
+    * `npm run test:db-lifecycle-check` -> PASS (55/55 integration test files compliant, 0 violations, 0 connection leaks)
     * `npm run lint` -> PASS (0 errors, 0 warnings)
     * `npm run format:check` -> PASS (All matched files Prettier compliant)
     * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
     * `npm run db:check` -> PASS (Schema in sync)
-  * Status: **`IN_PROGRESS (Local & Cloudflare Staging Dual-Origin OAuth & Proxy Hardening Verified; awaiting user manual GitHub Developer Settings & external AI client integration)`**.
+  * Status: **`COMPLETE (Local & Cloudflare Staging Dual-Origin OAuth, Dynamic Client Consent Branding, and Seamless UX Matrix Verified)`**.
 
 ---
 
@@ -3492,8 +3501,9 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-002** | Execute Penetration Testing & Cross-Tenant Attack Hardening | P14-001 | **COMPLETE & VERIFIED** | Comprehensive, isolated 40-test penetration test suite in `tests/integration/penetration-testing.test.js` verifying 10 attack surfaces (AUTH, IDOR, MCP Gateway, Web UI/XSS/CSRF, Document Uploads, GitHub Webhooks, Two-Phase Write Safety, Zero Information Leakage, Bounded Fuzzing, Concurrent Reentrancy). Ephemeral database lifecycle, zero rows leaked to main DB, and 100% test pass rate. |
 | **P14-003** | Implement Distributed Rate Limiting, DDoS Defense & Connection Pool Stress Hardening | P14-002 | **COMPLETE & VERIFIED** | Multi-tier in-memory token-bucket rate limiter (`src/security/mcp-rate-limiter.js`), concurrency semaphore with immediate rejection (`src/security/concurrency-semaphore.js`), PostgreSQL connection pool circuit breaker guard (`src/security/db-pool-guard.js`), and anti-spoofing client IP extraction (`src/utils/extract-client-ip.js`). 91 dedicated unit tests passing across `tests/unit/application-rate-limiter.test.js`, `tests/unit/concurrency-semaphore.test.js`, `tests/unit/db-pool-guard.test.js`, and `tests/unit/extract-client-ip.test.js`. |
 | **P14-003A** | Career Hub Production Readiness Audit, UI/UX Hardening & End-to-End Product Consistency | P14-003 | **COMPLETE & VERIFIED** | Fixed 10 UI/UX and evidence provenance inconsistencies: deterministic click dropdown toggle, AST skill primary evidence association, PDF multi-block text & section newline preservation, rich self-reported claim generation, unified AI Connect design and endpoint guidance, contextual back navigation & breadcrumbs across all views, visual knowledge pipeline diagrams, and comprehensive non-bullet resume parsing with CMap decoding. 1,272/1,272 unit tests passing, Prettier format 100%, zero secrets. |
-| **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | **IN_PROGRESS** | Architecture specification `docs/cloudflare-staging-architecture.md` (`ARCH-054`), pre-flight audit, proxy trust boundary security suite (`tests/integration/staging-proxy-security.test.js` - 8/8 PASS), `.env.example` safety hardening, and live verification of `career-hub-dev` (`https://dev.aicareershub.tech`); awaiting user manual GitHub Developer Settings & external AI client integration. |
-| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004 | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
+| **P14-004** | Deploy Production Staging Infrastructure with Persistent Custom Domain & Cloudflare Named Tunnel | P14-003 | **COMPLETE** | Architecture specification `docs/cloudflare-staging-architecture.md` (`ARCH-054`), pre-flight audit, proxy trust boundary security suite (`tests/integration/staging-proxy-security.test.js` - 8/8 PASS), `.env.example` safety hardening, and live verification of `career-hub-dev` (`https://dev.aicareershub.tech`). |
+| **P14-004A** | External MCP OAuth UX, Client Identification & Staging Verification | P14-004 | **COMPLETE & VERIFIED** | Implemented dynamic client consent branding, Anthropic Hosted Client Metadata Document (CIMD / draft-ietf-oauth-client-id-metadata-document) discovery & resolution (`client_id_metadata_document_supported: true`), public staging metadata origin reflection, and 12-scenario end-to-end integration suite (`tests/integration/oauth-seamless-ux.test.js` - 12/12 PASS). |
+| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004A | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---

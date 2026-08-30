@@ -360,7 +360,7 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
     assert.ok(res.body.includes('career:read'));
     assert.ok(res.body.includes('career:write'));
     assert.ok(res.body.includes('/oauth/authorize/consent'));
-    assert.ok(res.body.includes('Claude never receives direct GitHub credentials'));
+    assert.ok(res.body.includes('never receives direct GitHub credentials'));
   });
 
   it('5b. redirects with error=access_denied when user denies consent on POST /oauth/authorize/consent', async () => {
@@ -557,6 +557,70 @@ describe('Claude Remote MCP & OAuth 2.1 Connector Integration Tests (P10-001)', 
 
     accessTokenMemberA = body.access_token;
     refreshTokenMemberA = body.refresh_token;
+  });
+
+  it('8b. supports Anthropic Hosted Client Metadata URL (CIMD) as client_id for automatic client identification', async () => {
+    const cimdClientId = 'https://claude.ai/api/mcp/client-metadata.json';
+    const cimdCode = await oauthService.createAuthorizationCode({
+      clientId: cimdClientId,
+      redirectUri: 'https://claude.ai/api/mcp/auth_callback',
+      resource: expectedResource,
+      codeChallenge: validChallenge,
+      codeChallengeMethod: 'S256',
+      scopes: ['career:read'],
+      tenantId: tenantA.id,
+      userId: userAMember.id,
+      userRole: 'MEMBER',
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/oauth/token',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      payload: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: cimdClientId,
+        redirect_uri: 'https://claude.ai/api/mcp/auth_callback',
+        resource: expectedResource,
+        code: cimdCode,
+        code_verifier: validVerifier,
+      }).toString(),
+    });
+
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.ok(body.access_token);
+    assert.equal(body.token_type, 'Bearer');
+    assert.equal(body.scope, 'career:read');
+
+    // Verify token works on MCP
+    const mcpRes = await app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        authorization: `Bearer ${body.access_token}`,
+        'content-type': 'application/json',
+        'mcp-protocol-version': '2026-07-28',
+        'mcp-method': 'tools/list',
+      },
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-cimd-list',
+        method: 'tools/list',
+        params: {
+          _meta: {
+            'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+            'io.modelcontextprotocol/clientCapabilities': {},
+          },
+        },
+      },
+    });
+
+    assert.equal(mcpRes.statusCode, 200);
+    const mcpBody = JSON.parse(mcpRes.body);
+    assert.ok(Array.isArray(mcpBody.result?.tools));
   });
 
   it('9. enforces single-use authorization code (replaying code fails with invalid_grant)', async () => {
