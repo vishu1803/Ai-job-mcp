@@ -311,4 +311,38 @@ describe('Step 1F: End-to-End Ingestion Lifecycle & Idempotency Integration Test
     const statusBody = JSON.parse(statusRes.body);
     assert.equal(statusBody.state, 'IDLE');
   });
+
+  it('7. POST /onboarding/sync with Content-Type: application/json and empty body is rejected with 400 (FST_ERR_CTP_EMPTY_JSON_BODY)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/onboarding/sync',
+      headers: {
+        cookie: sessionCookie,
+        accept: 'application/json',
+        'content-type': 'application/json',
+      },
+      // No body sent
+    });
+
+    assert.equal(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.equal(body.error.code, 'FST_ERR_CTP_EMPTY_JSON_BODY');
+  });
+
+  it('8. Canonical POST /onboarding/sync without Content-Type header executes cleanly', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/onboarding/sync',
+      headers: {
+        cookie: sessionCookie,
+        accept: 'application/json',
+      },
+    });
+
+    assert.equal(res.statusCode, 202);
+    const body = JSON.parse(res.body);
+    assert.equal(body.success, true);
+    assert.equal(body.state, 'RUNNING');
+    assert.ok(body.ingestionRunId);
+  });
 });

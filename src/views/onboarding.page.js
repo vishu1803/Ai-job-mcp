@@ -1064,8 +1064,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
               fetch('/onboarding/sync', {
                 method: 'POST',
                 headers: {
-                  'Accept': 'application/json',
-                  'Content-Type': 'application/json'
+                  'Accept': 'application/json'
                 }
               })
                 .then(function(res) {
