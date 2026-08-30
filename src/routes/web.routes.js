@@ -21,7 +21,7 @@
  * Strict Invariant: POST /mcp remains purely JSON-RPC and is NEVER touched by web routes.
  */
 
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, or, desc } from 'drizzle-orm';
 import { validateSession, getSessionCookieOptions } from '../security/session.service.js';
 import { db as defaultDb } from '../db/index.js';
 import {
@@ -341,14 +341,29 @@ export default async function webRoutes(app, opts = {}) {
           eq(resourceConnections.provider, 'GITHUB_APP'),
           eq(resourceConnections.status, 'ACTIVE')
         )
-      )
-      .limit(1);
+      );
 
-    // Fetch existing selected resources
-    const selectedResources = await database
+    // Fetch candidate's active resource selections (deduplicated by externalResourceId)
+    const rawSelectedResources = await database
       .select()
       .from(resources)
-      .where(and(eq(resources.tenantId, tenant.id), eq(resources.candidateId, candidate.id)));
+      .where(
+        and(
+          eq(resources.tenantId, tenant.id),
+          eq(resources.candidateId, candidate.id),
+          eq(resources.status, 'ACTIVE')
+        )
+      );
+
+    const seenResourceKeys = new Set();
+    const selectedResources = [];
+    for (const res of rawSelectedResources) {
+      const canonicalKey = res.externalResourceId || res.name;
+      if (!seenResourceKeys.has(canonicalKey)) {
+        seenResourceKeys.add(canonicalKey);
+        selectedResources.push(res);
+      }
+    }
 
     // Available repositories: derive from connector or selected resources
     let availableRepos = [...selectedResources];
@@ -363,15 +378,24 @@ export default async function webRoutes(app, opts = {}) {
             installationId: gitHubConnection.installationId,
             connectionStatus: gitHubConnection.status,
           },
-          { limit: 20 }
+          {
+            installationId: gitHubConnection.installationId,
+          },
+          { limit: 100 }
         );
         if (listRes && Array.isArray(listRes.items) && listRes.items.length > 0) {
           availableRepos = listRes.items.map((item) => ({
-            id: item.id,
+            id: String(item.id),
+            externalResourceId: String(item.id),
             name: item.name,
-            displayName: item.displayName || item.name,
-            externalResourceId: item.id,
-            isPrivate: item.isPrivate || false,
+            displayName: item.fullName || item.name,
+            fullName: item.fullName || item.metadata?.fullName || item.name,
+            url:
+              item.url ||
+              item.metadata?.htmlUrl ||
+              `https://github.com/${item.fullName || item.name}`,
+            isPrivate: Boolean(item.isPrivate),
+            defaultBranch: item.defaultBranch || 'main',
             metadata: item.metadata || {},
           }));
         }
@@ -469,6 +493,7 @@ export default async function webRoutes(app, opts = {}) {
     } else if (!Array.isArray(repoKeys)) {
       repoKeys = [];
     }
+    repoKeys = repoKeys.map((k) => String(k).trim()).filter(Boolean);
 
     const [gitHubConnection] = await database
       .select()
@@ -482,10 +507,69 @@ export default async function webRoutes(app, opts = {}) {
       )
       .limit(1);
 
-    // Upsert selected repositories as resources
+    if (!gitHubConnection) {
+      return reply.redirect('/onboarding?step=2&error=GitHub+App+is+not+connected');
+    }
+
+    // Authoritative server-side validation against GitHub App installation
+    let authorizedRepos = [];
+    if (connectorRegistry.has('GITHUB_APP')) {
+      try {
+        const connector = connectorRegistry.get('GITHUB_APP');
+        const listRes = await connector.listResources(
+          {
+            tenantId: tenant.id,
+            userId: user.id,
+            connectionId: gitHubConnection.id,
+            installationId: gitHubConnection.installationId,
+            connectionStatus: gitHubConnection.status,
+          },
+          {
+            installationId: gitHubConnection.installationId,
+          },
+          { limit: 100 }
+        );
+        if (listRes && Array.isArray(listRes.items)) {
+          authorizedRepos = listRes.items;
+        }
+      } catch (err) {
+        req.log.error({ err }, 'Failed to fetch authorized repositories for selection validation');
+        return reply.redirect('/onboarding?step=3&error=Failed+to+validate+repository+access');
+      }
+    }
+
+    // Build authorization lookup map (id, fullName, name)
+    const authMap = new Map();
+    for (const r of authorizedRepos) {
+      authMap.set(String(r.id), r);
+      if (r.fullName) authMap.set(r.fullName, r);
+      if (r.name) authMap.set(r.name, r);
+    }
+
+    // Validate, deduplicate, and resolve each selected key (fail closed on unauthorized repo IDs)
+    const validReposToIngest = [];
+    const seenValidIds = new Set();
     for (const key of repoKeys) {
-      if (!key) continue;
-      const repoName = key.includes('/') ? key : `${user.displayName || 'user'}/${key}`;
+      const matched = authMap.get(key);
+      if (matched && !seenValidIds.has(String(matched.id))) {
+        seenValidIds.add(String(matched.id));
+        validReposToIngest.push(matched);
+      } else if (!matched) {
+        req.log.warn(
+          { key, tenantId: tenant.id },
+          'Rejected unauthorized or unknown repository selection'
+        );
+      }
+    }
+
+    // Upsert validated repositories into resources table with canonical numeric externalResourceId
+    const activeExternalIds = new Set();
+    for (const repo of validReposToIngest) {
+      const externalId = String(repo.id);
+      activeExternalIds.add(externalId);
+      const repoName = repo.fullName || repo.name;
+      const repoUrl = repo.url || repo.metadata?.htmlUrl || `https://github.com/${repoName}`;
+
       const [existing] = await database
         .select()
         .from(resources)
@@ -493,7 +577,13 @@ export default async function webRoutes(app, opts = {}) {
           and(
             eq(resources.tenantId, tenant.id),
             eq(resources.provider, 'GITHUB_APP'),
-            eq(resources.externalResourceId, String(key))
+            or(
+              eq(resources.externalResourceId, externalId),
+              eq(resources.externalResourceId, repoName),
+              eq(resources.name, repoName),
+              eq(resources.displayName, repoName),
+              eq(resources.name, repo.name)
+            )
           )
         )
         .limit(1);
@@ -501,28 +591,63 @@ export default async function webRoutes(app, opts = {}) {
       if (existing) {
         await database
           .update(resources)
-          .set({ candidateId: candidate.id, status: 'ACTIVE', updatedAt: new Date() })
+          .set({
+            candidateId: candidate.id,
+            connectionId: gitHubConnection.id,
+            externalResourceId: externalId,
+            name: repoName,
+            displayName: repoName,
+            url: repoUrl,
+            isPrivate: Boolean(repo.isPrivate),
+            status: 'ACTIVE',
+            updatedAt: new Date(),
+          })
           .where(eq(resources.id, existing.id));
       } else {
         await database.insert(resources).values({
           tenantId: tenant.id,
           candidateId: candidate.id,
-          connectionId: gitHubConnection?.id || null,
+          connectionId: gitHubConnection.id,
           provider: 'GITHUB_APP',
           resourceType: 'REPOSITORY',
-          externalResourceId: String(key),
+          externalResourceId: externalId,
           name: repoName,
           displayName: repoName,
-          url: `https://github.com/${repoName}`,
-          isPrivate: false,
+          url: repoUrl,
+          isPrivate: Boolean(repo.isPrivate),
           status: 'ACTIVE',
         });
       }
     }
 
+    // Deselection: Update any previously ACTIVE resources for this candidate/connection not in activeExternalIds
+    const existingActiveResources = await database
+      .select()
+      .from(resources)
+      .where(
+        and(
+          eq(resources.tenantId, tenant.id),
+          eq(resources.candidateId, candidate.id),
+          eq(resources.provider, 'GITHUB_APP'),
+          eq(resources.status, 'ACTIVE')
+        )
+      );
+
+    for (const res of existingActiveResources) {
+      if (!activeExternalIds.has(res.externalResourceId)) {
+        await database
+          .update(resources)
+          .set({
+            status: 'DISCONNECTED',
+            updatedAt: new Date(),
+          })
+          .where(eq(resources.id, res.id));
+      }
+    }
+
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {
-      return reply.send({ success: true, count: repoKeys.length });
+      return reply.send({ success: true, count: validReposToIngest.length });
     }
 
     return reply.redirect('/onboarding?step=4&success=Repositories+selected+for+ingestion');
@@ -576,6 +701,9 @@ export default async function webRoutes(app, opts = {}) {
 
     const { user, tenant } = sessionContext;
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const errorMsg = req.query?.error || null;
+    const successMsg = req.query?.success || null;
+    const currentTab = req.query?.tab || 'active';
 
     const projectRows = await database
       .select()
@@ -588,6 +716,9 @@ export default async function webRoutes(app, opts = {}) {
       tenant,
       projects: projectRows,
       selectedProject: null,
+      currentTab,
+      error: errorMsg,
+      success: successMsg,
     });
 
     reply.type('text/html; charset=utf-8').send(html);
@@ -605,6 +736,8 @@ export default async function webRoutes(app, opts = {}) {
     const { user, tenant } = sessionContext;
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
     const projectId = req.params?.id;
+    const errorMsg = req.query?.error || null;
+    const successMsg = req.query?.success || null;
 
     const [proj] = await database
       .select()
@@ -654,9 +787,127 @@ export default async function webRoutes(app, opts = {}) {
       tenant,
       projects: [selectedProject],
       selectedProject,
+      error: errorMsg,
+      success: successMsg,
     });
 
     reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // -------------------------------------------------------------------------
+  // 10A. POST /projects/:id/remove & POST /projects/:id/archive — Remove Project from Portfolio
+  // -------------------------------------------------------------------------
+  const handleRemoveProject = async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/projects');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const projectId = req.params?.id;
+
+    const [proj] = await database
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.id, projectId),
+          eq(projects.tenantId, tenant.id),
+          eq(projects.candidateId, candidate.id)
+        )
+      )
+      .limit(1);
+
+    if (!proj) {
+      throw new NotFoundError(`Project not found in this workspace: ${projectId}`);
+    }
+
+    const existingMetadata = proj.metadata || {};
+    const updatedMetadata = {
+      ...existingMetadata,
+      portfolioStatus: 'ARCHIVED',
+      archivedAt: new Date().toISOString(),
+    };
+
+    await database
+      .update(projects)
+      .set({
+        isHighlighted: false,
+        metadata: updatedMetadata,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(projects.id, proj.id), eq(projects.tenantId, tenant.id)));
+
+    const accept = req.headers['accept'] || '';
+    if (accept.includes('application/json') && !accept.includes('text/html')) {
+      return reply.send({
+        success: true,
+        message: 'Project removed from Career Portfolio',
+        projectId: proj.id,
+      });
+    }
+
+    return reply.redirect('/projects?success=Project+removed+from+Career+Portfolio');
+  };
+
+  app.post('/projects/:id/remove', handleRemoveProject);
+  app.post('/projects/:id/archive', handleRemoveProject);
+
+  // -------------------------------------------------------------------------
+  // 10B. POST /projects/:id/restore — Restore Project to Career Portfolio
+  // -------------------------------------------------------------------------
+  app.post('/projects/:id/restore', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/projects');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const projectId = req.params?.id;
+
+    const [proj] = await database
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.id, projectId),
+          eq(projects.tenantId, tenant.id),
+          eq(projects.candidateId, candidate.id)
+        )
+      )
+      .limit(1);
+
+    if (!proj) {
+      throw new NotFoundError(`Project not found in this workspace: ${projectId}`);
+    }
+
+    const existingMetadata = proj.metadata || {};
+    const updatedMetadata = {
+      ...existingMetadata,
+      portfolioStatus: 'ACTIVE',
+      archivedAt: null,
+    };
+
+    await database
+      .update(projects)
+      .set({
+        metadata: updatedMetadata,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(projects.id, proj.id), eq(projects.tenantId, tenant.id)));
+
+    const accept = req.headers['accept'] || '';
+    if (accept.includes('application/json') && !accept.includes('text/html')) {
+      return reply.send({
+        success: true,
+        message: 'Project restored to Career Portfolio',
+        projectId: proj.id,
+      });
+    }
+
+    return reply.redirect(`/projects/${proj.id}?success=Project+restored+to+Career+Portfolio`);
   });
 
   // -------------------------------------------------------------------------
@@ -1515,12 +1766,14 @@ export default async function webRoutes(app, opts = {}) {
     };
 
     const profile = await candidateProfileService.getCareerProfile(context, candidate.id);
-    const flashMessage = req.query.saved === 'true' ? 'Career preferences saved successfully.' : '';
+    const flashMessage =
+      req.query.saved === 'true' ? 'Career Profile and preferences saved successfully.' : '';
 
     const html = renderProfilePage({
       user: sessionContext.user,
       tenant: sessionContext.tenant,
       candidate,
+      profile,
       preferences: profile.jobPreferences,
       verifiedSkills: profile.verifiedSkillsSummary,
       csrfToken: 'csrf-profile-token-2026',
@@ -1559,6 +1812,41 @@ export default async function webRoutes(app, opts = {}) {
           ? val
           : [];
 
+    // 1. Update Candidate Identity & Narrative
+    const candidateUpdates = {};
+    if (body.displayName && typeof body.displayName === 'string') {
+      candidateUpdates.displayName = body.displayName.trim().slice(0, 255);
+    }
+    if (body.headline !== undefined) {
+      candidateUpdates.headline = String(body.headline).trim().slice(0, 500) || null;
+    }
+    if (body.summary !== undefined) {
+      candidateUpdates.summary = String(body.summary).trim().slice(0, 5000) || null;
+    }
+
+    const currentMeta = candidate.profileMetadata || {};
+    const updatedMeta = {
+      ...currentMeta,
+      currentRole:
+        body.currentRole !== undefined
+          ? String(body.currentRole).trim().slice(0, 255) || null
+          : currentMeta.currentRole || null,
+      location:
+        body.location !== undefined
+          ? String(body.location).trim().slice(0, 255) || null
+          : currentMeta.location || null,
+    };
+    candidateUpdates.profileMetadata = updatedMeta;
+    candidateUpdates.updatedAt = new Date();
+
+    await database
+      .update(candidates)
+      .set(candidateUpdates)
+      .where(
+        and(eq(candidates.id, candidate.id), eq(candidates.tenantId, sessionContext.tenant.id))
+      );
+
+    // 2. Update Career Preferences & Intent
     const preferencesUpdate = {
       targetRoles: parseList(body.targetRoles),
       preferredLocations: parseList(body.preferredLocations),

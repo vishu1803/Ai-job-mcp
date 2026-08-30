@@ -127,13 +127,82 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
   const profileView = await profileService.getProfile(context, candidateId);
 
-  // 1. Calculate profile completeness score
+  // 1. Calculate profile completeness score & actionable readiness
+  const rawPreferences = profileView.candidate.profileMetadata?.careerPreferences || {};
+  const jobPreferences = {
+    targetRoles: Array.isArray(rawPreferences.targetRoles) ? rawPreferences.targetRoles : [],
+    preferredLocations: Array.isArray(rawPreferences.preferredLocations)
+      ? rawPreferences.preferredLocations
+      : [],
+    remotePreference: rawPreferences.remotePreference || 'FLEXIBLE',
+    employmentTypes: Array.isArray(rawPreferences.employmentTypes)
+      ? rawPreferences.employmentTypes
+      : ['FULL_TIME'],
+    salaryFloor: typeof rawPreferences.salaryFloor === 'number' ? rawPreferences.salaryFloor : null,
+    salaryCurrency: rawPreferences.salaryCurrency || 'USD',
+    industries: Array.isArray(rawPreferences.industries) ? rawPreferences.industries : [],
+    companiesToAvoid: Array.isArray(rawPreferences.companiesToAvoid)
+      ? rawPreferences.companiesToAvoid
+      : [],
+    companiesToPrioritize: Array.isArray(rawPreferences.companiesToPrioritize)
+      ? rawPreferences.companiesToPrioritize
+      : [],
+    preferredTechStack: Array.isArray(rawPreferences.preferredTechStack)
+      ? rawPreferences.preferredTechStack
+      : [],
+    relocationPreference: rawPreferences.relocationPreference || 'REMOTE_ONLY',
+  };
+
+  const eligibility = {
+    workAuthorization: Array.isArray(rawPreferences.workAuthorization)
+      ? rawPreferences.workAuthorization
+      : [],
+    visaSponsorshipRequired: Boolean(rawPreferences.visaSponsorshipRequired),
+    availabilityDate: rawPreferences.availabilityDate
+      ? String(rawPreferences.availabilityDate)
+      : null,
+  };
+
+  const missingRequired = [];
+  const missingOptional = [];
+  if (jobPreferences.targetRoles.length === 0) missingRequired.push('targetRoles');
+  if (
+    jobPreferences.preferredLocations.length === 0 &&
+    jobPreferences.remotePreference !== 'REMOTE_ONLY'
+  ) {
+    missingRequired.push('preferredLocations');
+  }
+  if (jobPreferences.salaryFloor == null) missingOptional.push('salaryFloor');
+  if (jobPreferences.preferredTechStack.length === 0) missingOptional.push('preferredTechStack');
+  if (jobPreferences.industries.length === 0) missingOptional.push('industries');
+  if (eligibility.workAuthorization.length === 0) missingOptional.push('workAuthorization');
+  if (!eligibility.availabilityDate) missingOptional.push('availabilityDate');
+
+  const isReadyForJobSearch = missingRequired.length === 0;
+
   let completenessScore = 20; // Base existence score
-  if (profileView.candidate.headline) completenessScore += 20;
-  if (profileView.candidate.summary) completenessScore += 20;
-  if (Array.isArray(profileView.skills) && profileView.skills.length > 0) completenessScore += 20;
+  if (profileView.candidate.headline) completenessScore += 15;
+  if (profileView.candidate.summary) completenessScore += 15;
+  if (Array.isArray(profileView.skills) && profileView.skills.length > 0) completenessScore += 15;
   if (Array.isArray(profileView.projects) && profileView.projects.length > 0)
-    completenessScore += 20;
+    completenessScore += 15;
+  if (jobPreferences.targetRoles.length > 0) completenessScore += 10;
+  if (jobPreferences.preferredLocations.length > 0) completenessScore += 5;
+  if (jobPreferences.salaryFloor != null) completenessScore += 5;
+  completenessScore = Math.min(completenessScore, 100);
+
+  const profileCompleteness = {
+    score: completenessScore,
+    status: isReadyForJobSearch
+      ? 'COMPLETE FOR JOB SEARCH'
+      : `NEEDS ATTENTION — ${missingRequired.length} item(s) needed for job matching`,
+    isReadyForJobSearch,
+    missingRequiredForSearch: missingRequired,
+    missingOptional,
+    actionableFeedback: isReadyForJobSearch
+      ? 'Profile contains all required criteria for automated job matching and discovery.'
+      : `Please configure: ${missingRequired.join(', ')} to enable high-confidence job search.`,
+  };
 
   // 2. Format top verified skills (max 15)
   let topSkills = undefined;
@@ -156,7 +225,9 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
   // 3. Format highlighted projects (max 5)
   let highlightedProjects = undefined;
   if (args.includeProjects !== false) {
-    const rawProjects = profileView.projects || [];
+    const rawProjects = (profileView.projects || []).filter(
+      (p) => p.metadata?.portfolioStatus !== 'ARCHIVED' && p.metadata?.isArchived !== true
+    );
     // Prioritize highlighted projects, then order by creation date
     const sortedProjects = [...rawProjects].sort((a, b) => {
       if (a.isHighlighted && !b.isHighlighted) return -1;
@@ -173,6 +244,7 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
       endDate: p.endDate ? String(p.endDate) : null,
       linkedResourceCount: p.linkedResourceCount || 0,
       verifiedSignalCount: Array.isArray(p.evidence) ? p.evidence.length : 0,
+      provenanceStatus: p.evidence && p.evidence.length > 0 ? 'VERIFIED' : 'CLAIMED',
     }));
   }
 
@@ -192,6 +264,7 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
         endDate: exp.endDate ? String(exp.endDate) : null,
         isCurrent: Boolean(exp.isCurrent),
         verifiedSkillsUsed: Array.isArray(exp.skills) ? exp.skills.slice(0, 10) : [],
+        provenanceStatus: 'CLAIMED',
       }));
     } else {
       recentExperience = [];
@@ -212,12 +285,20 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
       displayName: profileView.candidate.displayName,
       headline: profileView.candidate.headline || null,
       summary: profileView.candidate.summary || null,
+      currentRole:
+        profileView.candidate.profileMetadata?.currentRole ||
+        profileView.candidate.headline ||
+        null,
+      location: profileView.candidate.profileMetadata?.location || null,
       canonicalEmail: profileView.candidate.canonicalEmail || null,
       status: profileView.candidate.status,
       createdAt: profileView.candidate.createdAt,
       updatedAt: profileView.candidate.updatedAt,
     },
     profileCompletenessScore: completenessScore,
+    profileCompleteness,
+    jobPreferences,
+    eligibility,
     identities: (profileView.identities || []).map((i) => ({
       provider: i.provider,
       externalUsername: i.externalUsername || null,

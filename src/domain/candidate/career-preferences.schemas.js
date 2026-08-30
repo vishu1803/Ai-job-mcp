@@ -81,6 +81,18 @@ export const UpdateCareerPreferencesInputSchema = z.strictObject({
 });
 
 /**
+ * Profile Completeness & Readiness Schema.
+ */
+export const ProfileCompletenessSchema = z.strictObject({
+  score: z.number().min(0).max(100),
+  status: z.string(),
+  isReadyForJobSearch: z.boolean(),
+  missingRequiredForSearch: z.array(z.string()).default([]),
+  missingOptional: z.array(z.string()).default([]),
+  actionableFeedback: z.string(),
+});
+
+/**
  * Candidate Career Profile View Schema.
  */
 export const CandidateCareerProfileSchema = z.strictObject({
@@ -90,6 +102,7 @@ export const CandidateCareerProfileSchema = z.strictObject({
   headline: z.string().max(500).optional().nullable(),
   summary: z.string().max(5000).optional().nullable(),
   currentRole: z.string().max(255).optional().nullable(),
+  location: z.string().max(255).optional().nullable(),
   seniority: SeniorityLevelEnum.optional().nullable(),
   yearsOfExperience: z.number().nonnegative().optional().nullable(),
   canonicalEmail: z.string().email().optional().nullable(),
@@ -103,5 +116,66 @@ export const CandidateCareerProfileSchema = z.strictObject({
     .default([]),
   jobPreferences: CareerPreferencesSchema,
   verifiedSkillsSummary: z.array(z.string()).default([]),
+  topSkills: z
+    .array(
+      z.object({
+        slug: z.string(),
+        name: z.string(),
+        category: z.string().optional(),
+        confidenceScore: z.number().min(0).max(1).optional(),
+        evidenceCount: z.number().int().nonnegative().optional(),
+        provenanceStatus: z.enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING']).optional(),
+      })
+    )
+    .optional()
+    .default([]),
+  highlightedProjects: z
+    .array(
+      z.object({
+        id: z.string().uuid().optional(),
+        name: z.string(),
+        headline: z.string().nullable().optional(),
+        role: z.string().nullable().optional(),
+        startDate: z.string().nullable().optional(),
+        endDate: z.string().nullable().optional(),
+        linkedResourceCount: z.number().int().nonnegative().optional(),
+        verifiedSignalCount: z.number().int().nonnegative().optional(),
+        provenanceStatus: z
+          .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'UNVERIFIED'])
+          .optional()
+          .default('CLAIMED'),
+      })
+    )
+    .optional()
+    .default([]),
+  recentExperience: z
+    .array(
+      z.object({
+        company: z.string(),
+        title: z.string(),
+        startDate: z.string().nullable().optional(),
+        endDate: z.string().nullable().optional(),
+        isCurrent: z.boolean().optional().default(false),
+        verifiedSkillsUsed: z.array(z.string()).optional().default([]),
+        provenanceStatus: z.enum(['VERIFIED', 'CLAIMED']).optional().default('CLAIMED'),
+      })
+    )
+    .optional()
+    .default([]),
+  education: z
+    .array(
+      z.object({
+        institution: z.string(),
+        degree: z.string().optional().nullable(),
+        fieldOfStudy: z.string().optional().nullable(),
+        startDate: z.string().nullable().optional(),
+        endDate: z.string().nullable().optional(),
+      })
+    )
+    .optional()
+    .default([]),
+  certifications: z.array(z.string()).optional().default([]),
+  languages: z.array(z.string()).optional().default([]),
+  completeness: ProfileCompletenessSchema.optional(),
   updatedAt: DateOrIsoStringSchema.optional().nullable(),
 });

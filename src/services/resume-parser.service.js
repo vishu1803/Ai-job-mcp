@@ -1329,6 +1329,73 @@ export class ResumeParserService {
 
     return claims;
   }
+
+  /**
+   * Extracts ONLY explicitly declared user job preferences from resume text.
+   * STRICT GUARANTEE: Never infers preferences from work history, previous titles, or remote past jobs.
+   *
+   * @param {string} text Normalized resume text
+   * @returns {{ hasExplicitPreferences: boolean, targetRoles: string[], preferredLocations: string[], remotePreference?: string, provenance: 'USER_PROVIDED' }}
+   */
+  extractExplicitPreferences(text) {
+    if (!text || typeof text !== 'string') {
+      return {
+        hasExplicitPreferences: false,
+        targetRoles: [],
+        preferredLocations: [],
+        provenance: 'USER_PROVIDED',
+      };
+    }
+
+    const explicitTargetRoles = [];
+    const explicitLocations = [];
+    let explicitRemote = undefined;
+
+    // Look for explicit objective/intent statements: e.g. "Seeking [roles] in [locations]" or "Targeting [roles]"
+    const seekingMatch = text.match(/(?:seeking|looking for|targeting|open to)\s+([^.\n]+)/i);
+    if (seekingMatch) {
+      const phrase = seekingMatch[1].trim();
+
+      // Check for remote
+      if (/\bremote\b/i.test(phrase)) {
+        explicitRemote = 'REMOTE_ONLY';
+      }
+
+      // Check for role keywords
+      const roleMatches = phrase.match(
+        /(?:staff|senior|lead|principal|junior|mid)?\s*(?:backend|frontend|fullstack|full-stack|software|systems|distributed systems|ai|machine learning|devops|cloud|security)\s+(?:engineer|architect|developer|specialist)/gi
+      );
+      if (roleMatches) {
+        for (const rm of roleMatches) {
+          explicitTargetRoles.push(rm.trim());
+        }
+      }
+
+      // Check for location keywords after "in"
+      const inLocationMatch = phrase.match(
+        /\bin\s+([A-Za-z\s,]+?)(?:\s+(?:or|as|with|seeking|$)|[.]|$)/i
+      );
+      if (inLocationMatch) {
+        const loc = inLocationMatch[1].replace(/[.,;]+$/, '').trim();
+        if (loc && !/^(?:roles?|positions?|opportunities|teams?)$/i.test(loc)) {
+          explicitLocations.push(loc);
+        }
+      }
+    }
+
+    const hasExplicitPreferences =
+      explicitTargetRoles.length > 0 ||
+      explicitLocations.length > 0 ||
+      explicitRemote !== undefined;
+
+    return {
+      hasExplicitPreferences,
+      targetRoles: [...new Set(explicitTargetRoles)],
+      preferredLocations: [...new Set(explicitLocations)],
+      remotePreference: explicitRemote,
+      provenance: 'USER_PROVIDED',
+    };
+  }
 }
 
 export const resumeParserService = new ResumeParserService();

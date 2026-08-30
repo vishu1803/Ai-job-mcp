@@ -924,7 +924,7 @@ export class CandidateProfileService {
   }
 
   /**
-   * Retrieves a comprehensive Career Profile view with preferences, portfolio links, and verified skills summary.
+   * Retrieves a comprehensive Career Profile view with preferences, portfolio links, verified skills summary, and qualifications.
    *
    * @param {object} context - Trusted context with tenantId
    * @param {string} candidateId - Candidate UUID
@@ -934,68 +934,146 @@ export class CandidateProfileService {
     this._validateContext(context);
     if (!candidateId) throw new ValidationError('candidateId is required');
 
-    const [candidate] = await this._db
-      .select()
-      .from(candidates)
-      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
-
-    if (!candidate) throw new NotFoundError(`Candidate not found: ${candidateId}`);
-
-    // Fetch verified skills
-    const verifiedSkillsRows = await this._db
-      .select({
-        name: skills.name,
-      })
-      .from(candidateSkills)
-      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
-      .where(
-        and(
-          eq(candidateSkills.tenantId, context.tenantId),
-          eq(candidateSkills.candidateId, candidateId),
-          eq(candidateSkills.provenanceStatus, 'VERIFIED')
-        )
-      );
-
-    const verifiedSkillsSummary = verifiedSkillsRows.map((r) => r.name);
-
-    // Extract portfolio links from identities and resources
-    const identities = await this._db
-      .select()
-      .from(candidateIdentities)
-      .where(
-        and(
-          eq(candidateIdentities.tenantId, context.tenantId),
-          eq(candidateIdentities.candidateId, candidateId)
-        )
-      );
-
-    const portfolioLinks = [];
-    for (const idRow of identities) {
-      if (idRow.profileUrl) {
-        portfolioLinks.push({
-          label: idRow.provider,
-          url: idRow.profileUrl,
-        });
-      }
-    }
+    const profileView = await this.getProfile(context, candidateId);
+    const candidate = profileView.candidate;
 
     const jobPreferences = CareerPreferencesSchema.parse(
       candidate.profileMetadata?.careerPreferences || {}
     );
 
+    const verifiedSkillsSummary = (profileView.skills || [])
+      .filter((s) => s.provenanceStatus === 'VERIFIED')
+      .map((s) => s.name);
+
+    const topSkills = (profileView.skills || []).slice(0, 15).map((s) => ({
+      slug: s.slug,
+      name: s.name,
+      category: s.category,
+      confidenceScore: s.confidenceScore,
+      evidenceCount: s.evidenceCount,
+      provenanceStatus: s.provenanceStatus,
+    }));
+
+    const highlightedProjects = (profileView.projects || [])
+      .filter((p) => p.metadata?.portfolioStatus !== 'ARCHIVED' && p.metadata?.isArchived !== true)
+      .slice(0, 10)
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        headline: p.headline || null,
+        role: p.role || null,
+        startDate: p.startDate ? String(p.startDate) : null,
+        endDate: p.endDate ? String(p.endDate) : null,
+        linkedResourceCount: p.linkedResourceCount || 0,
+        verifiedSignalCount: Array.isArray(p.evidence) ? p.evidence.length : 0,
+        provenanceStatus: p.evidence && p.evidence.length > 0 ? 'VERIFIED' : 'CLAIMED',
+      }));
+
+    const userCustom = candidate.profileMetadata?.userCustom || {};
+    const recentExperience = (userCustom.experience || candidate.profileMetadata?.experience || [])
+      .slice(0, 10)
+      .map((exp) => ({
+        company: exp.company || 'Company',
+        title: exp.title || 'Role',
+        startDate: exp.startDate ? String(exp.startDate) : null,
+        endDate: exp.endDate ? String(exp.endDate) : null,
+        isCurrent: Boolean(exp.isCurrent),
+        verifiedSkillsUsed: Array.isArray(exp.skills) ? exp.skills : [],
+        provenanceStatus: 'CLAIMED',
+      }));
+
+    const education = (userCustom.education || candidate.profileMetadata?.education || []).map(
+      (edu) => ({
+        institution: edu.institution || edu.school || 'Institution',
+        degree: edu.degree || null,
+        fieldOfStudy: edu.fieldOfStudy || edu.field || null,
+        startDate: edu.startDate ? String(edu.startDate) : null,
+        endDate: edu.endDate ? String(edu.endDate) : null,
+      })
+    );
+
+    const certifications = Array.isArray(userCustom.certifications)
+      ? userCustom.certifications
+      : Array.isArray(candidate.profileMetadata?.certifications)
+        ? candidate.profileMetadata.certifications
+        : [];
+
+    const languages = Array.isArray(userCustom.languages)
+      ? userCustom.languages
+      : Array.isArray(candidate.profileMetadata?.languages)
+        ? candidate.profileMetadata.languages
+        : [];
+
+    const portfolioLinks = (profileView.identities || [])
+      .filter((i) => i.profileUrl)
+      .map((i) => ({ label: i.provider, url: i.profileUrl }));
+
+    const missingRequired = [];
+    const missingOptional = [];
+    if (!jobPreferences.targetRoles || jobPreferences.targetRoles.length === 0)
+      missingRequired.push('targetRoles');
+    if (
+      (!jobPreferences.preferredLocations || jobPreferences.preferredLocations.length === 0) &&
+      jobPreferences.remotePreference !== 'REMOTE_ONLY'
+    ) {
+      missingRequired.push('preferredLocations');
+    }
+    if (jobPreferences.salaryFloor == null) missingOptional.push('salaryFloor');
+    if (!jobPreferences.preferredTechStack || jobPreferences.preferredTechStack.length === 0)
+      missingOptional.push('preferredTechStack');
+    if (!jobPreferences.industries || jobPreferences.industries.length === 0)
+      missingOptional.push('industries');
+    if (!jobPreferences.workAuthorization || jobPreferences.workAuthorization.length === 0)
+      missingOptional.push('workAuthorization');
+    if (!jobPreferences.availabilityDate) missingOptional.push('availabilityDate');
+
+    const isReadyForJobSearch = missingRequired.length === 0;
+
+    let score = 20;
+    if (candidate.headline) score += 15;
+    if (candidate.summary) score += 15;
+    if (topSkills.length > 0) score += 15;
+    if (highlightedProjects.length > 0) score += 15;
+    if (jobPreferences.targetRoles && jobPreferences.targetRoles.length > 0) score += 10;
+    if (jobPreferences.preferredLocations && jobPreferences.preferredLocations.length > 0)
+      score += 5;
+    if (jobPreferences.salaryFloor != null) score += 5;
+    score = Math.min(score, 100);
+
+    const completeness = {
+      score,
+      status: isReadyForJobSearch
+        ? 'COMPLETE FOR JOB SEARCH'
+        : `NEEDS ATTENTION — ${missingRequired.length} item(s) needed for job matching`,
+      isReadyForJobSearch,
+      missingRequiredForSearch: missingRequired,
+      missingOptional,
+      actionableFeedback: isReadyForJobSearch
+        ? 'Profile contains all required criteria for automated job matching and discovery.'
+        : `Please configure: ${missingRequired.join(', ')} to enable high-confidence job search.`,
+    };
+
     return CandidateCareerProfileSchema.parse({
       candidateId: candidate.id,
       tenantId: candidate.tenantId,
       displayName: candidate.displayName,
-      headline: candidate.headline,
-      summary: candidate.summary,
+      headline: candidate.headline || null,
+      summary: candidate.summary || null,
       currentRole: candidate.profileMetadata?.currentRole || candidate.headline || null,
+      location: candidate.profileMetadata?.location || null,
       seniority: candidate.profileMetadata?.seniority || null,
       yearsOfExperience: candidate.profileMetadata?.yearsOfExperience || null,
-      canonicalEmail: candidate.canonicalEmail,
+      canonicalEmail: candidate.canonicalEmail || null,
       portfolioLinks,
       jobPreferences,
       verifiedSkillsSummary,
+      topSkills,
+      highlightedProjects,
+      recentExperience,
+      education,
+      certifications,
+      languages,
+      completeness,
       updatedAt: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : null,
     });
   }

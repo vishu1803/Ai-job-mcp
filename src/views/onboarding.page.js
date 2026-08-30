@@ -42,7 +42,15 @@ export function renderOnboardingPage({
 }) {
   const step = Number(currentStep) || 1;
   const isGitHubConnected = connection && connection.status === 'ACTIVE';
-  const selectedRepoIds = new Set(selectedRepos.map((r) => r.externalResourceId || r.name));
+  const selectedRepoIds = new Set();
+  for (const r of selectedRepos) {
+    if (r.id) selectedRepoIds.add(String(r.id));
+    if (r.externalResourceId) selectedRepoIds.add(String(r.externalResourceId));
+    if (r.name) selectedRepoIds.add(r.name);
+    if (r.displayName) selectedRepoIds.add(r.displayName);
+    if (r.fullName) selectedRepoIds.add(r.fullName);
+    if (r.metadata?.fullName) selectedRepoIds.add(r.metadata.fullName);
+  }
 
   const content = `
     <div class="container" style="max-width:860px; margin: 0 auto 60px;">
@@ -317,6 +325,24 @@ function renderStep3Repositories({
   const hasRepos = availableRepos.length > 0 || selectedRepos.length > 0;
   const reposToDisplay = availableRepos.length > 0 ? availableRepos : selectedRepos;
 
+  const isRepoIndexed = (repo) => {
+    const key = repo.externalResourceId || repo.id;
+    const name = repo.name;
+    const fullName = repo.fullName || repo.displayName;
+    return (
+      (key && selectedRepoIds.has(String(key))) ||
+      (name && selectedRepoIds.has(name)) ||
+      (fullName && selectedRepoIds.has(fullName)) ||
+      (repo.metadata?.fullName && selectedRepoIds.has(repo.metadata.fullName))
+    );
+  };
+
+  const totalCount = reposToDisplay.length;
+  const publicCount = reposToDisplay.filter((r) => !r.isPrivate).length;
+  const privateCount = reposToDisplay.filter((r) => r.isPrivate).length;
+  const indexedCount = reposToDisplay.filter(isRepoIndexed).length;
+  const availableCount = totalCount - indexedCount;
+
   return `
     <div>
       <div style="margin-bottom:24px;">
@@ -327,43 +353,132 @@ function renderStep3Repositories({
         </p>
       </div>
 
-      <div style="margin-bottom:20px; padding:12px 16px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:0.85rem; color:var(--text-muted);">
-          Selected Repositories: <strong style="color:var(--text-main);">${selectedRepos.length}</strong>
-        </span>
-        <span style="font-size:0.8rem; color:var(--text-dim);">
-          Tip: Select showcase repositories that demonstrate your strongest technical architecture.
-        </span>
+      <!-- Summary Metrics Bar -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:20px;">
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Discovered</div>
+          <div style="font-size:1.3rem; font-weight:800; color:var(--text-main); margin-top:2px;" id="statTotal">${totalCount}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Public</div>
+          <div style="font-size:1.3rem; font-weight:800; color:#38BDF8; margin-top:2px;">${publicCount}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Private</div>
+          <div style="font-size:1.3rem; font-weight:800; color:#FBBF24; margin-top:2px;">${privateCount}</div>
+        </div>
+        <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
+          <div style="font-size:0.75rem; color:#A7F3D0; text-transform:uppercase; font-weight:600;">Indexed</div>
+          <div style="font-size:1.3rem; font-weight:800; color:#34D399; margin-top:2px;">${indexedCount}</div>
+        </div>
+        <div style="background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
+          <div style="font-size:0.75rem; color:#C7D2FE; text-transform:uppercase; font-weight:600;">Available</div>
+          <div style="font-size:1.3rem; font-weight:800; color:#818CF8; margin-top:2px;">${availableCount}</div>
+        </div>
       </div>
 
-      <form action="/onboarding/repositories/select" method="POST">
+      <form action="/onboarding/repositories/select" method="POST" id="repoSelectionForm">
         ${
           hasRepos
             ? `
-          <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:28px; max-height:400px; overflow-y:auto; padding-right:4px;">
+          <!-- Instant Search & Filter Toolbar -->
+          <div style="margin-bottom:16px; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <div style="flex:1; min-width:220px; position:relative;">
+                <input
+                  type="text"
+                  id="repoSearchInput"
+                  placeholder="Search repositories by name, owner, or description..."
+                  class="form-control"
+                  style="padding-left:36px; font-size:0.875rem;"
+                />
+                <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.9rem; color:var(--text-dim); pointer-events:none;">🔍</span>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button type="button" id="selectAllAvailableBtn" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:6px 10px;">
+                  + Select All Available
+                </button>
+                <button type="button" id="deselectAllBtn" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:6px 10px;">
+                  Deselect All
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <button type="button" class="filter-pill active" data-filter="all" style="background:rgba(99,102,241,0.2); border:1px solid rgba(99,102,241,0.4); color:#C7D2FE; padding:4px 10px; border-radius:14px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                All (${totalCount})
+              </button>
+              <button type="button" class="filter-pill" data-filter="available" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-muted); padding:4px 10px; border-radius:14px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                Available (${availableCount})
+              </button>
+              <button type="button" class="filter-pill" data-filter="indexed" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-muted); padding:4px 10px; border-radius:14px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                Indexed (${indexedCount})
+              </button>
+              <button type="button" class="filter-pill" data-filter="public" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-muted); padding:4px 10px; border-radius:14px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                Public (${publicCount})
+              </button>
+              <button type="button" class="filter-pill" data-filter="private" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-muted); padding:4px 10px; border-radius:14px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+                Private (${privateCount})
+              </button>
+            </div>
+          </div>
+
+          <!-- Selection Live Counter -->
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:0.8rem; color:var(--text-muted);">
+            <span>
+              Selected for Ingestion: <strong id="selectedCounter" style="color:var(--text-main);">${indexedCount}</strong> of <span id="visibleCount">${totalCount}</span> visible
+            </span>
+            <span id="filterLabel" style="color:var(--text-dim);">Showing all ${totalCount} repositories</span>
+          </div>
+
+          <!-- Repositories List Container -->
+          <div id="repoListContainer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:28px; max-height:480px; overflow-y:auto; padding-right:4px;">
             ${reposToDisplay
               .map((repo) => {
-                const repoKey = repo.externalResourceId || repo.name || repo.id;
-                const isSelected = selectedRepoIds.has(repoKey) || selectedRepoIds.has(repo.name);
+                const repoKey = repo.externalResourceId || repo.id || repo.name;
+                const isSelected = isRepoIndexed(repo);
+                const isPrivate = Boolean(repo.isPrivate);
+                const fullName = repo.fullName || repo.displayName || repo.name;
+                const desc =
+                  repo.metadata?.description || `Default branch: ${repo.defaultBranch || 'main'}`;
+
                 return `
-              <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:rgba(11,15,25,0.5); border:1px solid ${isSelected ? 'rgba(99,102,241,0.4)' : 'var(--border-subtle)'}; border-radius:var(--radius-md); transition:all 0.15s ease;">
-                <div style="display:flex; align-items:center; gap:14px;">
-                  <input type="checkbox" id="repo_${escapeHtml(repoKey)}" name="repositories" value="${escapeHtml(repoKey)}" ${isSelected ? 'checked' : ''} style="width:18px; height:18px; accent-color:var(--accent-indigo); cursor:pointer;" />
-                  <div>
-                    <label for="repo_${escapeHtml(repoKey)}" style="font-size:0.95rem; font-weight:700; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:8px;">
-                      ${escapeHtml(repo.name || repo.displayName)}
-                      ${repo.isPrivate ? '<span class="badge badge-amber" style="font-size:0.65rem;">PRIVATE</span>' : '<span class="badge badge-cyan" style="font-size:0.65rem;">PUBLIC</span>'}
+              <div
+                class="repo-item-card"
+                data-name="${escapeHtml((repo.name || '').toLowerCase())}"
+                data-fullname="${escapeHtml(fullName.toLowerCase())}"
+                data-desc="${escapeHtml(desc.toLowerCase())}"
+                data-visibility="${isPrivate ? 'private' : 'public'}"
+                data-status="${isSelected ? 'indexed' : 'available'}"
+                style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:rgba(11,15,25,0.5); border:1px solid ${isSelected ? 'rgba(99,102,241,0.4)' : 'var(--border-subtle)'}; border-radius:var(--radius-md); transition:all 0.15s ease;"
+              >
+                <div style="display:flex; align-items:flex-start; gap:14px; flex:1; min-width:0;">
+                  <input
+                    type="checkbox"
+                    id="repo_${escapeHtml(String(repoKey))}"
+                    name="repositories"
+                    value="${escapeHtml(String(repoKey))}"
+                    ${isSelected ? 'checked' : ''}
+                    class="repo-checkbox"
+                    style="width:18px; height:18px; accent-color:var(--accent-indigo); cursor:pointer; margin-top:2px; flex-shrink:0;"
+                  />
+                  <div style="min-width:0; flex:1;">
+                    <label for="repo_${escapeHtml(String(repoKey))}" style="font-size:0.95rem; font-weight:700; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                      <span>${escapeHtml(repo.name || repo.displayName)}</span>
+                      <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; font-family:var(--font-mono, monospace);">${escapeHtml(fullName)}</span>
+                      ${isPrivate ? '<span class="badge badge-amber" style="font-size:0.65rem; padding:2px 6px;">🔒 PRIVATE</span>' : '<span class="badge badge-cyan" style="font-size:0.65rem; padding:2px 6px;">🌐 PUBLIC</span>'}
                     </label>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
-                      ${escapeHtml(repo.metadata?.description || repo.displayName || 'Repository resource')}
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">
+                      ${escapeHtml(desc)}
                     </p>
                   </div>
                 </div>
-                <div>
+                <div style="flex-shrink:0; margin-left:12px;">
                   ${
                     isSelected
-                      ? '<span class="badge badge-verified">INDEXED</span>'
-                      : '<span class="badge badge-indigo">AVAILABLE</span>'
+                      ? '<span class="badge badge-verified" style="font-size:0.75rem; padding:4px 8px;">✓ INDEXED</span>'
+                      : '<span class="badge badge-indigo" style="font-size:0.75rem; padding:4px 8px;">AVAILABLE</span>'
                   }
                 </div>
               </div>
@@ -371,6 +486,113 @@ function renderStep3Repositories({
               })
               .join('')}
           </div>
+
+          <!-- Vanilla JS Real-Time Search, Filter & Quick Action Script -->
+          <script>
+            (function() {
+              const searchInput = document.getElementById('repoSearchInput');
+              const filterPills = document.querySelectorAll('.filter-pill');
+              const repoCards = document.querySelectorAll('.repo-item-card');
+              const checkboxes = document.querySelectorAll('.repo-checkbox');
+              const selectAllAvailableBtn = document.getElementById('selectAllAvailableBtn');
+              const deselectAllBtn = document.getElementById('deselectAllBtn');
+              const selectedCounter = document.getElementById('selectedCounter');
+              const visibleCount = document.getElementById('visibleCount');
+              const filterLabel = document.getElementById('filterLabel');
+
+              let currentFilter = 'all';
+              let currentSearch = '';
+
+              function updateCounters() {
+                const checkedCount = document.querySelectorAll('.repo-checkbox:checked').length;
+                if (selectedCounter) selectedCounter.textContent = checkedCount;
+              }
+
+              function filterRepos() {
+                let count = 0;
+                repoCards.forEach(card => {
+                  const name = card.getAttribute('data-name') || '';
+                  const fullName = card.getAttribute('data-fullname') || '';
+                  const desc = card.getAttribute('data-desc') || '';
+                  const vis = card.getAttribute('data-visibility') || '';
+                  const status = card.getAttribute('data-status') || '';
+
+                  const matchesSearch = !currentSearch || name.includes(currentSearch) || fullName.includes(currentSearch) || desc.includes(currentSearch);
+                  let matchesFilter = true;
+
+                  if (currentFilter === 'available') matchesFilter = (status === 'available');
+                  else if (currentFilter === 'indexed') matchesFilter = (status === 'indexed');
+                  else if (currentFilter === 'public') matchesFilter = (vis === 'public');
+                  else if (currentFilter === 'private') matchesFilter = (vis === 'private');
+
+                  if (matchesSearch && matchesFilter) {
+                    card.style.display = 'flex';
+                    count++;
+                  } else {
+                    card.style.display = 'none';
+                  }
+                });
+
+                if (visibleCount) visibleCount.textContent = count;
+                if (filterLabel) {
+                  filterLabel.textContent = 'Showing ' + count + ' ' + (currentFilter === 'all' ? '' : currentFilter + ' ') + 'repositories';
+                }
+              }
+
+              if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                  currentSearch = e.target.value.trim().toLowerCase();
+                  filterRepos();
+                });
+              }
+
+              filterPills.forEach(pill => {
+                pill.addEventListener('click', function() {
+                  filterPills.forEach(p => {
+                    p.classList.remove('active');
+                    p.style.background = 'rgba(255,255,255,0.04)';
+                    p.style.borderColor = 'var(--border-subtle)';
+                    p.style.color = 'var(--text-muted)';
+                  });
+                  this.classList.add('active');
+                  this.style.background = 'rgba(99,102,241,0.2)';
+                  this.style.borderColor = 'rgba(99,102,241,0.4)';
+                  this.style.color = '#C7D2FE';
+
+                  currentFilter = this.getAttribute('data-filter') || 'all';
+                  filterRepos();
+                });
+              });
+
+              if (selectAllAvailableBtn) {
+                selectAllAvailableBtn.addEventListener('click', function() {
+                  repoCards.forEach(card => {
+                    if (card.style.display !== 'none') {
+                      const cb = card.querySelector('.repo-checkbox');
+                      if (cb) cb.checked = true;
+                    }
+                  });
+                  updateCounters();
+                });
+              }
+
+              if (deselectAllBtn) {
+                deselectAllBtn.addEventListener('click', function() {
+                  repoCards.forEach(card => {
+                    if (card.style.display !== 'none') {
+                      const cb = card.querySelector('.repo-checkbox');
+                      if (cb) cb.checked = false;
+                    }
+                  });
+                  updateCounters();
+                });
+              }
+
+              checkboxes.forEach(cb => {
+                cb.addEventListener('change', updateCounters);
+              });
+            })();
+          </script>
         `
             : `
           <div style="text-align:center; padding:40px 20px; background:rgba(255,255,255,0.02); border:1px dashed var(--border-subtle); border-radius:var(--radius-md); margin-bottom:28px;">

@@ -99,12 +99,52 @@ export const GetCandidateProfileOutputSchema = z
       displayName: z.string(),
       headline: z.string().nullable(),
       summary: z.string().nullable(),
+      currentRole: z.string().nullable().optional(),
+      location: z.string().nullable().optional(),
       canonicalEmail: z.string().nullable(),
       status: z.string(),
       createdAt: z.string(),
       updatedAt: z.string(),
     }),
     profileCompletenessScore: z.number().min(0).max(100),
+    profileCompleteness: z
+      .object({
+        score: z.number().min(0).max(100),
+        status: z.string(),
+        isReadyForJobSearch: z.boolean(),
+        missingRequiredForSearch: z.array(z.string()).default([]),
+        missingOptional: z.array(z.string()).default([]),
+        actionableFeedback: z.string(),
+      })
+      .optional(),
+    jobPreferences: z
+      .object({
+        targetRoles: z.array(z.string()).default([]),
+        preferredLocations: z.array(z.string()).default([]),
+        remotePreference: z
+          .enum(['REMOTE_ONLY', 'REMOTE_FIRST', 'HYBRID', 'ON_SITE', 'FLEXIBLE'])
+          .default('FLEXIBLE'),
+        employmentTypes: z
+          .array(z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP']))
+          .default(['FULL_TIME']),
+        salaryFloor: z.number().nullable().default(null),
+        salaryCurrency: z.string().default('USD'),
+        industries: z.array(z.string()).default([]),
+        companiesToAvoid: z.array(z.string()).default([]),
+        companiesToPrioritize: z.array(z.string()).default([]),
+        preferredTechStack: z.array(z.string()).default([]),
+        relocationPreference: z
+          .enum(['WILLING_TO_RELOCATE', 'NOT_WILLING', 'REMOTE_ONLY'])
+          .default('REMOTE_ONLY'),
+      })
+      .optional(),
+    eligibility: z
+      .object({
+        workAuthorization: z.array(z.string()).default([]),
+        visaSponsorshipRequired: z.boolean().default(false),
+        availabilityDate: z.string().nullable().default(null),
+      })
+      .optional(),
     identities: z.array(
       z.object({
         provider: z.string(),
@@ -141,6 +181,9 @@ export const GetCandidateProfileOutputSchema = z
           endDate: z.string().nullable(),
           linkedResourceCount: z.number().int().nonnegative(),
           verifiedSignalCount: z.number().int().nonnegative(),
+          provenanceStatus: z
+            .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'UNVERIFIED'])
+            .optional(),
         })
       )
       .max(5)
@@ -154,6 +197,7 @@ export const GetCandidateProfileOutputSchema = z
           endDate: z.string().nullable(),
           isCurrent: z.boolean(),
           verifiedSkillsUsed: z.array(z.string()).max(10),
+          provenanceStatus: z.enum(['VERIFIED', 'CLAIMED']).optional(),
         })
       )
       .max(5)

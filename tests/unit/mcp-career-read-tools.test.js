@@ -146,6 +146,11 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           profileMetadata: {
+            careerPreferences: {
+              targetRoles: ['Staff Distributed Systems Engineer'],
+              preferredLocations: ['Remote'],
+              salaryFloor: 200000,
+            },
             userCustom: {
               experience: [
                 {
