@@ -40,7 +40,7 @@ export default async function candidateRoutes(fastify, opts = {}) {
   fastify.post(
     '/sync-repositories',
     {
-      preHandler: [authenticate, verifyCsrf],
+      preHandler: [verifyCsrf, authenticate],
     },
     async (request, reply) => {
       const tenantId = request.auth.tenantId;
@@ -137,8 +137,8 @@ export default async function candidateRoutes(fastify, opts = {}) {
     '/resources/:id',
     {
       preHandler: [
-        authenticate,
         verifyCsrf,
+        authenticate,
         validateRequest({ params: DeleteCandidateResourceParamsSchema }),
       ],
     },

@@ -1328,9 +1328,18 @@ export default async function webRoutes(app, opts = {}) {
       }
     }
 
+    const context = {
+      tenantId: tenant.id,
+      userId: user.id,
+      role: user.role,
+    };
+
+    const profile = await candidateProfileService.getCareerProfile(context, candidate.id);
+
     const html = renderSkillsPage({
       user,
       tenant,
+      profile,
       skills: skillRows,
     });
 

@@ -83,6 +83,32 @@ export function buildApp(opts = {}) {
     }
   });
 
+  // Path traversal defense (P14-002): reject URLs containing decoded '..' sequences
+  app.addHook('onRequest', async (req, reply) => {
+    const rawPath = req.url.split('?')[0];
+    try {
+      const decodedPath = decodeURIComponent(rawPath);
+      if (
+        decodedPath.includes('/../') ||
+        decodedPath.endsWith('/..') ||
+        decodedPath.startsWith('../') ||
+        decodedPath === '..' ||
+        decodedPath.includes('/./')
+      ) {
+        reply.code(400).send({
+          success: false,
+          error: {
+            code: 'INVALID_PATH',
+            message: 'Path traversal attempt detected in URL',
+            requestId: req.id,
+          },
+        });
+      }
+    } catch {
+      // If URL decoding fails, continue to route handler
+    }
+  });
+
   // Global Cookie Support
   app.register(fastifyCookie, {
     secret: config.SESSION_COOKIE_SECRET || undefined,

@@ -138,6 +138,8 @@ export const CandidateCareerProfileSchema = z.strictObject({
         tier: z.enum(['PRIMARY', 'SIGNAL']).optional().default('PRIMARY'),
         confidenceScore: z.number().min(0).max(1).optional(),
         evidenceCount: z.number().int().nonnegative().optional(),
+        evidenceLevel: z.number().int().min(0).max(4).optional(),
+        evidenceExplanation: z.string().optional(),
         provenanceStatus: z
           .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
           .optional(),
@@ -161,6 +163,8 @@ export const CandidateCareerProfileSchema = z.strictObject({
         tier: z.enum(['PRIMARY', 'SIGNAL']).optional().default('PRIMARY'),
         confidenceScore: z.number().min(0).max(1).optional(),
         evidenceCount: z.number().int().nonnegative().optional(),
+        evidenceLevel: z.number().int().min(0).max(4).optional(),
+        evidenceExplanation: z.string().optional(),
         provenanceStatus: z
           .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
           .optional(),
@@ -184,6 +188,8 @@ export const CandidateCareerProfileSchema = z.strictObject({
         tier: z.enum(['PRIMARY', 'SIGNAL']).optional().default('SIGNAL'),
         confidenceScore: z.number().min(0).max(1).optional(),
         evidenceCount: z.number().int().nonnegative().optional(),
+        evidenceLevel: z.number().int().min(0).max(4).optional(),
+        evidenceExplanation: z.string().optional(),
         provenanceStatus: z
           .enum(['VERIFIED', 'INFERRED', 'CLAIMED', 'MISSING', 'CORROBORATED', 'USER_PROVIDED'])
           .optional(),

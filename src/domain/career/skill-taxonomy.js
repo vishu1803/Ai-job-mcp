@@ -2183,6 +2183,45 @@ for (const [slug, skill] of Object.entries(CANONICAL_SKILLS)) {
 }
 
 /**
+ * Explicit mapping of programming languages to their supporting framework / ecosystem technologies.
+ */
+export const LANGUAGE_ECOSYSTEM_MAP = Object.freeze({
+  python: [
+    'fastapi',
+    'django',
+    'flask',
+    'sqlalchemy',
+    'pydantic',
+    'uvicorn',
+    'pandas',
+    'numpy',
+    'pytest',
+    'celery',
+  ],
+  javascript: [
+    'react',
+    'next-js',
+    'express',
+    'fastify',
+    'node-js',
+    'vue',
+    'angular',
+    'svelte',
+    'jest',
+    'cypress',
+    'webpack',
+    'vite',
+  ],
+  typescript: ['nestjs', 'angular', 'next-js', 'drizzle-orm', 'prisma', 'typeorm', 'vitest'],
+  go: ['gin', 'fiber', 'gorm', 'echo', 'chi'],
+  rust: ['tokio', 'actix-web', 'axum', 'diesel', 'serde'],
+  java: ['spring', 'spring-boot', 'hibernate', 'maven', 'gradle', 'junit'],
+  'c-sharp': ['dotnet', 'aspnet-core', 'entity-framework'],
+  c: ['make', 'cmake', 'gcc'],
+  cpp: ['cmake', 'boost', 'qt'],
+});
+
+/**
  * Provider-Neutral Skill Normalizer & Taxonomy Engine.
  */
 export class SkillTaxonomyEngine {
@@ -3021,7 +3060,347 @@ export class SkillTaxonomyEngine {
       totalRelationships,
     };
   }
+
+  /**
+   * Checks if a skill represents a core programming language.
+   *
+   * @param {string} slugOrName
+   * @returns {boolean}
+   */
+  static isLanguage(slugOrName) {
+    const norm = String(slugOrName || '')
+      .toLowerCase()
+      .trim();
+    const slug = norm.replace(/[^a-z0-9]/g, '-');
+    return (
+      Boolean(LANGUAGE_ECOSYSTEM_MAP[slug]) ||
+      [
+        'python',
+        'javascript',
+        'typescript',
+        'go',
+        'rust',
+        'java',
+        'kotlin',
+        'c-sharp',
+        'c',
+        'cpp',
+        'html',
+        'css',
+        'sql',
+        'ruby',
+        'php',
+        'swift',
+        'scala',
+      ].includes(slug)
+    );
+  }
+
+  /**
+   * Reconciles programming language evidence by evaluating direct source code implementation,
+   * AST symbol citations, file patterns, language byte metadata, and supporting framework signals.
+   *
+   * @param {object} params
+   * @param {string} params.languageSlug Canonical language slug (e.g. 'python', 'javascript', 'typescript')
+   * @param {number} [params.directEvidenceCount=0] Direct language citations count
+   * @param {number} [params.confidenceScore=0.5] Confidence score
+   * @param {boolean} [params.hasResumeClaim=false] Whether claimed on candidate's resume
+   * @param {boolean} [params.hasGithubEvidence=false] Whether direct repository evidence exists
+   * @param {Array<object>} [params.allSkills=[]] All detected candidate skills (for framework supporting signals)
+   * @param {'PRIMARY' | 'SIGNAL'} [params.tier='PRIMARY'] Presentation tier
+   * @returns {{ evidenceLevel: number, evidenceExplanation: string, truthStatus: string, provenanceStatus: string, source: string, tier: 'PRIMARY', supportingFrameworks: string[] }}
+   */
+  static reconcileLanguageEvidence({
+    languageSlug = '',
+    directEvidenceCount = 0,
+    confidenceScore: _confidenceScore = 0.5,
+    hasResumeClaim = false,
+    hasGithubEvidence: _hasGithubEvidence = false,
+    allSkills = [],
+    tier: _tier = 'PRIMARY',
+  } = {}) {
+    const normSlug = (languageSlug || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const count = Number(directEvidenceCount) || 0;
+
+    // Discover supporting ecosystem framework skills
+    const ecosystemSlugs = LANGUAGE_ECOSYSTEM_MAP[normSlug] || [];
+    const supportingFrameworks = [];
+    let frameworkEvidenceCount = 0;
+
+    if (Array.isArray(allSkills) && ecosystemSlugs.length > 0) {
+      for (const skill of allSkills) {
+        const sSlug = (skill.slug || skill.name || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+        if (ecosystemSlugs.includes(sSlug)) {
+          const isVer =
+            skill.truthStatus === 'VERIFIED' ||
+            skill.provenanceStatus === 'VERIFIED' ||
+            skill.provenanceStatus === 'CORROBORATED';
+          if (isVer || (skill.evidenceCount && skill.evidenceCount > 0)) {
+            supportingFrameworks.push(skill.name || sSlug);
+            frameworkEvidenceCount += Number(skill.evidenceCount) || 1;
+          }
+        }
+      }
+    }
+
+    const canonical = CANONICAL_SKILLS[normSlug];
+    const displayName = canonical?.name || normSlug.charAt(0).toUpperCase() + normSlug.slice(1);
+    const totalCitations = count + (frameworkEvidenceCount > 0 ? frameworkEvidenceCount : 0);
+
+    // Condition 1: Substantial direct language source code (count >= 3)
+    if (count >= 3) {
+      const fmwkText =
+        supportingFrameworks.length > 0
+          ? ` across ${displayName} source implementation & ${supportingFrameworks.slice(0, 3).join('/')} ecosystem`
+          : ` across ${count} repository citations`;
+
+      if (hasResumeClaim) {
+        return {
+          evidenceLevel: EVIDENCE_LEVELS.LEVEL_4_CORROBORATED,
+          evidenceExplanation: `Resume claim corroborated by ${totalCitations} repository citations${fmwkText}`,
+          truthStatus: 'VERIFIED',
+          provenanceStatus: 'CORROBORATED',
+          source: 'BOTH',
+          tier: 'PRIMARY',
+          supportingFrameworks,
+        };
+      }
+
+      return {
+        evidenceLevel: EVIDENCE_LEVELS.LEVEL_3_SUBSTANTIAL_IMPLEMENTATION,
+        evidenceExplanation: `${totalCitations} source citations${fmwkText}`,
+        truthStatus: 'VERIFIED',
+        provenanceStatus: 'VERIFIED',
+        source: 'GITHUB',
+        tier: 'PRIMARY',
+        supportingFrameworks,
+      };
+    }
+
+    // Condition 2: Direct source code present (count >= 1) with substantial supporting framework AST implementation (frameworkEvidenceCount >= 3)
+    if (count >= 1 && frameworkEvidenceCount >= 3) {
+      const fmwkText = ` across ${displayName} source files and ${supportingFrameworks.slice(0, 3).join('/')} implementation`;
+      if (hasResumeClaim) {
+        return {
+          evidenceLevel: EVIDENCE_LEVELS.LEVEL_4_CORROBORATED,
+          evidenceExplanation: `Resume claim corroborated by ${totalCitations} repository citations${fmwkText}`,
+          truthStatus: 'VERIFIED',
+          provenanceStatus: 'CORROBORATED',
+          source: 'BOTH',
+          tier: 'PRIMARY',
+          supportingFrameworks,
+        };
+      }
+
+      return {
+        evidenceLevel: EVIDENCE_LEVELS.LEVEL_3_SUBSTANTIAL_IMPLEMENTATION,
+        evidenceExplanation: `${totalCitations} source citations${fmwkText}`,
+        truthStatus: 'VERIFIED',
+        provenanceStatus: 'VERIFIED',
+        source: 'GITHUB',
+        tier: 'PRIMARY',
+        supportingFrameworks,
+      };
+    }
+
+    // Condition 3: Direct source code present with 1-2 citations (Level 1/2 single usage) without substantial framework implementation
+    if (count > 0) {
+      if (hasResumeClaim) {
+        // Manifest or single config only (e.g. @eslint/js for JavaScript)
+        if (normSlug === 'javascript') {
+          return {
+            evidenceLevel: EVIDENCE_LEVELS.LEVEL_1_PACKAGE_OR_CONFIG_SIGNAL,
+            evidenceExplanation:
+              'Candidate self-reported claim (repository uses TypeScript; manifest citation insufficient for primary verification)',
+            truthStatus: 'CLAIMED',
+            provenanceStatus: 'CLAIMED',
+            source: 'BOTH',
+            tier: 'PRIMARY',
+            supportingFrameworks,
+          };
+        }
+        return {
+          evidenceLevel: EVIDENCE_LEVELS.LEVEL_1_PACKAGE_OR_CONFIG_SIGNAL,
+          evidenceExplanation: `Candidate self-reported claim (${count} direct citation${count === 1 ? '' : 's'}; manifest citation insufficient for primary verification)`,
+          truthStatus: 'CLAIMED',
+          provenanceStatus: 'CLAIMED',
+          source: 'BOTH',
+          tier: 'PRIMARY',
+          supportingFrameworks,
+        };
+      }
+
+      // GitHub only with 1-2 citations -> SIGNAL verified
+      return {
+        evidenceLevel: EVIDENCE_LEVELS.LEVEL_1_PACKAGE_OR_CONFIG_SIGNAL,
+        evidenceExplanation: `Package or config signal detected (${count} citation${count === 1 ? '' : 's'})`,
+        truthStatus: 'VERIFIED',
+        provenanceStatus: 'VERIFIED',
+        source: 'GITHUB',
+        tier: 'SIGNAL',
+        supportingFrameworks,
+      };
+    }
+
+    // Condition 4: 0 direct language citations, but framework signals exist (e.g. FastAPI package or React dependency only)
+    if (supportingFrameworks.length > 0) {
+      if (hasResumeClaim) {
+        return {
+          evidenceLevel: EVIDENCE_LEVELS.LEVEL_1_PACKAGE_OR_CONFIG_SIGNAL,
+          evidenceExplanation: `Candidate self-reported claim (supporting ${supportingFrameworks.slice(0, 2).join(', ')} ecosystem signal detected without direct ${displayName} source implementation)`,
+          truthStatus: 'CLAIMED',
+          provenanceStatus: 'CLAIMED',
+          source: 'RESUME',
+          tier: 'PRIMARY',
+          supportingFrameworks,
+        };
+      }
+
+      return {
+        evidenceLevel: EVIDENCE_LEVELS.LEVEL_1_PACKAGE_OR_CONFIG_SIGNAL,
+        evidenceExplanation: `Supporting ${supportingFrameworks.slice(0, 2).join(', ')} ecosystem signal detected`,
+        truthStatus: 'VERIFIED',
+        provenanceStatus: 'VERIFIED',
+        source: 'GITHUB',
+        tier: 'SIGNAL',
+        supportingFrameworks,
+      };
+    }
+
+    // Condition 5: Level 0 Metadata Only (Resume claim only, 0 citations, 0 framework signals)
+    return {
+      evidenceLevel: EVIDENCE_LEVELS.LEVEL_0_METADATA_ONLY,
+      evidenceExplanation: 'Candidate self-reported claim from resume [Unverified User Claim]',
+      truthStatus: 'CLAIMED',
+      provenanceStatus: 'CLAIMED',
+      source: hasResumeClaim ? 'RESUME' : 'UNKNOWN',
+      tier: 'PRIMARY',
+      supportingFrameworks: [],
+    };
+  }
+
+  /**
+   * Evaluates evidence strength according to the 5-tier evidence model.
+   *
+   * @param {object} params
+   * @param {number} [params.evidenceCount=0]
+   * @param {number} [params.confidenceScore=0.5]
+   * @param {boolean} [params.hasResumeClaim=false]
+   * @param {boolean} [params.hasGithubEvidence=false]
+   * @param {'PRIMARY' | 'SIGNAL'} [params.tier='PRIMARY']
+   * @param {string} [params.slug='']
+   * @param {Array<object>} [params.allSkills=[]]
+   * @returns {{ evidenceLevel: number, evidenceExplanation: string, truthStatus: string, provenanceStatus: string, source: string, tier: 'PRIMARY' | 'SIGNAL' }}
+   */
+  static evaluateEvidenceStrength({
+    evidenceCount = 0,
+    confidenceScore = 0.5,
+    hasResumeClaim = false,
+    hasGithubEvidence = false,
+    tier = 'PRIMARY',
+    slug = '',
+    allSkills = [],
+  } = {}) {
+    const normSlug = (slug || '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    // Delegate to dedicated language reconciliation engine for programming languages
+    if (SkillTaxonomyEngine.isLanguage(normSlug)) {
+      return SkillTaxonomyEngine.reconcileLanguageEvidence({
+        languageSlug: normSlug,
+        directEvidenceCount: evidenceCount,
+        confidenceScore,
+        hasResumeClaim,
+        hasGithubEvidence,
+        allSkills,
+        tier,
+      });
+    }
+
+    const count = Number(evidenceCount) || 0;
+    const conf = Number(confidenceScore) || 0;
+    const hasEvidence = hasGithubEvidence || (count > 0 && conf > 0);
+
+    let evidenceLevel = EVIDENCE_LEVELS.LEVEL_0_METADATA_ONLY;
+    let evidenceExplanation = 'Candidate self-reported claim from resume [Unverified User Claim]';
+    let truthStatus = 'CLAIMED';
+    let provenanceStatus = 'CLAIMED';
+    let source = hasResumeClaim ? 'RESUME' : 'UNKNOWN';
+    let resolvedTier = tier;
+
+    if (!hasEvidence) {
+      evidenceLevel = EVIDENCE_LEVELS.LEVEL_0_METADATA_ONLY;
+      evidenceExplanation = 'Candidate self-reported claim from resume [Unverified User Claim]';
+      truthStatus = 'CLAIMED';
+      provenanceStatus = 'CLAIMED';
+      source = 'RESUME';
+    } else if (count >= 3) {
+      // Substantial implementation (Level 3 or 4)
+      if (hasResumeClaim) {
+        evidenceLevel = EVIDENCE_LEVELS.LEVEL_4_CORROBORATED;
+        evidenceExplanation = `Resume claim corroborated by ${count} repository citations`;
+        truthStatus = 'VERIFIED';
+        provenanceStatus = 'CORROBORATED';
+        source = 'BOTH';
+      } else {
+        evidenceLevel = EVIDENCE_LEVELS.LEVEL_3_SUBSTANTIAL_IMPLEMENTATION;
+        evidenceExplanation = `${count} source citations across repository implementation`;
+        truthStatus = 'VERIFIED';
+        provenanceStatus = 'VERIFIED';
+        source = 'GITHUB';
+      }
+    } else {
+      // 1 or 2 citations: Package manifest or single config/import signal (Level 1 / Level 2)
+      evidenceLevel = EVIDENCE_LEVELS.LEVEL_1_PACKAGE_OR_CONFIG_SIGNAL;
+      evidenceExplanation = `Package manifest or configuration file detected (${count} citation${count === 1 ? '' : 's'})`;
+
+      if (tier === 'PRIMARY') {
+        if (hasResumeClaim) {
+          // If on resume but repo only has linter/config signal (e.g. @eslint/js for JavaScript):
+          // Manifest alone is insufficient to verify primary career competency -> remains CLAIMED
+          truthStatus = 'CLAIMED';
+          provenanceStatus = 'CLAIMED';
+          source = 'BOTH';
+          evidenceExplanation =
+            'Candidate self-reported claim (manifest citation insufficient for primary verification)';
+        } else {
+          // GitHub-only technology with only package manifest citation:
+          // Reclassified as SIGNAL tier verified implementation signal
+          resolvedTier = 'SIGNAL';
+          truthStatus = 'VERIFIED';
+          provenanceStatus = 'VERIFIED';
+          source = 'GITHUB';
+          evidenceExplanation = `Package manifest dependency detected (${count} citation${count === 1 ? '' : 's'})`;
+        }
+      } else {
+        // SIGNAL tier
+        truthStatus = 'VERIFIED';
+        provenanceStatus = hasResumeClaim ? 'CORROBORATED' : 'VERIFIED';
+        source = hasResumeClaim ? 'BOTH' : 'GITHUB';
+        evidenceExplanation = `Package manifest dependency detected (${count} citation${count === 1 ? '' : 's'})`;
+      }
+    }
+
+    return {
+      evidenceLevel,
+      evidenceExplanation,
+      truthStatus,
+      provenanceStatus,
+      source,
+      tier: resolvedTier,
+    };
+  }
 }
+
+/**
+ * 5-tier evidence strength levels for deterministic career verification.
+ */
+export const EVIDENCE_LEVELS = Object.freeze({
+  LEVEL_0_METADATA_ONLY: 0,
+  LEVEL_1_PACKAGE_OR_CONFIG_SIGNAL: 1,
+  LEVEL_2_IMPORT_OR_SINGLE_USAGE: 2,
+  LEVEL_3_SUBSTANTIAL_IMPLEMENTATION: 3,
+  LEVEL_4_CORROBORATED: 4,
+});
 
 /**
  * Top-level convenience exports for provider-neutral consumers.
@@ -3036,3 +3415,6 @@ export const validateTaxonomyGraph = SkillTaxonomyEngine.validateTaxonomyGraph;
 export const classifyCategory = SkillTaxonomyEngine.classifyCategory;
 export const classifyTier = SkillTaxonomyEngine.classifyTier;
 export const getPrimarySkillRank = SkillTaxonomyEngine.getPrimarySkillRank;
+export const evaluateEvidenceStrength = SkillTaxonomyEngine.evaluateEvidenceStrength;
+export const reconcileLanguageEvidence = SkillTaxonomyEngine.reconcileLanguageEvidence;
+export const isLanguage = SkillTaxonomyEngine.isLanguage;

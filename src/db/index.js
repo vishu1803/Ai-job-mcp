@@ -125,12 +125,12 @@ export function createDb(poolInstance = pool, dbSchema = schema) {
 /**
  * Default singleton PostgreSQL connection pool instance.
  */
-export const pool = createPool();
+export let pool = createPool();
 
 /**
  * Default singleton Drizzle ORM instance.
  */
-export const db = createDb(pool);
+export let db = createDb(pool);
 
 /**
  * Executes a lightweight health check query against the database.
@@ -187,6 +187,12 @@ export async function checkDatabaseHealth(poolInstance = pool) {
 export async function closeDatabase(poolInstance = pool) {
   try {
     await poolInstance.end();
+    // If the default singleton pool was closed, auto-recreate it so that
+    // subsequent imports (e.g. later integration test files) get a working pool.
+    if (poolInstance === pool) {
+      pool = createPool();
+      db = createDb(pool);
+    }
     logger.info('PostgreSQL connection pool drained and closed successfully');
   } catch (err) {
     logger.error({ err }, 'Error while closing PostgreSQL connection pool');

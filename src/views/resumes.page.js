@@ -513,74 +513,156 @@ export function renderResumeDetailPage({
         </div>
       </div>
 
-      <!-- Extracted Claims Table -->
-      <div>
-        <div class="section-header" style="margin-bottom:1rem;">
-          <h2>Extracted Self-Reported Claims</h2>
-          <span class="section-count">${claims.length} ${claims.length === 1 ? 'claim' : 'claims'}</span>
+      <!-- Extracted Claims Section -->
+      <div class="card" style="padding:24px; margin-top:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1rem; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
+          <div>
+            <h2 style="font-size:1.2rem; font-weight:600; color:var(--text-main); margin:0; display:flex; align-items:center; gap:8px;">
+              <span>📋</span> Extracted Self-Reported Claims
+              <span class="badge badge-claimed" style="font-size:0.75rem;">${claims.length} ${claims.length === 1 ? 'claim' : 'claims'}</span>
+            </h2>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">
+              Atomic facts and skills extracted from your resume. Unverified until corroborated against connected repository source code.
+            </p>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input
+              type="text"
+              id="claimSearchInput"
+              placeholder="Search claims..."
+              style="padding:6px 12px; font-size:0.8rem; background:rgba(0,0,0,0.25); border:1px solid var(--border-subtle); border-radius:var(--radius-md); color:var(--text-main); outline:none; min-width:200px;"
+              oninput="filterClaimsTable()"
+            />
+          </div>
         </div>
 
         ${
           claims.length > 0
             ? `
-        <!-- Claim Type Breakdown -->
-        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem;">
+        <!-- Interactive Category Filter Tabs -->
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:1.25rem;" id="claimFilterTabs">
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm claim-tab-btn active"
+            data-filter="ALL"
+            onclick="setClaimFilter('ALL', this)"
+            style="font-size:0.75rem; padding:4px 10px;"
+          >
+            All (${claims.length})
+          </button>
           ${Object.entries(claimTypeCounts)
             .map(
-              ([type, count]) =>
-                `<span class="tag">${escapeHtml(claimTypeLabels[type] || type)}: ${count}</span>`
+              ([type, count]) => `
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm claim-tab-btn"
+              data-filter="${escapeHtml(type)}"
+              onclick="setClaimFilter('${escapeHtml(type)}', this)"
+              style="font-size:0.75rem; padding:4px 10px;"
+            >
+              ${escapeHtml(claimTypeLabels[type] || type)} (${count})
+            </button>
+          `
             )
-            .join(' ')}
+            .join('')}
         </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="claimsTable">
+            <thead>
+              <tr>
+                <th style="width:130px;">Claim Type</th>
+                <th>Statement</th>
+                <th style="width:240px;">Context / Origin</th>
+                <th style="width:160px;">Truth Classification</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${claims
+                .map((c) => {
+                  const cleanContext = (c.context || 'Resume extraction')
+                    .replace(/\s*\[Unverified User Claim\]/gi, '')
+                    .trim();
+
+                  const typeIcons = {
+                    SKILL: '🛠️',
+                    PROJECT: '📦',
+                    EXPERIENCE: '💼',
+                    EDUCATION: '🎓',
+                    CONTACT: '📞',
+                    SUMMARY: '📝',
+                  };
+                  const icon = typeIcons[c.claimType] || '📌';
+
+                  return `
+                <tr class="claim-row" data-type="${escapeHtml(c.claimType)}">
+                  <td>
+                    <span class="tag" style="font-weight:600; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.03em; display:inline-flex; align-items:center; gap:4px;">
+                      <span>${icon}</span> ${escapeHtml(c.claimType)}
+                    </span>
+                  </td>
+                  <td style="color:var(--text-main); font-size:0.875rem; font-weight:500; line-height:1.5;">
+                    ${escapeHtml(c.statement)}
+                  </td>
+                  <td style="color:var(--text-dim); font-size:0.8rem; line-height:1.4;">
+                    ${escapeHtml(cleanContext)}
+                  </td>
+                  <td>
+                    <span class="badge badge-claimed" style="font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">
+                      <span>📝</span> CLAIMED
+                    </span>
+                    <span style="font-size:0.68rem; color:var(--text-muted); display:block; margin-top:2px;">
+                      [Unverified User Claim]
+                    </span>
+                  </td>
+                </tr>
+              `;
+                })
+                .join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <script>
+          let activeClaimType = 'ALL';
+
+          function setClaimFilter(type, btn) {
+            activeClaimType = type;
+            document.querySelectorAll('#claimFilterTabs .claim-tab-btn').forEach(b => {
+              b.classList.remove('active');
+              b.style.borderColor = 'var(--border-subtle)';
+            });
+            btn.classList.add('active');
+            btn.style.borderColor = 'var(--accent-cyan)';
+            filterClaimsTable();
+          }
+
+          function filterClaimsTable() {
+            const query = (document.getElementById('claimSearchInput')?.value || '').toLowerCase().trim();
+            const rows = document.querySelectorAll('#claimsTable tbody tr.claim-row');
+
+            rows.forEach(row => {
+              const rowType = row.getAttribute('data-type') || '';
+              const rowText = row.innerText.toLowerCase();
+
+              const matchesType = activeClaimType === 'ALL' || rowType === activeClaimType;
+              const matchesSearch = !query || rowText.includes(query);
+
+              if (matchesType && matchesSearch) {
+                row.style.display = '';
+              } else {
+                row.style.display = 'none';
+              }
+            });
+          }
+        </script>
         `
             : `
         <div class="alert alert-info" style="margin-bottom:1rem;">
           <strong>No structured claims were extracted.</strong> This can happen when the resume format lacks standard section headings (e.g., "Skills", "Experience", "Education") or when the parser cannot identify structured entries. The raw parsed sections above still contain your resume content. Supported section headings: Skills, Work Experience, Education, Projects, Certifications, Summary.
         </div>
         `
-        }
-
-        ${
-          claims.length > 0
-            ? `
-        <div class="table-responsive">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th style="width:120px;">Claim Type</th>
-                <th>Statement</th>
-                <th>Context / Origin</th>
-                <th>Truth Classification</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${claims
-                .map(
-                  (c) => `
-                <tr>
-                  <td>
-                    <span style="font-weight:600; color:var(--text-dim); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.03em;">
-                      ${escapeHtml(c.claimType)}
-                    </span>
-                  </td>
-                  <td style="color:var(--text-main); font-size:0.875rem; font-weight:500;">
-                    ${escapeHtml(c.statement)}
-                  </td>
-                  <td style="color:var(--text-dim); font-size:0.8rem;">
-                    ${escapeHtml(c.context || 'Resume extraction')}
-                  </td>
-                  <td>
-                    <span class="badge badge-claimed">CLAIMED [Unverified User Claim]</span>
-                  </td>
-                </tr>
-              `
-                )
-                .join('')}
-            </tbody>
-          </table>
-        </div>
-        `
-            : ''
         }
       </div>
     </div>

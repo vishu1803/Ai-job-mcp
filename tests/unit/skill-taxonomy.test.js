@@ -705,4 +705,349 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       }
     });
   });
+
+  describe('12. Evidence Strength Evaluation Engine (Step 1J)', () => {
+    it('1. evaluates Level 0 (METADATA_ONLY) as CLAIMED for resume-only skills', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        evidenceCount: 0,
+        confidenceScore: 0.5,
+        hasResumeClaim: true,
+        hasGithubEvidence: false,
+        tier: 'PRIMARY',
+        slug: 'python',
+      });
+
+      assert.equal(res.evidenceLevel, 0);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
+      assert.equal(res.source, 'RESUME');
+      assert.equal(res.tier, 'PRIMARY');
+    });
+
+    it('2. evaluates Level 1 (PACKAGE_MANIFEST) for package-only JavaScript as CLAIMED on primary tier', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        evidenceCount: 1,
+        confidenceScore: 0.8,
+        hasResumeClaim: true,
+        hasGithubEvidence: true,
+        tier: 'PRIMARY',
+        slug: 'javascript',
+      });
+
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
+      assert.equal(res.source, 'BOTH');
+      assert.equal(res.tier, 'PRIMARY');
+      assert.ok(res.evidenceExplanation.includes('insufficient'));
+    });
+
+    it('3. evaluates Level 1 (PACKAGE_MANIFEST) for GitHub-only technology as SIGNAL + VERIFIED', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        evidenceCount: 1,
+        confidenceScore: 0.8,
+        hasResumeClaim: false,
+        hasGithubEvidence: true,
+        tier: 'PRIMARY',
+        slug: 'docker-compose',
+      });
+
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'VERIFIED');
+      assert.equal(res.source, 'GITHUB');
+      assert.equal(res.tier, 'SIGNAL');
+    });
+
+    it('4. evaluates Level 1 for component packages like React Tabs as SIGNAL + VERIFIED', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        evidenceCount: 1,
+        confidenceScore: 0.8,
+        hasResumeClaim: false,
+        hasGithubEvidence: true,
+        tier: 'SIGNAL',
+        slug: 'react-tabs',
+      });
+
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'VERIFIED');
+      assert.equal(res.tier, 'SIGNAL');
+    });
+
+    it('5. evaluates Level 1 for utility packages like Python Dotenv as SIGNAL + VERIFIED', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        evidenceCount: 1,
+        confidenceScore: 0.8,
+        hasResumeClaim: false,
+        hasGithubEvidence: true,
+        tier: 'SIGNAL',
+        slug: 'python-dotenv',
+      });
+
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'VERIFIED');
+      assert.equal(res.tier, 'SIGNAL');
+    });
+
+    it('6. evaluates Level 3 (SUBSTANTIAL_IMPLEMENTATION) as PRIMARY + VERIFIED for GitHub-only skills with >=3 citations', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        evidenceCount: 5,
+        confidenceScore: 0.95,
+        hasResumeClaim: false,
+        hasGithubEvidence: true,
+        tier: 'PRIMARY',
+        slug: 'mcp',
+      });
+
+      assert.equal(res.evidenceLevel, 3);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'VERIFIED');
+      assert.equal(res.source, 'GITHUB');
+      assert.equal(res.tier, 'PRIMARY');
+      assert.ok(res.evidenceExplanation.includes('5 source citations'));
+    });
+
+    it('7. evaluates Level 4 (CORROBORATED) as PRIMARY + CORROBORATED for skills with >=3 citations and resume claim', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        evidenceCount: 24,
+        confidenceScore: 0.98,
+        hasResumeClaim: true,
+        hasGithubEvidence: true,
+        tier: 'PRIMARY',
+        slug: 'fastify',
+      });
+
+      assert.equal(res.evidenceLevel, 4);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.source, 'BOTH');
+      assert.equal(res.tier, 'PRIMARY');
+      assert.ok(
+        res.evidenceExplanation.includes('Resume claim corroborated by 24 repository citations')
+      );
+    });
+  });
+
+  describe('13. Language Evidence Reconciliation (Step 1K)', () => {
+    it('A. Python resume claim only evaluates as LEVEL 0 CLAIMED', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'python',
+        evidenceCount: 0,
+        confidenceScore: 0.5,
+        hasResumeClaim: true,
+        hasGithubEvidence: false,
+        allSkills: [],
+      });
+
+      assert.equal(res.evidenceLevel, 0);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
+      assert.equal(res.tier, 'PRIMARY');
+      assert.ok(res.evidenceExplanation.includes('[Unverified User Claim]'));
+    });
+
+    it('B. FastAPI package alone is NOT enough for Python VERIFIED (remains CLAIMED with supporting signal)', () => {
+      const allSkills = [
+        {
+          slug: 'fastapi',
+          name: 'FastAPI',
+          evidenceCount: 1,
+          truthStatus: 'VERIFIED',
+        },
+      ];
+
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'python',
+        evidenceCount: 0,
+        confidenceScore: 0.5,
+        hasResumeClaim: true,
+        hasGithubEvidence: false,
+        allSkills,
+      });
+
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
+      assert.equal(res.tier, 'PRIMARY');
+      assert.ok(res.evidenceExplanation.includes('supporting FastAPI ecosystem signal detected'));
+    });
+
+    it('C. FastAPI + substantial Python source implementation evaluates as eligible for PRIMARY + CORROBORATED', () => {
+      const allSkills = [
+        {
+          slug: 'fastapi',
+          name: 'FastAPI',
+          evidenceCount: 12,
+          truthStatus: 'VERIFIED',
+          provenanceStatus: 'CORROBORATED',
+        },
+        {
+          slug: 'sqlalchemy',
+          name: 'SQLAlchemy',
+          evidenceCount: 8,
+          truthStatus: 'VERIFIED',
+        },
+      ];
+
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'python',
+        evidenceCount: 6,
+        confidenceScore: 0.95,
+        hasResumeClaim: true,
+        hasGithubEvidence: true,
+        allSkills,
+      });
+
+      assert.equal(res.evidenceLevel, 4);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.tier, 'PRIMARY');
+      assert.ok(res.evidenceExplanation.includes('Python source implementation'));
+      assert.ok(res.evidenceExplanation.includes('FastAPI'));
+    });
+
+    it('D. JavaScript resume claim only evaluates as LEVEL 0 CLAIMED', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'javascript',
+        evidenceCount: 0,
+        confidenceScore: 0.5,
+        hasResumeClaim: true,
+        hasGithubEvidence: false,
+        allSkills: [],
+      });
+
+      assert.equal(res.evidenceLevel, 0);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
+      assert.equal(res.tier, 'PRIMARY');
+    });
+
+    it('E. @eslint/js manifest alone is NOT enough for JavaScript VERIFIED (remains CLAIMED)', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'javascript',
+        evidenceCount: 1, // single @eslint/js manifest detection
+        confidenceScore: 0.75,
+        hasResumeClaim: true,
+        hasGithubEvidence: true,
+        allSkills: [],
+      });
+
+      assert.equal(res.evidenceLevel, 1);
+      assert.equal(res.truthStatus, 'CLAIMED');
+      assert.equal(res.provenanceStatus, 'CLAIMED');
+      assert.equal(res.tier, 'PRIMARY');
+      assert.ok(res.evidenceExplanation.includes('insufficient for primary verification'));
+    });
+
+    it('F. Substantial .js source implementation evaluates as eligible for PRIMARY + CORROBORATED', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'javascript',
+        evidenceCount: 15,
+        confidenceScore: 0.95,
+        hasResumeClaim: true,
+        hasGithubEvidence: true,
+        allSkills: [],
+      });
+
+      assert.equal(res.evidenceLevel, 4);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.tier, 'PRIMARY');
+      assert.ok(res.evidenceExplanation.includes('corroborated by 15 repository citations'));
+    });
+
+    it('G. TypeScript source implementation evaluates as PRIMARY + CORROBORATED', () => {
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'typescript',
+        evidenceCount: 10,
+        confidenceScore: 0.95,
+        hasResumeClaim: true,
+        hasGithubEvidence: true,
+        allSkills: [],
+      });
+
+      assert.equal(res.evidenceLevel, 4);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.equal(res.tier, 'PRIMARY');
+    });
+
+    it('H. React package alone is evaluated as framework signal/verified without promoting JavaScript', () => {
+      const reactSignal = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'react',
+        evidenceCount: 1,
+        confidenceScore: 0.75,
+        hasResumeClaim: false,
+        hasGithubEvidence: true,
+        tier: 'SIGNAL',
+        allSkills: [],
+      });
+
+      assert.equal(reactSignal.truthStatus, 'VERIFIED');
+      assert.equal(reactSignal.tier, 'SIGNAL');
+    });
+
+    it('I. React + substantial JS source files provides supporting JavaScript evidence', () => {
+      const allSkills = [
+        {
+          slug: 'react',
+          name: 'React',
+          evidenceCount: 8,
+          truthStatus: 'VERIFIED',
+        },
+      ];
+
+      const res = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'javascript',
+        evidenceCount: 5,
+        confidenceScore: 0.9,
+        hasResumeClaim: true,
+        hasGithubEvidence: true,
+        allSkills,
+      });
+
+      assert.equal(res.evidenceLevel, 4);
+      assert.equal(res.truthStatus, 'VERIFIED');
+      assert.equal(res.provenanceStatus, 'CORROBORATED');
+      assert.ok(res.evidenceExplanation.includes('React'));
+    });
+
+    it('J. Next.js + TypeScript source provides TypeScript evidence without automatic JavaScript verification', () => {
+      const allSkills = [
+        {
+          slug: 'next-js',
+          name: 'Next.js',
+          evidenceCount: 6,
+          truthStatus: 'VERIFIED',
+        },
+      ];
+
+      // TypeScript evaluation
+      const tsRes = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'typescript',
+        evidenceCount: 8,
+        confidenceScore: 0.95,
+        hasResumeClaim: true,
+        hasGithubEvidence: true,
+        allSkills,
+      });
+      assert.equal(tsRes.truthStatus, 'VERIFIED');
+      assert.equal(tsRes.provenanceStatus, 'CORROBORATED');
+
+      // JavaScript evaluation with 0 direct JS citations
+      const jsRes = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        slug: 'javascript',
+        evidenceCount: 0,
+        confidenceScore: 0.5,
+        hasResumeClaim: true,
+        hasGithubEvidence: false,
+        allSkills,
+      });
+      assert.equal(jsRes.truthStatus, 'CLAIMED');
+      assert.equal(jsRes.provenanceStatus, 'CLAIMED');
+      assert.ok(jsRes.evidenceExplanation.includes('supporting Next.js ecosystem signal detected'));
+    });
+  });
 });

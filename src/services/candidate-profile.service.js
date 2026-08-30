@@ -1129,11 +1129,6 @@ export class CandidateProfileService {
         if (skillMap.has(slug)) {
           const existing = skillMap.get(slug);
           existing.resumeClaim = true;
-          if (existing.githubEvidence) {
-            existing.truthStatus = 'VERIFIED';
-            existing.provenanceStatus = 'CORROBORATED';
-            existing.source = 'BOTH';
-          }
         } else {
           skillMap.set(slug, {
             slug,
@@ -1154,6 +1149,26 @@ export class CandidateProfileService {
     }
 
     const allSkillsList = Array.from(skillMap.values());
+
+    // Evaluate evidence strength for every aggregated skill (with multi-signal language reconciliation)
+    for (const item of allSkillsList) {
+      const evalResult = SkillTaxonomyEngine.evaluateEvidenceStrength({
+        evidenceCount: item.evidenceCount,
+        confidenceScore: item.confidenceScore,
+        hasResumeClaim: item.resumeClaim,
+        hasGithubEvidence: item.githubEvidence,
+        tier: item.tier,
+        slug: item.slug,
+        allSkills: allSkillsList,
+      });
+
+      item.evidenceLevel = evalResult.evidenceLevel;
+      item.evidenceExplanation = evalResult.evidenceExplanation;
+      item.truthStatus = evalResult.truthStatus;
+      item.provenanceStatus = evalResult.provenanceStatus;
+      item.source = evalResult.source;
+      item.tier = evalResult.tier;
+    }
 
     const primarySkills = allSkillsList
       .filter((s) => s.tier === 'PRIMARY')

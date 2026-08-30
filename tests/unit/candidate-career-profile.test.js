@@ -1384,4 +1384,420 @@ describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit
     const parsed = CandidateCareerProfileSchema.safeParse(profile);
     assert.ok(parsed.success, `Schema validation failed: ${JSON.stringify(parsed.error?.issues)}`);
   });
+
+  // 33. Package-only JavaScript does not artificially promote to PRIMARY VERIFIED
+  it('33. keeps JavaScript as CLAIMED when only package manifest/config signal exists despite resume claim', async () => {
+    const candidateWithResume = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['JavaScript', 'TypeScript'],
+        },
+      },
+    };
+
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-js',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.8,
+          evidenceCount: 1, // Only 1 citation from @eslint/js
+        },
+        skillSlug: 'javascript',
+        skillName: 'JavaScript',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-ts',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 12, // Substantial TypeScript usage
+        },
+        skillSlug: 'typescript',
+        skillName: 'TypeScript',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithResume, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const js = profile.primarySkills.find((s) => s.slug === 'javascript');
+    const ts = profile.primarySkills.find((s) => s.slug === 'typescript');
+
+    assert.ok(js);
+    assert.strictEqual(js.truthStatus, 'CLAIMED');
+    assert.strictEqual(js.evidenceLevel, 1);
+    assert.ok(js.evidenceExplanation.includes('insufficient for primary verification'));
+
+    assert.ok(ts);
+    assert.strictEqual(ts.truthStatus, 'VERIFIED');
+    assert.strictEqual(ts.provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(ts.evidenceLevel, 4);
+  });
+
+  // 34. Dockerfile container build vs docker-compose manifest only
+  it('34. distinguishes Docker substantial build (PRIMARY VERIFIED) from Docker Compose manifest (SIGNAL VERIFIED)', async () => {
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-docker',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.9,
+          evidenceCount: 4,
+        },
+        skillSlug: 'docker',
+        skillName: 'Docker',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-compose',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.8,
+          evidenceCount: 1,
+        },
+        skillSlug: 'docker-compose',
+        skillName: 'Docker Compose',
+      },
+    ];
+
+    const mockDb = createMockDb(mockCandidateRecord, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const docker = profile.primarySkills.find((s) => s.slug === 'docker');
+    const compose = profile.technologySignals.find((s) => s.slug === 'docker-compose');
+
+    assert.ok(docker);
+    assert.strictEqual(docker.tier, 'PRIMARY');
+    assert.strictEqual(docker.truthStatus, 'VERIFIED');
+    assert.strictEqual(docker.evidenceLevel, 3);
+
+    assert.ok(compose);
+    assert.strictEqual(compose.tier, 'SIGNAL');
+    assert.strictEqual(compose.truthStatus, 'VERIFIED');
+    assert.strictEqual(compose.evidenceLevel, 1);
+  });
+
+  // 35. Actual AI/ML usage (Gemini / OpenAI) vs package-only
+  it('35. verifies Google Gemini with substantial source implementation and preserves OpenAI claim', async () => {
+    const candidateWithAiResume = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['Google Gemini', 'OpenAI'],
+        },
+      },
+    };
+
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-gemini',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 6, // Substantial implementation
+        },
+        skillSlug: 'gemini',
+        skillName: 'Google Gemini',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithAiResume, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const gemini = profile.primarySkills.find((s) => s.slug === 'gemini');
+    const openai = profile.primarySkills.find((s) => s.slug === 'openai');
+
+    assert.ok(gemini);
+    assert.strictEqual(gemini.truthStatus, 'VERIFIED');
+    assert.strictEqual(gemini.provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(gemini.evidenceLevel, 4);
+
+    assert.ok(openai);
+    assert.strictEqual(openai.truthStatus, 'CLAIMED');
+    assert.strictEqual(openai.evidenceLevel, 0);
+  });
+
+  // 36. Test frameworks: actual test suites vs dependency-only
+  it('36. distinguishes substantial test frameworks from unverified claims', async () => {
+    const candidateWithTests = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['Vitest', 'Cypress'],
+        },
+      },
+    };
+
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-vitest',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 8,
+        },
+        skillSlug: 'vitest',
+        skillName: 'Vitest',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithTests, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const vitest = profile.primarySkills.find((s) => s.slug === 'vitest');
+    const cypress = profile.primarySkills.find((s) => s.slug === 'cypress');
+
+    assert.ok(vitest);
+    assert.strictEqual(vitest.truthStatus, 'VERIFIED');
+    assert.strictEqual(vitest.provenanceStatus, 'CORROBORATED');
+
+    assert.ok(cypress);
+    assert.strictEqual(cypress.truthStatus, 'CLAIMED');
+  });
+
+  // 37. GitHub Actions workflow-only signal
+  it('37. reclassifies GitHub Actions with single workflow citation as SIGNAL tier', async () => {
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-gha',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.8,
+          evidenceCount: 1, // Single workflow file
+        },
+        skillSlug: 'github-actions',
+        skillName: 'GitHub Actions',
+      },
+    ];
+
+    const mockDb = createMockDb(mockCandidateRecord, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const ghaPrimary = profile.primarySkills.find((s) => s.slug === 'github-actions');
+    const ghaSignal = profile.technologySignals.find((s) => s.slug === 'github-actions');
+
+    assert.strictEqual(ghaPrimary, undefined);
+    assert.ok(ghaSignal);
+    assert.strictEqual(ghaSignal.tier, 'SIGNAL');
+    assert.strictEqual(ghaSignal.truthStatus, 'VERIFIED');
+    assert.strictEqual(ghaSignal.evidenceLevel, 1);
+  });
+
+  // 38. Python language reconciliation with supporting framework package
+  it('38. keeps Python as CLAIMED when only FastAPI package signal is detected without direct Python source code', async () => {
+    const candidateWithResume = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['Python', 'FastAPI'],
+        },
+      },
+    };
+
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-fastapi',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.85,
+          evidenceCount: 1, // FastAPI manifest only
+        },
+        skillSlug: 'fastapi',
+        skillName: 'FastAPI',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithResume, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const py = profile.primarySkills.find((s) => s.slug === 'python');
+    assert.ok(py);
+    assert.strictEqual(py.truthStatus, 'CLAIMED');
+    assert.strictEqual(py.provenanceStatus, 'CLAIMED');
+    assert.strictEqual(py.evidenceLevel, 1);
+    assert.ok(py.evidenceExplanation.includes('FastAPI'));
+  });
+
+  // 39. Python language reconciliation with substantial direct source files
+  it('39. promotes Python to PRIMARY + CORROBORATED when substantial .py source files and FastAPI AST exist', async () => {
+    const candidateWithResume = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['Python', 'FastAPI'],
+        },
+      },
+    };
+
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-py',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 8, // Direct .py citations
+        },
+        skillSlug: 'python',
+        skillName: 'Python',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-fastapi',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 16,
+        },
+        skillSlug: 'fastapi',
+        skillName: 'FastAPI',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithResume, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const py = profile.primarySkills.find((s) => s.slug === 'python');
+    assert.ok(py);
+    assert.strictEqual(py.truthStatus, 'VERIFIED');
+    assert.strictEqual(py.provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(py.evidenceLevel, 4);
+    assert.ok(py.evidenceExplanation.includes('FastAPI'));
+  });
+
+  // 40. JavaScript language reconciliation in TypeScript-first codebase
+  it('40. keeps JavaScript as CLAIMED when repository is TypeScript-first with zero direct JS source citations', async () => {
+    const candidateWithResume = {
+      ...mockCandidateRecord,
+      profileMetadata: {
+        ...mockCandidateRecord.profileMetadata,
+        resumeData: {
+          skills: ['JavaScript', 'TypeScript', 'Next.js'],
+        },
+      },
+    };
+
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-ts',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 20, // Substantial TypeScript
+        },
+        skillSlug: 'typescript',
+        skillName: 'TypeScript',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-next',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.9,
+          evidenceCount: 10,
+        },
+        skillSlug: 'next-js',
+        skillName: 'Next.js',
+      },
+    ];
+
+    const mockDb = createMockDb(candidateWithResume, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    const js = profile.primarySkills.find((s) => s.slug === 'javascript');
+    const ts = profile.primarySkills.find((s) => s.slug === 'typescript');
+
+    assert.ok(js);
+    assert.strictEqual(js.truthStatus, 'CLAIMED');
+    assert.strictEqual(js.provenanceStatus, 'CLAIMED');
+
+    assert.ok(ts);
+    assert.strictEqual(ts.truthStatus, 'VERIFIED');
+    assert.strictEqual(ts.provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(ts.evidenceLevel, 4);
+  });
+
+  // 41. Clean separation between primary skills and technology signals
+  it('41. produces deterministic primarySkills and technologySignals collections with zero cross-contamination', async () => {
+    const candidateSkills = [
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-react',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.95,
+          evidenceCount: 15,
+        },
+        skillSlug: 'react',
+        skillName: 'React',
+      },
+      {
+        cs: {
+          candidateId: candidateIdA,
+          tenantId: tenantA,
+          skillId: 's-dialog',
+          provenanceStatus: 'VERIFIED',
+          confidenceScore: 0.8,
+          evidenceCount: 2,
+        },
+        skillSlug: 'react-dialog',
+        skillName: 'React Dialog',
+      },
+    ];
+
+    const mockDb = createMockDb(mockCandidateRecord, candidateSkills);
+    const service = new CandidateProfileService(mockDb);
+
+    const profile = await service.getCareerProfile(contextA, candidateIdA);
+
+    assert.strictEqual(profile.primarySkills.length, 1);
+    assert.strictEqual(profile.primarySkills[0].slug, 'react');
+
+    assert.strictEqual(profile.technologySignals.length, 1);
+    assert.strictEqual(profile.technologySignals[0].slug, 'react-dialog');
+  });
 });
