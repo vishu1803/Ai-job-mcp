@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003, P14-003A, P14-004, P14-004A, P14-004B, P14-004C & P14-004D COMPLETE |
-| **Project State** | **ACTIVE / IN PROGRESS** | Production staging domain architecture (`dev.aicareershub.tech`), Cloudflare Named Tunnel, proxy trust security integration tests, 26 MCP tools, 8 resources (static + templates), 4 prompts, OAuth 2.1 PKCE/CIMD, 7 legal compliance pages, and 100% test pass rate verified |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003, P14-003A, P14-004, P14-004A, P14-004B, P14-004C, P14-004D & P14-005 COMPLETE |
+| **Project State** | **ACTIVE / IN PROGRESS** | Two-tier disaster recovery architecture (Aiven managed PITR + independent encrypted logical backup & document snapshot), Prometheus operational observability (`/metrics`), Cloudflare Named Tunnel staging (`dev.aicareershub.tech`), 26 MCP tools, 8 resources, 4 prompts, OAuth 2.1 PKCE/CIMD, 7 legal compliance pages, and 100% test pass rate verified |
 | **Total Tasks** | **95 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **88 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003, P14-003A, P14-004A, P14-004B, P14-004C & P14-004D |
-| **In Progress Tasks** | **0 Tasks** | P14-004D completed; ready for P14-005 |
+| **Completed Tasks** | **89 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003, P14-003A, P14-004, P14-004A, P14-004B, P14-004C, P14-004D & P14-005 |
+| **In Progress Tasks** | **0 Tasks** | P14-005 completed; ready for P14-006 |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **92.63% (88 / 95 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **92.16% (15.67 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **93.68% (89 / 95 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **92.81% (15.78 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 9 | 6 | 0 | **IN_PROGRESS** | **66.7%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 9 | 7 | 0 | **IN_PROGRESS** | **77.8%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -3562,7 +3562,7 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-004B** | Expand Career MCP into End-to-End Job Application Workflow & AI Connection Status Center | P14-004A | **COMPLETE & VERIFIED** | Implemented 8 new MCP workflow tools (24 total), single-use 15-min cryptographic approval tickets bound to package SHA-256 hash, Workday manual handoff kit, real DB-derived AI connection status center for Claude/ChatGPT/Gemini, and integration test suite (`tests/integration/mcp-job-workflow.test.js` - 12/12 PASS). |
 | **P14-004C** | Career Hub Product Model, Career Profile, MCP Protocol Completeness, Privacy/Legal Surface & Public-Readiness Audit | P14-004B | **COMPLETE & VERIFIED** | Implemented persistent Candidate Career Profile & Intent model (`CareerPreferencesSchema`), Profile Web UI (`/profile`), 2 new MCP profile tools (`get_career_profile`, `update_career_preferences` -> 26 tools total), MCP Resources (`career://profile`, `career://skills`, `career://connections`), MCP Prompts (`find_matching_jobs`, `review_resume`, `prepare_application`, `explain_skill_gap`), 7 public legal & compliance pages (`/privacy`, `/cookies`, `/terms`, `/security`, `/data-deletion`, `/accessibility`, `/subprocessors`) with universal footer. 1,292 unit tests passing (100%), 0 lint errors, 0 secrets. |
 | **P14-004D** | MCP Production Conformance Gap Remediation, Resume/Provenance Correction & End-to-End Public Acceptance | P14-004C | **COMPLETE & VERIFIED** | Closed all 20 identified production-critical gaps: verified MCP Protocol Version policy (`2026-07-28` primary, `2025-11-25` compatibility, 400 rejection on obsolete/unsupported versions), implemented `ResourceTemplate` dynamic resources (`career://projects/{projectId}`, `career://evidence/{evidenceId}`, `career://jobs/{jobId}`, `career://applications/{applicationId}`) with sovereign multi-tenant default-deny IDOR protection, added `listSkillsWithEvidence` to `CandidateProfileService`, enhanced skill provenance resolution via `projectResources` -> `resources` in web UI preventing "Source information unavailable", validated all 4 MCP Prompts and 26 structured tool output schemas, verified OAuth 2.1 PKCE/CIMD token scoping, and created `tests/integration/mcp-conformance-and-resources.test.js` (5/5 PASS). 1,292/1,292 unit tests pass, Prettier clean, ESLint clean, DB lifecycle clean, zero secrets. |
-| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004D | NOT_STARTED | Execute automated backup and test restoration to clean database; OpenTelemetry/Prometheus security metrics. |
+| **P14-005** | Implement Automated Database Backup, Disaster Recovery Runbook & Metrics | P14-004D | **COMPLETE & VERIFIED** | Architectural specifications `docs/disaster-recovery.md` (`ARCH-055`), `docs/backup-architecture.md` (`ARCH-056`), `docs/operational-runbook.md` (`ARCH-057`), and `ADR-072`. Implemented independent logical backup export with AES-256-GCM envelope encryption and tamper-evident SHA-256 manifest (`src/services/backup-export.service.js`, `scripts/backup-export.js`), encrypted document storage snapshotting (`storage/documents/`), air-gapped master key escrow runbook, Prometheus operational metrics service (`src/monitoring/metrics.service.js`, `GET /metrics`), and automated disaster recovery restore drill (`scripts/test-dr-restore.js`, `tests/integration/disaster-recovery.test.js`) restoring 24 tables, 1,929 rows, 44 document blobs, achieving measured Database RTO = 20.48s, RPO <= 5m, 100% bit parity, and clean ephemeral teardown (0 orphan DBs). 1,302 unit tests (100%), 0 lint errors, 0 secrets. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---

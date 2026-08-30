@@ -13,6 +13,7 @@
 import { checkDatabaseHealth } from '../db/index.js';
 import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
 import { defaultConcurrencySemaphore } from '../security/concurrency-semaphore.js';
+import { metricsService } from '../monitoring/metrics.service.js';
 
 /**
  * Registers health check and liveness routes with the Fastify instance.
@@ -114,5 +115,20 @@ export async function healthRoutes(app, opts = {}) {
     }
 
     return reply.code(statusCode).send(response);
+  });
+
+  // -------------------------------------------------------------------------
+  // 3. GET /metrics (Prometheus Operational Metrics Endpoint)
+  // -------------------------------------------------------------------------
+  app.get('/metrics', async (_request, reply) => {
+    reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    reply.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+
+    // Update dynamic pool metrics prior to export
+    if (dbPoolGuard) {
+      metricsService.recordPoolStats(dbPoolGuard.getPoolStats());
+    }
+
+    return metricsService.toPrometheusFormat();
   });
 }

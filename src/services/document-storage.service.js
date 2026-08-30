@@ -27,7 +27,10 @@ export class DocumentStorageService {
       options.masterKey ||
       config.ENCRYPTION_MASTER_KEY ||
       'default-career-hub-dev-encryption-key-32b';
-    this.key = crypto.createHash('sha256').update(rawKey).digest();
+    this.key =
+      Buffer.isBuffer(rawKey) && rawKey.length === 32
+        ? rawKey
+        : crypto.createHash('sha256').update(rawKey).digest();
   }
 
   /**

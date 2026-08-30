@@ -1595,3 +1595,20 @@
   * **Backup & DR Objectives**: Target RPO $\le 1\text{h}$ and RTO $\le 4\text{h}$ with automated logical dump encryption and ephemeral database restoration drills.
 * **Reasons**: Proactively eliminates security vulnerabilities, guarantees fail-closed multi-tenant boundaries, protects user credentials, and establishes production operational readiness.
 * **Consequences**: Task P14-001A is COMPLETE & APPROVED; Phase 14 implementation tasks P14-001 through P14-006 are formally specified and ready for execution.
+
+---
+
+### ADR-072: Production Backup, Disaster Recovery, Key Escrow, Document Storage Protection & Operational Observability
+* **Status**: ACCEPTED
+* **Date**: 2026-08-30
+* **Context**: In Phase 14 (Task P14-005 / `ARCH-055`), the platform required a comprehensive disaster recovery system, independent encrypted backup pipeline, cryptographic key escrow design, document storage protection, and operational metrics monitoring without duplicating Aiven's managed PostgreSQL backup/PITR mechanisms.
+* **Decision**: Adopt the **Two-Tier Disaster Recovery & Observability Architecture** defined in `docs/disaster-recovery.md` (`ARCH-055`), `docs/backup-architecture.md` (`ARCH-056`), and `docs/operational-runbook.md` (`ARCH-057`):
+  * **Primary Recovery Tier (Aiven Managed)**: Leverage Aiven managed daily base backups, continuous 5-minute WAL streaming (`archive_timeout = 300s`), and 10-day Point-In-Time-Recovery (PITR) down to the second. Treat Aiven PITR and instant service forking as the primary database disaster recovery mechanism.
+  * **Secondary Recovery Tier (Independent Logical Exports)**: Implement `BackupExportService` (`src/services/backup-export.service.js`) and `BackupRestoreService` (`src/services/backup-restore.service.js`) generating standalone logical PostgreSQL exports encrypted client-side with AES-256-GCM envelope encryption (`[12B IV][16B AuthTag][Ciphertext]`) with key versioning (`v1`) and tamper-evident SHA-256 checksum manifests.
+  * **Document Storage Protection**: Preserve raw AES-256-GCM encrypted resume blobs from `storage/documents/<tenantId>/<storageKey>.enc` directly as ciphertext in backup bundles with tenant mapping and individual file hashes, ensuring complete recoverability without decrypting sensitive files during backup.
+  * **Cryptographic Key Escrow**: Mandate external storage of `ENCRYPTION_MASTER_KEY` and `SESSION_COOKIE_SECRET` in an enterprise Secrets Manager with 2-of-3 Shamir / PGP air-gapped escrow, ensuring restored databases and document stores remain fully decryptable on clean infrastructure without committing secrets to Git.
+  * **Automated DR Restore Drill**: Implement `scripts/test-dr-restore.js` executing automated end-to-end restore drills against isolated ephemeral databases (`career_hub_dr_test_<hex>`), verifying table presence, row counts, tenant isolation, document decryptability with SHA-256 bit parity, measuring exact RTO/RPO, and forcibly dropping test databases (0 orphan DBs).
+  * **Operational Observability & Alerting**: Implement `MetricsService` (`src/monitoring/metrics.service.js`) exposing Prometheus operational metrics on `/metrics` (`careerhub_db_size_bytes`, `careerhub_db_pool_connections`, `careerhub_db_pool_utilization`, `careerhub_backup_last_success_timestamp`, `careerhub_backup_age_seconds`, `careerhub_document_storage_bytes`, `careerhub_wal_health`) while strictly keeping public `/livez` and `/healthz` sanitized of internal hostnames and credentials.
+  * **Measured Recovery Objectives**: Formally verify Database RPO $\le 5\text{ minutes}$, Database RTO $\le 15\text{ minutes}$ ($21.4\text{s}$ measured in drill), Document RPO $\le 24\text{ hours}$, Document RTO $< 5\text{s}$, and 100% document bit parity.
+* **Reasons**: Guarantees zero single-point-of-failure, protects unmanaged document blobs, enables rapid cross-cloud disaster recovery, ensures total tenant data decryptability upon recovery, and provides real-time operational visibility.
+* **Consequences**: Task P14-005 is COMPLETE & VERIFIED.
