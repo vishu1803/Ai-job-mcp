@@ -102,13 +102,37 @@ export async function verifyCsrf(req, _reply) {
 
   try {
     const originUrl = new URL(origin);
-    const appUrl = new URL(config.APP_URL || `http://localhost:${config.PORT}`);
+    const originHostname = originUrl.hostname;
 
-    // Allow same origin (hostname + port matching)
-    const isAllowedHost =
-      originUrl.host === appUrl.host ||
-      originUrl.hostname === 'localhost' ||
-      originUrl.hostname === '127.0.0.1';
+    // Build set of trusted hostnames:
+    // 1. APP_URL hostname (if configured)
+    // 2. Request Host header (reflects actual served hostname)
+    const trustedHostnames = new Set();
+
+    if (config.APP_URL) {
+      try {
+        trustedHostnames.add(new URL(config.APP_URL).hostname);
+      } catch {
+        /* ignore invalid APP_URL */
+      }
+    }
+
+    if (req.headers.host) {
+      // Host header may include port (e.g. "dev.aicareershub.tech")
+      const hostHeader = req.headers.host.split(':')[0];
+      if (hostHeader) trustedHostnames.add(hostHeader);
+    }
+
+    // Allow loopback for local development
+    const isLoopback =
+      originHostname === 'localhost' ||
+      originHostname === '127.0.0.1' ||
+      originHostname === '[::1]' ||
+      originHostname === '::1' ||
+      originHostname === '0.0.0.0' ||
+      /^127\./.test(originHostname);
+
+    const isAllowedHost = isLoopback || trustedHostnames.has(originHostname);
 
     if (!isAllowedHost) {
       throw new AuthorizationError(

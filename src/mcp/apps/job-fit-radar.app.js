@@ -493,8 +493,24 @@ export function renderJobFitRadarAppHtml(initialData = null) {
       return points;
     }
 
+    function showErrorState(message) {
+      document.getElementById('company-name').textContent = message || 'No data available';
+      document.getElementById('ats-score-text').textContent = '--';
+      document.getElementById('fit-band-pill').textContent = 'NO DATA';
+      document.getElementById('fit-band-pill').className = 'fit-pill fit-weak';
+      document.getElementById('match-counts-summary').textContent = '-- / --';
+      document.getElementById('matched-skills-chips').innerHTML = '<span style="font-size:11px; color:var(--text-muted);">No data</span>';
+      document.getElementById('missing-skills-chips').innerHTML = '<span style="font-size:11px; color:var(--text-muted);">No data</span>';
+      document.getElementById('projects-list').innerHTML = '<div style="font-size:12px; color:var(--text-muted);">No analysis data available.</div>';
+      document.getElementById('gaps-list').innerHTML = '<div style="font-size:12px; color:var(--text-muted);">No analysis data available.</div>';
+      document.getElementById('evidence-summary-text').textContent = 'No evidence data';
+    }
+
     function renderApp(data) {
-      if (!data) return;
+      if (!data) {
+        showErrorState('Waiting for analysis data...');
+        return;
+      }
 
       // 1. Header & ATS score
       const jobContext = data.jobContext || {};
@@ -592,6 +608,9 @@ export function renderJobFitRadarAppHtml(initialData = null) {
     const initialPayload = ${serializedInitialData};
     if (initialPayload) {
       renderApp(initialPayload);
+    } else {
+      // Show waiting state when no data is pre-injected
+      showErrorState('Waiting for analysis data from host...');
     }
 
     // SEP-1865 JSON-RPC postMessage Bridge
@@ -605,7 +624,9 @@ export function renderJobFitRadarAppHtml(initialData = null) {
 
       if (msg.method === 'ui/initialize' || msg.method === 'ui/update') {
         const payload = msg.params?.result || msg.params?.data || msg.params;
-        renderApp(payload);
+        if (payload) {
+          renderApp(payload);
+        }
       }
     });
 
@@ -616,6 +637,16 @@ export function renderJobFitRadarAppHtml(initialData = null) {
       }
     } catch (e) {
       // Sandboxed ignore
+    }
+
+    // Timeout fallback: if no data received within 15 seconds, show error
+    if (!initialPayload) {
+      setTimeout(function() {
+        var el = document.getElementById('company-name');
+        if (el && el.textContent.indexOf('Waiting for') !== -1) {
+          showErrorState('No analysis data received. The AI host may not support MCP Apps yet.');
+        }
+      }, 15000);
     }
   </script>
 </body>

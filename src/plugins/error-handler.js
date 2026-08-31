@@ -17,6 +17,18 @@ import { AppError } from '../errors/index.js';
 export function errorHandler(error, request, reply) {
   const requestId = request.id || 'req-unknown';
 
+  // Helper: detect if request came from a browser form POST
+  const contentType = request.headers['content-type'] || '';
+  const accept = request.headers['accept'] || '';
+  const isBrowserForm =
+    contentType.includes('application/x-www-form-urlencoded') ||
+    (accept.includes('text/html') && !accept.includes('application/json'));
+
+  // For browser form POST errors, redirect to login with error info instead of returning JSON
+  if (isBrowserForm && error.statusCode && error.statusCode < 500) {
+    return reply.code(302).redirect('/login?error=' + encodeURIComponent(error.message || 'Session error'));
+  }
+
   // 1. If error is an AppError instance (known operational domain error)
   if (error instanceof AppError) {
     if (error.statusCode >= 500) {

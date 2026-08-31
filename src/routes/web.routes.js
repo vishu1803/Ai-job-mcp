@@ -62,6 +62,7 @@ import { renderDataDeletionPage } from '../views/data-deletion.page.js';
 import { renderAccessibilityPage } from '../views/accessibility.page.js';
 import { renderSubprocessorsPage } from '../views/subprocessors.page.js';
 import { renderJobFitRadarAppHtml } from '../mcp/apps/job-fit-radar.app.js';
+import { renderRadarFormPage, renderRadarResultPage } from '../views/radar.page.js';
 import { CandidateProfileService } from '../services/candidate-profile.service.js';
 import { sourceResumeIngestionService as defaultSourceResumeIngestionService } from '../services/source-resume-ingestion.service.js';
 import { defaultMcpApiTokenService } from '../services/mcp-api-token.service.js';
@@ -271,15 +272,11 @@ export default async function webRoutes(app, opts = {}) {
 
     const sessionContext = await getOptionalSession(req, database);
 
-    // STATE A: Unauthenticated -> Public Marketing & Proof Landing Page
-    if (!sessionContext) {
-      const html = renderLandingPage({ user: null });
-      return reply.type('text/html; charset=utf-8').send(html);
-    }
-
-    // STATE B: Authenticated -> Live Candidate Overview & Career Intelligence
-    const data = await loadDashboardData(sessionContext, database);
-    const html = renderDashboardPage(data);
+    // Always render the landing page (public marketing & proof page).
+    // Authenticated users also see this — the dashboard is at /dashboard.
+    const html = renderLandingPage({
+      user: sessionContext?.user || null,
+    });
     return reply.type('text/html; charset=utf-8').send(html);
   });
 
@@ -2461,12 +2458,87 @@ export default async function webRoutes(app, opts = {}) {
   });
 
   // -------------------------------------------------------------------------
-  // 22c. GET /apps/radar — Job Fit Radar Interactive MCP App Web View
+  // 22c. GET /apps/radar — Job Fit Radar Form Page
   // -------------------------------------------------------------------------
   app.get('/apps/radar', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
     if (!sessionContext) {
       return reply.redirect('/login?returnTo=/apps/radar');
+    }
+
+    const html = renderRadarFormPage({
+      user: sessionContext.user,
+      tenant: sessionContext.tenant,
+      error: req.query.error || null,
+    });
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // 22d. POST /apps/radar — Run Job Fit Analysis
+  app.post('/apps/radar', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/apps/radar');
+    }
+
+    const { jobDescriptionText, jobTitle, companyName, targetRoleLevel, maxSkillGaps } =
+      req.body || {};
+
+    if (!jobDescriptionText || jobDescriptionText.trim().length < 50) {
+      const html = renderRadarFormPage({
+        user: sessionContext.user,
+        tenant: sessionContext.tenant,
+        error: 'Job description must be at least 50 characters. Please paste the full job posting.',
+      });
+      return reply.type('text/html; charset=utf-8').send(html);
+    }
+
+    try {
+      // Build a fake MCP context for the analysis service
+      const context = {
+        tenantId: sessionContext.tenant.id,
+        userId: sessionContext.user.id,
+        role: 'OWNER',
+        scopes: ['career:read'],
+      };
+
+      // Import analysis services
+      const { handleAnalyzeJobFit } = await import('../mcp/tools/career-read-tools.js');
+
+      const analysisResult = await handleAnalyzeJobFit(context, {
+        jobDescriptionText: jobDescriptionText.trim(),
+        jobTitle: jobTitle || undefined,
+        companyName: companyName || undefined,
+        targetRoleLevel: targetRoleLevel || undefined,
+        maxSkillGaps: maxSkillGaps ? parseInt(maxSkillGaps, 10) : undefined,
+      });
+
+      // Extract the structured data from MCP response format
+      const analysisData = analysisResult?.structuredData || analysisResult;
+
+      const html = renderRadarResultPage({
+        user: sessionContext.user,
+        tenant: sessionContext.tenant,
+        analysisData,
+      });
+      return reply.type('text/html; charset=utf-8').send(html);
+    } catch (err) {
+      const errorMessage = err?.message || 'An unexpected error occurred during analysis.';
+      const html = renderRadarResultPage({
+        user: sessionContext.user,
+        tenant: sessionContext.tenant,
+        analysisData: null,
+        error: `Analysis failed: ${errorMessage}`,
+      });
+      return reply.type('text/html; charset=utf-8').send(html);
+    }
+  });
+
+  // 22e. GET /apps/radar/mcp — MCP App HTML Widget (standalone iframe for AI clients)
+  app.get('/apps/radar/mcp', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/apps/radar/mcp');
     }
 
     const html = renderJobFitRadarAppHtml();

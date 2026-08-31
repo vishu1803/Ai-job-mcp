@@ -1318,6 +1318,13 @@ export function renderLayout({
                   <div class="item-desc">Upload & claim review</div>
                 </div>
               </a>
+              <a href="/apps/radar" class="nav-dropdown-item ${activeNav === 'radar' ? 'active' : ''}">
+                <span class="item-icon">📡</span>
+                <div class="item-text">
+                  <div class="item-title">Job Fit Radar</div>
+                  <div class="item-desc">ATS analysis & skill gaps</div>
+                </div>
+              </a>
             </div>
           </li>
 
@@ -1330,7 +1337,6 @@ export function renderLayout({
               : ''
           }
           <li><a href="/docs/mcp" class="nav-link ${activeNav === 'docs' ? 'active' : ''}">MCP Docs</a></li>
-          <li><a href="/apps/radar" class="nav-link ${activeNav === 'radar' ? 'active' : ''}">Radar App</a></li>
         </ul>
       </nav>
 
