@@ -28,12 +28,27 @@ import {
 } from '../../db/schema.js';
 import { CandidateProfileService } from '../../services/candidate-profile.service.js';
 import { JobDiscoveryService } from '../../services/job-discovery.service.js';
+import { config } from '../../config/env.js';
 import { NotFoundError, ValidationError } from '../../errors/index.js';
 
 export function registerCareerResources(server, deps = {}) {
   const db = deps.database || deps.db || defaultDb;
   const profileService = deps.profileService || new CandidateProfileService(db);
-  const jobDiscoveryService = deps.jobDiscoveryService || new JobDiscoveryService();
+  const jobDiscoveryService =
+    deps.jobDiscoveryService ||
+    new JobDiscoveryService({
+      greenhouseBoards: (config.GREENHOUSE_BOARDS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((boardToken) => ({ boardToken })),
+      leverSites: (config.LEVER_SITES || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((site) => ({ site })),
+      fetchTimeoutMs: config.JOB_BOARD_FETCH_TIMEOUT_MS,
+    });
 
   // Helper to resolve candidate ID from context
   async function resolveCandidateId(context) {

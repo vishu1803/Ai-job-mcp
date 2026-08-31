@@ -303,7 +303,7 @@ function buildCandidateAssertions(candidateProfileObj) {
         tenantId: candidateProfileObj.tenantId,
         assertionType: 'PROJECT',
         statement: `Candidate developed project: ${proj.name}`,
-        subjectSlug: proj.slug || proj.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        subjectSlug: proj.slug || (proj.name || 'project').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project',
         status: 'VERIFIED',
         confidenceScore: 1.0,
         evidenceRefs: proj.evidence.slice(0, 5),

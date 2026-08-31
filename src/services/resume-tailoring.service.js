@@ -476,7 +476,7 @@ export class ResumeTailoringService {
     candidateProfile,
     projectRelevanceAnalysis,
     assertionList,
-    _evidenceIndex
+    evidenceIndex
   ) {
     const rawRanked = Array.isArray(projectRelevanceAnalysis?.rankedProjects)
       ? projectRelevanceAnalysis.rankedProjects
@@ -535,17 +535,22 @@ export class ResumeTailoringService {
       // Check metric safety
       this._assertMetricSafety(bullet1Text, deduplicatedRefs);
 
+      // Use VERIFIED only if evidence refs resolve; otherwise CLAIMED
+      const hasResolvedEvidence = deduplicatedRefs.length > 0 && deduplicatedRefs.some((ref) => evidenceIndex.has(ref.id));
+      const bullet1Status = hasResolvedEvidence ? 'VERIFIED' : 'CLAIMED';
+      const bullet1Confidence = hasResolvedEvidence ? 1.0 : 0.5;
+
       const bullet1 = {
         id: crypto.randomUUID(),
         section: 'PROJECTS',
         text: bullet1Text,
         assertionIds: projectAssertions.map((a) => a.assertionId),
         evidenceRefs: deduplicatedRefs,
-        status: 'VERIFIED',
-        confidenceScore: 1.0,
+        status: bullet1Status,
+        confidenceScore: bullet1Confidence,
         relevanceScore,
         matchedKeywords: Array.from(new Set([...primaryLanguages, ...primaryFrameworks])),
-        claimLabel: null,
+        claimLabel: hasResolvedEvidence ? null : '[Unverified User Claim]',
       };
       bullets.push(bullet1);
       allProjectBullets.push(bullet1);
@@ -567,8 +572,8 @@ export class ResumeTailoringService {
           text: bullet2Text,
           assertionIds: projectAssertions.map((a) => a.assertionId),
           evidenceRefs: deduplicatedRefs.slice(0, 3),
-          status: 'VERIFIED',
-          confidenceScore: 0.9,
+          status: hasResolvedEvidence ? 'VERIFIED' : 'CLAIMED',
+          confidenceScore: hasResolvedEvidence ? 0.9 : 0.4,
           relevanceScore: Math.max(0.0, relevanceScore - 5.0),
           matchedKeywords: ranked.architecturalSignals.slice(0, 2),
           claimLabel: null,
@@ -1010,16 +1015,28 @@ export class ResumeTailoringService {
 
     const skills = Array.isArray(candidateProfile?.skills) ? candidateProfile.skills : [];
     for (const skill of skills) {
-      if (Array.isArray(skill.evidence)) {
-        for (const ev of skill.evidence) {
-          if (ev.id) {
-            map.set(ev.id, {
-              ...ev,
-              tenantId: candidateProfile.tenantId,
-              candidateId: candidateProfile.id,
-            });
-          }
+      // Support both 'evidence' and 'evidenceItems' field names
+      const evidenceList = Array.isArray(skill.evidenceItems)
+        ? skill.evidenceItems
+        : Array.isArray(skill.evidence)
+          ? skill.evidence
+          : [];
+      for (const ev of evidenceList) {
+        if (ev && ev.id) {
+          map.set(ev.id, {
+            ...ev,
+            tenantId: candidateProfile.tenantId,
+            candidateId: candidateProfile.id,
+          });
         }
+      }
+      // Also index primaryEvidence if present
+      if (skill.primaryEvidence && skill.primaryEvidence.id && !map.has(skill.primaryEvidence.id)) {
+        map.set(skill.primaryEvidence.id, {
+          ...skill.primaryEvidence,
+          tenantId: candidateProfile.tenantId,
+          candidateId: candidateProfile.id,
+        });
       }
     }
 

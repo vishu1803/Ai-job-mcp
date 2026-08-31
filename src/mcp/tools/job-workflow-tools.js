@@ -15,6 +15,7 @@
 import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../../db/index.js';
 import { candidates } from '../../db/schema.js';
+import { config } from '../../config/env.js';
 import { NotFoundError } from '../../errors/index.js';
 import { JobDiscoveryService } from '../../services/job-discovery.service.js';
 import { JobApplicationWorkflowService } from '../../services/job-application-workflow.service.js';
@@ -69,7 +70,21 @@ export function registerJobWorkflowTools(
     applicationTrackingService = null,
   } = {}
 ) {
-  const discoveryService = jobDiscoveryService || new JobDiscoveryService();
+  const discoveryService =
+    jobDiscoveryService ||
+    new JobDiscoveryService({
+      greenhouseBoards: (config.GREENHOUSE_BOARDS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((boardToken) => ({ boardToken })),
+      leverSites: (config.LEVER_SITES || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((site) => ({ site })),
+      fetchTimeoutMs: config.JOB_BOARD_FETCH_TIMEOUT_MS,
+    });
   const workflowService =
     jobApplicationWorkflowService || new JobApplicationWorkflowService({ database });
   const trackingService =

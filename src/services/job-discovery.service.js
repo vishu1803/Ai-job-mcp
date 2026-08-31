@@ -16,6 +16,7 @@ import {
 } from '../domain/job/job-workflow.schemas.js';
 import { NotFoundError } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
+import { GreenhouseAdapter, LeverAdapter } from './job-board-adapters/index.js';
 
 /**
  * Built-in structured public job feed dataset (for reliable testing, development, and standard discovery).
@@ -158,11 +159,81 @@ export class JobDiscoveryService {
   /**
    * @param {object} [options={}]
    * @param {Array<object>} [options.customJobs=[]] Optional custom job feed
+   * @param {Array<object>} [options.greenhouseBoards=[]] Greenhouse board configs [{boardToken}]
+   * @param {Array<object>} [options.leverSites=[]] Lever site configs [{site}]
+   * @param {number} [options.fetchTimeoutMs=8000] Timeout for external API calls
    * @param {import('pino').Logger} [options.logger=defaultLogger]
    */
   constructor(options = {}) {
     this.customJobs = options.customJobs || [];
     this.logger = options.logger || defaultLogger;
+    this.fetchTimeoutMs = options.fetchTimeoutMs || 8000;
+
+    // Initialize external adapters
+    this.greenhouseBoards = (options.greenhouseBoards || []).map(
+      (cfg) =>
+        new GreenhouseAdapter({
+          boardToken: cfg.boardToken,
+          timeoutMs: this.fetchTimeoutMs,
+          logger: this.logger,
+        })
+    );
+    this.leverSites = (options.leverSites || []).map(
+      (cfg) =>
+        new LeverAdapter({
+          site: cfg.site,
+          timeoutMs: this.fetchTimeoutMs,
+          logger: this.logger,
+        })
+    );
+
+    // Cache for fetched jobs (avoids re-fetching on every search)
+    this._cachedJobs = null;
+    this._cacheTimestamp = 0;
+    this._cacheTtlMs = 5 * 60 * 1000; // 5 minutes
+  }
+
+  /**
+   * Fetches jobs from all configured external adapters (with caching).
+   * Falls back to static dataset if no adapters are configured or all fail.
+   *
+   * @returns {Promise<Array<object>>} Combined job listings
+   */
+  async _fetchExternalJobs() {
+    // Return cache if still fresh
+    if (this._cachedJobs && Date.now() - this._cacheTimestamp < this._cacheTtlMs) {
+      return this._cachedJobs;
+    }
+
+    const hasAdapters = this.greenhouseBoards.length > 0 || this.leverSites.length > 0;
+    if (!hasAdapters) {
+      return [];
+    }
+
+    // Fetch from all adapters in parallel with individual timeouts
+    const fetchPromises = [
+      ...this.greenhouseBoards.map((adapter) => adapter.fetchJobs()),
+      ...this.leverSites.map((adapter) => adapter.fetchJobs()),
+    ];
+
+    const results = await Promise.allSettled(fetchPromises);
+    const externalJobs = [];
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+        externalJobs.push(...result.value);
+      }
+    }
+
+    this._cachedJobs = externalJobs;
+    this._cacheTimestamp = Date.now();
+
+    this.logger.info(
+      { externalCount: externalJobs.length, adapters: fetchPromises.length },
+      'Fetched jobs from external adapters'
+    );
+
+    return externalJobs;
   }
 
   /**
@@ -210,7 +281,9 @@ export class JobDiscoveryService {
     const validated = SearchJobsInputSchema.parse(rawParams);
     const queryTerms = validated.query.toLowerCase().split(/\s+/).filter(Boolean);
 
-    const allJobs = [...this.customJobs, ...STRUCTURED_PUBLIC_JOBS];
+    // Merge: custom jobs + external API jobs + static fallback dataset
+    const externalJobs = await this._fetchExternalJobs();
+    const allJobs = [...this.customJobs, ...externalJobs, ...STRUCTURED_PUBLIC_JOBS];
 
     const filtered = allJobs.filter((job) => {
       // 1. Query match against title, company, description, and skills
@@ -277,7 +350,8 @@ export class JobDiscoveryService {
    */
   async getJobPosting(params = {}) {
     const validated = GetJobPostingInputSchema.parse(params);
-    const allJobs = [...this.customJobs, ...STRUCTURED_PUBLIC_JOBS];
+    const externalJobs = await this._fetchExternalJobs();
+    const allJobs = [...this.customJobs, ...externalJobs, ...STRUCTURED_PUBLIC_JOBS];
 
     const found = allJobs.find(
       (j) =>

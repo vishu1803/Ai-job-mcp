@@ -109,6 +109,13 @@ const envSchema = z
     OAUTH_ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
     OAUTH_REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(2592000),
     OAUTH_AUTH_CODE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+
+    // Job Board API Configuration (comma-separated board tokens / site names)
+    // Example: GREENHOUSE_BOARDS=stripe,github,vercel
+    // Example: LEVER_SITES=leverdemo,notion,figma
+    GREENHOUSE_BOARDS: z.string().optional().default(''),
+    LEVER_SITES: z.string().optional().default(''),
+    JOB_BOARD_FETCH_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && !data.ENCRYPTION_MASTER_KEY) {

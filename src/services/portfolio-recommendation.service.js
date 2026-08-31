@@ -164,8 +164,21 @@ export class PortfolioRecommendationService {
       : [];
     const relevanceByProjectId = new Map(relevanceRankings.map((r) => [r.projectId, r]));
 
-    // 5. Classify & Score All Candidate Projects
-    const classifiedProjects = candidateProjects.map((project) => {
+    // 5. Deduplicate Candidate Projects by name/slug (same repo may appear multiple times)
+    const seenProjectKeys = new Set();
+    const deduplicatedProjects = [];
+    for (const project of candidateProjects) {
+      const key = (project.slug || project.name || project.displayName || '').toLowerCase();
+      const idKey = project.id || key;
+      if (key && seenProjectKeys.has(key)) continue;
+      if (!key && seenProjectKeys.has(idKey)) continue;
+      if (key) seenProjectKeys.add(key);
+      else seenProjectKeys.add(idKey);
+      deduplicatedProjects.push(project);
+    }
+
+    // 6. Classify & Score All Candidate Projects
+    const classifiedProjects = deduplicatedProjects.map((project) => {
       const relevanceItem = relevanceByProjectId.get(project.id) || null;
       return this._classifyProject(
         project,

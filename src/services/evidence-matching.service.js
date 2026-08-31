@@ -383,8 +383,18 @@ export class EvidenceMatchingService {
    * @private
    */
   static _evaluateExactSkillMatch(req, targetSlug, targetDisplayName, candidateSkill, resourceMap) {
-    const rawEvidenceList = Array.isArray(candidateSkill.evidence) ? candidateSkill.evidence : [];
-    const evidenceRefs = EvidenceMatchingService._selectEvidenceRefs(rawEvidenceList, resourceMap);
+    // Support both 'evidence' and 'evidenceItems' field names
+    const rawEvidenceList = Array.isArray(candidateSkill.evidenceItems)
+      ? candidateSkill.evidenceItems
+      : Array.isArray(candidateSkill.evidence)
+        ? candidateSkill.evidence
+        : [];
+    // Also include primaryEvidence if present
+    const allEvidence = [...rawEvidenceList];
+    if (candidateSkill.primaryEvidence && !allEvidence.some((e) => e.id === candidateSkill.primaryEvidence.id)) {
+      allEvidence.push(candidateSkill.primaryEvidence);
+    }
+    const evidenceRefs = EvidenceMatchingService._selectEvidenceRefs(allEvidence, resourceMap);
     const primaryEvidence = evidenceRefs[0] || null;
 
     // Check for qualifying technical code evidence

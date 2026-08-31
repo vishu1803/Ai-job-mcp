@@ -64,7 +64,7 @@ export class CoverLetterDraftingService {
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, '-')
               .replace(/^-|-$/g, '')
-          : 'unknown-tool';
+          : '';
       return {
         canonicalSlug: slug || 'unknown-tool',
         preferredTerm: rawInput || 'Unknown Tool',
@@ -847,14 +847,47 @@ export class CoverLetterDraftingService {
 
   _buildCandidateEvidenceIndex(candidateProfile) {
     const index = {};
-    const graph = candidateProfile.evidenceGraph || {};
-    const items = Array.isArray(graph.items) ? graph.items : Object.values(graph);
 
-    for (const item of items) {
-      if (item && item.id) {
-        index[item.id] = item;
+    // 1. Build from skills evidence (production path)
+    const skills = Array.isArray(candidateProfile?.skills) ? candidateProfile.skills : [];
+    for (const skill of skills) {
+      const evidenceList = Array.isArray(skill.evidenceItems)
+        ? skill.evidenceItems
+        : Array.isArray(skill.evidence)
+          ? skill.evidence
+          : [];
+      for (const ev of evidenceList) {
+        if (ev && ev.id) {
+          index[ev.id] = { ...ev, tenantId: candidateProfile.tenantId, candidateId: candidateProfile.id };
+        }
+      }
+      if (skill.primaryEvidence && skill.primaryEvidence.id && !index[skill.primaryEvidence.id]) {
+        index[skill.primaryEvidence.id] = { ...skill.primaryEvidence, tenantId: candidateProfile.tenantId, candidateId: candidateProfile.id };
       }
     }
+
+    // 2. Build from projects evidence (production path)
+    const projects = Array.isArray(candidateProfile?.projects) ? candidateProfile.projects : [];
+    for (const project of projects) {
+      const evidenceList = Array.isArray(project.evidence) ? project.evidence : [];
+      for (const ev of evidenceList) {
+        if (ev && ev.id) {
+          index[ev.id] = { ...ev, tenantId: candidateProfile.tenantId, candidateId: candidateProfile.id, projectId: project.id };
+        }
+      }
+    }
+
+    // 3. Fallback: legacy evidenceGraph format (test compatibility)
+    if (Object.keys(index).length === 0) {
+      const graph = candidateProfile?.evidenceGraph || {};
+      const items = Array.isArray(graph.items) ? graph.items : Object.values(graph);
+      for (const item of items) {
+        if (item && item.id) {
+          index[item.id] = item;
+        }
+      }
+    }
+
     return index;
   }
 
