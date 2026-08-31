@@ -775,10 +775,29 @@ export function renderProfilePage({
 
             <div class="form-group">
               <label class="form-label" for="currentRole">
-                Current Role
+                Professional Role / Headline Role
               </label>
-              <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" placeholder="e.g. Senior Software Engineer" class="form-input" />
-              <div class="form-helper">Your most recent or current professional position.</div>
+              <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" placeholder="e.g. Full-Stack & Backend Developer" class="form-input" />
+              <div class="form-helper">Your overarching professional persona and domain specialization.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                Current Active Employment
+              </label>
+              <div style="background: rgba(11, 15, 25, 0.75); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.85rem; color: #f8fafc; min-height: 42px; display: flex; align-items: center; justify-content: space-between;">
+                ${
+                  profile?.currentEmployment
+                    ? `<span>💼 <strong>${escapeHtml(profile.currentEmployment.title)}</strong> at ${escapeHtml(profile.currentEmployment.company)} <span class="badge" style="font-size: 0.68rem; margin-left: 0.4rem;">${escapeHtml(profile.currentEmployment.employmentType)}</span></span>`
+                    : `<span style="color: #94a3b8;">○ Not currently recorded (Job Seeking / Student / Independent)</span>`
+                }
+                <span class="badge badge-verified" style="font-size: 0.7rem; text-transform: uppercase;">
+                  Status: ${escapeHtml(profile?.careerStatus || 'UNKNOWN')}
+                </span>
+              </div>
+              <div class="form-helper">
+                Total Experience: ${profile?.experienceDuration?.totalYears != null ? profile.experienceDuration.totalYears + ' yr(s)' : '0 yrs'} (${profile?.experienceDuration?.totalMonths || 0} mo) | Seniority: ${escapeHtml(profile?.seniority || 'ENTRY_LEVEL')}
+              </div>
             </div>
 
             <div class="form-group">
@@ -994,7 +1013,7 @@ export function renderProfilePage({
             }
           </div>
 
-          <!-- Work History & Education Quick Overview -->
+          <!-- Work History & Education Overview -->
           ${
             experienceList.length > 0 || educationList.length > 0
               ? `
@@ -1006,14 +1025,17 @@ export function renderProfilePage({
                   <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.5rem;">💼 Work Experience</h4>
                   <div style="display: flex; flex-direction: column; gap: 0.4rem;">
                     ${experienceList
-                      .slice(0, 3)
+                      .slice(0, 5)
                       .map(
                         (exp) => `
                       <div style="background: rgba(11, 15, 25, 0.5); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.78rem;">
-                        <strong style="color: #f8fafc;">${escapeHtml(exp.title)}</strong>
-                        <span style="color: #94a3b8;"> at ${escapeHtml(exp.company)}</span>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                          <strong style="color: #f8fafc;">${escapeHtml(exp.title)}</strong>
+                          <span class="badge" style="font-size: 0.65rem;">${escapeHtml(exp.employmentType || 'FULL_TIME')}</span>
+                        </div>
+                        <div style="color: #94a3b8; margin-top: 0.15rem;">at ${escapeHtml(exp.company)} ${exp.location ? '• ' + escapeHtml(exp.location) : ''}</div>
                         <div style="color: #64748b; font-size: 0.7rem; margin-top: 0.15rem;">
-                          ${escapeHtml(exp.startDate || '')} — ${exp.isCurrent ? 'Present' : escapeHtml(exp.endDate || '')}
+                          ${escapeHtml(exp.startDate || '')} — ${exp.isCurrent ? 'Present' : escapeHtml(exp.endDate || exp.rawDateRange || '')}
                         </div>
                       </div>
                     `
@@ -1034,8 +1056,31 @@ export function renderProfilePage({
                       .map(
                         (edu) => `
                       <div style="background: rgba(11, 15, 25, 0.5); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.78rem;">
-                        <strong style="color: #f8fafc;">${escapeHtml(edu.degree || 'Degree')}</strong>
-                        <div style="color: #94a3b8; font-size: 0.72rem; margin-top: 0.15rem;">${escapeHtml(edu.institution)}</div>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                          <strong style="color: #f8fafc;">${escapeHtml(edu.degree || 'Degree')}</strong>
+                          <span class="badge" style="font-size: 0.65rem;">${escapeHtml(edu.degreeType || 'DEGREE')}</span>
+                        </div>
+                        <div style="color: #94a3b8; font-size: 0.72rem; margin-top: 0.15rem;">
+                          ${escapeHtml(edu.institution)}${edu.location ? ', ' + escapeHtml(edu.location) : ''}
+                        </div>
+                        ${
+                          edu.startDate || edu.endDate
+                            ? `<div style="color: #64748b; font-size: 0.7rem; margin-top: 0.15rem;">${escapeHtml(edu.startDate || '')} — ${edu.isCurrent ? 'Present' : escapeHtml(edu.endDate || '')}</div>`
+                            : ''
+                        }
+                        ${
+                          Array.isArray(edu.coursework) && edu.coursework.length > 0
+                            ? `<div style="margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.2rem;">
+                                ${edu.coursework
+                                  .slice(0, 4)
+                                  .map(
+                                    (c) =>
+                                      `<span class="badge" style="font-size: 0.62rem; background: rgba(255,255,255,0.03);">${escapeHtml(c)}</span>`
+                                  )
+                                  .join('')}
+                               </div>`
+                            : ''
+                        }
                       </div>
                     `
                       )

@@ -24,13 +24,45 @@ export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 
 
 export const SeniorityLevelEnum = z.enum([
   'INTERN',
+  'ENTRY_LEVEL',
   'JUNIOR',
   'MID',
+  'MID_LEVEL',
   'SENIOR',
   'STAFF',
   'PRINCIPAL',
   'LEAD',
+  'UNKNOWN',
 ]);
+
+export const CareerStatusEnum = z.enum([
+  'EMPLOYED',
+  'UNEMPLOYED',
+  'STUDENT',
+  'FRESHER',
+  'FREELANCE',
+  'CONTRACTOR',
+  'UNKNOWN',
+]);
+
+export const CurrentEmploymentSchema = z
+  .object({
+    title: z.string().min(1).max(255),
+    company: z.string().min(1).max(255),
+    employmentType: z.string().max(100),
+    startDate: z.string().nullable().optional(),
+    location: z.string().nullable().optional(),
+  })
+  .nullable();
+
+export const ExperienceDurationSchema = z.object({
+  totalMonths: z.number().int().nonnegative(),
+  totalYears: z.number().nonnegative(),
+  professionalMonths: z.number().int().nonnegative(),
+  professionalYears: z.number().nonnegative(),
+  softwareEngineeringMonths: z.number().int().nonnegative().optional(),
+  softwareEngineeringYears: z.number().nonnegative().optional(),
+});
 
 export const RelocationPreferenceEnum = z.enum([
   'WILLING_TO_RELOCATE',
@@ -81,7 +113,7 @@ export const UpdateCareerPreferencesInputSchema = z.strictObject({
 });
 
 /**
- * Profile Completeness & Readiness Schema.
+ * Profile Completeness & Readiness Schema (Job Search Intent Model).
  */
 export const ProfileCompletenessSchema = z.strictObject({
   score: z.number().min(0).max(100),
@@ -93,7 +125,7 @@ export const ProfileCompletenessSchema = z.strictObject({
 });
 
 /**
- * Career Profile Readiness Schema (Separated from Job Search Preferences).
+ * Career Profile Readiness Schema (Candidate Truth & Graph Model).
  */
 export const ProfileReadinessSchema = z.strictObject({
   score: z.number().min(0).max(100),
@@ -114,6 +146,9 @@ export const CandidateCareerProfileSchema = z.strictObject({
   headline: z.string().max(500).optional().nullable(),
   summary: z.string().max(5000).optional().nullable(),
   currentRole: z.string().max(255).optional().nullable(),
+  currentEmployment: CurrentEmploymentSchema.optional().nullable(),
+  careerStatus: CareerStatusEnum.optional().default('UNKNOWN'),
+  experienceDuration: ExperienceDurationSchema.optional(),
   location: z.string().max(255).optional().nullable(),
   seniority: SeniorityLevelEnum.optional().nullable(),
   yearsOfExperience: z.number().nonnegative().optional().nullable(),
@@ -231,11 +266,14 @@ export const CandidateCareerProfileSchema = z.strictObject({
       z.object({
         company: z.string(),
         title: z.string(),
+        employmentType: z.string().optional().default('FULL_TIME'),
         location: z.string().nullable().optional(),
         startDate: z.string().nullable().optional(),
         endDate: z.string().nullable().optional(),
         isCurrent: z.boolean().optional().default(false),
+        rawDateRange: z.string().nullable().optional(),
         bullets: z.array(z.string()).optional().default([]),
+        technologies: z.array(z.string()).optional().default([]),
         verifiedSkillsUsed: z.array(z.string()).optional().default([]),
         provenanceStatus: z
           .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED', 'CORROBORATED'])
@@ -251,8 +289,27 @@ export const CandidateCareerProfileSchema = z.strictObject({
         institution: z.string(),
         degree: z.string().optional().nullable(),
         fieldOfStudy: z.string().optional().nullable(),
+        degreeType: z
+          .enum([
+            'BACHELOR',
+            'MASTER',
+            'DOCTORATE',
+            'ASSOCIATE',
+            'DIPLOMA',
+            'BOOTCAMP',
+            'COURSEWORK',
+            'OTHER',
+          ])
+          .optional()
+          .default('OTHER'),
+        location: z.string().nullable().optional(),
         startDate: z.string().nullable().optional(),
         endDate: z.string().nullable().optional(),
+        isCurrent: z.boolean().optional().default(false),
+        rawDateRange: z.string().nullable().optional(),
+        coursework: z.array(z.string()).optional().default([]),
+        gradeOrGpa: z.string().nullable().optional(),
+        rawText: z.string().optional(),
         provenanceStatus: z
           .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED'])
           .optional()

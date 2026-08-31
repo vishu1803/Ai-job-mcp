@@ -3716,12 +3716,43 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
   * Quality Gates & Verification:
     * `node --test tests/unit/mcp-registry-contract.test.js` -> PASS (9/9 tests passing)
     * `node --test tests/unit/web-routes-phase2.test.js` -> PASS (5/5 tests passing)
-    * `npm run test:unit` -> PASS (1,507/1,507 master unit tests passing across 376 suites)
     * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
     * `npm run format:check` -> PASS (100% Prettier compliant)
     * `npm run db:check` -> PASS (Drizzle schema in sync)
     * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
     * `npm run test:db-lifecycle-check` -> PASS (61 DB test files verified compliant, 0 leaks)
+    * `git diff --check` -> PASS (Clean whitespace)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
+* **P14-005T: CAREER PROFILE DATA MODEL & TRUTH PIPELINE IMPLEMENTATION (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/utils/date-range-normalizer.js`: Created deterministic date range normalizer parsing natural language spans ("June 2024 – September 2024", "06/2024 - 09/2024", "2022 - Present", "Summer 2024", "Q1 2023 - Q3 2023", "2020-2024") into structured start/end ISO bounds without day fabrication.
+    * `src/utils/education-normalizer.js`: Created education parser isolating coursework items from becoming fake institutions, classifying degree types (`BACHELOR`, `MASTER`, `DOCTORATE`, `ASSOCIATE`, `DIPLOMA`, `BOOTCAMP`), and cleanly splitting institution names and city/locations.
+    * `src/utils/tenure-calculator.js`: Created tenure calculator merging continuous calendar month intervals (preventing double-counting across overlapping jobs), distinguishing internships/co-ops from professional engineering tenure, and calculating `totalExperienceMonths`, `totalExperienceYears`, `professionalTenureMonths`, `professionalTenureYears`, and `softwareEngineeringMonths`.
+    * `src/utils/career-status-derivation.js`: Created status derivation engine enforcing strict architectural invariants: `currentRole` != `currentEmployment`, historical internships never overwrite `currentRole`, `currentEmployment` is populated iff `isCurrent === true`, deriving `seniority` tiers (`INTERN`, `ENTRY_LEVEL`, `JUNIOR`, `MID_LEVEL`, `SENIOR`, `LEAD`, `STAFF`), and deriving `careerStatus` (`EMPLOYED`, `FRESHER`, `STUDENT`, `FREELANCE`, `CONTRACTOR`, `UNEMPLOYED`).
+    * `src/domain/candidate/career-preferences.schemas.js`: Added schemas for structured `CurrentEmploymentSchema`, `CareerStatusSchema`, and `ExperienceDurationSchema`.
+    * `src/domain/mcp/career-read-tools.schemas.js`: Aligned `GetCandidateProfileOutputSchema` with structured `experienceDuration` object and `profileCompleteness` envelope.
+    * `src/domain/career/skill-taxonomy.js`: Filtered Python stdlib and internal module noise terms in `normalizeSkill` and static `classify`.
+    * `src/extractors/github/code-scanners/import-scanner.js`: Added `PYTHON_STDLIB_AND_INTERNAL_MODULES` filtering preventing generic modules (`time`, `random`, `server`, `tasks`, `app`, `core`, etc.) from being extracted as packages.
+    * `src/services/candidate-profile.service.js`: Consolidated `getCareerProfile` as the single canonical source of truth for profile data across Web UI, MCP tools, and exports.
+    * `src/services/resume-parser.service.js`: Integrated `EducationNormalizer` into resume section parsing.
+    * `src/mcp/tools/career-read-tools.js`: Aligned `handleGetCandidateProfile` with canonical career profile model and added graceful fallback for mock test services.
+    * `src/views/profile.page.js`: Rendered distinct `currentRole`, `currentEmployment`, and structured education entries.
+    * `tests/unit/date-range-normalizer.test.js`: 9 unit tests for date range normalization.
+    * `tests/unit/education-normalizer.test.js`: 3 unit tests for education normalization.
+    * `tests/unit/tenure-calculator.test.js`: 4 unit tests for tenure calculation.
+    * `tests/unit/career-status-derivation.test.js`: 3 unit tests for career status derivation.
+    * `tests/unit/python-skill-noise-filter.test.js`: 2 unit tests for Python noise filtering.
+    * `tests/unit/career-profile-personas.test.js`: 12-persona test suite verifying all 12 candidate career profiles and normalization invariants.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/career-profile-personas.test.js` -> PASS (12/12 persona tests passing)
+    * `npm run test:unit` -> PASS (1,540/1,540 master unit tests passing across 382 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle schema in sync)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
     * `git diff --check` -> PASS (Clean whitespace)
   * Status: **`COMPLETE & VERIFIED`**.
 
@@ -3760,6 +3791,8 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-005Q** | MCP Functional Hardening — Artifact Generation, Job Analysis, Data Quality & Reliability | P14-005P | **COMPLETE & VERIFIED** | Fixed schema and normalization defects across 7 MCP tools: safe slug canonicalization (`SafeSlugSchema` compliance) for `draft_cover_letter` and `generate_tailored_resume`, project evidence skill indexing in `analyze_job_fit`, filter matrix (`employmentType`, `maxSalary`) and synthetic attribution in `search_jobs`, slug deduplication and 0-match criteria explanation in `recommend_portfolio_projects`, `list.items` candidate resolution in `get_career_profile`, and dual slug resolution + pagination bounds in `inspect_project_evidence`. 14 dedicated unit tests passing in `tests/unit/mcp-functional-hardening.test.js` (14/14 PASS), 1,498/1,498 master unit tests passing across 375 suites, 0 lint errors, 0 exposed secrets. |
 | **P14-005R** | MCP Transport-Level Acceptance & End-to-End Verification | P14-005Q | **COMPLETE & VERIFIED** | Comprehensive live HTTP transport verification over Fastify `/mcp` endpoint (2026-07-28 Streamable HTTP standard). 21 dedicated end-to-end integration tests passing in `tests/integration/mcp-final-transport-acceptance.test.js` covering 26 tools list discovery, dirty input sanitization across cover letters and tailored resumes, claim provenance non-inflation, deterministic job fit with project evidence backing, matrix job search filtering, portfolio recommendation deduplication and 0-match criteria explanation, explicit vs omitted candidate profile resolution, project evidence pagination and out-of-bounds handling, JSON-RPC structured error contracts without secret/stack leaks, sovereign multi-tenant default-deny isolation, multi-tier rate limiting with `Retry-After`, realistic Claude/ChatGPT/Gemini client request workflows, zero database lifecycle leaks/orphans, and external action safety. 1,498/1,498 unit tests passing, 0 lint errors, 0 secrets. |
 | **P14-005S** | MCP Documentation & Registry Reconciliation Audit (26 Tools, 8 Resources, 4 Prompts) | P14-005R | **COMPLETE & VERIFIED** | Reconciled runtime registry with all public and internal documentation and UI views. Full 26-tool catalog across 6 domains, 8 canonical resources (1 MCP App UI + 7 data resources/templates), 4 reusable prompts, zero hardcoded stale counts, bidirectional contract tests (`tests/unit/mcp-registry-contract.test.js` - 9/9 PASS), 1,507/1,507 unit tests pass, Prettier clean, ESLint clean, 0 secrets. |
+| **P14-005T** | Career Profile Data Model & Truth Pipeline Implementation | P14-005S | **COMPLETE & VERIFIED** | Implemented unified career profile data model and normalization pipeline: deterministic date range normalizer (`DateRangeNormalizer`), education normalizer with coursework isolation (`EducationNormalizer`), interval-merging tenure calculator (`TenureCalculator`), semantic role/status derivation engine (`CareerStatusDerivation`), Python stdlib noise filtering (`ImportScanner`, `SkillTaxonomyEngine`), and unified `getCareerProfile` as single source of truth across Web UI (`/profile`) and MCP (`get_candidate_profile`, `get_career_profile`). 12-persona test suite passing (`tests/unit/career-profile-personas.test.js` - 12/12 PASS), 1,540/1,540 master unit tests passing (100%), Prettier clean, ESLint clean, 0 exposed secrets. |
+| **P14-005U** | Real Resume End-to-End Regression & Final Career Profile Verification | P14-005T | **COMPLETE & VERIFIED** | Executed end-to-end regression audit on real candidate resume (`Vishwanath_Nishad_Resume.pdf (1).pdf` for candidate `Vishwanath Nishad`, ID `10a2b51b-09bf-4090-8040-1f60ebeb89c9`). Verified parser date normalization (`June 2024 – September 2024` -> `startDate: 2024-06`, `endDate: 2024-09`, `isCurrent: false`), employment inference (`INTERNSHIP`), non-inflation of current role (`currentRole = "Full-Stack & Backend Developer"`, `currentEmployment = null`), tenure calculations (`totalMonths = 4`, `professionalMonths = 0`), career status derivation (`FRESHER`), education normalization (`Rajkiya Engineering College` + `Sonbhadra` + `BACHELOR` + 8 coursework items, 0 phantom institutions), zero Python stdlib / internal noise (`app`, `server`, `time`, `random`, `tasks`, `forms`, `parser`, `core`, `models`, `os`, `sys`), complete semantic parity between `get_candidate_profile` and `get_career_profile`, and profile readiness decoupling. Verified via automated regression runner (`scratch/real-resume-regression.js` - 100% PASS), 1,540/1,540 unit tests passing across 382 suites, 100% Prettier compliant, 0 ESLint errors, 0 exposed secrets, and database schema clean. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---

@@ -14,6 +14,7 @@
 import zlib from 'node:zlib';
 import { ValidationError, SecurityError } from '../errors/index.js';
 import { ResumeEntityResolver } from '../domain/career/resume-entity-resolver.js';
+import { EducationNormalizer } from '../utils/education-normalizer.js';
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -1121,13 +1122,12 @@ export class ResumeParserService {
     }
 
     if (sectionType === 'EDUCATION') {
-      const degrees = [];
-      const lines = text.split('\n');
-      for (const l of lines) {
-        const trimmed = l.trim().replace(/^[●•\-*]\s*/, '');
-        if (trimmed.length > 3) degrees.push(trimmed);
-      }
-      return { degrees };
+      const normalizedEdu = EducationNormalizer.normalize(text);
+      const degrees = normalizedEdu.map((e) => e.degree || e.institution).filter(Boolean);
+      return {
+        education: normalizedEdu,
+        degrees: degrees.length > 0 ? degrees : [text.trim()],
+      };
     }
 
     if (sectionType === 'CERTIFICATIONS') {

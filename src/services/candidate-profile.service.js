@@ -37,6 +37,10 @@ import {
   CandidateCareerProfileSchema,
 } from '../domain/candidate/career-preferences.schemas.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
+import { DateRangeNormalizer } from '../utils/date-range-normalizer.js';
+import { EducationNormalizer } from '../utils/education-normalizer.js';
+import { TenureCalculator } from '../utils/tenure-calculator.js';
+import { CareerStatusDerivation } from '../utils/career-status-derivation.js';
 
 export class CandidateProfileService {
   /**
@@ -986,13 +990,6 @@ export class CandidateProfileService {
 
     const summary = candidate.summary || userCustom.summary || resumeData?.summary || null;
 
-    const currentRole =
-      candidate.profileMetadata?.currentRole ||
-      userCustom.currentRole ||
-      resumeData?.identity?.currentRole ||
-      candidate.headline ||
-      null;
-
     const location =
       candidate.profileMetadata?.location ||
       userCustom.location ||
@@ -1051,15 +1048,20 @@ export class CandidateProfileService {
     const skillMap = new Map(); // canonicalSlug -> merged skill object
 
     for (const s of candidateSkillsList) {
+      if (SkillTaxonomyEngine.isNoiseSkill(s.name) || SkillTaxonomyEngine.isNoiseSkill(s.slug)) {
+        continue;
+      }
       const normalized = SkillTaxonomyEngine.normalizeSkill(s.name, {
         categoryHint: s.category || 'TOOL',
       });
-      const slug =
-        normalized?.canonicalSlug || s.slug || s.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const canonicalName = normalized?.canonicalName || s.name;
+      if (!normalized || normalized.isNoise || normalized.category === 'NOISE') {
+        continue;
+      }
+      const slug = normalized.canonicalSlug;
+      const canonicalName = normalized.canonicalName;
       const fineCategory =
-        normalized?.fineCategory || SkillTaxonomyEngine.classifyCategory(slug, s.category);
-      const tier = normalized?.tier || SkillTaxonomyEngine.classifyTier(slug, fineCategory);
+        normalized.fineCategory || SkillTaxonomyEngine.classifyCategory(slug, s.category);
+      const tier = normalized.tier || SkillTaxonomyEngine.classifyTier(slug, fineCategory);
 
       const hasGithubEvidence =
         s.provenanceStatus === 'VERIFIED' ||
@@ -1117,14 +1119,16 @@ export class CandidateProfileService {
       for (const rSkill of resumeData.skills) {
         const rawName = String(rSkill).trim();
         if (!rawName) continue;
+        if (SkillTaxonomyEngine.isNoiseSkill(rawName)) continue;
         const normalized = SkillTaxonomyEngine.normalizeSkill(rawName, {
           categoryHint: 'TOOL',
         });
-        const slug = normalized?.canonicalSlug || rawName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-        const canonicalName = normalized?.canonicalName || rawName;
+        if (!normalized || normalized.isNoise || normalized.category === 'NOISE') continue;
+        const slug = normalized.canonicalSlug;
+        const canonicalName = normalized.canonicalName;
         const fineCategory =
-          normalized?.fineCategory || SkillTaxonomyEngine.classifyCategory(slug, 'TOOL');
-        const tier = normalized?.tier || SkillTaxonomyEngine.classifyTier(slug, fineCategory);
+          normalized.fineCategory || SkillTaxonomyEngine.classifyCategory(slug, 'TOOL');
+        const tier = normalized.tier || SkillTaxonomyEngine.classifyTier(slug, fineCategory);
 
         if (skillMap.has(slug)) {
           const existing = skillMap.get(slug);
@@ -1326,29 +1330,55 @@ export class CandidateProfileService {
     let recentExperience = [];
 
     if (Array.isArray(rawCustomExperience) && rawCustomExperience.length > 0) {
-      recentExperience = rawCustomExperience.slice(0, 10).map((exp) => ({
-        company: exp.company || 'Company',
-        title: exp.title || exp.role || 'Role',
-        location: exp.location || null,
-        startDate: exp.startDate ? String(exp.startDate) : null,
-        endDate: exp.endDate ? String(exp.endDate) : null,
-        isCurrent: Boolean(exp.isCurrent),
-        bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
-        verifiedSkillsUsed: Array.isArray(exp.skills) ? exp.skills : [],
-        provenanceStatus: exp.provenanceStatus || 'USER_PROVIDED',
-      }));
+      recentExperience = rawCustomExperience.slice(0, 10).map((exp) => {
+        const rawDates = exp.rawDateRange || exp.startDate || '';
+        const dNorm = DateRangeNormalizer.normalize(rawDates);
+        const empType =
+          exp.employmentType ||
+          TenureCalculator.inferEmploymentType({
+            title: exp.title || exp.role,
+            company: exp.company,
+          });
+        return {
+          company: exp.company || 'Company',
+          title: exp.title || exp.role || 'Role',
+          employmentType: empType,
+          location: exp.location || null,
+          startDate: dNorm.startDate || exp.startDate || null,
+          endDate: dNorm.endDate || exp.endDate || null,
+          isCurrent: Boolean(exp.isCurrent || dNorm.isCurrent),
+          rawDateRange: dNorm.rawDateRange || null,
+          bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+          technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
+          verifiedSkillsUsed: Array.isArray(exp.skills) ? exp.skills : [],
+          provenanceStatus: exp.provenanceStatus || 'USER_PROVIDED',
+        };
+      });
     } else if (Array.isArray(resumeData?.experience) && resumeData.experience.length > 0) {
-      recentExperience = resumeData.experience.slice(0, 10).map((exp) => ({
-        company: exp.company || 'Company',
-        title: exp.title || exp.role || 'Role',
-        location: exp.location || null,
-        startDate: exp.startDate ? String(exp.startDate) : null,
-        endDate: exp.endDate ? String(exp.endDate) : null,
-        isCurrent: Boolean(exp.isCurrent),
-        bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
-        verifiedSkillsUsed: Array.isArray(exp.verifiedSkillsUsed) ? exp.verifiedSkillsUsed : [],
-        provenanceStatus: 'CLAIMED',
-      }));
+      recentExperience = resumeData.experience.slice(0, 10).map((exp) => {
+        const rawDates = exp.rawDateRange || exp.startDate || '';
+        const dNorm = DateRangeNormalizer.normalize(rawDates);
+        const empType =
+          exp.employmentType ||
+          TenureCalculator.inferEmploymentType({
+            title: exp.title || exp.role,
+            company: exp.company,
+          });
+        return {
+          company: exp.company || 'Company',
+          title: exp.title || exp.role || 'Role',
+          employmentType: empType,
+          location: exp.location || null,
+          startDate: dNorm.startDate || exp.startDate || null,
+          endDate: dNorm.endDate || exp.endDate || null,
+          isCurrent: Boolean(exp.isCurrent || dNorm.isCurrent),
+          rawDateRange: dNorm.rawDateRange || null,
+          bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
+          technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
+          verifiedSkillsUsed: Array.isArray(exp.verifiedSkillsUsed) ? exp.verifiedSkillsUsed : [],
+          provenanceStatus: 'CLAIMED',
+        };
+      });
     }
 
     // 8. Education Reconciliation
@@ -1356,23 +1386,13 @@ export class CandidateProfileService {
     let education = [];
 
     if (Array.isArray(rawCustomEducation) && rawCustomEducation.length > 0) {
-      education = rawCustomEducation.map((edu) => ({
-        institution: edu.institution || edu.school || 'Institution',
-        degree: edu.degree || null,
-        fieldOfStudy: edu.fieldOfStudy || edu.field || null,
-        startDate: edu.startDate ? String(edu.startDate) : null,
-        endDate: edu.endDate ? String(edu.endDate) : null,
-        provenanceStatus: edu.provenanceStatus || 'USER_PROVIDED',
-      }));
+      education = EducationNormalizer.normalize(rawCustomEducation, {
+        provenanceStatus: userCustom.education ? 'USER_PROVIDED' : 'CLAIMED',
+      });
     } else if (Array.isArray(resumeData?.education) && resumeData.education.length > 0) {
-      education = resumeData.education.map((edu) => ({
-        institution: edu.institution || edu.school || 'Institution',
-        degree: edu.degree || null,
-        fieldOfStudy: edu.fieldOfStudy || edu.field || null,
-        startDate: edu.startDate ? String(edu.startDate) : null,
-        endDate: edu.endDate ? String(edu.endDate) : null,
+      education = EducationNormalizer.normalize(resumeData.education, {
         provenanceStatus: 'CLAIMED',
-      }));
+      });
     }
 
     // 9. Certifications & Languages
@@ -1394,10 +1414,45 @@ export class CandidateProfileService {
             ? candidate.profileMetadata.languages
             : [];
 
-    // 10. Distinct Career Profile Readiness vs Job Search Intent Readiness
+    // 10. Derive Tenure, Seniority, Career Status, Current Employment, Current Role
+    const tenureMetrics = TenureCalculator.calculateTenure(recentExperience);
+    const currentEmployment = CareerStatusDerivation.deriveCurrentEmployment(recentExperience);
+    const currentRole = CareerStatusDerivation.resolveCurrentRole({
+      userCustomRole: userCustom.currentRole || candidate.profileMetadata?.currentRole,
+      headline,
+      currentEmployment,
+    });
+    const seniority = CareerStatusDerivation.deriveSeniority({
+      experiences: recentExperience,
+      education,
+      professionalTenureYears: tenureMetrics.professionalTenureYears,
+      declaredSeniority: candidate.profileMetadata?.seniority,
+    });
+    const careerStatus = CareerStatusDerivation.deriveCareerStatus({
+      experiences: recentExperience,
+      education,
+      professionalTenureMonths: tenureMetrics.professionalTenureMonths,
+      declaredStatus: candidate.profileMetadata?.careerStatus,
+    });
+    const yearsOfExperience =
+      tenureMetrics.professionalTenureYears > 0
+        ? tenureMetrics.professionalTenureYears
+        : tenureMetrics.totalExperienceYears > 0
+          ? tenureMetrics.totalExperienceYears
+          : null;
+    const experienceDuration = {
+      totalMonths: tenureMetrics.totalExperienceMonths,
+      totalYears: tenureMetrics.totalExperienceYears,
+      professionalMonths: tenureMetrics.professionalTenureMonths,
+      professionalYears: tenureMetrics.professionalTenureYears,
+      softwareEngineeringMonths: tenureMetrics.softwareEngineeringMonths,
+      softwareEngineeringYears: tenureMetrics.softwareEngineeringYears,
+    };
+
+    // 11. Distinct Career Profile Readiness vs Job Search Intent Readiness
     const missingProfileFields = [];
     let profileScore = 0;
-    if (candidate.displayName) profileScore += 15;
+    if (candidate.displayName) profileScore += 10;
     if (headline) profileScore += 15;
     else missingProfileFields.push('headline');
 
@@ -1410,8 +1465,11 @@ export class CandidateProfileService {
     if (highlightedProjects.length > 0 || recentExperience.length > 0) profileScore += 20;
     else missingProfileFields.push('experienceOrProjects');
 
-    if (education.length > 0) profileScore += 15;
+    if (education.length > 0) profileScore += 10;
     else missingProfileFields.push('education');
+
+    if (careerStatus !== 'UNKNOWN') profileScore += 10;
+    else missingProfileFields.push('careerStatus');
 
     profileScore = Math.min(profileScore, 100);
     const isProfileComplete = profileScore >= 70;
@@ -1480,9 +1538,12 @@ export class CandidateProfileService {
       headline,
       summary,
       currentRole,
+      currentEmployment,
+      careerStatus,
+      experienceDuration,
       location,
-      seniority: candidate.profileMetadata?.seniority || null,
-      yearsOfExperience: candidate.profileMetadata?.yearsOfExperience || null,
+      seniority,
+      yearsOfExperience,
       canonicalEmail,
       portfolioLinks,
       jobPreferences,
@@ -1552,10 +1613,17 @@ export class CandidateProfileService {
           const role = (exp.role || '').trim();
           const company = (exp.company || '').trim();
           const loc = (exp.location || '').trim();
-          const dates = (exp.dates || '').trim();
+          const rawDates = (exp.dates || exp.startDate || '').trim();
           const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
 
-          if (!detectedCurrentRole && role) detectedCurrentRole = role;
+          const dateNorm = DateRangeNormalizer.normalize(rawDates);
+          const empType =
+            exp.employmentType || TenureCalculator.inferEmploymentType({ title: role, company });
+
+          // STRICT INVARIANT: Only active non-internship roles can be detected as active current role
+          if (!detectedCurrentRole && dateNorm.isCurrent && empType !== 'INTERNSHIP' && role) {
+            detectedCurrentRole = role;
+          }
           if (!detectedHeadline && role) detectedHeadline = role;
           if (!detectedLocation && loc) detectedLocation = loc;
 
@@ -1563,47 +1631,23 @@ export class CandidateProfileService {
             company: company || 'Company',
             title: role || 'Role',
             role: role || 'Role',
+            employmentType: empType,
             location: loc || null,
-            startDate: dates || null,
-            endDate: null,
-            isCurrent: /present|current|now/i.test(dates),
+            startDate: dateNorm.startDate,
+            endDate: dateNorm.endDate,
+            isCurrent: dateNorm.isCurrent,
+            rawDateRange: dateNorm.rawDateRange,
             bullets,
+            technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
             verifiedSkillsUsed: [],
             provenanceStatus: 'CLAIMED',
           });
         }
       }
 
-      if (sec.sectionType === 'EDUCATION' && Array.isArray(sd.degrees)) {
-        for (const d of sd.degrees) {
-          const raw = String(d || '').trim();
-          if (!raw) continue;
-          const parts = raw
-            .split(/[|,]/)
-            .map((p) => p.trim())
-            .filter(Boolean);
-          if (parts.length >= 2) {
-            resumeEducation.push({
-              institution: parts[1],
-              degree: parts[0],
-              fieldOfStudy: parts[2] || null,
-              startDate: null,
-              endDate: null,
-              text: raw,
-              provenanceStatus: 'CLAIMED',
-            });
-          } else {
-            resumeEducation.push({
-              institution: raw,
-              degree: null,
-              fieldOfStudy: null,
-              startDate: null,
-              endDate: null,
-              text: raw,
-              provenanceStatus: 'CLAIMED',
-            });
-          }
-        }
+      if (sec.sectionType === 'EDUCATION') {
+        const normalizedEdu = EducationNormalizer.normalize(sec.rawText || sd.degrees || []);
+        resumeEducation.push(...normalizedEdu);
       }
 
       if (sec.sectionType === 'PROJECTS' && Array.isArray(sd.projects)) {

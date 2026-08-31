@@ -30,6 +30,123 @@ export const SKILL_CATEGORIES = Object.freeze([
 ]);
 
 /**
+ * Standard library, local file modules, and generic code prose words
+ * that must NEVER be minted as candidate technology skills.
+ */
+export const GENERIC_NOISE_TERMS = new Set([
+  'os',
+  'sys',
+  'time',
+  'random',
+  'json',
+  'math',
+  're',
+  'datetime',
+  'pathlib',
+  'typing',
+  'collections',
+  'itertools',
+  'functools',
+  'io',
+  'threading',
+  'multiprocessing',
+  'subprocess',
+  'unittest',
+  'logging',
+  'argparse',
+  'shutil',
+  'tempfile',
+  'urllib',
+  'http',
+  'socket',
+  'asyncio',
+  'abc',
+  'contextlib',
+  'enum',
+  'copy',
+  'glob',
+  'hashlib',
+  'hmac',
+  'secrets',
+  'uuid',
+  'base64',
+  'csv',
+  'sqlite3',
+  'ctypes',
+  'warnings',
+  'inspect',
+  'queue',
+  'struct',
+  'array',
+  'codecs',
+  'gc',
+  'select',
+  'signal',
+  'zipfile',
+  'tarfile',
+  'zlib',
+  'gzip',
+  'pickle',
+  'sched',
+  'platform',
+  'dis',
+  'ast',
+  'token',
+  'tokenize',
+  'parser',
+  'builtins',
+  'posixpath',
+  'ntpath',
+  'macpath',
+  'string',
+  'operator',
+  'decimal',
+  'fractions',
+  'cmath',
+  'bisect',
+  'heapq',
+  'weakref',
+  'types',
+  'pprint',
+  'reprlib',
+  'zoneinfo',
+  'traceback',
+  'timeit',
+  'tracemalloc',
+  'site',
+  'server',
+  'app',
+  'main',
+  'tasks',
+  'forms',
+  'core',
+  'config',
+  'utils',
+  'helpers',
+  'models',
+  'views',
+  'controllers',
+  'services',
+  'routes',
+  'handlers',
+  'schemas',
+  'constants',
+  'tests',
+  'test',
+  'common',
+  'lib',
+  'shared',
+  'index',
+  'run',
+  'cli',
+  'db',
+  'database',
+  'api',
+  'auth',
+  'middleware',
+]);
+
+/**
  * Canonical Technology Definitions with Curated Multi-Variation Aliases and Relationships.
  * Keyed by immutable canonical slug (^[a-z0-9]+(?:-[a-z0-9]+)*$).
  */
@@ -2313,6 +2430,28 @@ export class SkillTaxonomyEngine {
 
     // Stage 6: Unknown Technology Handling
     const safeSlug = SkillTaxonomyEngine.generateSafeSlug(cleaned);
+
+    // Reject generic code words and standard library module names
+    if (GENERIC_NOISE_TERMS.has(cleaned.toLowerCase()) || GENERIC_NOISE_TERMS.has(safeSlug)) {
+      return {
+        canonicalSlug: safeSlug,
+        canonicalName: SkillTaxonomyEngine.formatDisplayName(safeSlug),
+        category: 'NOISE',
+        normalizationConfidence: 0.0,
+        matchedAlias: null,
+        isKnown: false,
+        isNoise: true,
+        isCustom: false,
+        requiresReview: false,
+        relationships: {
+          builtOn: [],
+          ecosystemOf: [],
+          implements: [],
+          parentOf: [],
+        },
+      };
+    }
+
     const parsedCategory = SKILL_CATEGORIES.includes(categoryHint) ? categoryHint : 'TOOL';
 
     // Telemetry: Log unknown term observation safely
@@ -3391,6 +3530,19 @@ export class SkillTaxonomyEngine {
       tier: resolvedTier,
     };
   }
+
+  static isNoiseSkill(term) {
+    if (!term || typeof term !== 'string') return false;
+    const clean = term.toLowerCase().trim();
+    const safeSlug = clean.replace(/[^a-z0-9-]/g, '-');
+    return GENERIC_NOISE_TERMS.has(clean) || GENERIC_NOISE_TERMS.has(safeSlug);
+  }
+
+  static classify(rawTerm) {
+    const norm = SkillTaxonomyEngine.normalizeSkill(rawTerm);
+    if (!norm || norm.isNoise || norm.category === 'NOISE') return null;
+    return norm;
+  }
 }
 
 /**
@@ -3420,3 +3572,4 @@ export const getPrimarySkillRank = SkillTaxonomyEngine.getPrimarySkillRank;
 export const evaluateEvidenceStrength = SkillTaxonomyEngine.evaluateEvidenceStrength;
 export const reconcileLanguageEvidence = SkillTaxonomyEngine.reconcileLanguageEvidence;
 export const isLanguage = SkillTaxonomyEngine.isLanguage;
+export const classify = SkillTaxonomyEngine.classify;

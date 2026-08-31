@@ -12,9 +12,124 @@
  * - Confidence: 1.00
  */
 
+const PYTHON_STDLIB_AND_INTERNAL_MODULES = new Set([
+  'os',
+  'sys',
+  'time',
+  'random',
+  'json',
+  'math',
+  're',
+  'datetime',
+  'pathlib',
+  'typing',
+  'collections',
+  'itertools',
+  'functools',
+  'io',
+  'threading',
+  'multiprocessing',
+  'subprocess',
+  'unittest',
+  'logging',
+  'argparse',
+  'shutil',
+  'tempfile',
+  'urllib',
+  'http',
+  'socket',
+  'asyncio',
+  'abc',
+  'contextlib',
+  'enum',
+  'copy',
+  'glob',
+  'hashlib',
+  'hmac',
+  'secrets',
+  'uuid',
+  'base64',
+  'csv',
+  'sqlite3',
+  'ctypes',
+  'warnings',
+  'inspect',
+  'queue',
+  'struct',
+  'array',
+  'codecs',
+  'gc',
+  'select',
+  'signal',
+  'zipfile',
+  'tarfile',
+  'zlib',
+  'gzip',
+  'pickle',
+  'sched',
+  'platform',
+  'dis',
+  'ast',
+  'token',
+  'tokenize',
+  'parser',
+  'builtins',
+  'posixpath',
+  'ntpath',
+  'macpath',
+  'string',
+  'operator',
+  'decimal',
+  'fractions',
+  'cmath',
+  'bisect',
+  'heapq',
+  'weakref',
+  'types',
+  'pprint',
+  'reprlib',
+  'zoneinfo',
+  'traceback',
+  'timeit',
+  'tracemalloc',
+  'site',
+  // Generic internal module names
+  'server',
+  'app',
+  'main',
+  'tasks',
+  'forms',
+  'core',
+  'config',
+  'utils',
+  'helpers',
+  'models',
+  'views',
+  'controllers',
+  'services',
+  'routes',
+  'handlers',
+  'schemas',
+  'constants',
+  'tests',
+  'test',
+  'common',
+  'lib',
+  'shared',
+  'index',
+  'run',
+  'cli',
+  'db',
+  'database',
+  'api',
+  'auth',
+  'middleware',
+]);
+
 export class ImportScanner {
   static MAX_LINES = 1000;
   static MAX_LINE_LENGTH = 500;
+  static PYTHON_FILTERED_MODULES = PYTHON_STDLIB_AND_INTERNAL_MODULES;
 
   /**
    * Checks if the file is an entrypoint or representative source file suitable for import scanning.
@@ -143,28 +258,32 @@ export class ImportScanner {
         // from pkg import ...
         const fromMatch = trimmed.match(/^from\s+([a-zA-Z0-9_]+)(?:\.[a-zA-Z0-9_]+)*\s+import/);
         if (fromMatch) {
-          const pkg = fromMatch[1].trim();
-          extracted.push({
-            rawImport: pkg,
-            packageName: pkg.toLowerCase().replace(/_/g, '-'),
-            confidence: 1.0,
-            rawExcerpt: trimmed,
-            lineRange: { start: i + 1, end: i + 1 },
-          });
+          const pkg = fromMatch[1].trim().toLowerCase();
+          if (!PYTHON_STDLIB_AND_INTERNAL_MODULES.has(pkg)) {
+            extracted.push({
+              rawImport: pkg,
+              packageName: pkg.replace(/_/g, '-'),
+              confidence: 1.0,
+              rawExcerpt: trimmed,
+              lineRange: { start: i + 1, end: i + 1 },
+            });
+          }
           continue;
         }
 
         // import pkg, import pkg.sub
         const importMatch = trimmed.match(/^import\s+([a-zA-Z0-9_]+)/);
         if (importMatch) {
-          const pkg = importMatch[1].trim();
-          extracted.push({
-            rawImport: pkg,
-            packageName: pkg.toLowerCase().replace(/_/g, '-'),
-            confidence: 1.0,
-            rawExcerpt: trimmed,
-            lineRange: { start: i + 1, end: i + 1 },
-          });
+          const pkg = importMatch[1].trim().toLowerCase();
+          if (!PYTHON_STDLIB_AND_INTERNAL_MODULES.has(pkg)) {
+            extracted.push({
+              rawImport: pkg,
+              packageName: pkg.replace(/_/g, '-'),
+              confidence: 1.0,
+              rawExcerpt: trimmed,
+              lineRange: { start: i + 1, end: i + 1 },
+            });
+          }
           continue;
         }
       }

@@ -100,6 +100,27 @@ export const GetCandidateProfileOutputSchema = z
       headline: z.string().nullable(),
       summary: z.string().nullable(),
       currentRole: z.string().nullable().optional(),
+      currentEmployment: z
+        .object({
+          title: z.string(),
+          company: z.string(),
+          employmentType: z.string(),
+          startDate: z.string().nullable().optional(),
+          location: z.string().nullable().optional(),
+        })
+        .nullable()
+        .optional(),
+      careerStatus: z.string().optional(),
+      seniority: z.string().nullable().optional(),
+      yearsOfExperience: z.number().nullable().optional(),
+      experienceDuration: z
+        .object({
+          totalMonths: z.number().int().nonnegative(),
+          totalYears: z.number().nonnegative(),
+          professionalMonths: z.number().int().nonnegative(),
+          professionalYears: z.number().nonnegative(),
+        })
+        .optional(),
       location: z.string().nullable().optional(),
       canonicalEmail: z.string().nullable(),
       status: z.string(),
@@ -193,11 +214,16 @@ export const GetCandidateProfileOutputSchema = z
         z.object({
           company: z.string(),
           title: z.string(),
+          employmentType: z.string().optional(),
+          location: z.string().nullable().optional(),
           startDate: z.string().nullable(),
           endDate: z.string().nullable(),
           isCurrent: z.boolean(),
-          verifiedSkillsUsed: z.array(z.string()).max(10),
-          provenanceStatus: z.enum(['VERIFIED', 'CLAIMED']).optional(),
+          rawDateRange: z.string().nullable().optional(),
+          verifiedSkillsUsed: z.array(z.string()).max(10).optional().default([]),
+          provenanceStatus: z
+            .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED', 'CORROBORATED'])
+            .optional(),
         })
       )
       .max(5)

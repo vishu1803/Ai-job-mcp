@@ -49,6 +49,9 @@ import {
   MAX_PROFILE_OUTPUT_BYTES,
   MAX_EVIDENCE_EXCERPT_CHARS,
 } from '../../domain/mcp/career-read-tools.schemas.js';
+import { CareerPreferencesSchema } from '../../domain/candidate/career-preferences.schemas.js';
+import { TenureCalculator } from '../../utils/tenure-calculator.js';
+import { CareerStatusDerivation } from '../../utils/career-status-derivation.js';
 
 // Default Cache Control Metadata for Read Tools
 const DEFAULT_CACHE_CONTROL = Object.freeze({
@@ -122,39 +125,21 @@ async function resolveTargetCandidateId(context, candidateId, dbClient) {
  */
 export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
   const dbClient = deps.db || defaultDb;
-  const profileService = deps.candidateProfileService || new CandidateProfileService();
+  const profileService = deps.candidateProfileService || new CandidateProfileService(deps);
   const args = GetCandidateProfileInputSchema.parse(rawArgs || {});
 
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
   const profileView = await profileService.getProfile(context, candidateId);
+  const careerProfile =
+    typeof profileService.getCareerProfile === 'function'
+      ? await profileService.getCareerProfile(context, candidateId)
+      : null;
 
-  // 1. Calculate profile completeness score & actionable readiness
+  // 1. Resolve job preferences & eligibility
   const rawPreferences = profileView.candidate.profileMetadata?.careerPreferences || {};
-  const jobPreferences = {
-    targetRoles: Array.isArray(rawPreferences.targetRoles) ? rawPreferences.targetRoles : [],
-    preferredLocations: Array.isArray(rawPreferences.preferredLocations)
-      ? rawPreferences.preferredLocations
-      : [],
-    remotePreference: rawPreferences.remotePreference || 'FLEXIBLE',
-    employmentTypes: Array.isArray(rawPreferences.employmentTypes)
-      ? rawPreferences.employmentTypes
-      : ['FULL_TIME'],
-    salaryFloor: typeof rawPreferences.salaryFloor === 'number' ? rawPreferences.salaryFloor : null,
-    salaryCurrency: rawPreferences.salaryCurrency || 'USD',
-    industries: Array.isArray(rawPreferences.industries) ? rawPreferences.industries : [],
-    companiesToAvoid: Array.isArray(rawPreferences.companiesToAvoid)
-      ? rawPreferences.companiesToAvoid
-      : [],
-    companiesToPrioritize: Array.isArray(rawPreferences.companiesToPrioritize)
-      ? rawPreferences.companiesToPrioritize
-      : [],
-    preferredTechStack: Array.isArray(rawPreferences.preferredTechStack)
-      ? rawPreferences.preferredTechStack
-      : [],
-    relocationPreference: rawPreferences.relocationPreference || 'REMOTE_ONLY',
-  };
-
-  const eligibility = {
+  const jobPreferences =
+    careerProfile?.jobPreferences || CareerPreferencesSchema.parse(rawPreferences);
+  const eligibility = careerProfile?.eligibility || {
     workAuthorization: Array.isArray(rawPreferences.workAuthorization)
       ? rawPreferences.workAuthorization
       : [],
@@ -164,112 +149,146 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
       : null,
   };
 
-  const missingRequired = [];
-  const missingOptional = [];
-  if (jobPreferences.targetRoles.length === 0) missingRequired.push('targetRoles');
-  if (
-    jobPreferences.preferredLocations.length === 0 &&
-    jobPreferences.remotePreference !== 'REMOTE_ONLY'
-  ) {
-    missingRequired.push('preferredLocations');
-  }
-  if (jobPreferences.salaryFloor == null) missingOptional.push('salaryFloor');
-  if (jobPreferences.preferredTechStack.length === 0) missingOptional.push('preferredTechStack');
-  if (jobPreferences.industries.length === 0) missingOptional.push('industries');
-  if (eligibility.workAuthorization.length === 0) missingOptional.push('workAuthorization');
-  if (!eligibility.availabilityDate) missingOptional.push('availabilityDate');
+  const rawUserCustom = profileView.candidate.profileMetadata?.userCustom || {};
+  const rawExperiences =
+    rawUserCustom.experience || profileView.candidate.profileMetadata?.experience || [];
+  const tenureMetrics =
+    careerProfile?.tenureMetrics || TenureCalculator.calculateTenure(rawExperiences);
+  const currentEmployment =
+    careerProfile?.currentEmployment ||
+    CareerStatusDerivation.deriveCurrentEmployment(rawExperiences);
+  const currentRole =
+    careerProfile?.currentRole ||
+    CareerStatusDerivation.resolveCurrentRole({
+      userCustomRole:
+        rawUserCustom.currentRole || profileView.candidate.profileMetadata?.currentRole,
+      headline: profileView.candidate.headline,
+      currentEmployment,
+    });
+  const seniority =
+    careerProfile?.seniority ||
+    CareerStatusDerivation.deriveSeniority({
+      experiences: rawExperiences,
+      education: rawUserCustom.education || profileView.candidate.profileMetadata?.education || [],
+      professionalTenureYears: tenureMetrics.professionalTenureYears,
+    });
+  const careerStatus =
+    careerProfile?.careerStatus ||
+    CareerStatusDerivation.deriveCareerStatus({
+      experiences: rawExperiences,
+      education: rawUserCustom.education || profileView.candidate.profileMetadata?.education || [],
+      professionalTenureMonths: tenureMetrics.professionalTenureMonths,
+    });
+  const yearsOfExperience =
+    careerProfile?.yearsOfExperience ??
+    (tenureMetrics.professionalTenureYears > 0
+      ? tenureMetrics.professionalTenureYears
+      : tenureMetrics.totalExperienceYears > 0
+        ? tenureMetrics.totalExperienceYears
+        : null);
 
-  const isReadyForJobSearch = missingRequired.length === 0;
-
-  let completenessScore = 20; // Base existence score
-  if (profileView.candidate.headline) completenessScore += 15;
-  if (profileView.candidate.summary) completenessScore += 15;
-  if (Array.isArray(profileView.skills) && profileView.skills.length > 0) completenessScore += 15;
-  if (Array.isArray(profileView.projects) && profileView.projects.length > 0)
-    completenessScore += 15;
-  if (jobPreferences.targetRoles.length > 0) completenessScore += 10;
-  if (jobPreferences.preferredLocations.length > 0) completenessScore += 5;
-  if (jobPreferences.salaryFloor != null) completenessScore += 5;
-  completenessScore = Math.min(completenessScore, 100);
+  const rawCompleteness =
+    careerProfile?.completeness || profileService.calculateCompleteness?.(profileView);
+  const completenessScore =
+    typeof rawCompleteness?.score === 'number'
+      ? rawCompleteness.score
+      : typeof rawCompleteness?.percentage === 'number'
+        ? rawCompleteness.percentage
+        : 100;
 
   const profileCompleteness = {
     score: completenessScore,
-    status: isReadyForJobSearch
-      ? 'COMPLETE FOR JOB SEARCH'
-      : `NEEDS ATTENTION — ${missingRequired.length} item(s) needed for job matching`,
-    isReadyForJobSearch,
-    missingRequiredForSearch: missingRequired,
-    missingOptional,
-    actionableFeedback: isReadyForJobSearch
-      ? 'Profile contains all required criteria for automated job matching and discovery.'
-      : `Please configure: ${missingRequired.join(', ')} to enable high-confidence job search.`,
+    status:
+      rawCompleteness?.status ||
+      (completenessScore >= 70 ? 'STRONG' : completenessScore >= 40 ? 'MODERATE' : 'INCOMPLETE'),
+    isReadyForJobSearch: Boolean(
+      rawCompleteness?.isReadyForJobSearch ??
+      rawCompleteness?.isReadyForMatching ??
+      completenessScore >= 60
+    ),
+    missingRequiredForSearch: Array.isArray(rawCompleteness?.missingRequiredForSearch)
+      ? rawCompleteness.missingRequiredForSearch
+      : Array.isArray(rawCompleteness?.missingFields)
+        ? rawCompleteness.missingFields
+        : [],
+    missingOptional: Array.isArray(rawCompleteness?.missingOptional)
+      ? rawCompleteness.missingOptional
+      : [],
+    actionableFeedback:
+      rawCompleteness?.actionableFeedback ||
+      (Array.isArray(rawCompleteness?.recommendations) && rawCompleteness.recommendations.length > 0
+        ? rawCompleteness.recommendations.join('; ')
+        : 'Profile is complete and ready.'),
   };
+
+  const structuredExperienceDuration =
+    careerProfile?.experienceDuration ||
+    (tenureMetrics
+      ? {
+          totalMonths: tenureMetrics.totalExperienceMonths || 0,
+          totalYears: tenureMetrics.totalExperienceYears || 0,
+          professionalMonths: tenureMetrics.professionalTenureMonths || 0,
+          professionalYears: tenureMetrics.professionalTenureYears || 0,
+        }
+      : undefined);
 
   // 2. Format top verified skills (max 15)
   let topSkills = undefined;
   if (args.includeSkillsSummary !== false) {
-    const verifiedSkills = (profileView.skills || [])
-      .filter((s) => s.provenanceStatus === 'VERIFIED')
-      .sort((a, b) => (b.confidenceScore ?? 0) - (a.confidenceScore ?? 0))
-      .slice(0, 15)
-      .map((s) => ({
-        slug: s.slug,
-        name: s.name,
-        category: s.category || 'TOOL',
-        confidenceScore: typeof s.confidenceScore === 'number' ? s.confidenceScore : 0.0,
-        evidenceCount: s.evidenceCount || 0,
-        provenanceStatus: 'VERIFIED',
-      }));
-    topSkills = verifiedSkills;
+    const rawSkills = careerProfile?.topSkills || profileView.skills || [];
+    topSkills = rawSkills.slice(0, 15).map((s) => ({
+      slug: s.slug,
+      name: s.name,
+      category: s.category || 'TOOL',
+      confidenceScore: typeof s.confidenceScore === 'number' ? s.confidenceScore : 0.0,
+      evidenceCount: s.evidenceCount || 0,
+      provenanceStatus:
+        s.provenanceStatus === 'VERIFIED'
+          ? 'VERIFIED'
+          : s.provenanceStatus === 'INFERRED'
+            ? 'INFERRED'
+            : 'CLAIMED',
+    }));
   }
 
   // 3. Format highlighted projects (max 5)
   let highlightedProjects = undefined;
   if (args.includeProjects !== false) {
-    const rawProjects = (profileView.projects || []).filter(
-      (p) => p.metadata?.portfolioStatus !== 'ARCHIVED' && p.metadata?.isArchived !== true
-    );
-    // Prioritize highlighted projects, then order by creation date
-    const sortedProjects = [...rawProjects].sort((a, b) => {
-      if (a.isHighlighted && !b.isHighlighted) return -1;
-      if (!a.isHighlighted && b.isHighlighted) return 1;
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
-    });
-
-    highlightedProjects = sortedProjects.slice(0, 5).map((p) => ({
+    const rawProjects = careerProfile?.highlightedProjects || profileView.projects || [];
+    highlightedProjects = rawProjects.slice(0, 5).map((p) => ({
       id: p.id,
       name: p.name,
       headline: p.headline || null,
       role: p.role || null,
       startDate: p.startDate ? String(p.startDate) : null,
       endDate: p.endDate ? String(p.endDate) : null,
-      linkedResourceCount: p.linkedResourceCount || 0,
-      verifiedSignalCount: Array.isArray(p.evidence) ? p.evidence.length : 0,
-      provenanceStatus: p.evidence && p.evidence.length > 0 ? 'VERIFIED' : 'CLAIMED',
+      linkedResourceCount: p.linkedResourceCount || (Array.isArray(p.evidence) ? 1 : 0),
+      verifiedSignalCount:
+        p.verifiedSignalCount || (Array.isArray(p.evidence) ? p.evidence.length : 0),
+      provenanceStatus: p.provenanceStatus || 'CLAIMED',
     }));
   }
 
-  // 4. Format recent experience (max 5)
+  // 4. Format recent experience (max 5) from canonical career profile
   let recentExperience = undefined;
   if (args.includeExperience !== false) {
-    const userCustomExp =
-      profileView.candidate.profileMetadata?.userCustom?.experience ||
-      profileView.candidate.profileMetadata?.experience ||
-      [];
-
-    if (Array.isArray(userCustomExp)) {
-      recentExperience = userCustomExp.slice(0, 5).map((exp) => ({
-        company: exp.company || 'Company',
-        title: exp.title || 'Role',
-        startDate: exp.startDate ? String(exp.startDate) : null,
-        endDate: exp.endDate ? String(exp.endDate) : null,
-        isCurrent: Boolean(exp.isCurrent),
-        verifiedSkillsUsed: Array.isArray(exp.skills) ? exp.skills.slice(0, 10) : [],
-        provenanceStatus: 'CLAIMED',
-      }));
-    } else {
-      recentExperience = [];
-    }
+    const rawExpList = careerProfile?.recentExperience || rawExperiences || [];
+    recentExperience = rawExpList.slice(0, 5).map((exp) => ({
+      company: exp.company || 'Company',
+      title: exp.title || exp.role || 'Role',
+      employmentType: exp.employmentType || 'FULL_TIME',
+      location: exp.location || null,
+      startDate: exp.startDate ? String(exp.startDate) : null,
+      endDate: exp.endDate ? String(exp.endDate) : null,
+      isCurrent: Boolean(exp.isCurrent),
+      rawDateRange: exp.rawDateRange || null,
+      verifiedSkillsUsed: Array.isArray(exp.verifiedSkillsUsed)
+        ? exp.verifiedSkillsUsed.slice(0, 10)
+        : Array.isArray(exp.skills)
+          ? exp.skills.slice(0, 10)
+          : [],
+      provenanceStatus: exp.provenanceStatus || 'CLAIMED',
+    }));
   }
 
   // 5. Build connected resources summary
@@ -284,14 +303,16 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
     candidate: {
       id: profileView.candidate.id,
       displayName: profileView.candidate.displayName,
-      headline: profileView.candidate.headline || null,
-      summary: profileView.candidate.summary || null,
-      currentRole:
-        profileView.candidate.profileMetadata?.currentRole ||
-        profileView.candidate.headline ||
-        null,
-      location: profileView.candidate.profileMetadata?.location || null,
-      canonicalEmail: profileView.candidate.canonicalEmail || null,
+      headline: careerProfile?.headline || profileView.candidate.headline || null,
+      summary: careerProfile?.summary || profileView.candidate.summary || null,
+      currentRole: currentRole || null,
+      currentEmployment: currentEmployment || null,
+      careerStatus: careerStatus || 'UNKNOWN',
+      seniority: seniority || null,
+      yearsOfExperience: yearsOfExperience || null,
+      experienceDuration: structuredExperienceDuration,
+      location: careerProfile?.location || profileView.candidate.profileMetadata?.location || null,
+      canonicalEmail: careerProfile?.canonicalEmail || profileView.candidate.canonicalEmail || null,
       status: profileView.candidate.status,
       createdAt: profileView.candidate.createdAt,
       updatedAt: profileView.candidate.updatedAt,
