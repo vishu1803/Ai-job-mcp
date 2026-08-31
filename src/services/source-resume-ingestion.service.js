@@ -18,6 +18,7 @@ import { resumeRepository } from '../db/repositories/resume.repository.js';
 import { documentStorageService } from './document-storage.service.js';
 import { resumeParserService } from './resume-parser.service.js';
 import { NotFoundError, AuthorizationError } from '../errors/index.js';
+import { ResumeEntityResolver } from '../domain/career/resume-entity-resolver.js';
 import { logger } from '../utils/logger.js';
 
 export class SourceResumeIngestionService {
@@ -306,184 +307,81 @@ export class SourceResumeIngestionService {
       });
     }
 
-    // 1. Fetch parsed resume sections to extract rich resume qualifications
+    // 1. Fetch parsed resume sections and resolve canonical resume graph
     const sections = await this.resumeRepo.getResumeSections({
       resumeId,
       tenantId,
     });
 
-    let contactName = null;
-    let contactEmail = null;
-    let contactPhone = null;
-    let contactGithub = null;
-    let contactLinkedin = null;
-    let contactLeetcode = null;
-    const contactUrls = [];
-    let detectedLocation = null;
-    let detectedHeadline = null;
-    let detectedCurrentRole = null;
-    let resumeSummary = null;
-    const resumeExperiences = [];
-    const resumeEducation = [];
-    const resumeProjects = [];
-    const resumeCerts = [];
-    const resumeSkills = [];
+    const canonicalGraph = ResumeEntityResolver.resolveCanonicalGraph(sections);
 
-    for (const sec of sections) {
-      const sd = sec.structuredData || {};
-      if (sec.sectionType === 'CONTACT_INFO' || sec.sectionType === 'SUMMARY') {
-        if (sd.name && !contactName) contactName = sd.name;
-        if (sd.email && !contactEmail) contactEmail = sd.email;
-        if (sd.phone && !contactPhone) contactPhone = sd.phone;
-        if (sd.github && !contactGithub) contactGithub = sd.github;
-        if (sd.linkedin && !contactLinkedin) contactLinkedin = sd.linkedin;
-        if (sd.leetcode && !contactLeetcode) contactLeetcode = sd.leetcode;
-        if (Array.isArray(sd.urls)) {
-          contactUrls.push(...sd.urls);
-        }
-      }
+    const resumeExperiences = canonicalGraph.canonicalExperiences.map((exp) => ({
+      company: exp.company || 'Company',
+      title: exp.role || 'Role',
+      role: exp.role || 'Role',
+      location: exp.location || null,
+      startDate: exp.startDate || null,
+      endDate: null,
+      isCurrent: exp.isCurrent,
+      bullets: exp.bullets,
+      verifiedSkillsUsed: exp.technologiesUsed.map((t) => t.name),
+      provenanceStatus: 'CLAIMED',
+    }));
 
-      if (sec.sectionType === 'SUMMARY') {
-        if (typeof sd.content === 'string' && sd.content.trim()) {
-          resumeSummary = sd.content.trim();
-        } else if (sec.rawText && sec.rawText.trim()) {
-          resumeSummary = sec.rawText.trim();
-        }
-      }
+    const resumeEducation = canonicalGraph.canonicalEducation.map((edu) => ({
+      institution: edu.institution,
+      degree: edu.degree || null,
+      fieldOfStudy: edu.fieldOfStudy || null,
+      startDate: null,
+      endDate: null,
+      text: edu.rawText || edu.institution,
+      provenanceStatus: 'CLAIMED',
+    }));
 
-      if (sec.sectionType === 'WORK_EXPERIENCE') {
-        if (Array.isArray(sd.experiences) && sd.experiences.length > 0) {
-          for (const exp of sd.experiences) {
-            const role = (exp.role || '').trim();
-            const company = (exp.company || '').trim();
-            const loc = (exp.location || '').trim();
-            const dates = (exp.dates || '').trim();
-            const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
+    const resumeProjects = canonicalGraph.canonicalProjects.map((proj) => ({
+      name: proj.canonicalName,
+      title: proj.canonicalName,
+      headline: proj.bullets[0] || null,
+      role: null,
+      summary: proj.description || null,
+      technologies: proj.technologies.map((t) => t.name),
+      bullets: proj.bullets,
+      urls: proj.urls,
+      startDate: null,
+      endDate: null,
+      linkedResourceCount: 0,
+      verifiedSignalCount: 0,
+      provenanceStatus: 'CLAIMED',
+    }));
 
-            if (!detectedCurrentRole && role) detectedCurrentRole = role;
-            if (!detectedHeadline && role) detectedHeadline = role;
-            if (!detectedLocation && loc) detectedLocation = loc;
+    const resumeSkills = Array.from(canonicalGraph.canonicalSkills.values()).map((s) => s.name);
+    const resumeCerts = canonicalGraph.canonicalCertifications;
+    const contact = canonicalGraph.canonicalContact;
 
-            resumeExperiences.push({
-              company: company || 'Company',
-              title: role || 'Role',
-              role: role || 'Role',
-              location: loc || null,
-              startDate: dates || null,
-              endDate: null,
-              isCurrent: /present|current|now/i.test(dates),
-              bullets,
-              verifiedSkillsUsed: [],
-              provenanceStatus: 'CLAIMED',
-            });
-          }
-        }
-      }
-
-      if (sec.sectionType === 'EDUCATION') {
-        if (Array.isArray(sd.degrees) && sd.degrees.length > 0) {
-          for (const d of sd.degrees) {
-            const raw = String(d || '').trim();
-            if (!raw) continue;
-            const parts = raw
-              .split(/[|,]/)
-              .map((p) => p.trim())
-              .filter(Boolean);
-            if (parts.length >= 2) {
-              resumeEducation.push({
-                institution: parts[1],
-                degree: parts[0],
-                fieldOfStudy: parts[2] || null,
-                startDate: null,
-                endDate: null,
-                text: raw,
-                provenanceStatus: 'CLAIMED',
-              });
-            } else {
-              resumeEducation.push({
-                institution: raw,
-                degree: null,
-                fieldOfStudy: null,
-                startDate: null,
-                endDate: null,
-                text: raw,
-                provenanceStatus: 'CLAIMED',
-              });
-            }
-          }
-        }
-      }
-
-      if (sec.sectionType === 'PROJECTS') {
-        if (Array.isArray(sd.projects) && sd.projects.length > 0) {
-          for (const proj of sd.projects) {
-            const title = (proj.title || '').trim();
-            if (!title) continue;
-            const techs = Array.isArray(proj.technologies) ? proj.technologies : [];
-            const bullets = Array.isArray(proj.bullets) ? proj.bullets : [];
-            const urls = Array.isArray(proj.urls) ? proj.urls : [];
-
-            resumeProjects.push({
-              name: title,
-              title,
-              headline: bullets[0] || null,
-              role: null,
-              summary: bullets.join(' ') || null,
-              technologies: techs,
-              bullets,
-              urls,
-              startDate: null,
-              endDate: null,
-              linkedResourceCount: 0,
-              verifiedSignalCount: 0,
-              provenanceStatus: 'CLAIMED',
-            });
-          }
-        }
-      }
-
-      if (sec.sectionType === 'CERTIFICATIONS') {
-        if (Array.isArray(sd.certs)) {
-          for (const c of sd.certs) {
-            const trimmed = String(c || '').trim();
-            if (trimmed) resumeCerts.push(trimmed);
-          }
-        }
-      }
-
-      if (sec.sectionType === 'SKILLS') {
-        if (Array.isArray(sd.skills)) {
-          for (const s of sd.skills) {
-            const trimmed = String(s || '').trim();
-            if (trimmed && !resumeSkills.includes(trimmed)) {
-              resumeSkills.push(trimmed);
-            }
-          }
-        }
-      }
-    }
+    const detectedRole = resumeExperiences[0]?.role || null;
+    const detectedLocation = resumeExperiences[0]?.location || null;
 
     const resumeData = {
       sourceResumeId: existingResume.id,
       sourceVersion: existingResume.version,
       extractedAt: new Date().toISOString(),
       identity: {
-        name: contactName,
-        email: contactEmail,
-        phone: contactPhone,
+        name: contact.name,
+        email: contact.email,
+        phone: contact.phone,
         location: detectedLocation,
-        headline: detectedHeadline,
-        currentRole: detectedCurrentRole,
-        github: contactGithub,
-        linkedin: contactLinkedin,
-        leetcode: contactLeetcode,
-        portfolioUrls: [...new Set(contactUrls)],
+        headline: detectedRole,
+        currentRole: detectedRole,
+        github: contact.github,
+        linkedin: contact.linkedin,
+        leetcode: contact.leetcode,
+        portfolioUrls: contact.urls,
       },
-      summary: resumeSummary,
+      summary: canonicalGraph.canonicalSummary || null,
       experience: resumeExperiences,
       education: resumeEducation,
       projects: resumeProjects,
-      certifications: [...new Set(resumeCerts)],
+      certifications: resumeCerts,
       skills: resumeSkills,
       provenance: 'RESUME_CLAIM',
     };
@@ -499,7 +397,7 @@ export class SourceResumeIngestionService {
       ...existingMeta,
       resumeData,
       location: existingMeta.location || detectedLocation || null,
-      currentRole: existingMeta.currentRole || detectedCurrentRole || null,
+      currentRole: existingMeta.currentRole || detectedRole || null,
     };
 
     // 3. Update candidate narrative profile (Explicit user input > Existing > Resume default)
@@ -510,18 +408,18 @@ export class SourceResumeIngestionService {
 
     if (headline && typeof headline === 'string') {
       candidateUpdates.headline = headline.trim().slice(0, 255);
-    } else if (!currentCandidate?.headline && detectedHeadline) {
-      candidateUpdates.headline = detectedHeadline.slice(0, 255);
+    } else if (!currentCandidate?.headline && detectedRole) {
+      candidateUpdates.headline = detectedRole.slice(0, 255);
     }
 
     if (bio && typeof bio === 'string') {
       candidateUpdates.summary = bio.trim().slice(0, 4000);
-    } else if (!currentCandidate?.summary && resumeSummary) {
-      candidateUpdates.summary = resumeSummary.slice(0, 4000);
+    } else if (!currentCandidate?.summary && canonicalGraph.canonicalSummary) {
+      candidateUpdates.summary = canonicalGraph.canonicalSummary.slice(0, 4000);
     }
 
-    if (!currentCandidate?.canonicalEmail && contactEmail) {
-      candidateUpdates.canonicalEmail = contactEmail.toLowerCase().trim();
+    if (!currentCandidate?.canonicalEmail && contact.email) {
+      candidateUpdates.canonicalEmail = contact.email.toLowerCase().trim();
     }
 
     const [updatedCandidate] = await this.db

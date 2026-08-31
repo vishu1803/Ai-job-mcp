@@ -585,15 +585,51 @@ export function renderResumeDetailPage({
                     .replace(/\s*\[Unverified User Claim\]/gi, '')
                     .trim();
 
+                  const meta = c.metadata || {};
                   const typeIcons = {
                     SKILL: '🛠️',
                     PROJECT: '📦',
                     EXPERIENCE: '💼',
                     EDUCATION: '🎓',
+                    CERTIFICATION: '📜',
                     CONTACT: '📞',
                     SUMMARY: '📝',
                   };
                   const icon = typeIcons[c.claimType] || '📌';
+
+                  // Scope badge styling
+                  let scopeBadge = '';
+                  if (meta.scope) {
+                    const scopeColors = {
+                      HYBRID:
+                        'background:rgba(99,102,241,0.15); color:#a5b4fc; border:1px solid rgba(99,102,241,0.3);',
+                      GLOBAL:
+                        'background:rgba(56,189,248,0.15); color:#7dd3fc; border:1px solid rgba(56,189,248,0.3);',
+                      PROJECT_SCOPED:
+                        'background:rgba(245,158,11,0.15); color:#fcd34d; border:1px solid rgba(245,158,11,0.3);',
+                      EXPERIENCE_SCOPED:
+                        'background:rgba(16,185,129,0.15); color:#6ee7b7; border:1px solid rgba(16,185,129,0.3);',
+                    };
+                    const style =
+                      scopeColors[meta.scope] ||
+                      'background:rgba(255,255,255,0.08); color:var(--text-muted);';
+                    scopeBadge = `<span style="font-size:0.68rem; padding:2px 6px; border-radius:4px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; ${style}">${escapeHtml(meta.scope)}</span>`;
+                  }
+
+                  // Occurrence badge
+                  let occurrenceBadge = '';
+                  if (meta.occurrenceCount && meta.occurrenceCount > 1) {
+                    occurrenceBadge = `<span style="font-size:0.68rem; background:rgba(255,255,255,0.08); border:1px solid var(--border-subtle); color:var(--text-main); padding:2px 6px; border-radius:4px; font-weight:600;">⚡ ${meta.occurrenceCount} mentions</span>`;
+                  }
+
+                  // Linked technologies tags (for projects or experience)
+                  const techs = meta.technologies || meta.technologiesUsed || [];
+                  const techTags =
+                    Array.isArray(techs) && techs.length > 0
+                      ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
+                        ${techs.map((t) => `<span style="font-size:0.7rem; background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); padding:1px 6px; border-radius:3px; color:var(--text-dim);">${escapeHtml(typeof t === 'string' ? t : t.name || t.slug)}</span>`).join('')}
+                      </div>`
+                      : '';
 
                   return `
                 <tr class="claim-row" data-type="${escapeHtml(c.claimType)}">
@@ -603,7 +639,12 @@ export function renderResumeDetailPage({
                     </span>
                   </td>
                   <td style="color:var(--text-main); font-size:0.875rem; font-weight:500; line-height:1.5;">
-                    ${escapeHtml(c.statement)}
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
+                      <span>${escapeHtml(c.statement)}</span>
+                      ${occurrenceBadge}
+                      ${scopeBadge}
+                    </div>
+                    ${techTags}
                   </td>
                   <td style="color:var(--text-dim); font-size:0.8rem; line-height:1.4;">
                     ${escapeHtml(cleanContext)}

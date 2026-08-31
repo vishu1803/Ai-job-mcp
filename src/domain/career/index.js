@@ -17,3 +17,4 @@ export * from './career-artifact-export.schemas.js';
 export * from './resume-integrity-audit.schemas.js';
 export * from './project-improvement.schemas.js';
 export * from './approval-ticket.schemas.js';
+export * from './resume-entity-resolver.js';

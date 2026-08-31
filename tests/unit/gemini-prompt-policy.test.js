@@ -20,6 +20,7 @@ import {
   CareerCoachingPolicy,
   ProjectCaseStudyPolicy,
   ProjectImprovementPolicy,
+  ResumeEntityResolutionPolicy,
   PromptPolicyRegistry,
   defaultPromptPolicyRegistry,
   sanitizeData,
@@ -106,15 +107,20 @@ describe('AI Prompt Policies & Trust Boundary Unit Tests (P8-002)', () => {
       assert.ok(registry.getPolicy('PROJECT_CASE_STUDY') instanceof ProjectCaseStudyPolicy);
       assert.ok(registry.getPolicy('PROJECT_IMPROVEMENT') instanceof ProjectImprovementPolicy);
 
+      assert.ok(
+        registry.getPolicy('RESUME_ENTITY_RESOLUTION') instanceof ResumeEntityResolutionPolicy
+      );
+
       // Unknown or generic task resolves to BasePromptPolicy fallback
       const fallback = registry.getPolicy('UNKNOWN_TASK');
       assert.ok(fallback instanceof BasePromptPolicy);
       assert.strictEqual(fallback.policyId, 'BASE_CAREER');
 
       const list = registry.listPolicies();
-      assert.strictEqual(list.length, 7);
+      assert.strictEqual(list.length, 8);
       assert.ok(list.some((p) => p.policyId === 'RESUME_WORDING'));
       assert.ok(list.some((p) => p.policyId === 'PROJECT_IMPROVEMENT'));
+      assert.ok(list.some((p) => p.policyId === 'RESUME_ENTITY_RESOLUTION'));
     });
   });
 

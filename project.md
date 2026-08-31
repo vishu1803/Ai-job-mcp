@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 19 | 18 | 0 | **IN_PROGRESS** | **94.74%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 20 | 19 | 0 | **IN_PROGRESS** | **95.0%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -3597,6 +3597,28 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run format:check` -> PASS (100% Prettier compliant)
     * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
     * `npm run db:check` -> PASS (Schema in sync)
+* **P14-005M: RESUME SEMANTIC NORMALIZATION, MULTI-STAGE ENTITY RESOLUTION, SCOPE ATTRIBUTION & RELATIONSHIP MAPPING (Complete & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/clients/ai/prompt-policies/resume-entity-resolution.policy.js`: Implemented `ResumeEntityResolutionPolicy` providing structured prompt policy with XML sandboxing and JSON schemas for multi-mention entity clustering, disambiguation, and relationship extraction.
+    * `src/clients/ai/prompt-policies/index.js`: Registered `ResumeEntityResolutionPolicy` in `PromptPolicyRegistry` under task type `'RESUME_ENTITY_RESOLUTION'`.
+    * `src/domain/career/resume-entity-resolver.js`: Implemented `ResumeEntityResolver` domain engine executing 4-stage entity resolution pipeline (Deterministic Normalization -> Candidate Entity Grouping -> AI Semantic Disambiguation -> Policy Validation). Enforced 4-tier scope taxonomy (`GLOBAL`, `PROJECT_SCOPED`, `EXPERIENCE_SCOPED`, `HYBRID`) and $1\text{ Entity} \rightarrow N\text{ Mentions}$ invariant.
+    * `src/domain/career/index.js`: Exported `ResumeEntityResolver` and `RESUME_SKILL_SCOPES`.
+    * `src/services/resume-parser.service.js`: Decoupled layout parsing from resolution; delegated `generateClaims` to `ResumeEntityResolver.resolveCanonicalGraph(sections).candidateClaims`.
+    * `src/services/source-resume-ingestion.service.js`: Updated `reviewAndApproveResume` to propagate resolved canonical entities with linked technologies and deduplicated skills into `candidate.profileMetadata.resumeData`.
+    * `src/views/resumes.page.js`: Upgraded Extracted Claims table with occurrence counter badges (`⚡ N mentions`), scope tags (`HYBRID`, `GLOBAL`, `PROJECT`, `EXPERIENCE`), and linked technology chips on project and experience claims.
+    * `tests/unit/resume-entity-resolution-policy.test.js`: Added 4 unit tests verifying system prompt, scope definitions, XML sandboxing, and registry resolution.
+    * `tests/unit/resume-entity-resolver.test.js`: Added 6 unit tests verifying token cleaning, semantic normalization (`NodeJS`/`Node.js` -> `node-js`), inline bullet technology extraction, hybrid multi-mention resolution, cohesive project/experience claim emission, and education/contact resolution.
+    * `tests/unit/gemini-prompt-policy.test.js`: Updated registry test verifying 8 specialized prompt policies.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/resume-entity-resolution-policy.test.js tests/unit/resume-entity-resolver.test.js tests/unit/resume-parser.service.test.js` -> PASS (33/33 tests passing)
+    * `node --test tests/unit/gemini-prompt-policy.test.js` -> PASS (23/23 tests passing)
+    * `npm run test:unit` -> PASS (1,435/1,435 master unit tests passing across 361 suites)
+    * `npm run test:db-lifecycle-check` -> PASS (59 DB test files verified compliant, 0 leaks)
+    * `node --test tests/integration/web-application-routes.test.js` -> PASS (20/20 tests passing)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
+    * `git diff --check` -> PASS (Clean)
   * Status: **`COMPLETE & VERIFIED`**.
 
 ---
@@ -3628,6 +3650,7 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-005J** | Final Skill Taxonomy Correction: Primary Career Skills vs Technology / Implementation Signals (Step 1I) | P14-005I | **COMPLETE & VERIFIED** | Overhauled taxonomy engine with comprehensive semantic classification policy separating core career categories (`CORE_LANGUAGE`, `FRAMEWORK`, `DATABASE`, `PROTOCOL`, `PLATFORM`, `CLOUD`, `AI_ML`, `TOOL`) from supporting implementation signals (`LIBRARY`, `UI_COMPONENT`, `UTILITY_PACKAGE`, `DEV_HELPER`, `BUILT_IN_MODULE`, `DEPENDENCY_SIGNAL`). Added `getPrimarySkillRank` enforcing recruiter priority ordering (Languages -> Backend -> Frontend -> DBs -> Protocols -> Platform -> Cloud -> AI/ML -> Tools). 79 unit tests (`tests/unit/candidate-career-profile.test.js`, `tests/unit/skill-taxonomy.test.js` - 79/79 PASS), 1,399/1,399 master unit tests passing (100%), 0 lint errors, 0 exposed secrets. |
 | **P14-005K** | Unify Verified Skills Graph with 5-Tier Evidence-Strength / Truth Model (Step 1J) | P14-005J | **COMPLETE & VERIFIED** | Established deterministic 5-tier evidence strength model (`LEVEL_0_METADATA_ONLY`, `LEVEL_1_PACKAGE_OR_CONFIG_SIGNAL`, `LEVEL_2_IMPORT_OR_SINGLE_USAGE`, `LEVEL_3_SUBSTANTIAL_IMPLEMENTATION`, `LEVEL_4_CORROBORATED`) in `SkillTaxonomyEngine.evaluateEvidenceStrength`. Prevented package manifest dependencies (e.g. `@eslint/js`, `docker-compose.yml`, `@radix-ui/react-tabs`) from artificially promoting to `PRIMARY + VERIFIED` competencies (retained as `CLAIMED` on primary profile if on resume, or `SIGNAL + VERIFIED` in technology signals). Unified Verified Skills Graph Web UI (`/skills`), Career Profile (`/profile`), and MCP tool outputs (`list_verified_skills`, `get_candidate_profile`, `get_career_profile`) with 4-way truth badges, citation explanations, and grouped technology signals. 91 unit tests (`tests/unit/skill-taxonomy.test.js`, `tests/unit/candidate-career-profile.test.js` - 91/91 PASS), 20/20 web routes integration tests, 1,411/1,411 master unit tests passing across 355 suites (100%), 59/59 DB lifecycle checks compliant, 0 lint errors, 0 exposed secrets. |
 | **P14-005L** | Language Evidence Reconciliation, Verified Skills Graph UX & Resume Claims Detail View (Step 1K) | P14-005K | **COMPLETE & VERIFIED** | Implemented `SkillTaxonomyEngine.reconcileLanguageEvidence` and `LANGUAGE_ECOSYSTEM_MAP` establishing multi-level language reconciliation: evaluated direct source file presence, AST citations, language byte metadata, and supporting framework ecosystems (FastAPI/Django -> Python, React/Next.js/Express/Fastify -> JS/TS). Enforced anti-hallucination barriers preventing false inference (FastAPI package alone -> Python remains CLAIMED; TypeScript repo with @eslint/js -> JS remains CLAIMED; >=3 Python source files + FastAPI -> Python CORROBORATED). Upgraded Verified Skills Graph (`/skills`) with 4-way truth counts (VERIFIED 14, CLAIMED 13, INFERRED 0, SIGNALS 132), explicit Inferred Skills section, and collapsible 11-category Evidence Explorer (default collapsed with Expand/Collapse All controls). Enhanced Resume Extracted Claims view (`/resumes`) with clean origin context, category tabs, and real-time search. 105 unit tests (`tests/unit/skill-taxonomy.test.js`, `tests/unit/candidate-career-profile.test.js` - 105/105 PASS), 20/20 web routes integration tests, 1,425/1,425 master unit tests passing across 356 suites (100%), 59/59 DB lifecycle checks compliant, 0 lint errors, 0 exposed secrets. |
+| **P14-005M** | Resume Semantic Normalization, Multi-Stage Entity Resolution, Scope Attribution & Relationship Mapping | P14-005L | **COMPLETE & VERIFIED** | Decoupled resume layout parsing from entity resolution. Implemented `ResumeEntityResolver` domain engine with 4-tier scope taxonomy (`GLOBAL`, `PROJECT_SCOPED`, `EXPERIENCE_SCOPED`, `HYBRID`) and 1 Entity -> N Mentions invariant. Implemented `ResumeEntityResolutionPolicy` under provider-neutral prompt policy framework with strict XML sandboxing, JSON schemas, and deterministic fallback. Resolves cohesive project entities (with canonical technology links and bullets), cohesive work experience positions (with automatic bullet technology extraction), cohesive education, and deduplicated canonical skill claims with occurrence counts and citation provenance. Enhanced Extracted Claims Web UI (`/resumes`) with occurrence pills, scope tags, and linked technology chips. 33 unit tests across `tests/unit/resume-entity-resolver.test.js`, `tests/unit/resume-entity-resolution-policy.test.js`, and `tests/unit/resume-parser.service.test.js` (33/33 PASS), 1,435/1,435 master unit tests passing (100%), 20/20 web routes integration tests, 59/59 DB lifecycle checks compliant, 0 lint errors, 0 exposed secrets. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---

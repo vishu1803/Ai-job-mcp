@@ -13,6 +13,7 @@
 
 import zlib from 'node:zlib';
 import { ValidationError, SecurityError } from '../errors/index.js';
+import { ResumeEntityResolver } from '../domain/career/resume-entity-resolver.js';
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -1149,185 +1150,16 @@ export class ResumeParserService {
   }
 
   /**
-   * Generates candidate claims strictly classified with CLAIMED provenance.
+   * Generates candidate claims strictly classified with CLAIMED provenance,
+   * resolving entities and relationships via ResumeEntityResolver.
    *
    * @param {Array<object>} sections
-   * @returns {Array<{ claimType: string, statement: string, context: string, provenanceStatus: 'CLAIMED' }>}
+   * @param {object} [options={}]
+   * @returns {Array<{ claimType: string, statement: string, context: string, provenanceStatus: 'CLAIMED', isCorroborated: boolean, metadata: object }>}
    */
-  generateClaims(sections) {
-    const claims = [];
-    const seenStatements = new Set();
-
-    const addClaim = (claimType, statement, context) => {
-      const cleanStmt = String(statement || '').trim();
-      if (!cleanStmt || seenStatements.has(cleanStmt.toLowerCase())) return;
-      seenStatements.add(cleanStmt.toLowerCase());
-      claims.push({
-        claimType,
-        statement: cleanStmt,
-        context: `${context} [Unverified User Claim]`,
-        provenanceStatus: 'CLAIMED',
-      });
-    };
-
-    const COMMON_TECH_KEYWORDS = [
-      'JavaScript',
-      'TypeScript',
-      'Python',
-      'Node.js',
-      'React',
-      'Next.js',
-      'Fastify',
-      'Express',
-      'PostgreSQL',
-      'Postgres',
-      'Docker',
-      'Kubernetes',
-      'AWS',
-      'GCP',
-      'Google Cloud',
-      'Azure',
-      'Git',
-      'GitHub',
-      'REST',
-      'GraphQL',
-      'Redis',
-      'Drizzle',
-      'SQL',
-      'HTML',
-      'CSS',
-      'Tailwind',
-      'Linux',
-      'Microservices',
-      'CI/CD',
-      'OAuth',
-      'MCP',
-      'Model Context Protocol',
-      'Go',
-      'Golang',
-      'Rust',
-      'Java',
-      'C++',
-      'MongoDB',
-    ];
-
-    let hasSkillClaims = false;
-
-    for (const sec of sections) {
-      const sd = sec.structuredData;
-      if (!sd) continue;
-      const headingLabel = sec.heading || sec.sectionType;
-
-      // Contact and profile claims
-      if (sd.github) {
-        addClaim('CONTACT', `GitHub Profile: ${sd.github}`, `Extracted from ${headingLabel}`);
-      }
-      if (sd.linkedin) {
-        addClaim('CONTACT', `LinkedIn Profile: ${sd.linkedin}`, `Extracted from ${headingLabel}`);
-      }
-      if (sd.leetcode) {
-        addClaim('CONTACT', `LeetCode Profile: ${sd.leetcode}`, `Extracted from ${headingLabel}`);
-      }
-      if (sd.email) {
-        addClaim('CONTACT', `Email: ${sd.email}`, `Extracted from ${headingLabel}`);
-      }
-      if (sd.phone) {
-        addClaim('CONTACT', `Phone: ${sd.phone}`, `Extracted from ${headingLabel}`);
-      }
-      if (Array.isArray(sd.urls)) {
-        for (const u of sd.urls) {
-          if (
-            !u.includes('github.com') &&
-            !u.includes('linkedin.com') &&
-            !u.includes('leetcode.com')
-          ) {
-            addClaim('CONTACT', `Project/Portfolio URL: ${u}`, `Extracted from ${headingLabel}`);
-          }
-        }
-      }
-
-      // Skills claims
-      if (Array.isArray(sd.skills) && sd.skills.length > 0) {
-        for (const skill of sd.skills) {
-          addClaim('SKILL', skill, `Extracted from ${headingLabel}: "${skill}"`);
-          hasSkillClaims = true;
-        }
-      }
-
-      // Projects claims
-      if (Array.isArray(sd.projects)) {
-        for (const proj of sd.projects) {
-          const titleWithTech =
-            proj.technologies && proj.technologies.length > 0
-              ? `${proj.title} (${proj.technologies.join(', ')})`
-              : proj.title;
-          addClaim('PROJECT', `Project: ${titleWithTech}`, `Extracted from ${headingLabel}`);
-
-          for (const tech of proj.technologies) {
-            addClaim('SKILL', tech, `Used in project "${proj.title}"`);
-            hasSkillClaims = true;
-          }
-          for (const u of proj.urls) {
-            addClaim('PROJECT', `Project Repository/Link: ${u}`, `Associated with "${proj.title}"`);
-          }
-          for (const bullet of proj.bullets) {
-            if (!bullet.startsWith('Source Code:') && !bullet.startsWith('Project Link:')) {
-              addClaim('PROJECT', `${proj.title}: ${bullet}`, `Extracted from ${headingLabel}`);
-            }
-          }
-        }
-      }
-
-      // Work Experience claims
-      if (Array.isArray(sd.experiences)) {
-        for (const exp of sd.experiences) {
-          const header = `${exp.role} at ${exp.company} (${exp.dates}${exp.location ? ', ' + exp.location : ''})`;
-          addClaim('EXPERIENCE', header, `Extracted from ${headingLabel}`);
-          for (const bullet of exp.bullets) {
-            addClaim(
-              'EXPERIENCE',
-              `${exp.role} at ${exp.company}: ${bullet}`,
-              `Extracted from ${headingLabel}`
-            );
-          }
-        }
-      }
-
-      // Education claims
-      if (Array.isArray(sd.degrees)) {
-        for (const deg of sd.degrees) {
-          addClaim('EDUCATION', deg, `Extracted from ${headingLabel}`);
-        }
-      }
-
-      // Certifications claims
-      if (Array.isArray(sd.certs)) {
-        for (const cert of sd.certs) {
-          addClaim('CERTIFICATION', cert, `Extracted from ${headingLabel}`);
-        }
-      }
-
-      // Summary claims
-      if (sec.sectionType === 'SUMMARY' && sd.content) {
-        const summaryText = sd.content.trim();
-        if (summaryText && summaryText.length > 10) {
-          addClaim('SUMMARY', summaryText.slice(0, 500), `Extracted from ${headingLabel}`);
-        }
-      }
-    }
-
-    // Fallback: If no explicit SKILLS section or project skills produced skill claims, extract known tech skills mentioned in text
-    if (!hasSkillClaims) {
-      const fullCorpus = sections.map((s) => s.rawText).join(' ');
-      for (const tech of COMMON_TECH_KEYWORDS) {
-        const regex = new RegExp(`\\b${tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-        if (regex.test(fullCorpus)) {
-          addClaim('SKILL', tech, `Mentioned in resume text: "${tech}"`);
-        }
-      }
-    }
-
-    return claims;
+  generateClaims(sections, options = {}) {
+    const graph = ResumeEntityResolver.resolveCanonicalGraph(sections, options);
+    return graph.candidateClaims;
   }
 
   /**
