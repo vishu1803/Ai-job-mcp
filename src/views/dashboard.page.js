@@ -32,12 +32,13 @@ export function renderDashboardPage({
   applications = [],
   connectedSourcesCount = 0,
   gitHubConnection = null,
+  resumes = [],
   aiTokensCount = 0,
 }) {
-  const candidateHeadline = candidate?.headline || 'Staff Engineer | Cloud & Distributed Systems';
+  const candidateHeadline = candidate?.headline || 'Candidate Profile (Awaiting Career Headline)';
   const candidateSummary =
     candidate?.summary ||
-    'Connect your GitHub repository to extract verified engineering evidence, projects, and skills.';
+    'Connect your GitHub repository and upload your source resume to construct an evidence-grounded career profile.';
   const candidateEmail = user?.email || candidate?.canonicalEmail || '';
 
   const verifiedCount = skills.filter((s) => s.provenanceStatus === 'VERIFIED').length;
@@ -46,12 +47,59 @@ export function renderDashboardPage({
     (s) => s.provenanceStatus === 'CLAIMED' || s.isUserClaim === true
   ).length;
 
-  // Calculate completeness percentage
-  let completeness = 20; // base registered
-  if (candidate?.headline) completeness += 20;
-  if (connectedSourcesCount > 0) completeness += 20;
-  if (projects.length > 0) completeness += 20;
-  if (verifiedCount > 0) completeness += 20;
+  const hasHeadline = Boolean(candidate?.headline && candidate.headline.trim().length > 0);
+  const hasSources = connectedSourcesCount > 0 || Boolean(gitHubConnection);
+  const hasResumes = resumes.length > 0;
+  const hasSkills = skills.length > 0;
+  const hasPreferences = Boolean(
+    candidate?.profileMetadata?.careerPreferences?.targetRoles?.length > 0
+  );
+  const hasAi = aiTokensCount > 0;
+
+  // Calculate completeness percentage (6 steps, 16.6% each -> 100%)
+  let stepsCompleted = 1; // Registered account
+  if (hasHeadline) stepsCompleted += 1;
+  if (hasSources) stepsCompleted += 1;
+  if (hasResumes) stepsCompleted += 1;
+  if (hasSkills) stepsCompleted += 1;
+  if (hasPreferences) stepsCompleted += 1;
+  if (hasAi) stepsCompleted += 1;
+
+  const completeness = Math.min(100, Math.round((stepsCompleted / 7) * 100));
+  const isSetupMode = completeness < 75 || !hasSources || !hasResumes;
+
+  // Determine dynamic next recommended action
+  let nextActionTitle = 'All Systems Operational';
+  let nextActionDesc =
+    'Your evidence-grounded career profile is active and ready for AI job matching via MCP.';
+  let nextActionBtnText = 'Launch Job Fit Radar →';
+  let nextActionBtnHref = '/apps/radar';
+
+  if (!hasSources) {
+    nextActionTitle = 'Next Step: Connect GitHub Repositories';
+    nextActionDesc =
+      'Authorize your GitHub account to allow Career Hub to extract AST code evidence, dependencies, and verified skills.';
+    nextActionBtnText = 'Connect GitHub →';
+    nextActionBtnHref = '/sources';
+  } else if (!hasResumes) {
+    nextActionTitle = 'Next Step: Upload Source Resume';
+    nextActionDesc =
+      'Upload your existing PDF, DOCX, or TXT resume to map baseline work history and self-reported claims.';
+    nextActionBtnText = 'Upload Resume →';
+    nextActionBtnHref = '/resumes';
+  } else if (!hasPreferences) {
+    nextActionTitle = 'Next Step: Set Career Preferences';
+    nextActionDesc =
+      'Define your target job roles, preferred locations, and salary floor for intelligent ATS matching.';
+    nextActionBtnText = 'Set Preferences →';
+    nextActionBtnHref = '/profile';
+  } else if (!hasAi) {
+    nextActionTitle = 'Next Step: Connect AI Clients';
+    nextActionDesc =
+      'Mint an MCP API Token to connect Claude Desktop, ChatGPT Custom GPT, or Gemini CLI.';
+    nextActionBtnText = 'Connect AI →';
+    nextActionBtnHref = '/connect';
+  }
 
   const content = `
     <div class="container">
@@ -62,15 +110,15 @@ export function renderDashboardPage({
           <span style="font-size:0.75rem; color:var(--text-dim);">Live Evidence Resolution</span>
         </div>
         <div class="pipeline-steps">
-          <div class="pipeline-step"><span>📦</span> 1. Connect Sources</div>
+          <div class="pipeline-step ${hasSources ? 'active' : ''}"><span>📦</span> 1. Connect Sources</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🔍</span> 2. AST & Claims Extraction</div>
+          <div class="pipeline-step ${hasSkills ? 'active' : ''}"><span>🔍</span> 2. AST & Claims Extraction</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>⚖️</span> 3. Truth Model (VERIFIED / CLAIMED)</div>
+          <div class="pipeline-step ${verifiedCount > 0 ? 'active' : ''}"><span>⚖️</span> 3. Truth Model (VERIFIED / CLAIMED)</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>★</span> 4. Base Narrative Graph</div>
+          <div class="pipeline-step ${hasPreferences ? 'active' : ''}"><span>★</span> 4. Base Narrative Graph</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🤖</span> 5. Sovereign AI MCP Access</div>
+          <div class="pipeline-step ${hasAi ? 'active' : ''}"><span>🤖</span> 5. Sovereign AI MCP Access</div>
         </div>
       </div>
 
@@ -78,39 +126,97 @@ export function renderDashboardPage({
       <div class="card" style="padding:28px 32px; margin-bottom:28px; background:linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
           <div style="display:flex; gap:20px; align-items:center;">
-            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); color:#FFF; display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:800; box-shadow:0 8px 24px rgba(99,102,241,0.35);">                  ${escapeHtml((user.displayName || candidate?.displayName || 'Candidate').slice(0, 2).toUpperCase())}
+            <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); color:#FFF; display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:800; box-shadow:0 8px 24px rgba(99,102,241,0.35);">
+              ${escapeHtml((user.displayName || candidate?.displayName || 'Candidate').slice(0, 2).toUpperCase())}
             </div>
             <div>
-              <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
-                <h1 style="font-size:1.6rem; font-weight:800; letter-spacing:-0.02em;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px; flex-wrap:wrap;">
+                <h1 style="font-size:1.6rem; font-weight:800; letter-spacing:-0.02em; margin:0;">
                   ${escapeHtml(user.displayName || candidate?.displayName || 'Candidate Profile')}
                 </h1>
-                <span class="badge badge-verified">ACTIVE CANDIDATE</span>
+                <span class="badge ${isSetupMode ? 'badge-amber' : 'badge-verified'}">
+                  ${isSetupMode ? '🟡 SETUP MODE' : '🟢 CAREER INTELLIGENCE MODE'}
+                </span>
                 <span class="badge badge-indigo">${escapeHtml(tenant.tier)} WORKSPACE</span>
               </div>
               <p style="font-size:0.95rem; color:var(--text-main); font-weight:600; margin-bottom:4px;">
                 ${escapeHtml(candidateHeadline)} &bull; <span style="font-size:0.85rem; color:var(--text-dim); font-weight:400;">${escapeHtml(candidateEmail)}</span>
               </p>
-              <p style="font-size:0.85rem; color:var(--text-muted); max-width:640px;">
+              <p style="font-size:0.85rem; color:var(--text-muted); max-width:640px; margin:0;">
                 ${escapeHtml(candidateSummary)}
               </p>
             </div>
           </div>
 
           <div style="display:flex; flex-direction:column; align-items:flex-end; gap:10px;">
-            <div style="display:flex; gap:8px;">
-              <a href="/onboarding?step=1" class="btn btn-secondary btn-sm">Edit Profile</a>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <a href="/profile" class="btn btn-secondary btn-sm">Profile & Preferences</a>
               <a href="/sources" class="btn btn-secondary btn-sm">Manage Sources</a>
               <a href="/connect" class="btn btn-primary btn-sm">AI Connectors (${aiTokensCount})</a>
             </div>
             <div style="display:flex; align-items:center; gap:8px; font-size:0.8rem; color:var(--text-dim);">
-              <span>Profile Completeness:</span>
+              <span>Readiness Score:</span>
               <div style="width:100px; height:8px; background:rgba(255,255,255,0.1); border-radius:var(--radius-full); overflow:hidden;">
                 <div style="width:${completeness}%; height:100%; background:linear-gradient(90deg, var(--accent-indigo), var(--accent-emerald));"></div>
               </div>
               <strong style="color:var(--accent-emerald);">${completeness}%</strong>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Next Recommended Action Banner -->
+      <div class="card" style="padding:20px 24px; margin-bottom:28px; border-left:4px solid var(--accent-indigo); background:rgba(99,102,241,0.06); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div style="max-width:720px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="font-size:1.1rem;">⚡</span>
+            <strong style="color:var(--text-main); font-size:0.95rem;">${escapeHtml(nextActionTitle)}</strong>
+          </div>
+          <p style="font-size:0.85rem; color:var(--text-muted); margin:0; line-height:1.5;">
+            ${escapeHtml(nextActionDesc)}
+          </p>
+        </div>
+        <a href="${nextActionBtnHref}" class="btn btn-primary btn-sm">
+          ${escapeHtml(nextActionBtnText)}
+        </a>
+      </div>
+
+      <!-- Guided 6-Step Readiness Checklist (Prominent in Setup Mode) -->
+      <div class="card" style="padding:20px 24px; margin-bottom:28px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div>
+            <h3 style="font-size:1rem; font-weight:700; margin:0;">Career Readiness & Setup Checklist</h3>
+            <p style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">Complete these steps to establish your evidence-backed career graph.</p>
+          </div>
+          <span class="badge ${completeness >= 80 ? 'badge-verified' : 'badge-indigo'}" style="font-size:0.75rem;">
+            ${stepsCompleted} of 7 Milestones Completed
+          </span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+          <a href="/profile" style="text-decoration:none; padding:12px; border-radius:var(--radius-sm); border:1px solid ${hasHeadline ? 'rgba(16,185,129,0.3)' : 'var(--border-subtle)'}; background:${hasHeadline ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)'}; display:block;">
+            <div style="font-size:0.75rem; color:${hasHeadline ? 'var(--accent-emerald)' : 'var(--text-dim)'}; font-weight:700; margin-bottom:2px;">${hasHeadline ? '✓ COMPLETED' : '1. IDENTITY'}</div>
+            <div style="font-size:0.85rem; font-weight:600; color:var(--text-main);">Candidate Profile</div>
+          </a>
+          <a href="/sources" style="text-decoration:none; padding:12px; border-radius:var(--radius-sm); border:1px solid ${hasSources ? 'rgba(16,185,129,0.3)' : 'var(--border-subtle)'}; background:${hasSources ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)'}; display:block;">
+            <div style="font-size:0.75rem; color:${hasSources ? 'var(--accent-emerald)' : 'var(--text-dim)'}; font-weight:700; margin-bottom:2px;">${hasSources ? '✓ COMPLETED' : '2. GITHUB APP'}</div>
+            <div style="font-size:0.85rem; font-weight:600; color:var(--text-main);">Connect Repositories</div>
+          </a>
+          <a href="/resumes" style="text-decoration:none; padding:12px; border-radius:var(--radius-sm); border:1px solid ${hasResumes ? 'rgba(16,185,129,0.3)' : 'var(--border-subtle)'}; background:${hasResumes ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)'}; display:block;">
+            <div style="font-size:0.75rem; color:${hasResumes ? 'var(--accent-emerald)' : 'var(--text-dim)'}; font-weight:700; margin-bottom:2px;">${hasResumes ? '✓ COMPLETED' : '3. RESUME'}</div>
+            <div style="font-size:0.85rem; font-weight:600; color:var(--text-main);">Upload Source Resume</div>
+          </a>
+          <a href="/skills" style="text-decoration:none; padding:12px; border-radius:var(--radius-sm); border:1px solid ${hasSkills ? 'rgba(16,185,129,0.3)' : 'var(--border-subtle)'}; background:${hasSkills ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)'}; display:block;">
+            <div style="font-size:0.75rem; color:${hasSkills ? 'var(--accent-emerald)' : 'var(--text-dim)'}; font-weight:700; margin-bottom:2px;">${hasSkills ? '✓ COMPLETED' : '4. SKILLS & AST'}</div>
+            <div style="font-size:0.85rem; font-weight:600; color:var(--text-main);">Review Claims & AST</div>
+          </a>
+          <a href="/profile" style="text-decoration:none; padding:12px; border-radius:var(--radius-sm); border:1px solid ${hasPreferences ? 'rgba(16,185,129,0.3)' : 'var(--border-subtle)'}; background:${hasPreferences ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)'}; display:block;">
+            <div style="font-size:0.75rem; color:${hasPreferences ? 'var(--accent-emerald)' : 'var(--text-dim)'}; font-weight:700; margin-bottom:2px;">${hasPreferences ? '✓ COMPLETED' : '5. PREFERENCES'}</div>
+            <div style="font-size:0.85rem; font-weight:600; color:var(--text-main);">Set Target Roles</div>
+          </a>
+          <a href="/connect" style="text-decoration:none; padding:12px; border-radius:var(--radius-sm); border:1px solid ${hasAi ? 'rgba(16,185,129,0.3)' : 'var(--border-subtle)'}; background:${hasAi ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.02)'}; display:block;">
+            <div style="font-size:0.75rem; color:${hasAi ? 'var(--accent-emerald)' : 'var(--text-dim)'}; font-weight:700; margin-bottom:2px;">${hasAi ? '✓ COMPLETED' : '6. AI MCP'}</div>
+            <div style="font-size:0.85rem; font-weight:600; color:var(--text-main);">Connect AI Client</div>
+          </a>
         </div>
       </div>
 
@@ -137,14 +243,13 @@ export function renderDashboardPage({
         <div class="stat-card">
           <span class="stat-label">Connected Sources</span>
           <div class="stat-val" style="color:var(--accent-cyan);">${connectedSourcesCount}</div>
-          <span style="font-size:0.75rem; color:var(--text-muted);">Authorized GitHub repos</span>
+          <span style="font-size:0.75rem; color:var(--text-muted);">${connectedSourcesCount} GitHub repos</span>
         </div>
 
         <div class="stat-card">
           <span class="stat-label">Active Applications</span>
           <div class="stat-val" style="color:#A78BFA;">${applications.length}</div>
           <span style="font-size:0.75rem; color:var(--text-muted);">Tracked job pipelines</span>
-        </div>
       </div>
 
       <!-- Main 2-Column Content Grid -->

@@ -34,6 +34,7 @@ import {
   resourceConnections,
   evidenceItems,
   projectResources,
+  resumes,
 } from '../db/schema.js';
 import { config } from '../config/env.js';
 import { CandidateRepositoryIngestionService } from '../services/candidate-repository-ingestion.service.js';
@@ -149,13 +150,117 @@ export default async function webRoutes(app, opts = {}) {
   const resumeService = opts.resumeService || defaultSourceResumeIngestionService;
   const tokenService = opts.tokenService || defaultMcpApiTokenService;
 
+  // Helper to load complete authenticated overview data
+  async function loadDashboardData(sessionContext, dbInstance) {
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(dbInstance, tenant.id, user);
+
+    // Fetch candidate skills with skill details
+    const candidateSkillList = await dbInstance
+      .select({
+        id: candidateSkills.id,
+        name: skills.name,
+        slug: skills.slug,
+        category: candidateSkills.category,
+        provenanceStatus: candidateSkills.provenanceStatus,
+        confidenceScore: candidateSkills.confidenceScore,
+        evidenceCount: candidateSkills.evidenceCount,
+        primaryEvidenceId: candidateSkills.primaryEvidenceId,
+        resourceDisplayName: resources.displayName,
+        resourceUrl: resources.url,
+      })
+      .from(candidateSkills)
+      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .leftJoin(evidenceItems, eq(candidateSkills.primaryEvidenceId, evidenceItems.id))
+      .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
+      .where(
+        and(eq(candidateSkills.tenantId, tenant.id), eq(candidateSkills.candidateId, candidate.id))
+      )
+      .orderBy(desc(candidateSkills.confidenceScore))
+      .limit(30);
+
+    // Fetch candidate projects
+    const projectList = await dbInstance
+      .select()
+      .from(projects)
+      .where(and(eq(projects.tenantId, tenant.id), eq(projects.candidateId, candidate.id)))
+      .orderBy(desc(projects.createdAt))
+      .limit(10);
+
+    // Fetch candidate applications
+    const applicationList = await dbInstance
+      .select()
+      .from(jobApplications)
+      .where(
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
+      )
+      .orderBy(desc(jobApplications.updatedAt))
+      .limit(10);
+
+    // Fetch connected GitHub connection
+    const [gitHubConnection] = await dbInstance
+      .select()
+      .from(resourceConnections)
+      .where(
+        and(
+          eq(resourceConnections.tenantId, tenant.id),
+          eq(resourceConnections.provider, 'GITHUB_APP'),
+          eq(resourceConnections.status, 'ACTIVE')
+        )
+      )
+      .limit(1);
+
+    // Count indexed repository resources
+    const resourceRows = await dbInstance
+      .select({ id: resources.id })
+      .from(resources)
+      .where(and(eq(resources.tenantId, tenant.id), eq(resources.candidateId, candidate.id)));
+
+    // Fetch candidate resumes
+    const resumeRows = await dbInstance
+      .select()
+      .from(resumes)
+      .where(and(eq(resumes.tenantId, tenant.id), eq(resumes.candidateId, candidate.id)))
+      .orderBy(desc(resumes.createdAt))
+      .limit(5);
+
+    let aiTokensCount = 0;
+    try {
+      const tokenList = await tokenService.listTokens(
+        {
+          tenantId: tenant.id,
+          userId: user.id,
+          role: user.role,
+        },
+        { db: dbInstance }
+      );
+      aiTokensCount = tokenList?.length || 0;
+    } catch {
+      aiTokensCount = 0;
+    }
+
+    return {
+      user,
+      tenant,
+      candidate,
+      skills: candidateSkillList,
+      projects: projectList,
+      applications: applicationList,
+      connectedSourcesCount: resourceRows.length,
+      gitHubConnection: gitHubConnection || null,
+      resumes: resumeRows,
+      aiTokensCount,
+    };
+  }
+
   // -------------------------------------------------------------------------
-  // 1. GET / — Public Landing Page (with JSON fallback for API clients)
+  // 1. GET / — Root Overview Route (Public Landing vs Authenticated Overview)
   // -------------------------------------------------------------------------
   app.get('/', async (req, reply) => {
     const accept = req.headers['accept'] || '';
+    const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
 
-    if (accept.includes('application/json') && !accept.includes('text/html')) {
+    if (wantsJson) {
       return {
         name: 'Antigravity Career Hub API',
         version: '0.1.0',
@@ -165,8 +270,17 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     const sessionContext = await getOptionalSession(req, database);
-    const html = renderLandingPage({ user: sessionContext?.user || null });
-    reply.type('text/html; charset=utf-8').send(html);
+
+    // STATE A: Unauthenticated -> Public Marketing & Proof Landing Page
+    if (!sessionContext) {
+      const html = renderLandingPage({ user: null });
+      return reply.type('text/html; charset=utf-8').send(html);
+    }
+
+    // STATE B: Authenticated -> Live Candidate Overview & Career Intelligence
+    const data = await loadDashboardData(sessionContext, database);
+    const html = renderDashboardPage(data);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -214,98 +328,27 @@ export default async function webRoutes(app, opts = {}) {
       return reply.redirect('/login?returnTo=/dashboard');
     }
 
-    const { user, tenant } = sessionContext;
-    const candidate = await getOrCreateCandidate(database, tenant.id, user);
-
-    // Fetch candidate skills with skill details
-    const candidateSkillList = await database
-      .select({
-        id: candidateSkills.id,
-        name: skills.name,
-        slug: skills.slug,
-        category: candidateSkills.category,
-        provenanceStatus: candidateSkills.provenanceStatus,
-        confidenceScore: candidateSkills.confidenceScore,
-        evidenceCount: candidateSkills.evidenceCount,
-        primaryEvidenceId: candidateSkills.primaryEvidenceId,
-        resourceDisplayName: resources.displayName,
-        resourceUrl: resources.url,
-      })
-      .from(candidateSkills)
-      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
-      .leftJoin(evidenceItems, eq(candidateSkills.primaryEvidenceId, evidenceItems.id))
-      .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
-      .where(
-        and(eq(candidateSkills.tenantId, tenant.id), eq(candidateSkills.candidateId, candidate.id))
-      )
-      .orderBy(desc(candidateSkills.confidenceScore))
-      .limit(30);
-
-    // Fetch candidate projects
-    const projectList = await database
-      .select()
-      .from(projects)
-      .where(and(eq(projects.tenantId, tenant.id), eq(projects.candidateId, candidate.id)))
-      .orderBy(desc(projects.createdAt))
-      .limit(10);
-
-    // Fetch candidate applications
-    const applicationList = await database
-      .select()
-      .from(jobApplications)
-      .where(
-        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
-      )
-      .orderBy(desc(jobApplications.updatedAt))
-      .limit(10);
-
-    // Fetch connected GitHub connection
-    const [gitHubConnection] = await database
-      .select()
-      .from(resourceConnections)
-      .where(
-        and(
-          eq(resourceConnections.tenantId, tenant.id),
-          eq(resourceConnections.provider, 'GITHUB_APP'),
-          eq(resourceConnections.status, 'ACTIVE')
-        )
-      )
-      .limit(1);
-
-    // Count indexed repository resources
-    const resourceRows = await database
-      .select({ id: resources.id })
-      .from(resources)
-      .where(and(eq(resources.tenantId, tenant.id), eq(resources.candidateId, candidate.id)));
+    const data = await loadDashboardData(sessionContext, database);
 
     if (wantsJson) {
       return {
         message: 'Welcome to Antigravity Career Hub Dashboard',
-        user: { id: user.id, displayName: user.displayName, role: user.role },
-        tenant: { id: tenant.id, name: tenant.name },
+        user: { id: data.user.id, displayName: data.user.displayName, role: data.user.role },
+        tenant: { id: data.tenant.id, name: data.tenant.name },
         candidate: {
-          id: candidate.id,
-          displayName: candidate.displayName,
-          headline: candidate.headline,
+          id: data.candidate.id,
+          displayName: data.candidate.displayName,
+          headline: data.candidate.headline,
         },
-        skillsCount: candidateSkillList.length,
-        projectsCount: projectList.length,
-        sourcesCount: resourceRows.length,
+        skillsCount: data.skills.length,
+        projectsCount: data.projects.length,
+        sourcesCount: data.connectedSourcesCount,
+        resumesCount: data.resumes.length,
+        applicationsCount: data.applications.length,
       };
     }
 
-    const html = renderDashboardPage({
-      user,
-      tenant,
-      candidate,
-      skills: candidateSkillList,
-      projects: projectList,
-      applications: applicationList,
-      connectedSourcesCount: resourceRows.length,
-      gitHubConnection: gitHubConnection || null,
-      aiTokensCount: 3,
-    });
-
+    const html = renderDashboardPage(data);
     reply.type('text/html; charset=utf-8').send(html);
   });
 
