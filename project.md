@@ -3651,6 +3651,21 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
     * `git diff --check` -> PASS (Clean whitespace)
   * Status: **`COMPLETE & VERIFIED`**.
+* **P14-005P: OVERVIEW / ROOT ROUTE MULTI-STATE ARCHITECTURE (AUTHENTICATED VS PUBLIC STATES)**:
+  * Deliverables Created & Modified:
+    * `src/routes/web.routes.js`: Upgraded `GET /` to handle two intentional product states — State A (Unauthenticated: Public marketing & proof landing page with zero private data leaked) vs State B (Authenticated: Live candidate Overview workspace with server-authoritative `user`, `candidate`, and `tenant` context). Added helper `loadDashboardData` shared between `GET /` and `GET /dashboard`.
+    * `src/views/dashboard.page.js`: Implemented seamless mode transitions between `🟡 SETUP MODE` (for first-run / low-data users with Guided 6-Step Readiness Checklist and next recommended action callout) and `🟢 CAREER INTELLIGENCE MODE` (for fully configured users with verified skills cloud, projects, tracked applications, and AI connection status).
+    * `src/views/layout.js`: Ensured universal Brand and Overview links return authenticated users to the candidate overview workspace and unauthenticated users to the public landing page.
+    * `tests/unit/overview-root-route.test.js`: Created 7-test unit suite verifying public landing, API JSON fallback, first-run setup mode, configured career intelligence mode, direct dashboard access, unauthenticated redirect, and session lifecycle.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/overview-root-route.test.js` -> PASS (7/7 tests passing)
+    * `npm run test:unit` -> PASS (1,440/1,440 master unit tests passing across 362 suites)
+    * `npm run test:db-lifecycle-check` -> PASS (60 DB test files verified compliant, 0 leaks)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
+    * Real browser multi-state verification (CDP subagent) -> PASS (Public landing, Authenticated overview, Direct dashboard, Sign out flow)
+  * Status: **`COMPLETE & VERIFIED`**.
 
 ---
 
