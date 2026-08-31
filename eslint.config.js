@@ -22,6 +22,8 @@ export default [
         URL: 'readonly',
         URLSearchParams: 'readonly',
         crypto: 'readonly',
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
       },
     },
     rules: {

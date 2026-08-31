@@ -651,10 +651,7 @@ export function renderResumeDetailPage({
                   </td>
                   <td>
                     <span class="badge badge-claimed" style="font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">
-                      <span>📝</span> CLAIMED
-                    </span>
-                    <span style="font-size:0.68rem; color:var(--text-muted); display:block; margin-top:2px;">
-                      [Unverified User Claim]
+                      <span>📝</span> CLAIMED [Unverified User Claim]
                     </span>
                   </td>
                 </tr>

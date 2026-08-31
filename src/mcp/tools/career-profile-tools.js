@@ -27,8 +27,11 @@ async function resolveCandidateId(context, paramCandidateId, profileService) {
   if (context.candidateId) return context.candidateId;
 
   // Lookup candidate for tenant
-  const list = await profileService.listCandidates(context, { limit: 1 });
-  if (list.candidates && list.candidates.length > 0) {
+  const list = await profileService.listCandidates(context, { pageSize: 1, page: 1 });
+  if (Array.isArray(list.items) && list.items.length > 0) {
+    return list.items[0].id;
+  }
+  if (Array.isArray(list.candidates) && list.candidates.length > 0) {
     return list.candidates[0].id;
   }
   throw new NotFoundError('No candidate profile associated with active session or tenant');

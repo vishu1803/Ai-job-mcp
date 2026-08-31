@@ -2447,13 +2447,15 @@ export class SkillTaxonomyEngine {
    * @returns {string} Safe slug.
    */
   static generateSafeSlug(input) {
+    if (!input || typeof input !== 'string') return 'unknown-tool';
     const raw = input
       .toLowerCase()
+      .trim()
       .replace(/^@[a-z0-9_-]+\//, '')
-      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/[^a-z0-9]+/g, '-')
       .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 50);
+      .slice(0, 50)
+      .replace(/^-+|-+$/g, '');
 
     const candidate = raw || 'unknown-tool';
     const validation = SafeSlugSchema.safeParse(candidate);

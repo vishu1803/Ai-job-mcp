@@ -8,7 +8,6 @@
  * Docs: https://docs.greenhouse.io/job-board.html
  */
 
-/* globals AbortController */
 import { logger as defaultLogger } from '../../utils/logger.js';
 
 /**

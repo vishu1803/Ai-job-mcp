@@ -255,6 +255,19 @@ export function isMatchingRedirectUri(client, requestedRedirectUri) {
         }
       }
     }
+
+    // Prefix matching for dynamic client_id metadata documents (e.g. ChatGPT).
+    // When the registered URI is a path prefix (no trailing filename), accept
+    // any request URI that starts with that prefix under the same origin.
+    for (const registeredUri of client.redirectUris) {
+      if (
+        registeredUri.endsWith('/') &&
+        requestedRedirectUri.startsWith(registeredUri) &&
+        requestedUrl.origin === new URL(registeredUri).origin
+      ) {
+        return true;
+      }
+    }
   } catch {
     return false;
   }
@@ -344,6 +357,9 @@ export class OAuthAuthorizationService {
       client_id_metadata_document_supported: true,
       token_endpoint_auth_methods_supported: ['none', 'client_secret_post', 'client_secret_basic'],
       service_documentation: `${issuer}/docs/oauth`,
+      // RFC 7591 Dynamic Client Registration — required by ChatGPT and other
+      // MCP clients that generate their own client_id via registration.
+      registration_endpoint: `${issuer}/oauth/register`,
     };
   }
 
@@ -374,6 +390,51 @@ export class OAuthAuthorizationService {
         clientType: 'PUBLIC',
         redirectUris: ['https://claude.ai/api/mcp/auth_callback'],
         allowedGrantTypes: ['authorization_code', 'refresh_token'],
+        allowedScopes: ['career:read', 'career:write'],
+        isTrusted: true,
+      };
+    }
+
+    // Dynamic resolution for OpenAI/ChatGPT Client ID Metadata Documents.
+    // ChatGPT sends its client_id as a URL pointing to a JSON document
+    // describing the client (redirect_uris, etc.). The MCP spec requires
+    // the server to fetch this document to validate the client.
+    if (typeof clientId === 'string' && clientId.startsWith('https://chatgpt.com/')) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(clientId, {
+          signal: controller.signal,
+          headers: { Accept: 'application/json' },
+        });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+          const metadata = await response.json();
+          const redirectUris = metadata.redirect_uris || [];
+          return {
+            clientId,
+            clientName: metadata.client_name || 'ChatGPT (Dynamic Metadata)',
+            clientType: 'PUBLIC',
+            redirectUris,
+            allowedGrantTypes: metadata.grant_types || ['authorization_code'],
+            allowedScopes: ['career:read', 'career:write'],
+            isTrusted: true,
+          };
+        }
+      } catch {
+        // If fetch fails, fall back to hardcoded values
+      }
+      // Fallback: accept ChatGPT's known redirect URI pattern.
+      // ChatGPT generates unique connector IDs per user, so we match the
+      // prefix pattern rather than a specific ID.
+      return {
+        clientId,
+        clientName: 'ChatGPT (Hardcoded Fallback)',
+        clientType: 'PUBLIC',
+        // isMatchingRedirectUri uses prefix matching for this client,
+        // so any https://chatgpt.com/connector/oauth/* URI is accepted.
+        redirectUris: ['https://chatgpt.com/connector/oauth/'],
+        allowedGrantTypes: ['authorization_code'],
         allowedScopes: ['career:read', 'career:write'],
         isTrusted: true,
       };

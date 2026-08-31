@@ -164,16 +164,15 @@ export class PortfolioRecommendationService {
       : [];
     const relevanceByProjectId = new Map(relevanceRankings.map((r) => [r.projectId, r]));
 
-    // 5. Deduplicate Candidate Projects by name/slug (same repo may appear multiple times)
+    // 5. Deduplicate Candidate Projects by canonical slug/name
     const seenProjectKeys = new Set();
     const deduplicatedProjects = [];
     for (const project of candidateProjects) {
-      const key = (project.slug || project.name || project.displayName || '').toLowerCase();
-      const idKey = project.id || key;
-      if (key && seenProjectKeys.has(key)) continue;
-      if (!key && seenProjectKeys.has(idKey)) continue;
-      if (key) seenProjectKeys.add(key);
-      else seenProjectKeys.add(idKey);
+      const canonicalKey = SkillTaxonomyEngine.generateSafeSlug(
+        project.slug || project.name || project.displayName || project.id || 'project'
+      );
+      if (seenProjectKeys.has(canonicalKey)) continue;
+      seenProjectKeys.add(canonicalKey);
       deduplicatedProjects.push(project);
     }
 
@@ -796,7 +795,7 @@ export class PortfolioRecommendationService {
             fallbackBest,
             1,
             'RECOMMENDED',
-            'Featured as best available anchor project'
+            this._generateFeaturedReason(fallbackBest, 1, jobFamily)
           ),
         ],
         supportingProjects: [],
@@ -986,6 +985,9 @@ export class PortfolioRecommendationService {
   static _generateFeaturedReason(project, rank, _jobFamily) {
     const reqCount = (project.requirementsCovered || []).length;
     const signals = (project.signalsAdded || []).join(', ');
+    if (reqCount === 0) {
+      return `Recommended #${rank} for General Architecture (Weak direct job match: covers 0 required criteria; included for general ${signals || 'engineering'} baseline).`;
+    }
     if (rank === 1) {
       return `Recommended #1 as Primary Anchor Project: Covers ${reqCount} required job criteria with strong ${signals} architectural depth.`;
     }
@@ -1141,7 +1143,7 @@ export class PortfolioRecommendationService {
 
       coverageItems.push({
         requirementId: req.id,
-        requirementTitle: req.title,
+        requirementTitle: req.title || req.extractedValue || req.skillSlug || 'Job Requirement',
         skillSlug: req.skillSlug || null,
         priority,
         status: matchStatus || (isCovered ? 'MATCHED' : 'MISSING'),
@@ -1159,7 +1161,9 @@ export class PortfolioRecommendationService {
       totalCount > 0 ? Number(((coveredCount / totalCount) * 100.0).toFixed(1)) : 100.0;
 
     const uncoveredIds = requirements.filter((r) => !coveredIds.has(r.id)).map((r) => r.id);
-    const uncoveredTitles = requirements.filter((r) => !coveredIds.has(r.id)).map((r) => r.title);
+    const uncoveredTitles = requirements
+      .filter((r) => !coveredIds.has(r.id))
+      .map((r) => r.title || r.extractedValue || r.skillSlug || 'Job Requirement');
 
     return {
       totalCount,

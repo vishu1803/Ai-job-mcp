@@ -77,7 +77,8 @@ This document establishes the official operational readiness criteria, technical
 - [ ] **Two-Phase Write Safety**: Human confirmation required for all repository write actions.
 
 ### C. Capability & Documentation Gates
-- [ ] **16-Tool Catalog**: All 16 registered tools operational over `POST /mcp`.
+- [ ] **26-Tool Catalog**: All 26 registered tools operational over `POST /mcp`.
+- [ ] **MCP Resources & Prompts**: All 8 resources and 4 prompts accessible over protocol transport.
 - [ ] **MCP Apps UI Extension**: `ui://career-hub/job-fit-radar/v1` registered and serving `text/html;profile=mcp-app`.
 - [ ] **Public Developer Docs**: `/docs/mcp` accessible without session requirements.
 - [ ] **Automated Manifest Test**: `tests/unit/mcp-registry-metadata.test.js` passing in CI pipeline.

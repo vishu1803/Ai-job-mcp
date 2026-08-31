@@ -314,7 +314,7 @@ describe('Gemini End-to-End Golden Path Deterministic Integration Tests (P8-003)
         sourceProvider: 'GITHUB_APP',
         sourceLocation: {
           filePath: 'internal/db/postgres.go',
-          commitSha: 'b2c3d4e5f678901234567890abcde1',
+          commitSha: 'b2c3d4e5f678901234567890abcde1234567890a',
           lineRange: { start: 12, end: 38 },
         },
         excerpt:
@@ -335,7 +335,7 @@ describe('Gemini End-to-End Golden Path Deterministic Integration Tests (P8-003)
         sourceProvider: 'GITHUB_APP',
         sourceLocation: {
           filePath: 'Dockerfile',
-          commitSha: 'c3d4e5f678901234567890abcde123',
+          commitSha: 'c3d4e5f678901234567890abcde1234567890ab',
           lineRange: { start: 1, end: 20 },
         },
         excerpt:

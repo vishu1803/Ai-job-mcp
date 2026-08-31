@@ -68,7 +68,7 @@ Resume claims are never automatically promoted to verified status. Repository-ve
 - **Document Snapshots** — Freeze tailored resume/cover letter versions as immutable application artifacts.
 
 ### 🤖 AI Integration
-- **Remote MCP Server** — 16 tools exposed via Streamable HTTP (`POST /mcp`) adhering to MCP 2026-07-28 specification.
+- **Remote MCP Server** — 26 tools, 8 resources, and 4 prompts exposed via Streamable HTTP (`POST /mcp`) adhering to MCP 2026-07-28 specification.
 - **Provider Neutral** — Google Gemini, Anthropic Claude, and OpenAI ChatGPT connect to the same career intelligence through standard MCP.
 - **MCP Apps** — Interactive Job Fit Radar visualization delivered as sandboxed HTML5 via `ui://` resource protocol.
 
@@ -128,7 +128,7 @@ graph TB
 
     subgraph "Career Hub Platform"
         AUTH["Auth & Tenant Context<br/>OAuth 2.1 · PKCE · Sessions"]
-        MCP["Remote MCP Server<br/>Streamable HTTP · 16 Tools"]
+        MCP["Remote MCP Server<br/>Streamable HTTP · 26 Tools<br/>8 Resources · 4 Prompts"]
         SERVICES["Career Services<br/>Intelligence · Documents · Tracking"]
         CONNECTORS["Resource Connectors<br/>GitHub App · Future: GitLab, Drive"]
         SAFETY["Safety & Security<br/>Write Approval · Encryption · Isolation"]
@@ -154,43 +154,77 @@ AI clients do not receive direct database access, direct GitHub API access, or w
 
 ## MCP Integration
 
-Career Hub exposes **16 tools** via a standards-compliant remote MCP server (`POST /mcp`) using Streamable HTTP transport.
+Career Hub exposes **26 tools**, **8 resources**, and **4 prompts** via a standards-compliant remote MCP server (`POST /mcp`) using Streamable HTTP transport.
 
-### Career Read
-| Tool | Description |
-| :--- | :--- |
-| `get_candidate_profile` | Retrieve candidate profile with projects, skills, and evidence summary |
-| `list_verified_skills` | List skills verified through code analysis with confidence scores |
-| `inspect_project_evidence` | Inspect commit-pinned evidence items with file paths and code excerpts |
-| `analyze_job_fit` | Compute evidence-based job fit score with skill gap analysis |
+### 1. Career Read (4 Tools)
+| Tool | Scope | Description |
+| :--- | :--- | :--- |
+| `get_candidate_profile` | `career:read` | Retrieve candidate profile with projects, skills, and evidence summary |
+| `list_verified_skills` | `career:read` | List skills verified through code analysis with confidence scores |
+| `inspect_project_evidence` | `career:read` | Inspect commit-pinned evidence items with file paths and code excerpts |
+| `analyze_job_fit` | `career:read` | Compute evidence-based job fit score with skill gap analysis |
 
-### Career Artifacts
-| Tool | Description |
-| :--- | :--- |
-| `generate_tailored_resume` | Generate a job-targeted resume grounded in verified evidence |
-| `draft_cover_letter` | Draft an evidence-backed cover letter with configurable tone |
-| `recommend_portfolio_projects` | Select optimal projects to showcase for a target role |
+### 2. Career Artifacts (3 Tools)
+| Tool | Scope | Description |
+| :--- | :--- | :--- |
+| `generate_tailored_resume` | `career:write` | Generate a job-targeted resume grounded in verified evidence |
+| `draft_cover_letter` | `career:write` | Draft an evidence-backed cover letter with configurable tone |
+| `recommend_portfolio_projects` | `career:read` | Select optimal projects to showcase for a target role |
 
-### Career Write
-| Tool | Description |
-| :--- | :--- |
-| `propose_project_improvement` | Propose code improvements with diff preview (requires approval) |
-| `confirm_and_create_pr` | Execute approved changes as a Draft PR on an isolated branch |
+### 3. Career Write (2 Tools)
+| Tool | Scope | Description |
+| :--- | :--- | :--- |
+| `propose_project_improvement` | `career:write` | Propose code improvements with diff preview (requires approval) |
+| `confirm_and_create_pr` | `career:write` | Execute approved changes as a Draft PR on an isolated branch |
 
-### Career Tracking
-| Tool | Description |
-| :--- | :--- |
-| `track_job_application` | Create a new application record with job details |
-| `list_active_applications` | List applications with filtering and pagination |
-| `get_job_application` | Get detailed application information |
-| `update_application_status` | Transition application status with notes |
-| `add_application_stage` | Add an interview stage to an application |
-| `update_application_stage_outcome` | Record stage outcome and feedback |
-| `attach_application_document` | Attach tailored document snapshot to an application |
+### 4. Career Tracking (7 Tools)
+| Tool | Scope | Description |
+| :--- | :--- | :--- |
+| `track_job_application` | `career:write` | Create a new application record with job details |
+| `list_active_applications` | `career:read` | List applications with filtering and pagination |
+| `get_job_application` | `career:read` | Get detailed application information |
+| `update_application_status` | `career:write` | Transition application status with notes |
+| `add_application_stage` | `career:write` | Add an interview stage to an application |
+| `update_application_stage_outcome` | `career:write` | Record stage outcome and feedback |
+| `attach_application_document` | `career:write` | Attach tailored document snapshot to an application |
 
-### MCP Apps
+### 5. Job Discovery & Application Workflow (8 Tools)
+| Tool | Scope | Description |
+| :--- | :--- | :--- |
+| `search_jobs` | `career:read` | Search normalized job listings across Greenhouse, Lever, and curated feeds |
+| `get_job_posting` | `career:read` | Fetch full normalized job details, compensation, and requirements |
+| `prepare_job_application` | `career:read` | Orchestrate profile, verified evidence, tailored resume, and SHA-256 package hash |
+| `validate_job_application` | `career:read` | Validate package completeness and duplicate prevention rules |
+| `create_application_preview` | `career:read` | Produce the human-reviewable application package preview |
+| `request_application_approval` | `career:write` | Generate single-use cryptographic approval ticket with 15-minute TTL |
+| `submit_job_application` | `career:write` | Final submission boundary enforcing approval ticket and package hash verification |
+| `get_application_submission_status` | `career:read` | Retrieve submission outcome, tracking state, and external ATS reference |
 
-The `analyze_job_fit` tool returns an optional `_meta.ui` reference to an interactive **Job Fit Radar** — a sandboxed HTML5 SVG visualization with a 6-axis radar chart and ATS score gauge. The radar app is read-only, uses zero external CDN dependencies, and has no direct database or GitHub access.
+### 6. Career Profile & Intent (2 Tools)
+| Tool | Scope | Description |
+| :--- | :--- | :--- |
+| `get_career_profile` | `career:read` | Retrieve candidate’s persistent career profile and job preferences |
+| `update_career_preferences` | `career:write` | Update candidate’s target roles, locations, remote policy, and salary floor |
+
+### MCP Resources (8 Resources & Templates)
+| URI | MIME Type | Scope | Description |
+| :--- | :--- | :--- | :--- |
+| `ui://career-hub/job-fit-radar/v1` | `text/html;profile=mcp-app` | `career:read` | Interactive 6-axis SVG Job Fit Radar chart & ATS score gauge (SEP-1865) |
+| `career://profile` | `application/json` | `career:read` | Live candidate career profile, target roles, and top verified skills |
+| `career://skills` | `application/json` | `career:read` | Comprehensive AST-verified skills catalog with confidence scores |
+| `career://connections` | `application/json` | `career:read` | Connected GitHub installations, repository sync states, and indexed branches |
+| `career://projects/{projectId}` | `application/json` | `career:read` | Deep architectural dossier for a specific repository codebase |
+| `career://evidence/{evidenceId}` | `application/json` | `career:read` | Commit-pinned code evidence item with file path and sanitized excerpt |
+| `career://jobs/{jobId}` | `application/json` | `career:read` | Full normalized job posting details and compensation ranges |
+| `career://applications/{applicationId}` | `application/json` | `career:read` | Tracked application dossier with chronological interview timeline |
+
+### MCP Prompts (4 Structured Prompts)
+| Prompt | Scope | Description |
+| :--- | :--- | :--- |
+| `find_matching_jobs` | `career:read` | Guides assistant to search and evaluate job openings matching candidate profile |
+| `review_resume` | `career:read` | Audits candidate resume bullets against AST code evidence and flags ungrounded claims |
+| `prepare_application` | `career:write` | Prepares an end-to-end tailored job application package for a target role |
+| `explain_skill_gap` | `career:read` | Analyzes candidate skill gaps and recommends practical repository enhancements |
 
 ---
 
@@ -268,7 +302,7 @@ Career Hub includes a full web application with the following views:
 | **Resumes** | `/resumes` | Upload, parse, review, approve, and manage resume versions |
 | **Applications** | `/dashboard#applications` | Job application pipeline with stage tracking |
 | **AI Connect** | `/connect` | Claude, ChatGPT, and Gemini connection guides with personal token management |
-| **MCP Docs** | `/docs/mcp` | Public interactive documentation for all 16 MCP tools |
+| **MCP Docs** | `/docs/mcp` | Public interactive documentation for all 26 MCP tools, 8 resources, and 4 prompts |
 | **Settings** | `/settings` | Account privacy, data sovereignty, and GDPR deletion controls |
 
 ---

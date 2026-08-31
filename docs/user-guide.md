@@ -197,26 +197,58 @@ Career Hub provides a universal **Model Context Protocol (MCP)** interface over 
 * Connects via ChatGPT Custom GPT Actions using **RFC 9728 Protected Resource Discovery** and OAuth 2.1 bearer authorization.
 * Complete setup details in [`docs/chatgpt-custom-connector-guide.md`](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/docs/chatgpt-custom-connector-guide.md).
 
-### 9.4 Full MCP Tool Catalog (16 Tools)
+### 9.4 Full MCP Tool Catalog (26 Tools across 6 Domains)
 
 | Category | Tool Name | Scope Required | Description |
 | :--- | :--- | :--- | :--- |
-| **Read** | `get_candidate_profile` | `career:read` | Inspect candidate profile, verified skills, and projects. |
-| **Read** | `list_verified_skills` | `career:read` | List skills verified by code evidence. |
-| **Read** | `inspect_project_evidence` | `career:read` | Inspect commit-pinned evidence items for a project. |
-| **Read** | `analyze_job_fit` | `career:read` | Match candidate evidence graph against a target job description. |
-| **Artifact** | `generate_tailored_resume` | `career:write` | Generate evidence-grounded tailored resume markdown. |
-| **Artifact** | `draft_cover_letter` | `career:write` | Draft targeted cover letter explaining engineering background. |
-| **Artifact** | `recommend_portfolio_projects` | `career:write` | Select top portfolio repositories matching job requirements. |
-| **Tracking** | `track_job_application` | `career:write` | Create a new tracked job application entry. |
-| **Tracking** | `list_active_applications` | `career:read` | List active job applications in workspace. |
-| **Tracking** | `get_job_application` | `career:read` | Get detailed application record with stages and documents. |
-| **Tracking** | `update_application_status` | `career:write` | Transition application lifecycle status. |
-| **Tracking** | `add_application_stage` | `career:write` | Add interview stage to an application. |
-| **Tracking** | `update_application_stage_outcome` | `career:write` | Record outcome and feedback for an interview stage. |
-| **Tracking** | `attach_application_document` | `career:write` | Attach point-in-time tailored document to application. |
-| **Write** | `propose_project_improvement` | `career:write` | Generate branch/patch proposal for human approval ticket. |
-| **Write** | `confirm_and_create_pr` | `career:write` | Execute approved pull request on repository. |
+| **Career Read (4)** | `get_candidate_profile` | `career:read` | Inspect candidate profile, verified skills overview, and projects. |
+| | `list_verified_skills` | `career:read` | List skills verified by code AST analysis. |
+| | `inspect_project_evidence` | `career:read` | Inspect commit-pinned evidence items for a project. |
+| | `analyze_job_fit` | `career:read` | Match candidate evidence graph against a target job description. |
+| **Career Artifacts (3)** | `generate_tailored_resume` | `career:write` | Generate evidence-grounded tailored resume markdown. |
+| | `draft_cover_letter` | `career:write` | Draft targeted cover letter explaining engineering background. |
+| | `recommend_portfolio_projects` | `career:read` | Select top portfolio repositories matching job requirements. |
+| **Career Write (2)** | `propose_project_improvement` | `career:write` | Generate branch/patch proposal for human approval ticket. |
+| | `confirm_and_create_pr` | `career:write` | Execute approved pull request on repository. |
+| **Career Tracking (7)** | `track_job_application` | `career:write` | Create a new tracked job application entry. |
+| | `list_active_applications` | `career:read` | List active job applications in workspace. |
+| | `get_job_application` | `career:read` | Get detailed application record with stages and documents. |
+| | `update_application_status` | `career:write` | Transition application lifecycle status. |
+| | `add_application_stage` | `career:write` | Add interview stage to an application. |
+| | `update_application_stage_outcome` | `career:write` | Record outcome and feedback for an interview stage. |
+| | `attach_application_document` | `career:write` | Attach point-in-time tailored document to application. |
+| **Job Workflow (8)** | `search_jobs` | `career:read` | Query verified job postings with remote, skills, and salary filters. |
+| | `get_job_posting` | `career:read` | Fetch full normalized job posting details and requirements. |
+| | `prepare_job_application` | `career:read` | Orchestrate profile, verified evidence, tailored resume, and package hash. |
+| | `validate_job_application` | `career:read` | Validate package completeness and duplicate prevention rules. |
+| | `create_application_preview` | `career:read` | Produce the human-reviewable application package preview. |
+| | `request_application_approval` | `career:write` | Generate single-use cryptographic approval ticket (15-min TTL). |
+| | `submit_job_application` | `career:write` | Submit approved package with ticket and hash verification. |
+| | `get_application_submission_status`| `career:read` | Retrieve submission outcome, tracking state, and external ATS reference. |
+| **Career Profile (2)** | `get_career_profile` | `career:read` | Retrieve candidate’s persistent career profile and job preferences. |
+| | `update_career_preferences` | `career:write` | Update candidate’s target roles, locations, remote policy, and salary floor. |
+
+### 9.5 MCP Resources & Resource Templates (8 Resources)
+
+| Resource URI | MIME Type | Scope | Description |
+| :--- | :--- | :--- | :--- |
+| `ui://career-hub/job-fit-radar/v1` | `text/html;profile=mcp-app` | `career:read` | Sandboxed SVG Job Fit Radar chart and ATS score gauge (SEP-1865). |
+| `career://profile` | `application/json` | `career:read` | Live candidate career profile, target roles, and top verified skills. |
+| `career://skills` | `application/json` | `career:read` | Comprehensive AST-verified skills catalog with confidence scores. |
+| `career://connections` | `application/json` | `career:read` | Connected GitHub installations, repository sync states, and indexed branches. |
+| `career://projects/{projectId}` | `application/json` | `career:read` | Deep architectural dossier for a specific repository codebase. |
+| `career://evidence/{evidenceId}` | `application/json` | `career:read` | Commit-pinned code evidence item with file path and sanitized excerpt. |
+| `career://jobs/{jobId}` | `application/json` | `career:read` | Full normalized job posting details and compensation ranges. |
+| `career://applications/{applicationId}` | `application/json` | `career:read` | Tracked application dossier with chronological interview timeline. |
+
+### 9.6 Structured Reusable MCP Prompts (4 Prompts)
+
+| Prompt Name | Scope Required | Description |
+| :--- | :--- | :--- |
+| `find_matching_jobs` | `career:read` | Instructs assistant to find suitable job openings matching candidate profile. |
+| `review_resume` | `career:read` | Audits candidate resume bullets against AST code evidence and flags ungrounded claims. |
+| `prepare_application` | `career:write` | Prepares an end-to-end tailored job application package for a target role. |
+| `explain_skill_gap` | `career:read` | Analyzes candidate skill gaps and recommends practical repository enhancements. |
 
 ---
 
@@ -291,7 +323,8 @@ Accessible from the top navigation bar, the AI Connection Center enables authent
 ### 13.2 Public Developer Documentation Explorer (`/docs/mcp`) (`VERIFIED`)
 A public developer documentation portal detailing:
 * **Streamable HTTP Transport**: Protocol revision `2026-07-28` with SSE event streaming and JSON-RPC 2.0 error schemas.
-* **Interactive 16-Tool Catalog**: Filterable and searchable tool catalog with complete parameter specifications, scope requirements, and sample JSON-RPC payloads.
+* **Interactive 26-Tool Catalog**: Filterable and searchable tool catalog with complete parameter specifications, scope requirements, and sample JSON-RPC payloads across 6 domains.
+* **8 MCP Resources & 4 Prompts**: Live inspector for `career://` and `ui://` resources and prompt templates.
 * **OAuth 2.1 RFC 8414 & RFC 9728 Discovery**: Specifications for metadata endpoints and PKCE S256 code exchange.
 * **Client Quickstart Guides**: Copyable configuration snippets for Claude Desktop (`claude_desktop_config.json`), Custom GPT Actions, and Gemini Antigravity SDK scripts.
 
@@ -301,9 +334,9 @@ A public developer documentation portal detailing:
 
 | Capability | Phase | Status | Notes |
 | :--- | :--- | :--- | :--- |
-| **Remote MCP Server (16 Tools)** | Phase 7–13.5 | `VERIFIED & OPERATIONAL` | Fully operational over Streamable HTTP with OAuth 2.1 & Personal Tokens. |
+| **Remote MCP Server (26 Tools)** | Phase 7–14 | `VERIFIED & OPERATIONAL` | Fully operational over Streamable HTTP with OAuth 2.1 & Personal Tokens (26 tools, 8 resources, 4 prompts). |
 | **AI Connection Center & Docs** | Phase 13.5 (P13.5-004) | `VERIFIED & OPERATIONAL` | Web UI available at `/connect` and `/docs/mcp`. |
 | **Official MCP Registry Listing** | Phase 13.5 / 14 | `READY FOR SUBMISSION (NOT PUBLISHED)` | Verified `server.json` manifest conforming to official schema; publication blocked until permanent HTTPS domain (Phase 14). |
 | **MCP Apps UI Extensions** | Phase 13.5 (P13.5-005) | `IMPLEMENTED (JOB-FIT RADAR)` | Sandboxed `ui://career-hub/job-fit-radar/v1` interactive SVG radar chart & ATS widget for `analyze_job_fit` (SEP-1865); host support must be verified per client. |
 | **Public Staging Deployment** | Phase 14 | `BLOCKED UNTIL PUBLIC STAGING` | Cloudflare Named Tunnel with verified staging domain (`staging.careerhub.ai`). |
-| **Local MCP Testing** | Phase 1–13.5 | `LOCAL DEVELOPMENT ONLY` | Localhost (`http://localhost:3000/mcp`) for local processes; requires HTTPS tunnel for hosted AI. |
+| **Local MCP Testing** | Phase 1–14 | `LOCAL DEVELOPMENT ONLY` | Localhost (`http://localhost:3000/mcp`) for local processes; requires HTTPS tunnel for hosted AI. |

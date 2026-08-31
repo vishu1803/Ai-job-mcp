@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A, P14-001, P14-002, P14-003, P14-003A, P14-004, P14-004A, P14-004B, P14-004C, P14-004D, P14-005, P14-005B, P14-005C, P14-005D, P14-005E, P14-005F, P14-005G, P14-005H, P14-005I, P14-005J, P14-005K & P14-005L COMPLETE |
-| **Project State** | **ACTIVE / IN PROGRESS** | Canonical Career Profile across Web & MCP with Reconciled Language Evidence & Collapsible 11-Category Evidence Explorer, two-tier disaster recovery architecture, Prometheus operational observability (`/metrics`), Cloudflare Named Tunnel staging (`dev.aicareershub.tech`), 26 MCP tools, 8 resources, 4 prompts, OAuth 2.1 PKCE/CIMD, 7 legal compliance pages, and 100% test pass rate |
-| **Total Tasks** | **104 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **100 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005L (18 tasks) |
-| **In Progress Tasks** | **0 Tasks** | P14-005L completed; ready for Step 2 / P14-006 |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005S (20 tasks) COMPLETE |
+| **Project State** | **ACTIVE / IN PROGRESS** | MCP Streamable HTTP Transport, 26 Tools, 8 Resources & 4 Prompts Synchronized & Contract-Verified (9/9 registry contract tests, 21/21 transport tests, 14/14 functional tests, 1,507/1,507 unit tests passing, 618/618 integration tests passing, 0 DB leaks, 0 lint errors), canonical Career Profile across Web & MCP, two-tier DR, Prometheus operational observability (`/metrics`), Cloudflare Named Tunnel staging (`dev.aicareershub.tech`), OAuth 2.1 PKCE/CIMD, and 100% test pass rate |
+| **Total Tasks** | **106 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **102 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005S (20 tasks) |
+| **In Progress Tasks** | **0 Tasks** | P14-005S completed; ready for P14-006 (Final Production Readiness Review) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **96.15% (100 / 104 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **96.10% (16.34 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **96.23% (102 / 106 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **96.30% (16.37 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 21 | 20 | 0 | **IN_PROGRESS** | **95.24%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 23 | 22 | 0 | **IN_PROGRESS** | **95.65%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -3667,6 +3667,64 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * Real browser multi-state verification (CDP subagent) -> PASS (Public landing, Authenticated overview, Direct dashboard, Sign out flow)
   * Status: **`COMPLETE & VERIFIED`**.
 
+* **P14-005Q: MCP FUNCTIONAL HARDENING — ARTIFACT GENERATION, JOB ANALYSIS, DATA QUALITY & RELIABILITY**:
+  * Deliverables Created & Modified:
+    * `src/domain/career/skill-taxonomy.js`: Hardened `SkillTaxonomyEngine.generateSafeSlug` to strictly sanitize all non-alphanumeric punctuation, trim leading/trailing dashes, collapse internal dashes, bound length to 50 characters, and guarantee schema compliance with `SafeSlugSchema` (`/^[a-z0-9]+(?:-[a-z0-9]+)*$/`).
+    * `src/mcp/tools/career-artifact-tools.js`: Wrapped candidate assertion skill slugs, project slugs, and search terms with `SkillTaxonomyEngine.generateSafeSlug` in `buildCandidateAssertions`, `handleDraftCoverLetter`, and `handleGenerateTailoredResume`. Imported `assertToolPermission`.
+    * `src/services/resume-tailoring.service.js` & `src/services/cover-letter-drafting.service.js`: Hardened `normalizeTechnicalTerm` fallback to use canonical `SkillTaxonomyEngine.generateSafeSlug`.
+    * `src/services/resume-integrity-audit.service.js`: Standardized `_buildVerificationIndexes` to index skills using `SkillTaxonomyEngine.generateSafeSlug` eliminating false-positive verification mismatches.
+    * `src/services/evidence-matching.service.js`: Fixed `_indexCandidateProfile` to index skills verified directly from project evidence into `skillsBySlug` with authentic `resourceId` fallback, preventing contradictory "missing skill" classifications.
+    * `src/services/job-discovery.service.js`: Implemented `employmentType` and `maxSalary` filtering, multi-token `every` keyword matching, and explicit `_meta.isSyntheticDataset: true` attribution metadata.
+    * `src/services/portfolio-recommendation.service.js`: Hardened project deduplication with `generateSafeSlug`, added fallbacks for `requirementTitle` and `uncoveredTitles`, and accurate explanation text for 0-matched criteria (`Weak direct job match: covers 0 required criteria; included for general baseline`).
+    * `src/services/project-relevance.service.js`: Sanitized `projectSlug` with `SkillTaxonomyEngine.generateSafeSlug` in `computeProjectRelevance`.
+    * `src/mcp/tools/career-profile-tools.js`: Fixed `resolveCandidateId` to inspect `list.items` from `profileService.listCandidates`.
+    * `src/mcp/tools/career-read-tools.js`: Updated `handleInspectProjectEvidence` with dual-clause raw and normalized `skillSlug` filter and deterministic pagination bounds handling.
+    * `tests/unit/mcp-functional-hardening.test.js`: Created 14-test hermetic regression suite covering all 7 tools under synthetic fixtures and dirty data.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/mcp-functional-hardening.test.js` -> PASS (14/14 tests passing across 8 sub-suites)
+    * `npm run test:unit` -> PASS (1,498/1,498 master unit tests passing across 375 suites)
+    * `npm run test:db-lifecycle-check` -> PASS (60 DB test files verified compliant, 0 leaks)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+* **P14-005R: MCP TRANSPORT-LEVEL ACCEPTANCE & END-TO-END VERIFICATION**:
+  * Deliverables Created & Modified:
+    * `tests/integration/mcp-final-transport-acceptance.test.js`: Built complete 21-test Fastify HTTP `/mcp` transport acceptance suite covering all 15 acceptance areas end-to-end: tool inventory parity (26 registered tools), cover letter drafting (normal, dirty slugs, determinism), tailored resume generation (SafeSlugSchema compliance, unverified claim provenance preservation), job fit analysis (deterministic fit score, project evidence skill backing), job search (matrix filtering, synthetic feed attribution), portfolio recommendation (join deduplication, weak-match 0-criteria explanation), career profile (explicit vs omitted candidateId resolution), project evidence inspection (pagination traversal, out-of-bounds page handling), error contracts (JSON-RPC error code mapping, zero stack/sql/secret leakage), multi-tenant default-deny isolation, multi-tier rate limiting (429 with `Retry-After`), realistic AI client shapes (Claude, ChatGPT, Gemini), Streamable HTTP transport compliance, database safety lifecycle (0 leaks/orphans), and external action non-execution safety.
+    * Fixed input/output schema alignments across MCP tool handlers and test fixtures.
+  * Quality Gates & Verification:
+    * `node --test tests/integration/mcp-final-transport-acceptance.test.js` -> PASS (21/21 tests passing across 13 suites)
+    * `node --test tests/unit/mcp-functional-hardening.test.js` -> PASS (14/14 tests passing across 8 suites)
+    * `npm run test:unit` -> PASS (1,498/1,498 master unit tests passing across 375 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle schema in sync)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
+    * `npm run test:db-lifecycle-check` -> PASS (61 DB test files verified compliant, 0 leaks)
+    * `git diff --check` -> PASS (Clean whitespace)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+* **P14-005S: MCP DOCUMENTATION & REGISTRY RECONCILIATION AUDIT**:
+  * Deliverables Created & Modified:
+    * `tests/unit/mcp-registry-contract.test.js`: Created comprehensive 9-test registry contract test suite verifying 100% bidirectional parity between runtime `createCareerMcpServer()` and documentation/UI catalogs across all 26 tools, parameter names, required statuses, authorization scopes (`career:read`, `career:write`), role levels (`MEMBER`, `READONLY`), 8 canonical resources (URIs, MIME types, dynamic templates), 4 prompts (names, descriptions, template parameters), and write safety approval contracts.
+    * `src/views/mcp-docs.page.js`: Overhauled public MCP documentation with complete 26-tool interactive catalog across 6 domains, dedicated 8-resource registry and 4-prompt catalog sections, dynamic counts, updated Mermaid write state machine, and exact Zod schema alignments.
+    * `src/views/landing.page.js`: Updated public hero and protocol cards to 26-tool MCP catalog.
+    * `README.md`: Updated AI Integration specs, Mermaid architecture diagram, complete 26-tool tables across all 6 categories, 8 resources table, 4 prompts table, and `/docs/mcp` product tour description.
+    * `DESIGN.md`: Updated Section 3.7 and Screen 18 description to 26 tools, 8 resources, and 4 prompts.
+    * `docs/user-guide.md`: Updated Section 9.4 (26 tools table), Section 9.5 (8 resources table), Section 9.6 (4 prompts table), Section 13.2, and Section 14 roadmap table.
+    * `docs/mcp-registry-readiness-checklist.md`: Updated to 26-Tool Catalog and added MCP Resources & Prompts readiness gate.
+    * `tests/unit/web-routes-phase2.test.js`: Updated test assertions to verify complete 26-tool, 8-resource, and 4-prompt protocol catalog rendering.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/mcp-registry-contract.test.js` -> PASS (9/9 tests passing)
+    * `node --test tests/unit/web-routes-phase2.test.js` -> PASS (5/5 tests passing)
+    * `npm run test:unit` -> PASS (1,507/1,507 master unit tests passing across 376 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle schema in sync)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
+    * `npm run test:db-lifecycle-check` -> PASS (61 DB test files verified compliant, 0 leaks)
+    * `git diff --check` -> PASS (Clean whitespace)
+  * Status: **`COMPLETE & VERIFIED`**.
+
 ---
 
 ## PHASE 14: Security Hardening & Production Readiness
@@ -3698,6 +3756,10 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-005L** | Language Evidence Reconciliation, Verified Skills Graph UX & Resume Claims Detail View (Step 1K) | P14-005K | **COMPLETE & VERIFIED** | Implemented `SkillTaxonomyEngine.reconcileLanguageEvidence` and `LANGUAGE_ECOSYSTEM_MAP` establishing multi-level language reconciliation: evaluated direct source file presence, AST citations, language byte metadata, and supporting framework ecosystems (FastAPI/Django -> Python, React/Next.js/Express/Fastify -> JS/TS). Enforced anti-hallucination barriers preventing false inference (FastAPI package alone -> Python remains CLAIMED; TypeScript repo with @eslint/js -> JS remains CLAIMED; >=3 Python source files + FastAPI -> Python CORROBORATED). Upgraded Verified Skills Graph (`/skills`) with 4-way truth counts (VERIFIED 14, CLAIMED 13, INFERRED 0, SIGNALS 132), explicit Inferred Skills section, and collapsible 11-category Evidence Explorer (default collapsed with Expand/Collapse All controls). Enhanced Resume Extracted Claims view (`/resumes`) with clean origin context, category tabs, and real-time search. 105 unit tests (`tests/unit/skill-taxonomy.test.js`, `tests/unit/candidate-career-profile.test.js` - 105/105 PASS), 20/20 web routes integration tests, 1,425/1,425 master unit tests passing across 356 suites (100%), 59/59 DB lifecycle checks compliant, 0 lint errors, 0 exposed secrets. |
 | **P14-005M** | Resume Semantic Normalization, Multi-Stage Entity Resolution, Scope Attribution & Relationship Mapping | P14-005L | **COMPLETE & VERIFIED** | Decoupled resume layout parsing from entity resolution. Implemented `ResumeEntityResolver` domain engine with 4-tier scope taxonomy (`GLOBAL`, `PROJECT_SCOPED`, `EXPERIENCE_SCOPED`, `HYBRID`) and 1 Entity -> N Mentions invariant. Implemented `ResumeEntityResolutionPolicy` under provider-neutral prompt policy framework with strict XML sandboxing, JSON schemas, and deterministic fallback. Resolves cohesive project entities (with canonical technology links and bullets), cohesive work experience positions (with automatic bullet technology extraction), cohesive education, and deduplicated canonical skill claims with occurrence counts and citation provenance. Enhanced Extracted Claims Web UI (`/resumes`) with occurrence pills, scope tags, and linked technology chips. 33 unit tests across `tests/unit/resume-entity-resolver.test.js`, `tests/unit/resume-entity-resolution-policy.test.js`, and `tests/unit/resume-parser.service.test.js` (33/33 PASS), 1,435/1,435 master unit tests passing (100%), 20/20 web routes integration tests, 59/59 DB lifecycle checks compliant, 0 lint errors, 0 exposed secrets. |
 | **P14-005N** | Career Profile SaaS Redesign & Intelligent UX Setup | P14-005M | **COMPLETE & VERIFIED** | Elevated `/profile` from form fields to guided, production-grade SaaS experience (Linear/Ashby aesthetic). Implemented compact Profile Completeness & Readiness card with progress bar and section pills (`✓ Identity`, `✓ Skills & Evidence`, `! Preferences`, `○ Eligibility`), 1-click AI Profile Suggestions quick-fill drawer, categorized primary skills (Core, Backend, Frontend, DBs, Cloud, AI/ML, Tools), uniform project cards with interactive filters (`All`, `Verified`, `GitHub`, `Resume`), searchable multi-select chip inputs with suggestions for Target Roles, Locations, Tech Stack, and Work Auth, toggleable Industry chips, segmented Remote & Relocation controls, sticky save action bar with unsaved change detection, and toast notification. 41 unit tests in `tests/unit/candidate-career-profile.test.js` (41/41 PASS), 20/20 web routes integration tests, 1,435/1,435 master unit tests passing (100%), 0 lint errors, 0 exposed secrets. |
+| **P14-005P** | Overview / Root Route Multi-State Architecture (Authenticated vs Public States) | P14-005N | **COMPLETE & VERIFIED** | Upgraded `GET /` to handle two intentional product states: State A (Unauthenticated: Public landing & value proof) and State B (Authenticated: Candidate overview workspace). Added mode switching between SETUP MODE (first-run) and CAREER INTELLIGENCE MODE (configured candidate). 7 unit tests passing in `tests/unit/overview-root-route.test.js` (7/7 PASS), 1,440/1,440 master unit tests passing, 0 lint errors, 0 exposed secrets. |
+| **P14-005Q** | MCP Functional Hardening — Artifact Generation, Job Analysis, Data Quality & Reliability | P14-005P | **COMPLETE & VERIFIED** | Fixed schema and normalization defects across 7 MCP tools: safe slug canonicalization (`SafeSlugSchema` compliance) for `draft_cover_letter` and `generate_tailored_resume`, project evidence skill indexing in `analyze_job_fit`, filter matrix (`employmentType`, `maxSalary`) and synthetic attribution in `search_jobs`, slug deduplication and 0-match criteria explanation in `recommend_portfolio_projects`, `list.items` candidate resolution in `get_career_profile`, and dual slug resolution + pagination bounds in `inspect_project_evidence`. 14 dedicated unit tests passing in `tests/unit/mcp-functional-hardening.test.js` (14/14 PASS), 1,498/1,498 master unit tests passing across 375 suites, 0 lint errors, 0 exposed secrets. |
+| **P14-005R** | MCP Transport-Level Acceptance & End-to-End Verification | P14-005Q | **COMPLETE & VERIFIED** | Comprehensive live HTTP transport verification over Fastify `/mcp` endpoint (2026-07-28 Streamable HTTP standard). 21 dedicated end-to-end integration tests passing in `tests/integration/mcp-final-transport-acceptance.test.js` covering 26 tools list discovery, dirty input sanitization across cover letters and tailored resumes, claim provenance non-inflation, deterministic job fit with project evidence backing, matrix job search filtering, portfolio recommendation deduplication and 0-match criteria explanation, explicit vs omitted candidate profile resolution, project evidence pagination and out-of-bounds handling, JSON-RPC structured error contracts without secret/stack leaks, sovereign multi-tenant default-deny isolation, multi-tier rate limiting with `Retry-After`, realistic Claude/ChatGPT/Gemini client request workflows, zero database lifecycle leaks/orphans, and external action safety. 1,498/1,498 unit tests passing, 0 lint errors, 0 secrets. |
+| **P14-005S** | MCP Documentation & Registry Reconciliation Audit (26 Tools, 8 Resources, 4 Prompts) | P14-005R | **COMPLETE & VERIFIED** | Reconciled runtime registry with all public and internal documentation and UI views. Full 26-tool catalog across 6 domains, 8 canonical resources (1 MCP App UI + 7 data resources/templates), 4 reusable prompts, zero hardcoded stale counts, bidirectional contract tests (`tests/unit/mcp-registry-contract.test.js` - 9/9 PASS), 1,507/1,507 unit tests pass, Prettier clean, ESLint clean, 0 secrets. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---

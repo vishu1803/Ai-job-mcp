@@ -326,8 +326,9 @@ Unifies Claude, ChatGPT, and Gemini into a single design system:
 ### 3.7 MCP Developer Documentation Specification
 
 * **Protocol Highlights**: Streamable HTTP 2026-07-28, OAuth 2.1 RFC 8414/9728 discovery, JSON-RPC 2.0.
-* **16-Tool Interactive Catalog**: Search bar + category filters (`Career Read`, `Job Workflow`, `Two-Phase Write`, `Taxonomy & Verification`).
+* **26-Tool Interactive Catalog**: Search bar + category filters across 6 functional domains (`Career Read`, `Career Artifacts`, `Career Write`, `Career Tracking`, `Job Discovery & Workflow`, `Career Profile & Intent`).
 * **Tool Schema Inspector**: Parameter table (type, required, default, description) + copyable JSON-RPC `tools/call` payload + safety notes.
+* **8 Canonical Resources & 4 Prompts**: Structured inspector for `career://` and `ui://` resources and interactive prompt templates.
 
 ---
 
@@ -354,7 +355,7 @@ Unifies Claude, ChatGPT, and Gemini into a single design system:
 | **15** | **Resume Claim Review** | `GET /resumes/:id` | Parsed sections inspector, extracted claims, approve & promote to Base Resume. |
 | **16** | **Job Tracker** | `GET /applications` | Application pipeline stages, match scores, document links, interview notes. |
 | **17** | **AI Connect Center** | `GET /connect` | Claude, ChatGPT, Gemini cards, MCP endpoint copy, personal API token generator. |
-| **18** | **MCP Developer Docs** | `GET /docs/mcp` | 16-tool catalog, parameters, JSON-RPC examples, OAuth discovery specs. |
+| **18** | **MCP Developer Docs** | `GET /docs/mcp` | 26-tool catalog, 8 resources, 4 prompts, parameters, JSON-RPC examples, OAuth discovery specs. |
 | **19** | **Job Fit Radar (App)** | `GET /apps/radar` | MCP interactive tool: job description paste -> instant radar fit & gap analysis. |
 | **20** | **Settings & Privacy** | `GET /settings` | Profile info, session management, integrations summary, GDPR Article 17 deletion. |
 | **21** | **Legal & Policy Suite** | `GET /privacy` etc. | Unified legal pages: Privacy, Cookies, Terms, Security, Data Deletion, Accessibility. |

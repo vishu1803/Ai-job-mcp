@@ -16,6 +16,7 @@ import {
   OAuthConsentBodySchema,
   OAuthTokenRequestSchema,
   OAuthRevokeRequestSchema,
+  OAuthClientRegistrationSchema,
 } from '../domain/oauth/oauth.schemas.js';
 import {
   OAuthAuthorizationService,
@@ -26,6 +27,8 @@ import { validateSession, getSessionCookieOptions } from '../security/session.se
 import { db as defaultDb } from '../db/index.js';
 import { config } from '../config/env.js';
 import { AuthenticationError } from '../errors/index.js';
+import crypto from 'node:crypto';
+import { oauthClients } from '../db/schema.js';
 import { parseFormBody } from '../utils/form-parser.js';
 
 /**
@@ -430,6 +433,66 @@ export async function oauthRoutes(fastify, opts = {}) {
     reply.header('content-type', 'application/json');
     reply.header('cache-control', 'public, max-age=3600');
     return reply.send(metadata);
+  });
+
+  // ---------------------------------------------------------------------------
+  // 2b. RFC 7591 Dynamic Client Registration
+  // ---------------------------------------------------------------------------
+  // ChatGPT, Claude, and other MCP clients use dynamic registration to obtain
+  // a client_id before starting the OAuth 2.1 + PKCE authorization flow.
+  fastify.post('/oauth/register', async (req, reply) => {
+    const parseResult = OAuthClientRegistrationSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError =
+        parseResult.error.errors[0]?.message || 'Invalid client registration parameters.';
+      return reply.status(400).send({
+        error: 'invalid_client_metadata',
+        error_description: firstError,
+      });
+    }
+
+    const { client_name, redirect_uris, grant_types, response_types, token_endpoint_auth_method } =
+      parseResult.data;
+
+    // Generate a unique client_id for this dynamically registered client.
+    // We use a UUID-based identifier rather than the client-supplied name
+    // to prevent collisions and ensure uniqueness.
+    const clientId = `mcp-client-${crypto.randomUUID()}`;
+    const now = new Date();
+
+    try {
+      await db
+        .insert(oauthClients)
+        .values({
+          clientId,
+          clientName: client_name,
+          clientType: token_endpoint_auth_method === 'none' ? 'PUBLIC' : 'CONFIDENTIAL',
+          redirectUris: redirect_uris,
+          allowedGrantTypes: grant_types,
+          allowedScopes: ['career:read', 'career:write'],
+          isTrusted: false,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+
+      // RFC 7591 §2 — Successful Registration Response
+      return reply.status(201).send({
+        client_id: clientId,
+        client_name,
+        redirect_uris,
+        grant_types,
+        response_types,
+        token_endpoint_auth_method,
+        client_id_issued_at: Math.floor(now.getTime() / 1000),
+      });
+    } catch (err) {
+      fastify.log.error({ err, client_name }, 'Dynamic client registration failed');
+      return reply.status(500).send({
+        error: 'server_error',
+        error_description: 'Client registration failed due to an internal error.',
+      });
+    }
   });
 
   // ---------------------------------------------------------------------------

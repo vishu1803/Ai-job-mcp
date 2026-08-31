@@ -290,7 +290,7 @@ export class JobDiscoveryService {
       if (queryTerms.length > 0) {
         const searchableText =
           `${job.title} ${job.company} ${job.description} ${(job.skills || []).join(' ')}`.toLowerCase();
-        const matchesQuery = queryTerms.some((term) => searchableText.includes(term));
+        const matchesQuery = queryTerms.every((term) => searchableText.includes(term));
         if (!matchesQuery) return false;
       }
 
@@ -302,7 +302,12 @@ export class JobDiscoveryService {
         return false;
       }
 
-      // 3. Location match
+      // 3. Employment type match
+      if (validated.employmentType && job.employmentType !== validated.employmentType) {
+        return false;
+      }
+
+      // 4. Location match
       if (validated.location) {
         const locLower = validated.location.toLowerCase();
         if (!job.location.toLowerCase().includes(locLower)) {
@@ -310,7 +315,7 @@ export class JobDiscoveryService {
         }
       }
 
-      // 4. Skills match
+      // 5. Skills match
       if (validated.skills && validated.skills.length > 0) {
         const jobSkillsLower = (job.skills || []).map((s) => s.toLowerCase());
         const matchesAnySkill = validated.skills.some((s) =>
@@ -319,8 +324,11 @@ export class JobDiscoveryService {
         if (!matchesAnySkill) return false;
       }
 
-      // 5. Salary match
+      // 6. Salary match
       if (validated.minSalary && job.salary?.max && job.salary.max < validated.minSalary) {
+        return false;
+      }
+      if (validated.maxSalary && job.salary?.min && job.salary.min > validated.maxSalary) {
         return false;
       }
 
@@ -336,6 +344,10 @@ export class JobDiscoveryService {
       offset: validated.offset,
       jobs: paginated.map((j) => NormalizedJobPostingSchema.parse(j)),
       sources,
+      _meta: {
+        isSyntheticDataset: externalJobs.length === 0,
+        datasetType: externalJobs.length > 0 ? 'LIVE_ATS_FEEDS' : 'SYNTHETIC_DEVELOPMENT_FEED',
+      },
     };
   }
 

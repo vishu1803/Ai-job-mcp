@@ -36,6 +36,7 @@ import { ResumeIntegrityAuditService } from '../../services/resume-integrity-aud
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import { defaultMcpRateLimiter } from '../../security/mcp-rate-limiter.js';
 import { assertToolPermission } from '../../security/mcp-auth.js';
+import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
 import {
   RecommendPortfolioProjectsInputSchema,
   RecommendPortfolioProjectsOutputSchema,
@@ -278,13 +279,14 @@ function buildCandidateAssertions(candidateProfileObj) {
   const assertions = [];
 
   for (const skill of candidateProfileObj.skills || []) {
+    const safeSlug = SkillTaxonomyEngine.generateSafeSlug(skill.slug || skill.name || 'skill');
     assertions.push({
       assertionId: crypto.randomUUID(),
       candidateId: candidateProfileObj.id,
       tenantId: candidateProfileObj.tenantId,
       assertionType: 'SKILL',
       statement: `Candidate possesses technical skill: ${skill.name || skill.slug}`,
-      subjectSlug: skill.slug,
+      subjectSlug: safeSlug,
       status: skill.provenanceStatus || 'VERIFIED',
       confidenceScore: typeof skill.confidenceScore === 'number' ? skill.confidenceScore : 1.0,
       evidenceRefs: skill.primaryEvidence
@@ -297,19 +299,14 @@ function buildCandidateAssertions(candidateProfileObj) {
 
   for (const proj of candidateProfileObj.projects || []) {
     if (Array.isArray(proj.evidence) && proj.evidence.length > 0) {
+      const safeSlug = SkillTaxonomyEngine.generateSafeSlug(proj.slug || proj.name || 'project');
       assertions.push({
         assertionId: crypto.randomUUID(),
         candidateId: candidateProfileObj.id,
         tenantId: candidateProfileObj.tenantId,
         assertionType: 'PROJECT',
         statement: `Candidate developed project: ${proj.name}`,
-        subjectSlug:
-          proj.slug ||
-          (proj.name || 'project')
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-|-$/g, '') ||
-          'project',
+        subjectSlug: safeSlug,
         status: 'VERIFIED',
         confidenceScore: 1.0,
         evidenceRefs: proj.evidence.slice(0, 5),

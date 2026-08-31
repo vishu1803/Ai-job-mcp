@@ -5,18 +5,19 @@
  * 1. Protocol Specification (Streamable HTTP, JSON-RPC 2.0, 2026-07-28 Spec).
  * 2. Universal MCP Endpoint & Local Development vs Staging Guide.
  * 3. OAuth 2.1 RFC 8414 / RFC 9728 Discovery & Personal Token Authentication.
- * 4. Complete 16-Tool Catalog with interactive category filter and real-time search.
- * 5. Two-Phase Write Safety & Stopping Protocol deep-dive.
- * 6. Explicit Roadmap Boundaries (Registry & MCP Apps planned/unimplemented).
+ * 4. Complete 26-Tool Catalog across 6 functional domains with interactive filter and search.
+ * 5. Complete 8-Resource & 4-Prompt Registry with URI schemas and safety boundaries.
+ * 6. Two-Phase Write Safety & Stopping Protocol deep-dive.
+ * 7. Official MCP Registry & MCP Apps Architecture (SEP-1865).
  */
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
 
 /**
- * 16 Registered MCP Tool Definitions with parameters, scopes, and JSON-RPC examples.
+ * 26 Registered MCP Tool Definitions with parameters, scopes, and JSON-RPC examples.
  */
-const TOOLS_CATALOG = [
+export const TOOLS_CATALOG = [
   // Category 1: Career Read (4 tools)
   {
     name: 'get_candidate_profile',
@@ -94,27 +95,48 @@ const TOOLS_CATALOG = [
       {
         name: 'projectId',
         type: 'string (UUID)',
-        required: false,
-        description: 'Target project UUID.',
+        required: true,
+        description: 'Target project UUID to inspect.',
       },
       {
         name: 'candidateId',
         type: 'string (UUID)',
         required: false,
-        description: 'Target candidate UUID.',
+        description: 'Target candidate UUID. Defaults to authenticated candidate.',
       },
       {
-        name: 'limit',
-        type: 'number (1 - 50)',
+        name: 'evidenceType',
+        type: 'enum (PACKAGE_MANIFEST_DEPENDENCY, CODE_IMPORT_USAGE, CODE_USAGE, etc.)',
         required: false,
-        description: 'Maximum evidence items to return.',
+        description: 'Optional filter by evidence extraction type.',
+      },
+      {
+        name: 'skillSlug',
+        type: 'string',
+        required: false,
+        description: 'Optional filter by canonical skill slug (e.g. "postgresql").',
+      },
+      {
+        name: 'page',
+        type: 'number (1-indexed)',
+        required: false,
+        description: 'Page number for evidence pagination (default: 1).',
+      },
+      {
+        name: 'pageSize',
+        type: 'number (1 - 20)',
+        required: false,
+        description: 'Evidence items per page (default: 10, max: 20).',
       },
     ],
     exampleRpc: {
       method: 'tools/call',
       params: {
         name: 'inspect_project_evidence',
-        arguments: { limit: 10 },
+        arguments: {
+          projectId: '0190524a-3689-4cd1-a945-22e7c59fa0ff',
+          pageSize: 10,
+        },
       },
     },
     safetyNotes:
@@ -325,8 +347,6 @@ const TOOLS_CATALOG = [
     scope: 'career:write',
     role: 'MEMBER',
     classification: 'Write Safety',
-    purpose:
-      'Verify human confirmation, validate Action Approval Ticket signature and expiration, create an isolated branch (feat/career-hub-*), and open a GitHub Draft PR.',
     parameters: [
       {
         name: 'ticketId',
@@ -335,10 +355,22 @@ const TOOLS_CATALOG = [
         description: 'Action Approval Ticket UUID issued by propose_project_improvement.',
       },
       {
-        name: 'candidateConfirmation',
-        type: 'boolean',
+        name: 'confirmed',
+        type: 'boolean (literal true)',
         required: true,
-        description: 'Must be explicitly set to true by human.',
+        description: 'Explicit human confirmation flag. Must be strictly boolean true.',
+      },
+      {
+        name: 'idempotencyKey',
+        type: 'string (16 - 128 chars)',
+        required: false,
+        description: 'Optional client-supplied idempotency key to safely retry requests.',
+      },
+      {
+        name: 'userNotes',
+        type: 'string',
+        required: false,
+        description: 'Optional human reviewer audit notes recorded in ticket history.',
       },
     ],
     exampleRpc: {
@@ -347,12 +379,12 @@ const TOOLS_CATALOG = [
         name: 'confirm_and_create_pr',
         arguments: {
           ticketId: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-          candidateConfirmation: true,
+          confirmed: true,
         },
       },
     },
     safetyNotes:
-      'Strict two-phase gating. Remote HEAD SHA verified. Only opens Draft PRs on isolated branches.',
+      'Strict two-phase gating with cryptographic Approval Ticket verification. Remote HEAD SHA verified. Only opens Draft PRs on isolated branches.',
   },
 
   // Category 4: Career Tracking (7 tools)
@@ -367,20 +399,50 @@ const TOOLS_CATALOG = [
       { name: 'companyName', type: 'string', required: true, description: 'Target company name.' },
       { name: 'jobTitle', type: 'string', required: true, description: 'Target job title.' },
       {
-        name: 'jobDescription',
-        type: 'string',
+        name: 'candidateId',
+        type: 'string (UUID)',
         required: false,
-        description: 'Full job description text.',
+        description: 'Optional candidate UUID. Defaults to authenticated candidate.',
       },
       { name: 'jobUrl', type: 'string (URL)', required: false, description: 'Job posting URL.' },
       {
-        name: 'status',
-        type: 'enum (SAVED, APPLIED, INTERVIEWING, OFFER, REJECTED, WITHDRAWN)',
+        name: 'source',
+        type: 'enum (LINKEDIN, INDEED, COMPANY_CAREERS, REFERRAL, RECRUITER, MANUAL, OTHER)',
         required: false,
-        description: 'Initial status.',
+        description: 'Lead origin (default: MANUAL).',
       },
-      { name: 'salaryRange', type: 'string', required: false, description: 'Target salary range.' },
-      { name: 'location', type: 'string', required: false, description: 'Job location or Remote.' },
+      { name: 'location', type: 'string', required: false, description: 'Geographical location.' },
+      {
+        name: 'workplaceType',
+        type: 'enum (REMOTE, HYBRID, ON_SITE)',
+        required: false,
+        description: 'Work arrangement model.',
+      },
+      {
+        name: 'employmentType',
+        type: 'enum (FULL_TIME, PART_TIME, CONTRACT, INTERNSHIP)',
+        required: false,
+        description: 'Employment terms.',
+      },
+      {
+        name: 'rawJobDescription',
+        type: 'string',
+        required: false,
+        description: 'Full job description text snapshot.',
+      },
+      {
+        name: 'compensation',
+        type: 'object (currency, minSalary, maxSalary, targetSalary, equity, period)',
+        required: false,
+        description: 'Target or posted compensation package.',
+      },
+      { name: 'notes', type: 'string', required: false, description: 'Private candidate notes.' },
+      {
+        name: 'status',
+        type: 'enum (SAVED, APPLIED)',
+        required: false,
+        description: 'Initial status (default: SAVED).',
+      },
     ],
     exampleRpc: {
       method: 'tools/call',
@@ -404,13 +466,47 @@ const TOOLS_CATALOG = [
     purpose: 'List active and historical job applications tracked in the candidate workspace.',
     parameters: [
       {
+        name: 'candidateId',
+        type: 'string (UUID)',
+        required: false,
+        description: 'Optional candidate UUID.',
+      },
+      {
         name: 'status',
+        type: 'enum (SAVED, APPLIED, SCREENING, INTERVIEWING, OFFER_RECEIVED, OFFER_ACCEPTED, REJECTED, WITHDRAWN, ARCHIVED)',
+        required: false,
+        description: 'Filter by lifecycle status or array of statuses.',
+      },
+      {
+        name: 'companyName',
+        type: 'string',
+        required: false,
+        description: 'Filter applications by company name substring.',
+      },
+      {
+        name: 'source',
         type: 'enum',
         required: false,
-        description: 'Filter by application lifecycle status.',
+        description: 'Filter by application origin.',
       },
-      { name: 'limit', type: 'number (1 - 50)', required: false, description: 'Results limit.' },
-      { name: 'offset', type: 'number', required: false, description: 'Pagination offset.' },
+      {
+        name: 'workplaceType',
+        type: 'enum',
+        required: false,
+        description: 'Filter by workplace arrangement.',
+      },
+      {
+        name: 'limit',
+        type: 'number (1 - 50)',
+        required: false,
+        description: 'Results limit (default: 10).',
+      },
+      {
+        name: 'offset',
+        type: 'number',
+        required: false,
+        description: 'Pagination offset (default: 0).',
+      },
     ],
     exampleRpc: {
       method: 'tools/call',
@@ -436,6 +532,12 @@ const TOOLS_CATALOG = [
         required: true,
         description: 'Application record UUID.',
       },
+      {
+        name: 'includeFullJd',
+        type: 'boolean',
+        required: false,
+        description: 'Whether to include raw job description text (default: false).',
+      },
     ],
     exampleRpc: {
       method: 'tools/call',
@@ -453,7 +555,7 @@ const TOOLS_CATALOG = [
     role: 'MEMBER',
     classification: 'Tracking',
     purpose:
-      'Transition application lifecycle status (e.g. SAVED -> APPLIED -> INTERVIEWING -> OFFER).',
+      'Transition application lifecycle status (e.g. SAVED -> APPLIED -> INTERVIEWING -> OFFER_RECEIVED).',
     parameters: [
       {
         name: 'applicationId',
@@ -463,11 +565,16 @@ const TOOLS_CATALOG = [
       },
       {
         name: 'status',
-        type: 'enum (SAVED, APPLIED, SCREENING, INTERVIEWING, OFFER, REJECTED, WITHDRAWN)',
+        type: 'enum (SAVED, APPLIED, SCREENING, INTERVIEWING, OFFER_RECEIVED, OFFER_ACCEPTED, REJECTED, WITHDRAWN, ARCHIVED)',
         required: true,
         description: 'New lifecycle status.',
       },
-      { name: 'notes', type: 'string', required: false, description: 'Status transition notes.' },
+      {
+        name: 'reason',
+        type: 'string',
+        required: false,
+        description: 'Optional status transition reason.',
+      },
     ],
     exampleRpc: {
       method: 'tools/call',
@@ -476,7 +583,7 @@ const TOOLS_CATALOG = [
         arguments: {
           applicationId: '3c8e42f0-91a6-455b-bfa1-7f8e32906b3e',
           status: 'INTERVIEWING',
-          notes: 'Recruiter screen scheduled.',
+          reason: 'Recruiter screen scheduled.',
         },
       },
     },
@@ -499,9 +606,15 @@ const TOOLS_CATALOG = [
       },
       {
         name: 'stageType',
-        type: 'enum (SCREENING, TECHNICAL_SCREEN, SYSTEM_DESIGN, CODING_CHALLENGE, ONSITE, BEHAVIORAL, EXECUTIVE, OFFER_NEGOTIATION)',
+        type: 'enum (DISCOVERY, RESUME_SUBMITTED, RECRUITER_SCREEN, TECHNICAL_ASSESSMENT, SYSTEM_DESIGN, BEHAVIORAL, ONSITE_LOOP, OFFER_NEGOTIATION, POST_OFFER, OTHER)',
         required: true,
-        description: 'Interview stage type.',
+        description: 'Interview stage category.',
+      },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Descriptive title for the stage (e.g. System Design Architecture Round).',
       },
       {
         name: 'scheduledAt',
@@ -510,10 +623,10 @@ const TOOLS_CATALOG = [
         description: 'Scheduled date and time.',
       },
       {
-        name: 'interviewerName',
-        type: 'string',
+        name: 'interviewerNames',
+        type: 'array of strings',
         required: false,
-        description: 'Interviewer name or panel.',
+        description: 'List of interviewer names or panel members.',
       },
     ],
     exampleRpc: {
@@ -523,11 +636,12 @@ const TOOLS_CATALOG = [
         arguments: {
           applicationId: '3c8e42f0-91a6-455b-bfa1-7f8e32906b3e',
           stageType: 'SYSTEM_DESIGN',
-          interviewerName: 'Principal Engineer',
+          title: 'System Design Architecture Round',
+          interviewerNames: ['Principal Engineer'],
         },
       },
     },
-    safetyNotes: 'Enforces maximum 15 stages per application.',
+    safetyNotes: 'Enforces maximum 20 stages per application.',
   },
   {
     name: 'update_application_stage_outcome',
@@ -536,12 +650,12 @@ const TOOLS_CATALOG = [
     role: 'MEMBER',
     classification: 'Tracking',
     purpose:
-      'Record the outcome (PASSED, REJECTED, CANCELLED, WAITING) and qualitative feedback for an interview stage.',
+      'Record the outcome (PENDING, PASSED, FAILED, SKIPPED, RESCHEDULED) and qualitative feedback for an interview stage.',
     parameters: [
       { name: 'stageId', type: 'string (UUID)', required: true, description: 'Stage UUID.' },
       {
         name: 'outcome',
-        type: 'enum (PASSED, REJECTED, CANCELLED, WAITING)',
+        type: 'enum (PENDING, PASSED, FAILED, SKIPPED, RESCHEDULED)',
         required: true,
         description: 'Stage evaluation outcome.',
       },
@@ -550,6 +664,12 @@ const TOOLS_CATALOG = [
         type: 'string',
         required: false,
         description: 'Technical feedback or debrief notes.',
+      },
+      {
+        name: 'rescheduledAt',
+        type: 'string (ISO 8601 Date)',
+        required: false,
+        description: 'New scheduled timestamp if rescheduled.',
       },
     ],
     exampleRpc: {
@@ -582,12 +702,59 @@ const TOOLS_CATALOG = [
       },
       {
         name: 'documentType',
-        type: 'enum (TAILORED_RESUME, COVER_LETTER, PORTFOLIO_NOTE, OTHER)',
+        type: 'enum (TAILORED_RESUME, TAILORED_COVER_LETTER, PORTFOLIO_RECOMMENDATION, CUSTOM_NOTE)',
         required: true,
         description: 'Document type.',
       },
-      { name: 'content', type: 'string', required: true, description: 'Document content text.' },
-      { name: 'title', type: 'string', required: false, description: 'Document title label.' },
+      { name: 'title', type: 'string', required: true, description: 'Document title label.' },
+      {
+        name: 'content',
+        type: 'object',
+        required: true,
+        description: 'Structured JSON document payload.',
+      },
+      {
+        name: 'candidateId',
+        type: 'string (UUID)',
+        required: false,
+        description: 'Optional candidate UUID.',
+      },
+      {
+        name: 'renderedMarkdown',
+        type: 'string',
+        required: false,
+        description: 'Rendered markdown representation.',
+      },
+      {
+        name: 'renderedPlainText',
+        type: 'string',
+        required: false,
+        description: 'Rendered plain text representation.',
+      },
+      {
+        name: 'citationRefs',
+        type: 'array of evidence citations',
+        required: false,
+        description: 'Array of evidence citations backing claims.',
+      },
+      {
+        name: 'integrityScore',
+        type: 'number (0.0 - 1.0)',
+        required: false,
+        description: 'Grounding integrity score.',
+      },
+      {
+        name: 'atsFitScore',
+        type: 'number (0.0 - 100.0)',
+        required: false,
+        description: 'Target job ATS fit score.',
+      },
+      {
+        name: 'metadata',
+        type: 'object',
+        required: false,
+        description: 'Additional structured metadata.',
+      },
     ],
     exampleRpc: {
       method: 'tools/call',
@@ -597,7 +764,7 @@ const TOOLS_CATALOG = [
           applicationId: '3c8e42f0-91a6-455b-bfa1-7f8e32906b3e',
           documentType: 'TAILORED_RESUME',
           title: 'Stripe Tailored Resume v1',
-          content: '# Alex Mercer\n\n...',
+          content: { name: 'Alex Mercer' },
         },
       },
     },
@@ -614,7 +781,7 @@ const TOOLS_CATALOG = [
     purpose:
       'Query verified software engineering job listings across Greenhouse, Lever, and curated structured feeds.',
     parameters: [
-      { name: 'query', type: 'string', required: false, description: 'Search keywords.' },
+      { name: 'query', type: 'string', required: true, description: 'Search keywords.' },
       {
         name: 'location',
         type: 'string',
@@ -997,6 +1164,193 @@ const TOOLS_CATALOG = [
 ];
 
 /**
+ * 8 Registered MCP Resources & Resource Templates Definitions.
+ */
+export const RESOURCES_CATALOG = [
+  {
+    name: 'job_fit_radar',
+    uri: 'ui://career-hub/job-fit-radar/v1',
+    mimeType: 'text/html;profile=mcp-app',
+    scope: 'career:read',
+    role: 'READONLY',
+    isMcpApp: true,
+    isTemplate: false,
+    purpose:
+      'Sandboxed MCP App UI widget delivering an interactive 6-axis SVG Job Fit Radar chart, ATS score gauge, and skill remediation cards (SEP-1865).',
+    safetyNotes:
+      'Strict CSP (connect-src none), zero external CDN scripts, read-only iframe sandbox.',
+    exampleUri: 'ui://career-hub/job-fit-radar/v1',
+  },
+  {
+    name: 'Candidate Career Profile',
+    uri: 'career://profile',
+    mimeType: 'application/json',
+    scope: 'career:read',
+    role: 'READONLY',
+    isMcpApp: false,
+    isTemplate: false,
+    purpose:
+      'Live candidate career profile snapshot, target roles, preferred locations, salary requirements, and top verified skills.',
+    safetyNotes: 'Sovereign multi-tenant isolation. Zero sensitive credential or token leakage.',
+    exampleUri: 'career://profile',
+  },
+  {
+    name: 'Candidate Verified Skills',
+    uri: 'career://skills',
+    mimeType: 'application/json',
+    scope: 'career:read',
+    role: 'READONLY',
+    isMcpApp: false,
+    isTemplate: false,
+    purpose:
+      'Complete catalog of candidate skills with provenance classification (VERIFIED, CLAIMED), confidence scores, and AST evidence links.',
+    safetyNotes: 'Distinguishes between repository AST evidence and self-reported user claims.',
+    exampleUri: 'career://skills',
+  },
+  {
+    name: 'Candidate Connected Resources',
+    uri: 'career://connections',
+    mimeType: 'application/json',
+    scope: 'career:read',
+    role: 'READONLY',
+    isMcpApp: false,
+    isTemplate: false,
+    purpose:
+      'List of connected GitHub installations, repositories, synchronization states, and indexed branches.',
+    safetyNotes: 'Tokens and private secrets are scrubbed before serialization.',
+    exampleUri: 'career://connections',
+  },
+  {
+    name: 'Candidate Project Details',
+    uri: 'career://projects/{projectId}',
+    mimeType: 'application/json',
+    scope: 'career:read',
+    role: 'READONLY',
+    isMcpApp: false,
+    isTemplate: true,
+    purpose:
+      'Deep architectural dossier for a specific repository codebase, commit SHAs, file manifest, and language breakdown.',
+    safetyNotes: 'Default-deny 404 on foreign tenant project access.',
+    exampleUri: 'career://projects/3c8e42f0-91a6-455b-bfa1-7f8e32906b3e',
+  },
+  {
+    name: 'Verified AST Evidence Item',
+    uri: 'career://evidence/{evidenceId}',
+    mimeType: 'application/json',
+    scope: 'career:read',
+    role: 'READONLY',
+    isMcpApp: false,
+    isTemplate: true,
+    purpose:
+      'Commit-pinned code evidence item with file path, line range, AST node type, and sanitized code snippet.',
+    safetyNotes: 'Sanitized through SecretScrubber to redact API keys and tokens.',
+    exampleUri: 'career://evidence/7f9a1b2c-3d4e-5f6a-7b8c-9d0e1f2a3b4c',
+  },
+  {
+    name: 'Job Posting Dossier',
+    uri: 'career://jobs/{jobId}',
+    mimeType: 'application/json',
+    scope: 'career:read',
+    role: 'READONLY',
+    isMcpApp: false,
+    isTemplate: true,
+    purpose:
+      'Full normalized job posting details, required skills, responsibilities, compensation, and ATS source attribution.',
+    safetyNotes: 'Sourced from verified job feeds (Greenhouse/Lever/synthetic benchmarks).',
+    exampleUri: 'career://jobs/job-gh-stripe-001',
+  },
+  {
+    name: 'Tracked Job Application Dossier',
+    uri: 'career://applications/{applicationId}',
+    mimeType: 'application/json',
+    scope: 'career:read',
+    role: 'READONLY',
+    isMcpApp: false,
+    isTemplate: true,
+    purpose:
+      'Complete lifecycle record for a tracked job application, chronological interview stages, outcomes, and attached tailored artifacts.',
+    safetyNotes: 'Sovereign multi-tenant isolated access.',
+    exampleUri: 'career://applications/3c8e42f0-91a6-455b-bfa1-7f8e32906b3e',
+  },
+];
+
+/**
+ * 4 Registered Reusable MCP Prompts Definitions.
+ */
+export const PROMPTS_CATALOG = [
+  {
+    name: 'find_matching_jobs',
+    description:
+      'Instructs the career assistant to find suitable job openings based on saved career preferences and evaluate ATS fit using verified evidence.',
+    scope: 'career:read',
+    role: 'READONLY',
+    arguments: [
+      {
+        name: 'query',
+        type: 'string',
+        required: false,
+        description: 'Optional search keywords or role title to override saved preferences.',
+      },
+      {
+        name: 'remoteOnly',
+        type: 'boolean / string',
+        required: false,
+        description: 'Whether to restrict search strictly to remote positions (true/false).',
+      },
+    ],
+    exampleUsage: 'Prompt: find_matching_jobs(query="Staff Backend Engineer", remoteOnly="true")',
+  },
+  {
+    name: 'review_resume',
+    description:
+      'Instructs the career assistant to audit a candidate resume against verified repository evidence and detect ungrounded claims.',
+    scope: 'career:read',
+    role: 'READONLY',
+    arguments: [
+      {
+        name: 'targetRole',
+        type: 'string',
+        required: false,
+        description: 'Target job title or domain to evaluate relevance against.',
+      },
+    ],
+    exampleUsage: 'Prompt: review_resume(targetRole="Staff Cloud Architect")',
+  },
+  {
+    name: 'prepare_application',
+    description:
+      'Instructs the career assistant to prepare a complete tailored application package for a target job posting.',
+    scope: 'career:write',
+    role: 'MEMBER',
+    arguments: [
+      {
+        name: 'jobId',
+        type: 'string',
+        required: true,
+        description: 'The job posting ID to prepare the application for.',
+      },
+    ],
+    exampleUsage: 'Prompt: prepare_application(jobId="job-gh-stripe-001")',
+  },
+  {
+    name: 'explain_skill_gap',
+    description:
+      'Instructs the assistant to analyze candidate skill gaps for a job and suggest open-source project improvements.',
+    scope: 'career:read',
+    role: 'READONLY',
+    arguments: [
+      {
+        name: 'jobDescription',
+        type: 'string',
+        required: true,
+        description: 'Text of the job description or requirements.',
+      },
+    ],
+    exampleUsage: 'Prompt: explain_skill_gap(jobDescription="Staff Distributed Systems...")',
+  },
+];
+
+/**
  * Returns badge markup for tool classification.
  *
  * @param {string} classification
@@ -1020,7 +1374,6 @@ function renderClassificationBadge(classification) {
       return `<span class="badge">${escapeHtml(classification)}</span>`;
   }
 }
-
 /**
  * Renders the public MCP documentation page HTML.
  *
@@ -1071,7 +1424,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
         <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div style="font-size: 0.85rem; color: #94a3b8;">
-            Total Registered Tools: <strong style="color: #f8fafc;">${TOOLS_CATALOG.length} Tools</strong> across 5 functional domains.
+            Active Registry: <strong style="color: #f8fafc;">${TOOLS_CATALOG.length} Tools</strong> (6 Domains) • <strong style="color: #f8fafc;">${RESOURCES_CATALOG.length} Resources</strong> • <strong style="color: #f8fafc;">${PROMPTS_CATALOG.length} Prompts</strong>
           </div>
           <a href="/connect" class="btn btn-primary btn-sm">
             <span>Open AI Connection Center →</span>
@@ -1082,13 +1435,15 @@ export function renderMcpDocsPage({ user = null } = {}) {
       <!-- Navigation Jump Links -->
       <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2.5rem;">
         <a href="#tools" class="btn btn-secondary btn-sm">⚡ ${TOOLS_CATALOG.length}-Tool Catalog</a>
+        <a href="#resources" class="btn btn-secondary btn-sm">📦 ${RESOURCES_CATALOG.length} Resources</a>
+        <a href="#prompts" class="btn btn-secondary btn-sm">💬 ${PROMPTS_CATALOG.length} Prompts</a>
         <a href="#auth" class="btn btn-secondary btn-sm">🔑 Authentication & Scopes</a>
         <a href="#write-safety" class="btn btn-secondary btn-sm">🛡️ Two-Phase Write Safety</a>
         <a href="#clients" class="btn btn-secondary btn-sm">🟣 Claude & ChatGPT Setup</a>
         <a href="#roadmap" class="btn btn-secondary btn-sm">🗺️ Roadmap & Standards</a>
       </div>
 
-      <!-- Section 1: Complete 24-Tool Catalog -->
+      <!-- Section 1: Complete 26-Tool Catalog -->
       <section id="tools" style="margin-bottom: 3.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
           <div>
@@ -1114,6 +1469,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
           <button type="button" class="btn btn-secondary btn-sm" onclick="filterCategory('Career Write', this)" style="font-size: 0.8rem;">Career Write (2)</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="filterCategory('Career Tracking', this)" style="font-size: 0.8rem;">Career Tracking (7)</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="filterCategory('Job Discovery & Workflow', this)" style="font-size: 0.8rem;">Job Discovery & Workflow (8)</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="filterCategory('Career Profile & Intent', this)" style="font-size: 0.8rem;">Career Profile & Intent (2)</button>
         </div>
 
         <!-- Tool Cards Container -->
@@ -1190,10 +1546,117 @@ export function renderMcpDocsPage({ user = null } = {}) {
         </div>
       </section>
 
-      <!-- Section 2: Authentication & Scopes -->
+      <!-- Section 2: Complete MCP Resources & Resource Templates -->
+      <section id="resources" style="margin-bottom: 3.5rem;">
+        <div style="margin-bottom: 1.25rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem;">
+            2. Canonical MCP Resources & Resource Templates (${RESOURCES_CATALOG.length} Resources)
+          </h2>
+          <p style="color: #94a3b8; font-size: 0.9rem;">
+            Read-only semantic resource URIs and parameterized templates exposing structured candidate intelligence, verified AST evidence, and the Job Fit Radar MCP App UI.
+          </p>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          ${RESOURCES_CATALOG.map(
+            (r) => `
+            <div class="card" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                  <code style="font-size: 0.95rem; font-weight: 600; color: #34d399; background: rgba(52, 211, 153, 0.1); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.25);">
+                    ${escapeHtml(r.uri)}
+                  </code>
+                  ${r.isMcpApp ? '<span class="badge badge-indigo">MCP App UI</span>' : '<span class="badge badge-cyan">Resource</span>'}
+                  ${r.isTemplate ? '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Template</span>' : ''}
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.8rem;">
+                  <span style="color: #64748b;">MIME:</span>
+                  <code style="color: #e2e8f0; font-size: 0.75rem;">${escapeHtml(r.mimeType)}</code>
+                  <span style="color: #64748b;">Scope:</span>
+                  <code>${escapeHtml(r.scope)}</code>
+                </div>
+              </div>
+
+              <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem; margin-bottom: 0.25rem;">
+                ${escapeHtml(r.name)}
+              </div>
+              <p style="color: #cbd5e1; font-size: 0.875rem; line-height: 1.5; margin-bottom: 0.75rem;">
+                ${escapeHtml(r.purpose)}
+              </p>
+
+              <div style="background: rgba(0, 0, 0, 0.25); border-radius: 6px; padding: 0.6rem 0.85rem; border: 1px solid var(--border-subtle); font-size: 0.8rem; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                  <strong>Read Example:</strong> <code style="color: #38bdf8;">resources/read(uri="${escapeHtml(r.exampleUri)}")</code>
+                </div>
+                <div style="font-size: 0.75rem; color: #94a3b8;">
+                  <strong>Safety:</strong> ${escapeHtml(r.safetyNotes)}
+                </div>
+              </div>
+            </div>
+          `
+          ).join('')}
+        </div>
+      </section>
+
+      <!-- Section 3: Reusable MCP Prompts -->
+      <section id="prompts" style="margin-bottom: 3.5rem;">
+        <div style="margin-bottom: 1.25rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem;">
+            3. Structured Reusable MCP Prompts (${PROMPTS_CATALOG.length} Prompts)
+          </h2>
+          <p style="color: #94a3b8; font-size: 0.9rem;">
+            Pre-engineered prompts guiding AI assistants through authentic resume audits, gap analysis, application preparation, and targeted job discovery.
+          </p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+          ${PROMPTS_CATALOG.map(
+            (p) => `
+            <div class="card" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                  <code style="font-size: 0.95rem; font-weight: 600; color: #818cf8; background: rgba(99, 102, 241, 0.1); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(99, 102, 241, 0.25);">
+                    ${escapeHtml(p.name)}
+                  </code>
+                  <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; font-size: 0.7rem;">${escapeHtml(p.scope)}</span>
+                </div>
+
+                <p style="color: #cbd5e1; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1rem;">
+                  ${escapeHtml(p.description)}
+                </p>
+
+                <div style="margin-bottom: 1rem;">
+                  <div style="font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 600; margin-bottom: 0.4rem;">Arguments</div>
+                  ${
+                    p.arguments.length === 0
+                      ? '<span style="color:#64748b; font-size:0.8rem;">No arguments required</span>'
+                      : p.arguments
+                          .map(
+                            (a) => `
+                    <div style="font-size: 0.8rem; margin-bottom: 4px; color: #cbd5e1;">
+                      <code>${escapeHtml(a.name)}</code> <span style="color:#38bdf8;">(${escapeHtml(a.type)})</span>${a.required ? ' <span style="color:#f87171;">*required</span>' : ''} — <span style="color:#94a3b8;">${escapeHtml(a.description)}</span>
+                    </div>
+                  `
+                          )
+                          .join('')
+                  }
+                </div>
+              </div>
+
+              <div style="background: rgba(0, 0, 0, 0.25); border-radius: 6px; padding: 0.5rem 0.75rem; border: 1px solid var(--border-subtle); font-size: 0.775rem; color: #a5f3fc; font-family: var(--font-mono);">
+                ${escapeHtml(p.exampleUsage)}
+              </div>
+            </div>
+          `
+          ).join('')}
+        </div>
+      </section>
+
+      <!-- Section 4: Authentication & Scopes -->
       <section id="auth" style="margin-bottom: 3.5rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
-          2. Authentication, OAuth 2.1 & Scopes
+          4. Authentication, OAuth 2.1 & Scopes
         </h2>
         <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Career Hub supports two official authentication mechanisms. All MCP endpoints require an <code>Authorization: Bearer &lt;token&gt;</code> header.
@@ -1243,22 +1706,22 @@ export function renderMcpDocsPage({ user = null } = {}) {
               <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
                 <td style="padding: 10px 16px;"><code>career:read</code></td>
                 <td style="padding: 10px 16px;"><span class="badge" style="background: rgba(255, 255, 255, 0.05); color: #94a3b8;">READONLY</span></td>
-                <td style="padding: 10px 16px; color: #cbd5e1;">Inspect candidate profile, AST-verified skills, evidence items, job fit scores, portfolio rankings, and active application lists.</td>
+                <td style="padding: 10px 16px; color: #cbd5e1;">Inspect candidate profile, AST-verified skills, evidence items, job fit scores, portfolio rankings, resources, prompts, and active application lists.</td>
               </tr>
               <tr>
                 <td style="padding: 10px 16px;"><code>career:write</code></td>
                 <td style="padding: 10px 16px;"><span class="badge badge-indigo">MEMBER</span></td>
-                <td style="padding: 10px 16px; color: #cbd5e1;">Synthesize tailored resumes, draft cover letters, track job applications, update pipeline stages, propose diff improvements, and confirm GitHub Draft PRs.</td>
+                <td style="padding: 10px 16px; color: #cbd5e1;">Synthesize tailored resumes, draft cover letters, track job applications, update pipeline stages, update preferences, propose diff improvements, and confirm GitHub Draft PRs.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <!-- Section 3: Two-Phase Write Safety -->
+      <!-- Section 5: Two-Phase Write Safety -->
       <section id="write-safety" style="margin-bottom: 3.5rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
-          3. Two-Phase Write Safety State Machine
+          5. Two-Phase Write Safety State Machine
         </h2>
         <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           To guarantee zero unauthorized code modifications, Career Hub strictly implements an <strong>Inverse Authority State Machine</strong>:
@@ -1267,20 +1730,20 @@ export function renderMcpDocsPage({ user = null } = {}) {
         <div class="card" style="border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.03);">
           <div style="font-family: var(--font-mono); font-size: 0.85rem; color: #6ee7b7; background: rgba(15, 23, 42, 0.8); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-subtle); line-height: 1.8; margin-bottom: 1.25rem;">
             [1. AI Proposes Improvement]  --> calls: propose_project_improvement<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
             [2. Server Gating Kernel]     --> Generates Unified Diff + Action Approval Ticket (HMAC-SHA256 signed)<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
             [3. Candidate Review]         --> Candidate inspects exact diff in chat UI or web console<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
-            [4. Candidate Confirms]       --> AI calls: confirm_and_create_pr(ticketId, candidateConfirmation: true)<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
+            [4. Candidate Confirms]       --> AI calls: confirm_and_create_pr(ticketId, confirmed: true)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
             [5. Server Verification]      --> Verifies ticket signature, expiry, and remote HEAD SHA<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
             [6. GitHub Draft PR Opened]   --> Creates branch: feat/career-hub-* & opens Draft Pull Request
           </div>
 
@@ -1290,10 +1753,10 @@ export function renderMcpDocsPage({ user = null } = {}) {
         </div>
       </section>
 
-      <!-- Section 4: AI Client Setup Guides -->
+      <!-- Section 6: AI Client Setup Guides -->
       <section id="clients" style="margin-bottom: 3.5rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
-          4. AI Client Setup & Configuration
+          6. AI Client Setup & Configuration
         </h2>
         <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Step-by-step guides for connecting Claude, ChatGPT, and Gemini.
@@ -1355,19 +1818,19 @@ export function renderMcpDocsPage({ user = null } = {}) {
         </div>
       </section>
 
-      <!-- Section 5: Official MCP Registry & MCP Apps Architecture -->
+      <!-- Section 7: Official MCP Registry & MCP Apps Architecture -->
       <section id="registry-and-apps" style="margin-bottom: 3.5rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
-          5. Official MCP Registry Metadata & MCP Apps (SEP-1865)
+          7. Official MCP Registry Metadata & MCP Apps (SEP-1865)
         </h2>
         <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Standards-compliant metadata for decentralized discovery on <code>registry.modelcontextprotocol.io</code> and interactive sandboxed UI extensions.
         </p>
 
-        <!-- Subsection 5.1: MCP Registry Metadata -->
+        <!-- Subsection 7.1: MCP Registry Metadata -->
         <div class="card" style="margin-bottom: 1.5rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">5.1 Official Registry Manifest (<code>server.json</code>)</h3>
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">7.1 Official Registry Manifest (<code>server.json</code>)</h3>
             <span class="badge badge-claimed">PLANNED / NOT PUBLISHED</span>
           </div>
           <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem;">
@@ -1414,10 +1877,10 @@ export function renderMcpDocsPage({ user = null } = {}) {
 }</pre>
         </div>
 
-        <!-- Subsection 5.2: MCP Apps UI Extension -->
+        <!-- Subsection 7.2: MCP Apps UI Extension -->
         <div class="card" style="margin-bottom: 1.5rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">5.2 MCP Apps UI Extension (<code>io.modelcontextprotocol/ui</code>)</h3>
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">7.2 MCP Apps UI Extension (<code>io.modelcontextprotocol/ui</code>)</h3>
             <span class="badge badge-verified">PLANNED / NOT IMPLEMENTED (MVP DEMO AVAILABLE)</span>
           </div>
           <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem;">
@@ -1487,10 +1950,10 @@ export function renderMcpDocsPage({ user = null } = {}) {
         </div>
       </section>
 
-      <!-- Section 6: Roadmap & Architectural Standards -->
+      <!-- Section 8: Roadmap & Architectural Standards -->
       <section id="roadmap" style="margin-bottom: 3.5rem;">
         <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
-          6. Roadmap & Architectural Boundaries
+          8. Roadmap & Architectural Boundaries
         </h2>
         <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Explicit distinction between currently implemented features and future planned capabilities.
@@ -1503,7 +1966,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
               <span class="badge badge-verified">AVAILABLE</span>
             </div>
             <p style="font-size: 0.825rem; color: #94a3b8; line-height: 1.5;">
-              All 16 registered tools, Streamable HTTP JSON-RPC 2.0 protocol, and OAuth 2.1 RFC 8414 / RFC 9728 discovery are fully operational.
+              All 26 registered tools across 6 domains, 8 resources, 4 prompts, Streamable HTTP JSON-RPC 2.0 protocol, and OAuth 2.1 RFC 8414 / RFC 9728 discovery are fully operational.
             </p>
           </div>
 

@@ -98,6 +98,12 @@ export const OAuthAuthorizeQuerySchema = z
     code_challenge_method: z.literal('S256', {
       errorMap: () => ({ message: 'OAuth 2.1 requires code_challenge_method=S256.' }),
     }),
+    // Standard OIDC extension parameters (e.g. ui_locales from ChatGPT) are
+    // tolerated but ignored. Only the required OAuth 2.1 + PKCE fields above
+    // are validated and used.
+    ui_locales: z.string().optional(),
+    prompt: z.string().optional(),
+    login_hint: z.string().optional(),
   })
   .strict();
 
@@ -123,6 +129,35 @@ export const OAuthConsentBodySchema = z
     }),
   })
   .strict();
+
+/**
+ * Schema for POST /oauth/register — RFC 7591 Dynamic Client Registration.
+ * Used by ChatGPT, Claude, and other MCP clients that generate their own
+ * client_id via the registration endpoint.
+ */
+export const OAuthClientRegistrationSchema = z
+  .object({
+    client_name: z.string().min(1, 'client_name is required').max(128),
+    redirect_uris: z
+      .array(z.string().url('Each redirect_uri must be a valid URL'))
+      .min(1, 'At least one redirect_uri is required')
+      .max(10, 'Maximum 10 redirect URIs allowed'),
+    grant_types: z
+      .array(z.enum(['authorization_code', 'refresh_token']))
+      .optional()
+      .default(['authorization_code']),
+    response_types: z
+      .array(z.enum(['code']))
+      .optional()
+      .default(['code']),
+    token_endpoint_auth_method: z
+      .enum(['none', 'client_secret_post', 'client_secret_basic'])
+      .optional()
+      .default('none'),
+    // RFC 7591 also allows arbitrary JSON metadata — we use .passthrough()
+    // so unknown fields from ChatGPT/Claude don't cause validation failures.
+  })
+  .passthrough();
 
 /**
  * Schema for POST /oauth/token Request Body (RFC 6749 & RFC 8707).

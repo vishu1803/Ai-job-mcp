@@ -58,13 +58,7 @@ export class ResumeTailoringService {
     }
     const res = SkillTaxonomyEngine.normalizeSkill(rawInput, options);
     if (!res) {
-      const slug =
-        typeof rawInput === 'string'
-          ? rawInput
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/^-|-$/g, '')
-          : 'unknown-tool';
+      const slug = SkillTaxonomyEngine.generateSafeSlug(rawInput);
       return {
         canonicalSlug: slug || 'unknown-tool',
         preferredTerm: rawInput || 'Unknown Tool',
@@ -1045,8 +1039,10 @@ export class ResumeTailoringService {
     for (const project of projects) {
       if (Array.isArray(project.evidence)) {
         for (const ev of project.evidence) {
-          if (ev.id) {
-            map.set(ev.id, {
+          const evId = ev.id || ev.evidenceId;
+          if (evId) {
+            map.set(evId, {
+              id: evId,
               ...ev,
               tenantId: candidateProfile.tenantId,
               candidateId: candidateProfile.id,

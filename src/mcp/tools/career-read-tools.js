@@ -17,7 +17,7 @@
  * - Zero Database Mutations: Read-only queries only.
  */
 
-import { eq, and, desc, asc, count, ilike, gte, sql } from 'drizzle-orm';
+import { eq, and, or, desc, asc, count, ilike, gte, sql } from 'drizzle-orm';
 import { db as defaultDb } from '../../db/index.js';
 import {
   candidates,
@@ -34,6 +34,7 @@ import { JobDescriptionParser } from '../../domain/career/job-parser.js';
 import { EvidenceMatchingService } from '../../services/evidence-matching.service.js';
 import { ProjectRelevanceService } from '../../services/project-relevance.service.js';
 import { AtsFitScoreService } from '../../services/ats-fit-score.service.js';
+import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import {
   GetCandidateProfileInputSchema,
@@ -514,7 +515,8 @@ export async function handleInspectProjectEvidence(context, rawArgs, deps = {}) 
   }
 
   if (args.skillSlug) {
-    conditions.push(ilike(skills.slug, args.skillSlug));
+    const safeSlug = SkillTaxonomyEngine.generateSafeSlug(args.skillSlug);
+    conditions.push(or(ilike(skills.slug, args.skillSlug), ilike(skills.slug, safeSlug)));
   }
 
   // 4. Count total matching evidence

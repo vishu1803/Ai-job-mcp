@@ -11,7 +11,7 @@ describe('Phase 2 Web Routes & Frozen Design System Integration Tests (P14-003A)
     await closeDatabase(pool);
   });
 
-  test('1. GET /docs/mcp renders 200 OK and complete 16-tool protocol catalog', async () => {
+  test('1. GET /docs/mcp renders 200 OK and complete 26-tool protocol catalog', async () => {
     const response = await app.inject({
       method: 'GET',
       url: '/docs/mcp',
@@ -24,6 +24,8 @@ describe('Phase 2 Web Routes & Frozen Design System Integration Tests (P14-003A)
     assert.match(response.payload, /list_verified_skills/);
     assert.match(response.payload, /analyze_job_fit/);
     assert.match(response.payload, /track_job_application/);
+    assert.match(response.payload, /career:\/\/profile/);
+    assert.match(response.payload, /find_matching_jobs/);
   });
 
   test('2. Unauthenticated access to /applications redirects to /login with returnTo', async () => {

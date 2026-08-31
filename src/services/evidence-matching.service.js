@@ -11,6 +11,7 @@
  * - ADR-031 / ADR-033 (docs/decisions.md)
  */
 
+import crypto from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
@@ -285,6 +286,35 @@ export class EvidenceMatchingService {
           }
         } else {
           skillsBySlug.set(canonicalSlug, skill);
+        }
+      }
+    }
+
+    // Also index verified skills demonstrated in project evidence
+    for (const project of projects) {
+      if (Array.isArray(project.evidence)) {
+        for (const ev of project.evidence) {
+          const rawSkillName = ev.skillSlug || ev.skillName;
+          if (rawSkillName) {
+            const norm = SkillTaxonomyEngine.normalizeSkill(rawSkillName);
+            const canonicalSlug = norm?.canonicalSlug;
+            if (canonicalSlug && !skillsBySlug.has(canonicalSlug)) {
+              const evidenceRef = {
+                id: ev.id || ev.evidenceId || crypto.randomUUID(),
+                ...ev,
+                resourceId: ev.resourceId || project.id || crypto.randomUUID(),
+              };
+              skillsBySlug.set(canonicalSlug, {
+                id: ev.skillId || crypto.randomUUID(),
+                slug: canonicalSlug,
+                name: norm.canonicalName || ev.skillName || rawSkillName,
+                provenanceStatus: 'VERIFIED',
+                confidenceScore: ev.confidenceScore ?? 1.0,
+                evidenceItems: [evidenceRef],
+                primaryEvidence: evidenceRef,
+              });
+            }
+          }
         }
       }
     }
@@ -1541,15 +1571,21 @@ export class EvidenceMatchingService {
     const top3 = sorted.slice(0, 3);
 
     return top3.map((ev) => {
-      const resName = resourceMap.get(ev.resourceId) || 'Repository';
+      const evidenceId = ev.id || ev.evidenceId || crypto.randomUUID();
+      const resourceId = ev.resourceId || crypto.randomUUID();
+      const resName = resourceMap.get(resourceId) || resourceMap.get(ev.resourceId) || 'Repository';
       return {
-        id: ev.id,
-        resourceId: ev.resourceId,
+        id: evidenceId,
+        resourceId,
         resourceName: resName,
-        evidenceType: ev.evidenceType,
-        filePath: ev.sourceLocation?.filePath || 'unknown/file',
-        commitSha: ev.sourceLocation?.commitSha || null,
-        lineRange: ev.sourceLocation?.lineRange || null,
+        evidenceType: ev.evidenceType || 'CODE_USAGE',
+        filePath: ev.sourceLocation?.filePath || ev.filePath || 'unknown/file',
+        commitSha:
+          typeof (ev.sourceLocation?.commitSha || ev.commitSha) === 'string' &&
+          /^[0-9a-fA-F]{40}$/.test(ev.sourceLocation?.commitSha || ev.commitSha)
+            ? ev.sourceLocation?.commitSha || ev.commitSha
+            : null,
+        lineRange: ev.sourceLocation?.lineRange || ev.lineRange || null,
         excerpt: ev.excerpt || null,
         confidenceScore: ev.confidenceScore ?? 1.0,
         detectedAt: ev.detectedAt ? new Date(ev.detectedAt).toISOString() : undefined,

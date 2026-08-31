@@ -291,11 +291,20 @@ export class ResumeIntegrityAuditService {
           assertionsById.set(ass.assertionId, ass);
         }
         if (ass.subjectSlug) {
-          const slug = ass.subjectSlug.toLowerCase();
+          const slug = SkillTaxonomyEngine.generateSafeSlug(ass.subjectSlug);
           if (!assertionsBySlug.has(slug)) {
             assertionsBySlug.set(slug, []);
           }
           assertionsBySlug.get(slug).push(ass);
+
+          // Categorize by status
+          if (ass.status === 'VERIFIED') {
+            verifiedSkills.add(slug);
+          } else if (ass.status === 'INFERRED') {
+            inferredSkills.add(slug);
+          } else if (ass.status === 'CLAIMED') {
+            claimedSkills.add(slug);
+          }
         }
 
         // Index EvidenceRefs
@@ -307,15 +316,6 @@ export class ResumeIntegrityAuditService {
             }
           }
         }
-
-        // Categorize by status
-        if (ass.status === 'VERIFIED') {
-          if (ass.subjectSlug) verifiedSkills.add(ass.subjectSlug.toLowerCase());
-        } else if (ass.status === 'INFERRED') {
-          if (ass.subjectSlug) inferredSkills.add(ass.subjectSlug.toLowerCase());
-        } else if (ass.status === 'CLAIMED') {
-          if (ass.subjectSlug) claimedSkills.add(ass.subjectSlug.toLowerCase());
-        }
       }
     }
 
@@ -323,8 +323,10 @@ export class ResumeIntegrityAuditService {
     if (candidateProfile) {
       if (Array.isArray(candidateProfile.skills)) {
         for (const s of candidateProfile.skills) {
-          const slug = (s.slug || s.canonicalSlug || s.skillSlug || s.name || '').toLowerCase();
-          if (slug) {
+          const slug = SkillTaxonomyEngine.generateSafeSlug(
+            s.slug || s.canonicalSlug || s.skillSlug || s.name || ''
+          );
+          if (slug && slug !== 'unknown-tool') {
             if (s.provenanceStatus === 'VERIFIED' || s.status === 'VERIFIED') {
               verifiedSkills.add(slug);
             } else if (s.provenanceStatus === 'INFERRED' || s.status === 'INFERRED') {

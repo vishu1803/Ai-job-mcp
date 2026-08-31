@@ -24,8 +24,13 @@ export function errorHandler(error, request, reply) {
     contentType.includes('application/x-www-form-urlencoded') ||
     (accept.includes('text/html') && !accept.includes('application/json'));
 
-  // For browser form POST errors, redirect to login with error info instead of returning JSON
-  if (isBrowserForm && error.statusCode && error.statusCode < 500) {
+  // For browser form POST errors (except security violations like CSRF), redirect to login with error info
+  if (
+    isBrowserForm &&
+    error.statusCode &&
+    error.statusCode < 500 &&
+    error.code !== 'CSRF_DETECTED'
+  ) {
     return reply
       .code(302)
       .redirect('/login?error=' + encodeURIComponent(error.message || 'Session error'));

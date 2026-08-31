@@ -179,7 +179,7 @@ export function renderLandingPage({ user = null } = {}) {
       <!-- Supported AI Clients Banner -->
       <section class="card" style="margin-bottom:64px; text-align:center; padding:36px;">
         <h3 style="font-size:1.25rem; font-weight:700; margin-bottom:8px;">Connect to Any Leading AI Assistant</h3>
-        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px;">Use Career Hub's 16-tool MCP catalog directly inside your favorite workflow.</p>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px;">Use Career Hub's 26-tool MCP catalog directly inside your favorite workflow.</p>
         
         <div style="display:flex; justify-content:center; align-items:center; gap:32px; flex-wrap:wrap;">
           <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); padding:10px 20px; border-radius:10px; border:1px solid var(--border-subtle);">

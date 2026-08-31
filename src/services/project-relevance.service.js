@@ -886,7 +886,7 @@ export class ProjectRelevanceService {
     const result = {
       projectId: project.id,
       projectName: project.name,
-      projectSlug: project.slug,
+      projectSlug: SkillTaxonomyEngine.generateSafeSlug(project.slug || project.name || 'project'),
       projectType,
       relevanceScore: totalScore,
       relevanceBand,

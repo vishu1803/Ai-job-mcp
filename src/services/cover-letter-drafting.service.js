@@ -58,13 +58,7 @@ export class CoverLetterDraftingService {
     }
     const res = SkillTaxonomyEngine.normalizeSkill(rawInput, options);
     if (!res) {
-      const slug =
-        typeof rawInput === 'string'
-          ? rawInput
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/^-|-$/g, '')
-          : '';
+      const slug = SkillTaxonomyEngine.generateSafeSlug(rawInput);
       return {
         canonicalSlug: slug || 'unknown-tool',
         preferredTerm: rawInput || 'Unknown Tool',
@@ -879,8 +873,10 @@ export class CoverLetterDraftingService {
     for (const project of projects) {
       const evidenceList = Array.isArray(project.evidence) ? project.evidence : [];
       for (const ev of evidenceList) {
-        if (ev && ev.id) {
-          index[ev.id] = {
+        const evId = ev?.id || ev?.evidenceId;
+        if (evId) {
+          index[evId] = {
+            id: evId,
             ...ev,
             tenantId: candidateProfile.tenantId,
             candidateId: candidateProfile.id,
