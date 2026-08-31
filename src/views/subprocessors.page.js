@@ -77,7 +77,7 @@ export function renderSubprocessorsPage({ user = null, tenant = null } = {}) {
   `;
 
   return renderLayout({
-    title: 'Subprocessors | Antigravity Career Hub',
+    title: 'Subprocessors',
     content,
     user,
     tenant,

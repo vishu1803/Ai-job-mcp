@@ -38,9 +38,7 @@ export function renderProjectsPage({
     : renderProjectsList({ projects, user, tenant, currentTab, error, success });
 
   return renderLayout({
-    title: isDetail
-      ? `${selectedProject.name} — Project Inspection`
-      : 'Portfolio Projects — Antigravity Career Hub',
+    title: isDetail ? `${selectedProject.name} — Project Inspection` : 'Portfolio Projects',
     content,
     activeNav: 'projects',
     user,

@@ -391,7 +391,10 @@ export class EvidenceMatchingService {
         : [];
     // Also include primaryEvidence if present
     const allEvidence = [...rawEvidenceList];
-    if (candidateSkill.primaryEvidence && !allEvidence.some((e) => e.id === candidateSkill.primaryEvidence.id)) {
+    if (
+      candidateSkill.primaryEvidence &&
+      !allEvidence.some((e) => e.id === candidateSkill.primaryEvidence.id)
+    ) {
       allEvidence.push(candidateSkill.primaryEvidence);
     }
     const evidenceRefs = EvidenceMatchingService._selectEvidenceRefs(allEvidence, resourceMap);

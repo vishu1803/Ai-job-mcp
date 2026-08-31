@@ -104,6 +104,25 @@ export function renderApplicationsPage({
         <span class="current">Job Applications Tracker</span>
       </div>
 
+      <!-- Architecture Pipeline Banner -->
+      <div class="pipeline-banner">
+        <div class="pipeline-header">
+          <span class="pipeline-title">Application Pipeline & Tracking</span>
+          <span style="font-size:0.75rem; color:var(--text-dim);">Multi-Stage Career Pipeline</span>
+        </div>
+        <div class="pipeline-steps">
+          <div class="pipeline-step"><span>📌</span> Saved Leads</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>📩</span> Applied</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step active"><span>⚡</span> Interviewing</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🎉</span> Offer</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>📋</span> Artifacts</div>
+        </div>
+      </div>
+
       <!-- Flash & Error Messages -->
       ${flashMessage ? `<div class="alert alert-success">${escapeHtml(flashMessage)}</div>` : ''}
       ${errorMessage ? `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>` : ''}

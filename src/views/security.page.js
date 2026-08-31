@@ -70,7 +70,7 @@ export function renderSecurityPage({ user = null, tenant = null } = {}) {
   `;
 
   return renderLayout({
-    title: 'Security Architecture | Antigravity Career Hub',
+    title: 'Security Architecture',
     content,
     user,
     tenant,

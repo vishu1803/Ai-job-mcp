@@ -105,7 +105,7 @@ export function renderLandingPage({ user = null } = {}) {
 
           <div class="card" style="border-left: 3px solid var(--accent-emerald);">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-              <span class="badge badge-verified">Antigravity Career Hub</span>
+              <span class="badge badge-verified">AI Careers Hub</span>
             </div>
             <h3 style="font-size:1.15rem; font-weight:600; margin-bottom:10px;">Repository-Anchored Proof</h3>
             <ul style="list-style:none; color:var(--text-muted); font-size:0.9rem; display:flex; flex-direction:column; gap:8px;">

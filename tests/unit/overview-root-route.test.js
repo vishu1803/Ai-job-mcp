@@ -67,7 +67,7 @@ describe('Overview / Root Route — Authenticated & Public States', () => {
 
     assert.equal(response.statusCode, 200);
     const json = JSON.parse(response.payload);
-    assert.equal(json.name, 'Antigravity Career Hub API');
+    assert.equal(json.name, 'AI Careers Hub API');
     assert.equal(json.status, 'operational');
     assert.equal(json.mcpEndpoint, '/mcp');
   });

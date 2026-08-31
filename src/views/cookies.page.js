@@ -20,7 +20,7 @@ export function renderCookiesPage({ user = null, tenant = null } = {}) {
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem;">1. Zero Third-Party Tracking Statement</h2>
           <p>
-            Antigravity Career Hub strictly respects your privacy. We <strong>do not use any third-party tracking, advertising, behavioral analytics, or marketing cookies</strong>. We only use strictly necessary first-party cookies essential for user authentication, session security, and CSRF prevention.
+            AI Careers Hub strictly respects your privacy. We <strong>do not use any third-party tracking, advertising, behavioral analytics, or marketing cookies</strong>. We only use strictly necessary first-party cookies essential for user authentication, session security, and CSRF prevention.
           </p>
         </section>
 
@@ -83,7 +83,7 @@ export function renderCookiesPage({ user = null, tenant = null } = {}) {
   `;
 
   return renderLayout({
-    title: 'Cookie Policy | Antigravity Career Hub',
+    title: 'Cookie Policy',
     content,
     user,
     tenant,

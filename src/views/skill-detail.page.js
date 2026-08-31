@@ -85,7 +85,7 @@ export function renderSkillDetailPage({
       </div>
 
       <!-- Skill Header Card -->
-      <div class="card" style="padding:28px 32px; margin-bottom:28px; background:linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);">
+      <div class="card" style="padding:28px 32px; margin-bottom:28px; background:var(--bg-surface-elevated);">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
           <div>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">

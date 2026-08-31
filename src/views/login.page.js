@@ -21,7 +21,7 @@ export function renderLoginPage({ returnTo = '', error = '', user = null } = {})
     : '/auth/github';
 
   const content = `
-    <div class="container" style="max-width:540px; margin: 40px auto 60px;">
+    <div class="container" style="max-width:680px; margin: 40px auto 60px;">
       <div class="card" style="padding: 36px 32px; text-align:center;">
         <div class="brand-icon" style="width:48px; height:48px; margin:0 auto 20px; font-size:1.3rem;">AG</div>
         

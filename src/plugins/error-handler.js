@@ -26,7 +26,9 @@ export function errorHandler(error, request, reply) {
 
   // For browser form POST errors, redirect to login with error info instead of returning JSON
   if (isBrowserForm && error.statusCode && error.statusCode < 500) {
-    return reply.code(302).redirect('/login?error=' + encodeURIComponent(error.message || 'Session error'));
+    return reply
+      .code(302)
+      .redirect('/login?error=' + encodeURIComponent(error.message || 'Session error'));
   }
 
   // 1. If error is an AppError instance (known operational domain error)

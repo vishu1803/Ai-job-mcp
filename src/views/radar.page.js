@@ -58,7 +58,7 @@ export function renderRadarFormPage({ user = null, tenant: _tenant = null, error
             <div class="form-hint">Paste the complete job posting for best results. Minimum 50 characters.</div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;" class="grid-2col">
             <div class="form-group">
               <label for="jobTitle" class="form-label">Job Title</label>
               <input type="text" id="jobTitle" name="jobTitle" class="form-control" placeholder="e.g. Senior Software Engineer" />
@@ -69,7 +69,7 @@ export function renderRadarFormPage({ user = null, tenant: _tenant = null, error
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;" class="grid-2col">
             <div class="form-group">
               <label for="targetRoleLevel" class="form-label">Level</label>
               <select id="targetRoleLevel" name="targetRoleLevel" class="form-select">
@@ -450,7 +450,7 @@ function renderEmbeddedRadarWidget(data) {
 
       <!-- Evidence Footer -->
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border-subtle); font-size: 0.75rem; color: #64748b;">
-        <span>Antigravity Career Hub · Job Fit Radar</span>
+        <span>AI Careers Hub · Job Fit Radar</span>
         <span>${evidence.verifiedSkillsCount || 0} Verified Skills · ${evidence.totalEvidenceItemsCited || 0} Evidence Citations</span>
       </div>
     </div>

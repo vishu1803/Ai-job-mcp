@@ -34,7 +34,7 @@ export function renderLayout({
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${safeTitle} | Antigravity Career Hub</title>
+  <title>${safeTitle} | AI Careers Hub</title>
   <meta name="description" content="${safeDesc}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -101,10 +101,6 @@ export function renderLayout({
 
     body {
       background-color: var(--bg-primary);
-      background-image: 
-        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.06) 0%, transparent 45%);
-      background-attachment: fixed;
       color: var(--text-main);
       font-family: var(--font-sans);
       line-height: 1.6;
@@ -1245,7 +1241,7 @@ export function renderLayout({
       <a href="/" class="brand">
         <div class="brand-icon">AG</div>
         <span>Career Hub</span>
-        <span class="brand-badge">MCP</span>
+        <span class="brand-badge">${process.env.NODE_ENV === 'production' ? 'PROD' : process.env.NODE_ENV === 'staging' ? 'STAGING' : 'DEV'}</span>
       </a>
 
       <nav>
@@ -1255,7 +1251,7 @@ export function renderLayout({
             userLoggedIn
               ? `
           <li class="nav-dropdown">
-            <button class="nav-dropdown-btn ${['dashboard', 'projects', 'skills', 'applications'].includes(activeNav) ? 'active' : ''}" aria-expanded="false" aria-haspopup="true">
+            <button class="nav-dropdown-btn ${['dashboard', 'projects', 'skills', 'applications', 'profile'].includes(activeNav) ? 'active' : ''}" aria-expanded="false" aria-haspopup="true">
               <span>Career</span>
               <span class="nav-chevron">▾</span>
             </button>
@@ -1299,7 +1295,7 @@ export function renderLayout({
           </li>
 
           <li class="nav-dropdown">
-            <button class="nav-dropdown-btn ${['sources', 'resumes'].includes(activeNav) ? 'active' : ''}" aria-expanded="false" aria-haspopup="true">
+            <button class="nav-dropdown-btn ${['sources', 'resumes', 'radar'].includes(activeNav) ? 'active' : ''}" aria-expanded="false" aria-haspopup="true">
               <span>Sources</span>
               <span class="nav-chevron">▾</span>
             </button>
@@ -1361,6 +1357,20 @@ export function renderLayout({
                 <div class="user-dropdown-name">${escapeHtml(user.displayName || 'Candidate')}</div>
                 <div class="user-dropdown-email">${escapeHtml(user.email || '')}</div>
               </div>
+              <a href="/connect" class="nav-dropdown-item ${activeNav === 'connect' ? 'active' : ''}">
+                <span class="item-icon">🔑</span>
+                <div class="item-text">
+                  <div class="item-title">API Tokens</div>
+                  <div class="item-desc">MCP personal tokens</div>
+                </div>
+              </a>
+              <a href="/docs/mcp" class="nav-dropdown-item ${activeNav === 'docs' ? 'active' : ''}">
+                <span class="item-icon">📖</span>
+                <div class="item-text">
+                  <div class="item-title">Documentation</div>
+                  <div class="item-desc">MCP tool reference</div>
+                </div>
+              </a>
               <a href="/settings" class="nav-dropdown-item ${activeNav === 'settings' ? 'active' : ''}">
                 <span class="item-icon">⚙️</span>
                 <div class="item-text">
@@ -1442,7 +1452,7 @@ export function renderLayout({
     <div class="container footer-inner" style="flex-direction: column; gap: 1.5rem; padding: 2.5rem 1.5rem 2rem;">
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 2rem; width: 100%;">
         <div>
-          <p style="font-size: 1.05rem; font-weight: 700; color: #f8fafc;">Antigravity Career Hub</p>
+          <p style="font-size: 1.05rem; font-weight: 700; color: #f8fafc;">AI Careers Hub</p>
           <p style="margin-top: 4px; font-size: 0.85rem; color: var(--text-dim); max-width: 450px; line-height: 1.5;">
             Universal Model Context Protocol (MCP) Server for evidence-grounded career intelligence & seamless AI agent orchestration.
           </p>
@@ -1472,7 +1482,7 @@ export function renderLayout({
         </div>
       </div>
       <div style="border-top: 1px solid var(--border-subtle); padding-top: 1rem; width: 100%; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; font-size: 0.8rem; color: #64748b;">
-        <span>© 2026 Antigravity Career Hub. Zero-hallucination evidence model.</span>
+        <span>© 2026 AI Careers Hub. Zero-hallucination evidence model.</span>
         <a href="https://github.com/vishu1803/Ai-job-mcp" target="_blank" rel="noopener" style="color: #94a3b8;">GitHub Repository</a>
       </div>
     </div>

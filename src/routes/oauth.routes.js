@@ -73,7 +73,7 @@ function renderConsentHtml({ client, user, tenant, scopes, params }) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Authorize ${escapeHtml(clientName)} - Antigravity Career Hub</title>
+  <title>Authorize ${escapeHtml(clientName)} - AI Careers Hub</title>
   <style>
     :root {
       --bg-color: #0b0f19;

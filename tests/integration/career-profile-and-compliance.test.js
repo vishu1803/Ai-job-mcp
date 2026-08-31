@@ -154,7 +154,7 @@ describe('Career Profile, MCP Completeness & Public Compliance (P14-004C)', () =
 
       assert.equal(res.statusCode, 200, `Route ${route} must return 200 OK`);
       assert.ok(
-        res.body.includes('Antigravity Career Hub'),
+        res.body.includes('AI Careers Hub'),
         `Route ${route} must include brand header`
       );
       assert.ok(

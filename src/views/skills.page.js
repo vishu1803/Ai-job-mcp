@@ -248,6 +248,25 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
         <span class="current">Verified Skills Graph</span>
       </div>
 
+      <!-- Architecture Pipeline Banner -->
+      <div class="pipeline-banner">
+        <div class="pipeline-header">
+          <span class="pipeline-title">Skills & Evidence Taxonomy Pipeline</span>
+          <span style="font-size:0.75rem; color:var(--text-dim);">5-Tier Truth Classification</span>
+        </div>
+        <div class="pipeline-steps">
+          <div class="pipeline-step"><span>📦</span> Repository AST</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step active"><span>⚡</span> Verified Skills</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🏷️</span> Truth Classification</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>📎</span> Evidence Citations</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🤖</span> AI Context</div>
+        </div>
+      </div>
+
       <!-- Header -->
       <div class="page-header" style="margin-bottom:24px;">
         <div>
@@ -542,7 +561,7 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
   `;
 
   return renderLayout({
-    title: 'Verified Skills Graph — Antigravity Career Hub',
+    title: 'Verified Skills Graph',
     content,
     activeNav: 'skills',
     user,

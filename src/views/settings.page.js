@@ -17,7 +17,7 @@ export function renderSettingsPage({ user, tenant }) {
   const content = `
     <div class="container" style="max-width:760px; margin: 20px auto 60px;">
       <!-- Back Navigation -->
-      <a href="/dashboard" style="display:inline-flex; align-items:center; gap:6px; font-size:0.85rem; color:var(--text-muted); text-decoration:none; margin-bottom:16px; transition:color 0.15s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">
+      <a href="/dashboard" class="back-nav-link">
         <span aria-hidden="true">←</span> Back to Dashboard
       </a>
 

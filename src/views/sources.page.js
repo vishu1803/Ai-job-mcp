@@ -263,7 +263,7 @@ export function renderSourcesPage({
   `;
 
   return renderLayout({
-    title: 'Connected Sources — Antigravity Career Hub',
+    title: 'Connected Sources',
     content,
     activeNav: 'sources',
     user,

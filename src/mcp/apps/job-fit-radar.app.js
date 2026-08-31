@@ -453,7 +453,7 @@ export function renderJobFitRadarAppHtml(initialData = null) {
     </div>
 
     <div class="footer-bar">
-      <span>Antigravity Career Hub MCP App • SEP-1865 Compliant</span>
+      <span>AI Careers Hub MCP App • SEP-1865 Compliant</span>
       <span id="evidence-summary-text">Verified AST Evidence</span>
     </div>
   </div>

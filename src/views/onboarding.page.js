@@ -279,7 +279,7 @@ function renderStep2GitHub({ connection, isGitHubConnected }) {
                 ${
                   isGitHubConnected
                     ? `Connected Account: <strong>${escapeHtml(connection.externalAccountName || connection.displayName)}</strong> (Installation ID: <code>${escapeHtml(connection.installationId || 'linked')}</code>)`
-                    : 'Install the official Antigravity Career Hub GitHub App on your account or organization.'
+                    : 'Install the official AI Careers Hub GitHub App on your account or organization.'
                 }
               </p>
             </div>

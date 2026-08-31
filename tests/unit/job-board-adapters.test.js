@@ -48,7 +48,8 @@ describe('GreenhouseAdapter', () => {
             updated_at: '2026-08-20T10:00:00Z',
             location: { name: 'San Francisco, CA' },
             absolute_url: 'https://boards.greenhouse.io/testcompany/jobs/12345',
-            content: '<p>We are looking for a <strong>Python</strong> and <strong>React</strong> engineer.</p><li>Build APIs</li><li>Write tests</li>',
+            content:
+              '<p>We are looking for a <strong>Python</strong> and <strong>React</strong> engineer.</p><li>Build APIs</li><li>Write tests</li>',
             departments: [{ id: 1, name: 'Engineering' }],
             offices: [{ id: 1, name: 'SF Office', location: 'San Francisco, CA' }],
           },

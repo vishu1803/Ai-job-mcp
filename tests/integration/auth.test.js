@@ -509,7 +509,7 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
 
     assert.strictEqual(res.statusCode, 200);
     const body = JSON.parse(res.payload);
-    assert.strictEqual(body.message, 'Welcome to Antigravity Career Hub Dashboard');
+    assert.strictEqual(body.message, 'Welcome to AI Careers Hub Dashboard');
     assert.strictEqual(body.user.id, createdUserId);
     assert.strictEqual(body.user.displayName, `Developer ${testRunId}`);
     assert.strictEqual(body.user.role, 'OWNER');

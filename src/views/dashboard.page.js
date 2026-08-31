@@ -123,7 +123,7 @@ export function renderDashboardPage({
       </div>
 
       <!-- Profile Header Card -->
-      <div class="card" style="padding:28px 32px; margin-bottom:28px; background:linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);">
+      <div class="card" style="padding:28px 32px; margin-bottom:28px; background:var(--bg-surface-elevated);">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
           <div style="display:flex; gap:20px; align-items:center;">
             <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); color:#FFF; display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:800; box-shadow:0 8px 24px rgba(99,102,241,0.35);">
@@ -248,12 +248,14 @@ export function renderDashboardPage({
 
         <div class="stat-card">
           <span class="stat-label">Active Applications</span>
-          <div class="stat-val" style="color:#A78BFA;">${applications.length}</div>
+          <div class="stat-val" style="color:var(--accent-cyan);">${applications.length}</div>
           <span style="font-size:0.75rem; color:var(--text-muted);">Tracked job pipelines</span>
+        </div>
+
       </div>
 
       <!-- Main 2-Column Content Grid -->
-      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:24px; margin-bottom:32px;">
+      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:24px; margin-bottom:32px;" class="grid-2col">
         <!-- Left Column: Skills & Projects -->
         <div style="display:flex; flex-direction:column; gap:24px;">
           <!-- Verified Skills Section -->
@@ -467,7 +469,7 @@ export function renderDashboardPage({
   `;
 
   return renderLayout({
-    title: 'Candidate Workspace — Antigravity Career Hub',
+    title: 'Candidate Workspace',
     content,
     activeNav: 'dashboard',
     user,

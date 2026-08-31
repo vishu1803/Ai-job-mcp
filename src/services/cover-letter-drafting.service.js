@@ -858,11 +858,19 @@ export class CoverLetterDraftingService {
           : [];
       for (const ev of evidenceList) {
         if (ev && ev.id) {
-          index[ev.id] = { ...ev, tenantId: candidateProfile.tenantId, candidateId: candidateProfile.id };
+          index[ev.id] = {
+            ...ev,
+            tenantId: candidateProfile.tenantId,
+            candidateId: candidateProfile.id,
+          };
         }
       }
       if (skill.primaryEvidence && skill.primaryEvidence.id && !index[skill.primaryEvidence.id]) {
-        index[skill.primaryEvidence.id] = { ...skill.primaryEvidence, tenantId: candidateProfile.tenantId, candidateId: candidateProfile.id };
+        index[skill.primaryEvidence.id] = {
+          ...skill.primaryEvidence,
+          tenantId: candidateProfile.tenantId,
+          candidateId: candidateProfile.id,
+        };
       }
     }
 
@@ -872,7 +880,12 @@ export class CoverLetterDraftingService {
       const evidenceList = Array.isArray(project.evidence) ? project.evidence : [];
       for (const ev of evidenceList) {
         if (ev && ev.id) {
-          index[ev.id] = { ...ev, tenantId: candidateProfile.tenantId, candidateId: candidateProfile.id, projectId: project.id };
+          index[ev.id] = {
+            ...ev,
+            tenantId: candidateProfile.tenantId,
+            candidateId: candidateProfile.id,
+            projectId: project.id,
+          };
         }
       }
     }

@@ -28,7 +28,7 @@ describe('MCP Registry Metadata & Validator (Official Schema 2025-12-11 / P13.5-
     assert.equal(result.valid, true, `Validation errors: ${result.errors?.join(', ')}`);
     assert.ok(result.manifest);
     assert.equal(result.manifest.name, 'ai.careerhub/mcp-server');
-    assert.equal(result.manifest.title, 'Antigravity Career Hub');
+    assert.equal(result.manifest.title, 'AI Careers Hub');
     assert.equal(result.manifest.version, '0.1.0');
     assert.ok(result.manifest.description.length <= 100, 'Description must be <= 100 chars');
     assert.equal(result.manifest.websiteUrl, 'https://staging.careerhub.ai');

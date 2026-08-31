@@ -76,7 +76,7 @@ export function renderDataDeletionPage({ user = null, tenant = null } = {}) {
   `;
 
   return renderLayout({
-    title: 'Data Deletion & Sovereignty | Antigravity Career Hub',
+    title: 'Data Deletion & Sovereignty',
     content,
     user,
     tenant,

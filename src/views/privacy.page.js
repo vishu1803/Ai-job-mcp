@@ -20,7 +20,7 @@ export function renderPrivacyPage({ user = null, tenant = null } = {}) {
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem;">1. Overview & Data Controller</h2>
           <p>
-            Antigravity Career Hub ("Career Hub", "we", "our") provides an evidence-based career intelligence platform and Model Context Protocol (MCP) server. We are committed to transparency, data sovereignty, and candidate privacy. This Privacy Notice describes the types of personal data we process, why we process it, and how you can exercise control over your information.
+            AI Careers Hub ("Career Hub", "we", "our") provides an evidence-based career intelligence platform and Model Context Protocol (MCP) server. We are committed to transparency, data sovereignty, and candidate privacy. This Privacy Notice describes the types of personal data we process, why we process it, and how you can exercise control over your information.
           </p>
         </section>
 
@@ -73,7 +73,7 @@ export function renderPrivacyPage({ user = null, tenant = null } = {}) {
   `;
 
   return renderLayout({
-    title: 'Privacy Notice | Antigravity Career Hub',
+    title: 'Privacy Notice',
     content,
     user,
     tenant,

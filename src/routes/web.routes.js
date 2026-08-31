@@ -263,7 +263,7 @@ export default async function webRoutes(app, opts = {}) {
 
     if (wantsJson) {
       return {
-        name: 'Antigravity Career Hub API',
+        name: 'AI Careers Hub API',
         version: '0.1.0',
         status: 'operational',
         mcpEndpoint: '/mcp',
@@ -329,7 +329,7 @@ export default async function webRoutes(app, opts = {}) {
 
     if (wantsJson) {
       return {
-        message: 'Welcome to Antigravity Career Hub Dashboard',
+        message: 'Welcome to AI Careers Hub Dashboard',
         user: { id: data.user.id, displayName: data.user.displayName, role: data.user.role },
         tenant: { id: data.tenant.id, name: data.tenant.name },
         candidate: {

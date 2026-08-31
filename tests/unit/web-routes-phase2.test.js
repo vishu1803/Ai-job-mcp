@@ -75,7 +75,7 @@ describe('Phase 2 Web Routes & Frozen Design System Integration Tests (P14-003A)
 
       assert.equal(res.statusCode, 200, `Expected 200 OK for ${path}`);
       assert.match(res.headers['content-type'], /text\/html/);
-      assert.match(res.payload, /Antigravity Career Hub/);
+      assert.match(res.payload, /AI Careers Hub/);
     }
   });
 });

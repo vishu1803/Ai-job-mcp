@@ -20,7 +20,7 @@ export function renderAccessibilityPage({ user = null, tenant = null } = {}) {
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem;">1. Our Commitment</h2>
           <p>
-            Antigravity Career Hub is dedicated to ensuring digital accessibility for people with disabilities. We continuously improve the user experience for everyone and apply relevant accessibility standards across our web interface.
+            AI Careers Hub is dedicated to ensuring digital accessibility for people with disabilities. We continuously improve the user experience for everyone and apply relevant accessibility standards across our web interface.
           </p>
         </section>
 
@@ -45,7 +45,7 @@ export function renderAccessibilityPage({ user = null, tenant = null } = {}) {
   `;
 
   return renderLayout({
-    title: 'Accessibility Statement | Antigravity Career Hub',
+    title: 'Accessibility Statement',
     content,
     user,
     tenant,

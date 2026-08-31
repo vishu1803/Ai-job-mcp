@@ -220,7 +220,7 @@ export function renderConnectPage({
       }
 
       <!-- Remote MCP Endpoint Box -->
-      <div class="card" style="margin-bottom: 2rem; background: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);">
+      <div class="card" style="margin-bottom: 2rem; background: var(--bg-surface-elevated);">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
           <div>
             <h2 style="font-size: 1.2rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.25rem;">Universal Remote MCP Endpoint</h2>
@@ -408,15 +408,14 @@ export function renderConnectPage({
                     🔵
                   </div>
                   <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">Google Gemini & AGY</h3>
-                    <span style="font-size: 0.75rem; color: #94a3b8;">Antigravity SDK • IDE Agents • CLI</span>
+                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">Google Gemini & AGY</h3>                     <span style="font-size: 0.75rem; color: #94a3b8;">AI Careers Hub SDK • IDE Agents • CLI</span>
                   </div>
                 </div>
                 ${renderStatusBadge(geminiStatus.status)}
               </div>
 
               <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
-                Integrate with Gemini-powered agent pipelines, the Google Antigravity SDK, and command-line assistants using high-entropy Personal MCP API Tokens.
+                Integrate with Gemini-powered agent pipelines, IDE extensions, and command-line assistants using high-entropy Personal MCP API Tokens.
               </p>
 
               <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
@@ -476,7 +475,7 @@ export function renderConnectPage({
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
             <div class="form-group">
               <label class="form-label" for="tokenNameInput" style="font-size: 0.85rem;">Token Name / Label</label>
-              <input type="text" id="tokenNameInput" name="name" required placeholder="e.g. Gemini Antigravity Agent, Cursor IDE" class="form-control" style="font-size: 0.875rem;">
+              <input type="text" id="tokenNameInput" name="name" required placeholder="e.g. Gemini Agent, Cursor IDE" class="form-control" style="font-size: 0.875rem;">
             </div>
 
             <div class="form-group">
@@ -645,7 +644,7 @@ export function renderConnectPage({
   `;
 
   return renderLayout({
-    title: 'AI Connection Center — Antigravity Career Hub',
+    title: 'AI Connection Center',
     content,
     activeNav: 'connect',
     user,

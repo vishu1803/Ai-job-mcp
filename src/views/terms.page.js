@@ -20,7 +20,7 @@ export function renderTermsPage({ user = null, tenant = null } = {}) {
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem;">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using Antigravity Career Hub ("Career Hub", "the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.
+            By accessing or using AI Careers Hub ("Career Hub", "the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, do not use the Service.
           </p>
         </section>
 
@@ -67,7 +67,7 @@ export function renderTermsPage({ user = null, tenant = null } = {}) {
   `;
 
   return renderLayout({
-    title: 'Terms of Service | Antigravity Career Hub',
+    title: 'Terms of Service',
     content,
     user,
     tenant,

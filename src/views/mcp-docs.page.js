@@ -1042,12 +1042,12 @@ export function renderMcpDocsPage({ user = null } = {}) {
           Universal MCP Server Documentation
         </h1>
         <p style="color: #94a3b8; font-size: 1.05rem; line-height: 1.6; max-width: 800px;">
-          Antigravity Career Hub exposes a standards-compliant remote Model Context Protocol (MCP) server over Streamable HTTP transport, empowering Anthropic Claude, OpenAI ChatGPT, and Google Gemini with verified candidate career intelligence.
+          AI Careers Hub exposes a standards-compliant remote Model Context Protocol (MCP) server over Streamable HTTP transport, empowering Anthropic Claude, OpenAI ChatGPT, and Google Gemini with verified candidate career intelligence.
         </p>
       </div>
 
       <!-- Quick Reference Specs Box -->
-      <div class="card" style="margin-bottom: 3rem; background: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);">
+      <div class="card" style="margin-bottom: 3rem; background: var(--bg-surface-elevated);">
         <h3 style="font-size: 1.1rem; font-weight: 700; color: #f8fafc; margin-bottom: 1.25rem;">Universal Protocol Endpoints</h3>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; font-size: 0.875rem;">
@@ -1220,7 +1220,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
               Personal MCP API Tokens
             </h3>
             <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
-              For Google Gemini agents, Antigravity SDK, and IDE extensions. Generated from the Connection Center with role scope ceiling enforcement and stored as SHA-256 hashes.
+              For Google Gemini agents, IDE extensions, and CLI tools. Generated from the Connection Center with role scope ceiling enforcement and stored as SHA-256 hashes.
             </p>
             <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border-subtle);">
               <div>Format: <code>mcp_live_&lt;32-byte-hex&gt;</code></div>
@@ -1340,7 +1340,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
           <!-- Gemini Setup Guide -->
           <div class="card" id="gemini">
             <h3 style="font-size: 1.15rem; font-weight: 600; color: #22d3ee; margin-bottom: 0.75rem;">
-              Google Gemini & Antigravity SDK Setup
+              Google Gemini & IDE Setup
             </h3>
             <div style="font-size: 0.875rem; color: #cbd5e1; line-height: 1.6;">
               <p style="margin-bottom: 0.5rem;">
@@ -1377,7 +1377,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
           <pre style="background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1rem; color: #38bdf8; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; margin-bottom: 1rem;">{
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.careerhub/mcp-server",
-  "title": "Antigravity Career Hub",
+  "title": "AI Careers Hub",
   "description": "Evidence-backed career intelligence and multi-tenant MCP server with zero hallucination.",
   "version": "0.1.0",
   "websiteUrl": "https://staging.careerhub.ai",
@@ -1567,7 +1567,7 @@ export function renderMcpDocsPage({ user = null } = {}) {
   `;
 
   return renderLayout({
-    title: 'Model Context Protocol (MCP) Documentation — Antigravity Career Hub',
+    title: 'MCP Developer Documentation',
     content,
     activeNav: 'docs',
     user,

@@ -180,7 +180,7 @@ export function renderProfilePage({
       }
 
       .profile-header-card {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+        background: var(--bg-surface-elevated);
         border: 1px solid rgba(255, 255, 255, 0.09);
         border-radius: 12px;
         padding: 1.5rem;
@@ -611,6 +611,25 @@ export function renderProfilePage({
         <span style="color: #f8fafc; font-weight: 500;">Career Profile</span>
       </nav>
 
+      <!-- Architecture Pipeline Banner -->
+      <div class="pipeline-banner">
+        <div class="pipeline-header">
+          <span class="pipeline-title">Career Profile & Preferences</span>
+          <span style="font-size:0.75rem; color:var(--text-dim);">Job Search Configuration</span>
+        </div>
+        <div class="pipeline-steps">
+          <div class="pipeline-step active"><span>👤</span> Identity & Headline</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>⚡</span> Verified Skills</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🎯</span> Target Roles</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>📍</span> Location & Salary</div>
+          <span class="pipeline-arrow">→</span>
+          <div class="pipeline-step"><span>🤖</span> AI Matching</div>
+        </div>
+      </div>
+
       <!-- Toast Notification for Saved Success -->
       ${
         flashMessage
@@ -696,7 +715,7 @@ export function renderProfilePage({
       ${
         targetRolesList.length === 0 || preferredLocationsList.length === 0
           ? `
-        <div class="card" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(15, 23, 42, 0.7) 100%); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <div class="card" style="background: var(--bg-surface-elevated); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div style="display: flex; align-items: center; gap: 0.75rem;">
             <span style="font-size: 1.35rem;">✨</span>
             <div>
@@ -1123,7 +1142,7 @@ export function renderProfilePage({
           </div>
 
           <!-- Compensation / Expected Salary -->
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;" class="form-group">
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;" class="grid-2col form-group">
             <div>
               <label class="form-label" for="salaryFloor">
                 Minimum Expected Salary
@@ -1519,7 +1538,7 @@ export function renderProfilePage({
   `;
 
   return renderLayout({
-    title: 'Career Profile & Preferences | Antigravity Career Hub',
+    title: 'Career Profile & Preferences',
     content,
     user,
     tenant,

@@ -536,7 +536,8 @@ export class ResumeTailoringService {
       this._assertMetricSafety(bullet1Text, deduplicatedRefs);
 
       // Use VERIFIED only if evidence refs resolve; otherwise CLAIMED
-      const hasResolvedEvidence = deduplicatedRefs.length > 0 && deduplicatedRefs.some((ref) => evidenceIndex.has(ref.id));
+      const hasResolvedEvidence =
+        deduplicatedRefs.length > 0 && deduplicatedRefs.some((ref) => evidenceIndex.has(ref.id));
       const bullet1Status = hasResolvedEvidence ? 'VERIFIED' : 'CLAIMED';
       const bullet1Confidence = hasResolvedEvidence ? 1.0 : 0.5;
 

@@ -32,7 +32,7 @@ function formatBytes(bytes) {
  */
 function renderResumeStatusBadge(status, isBase = false) {
   if (isBase) {
-    return `<span class="badge" style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);">★ BASE RESUME</span>`;
+    return `<span class="badge badge-verified">★ BASE RESUME</span>`;
   }
   switch (status) {
     case 'USER_APPROVED':
@@ -42,7 +42,7 @@ function renderResumeStatusBadge(status, isBase = false) {
     case 'SOURCE':
       return `<span class="badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">SOURCE UPLOAD</span>`;
     case 'ARCHIVED':
-      return `<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3);">ARCHIVED</span>`;
+      return `<span class="badge badge-missing">ARCHIVED</span>`;
     default:
       return `<span class="badge badge-claimed">${escapeHtml(status)}</span>`;
   }
@@ -270,7 +270,7 @@ export function renderResumesPage({
   `;
 
   return renderLayout({
-    title: 'Source Resumes & Document Lifecycle — Antigravity Career Hub',
+    title: 'Source Resumes & Documents',
     activeNav: 'resumes',
     content,
     user,
@@ -710,7 +710,7 @@ export function renderResumeDetailPage({
   `;
 
   return renderLayout({
-    title: `Resume v${resume.version} Review — Antigravity Career Hub`,
+    title: `Resume v${resume.version} Review`,
     activeNav: 'resumes',
     content,
     user,
