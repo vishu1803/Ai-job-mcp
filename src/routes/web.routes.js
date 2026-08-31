@@ -45,6 +45,8 @@ import { renderDashboardPage } from '../views/dashboard.page.js';
 import { renderOnboardingPage } from '../views/onboarding.page.js';
 import { renderProjectsPage } from '../views/projects.page.js';
 import { renderSkillsPage } from '../views/skills.page.js';
+import { renderSkillDetailPage } from '../views/skill-detail.page.js';
+import { renderApplicationsPage } from '../views/applications.page.js';
 import { renderSourcesPage } from '../views/sources.page.js';
 import { renderResumesPage, renderResumeDetailPage } from '../views/resumes.page.js';
 import { renderConnectPage } from '../views/connect.page.js';
@@ -58,6 +60,7 @@ import { renderSecurityPage } from '../views/security.page.js';
 import { renderDataDeletionPage } from '../views/data-deletion.page.js';
 import { renderAccessibilityPage } from '../views/accessibility.page.js';
 import { renderSubprocessorsPage } from '../views/subprocessors.page.js';
+import { renderJobFitRadarAppHtml } from '../mcp/apps/job-fit-radar.app.js';
 import { CandidateProfileService } from '../services/candidate-profile.service.js';
 import { sourceResumeIngestionService as defaultSourceResumeIngestionService } from '../services/source-resume-ingestion.service.js';
 import { defaultMcpApiTokenService } from '../services/mcp-api-token.service.js';
@@ -1347,6 +1350,97 @@ export default async function webRoutes(app, opts = {}) {
   });
 
   // -------------------------------------------------------------------------
+  // 11b. GET /skills/:slug — Authenticated Skill Detail & Citations
+  // -------------------------------------------------------------------------
+  app.get('/skills/:slug', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect(`/login?returnTo=/skills/${encodeURIComponent(req.params.slug)}`);
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const slug = String(req.params.slug || '')
+      .toLowerCase()
+      .trim();
+
+    // 1. Find the skill by slug
+    const [skillRow] = await database
+      .select({
+        id: candidateSkills.id,
+        skillId: candidateSkills.skillId,
+        name: skills.name,
+        slug: skills.slug,
+        category: candidateSkills.category,
+        provenanceStatus: candidateSkills.provenanceStatus,
+        confidenceScore: candidateSkills.confidenceScore,
+        evidenceCount: candidateSkills.evidenceCount,
+        lastObservedAt: candidateSkills.lastObservedAt,
+      })
+      .from(candidateSkills)
+      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .where(
+        and(
+          eq(candidateSkills.tenantId, tenant.id),
+          eq(candidateSkills.candidateId, candidate.id),
+          eq(skills.slug, slug)
+        )
+      )
+      .limit(1);
+
+    if (!skillRow) {
+      return reply.redirect('/skills');
+    }
+
+    // 2. Fetch evidence citations for this skill
+    const evidenceList = await database
+      .select({
+        id: evidenceItems.id,
+        evidenceType: evidenceItems.evidenceType,
+        sourceLocation: evidenceItems.sourceLocation,
+        excerpt: evidenceItems.excerpt,
+        confidenceScore: evidenceItems.confidenceScore,
+        commitSha: evidenceItems.commitSha,
+        createdAt: evidenceItems.createdAt,
+        resourceName: resources.name,
+        resourceDisplayName: resources.displayName,
+        resourceUrl: resources.url,
+      })
+      .from(evidenceItems)
+      .leftJoin(resources, eq(evidenceItems.resourceId, resources.id))
+      .where(
+        and(
+          eq(evidenceItems.tenantId, tenant.id),
+          eq(evidenceItems.candidateId, candidate.id),
+          eq(evidenceItems.skillId, skillRow.skillId)
+        )
+      )
+      .orderBy(desc(evidenceItems.confidenceScore))
+      .limit(20);
+
+    // 3. Fetch candidate projects
+    const relatedProjects = await database
+      .select({
+        id: projects.id,
+        name: projects.name,
+        description: projects.description,
+      })
+      .from(projects)
+      .where(and(eq(projects.tenantId, tenant.id), eq(projects.candidateId, candidate.id)))
+      .limit(5);
+
+    const html = renderSkillDetailPage({
+      user,
+      tenant,
+      skill: skillRow,
+      evidence: evidenceList,
+      relatedProjects,
+    });
+
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // -------------------------------------------------------------------------
   // 12. GET /sources — Authenticated Connected Sources Hub
   // -------------------------------------------------------------------------
   app.get('/sources', async (req, reply) => {
@@ -2225,6 +2319,114 @@ export default async function webRoutes(app, opts = {}) {
     });
 
     return reply.redirect('/profile?saved=true');
+  });
+
+  // -------------------------------------------------------------------------
+  // 22b. Job Applications Tracker Routes (P14-003A / ARCH-043)
+  // -------------------------------------------------------------------------
+  app.get('/applications', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/applications');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const filter = String(req.query.filter || 'ALL').toUpperCase();
+
+    const applicationList = await database
+      .select()
+      .from(jobApplications)
+      .where(
+        and(eq(jobApplications.tenantId, tenant.id), eq(jobApplications.candidateId, candidate.id))
+      )
+      .orderBy(desc(jobApplications.updatedAt));
+
+    const html = renderApplicationsPage({
+      user,
+      tenant,
+      applications: applicationList,
+      activeFilter: filter,
+      flashMessage: req.query.success || '',
+      errorMessage: req.query.error || '',
+    });
+
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  app.post('/applications', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/applications');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    const body = req.body || {};
+    const companyName = body.companyName ? String(body.companyName).trim() : '';
+    const jobTitle = body.jobTitle ? String(body.jobTitle).trim() : '';
+
+    if (!companyName || !jobTitle) {
+      return reply.redirect('/applications?error=Company+name+and+job+title+are+required');
+    }
+
+    await database.insert(jobApplications).values({
+      tenantId: tenant.id,
+      candidateId: candidate.id,
+      companyName,
+      jobTitle,
+      status: body.status || 'APPLIED',
+      salaryRange: body.salaryRange ? String(body.salaryRange).trim() : null,
+      jobUrl: body.jobUrl ? String(body.jobUrl).trim() : null,
+      location: body.location ? String(body.location).trim() : null,
+      metadata: {},
+    });
+
+    return reply.redirect('/applications?success=Application+successfully+tracked');
+  });
+
+  app.post('/applications/:id/status', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/applications');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const appId = req.params.id;
+    const newStatus = req.body?.status;
+
+    if (newStatus) {
+      await database
+        .update(jobApplications)
+        .set({
+          status: newStatus,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(jobApplications.id, appId),
+            eq(jobApplications.tenantId, tenant.id),
+            eq(jobApplications.candidateId, candidate.id)
+          )
+        );
+    }
+
+    return reply.redirect('/applications?success=Application+status+updated');
+  });
+
+  // -------------------------------------------------------------------------
+  // 22c. GET /apps/radar — Job Fit Radar Interactive MCP App Web View
+  // -------------------------------------------------------------------------
+  app.get('/apps/radar', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/apps/radar');
+    }
+
+    const html = renderJobFitRadarAppHtml();
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
