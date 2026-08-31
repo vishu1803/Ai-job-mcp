@@ -374,7 +374,9 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
                     <div style="padding:14px 16px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); display:flex; flex-direction:column; justify-content:space-between; gap:8px;">
                       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                         <div>
-                          <strong style="font-size:1rem; color:var(--text-main); display:block;">${escapeHtml(s.name || s.slug)}</strong>
+                          <a href="/skills/${encodeURIComponent(s.slug || s.name)}" style="font-size:1rem; font-weight:700; color:var(--text-main); display:block; text-decoration:none;">
+                            ${escapeHtml(s.name || s.slug)}
+                          </a>
                           <span style="font-size:0.7rem; color:var(--text-dim);">${escapeHtml(levelLabel)}</span>
                         </div>
                         <span class="badge ${badgeClass}" style="font-size:0.65rem; flex-shrink:0;">${escapeHtml(label)}</span>
@@ -386,6 +388,12 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
                       </div>
 
                       ${renderSourceInfo(s)}
+
+                      <div style="margin-top:4px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04); display:flex; justify-content:flex-end;">
+                        <a href="/skills/${encodeURIComponent(s.slug || s.name)}" style="font-size:0.75rem; color:var(--accent-indigo); font-weight:600;">
+                          Inspect Citations & Evidence →
+                        </a>
+                      </div>
                     </div>
                   `;
                   })

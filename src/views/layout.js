@@ -41,29 +41,56 @@ export function renderLayout({
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
+      /* Palette Tokens (DESIGN.md) */
+      --bg-canvas: #0B0F19;
+      --bg-surface: #111827;
+      --bg-surface-elevated: #1F2937;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --bg-glass: rgba(31, 41, 55, 0.65);
+      --bg-dim: #070E1D;
       --bg-primary: #0B0F19;
       --bg-secondary: #111827;
-      --bg-card: rgba(17, 24, 39, 0.75);
-      --bg-glass: rgba(31, 41, 55, 0.55);
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-focus: rgba(99, 102, 241, 0.4);
+
+      /* Border Tokens */
+      --border-subtle: #1E293B;
+      --border-highlight: #334155;
+      --border-outline: #475569;
+      --border-focus: rgba(99, 102, 241, 0.5);
+
+      /* Typography Tokens */
       --text-main: #F9FAFB;
-      --text-muted: #9CA3AF;
-      --text-dim: #6B7280;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      --text-primary: #F9FAFB;
+      --text-secondary: #94A3B8;
+
+      /* Brand & Semantic Accents */
       --accent-indigo: #6366F1;
       --accent-indigo-hover: #4F46E5;
-      --accent-cyan: #06B6D4;
+      --accent-primary: #6366F1;
       --accent-emerald: #10B981;
+      --accent-teal: #0D9488;
+      --accent-cyan: #06B6D4;
       --accent-amber: #F59E0B;
       --accent-rose: #F43F5E;
+      --accent-purple: #A855F7;
+
+      /* Font Families */
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+
+      /* Radii */
+      --radius-xs: 4px;
       --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 16px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
       --radius-full: 9999px;
-      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+
+      /* Shadows & Elevations */
+      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
       --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.25);
+      --shadow-glow-emerald: 0 0 20px rgba(16, 185, 129, 0.2);
     }
 
     * {
@@ -520,7 +547,7 @@ export function renderLayout({
       box-shadow: var(--shadow-card);
     }
 
-    /* Badges */
+    /* Semantic Truth & Operational Badges (DESIGN.md) */
     .badge {
       display: inline-flex;
       align-items: center;
@@ -534,22 +561,32 @@ export function renderLayout({
     .badge-verified {
       background: rgba(16, 185, 129, 0.15);
       color: #34D399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+    .badge-corroborated {
+      background: rgba(13, 148, 136, 0.18);
+      color: #2DD4BF;
+      border: 1px solid rgba(13, 148, 136, 0.35);
     }
     .badge-inferred {
       background: rgba(6, 182, 212, 0.15);
       color: #22D3EE;
-      border: 1px solid rgba(6, 182, 212, 0.3);
+      border: 1px solid rgba(6, 182, 212, 0.35);
     }
     .badge-claimed {
       background: rgba(245, 158, 11, 0.15);
       color: #FBBF24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
+      border: 1px solid rgba(245, 158, 11, 0.35);
     }
     .badge-missing {
       background: rgba(244, 63, 94, 0.15);
       color: #FB7185;
-      border: 1px solid rgba(244, 63, 94, 0.3);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+    }
+    .badge-unknown {
+      background: rgba(100, 116, 139, 0.18);
+      color: #94A3B8;
+      border: 1px solid rgba(100, 116, 139, 0.3);
     }
     .badge-cyan {
       background: rgba(6, 182, 212, 0.15);
@@ -565,6 +602,31 @@ export function renderLayout({
       background: rgba(245, 158, 11, 0.15);
       color: #FBBF24;
       border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .badge-status-connected {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-status-disconnected {
+      background: rgba(100, 116, 139, 0.15);
+      color: #94A3B8;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+    .badge-status-processing {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818CF8;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      animation: pulse-badge 2s infinite ease-in-out;
+    }
+    .badge-status-error {
+      background: rgba(244, 63, 94, 0.15);
+      color: #FB7185;
+      border: 1px solid rgba(244, 63, 94, 0.35);
+    }
+    @keyframes pulse-badge {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
 
     /* Form Controls */
@@ -1226,7 +1288,7 @@ export function renderLayout({
                   <div class="item-desc">Target roles & preferences</div>
                 </div>
               </a>
-              <a href="/dashboard#applications" class="nav-dropdown-item">
+              <a href="/applications" class="nav-dropdown-item ${activeNav === 'applications' ? 'active' : ''}">
                 <span class="item-icon">📋</span>
                 <div class="item-text">
                   <div class="item-title">Applications</div>
@@ -1268,6 +1330,7 @@ export function renderLayout({
               : ''
           }
           <li><a href="/docs/mcp" class="nav-link ${activeNav === 'docs' ? 'active' : ''}">MCP Docs</a></li>
+          <li><a href="/apps/radar" class="nav-link ${activeNav === 'radar' ? 'active' : ''}">Radar App</a></li>
         </ul>
       </nav>
 
@@ -1335,13 +1398,14 @@ export function renderLayout({
       <a href="/projects" class="${activeNav === 'projects' ? 'active' : ''}">💼 Projects</a>
       <a href="/skills" class="${activeNav === 'skills' ? 'active' : ''}">⚡ Skills</a>
       <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">🎯 Profile & Intent</a>
-      <a href="/dashboard#applications">📋 Applications</a>
+      <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">📋 Applications</a>
       <div class="mobile-section-label">Sources</div>
       <a href="/sources" class="${activeNav === 'sources' ? 'active' : ''}">🔗 Connected Sources</a>
       <a href="/resumes" class="${activeNav === 'resumes' ? 'active' : ''}">📄 Resumes</a>
       <div class="mobile-section-label">AI & Docs</div>
       <a href="/connect" class="${activeNav === 'connect' ? 'active' : ''}">🤖 AI Connect</a>
       <a href="/docs/mcp" class="${activeNav === 'docs' ? 'active' : ''}">📖 MCP Docs</a>
+      <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">📡 Job Fit Radar</a>
       <div class="nav-mobile-divider"></div>
       <div class="mobile-section-label">Account & Legal</div>
       <a href="/settings" class="${activeNav === 'settings' ? 'active' : ''}">⚙️ Settings & Privacy</a>

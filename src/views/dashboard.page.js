@@ -318,19 +318,27 @@ export function renderDashboardPage({
 
           <!-- Application Pipeline Widget -->
           <div class="card">
-            <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">Tracked Applications</h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h3 style="font-size:1rem; font-weight:700;">Tracked Applications</h3>
+              <a href="/applications" style="font-size:0.75rem; color:var(--accent-indigo);">View All →</a>
+            </div>
             ${
               applications.length === 0
                 ? `
               <p style="color:var(--text-dim); font-size:0.85rem; margin-bottom:12px;">No active applications tracked in this workspace.</p>
-              <div style="font-size:0.8rem; color:var(--text-muted); background:rgba(255,255,255,0.02); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);">
+              <div style="font-size:0.8rem; color:var(--text-muted); background:rgba(255,255,255,0.02); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle); margin-bottom:12px;">
                 Track job applications via AI using MCP tool <code>track_job_application</code>.
               </div>
+              <a href="/applications" class="btn btn-secondary btn-sm" style="width:100%;">
+                Open Applications Tracker →
+              </a>
             `
                 : `
-              <ul style="list-style:none; display:flex; flex-direction:column; gap:8px; font-size:0.85rem;">
-                ${applications.slice(0, 4).map(
-                  (a) => `
+              <ul style="list-style:none; display:flex; flex-direction:column; gap:8px; font-size:0.85rem; margin-bottom:12px;">
+                ${applications
+                  .slice(0, 4)
+                  .map(
+                    (a) => `
                   <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04);">
                     <div>
                       <strong>${escapeHtml(a.companyName)}</strong>
@@ -339,8 +347,12 @@ export function renderDashboardPage({
                     <span class="badge badge-indigo">${escapeHtml(a.status)}</span>
                   </li>
                 `
-                )}
+                  )
+                  .join('')}
               </ul>
+              <a href="/applications" class="btn btn-secondary btn-sm" style="width:100%;">
+                Manage Application Pipeline →
+              </a>
             `
             }
           </div>
