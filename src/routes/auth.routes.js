@@ -9,12 +9,18 @@
  */
 
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { AuthService } from '../security/auth.service.js';
-import { revokeSession, getSessionCookieOptions } from '../security/session.service.js';
+import {
+  createSession,
+  revokeSession,
+  getSessionCookieOptions,
+} from '../security/session.service.js';
 import { OAUTH_TRANSIT_COOKIE_NAME, isValidReturnTo } from '../security/oauth-state.js';
 import { authenticate, verifyCsrf } from '../middleware/auth.middleware.js';
 import { validateRequest, validateResponse } from '../middleware/validate.js';
 import { db } from '../db/index.js';
+import { users, tenants } from '../db/schema.js';
 import { config } from '../config/env.js';
 import { defaultMcpRateLimiter } from '../security/mcp-rate-limiter.js';
 import { extractClientIp } from '../utils/extract-client-ip.js';
@@ -391,4 +397,46 @@ export default async function authRoutes(app, opts = {}) {
       return reply.redirect('/login');
     }
   );
+
+  // -------------------------------------------------------------------------
+  // 6. GET /auth/dev-login — Local Development / Testing One-Click Login
+  // -------------------------------------------------------------------------
+  if (config.NODE_ENV !== 'production') {
+    app.get('/auth/dev-login', async (req, reply) => {
+      const database = req.db || db;
+      let [user] = await database
+        .select()
+        .from(users)
+        .where(eq(users.displayName, 'Vishwanath Nishad'))
+        .limit(1);
+      if (!user) {
+        [user] = await database.select().from(users).limit(1);
+      }
+      if (!user) {
+        return reply.status(500).send({ error: 'No development candidate user found' });
+      }
+      const [tenant] = await database
+        .select()
+        .from(tenants)
+        .where(eq(tenants.id, user.tenantId))
+        .limit(1);
+      if (!tenant) {
+        return reply.status(500).send({ error: 'No development tenant found' });
+      }
+      const session = await createSession(database, {
+        userId: user.id,
+        tenantId: tenant.id,
+        ipAddress: extractClientIp(req),
+        userAgent: req.headers['user-agent'] || 'dev-browser',
+      });
+      const cookieOpts = getSessionCookieOptions(config);
+      reply.setCookie(cookieOpts.name, session.rawToken, cookieOpts);
+      reply.setCookie('career_hub_session', session.rawToken, cookieOpts);
+      const returnTo =
+        req.query?.returnTo && isValidReturnTo(req.query.returnTo)
+          ? req.query.returnTo
+          : '/dashboard';
+      return reply.redirect(returnTo);
+    });
+  }
 }

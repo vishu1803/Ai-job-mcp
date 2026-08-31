@@ -142,8 +142,19 @@ export function renderSkillDetailPage({
               : `
             <div style="display:flex; flex-direction:column; gap:14px;">
               ${evidence
-                .map(
-                  (item, idx) => `
+                .map((item, idx) => {
+                  const commitSha =
+                    item.commitSha ||
+                    item.sourceLocation?.commitSha ||
+                    item.metadata?.commitSha ||
+                    '';
+                  const filePath =
+                    item.sourceLocation?.filePath ||
+                    item.sourceLocation?.path ||
+                    (typeof item.sourceLocation === 'string'
+                      ? item.sourceLocation
+                      : item.sourceLocation?.file || '');
+                  return `
                 <div class="card" style="padding:18px 20px; border-left: 4px solid var(--accent-indigo);">
                   <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                     <div>
@@ -155,17 +166,17 @@ export function renderSkillDetailPage({
                       }
                     </div>
                     ${
-                      item.commitSha
-                        ? `<span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-indigo); background:rgba(99,102,241,0.1); padding:2px 6px; border-radius:4px;">commit ${escapeHtml(item.commitSha.slice(0, 7))}</span>`
+                      commitSha
+                        ? `<span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-indigo); background:rgba(99,102,241,0.1); padding:2px 6px; border-radius:4px;">commit ${escapeHtml(commitSha.slice(0, 7))}</span>`
                         : ''
                     }
                   </div>
 
                   ${
-                    item.sourceLocation
+                    filePath
                       ? `
                     <div style="font-size:0.8rem; color:var(--text-muted); font-family:var(--font-mono); margin-bottom:8px;">
-                      📄 ${escapeHtml(item.sourceLocation)}
+                      📄 ${escapeHtml(filePath)}
                     </div>
                   `
                       : ''
@@ -186,8 +197,8 @@ export function renderSkillDetailPage({
                     <span style="color:var(--accent-emerald);">Weight Score: ${(item.confidenceScore || 0.9).toFixed(2)}</span>
                   </div>
                 </div>
-              `
-                )
+              `;
+                })
                 .join('')}
             </div>
           `
@@ -210,7 +221,7 @@ export function renderSkillDetailPage({
                     (p) => `
                   <a href="/projects/${p.id}" style="display:block; padding:10px 12px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); transition:all 0.15s ease;">
                     <div style="font-weight:600; font-size:0.875rem; color:var(--text-main);">${escapeHtml(p.name)}</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">${escapeHtml(p.description || 'Portfolio repository')}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">${escapeHtml(p.headline || p.summary || p.description || 'Portfolio repository')}</div>
                   </a>
                 `
                   )

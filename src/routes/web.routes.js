@@ -1400,7 +1400,7 @@ export default async function webRoutes(app, opts = {}) {
         sourceLocation: evidenceItems.sourceLocation,
         excerpt: evidenceItems.excerpt,
         confidenceScore: evidenceItems.confidenceScore,
-        commitSha: evidenceItems.commitSha,
+        metadata: evidenceItems.metadata,
         createdAt: evidenceItems.createdAt,
         resourceName: resources.name,
         resourceDisplayName: resources.displayName,
@@ -1423,7 +1423,8 @@ export default async function webRoutes(app, opts = {}) {
       .select({
         id: projects.id,
         name: projects.name,
-        description: projects.description,
+        summary: projects.summary,
+        headline: projects.headline,
       })
       .from(projects)
       .where(and(eq(projects.tenantId, tenant.id), eq(projects.candidateId, candidate.id)))
