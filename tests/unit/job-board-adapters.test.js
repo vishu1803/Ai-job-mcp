@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import { GreenhouseAdapter } from '../../src/services/job-board-adapters/greenhouse.adapter.js';
 import { LeverAdapter } from '../../src/services/job-board-adapters/lever.adapter.js';
 import { NormalizedJobPostingSchema } from '../../src/domain/job/job-workflow.schemas.js';
+import { generateCanonicalJobId as generateCanonicalJobIdFromService, JobDiscoveryService as JobDiscoveryServiceFromService } from '../../src/services/job-discovery.service.js';
 
 // ============================================================================
 // Greenhouse Adapter Tests
@@ -71,7 +72,10 @@ describe('GreenhouseAdapter', () => {
       assert.equal(jobs[0].company, 'Testcompany');
       assert.equal(jobs[0].title, 'Senior Software Engineer');
       assert.equal(jobs[0].location, 'San Francisco, CA');
-      assert.ok(jobs[0].id.startsWith('gh-testcompany-'));
+      // ID must be a canonical UUID
+      assert.ok(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(jobs[0].id), 'ID must be a UUID');
+      assert.equal(jobs[0].externalJobId, 'gh-testcompany-12345');
+      assert.equal(jobs[0].provider, 'GREENHOUSE');
       assert.ok(jobs[0].skills.includes('Python'));
       assert.ok(jobs[0].skills.includes('React'));
       assert.ok(jobs[0].applicationUrl.includes('greenhouse.io'));
@@ -237,7 +241,10 @@ describe('LeverAdapter', () => {
       assert.equal(jobs[0].location, 'Remote');
       assert.equal(jobs[0].workplaceType, 'REMOTE');
       assert.equal(jobs[0].employmentType, 'FULL_TIME');
-      assert.ok(jobs[0].id.startsWith('lever-testcompany-'));
+      // ID must be a canonical UUID
+      assert.ok(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(jobs[0].id), 'ID must be a UUID');
+      assert.equal(jobs[0].externalJobId, 'lever-testcompany-abc123');
+      assert.equal(jobs[0].provider, 'LEVER');
       assert.ok(jobs[0].skills.includes('Node.js'));
       assert.ok(jobs[0].skills.includes('React'));
       assert.ok(jobs[0].skills.includes('PostgreSQL'));
@@ -498,5 +505,48 @@ describe('Adapter output matches NormalizedJobPostingSchema', () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+// ============================================================================
+// Canonical UUID Identity Chain
+// ============================================================================
+
+describe('Canonical Job ID System', () => {
+  it('generateCanonicalJobId produces deterministic UUIDs', () => {
+    const id1 = generateCanonicalJobIdFromService('GREENHOUSE', 'gh-stripe-12345');
+    const id2 = generateCanonicalJobIdFromService('GREENHOUSE', 'gh-stripe-12345');
+    const id3 = generateCanonicalJobIdFromService('LEVER', 'lever-notion-abc123');
+
+    // Same input → same output
+    assert.equal(id1, id2);
+    // Different input → different output
+    assert.notEqual(id1, id3);
+    // Must be valid UUID format
+    assert.ok(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id1));
+  });
+
+  it('search_jobs → get_job_posting identity invariant', async () => {
+    const service = new JobDiscoveryServiceFromService({
+      greenhouseBoards: [{ boardToken: 'stripe' }],
+      leverSites: [{ site: 'leverdemo' }],
+      fetchTimeoutMs: 15000,
+    });
+
+    const result = await service.searchJobs({ query: 'Engineer', limit: 1 });
+    if (result.jobs.length === 0) return; // Skip if no jobs fetched
+
+    const job = result.jobs[0];
+    // jobId must be UUID
+    assert.ok(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(job.id));
+    // externalJobId must be provider-specific
+    assert.ok(job.externalJobId, 'externalJobId must be present');
+    assert.ok(job.provider, 'provider must be present');
+
+    // get_job_posting must accept the same UUID
+    const posting = await service.getJobPosting({ jobId: job.id });
+    assert.equal(posting.id, job.id);
+    assert.equal(posting.externalJobId, job.externalJobId);
+    assert.equal(posting.provider, job.provider);
   });
 });

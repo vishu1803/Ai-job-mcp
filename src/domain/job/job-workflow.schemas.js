@@ -39,8 +39,13 @@ export const SearchJobsInputSchema = z.object({
 });
 
 export const NormalizedJobPostingSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().uuid('id must be a valid UUID'),
   source: JobSourceEnum,
+  provider: JobSourceEnum.optional().describe('Provider that supplied the job'),
+  externalJobId: z
+    .string()
+    .optional()
+    .describe('Provider-specific external job identifier (e.g. gh-vercel-5430088004)'),
   company: z.string().min(1),
   title: z.string().min(1),
   location: z.string().default('Remote'),
@@ -65,7 +70,7 @@ export const NormalizedJobPostingSchema = z.object({
 });
 
 export const GetJobPostingInputSchema = z.object({
-  jobId: z.string().min(1, 'jobId is required'),
+  jobId: z.string().uuid('jobId must be a valid UUID'),
   source: JobSourceEnum.optional().default('STRUCTURED_FEED'),
   sourceUrl: z.string().url().optional(),
 });

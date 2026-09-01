@@ -36,6 +36,8 @@ import { ProjectRelevanceService } from '../../services/project-relevance.servic
 import { AtsFitScoreService } from '../../services/ats-fit-score.service.js';
 import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
+import { JobDiscoveryService } from '../../services/job-discovery.service.js';
+import { config } from '../../config/env.js';
 import {
   GetCandidateProfileInputSchema,
   GetCandidateProfileOutputSchema,
@@ -869,7 +871,39 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
   let jobDescription;
   let rawRequirements;
 
-  if (args.jobDescriptionText) {
+  if (args.jobId) {
+    // Resolve job from canonical UUID via JobDiscoveryService
+    const boards = (config.GREENHOUSE_BOARDS || '')
+      .split(',').map(s => s.trim()).filter(Boolean).map(boardToken => ({ boardToken }));
+    const sites = (config.LEVER_SITES || '')
+      .split(',').map(s => s.trim()).filter(Boolean).map(site => ({ site }));
+    const discoveryService = deps.discoveryService || new JobDiscoveryService({
+      greenhouseBoards: boards,
+      leverSites: sites,
+      fetchTimeoutMs: config.JOB_BOARD_FETCH_TIMEOUT_MS,
+    });
+    const job = await discoveryService.findJobById(args.jobId);
+    if (!job) {
+      throw new NotFoundError(`Job posting not found for ID "${args.jobId}".`, 'JOB_NOT_FOUND');
+    }
+    // Construct job description from resolved posting
+    jobDescription = {
+      id: args.jobId,
+      tenantId: context.tenantId,
+      title: args.jobTitle || job.title || 'Target Role',
+      companyName: args.companyName || job.company || 'Target Company',
+      level: args.targetRoleLevel || 'MID',
+      requirements: (job.requirements || []).map((r, i) => ({
+        id: `req-${i}`,
+        description: r,
+        category: 'TECHNICAL',
+        required: true,
+      })),
+      skills: job.skills || [],
+      description: job.description || '',
+    };
+    rawRequirements = jobDescription.requirements;
+  } else if (args.jobDescriptionText) {
     const classification = await JobDescriptionParser.parse(
       {
         rawText: args.jobDescriptionText,
@@ -893,7 +927,7 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     };
     rawRequirements = classification.requirements || [];
   } else {
-    throw new ValidationError('Job description text is required.');
+    throw new ValidationError('Either jobId or jobDescriptionText must be provided.');
   }
 
   // 3. Delegate to existing domain services

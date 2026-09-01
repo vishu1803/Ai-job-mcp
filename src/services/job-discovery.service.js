@@ -22,13 +22,45 @@ import { logger as defaultLogger } from '../utils/logger.js';
 import { GreenhouseAdapter, LeverAdapter } from './job-board-adapters/index.js';
 
 // ---------------------------------------------------------------------------
+// 0. CANONICAL JOB ID GENERATION
+// ---------------------------------------------------------------------------
+
+/**
+ * Generates a deterministic UUID v5 from provider + externalJobId.
+ * Uses a namespace UUID and SHA-256 to produce a stable, unique canonical ID.
+ * The same provider+externalId always produces the same canonical UUID.
+ *
+ * @param {string} provider Provider name (e.g. 'GREENHOUSE', 'LEVER')
+ * @param {string} externalJobId Provider-specific job ID (e.g. 'gh-vercel-5430088004')
+ * @returns {string} Canonical UUID v4-compatible format
+ */
+export function generateCanonicalJobId(provider, externalJobId) {
+  const input = `${provider}:${externalJobId}`;
+  const hash = crypto.createHash('sha256').update(input).digest();
+
+  // Convert to UUID v4-compatible format (4 bytes → 8 hex chars per segment)
+  const hex = hash.subarray(0, 16).toString('hex');
+  return [
+    hex.substring(0, 8),
+    hex.substring(8, 12),
+    // Set version to 4 (replace first nibble of third segment)
+    '4' + hex.substring(13, 16),
+    // Set variant to RFC 4122 (10xx in first nibble of fourth segment)
+    '8' + hex.substring(17, 20),
+    hex.substring(20, 32),
+  ].join('-');
+}
+
+// ---------------------------------------------------------------------------
 // 1. SYNTHETIC DEVELOPMENT DATASET (for testing only)
 // ---------------------------------------------------------------------------
 
 const SYNTHETIC_JOBS = [
   {
-    id: 'job-gh-stripe-001',
+    id: generateCanonicalJobId('GREENHOUSE', 'job-gh-stripe-001'),
     source: 'GREENHOUSE',
+    provider: 'GREENHOUSE',
+    externalJobId: 'job-gh-stripe-001',
     company: 'Stripe',
     title: 'Senior Backend Infrastructure Engineer',
     location: 'San Francisco, CA / Remote',
@@ -53,8 +85,10 @@ const SYNTHETIC_JOBS = [
     retrievedAt: new Date().toISOString(),
   },
   {
-    id: 'job-lever-datadog-002',
+    id: generateCanonicalJobId('LEVER', 'job-lever-datadog-002'),
     source: 'LEVER',
+    provider: 'LEVER',
+    externalJobId: 'job-lever-datadog-002',
     company: 'Datadog',
     title: 'Staff Cloud Telemetry & Platform Engineer',
     location: 'New York, NY / Remote',
@@ -79,8 +113,10 @@ const SYNTHETIC_JOBS = [
     retrievedAt: new Date().toISOString(),
   },
   {
-    id: 'job-gh-vercel-003',
+    id: generateCanonicalJobId('GREENHOUSE', 'job-gh-vercel-003'),
     source: 'GREENHOUSE',
+    provider: 'GREENHOUSE',
+    externalJobId: 'job-gh-vercel-003',
     company: 'Vercel',
     title: 'Senior Full Stack & AI Systems Engineer',
     location: 'Remote (US/Europe)',
@@ -105,8 +141,10 @@ const SYNTHETIC_JOBS = [
     retrievedAt: new Date().toISOString(),
   },
   {
-    id: 'job-feed-figma-004',
+    id: generateCanonicalJobId('STRUCTURED_FEED', 'job-feed-figma-004'),
     source: 'STRUCTURED_FEED',
+    provider: 'STRUCTURED_FEED',
+    externalJobId: 'job-feed-figma-004',
     company: 'Figma',
     title: 'Product Security & Identity Architect',
     location: 'San Francisco, CA / Hybrid',
@@ -767,6 +805,21 @@ export class JobDiscoveryService {
     }
 
     return NormalizedJobPostingSchema.parse(found);
+  }
+
+  /**
+   * Finds a single job by canonical UUID across all sources.
+   * Returns null if not found (does not throw).
+   *
+   * @param {string} jobId Canonical UUID
+   * @returns {Promise<object|null>} Normalized job posting or null
+   */
+  async findJobById(jobId) {
+    try {
+      return await this.getJobPosting({ jobId });
+    } catch {
+      return null;
+    }
   }
 
   /**

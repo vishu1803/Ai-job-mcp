@@ -8,7 +8,28 @@
  * Docs: https://docs.greenhouse.io/job-board.html
  */
 
+import crypto from 'node:crypto';
 import { logger as defaultLogger } from '../../utils/logger.js';
+
+/**
+ * Generates a deterministic canonical UUID from provider + externalJobId.
+ *
+ * @param {string} provider Provider name
+ * @param {string} externalJobId Provider-specific ID
+ * @returns {string} Canonical UUID
+ */
+function generateCanonicalId(provider, externalJobId) {
+  const input = `${provider}:${externalJobId}`;
+  const hash = crypto.createHash('sha256').update(input).digest();
+  const hex = hash.subarray(0, 16).toString('hex');
+  return [
+    hex.substring(0, 8),
+    hex.substring(8, 12),
+    '4' + hex.substring(13, 16),
+    '8' + hex.substring(17, 20),
+    hex.substring(20, 32),
+  ].join('-');
+}
 
 /**
  * Normalizes a Greenhouse job posting into the Career Hub normalized format.
@@ -29,9 +50,12 @@ function normalizeGreenhouseJob(ghJob, boardToken) {
   // Determine workplace type from location
   const workplaceType = inferWorkplaceType(locationName, contentText);
 
+  const externalJobId = `gh-${boardToken}-${ghJob.id}`;
   return {
-    id: `gh-${boardToken}-${ghJob.id}`,
+    id: generateCanonicalId('GREENHOUSE', externalJobId),
     source: 'GREENHOUSE',
+    provider: 'GREENHOUSE',
+    externalJobId,
     company: formatBoardName(boardToken),
     title: ghJob.title || 'Untitled Position',
     location: locationName,
