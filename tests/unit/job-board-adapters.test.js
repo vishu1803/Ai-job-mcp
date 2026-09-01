@@ -15,6 +15,7 @@ import { describe, it, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { GreenhouseAdapter } from '../../src/services/job-board-adapters/greenhouse.adapter.js';
 import { LeverAdapter } from '../../src/services/job-board-adapters/lever.adapter.js';
+import { NormalizedJobPostingSchema } from '../../src/domain/job/job-workflow.schemas.js';
 
 // ============================================================================
 // Greenhouse Adapter Tests
@@ -168,7 +169,7 @@ describe('GreenhouseAdapter', () => {
       const jobs = await adapter.fetchJobs();
       assert.equal(jobs[0].workplaceType, 'REMOTE');
       assert.equal(jobs[1].workplaceType, 'HYBRID');
-      assert.equal(jobs[2].workplaceType, 'ONSITE');
+      assert.equal(jobs[2].workplaceType, 'ON_SITE');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -363,9 +364,9 @@ describe('LeverAdapter', () => {
       const jobs = await adapter.fetchJobs();
       assert.equal(jobs[0].workplaceType, 'REMOTE');
       assert.equal(jobs[1].workplaceType, 'HYBRID');
-      assert.equal(jobs[2].workplaceType, 'ONSITE');
-      assert.equal(jobs[3].workplaceType, 'ONSITE');
-      assert.equal(jobs[4].workplaceType, 'ONSITE');
+      assert.equal(jobs[2].workplaceType, 'ON_SITE');
+      assert.equal(jobs[3].workplaceType, 'ON_SITE');
+      assert.equal(jobs[4].workplaceType, 'ON_SITE');
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -425,6 +426,75 @@ describe('LeverAdapter', () => {
       assert.ok(jobs[0].responsibilities[0].includes('Build APIs'));
       assert.equal(jobs[0].requirements.length, 2);
       assert.ok(jobs[0].requirements[0].includes('5+ years'));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+// ============================================================================
+// NormalizedJobPostingSchema Compliance
+// ============================================================================
+
+describe('Adapter output matches NormalizedJobPostingSchema', () => {
+  it('Greenhouse adapter output passes schema validation', async () => {
+    const mockFetch = mock.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        jobs: [
+          {
+            id: 99999,
+            title: 'Test Engineer',
+            updated_at: '2026-08-20T10:00:00Z',
+            location: { name: 'Remote' },
+            absolute_url: 'https://boards.greenhouse.io/test/jobs/99999',
+            content: '<p>Build things with React and TypeScript</p>',
+          },
+        ],
+      }),
+    }));
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch;
+
+    try {
+      const adapter = new GreenhouseAdapter({ boardToken: 'test' });
+      const jobs = await adapter.fetchJobs();
+      assert.equal(jobs.length, 1);
+
+      // Must pass schema validation without throwing
+      const parsed = NormalizedJobPostingSchema.parse(jobs[0]);
+      assert.equal(parsed.source, 'GREENHOUSE');
+      assert.ok(['REMOTE', 'HYBRID', 'ON_SITE'].includes(parsed.workplaceType));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('Lever adapter output passes schema validation', async () => {
+    const mockFetch = mock.fn(async () => ({
+      ok: true,
+      json: async () => [
+        {
+          id: 'lever-123',
+          text: 'Test Engineer',
+          descriptionPlain: 'Build with Node.js and PostgreSQL',
+          categories: { location: 'New York', team: 'Engineering' },
+        },
+      ],
+    }));
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch;
+
+    try {
+      const adapter = new LeverAdapter({ site: 'testcompany' });
+      const jobs = await adapter.fetchJobs();
+      assert.equal(jobs.length, 1);
+
+      const parsed = NormalizedJobPostingSchema.parse(jobs[0]);
+      assert.equal(parsed.source, 'LEVER');
+      assert.ok(['REMOTE', 'HYBRID', 'ON_SITE'].includes(parsed.workplaceType));
     } finally {
       globalThis.fetch = originalFetch;
     }

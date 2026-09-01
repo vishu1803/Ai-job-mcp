@@ -96,7 +96,24 @@ export function registerJobWorkflowTools(
   server.registerTool(JOB_WORKFLOW_TOOL_DEFINITIONS.search_jobs, async (context, params) => {
     assertToolPermission(context, JOB_WORKFLOW_TOOL_DEFINITIONS.search_jobs);
 
-    const result = await discoveryService.searchJobs(params);
+    // Resolve candidate and fetch saved career preferences for default filters
+    let preferences = null;
+    try {
+      const candidateId = await resolveCandidateId(context, params.candidateId, database);
+      const [candidate] = await database
+        .select({ profileMetadata: candidates.profileMetadata })
+        .from(candidates)
+        .where(eq(candidates.id, candidateId))
+        .limit(1);
+
+      if (candidate?.profileMetadata?.careerPreferences) {
+        preferences = candidate.profileMetadata.careerPreferences;
+      }
+    } catch {
+      // If candidate resolution fails, proceed without preferences
+    }
+
+    const result = await discoveryService.searchJobs(params, preferences);
     return result;
   });
 

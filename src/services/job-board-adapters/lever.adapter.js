@@ -33,11 +33,11 @@ function mapEmploymentType(commitment) {
  * @returns {string} Normalized workplace type
  */
 function mapWorkplaceType(leverWorkplaceType) {
-  if (!leverWorkplaceType || leverWorkplaceType === 'unspecified') return 'ONSITE';
+  if (!leverWorkplaceType || leverWorkplaceType === 'unspecified') return 'ON_SITE';
   const lower = leverWorkplaceType.toLowerCase();
   if (lower === 'remote') return 'REMOTE';
   if (lower === 'hybrid') return 'HYBRID';
-  return 'ONSITE';
+  return 'ON_SITE';
 }
 
 /**
@@ -75,12 +75,12 @@ function normalizeLeverPosting(posting, site) {
     skills,
     salary: posting.salaryRange
       ? {
-          min: posting.salaryRange.min || null,
-          max: posting.salaryRange.max || null,
+          min: posting.salaryRange.min || undefined,
+          max: posting.salaryRange.max || undefined,
           currency: posting.salaryRange.currency || 'USD',
           period: mapSalaryPeriod(posting.salaryRange.interval),
         }
-      : null,
+      : undefined,
     applicationUrl:
       posting.applyUrl || posting.hostedUrl || `https://jobs.lever.co/${site}/${posting.id}`,
     sourceUrl: posting.hostedUrl || `https://jobs.lever.co/${site}`,

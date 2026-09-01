@@ -116,6 +116,7 @@ const envSchema = z
     GREENHOUSE_BOARDS: z.string().optional().default(''),
     LEVER_SITES: z.string().optional().default(''),
     JOB_BOARD_FETCH_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
+    JOB_FRESHNESS_DAYS: z.coerce.number().int().positive().default(30),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && !data.ENCRYPTION_MASTER_KEY) {

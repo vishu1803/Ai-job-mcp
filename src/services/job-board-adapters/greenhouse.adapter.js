@@ -41,7 +41,8 @@ function normalizeGreenhouseJob(ghJob, boardToken) {
     responsibilities: extractListItems(contentText, 'responsibilities'),
     requirements: extractListItems(contentText, 'requirements'),
     skills,
-    salary: null, // Greenhouse pay ranges require pay_transparency param
+    // Greenhouse pay ranges require pay_transparency param; omit when unavailable
+    salary: undefined,
     applicationUrl:
       ghJob.absolute_url || `https://boards.greenhouse.io/${boardToken}/jobs/${ghJob.id}`,
     sourceUrl: `https://boards.greenhouse.io/${boardToken}`,
@@ -184,7 +185,7 @@ function inferWorkplaceType(location, content) {
   if (combined.includes('hybrid')) {
     return 'HYBRID';
   }
-  return 'ONSITE';
+  return 'ON_SITE';
 }
 
 /**
