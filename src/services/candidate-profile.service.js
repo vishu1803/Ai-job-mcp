@@ -931,6 +931,287 @@ export class CandidateProfileService {
   }
 
   /**
+   * Updates user-adjustable profile sections (Identity, Career Status, Current Employment,
+   * Experience, Education, Certifications, Languages, Links, and Preferences).
+   *
+   * STRICT SECURITY INVARIANT: Skills and Projects are evidence-locked and cannot be modified
+   * through this endpoint. Any attempts to tamper with skill truth statuses, evidence counts,
+   * or project verification flags are strictly filtered out and ignored.
+   *
+   * @param {object} context - Trusted context with tenantId and role
+   * @param {string} candidateId - Candidate UUID
+   * @param {object} rawInput - User profile section updates
+   * @returns {Promise<object>} Freshly recalculated canonical CareerProfile
+   */
+  async updateUserProfileSections(context, candidateId, rawInput = {}) {
+    this._validateContext(context);
+    if (!candidateId) throw new ValidationError('candidateId is required');
+
+    const [candidate] = await this._db
+      .select()
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
+
+    if (!candidate) throw new NotFoundError(`Candidate not found: ${candidateId}`);
+
+    await this._assertCanMutateCandidate(context, candidate);
+
+    const currentMeta = candidate.profileMetadata || {};
+    const existingCustom = currentMeta.userCustom || {};
+    const candidateUpdates = {};
+    const updatedCustom = { ...existingCustom };
+
+    // 1. Identity updates
+    if (typeof rawInput.displayName === 'string' && rawInput.displayName.trim()) {
+      candidateUpdates.displayName = rawInput.displayName.trim().slice(0, 255);
+    }
+    if (rawInput.headline !== undefined) {
+      const h = rawInput.headline ? String(rawInput.headline).trim().slice(0, 500) : null;
+      candidateUpdates.headline = h;
+      updatedCustom.headline = h;
+    }
+    if (rawInput.summary !== undefined) {
+      const s = rawInput.summary ? String(rawInput.summary).trim().slice(0, 5000) : null;
+      candidateUpdates.summary = s;
+      updatedCustom.summary = s;
+    }
+    if (rawInput.currentRole !== undefined) {
+      const cr = rawInput.currentRole ? String(rawInput.currentRole).trim().slice(0, 255) : null;
+      updatedCustom.currentRole = cr;
+      currentMeta.currentRole = cr;
+    }
+    if (rawInput.location !== undefined) {
+      const loc = rawInput.location ? String(rawInput.location).trim().slice(0, 255) : null;
+      updatedCustom.location = loc;
+      currentMeta.location = loc;
+    }
+
+    // 2. Career Status & Current Employment
+    if (rawInput.careerStatus !== undefined) {
+      const cs = rawInput.careerStatus
+        ? String(rawInput.careerStatus).toUpperCase().trim()
+        : 'UNKNOWN';
+      updatedCustom.careerStatus = cs;
+      currentMeta.careerStatus = cs;
+    }
+    if (rawInput.currentEmployment !== undefined) {
+      if (rawInput.currentEmployment === null || rawInput.currentEmployment === 'null') {
+        updatedCustom.currentEmployment = null;
+        currentMeta.currentEmployment = null;
+      } else if (typeof rawInput.currentEmployment === 'object') {
+        const ce = {
+          company: String(rawInput.currentEmployment.company || '')
+            .trim()
+            .slice(0, 255),
+          title: String(rawInput.currentEmployment.title || '')
+            .trim()
+            .slice(0, 255),
+          employmentType: String(rawInput.currentEmployment.employmentType || 'FULL_TIME')
+            .trim()
+            .slice(0, 100),
+          location: rawInput.currentEmployment.location
+            ? String(rawInput.currentEmployment.location).trim().slice(0, 255)
+            : null,
+          startDate: rawInput.currentEmployment.startDate
+            ? String(rawInput.currentEmployment.startDate).trim()
+            : null,
+          endDate: rawInput.currentEmployment.endDate
+            ? String(rawInput.currentEmployment.endDate).trim()
+            : null,
+          isCurrent: rawInput.currentEmployment.isCurrent !== false,
+        };
+        updatedCustom.currentEmployment = ce.company && ce.title ? ce : null;
+        currentMeta.currentEmployment = updatedCustom.currentEmployment;
+      }
+    }
+
+    // 3. Experience Records (Multi-record CRUD)
+    if (Array.isArray(rawInput.experience)) {
+      updatedCustom.experience = rawInput.experience.map((exp) => {
+        const rawDates =
+          exp.rawDateRange ||
+          (exp.startDate && exp.endDate
+            ? `${exp.startDate} - ${exp.endDate}`
+            : exp.startDate || '');
+        const dNorm = rawDates ? DateRangeNormalizer.normalize(rawDates) : null;
+        return {
+          company:
+            String(exp.company || '')
+              .trim()
+              .slice(0, 255) || 'Company',
+          title:
+            String(exp.title || exp.role || '')
+              .trim()
+              .slice(0, 255) || 'Role',
+          employmentType: String(exp.employmentType || 'FULL_TIME')
+            .toUpperCase()
+            .trim(),
+          location: exp.location ? String(exp.location).trim().slice(0, 255) : null,
+          startDate: exp.startDate || dNorm?.startDate || null,
+          endDate: exp.isCurrent ? null : exp.endDate || dNorm?.endDate || null,
+          isCurrent: Boolean(exp.isCurrent || dNorm?.isCurrent),
+          rawDateRange: exp.rawDateRange || dNorm?.rawDateRange || null,
+          bullets: Array.isArray(exp.bullets)
+            ? exp.bullets
+                .map(String)
+                .map((b) => b.trim())
+                .filter(Boolean)
+            : [],
+          technologies: Array.isArray(exp.technologies)
+            ? exp.technologies
+                .map(String)
+                .map((t) => t.trim())
+                .filter(Boolean)
+            : [],
+          provenanceStatus: 'USER_PROVIDED',
+        };
+      });
+      currentMeta.experience = updatedCustom.experience;
+    }
+
+    // 4. Education Records (Multi-record CRUD)
+    if (Array.isArray(rawInput.education)) {
+      updatedCustom.education = rawInput.education.map((edu) => {
+        const rawDates = edu.rawDateRange || edu.startDate || '';
+        const dNorm = DateRangeNormalizer.normalize(rawDates);
+        return {
+          institution:
+            String(edu.institution || '')
+              .trim()
+              .slice(0, 255) || 'Institution',
+          degree: edu.degree ? String(edu.degree).trim().slice(0, 255) : null,
+          degreeType: String(edu.degreeType || 'OTHER')
+            .toUpperCase()
+            .trim(),
+          fieldOfStudy: edu.fieldOfStudy ? String(edu.fieldOfStudy).trim().slice(0, 255) : null,
+          location: edu.location ? String(edu.location).trim().slice(0, 255) : null,
+          startDate: dNorm.startDate || edu.startDate || null,
+          endDate: dNorm.endDate || edu.endDate || null,
+          isCurrent: Boolean(edu.isCurrent || edu.currentlyEnrolled || dNorm.isCurrent),
+          rawDateRange: dNorm.rawDateRange || null,
+          coursework: Array.isArray(edu.coursework)
+            ? edu.coursework
+                .map(String)
+                .map((c) => c.trim())
+                .filter(Boolean)
+            : typeof edu.coursework === 'string'
+              ? edu.coursework
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
+          notes: edu.notes ? String(edu.notes).trim().slice(0, 2000) : null,
+          provenanceStatus: 'USER_PROVIDED',
+        };
+      });
+      currentMeta.education = updatedCustom.education;
+    }
+
+    // 5. Certifications (Multi-record CRUD)
+    if (Array.isArray(rawInput.certifications)) {
+      updatedCustom.certifications = rawInput.certifications
+        .map((cert) => {
+          if (typeof cert === 'string') {
+            return {
+              name: cert.trim(),
+              provenanceStatus: 'USER_PROVIDED',
+            };
+          }
+          return {
+            name: String(cert.name || '')
+              .trim()
+              .slice(0, 255),
+            issuer: cert.issuer ? String(cert.issuer).trim().slice(0, 255) : null,
+            issueDate: cert.issueDate ? String(cert.issueDate).trim() : null,
+            expiryDate: cert.expiryDate ? String(cert.expiryDate).trim() : null,
+            credentialId: cert.credentialId ? String(cert.credentialId).trim().slice(0, 255) : null,
+            credentialUrl: cert.credentialUrl
+              ? String(cert.credentialUrl).trim().slice(0, 1000)
+              : null,
+            notes: cert.notes ? String(cert.notes).trim().slice(0, 1000) : null,
+            provenanceStatus: 'USER_PROVIDED',
+          };
+        })
+        .filter((c) => Boolean(c.name));
+      currentMeta.certifications = updatedCustom.certifications;
+    }
+
+    // 6. Languages (Multi-record CRUD)
+    if (Array.isArray(rawInput.languages)) {
+      updatedCustom.languages = rawInput.languages
+        .map((lang) => {
+          if (typeof lang === 'string') {
+            return {
+              language: lang.trim(),
+              proficiency: 'PROFESSIONAL',
+              provenanceStatus: 'USER_PROVIDED',
+            };
+          }
+          return {
+            language: String(lang.language || '')
+              .trim()
+              .slice(0, 100),
+            proficiency: String(lang.proficiency || 'PROFESSIONAL')
+              .toUpperCase()
+              .trim(),
+            provenanceStatus: 'USER_PROVIDED',
+          };
+        })
+        .filter((l) => Boolean(l.language));
+      currentMeta.languages = updatedCustom.languages;
+    }
+
+    // 7. Portfolio Links
+    if (Array.isArray(rawInput.portfolioLinks)) {
+      updatedCustom.portfolioLinks = rawInput.portfolioLinks
+        .map((pl) => ({
+          label: String(pl.label || 'PORTFOLIO')
+            .toUpperCase()
+            .trim()
+            .slice(0, 50),
+          url: String(pl.url || '').trim(),
+        }))
+        .filter((pl) => pl.url && (pl.url.startsWith('http://') || pl.url.startsWith('https://')));
+      currentMeta.portfolioLinks = updatedCustom.portfolioLinks;
+    }
+
+    // 8. Career Preferences (if included)
+    if (rawInput.jobPreferences || rawInput.careerPreferences) {
+      const prefInput = rawInput.jobPreferences || rawInput.careerPreferences;
+      const parsedPrefs = UpdateCareerPreferencesInputSchema.parse(prefInput);
+      const existingPrefs = currentMeta.careerPreferences || {};
+      currentMeta.careerPreferences = CareerPreferencesSchema.parse({
+        ...existingPrefs,
+        ...parsedPrefs,
+        lastUpdated: new Date().toISOString(),
+      });
+    }
+
+    // EVIDENCE-LOCK INVARIANT: Explicitly discard any input attempting to mutate skills or projects.
+    // userCustom never contains skills or project verification states.
+
+    currentMeta.userCustom = updatedCustom;
+    candidateUpdates.profileMetadata = currentMeta;
+    candidateUpdates.updatedAt = new Date();
+
+    await this._db
+      .update(candidates)
+      .set(candidateUpdates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
+
+    logger.info(
+      {
+        tenantId: context.tenantId,
+        candidateId,
+        operation: 'candidate.profile_sections_updated',
+      },
+      'User-adjustable profile sections updated successfully'
+    );
+
+    return await this.getCareerProfile(context, candidateId);
+  }
+
+  /**
    * Retrieves a comprehensive Career Profile view with preferences, portfolio links, verified skills summary, and qualifications.
    *
    * @param {object} context - Trusted context with tenantId
@@ -947,7 +1228,13 @@ export class CandidateProfileService {
 
     // 1. Resolve Resume Data (from profileMetadata or dynamic fallback from latest parsed resume)
     let resumeData = candidate.profileMetadata?.resumeData || null;
-    if (!resumeData) {
+    // Always try to extract fresh data from sections if cached resumeData is missing
+    // education or experience (ensures parsed resume data surfaces correctly)
+    const needsFreshExtraction =
+      !resumeData ||
+      (Array.isArray(resumeData.education) && resumeData.education.length === 0) ||
+      (Array.isArray(resumeData.experience) && resumeData.experience.length === 0);
+    if (needsFreshExtraction) {
       try {
         const [latestResume] = await this._db
           .select()
@@ -969,7 +1256,16 @@ export class CandidateProfileService {
             .orderBy(resumeSections.orderIndex);
 
           if (sections && sections.length > 0) {
-            resumeData = this._extractResumeDataFromSections(latestResume, sections);
+            const freshData = this._extractResumeDataFromSections(latestResume, sections);
+            // Merge: prefer fresh extraction for education/experience, keep cached for others
+            resumeData = {
+              ...(resumeData || {}),
+              ...freshData,
+              education:
+                freshData.education.length > 0 ? freshData.education : resumeData?.education || [],
+              experience:
+                freshData.experience.length > 0 ? freshData.experience : resumeData?.experience || [],
+            };
           }
         }
       } catch (err) {
@@ -1331,8 +1627,12 @@ export class CandidateProfileService {
 
     if (Array.isArray(rawCustomExperience) && rawCustomExperience.length > 0) {
       recentExperience = rawCustomExperience.slice(0, 10).map((exp) => {
-        const rawDates = exp.rawDateRange || exp.startDate || '';
-        const dNorm = DateRangeNormalizer.normalize(rawDates);
+        const rawDates =
+          exp.rawDateRange ||
+          (exp.startDate && exp.endDate
+            ? `${exp.startDate} - ${exp.endDate}`
+            : exp.startDate || '');
+        const dNorm = rawDates ? DateRangeNormalizer.normalize(rawDates) : null;
         const empType =
           exp.employmentType ||
           TenureCalculator.inferEmploymentType({
@@ -1344,10 +1644,10 @@ export class CandidateProfileService {
           title: exp.title || exp.role || 'Role',
           employmentType: empType,
           location: exp.location || null,
-          startDate: dNorm.startDate || exp.startDate || null,
-          endDate: dNorm.endDate || exp.endDate || null,
-          isCurrent: Boolean(exp.isCurrent || dNorm.isCurrent),
-          rawDateRange: dNorm.rawDateRange || null,
+          startDate: exp.startDate || dNorm?.startDate || null,
+          endDate: exp.isCurrent ? null : exp.endDate || dNorm?.endDate || null,
+          isCurrent: Boolean(exp.isCurrent || dNorm?.isCurrent),
+          rawDateRange: exp.rawDateRange || dNorm?.rawDateRange || null,
           bullets: Array.isArray(exp.bullets) ? exp.bullets : [],
           technologies: Array.isArray(exp.technologies) ? exp.technologies : [],
           verifiedSkillsUsed: Array.isArray(exp.skills) ? exp.skills : [],
@@ -1416,7 +1716,14 @@ export class CandidateProfileService {
 
     // 10. Derive Tenure, Seniority, Career Status, Current Employment, Current Role
     const tenureMetrics = TenureCalculator.calculateTenure(recentExperience);
-    const currentEmployment = CareerStatusDerivation.deriveCurrentEmployment(recentExperience);
+    const derivedEmployment = CareerStatusDerivation.deriveCurrentEmployment(recentExperience);
+    const currentEmployment =
+      userCustom.currentEmployment !== undefined
+        ? userCustom.currentEmployment
+        : candidate.profileMetadata?.currentEmployment !== undefined
+          ? candidate.profileMetadata.currentEmployment
+          : derivedEmployment;
+
     const currentRole = CareerStatusDerivation.resolveCurrentRole({
       userCustomRole: userCustom.currentRole || candidate.profileMetadata?.currentRole,
       headline,
@@ -1426,13 +1733,13 @@ export class CandidateProfileService {
       experiences: recentExperience,
       education,
       professionalTenureYears: tenureMetrics.professionalTenureYears,
-      declaredSeniority: candidate.profileMetadata?.seniority,
+      declaredSeniority: userCustom.seniority || candidate.profileMetadata?.seniority,
     });
     const careerStatus = CareerStatusDerivation.deriveCareerStatus({
       experiences: recentExperience,
       education,
       professionalTenureMonths: tenureMetrics.professionalTenureMonths,
-      declaredStatus: candidate.profileMetadata?.careerStatus,
+      declaredStatus: userCustom.careerStatus || candidate.profileMetadata?.careerStatus,
     });
     const yearsOfExperience =
       tenureMetrics.professionalTenureYears > 0
@@ -1646,8 +1953,13 @@ export class CandidateProfileService {
       }
 
       if (sec.sectionType === 'EDUCATION') {
-        const normalizedEdu = EducationNormalizer.normalize(sec.rawText || sd.degrees || []);
-        resumeEducation.push(...normalizedEdu);
+        // Prefer pre-normalized education objects from the parser output
+        if (Array.isArray(sd.education) && sd.education.length > 0) {
+          resumeEducation.push(...sd.education);
+        } else {
+          const normalizedEdu = EducationNormalizer.normalize(sec.rawText || sd.degrees || []);
+          resumeEducation.push(...normalizedEdu);
+        }
       }
 
       if (sec.sectionType === 'PROJECTS' && Array.isArray(sd.projects)) {

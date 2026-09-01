@@ -45,13 +45,47 @@ export const CareerStatusEnum = z.enum([
   'UNKNOWN',
 ]);
 
+export const CertificationItemSchema = z.union([
+  z.string(),
+  z.object({
+    name: z.string().min(1),
+    issuer: z.string().optional().nullable(),
+    issueDate: z.string().optional().nullable(),
+    expiryDate: z.string().optional().nullable(),
+    credentialId: z.string().optional().nullable(),
+    credentialUrl: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    provenanceStatus: z
+      .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED'])
+      .optional()
+      .default('USER_PROVIDED'),
+  }),
+]);
+
+export const LanguageItemSchema = z.union([
+  z.string(),
+  z.object({
+    language: z.string().min(1),
+    proficiency: z
+      .enum(['NATIVE', 'FLUENT', 'PROFESSIONAL', 'INTERMEDIATE', 'BASIC'])
+      .optional()
+      .default('PROFESSIONAL'),
+    provenanceStatus: z
+      .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED'])
+      .optional()
+      .default('USER_PROVIDED'),
+  }),
+]);
+
 export const CurrentEmploymentSchema = z
   .object({
     title: z.string().min(1).max(255),
     company: z.string().min(1).max(255),
     employmentType: z.string().max(100),
     startDate: z.string().nullable().optional(),
+    endDate: z.string().nullable().optional(),
     location: z.string().nullable().optional(),
+    isCurrent: z.boolean().optional().default(true),
   })
   .nullable();
 
@@ -318,8 +352,8 @@ export const CandidateCareerProfileSchema = z.strictObject({
     )
     .optional()
     .default([]),
-  certifications: z.array(z.string()).optional().default([]),
-  languages: z.array(z.string()).optional().default([]),
+  certifications: z.array(CertificationItemSchema).optional().default([]),
+  languages: z.array(LanguageItemSchema).optional().default([]),
   completeness: ProfileCompletenessSchema.optional(),
   profileReadiness: ProfileReadinessSchema.optional(),
   updatedAt: DateOrIsoStringSchema.optional().nullable(),

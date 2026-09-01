@@ -1,14 +1,17 @@
 /**
- * @file Candidate Career Profile & Job Search Preferences View (P14-004C / ARCH-056 / Redesign).
+ * @file Candidate Career Profile & Job Search Preferences View (P14-004C / ARCH-056 / Refinement).
  *
  * Implements the user-facing Canonical Career Profile and Intent Management page:
  * 1. Actionable Profile Completeness & Readiness status with compact visual indicators
- * 2. Professional Identity & Narrative with guided suggestions (Name, Headline, Current Role, Location, Summary)
- * 3. Qualifications & Categorized Skills (Core, Backend, Frontend, DBs, Cloud, AI/ML, Tools)
- * 4. Human-readable Highlighted Projects with evidence badges and interactive filters
- * 5. Intelligent Job Search Preferences with searchable multi-select chips and AI suggestions
- * 6. Work Eligibility & Availability controls (never inferred)
- * 7. Sticky save action bar and real-time toast feedback
+ * 2. Professional Identity & Narrative with guided suggestions (Name, Headline, Current Role, Current Location, Summary)
+ * 3. Career Status & Explicit Current Employment (Fresher, Student, Employed, etc.)
+ * 4. Multi-Record Work Experience with Add/Edit/Delete, employment types, and derived tenure metrics
+ * 5. Multi-Record Education with Degree Types, graduation/enrolled status, and coursework tagging
+ * 6. Multi-Record Certifications & Languages
+ * 7. Evidence-Locked Qualifications & Categorized Skills (Read-Only / AST & GitHub / Non-Editable)
+ * 8. Evidence-Locked Highlighted Projects with AST signals and repository provenance
+ * 9. Intelligent Job Search Preferences (Separate from Current Location) with suggestions and multi-select chips
+ * 10. Sticky save bar with dirty-state tracking and unsaved changes confirmation
  */
 
 import { renderLayout } from './layout.js';
@@ -46,12 +49,7 @@ export function renderProfilePage({
   const remotePref = jobPrefs.remotePreference || 'FLEXIBLE';
   const salaryFloor = jobPrefs.salaryFloor != null ? jobPrefs.salaryFloor : '';
   const salaryCurrency = jobPrefs.salaryCurrency || 'USD';
-  const preferredTechList = jobPrefs.preferredTechStack || [];
-  const industriesList = jobPrefs.industries || [];
-  const companiesPrioritizeList = jobPrefs.companiesToPrioritize || [];
-  const companiesAvoidList = jobPrefs.companiesToAvoid || [];
   const workAuthList = jobPrefs.workAuthorization || [];
-  const visaRequired = jobPrefs.visaSponsorshipRequired === true;
   const availability = jobPrefs.availabilityDate || '';
   const relocationPref = jobPrefs.relocationPreference || 'REMOTE_ONLY';
 
@@ -78,9 +76,33 @@ export function renderProfilePage({
     profile?.currentRole || candidate?.profileMetadata?.currentRole || candidate?.headline || '';
   const userLocation = profile?.location || candidate?.profileMetadata?.location || '';
   const summaryText = profile?.summary || candidate?.summary || '';
-  const experienceList = profile?.recentExperience || [];
+  const careerStatusVal =
+    profile?.careerStatus || candidate?.profileMetadata?.careerStatus || 'FRESHER';
+  const currentEmploymentObj =
+    profile?.currentEmployment || candidate?.profileMetadata?.currentEmployment || null;
+  const experienceList =
+    profile?.recentExperience ||
+    candidate?.profileMetadata?.userCustom?.experience ||
+    candidate?.profileMetadata?.experience ||
+    [];
+  const educationList =
+    profile?.education ||
+    candidate?.profileMetadata?.userCustom?.education ||
+    candidate?.profileMetadata?.education ||
+    [];
+  const certsList =
+    profile?.certifications ||
+    candidate?.profileMetadata?.userCustom?.certifications ||
+    candidate?.profileMetadata?.certifications ||
+    [];
+  const languagesList =
+    profile?.languages ||
+    candidate?.profileMetadata?.userCustom?.languages ||
+    candidate?.profileMetadata?.languages ||
+    [];
+  const portfolioLinksList =
+    profile?.portfolioLinks || candidate?.profileMetadata?.userCustom?.portfolioLinks || [];
   const projectsList = profile?.highlightedProjects || [];
-  const educationList = profile?.education || [];
   const topSkillsList = profile?.topSkills || [];
   const primarySkillsList =
     profile?.primarySkills && profile.primarySkills.length > 0
@@ -90,7 +112,16 @@ export function renderProfilePage({
     profile?.technologySignals && profile.technologySignals.length > 0
       ? profile.technologySignals
       : topSkillsList.filter((s) => s.tier === 'SIGNAL');
-  const certsList = profile?.certifications || [];
+
+  const expDuration = profile?.experienceDuration || {
+    totalYears: 0,
+    totalMonths: 0,
+    professionalYears: 0,
+    professionalMonths: 0,
+    softwareEngineeringYears: 0,
+    softwareEngineeringMonths: 0,
+  };
+  const seniorityLevel = profile?.seniority || 'ENTRY_LEVEL';
 
   // Calculate Overall Profile Completion Percentage (Weighted)
   let calculatedCompleteness = 0;
@@ -170,13 +201,22 @@ export function renderProfilePage({
   if (skillNamesLower.some((s) => s.includes('ai') || s.includes('gemini') || s.includes('openai')))
     recommendedRoles.push('AI Engineer');
 
+  const initialProfileState = {
+    experiences: experienceList,
+    education: educationList,
+    certifications: certsList,
+    languages: languagesList,
+    portfolioLinks: portfolioLinksList,
+    currentEmployment: currentEmploymentObj,
+  };
+
   const content = `
     <style>
       /* Career Profile SaaS Design System */
       .profile-page-container {
         max-width: 1100px;
         margin: 0 auto;
-        padding: 1.5rem 1.25rem 5rem 1.25rem;
+        padding: 1.5rem 1.25rem 6rem 1.25rem;
       }
 
       .profile-header-card {
@@ -198,29 +238,29 @@ export function renderProfilePage({
       }
 
       .completion-bar-fill {
-        background: linear-gradient(90deg, #10b981 0%, #6366f1 100%);
+        background: var(--accent-primary, #6366f1);
         height: 100%;
         border-radius: 9999px;
         transition: width 0.4s ease;
       }
 
       .section-status-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.6rem;
-        margin-top: 0.85rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.75rem;
       }
 
       .section-status-pill {
-        display: inline-flex;
+        display: flex;
         align-items: center;
-        gap: 0.35rem;
-        padding: 0.3rem 0.65rem;
-        border-radius: 9999px;
-        font-size: 0.78rem;
+        gap: 0.4rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
         font-weight: 500;
         text-decoration: none;
-        transition: all 0.15s ease;
+        transition: background 0.15s ease;
       }
 
       .status-pill-complete {
@@ -236,459 +276,526 @@ export function renderProfilePage({
       }
 
       .status-pill-neutral {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.04);
         color: #94a3b8;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.08);
       }
 
       .form-section-card {
-        background: rgba(17, 24, 39, 0.65);
-        backdrop-filter: blur(12px);
+        background: var(--bg-surface-elevated);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 12px;
         padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        transition: border-color 0.2s ease;
-      }
-
-      .form-section-card:hover {
-        border-color: rgba(255, 255, 255, 0.12);
+        margin-bottom: 1.25rem;
+        position: relative;
       }
 
       .section-title {
-        font-size: 1.15rem;
-        font-weight: 600;
+        font-size: 1.05rem;
+        font-weight: 700;
         color: #f8fafc;
+        margin-bottom: 0.25rem;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.25rem;
+        justify-content: space-between;
       }
 
       .section-subtitle {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         color: #94a3b8;
         margin-bottom: 1.25rem;
+        line-height: 1.4;
       }
 
       .form-group {
-        margin-bottom: 1.1rem;
+        margin-bottom: 1rem;
       }
 
       .form-label {
         display: block;
-        font-size: 0.85rem;
-        font-weight: 500;
-        color: #e2e8f0;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #cbd5e1;
         margin-bottom: 0.35rem;
       }
 
-      .form-helper {
-        font-size: 0.76rem;
-        color: #94a3b8;
-        margin-top: 0.3rem;
-        line-height: 1.4;
-      }
-
-      .form-input, .form-textarea, .form-select {
+      .form-input, .form-select, .form-textarea {
         width: 100%;
-        padding: 0.65rem 0.85rem;
-        background: rgba(11, 15, 25, 0.75);
+        background: rgba(11, 15, 25, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 8px;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.85rem;
         color: #f8fafc;
-        font-size: 0.875rem;
-        font-family: inherit;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      .form-input:focus, .form-textarea:focus, .form-select:focus {
         outline: none;
-        border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
-        background: rgba(11, 15, 25, 0.95);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        box-sizing: border-box;
       }
 
-      /* Searchable Chips Multi-Select Container */
+      .form-input:focus, .form-select:focus, .form-textarea:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+      }
+
+      .form-helper {
+        font-size: 0.72rem;
+        color: #64748b;
+        margin-top: 0.3rem;
+      }
+
       .chips-input-box {
         display: flex;
         flex-wrap: wrap;
-        align-items: center;
         gap: 0.4rem;
-        padding: 0.45rem 0.6rem;
-        background: rgba(11, 15, 25, 0.75);
+        background: rgba(11, 15, 25, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 8px;
+        padding: 0.4rem 0.6rem;
         min-height: 42px;
-        cursor: text;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      }
-
-      .chips-input-box:focus-within {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
-        background: rgba(11, 15, 25, 0.95);
-      }
-
-      .chip-tag {
-        display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
-        background: rgba(99, 102, 241, 0.15);
-        color: #c7d2fe;
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        border-radius: 6px;
-        padding: 0.2rem 0.5rem;
-        font-size: 0.8rem;
-        font-weight: 500;
-        user-select: none;
-      }
-
-      .chip-tag.recommendation-chip {
-        background: rgba(16, 185, 129, 0.15);
-        color: #a7f3d0;
-        border-color: rgba(16, 185, 129, 0.3);
-      }
-
-      .chip-remove-btn {
-        background: none;
-        border: none;
-        color: inherit;
-        opacity: 0.7;
-        cursor: pointer;
-        font-size: 0.9rem;
-        padding: 0;
-        line-height: 1;
-      }
-
-      .chip-remove-btn:hover {
-        opacity: 1;
       }
 
       .chips-search-input {
         flex: 1;
-        min-width: 140px;
+        min-width: 120px;
         background: transparent;
         border: none;
         outline: none;
         color: #f8fafc;
         font-size: 0.85rem;
-        padding: 0.2rem 0.3rem;
+        padding: 0.2rem 0;
+      }
+
+      .selected-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(99, 102, 241, 0.2);
+        color: #e0e7ff;
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        padding: 0.2rem 0.55rem;
+        border-radius: 6px;
+        font-size: 0.78rem;
+        font-weight: 500;
+      }
+
+      .chip-remove-btn {
+        cursor: pointer;
+        color: #a5b4fc;
+        font-weight: 700;
+        font-size: 0.85rem;
+        line-height: 1;
+      }
+
+      .chip-remove-btn:hover {
+        color: #ef4444;
       }
 
       .suggestion-pills-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.4rem;
-        margin-top: 0.5rem;
+        gap: 0.35rem;
+        margin-top: 0.4rem;
       }
 
       .suggestion-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
         background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
         color: #cbd5e1;
-        border-radius: 6px;
-        padding: 0.22rem 0.55rem;
-        font-size: 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.2rem 0.55rem;
+        border-radius: 14px;
+        font-size: 0.72rem;
         cursor: pointer;
-        transition: all 0.15s ease;
-        user-select: none;
+        transition: background 0.15s ease, border-color 0.15s ease;
       }
 
       .suggestion-pill:hover {
-        background: rgba(99, 102, 241, 0.18);
-        border-color: rgba(99, 102, 241, 0.35);
+        background: rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.4);
         color: #e0e7ff;
       }
 
       .suggestion-pill.ai-recommended {
-        background: rgba(99, 102, 241, 0.1);
-        border-color: rgba(99, 102, 241, 0.25);
-        color: #a5b4fc;
-      }
-
-      .suggestion-pill.ai-recommended:hover {
-        background: rgba(99, 102, 241, 0.25);
-        border-color: rgba(99, 102, 241, 0.45);
-      }
-
-      .suggestion-pill.selected {
-        background: rgba(99, 102, 241, 0.25);
-        border-color: #6366f1;
-        color: #ffffff;
-      }
-
-      /* Segmented Controls */
-      .segmented-control {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        background: rgba(11, 15, 25, 0.6);
-        padding: 0.3rem;
-        border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-
-      .segmented-btn {
-        flex: 1;
-        min-width: 100px;
-        text-align: center;
-        padding: 0.5rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.82rem;
-        font-weight: 500;
-        color: #94a3b8;
-        cursor: pointer;
-        border: 1px solid transparent;
-        background: transparent;
-        transition: all 0.15s ease;
-      }
-
-      .segmented-btn:hover {
-        color: #f8fafc;
-        background: rgba(255, 255, 255, 0.05);
-      }
-
-      .segmented-btn.active {
-        background: rgba(99, 102, 241, 0.2);
-        color: #e0e7ff;
         border-color: rgba(99, 102, 241, 0.4);
+        color: #c7d2fe;
+        background: rgba(99, 102, 241, 0.1);
       }
 
-      /* Skills Category Group */
+      /* Evidence Locked Banner & Badges */
+      .evidence-lock-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: rgba(99, 102, 241, 0.12);
+        color: #a5b4fc;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+      }
+
+      .evidence-lock-banner {
+        background: rgba(99, 102, 241, 0.05);
+        border: 1px dashed rgba(99, 102, 241, 0.25);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      /* Multi-Record Card Grid */
+      .record-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .record-item-card {
+        background: rgba(11, 15, 25, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        position: relative;
+        transition: border-color 0.15s ease;
+      }
+
+      .record-item-card:hover {
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+
+      .record-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.35rem;
+      }
+
+      .record-card-actions {
+        display: flex;
+        gap: 0.4rem;
+      }
+
+      .btn-icon-action {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #cbd5e1;
+        padding: 0.2rem 0.5rem;
+        border-radius: 5px;
+        font-size: 0.72rem;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+
+      .btn-icon-action:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #f8fafc;
+      }
+
+      .btn-icon-action.danger:hover {
+        background: rgba(239, 68, 68, 0.15);
+        border-color: rgba(239, 68, 68, 0.4);
+        color: #fca5a5;
+      }
+
+      /* Derived Metrics Box */
+      .derived-metrics-box {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 0.85rem 1rem;
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.75rem;
+      }
+
+      .metric-stat-item {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .metric-stat-label {
+        font-size: 0.7rem;
+        color: #94a3b8;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+
+      .metric-stat-value {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #f8fafc;
+        margin-top: 0.15rem;
+      }
+
+      /* Sticky Save Bar */
+      .sticky-save-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(99, 102, 241, 0.3);
+        padding: 0.85rem 1.5rem;
+        z-index: 100;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+        transform: translateY(100%);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .sticky-save-bar.visible {
+        transform: translateY(0);
+      }
+
+      /* Modal Dialog Styles */
+      .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(4px);
+        z-index: 200;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+
+      .modal-backdrop.open {
+        display: flex;
+      }
+
+      .modal-dialog {
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        width: 100%;
+        max-width: 580px;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 1.5rem;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .modal-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #f8fafc;
+        margin: 0;
+      }
+
+      .modal-close-btn {
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-size: 1.25rem;
+        cursor: pointer;
+      }
+
+      .modal-close-btn:hover {
+        color: #f8fafc;
+      }
+
+      .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      /* Skills Grid Categorization */
       .skill-category-block {
-        margin-bottom: 1.1rem;
+        background: rgba(11, 15, 25, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
       }
 
       .skill-category-title {
-        font-size: 0.8rem;
-        font-weight: 600;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #a5b4fc;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #94a3b8;
-        margin-bottom: 0.45rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
+        letter-spacing: 0.03em;
+        margin-bottom: 0.5rem;
       }
 
       .skill-tag-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
-        padding: 0.3rem 0.6rem;
+        padding: 0.25rem 0.6rem;
         border-radius: 6px;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 500;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: #e2e8f0;
       }
 
-      .skill-tag-badge.badge-verified {
-        background: rgba(16, 185, 129, 0.1);
-        border-color: rgba(16, 185, 129, 0.25);
-        color: #a7f3d0;
+      .badge-verified {
+        background: rgba(16, 185, 129, 0.12);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
       }
 
-      .skill-tag-badge.badge-claimed {
-        background: rgba(99, 102, 241, 0.08);
-        border-color: rgba(99, 102, 241, 0.2);
-        color: #cbd5e1;
+      .badge-claimed {
+        background: rgba(245, 158, 11, 0.12);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
       }
 
-      /* Project Cards Grid */
+      .badge-user-provided {
+        background: rgba(99, 102, 241, 0.12);
+        color: #c7d2fe;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+      }
+
+      /* Projects Grid */
       .projects-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 0.85rem;
       }
 
       .project-card {
-        background: rgba(15, 23, 42, 0.7);
+        background: rgba(11, 15, 25, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        padding: 1.15rem;
+        border-radius: 8px;
+        padding: 1rem;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        transition: all 0.2s ease;
-      }
-
-      .project-card:hover {
-        border-color: rgba(99, 102, 241, 0.3);
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.5);
       }
 
       .project-evidence-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.72rem;
-        font-weight: 500;
-        color: #34d399;
-        background: rgba(16, 185, 129, 0.1);
-        padding: 0.2rem 0.5rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 0.15rem 0.45rem;
         border-radius: 4px;
-        border: 1px solid rgba(16, 185, 129, 0.2);
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
       }
 
       .project-claimed-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.72rem;
-        font-weight: 500;
-        color: #94a3b8;
-        background: rgba(255, 255, 255, 0.05);
-        padding: 0.2rem 0.5rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 0.15rem 0.45rem;
         border-radius: 4px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
       }
 
-      /* Sticky Bottom Save Action Bar */
-      .sticky-save-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: rgba(15, 23, 42, 0.92);
-        backdrop-filter: blur(16px);
-        border-top: 1px solid rgba(255, 255, 255, 0.12);
-        padding: 0.85rem 1.5rem;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 999;
-        box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.6);
-        transition: transform 0.25s ease, opacity 0.25s ease;
+      /* Modal Grid Layouts */
+      .modal-grid-2col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+      .modal-grid-edu {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 0.75rem;
       }
 
-      .sticky-save-content {
-        width: 100%;
-        max-width: 1100px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-      }
-
-      /* Toast Notification */
-      .toast-notification {
-        position: fixed;
-        top: 1.5rem;
-        right: 1.5rem;
-        background: rgba(16, 185, 129, 0.95);
-        color: #ffffff;
-        padding: 0.75rem 1.25rem;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        animation: slideInToast 0.3s ease forwards;
-      }
-
-      @keyframes slideInToast {
-        from { transform: translateY(-100%); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
+      /* Responsive: Collapse grids below 480px */
+      @media (max-width: 480px) {
+        .profile-page-container {
+          padding: 1rem 0.75rem 5rem 0.75rem;
+        }
+        .profile-header-card {
+          padding: 1rem;
+        }
+        .form-section-card {
+          padding: 1rem;
+        }
+        .modal-dialog {
+          padding: 1rem;
+          max-width: 100%;
+        }
+        .section-status-grid {
+          grid-template-columns: 1fr;
+        }
+        .projects-grid {
+          grid-template-columns: 1fr;
+        }
+        .derived-metrics-box {
+          grid-template-columns: 1fr 1fr;
+        }
+        .modal-grid-2col,
+        .modal-grid-edu {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
 
     <div class="profile-page-container">
-      <!-- Breadcrumb Navigation -->
-      <nav class="breadcrumb" aria-label="Breadcrumb" style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.82rem; color: #94a3b8; margin-bottom: 1.25rem;">
-        <a href="/dashboard" style="color: #94a3b8; text-decoration: none;">Dashboard</a>
-        <span>/</span>
-        <span style="color: #f8fafc; font-weight: 500;">Career Profile</span>
-      </nav>
-
-      <!-- Architecture Pipeline Banner -->
-      <div class="pipeline-banner">
-        <div class="pipeline-header">
-          <span class="pipeline-title">Career Profile & Preferences</span>
-          <span style="font-size:0.75rem; color:var(--text-dim);">Job Search Configuration</span>
-        </div>
-        <div class="pipeline-steps">
-          <div class="pipeline-step active"><span>👤</span> Identity & Headline</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>⚡</span> Verified Skills</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🎯</span> Target Roles</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>📍</span> Location & Salary</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🤖</span> AI Matching</div>
-        </div>
-      </div>
-
-      <!-- Toast Notification for Saved Success -->
+      <!-- Flash Alert Feedback -->
       ${
         flashMessage
-          ? `
-        <div id="saveToast" class="toast-notification">
-          <span>✓</span>
-          <span>${escapeHtml(flashMessage)}</span>
-        </div>
-        <script>
-          setTimeout(() => {
-            const toast = document.getElementById('saveToast');
-            if (toast) {
-              toast.style.transition = 'opacity 0.4s ease';
-              toast.style.opacity = '0';
-              setTimeout(() => toast.remove(), 400);
-            }
-          }, 3500);
-        </script>
-      `
+          ? `<div class="card" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; padding: 0.85rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 500;">✓ ${escapeHtml(flashMessage)}</div>`
+          : ''
+      }
+      ${
+        errorMessage
+          ? `<div class="card" style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 0.85rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 500;">⚠️ ${escapeHtml(errorMessage)}</div>`
           : ''
       }
 
-      <!-- Error Alert Message -->
-      ${errorMessage ? `<div class="alert alert-error" style="margin-bottom: 1.25rem;">${escapeHtml(errorMessage)}</div>` : ''}
-
-      <!-- Page Header & Title -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
-        <div>
-          <h1 style="font-size: 1.65rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.35rem; letter-spacing: -0.01em;">
-            Career Profile
-          </h1>
-          <p style="color: #94a3b8; font-size: 0.9rem; max-width: 780px; line-height: 1.5;">
-            Build your professional profile once. AI agents use this structured profile to personalize job discovery, recommendations, and career assistance.
-          </p>
-        </div>
-        <div style="display: flex; gap: 0.6rem; align-items: center;">
-          <a href="/resumes" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; padding: 0.45rem 0.8rem;">
-            <span>📄 Manage Resumes</span>
-          </a>
-          <a href="/skills" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; padding: 0.45rem 0.8rem;">
-            <span>⚡ Skills Graph</span>
-          </a>
-        </div>
-      </div>
-
-      <!-- Compact Profile Completeness & Readiness Card -->
+      <!-- Profile Snapshot Header & Readiness Bar -->
       <div class="profile-header-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-          <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <span style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">
-              Profile completeness: ${overallPercentage}%
-            </span>
-            <span class="badge badge-verified" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 0.75rem;">
+          <div style="display: flex; gap: 1rem; align-items: center;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: var(--accent-primary, #6366f1); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800;">
+              ${escapeHtml((candidate?.displayName || user?.displayName || 'C').slice(0, 2).toUpperCase())}
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <h1 style="font-size: 1.35rem; font-weight: 800; color: #f8fafc; margin: 0;">
+                  ${escapeHtml(candidate?.displayName || user?.displayName || 'Candidate Profile')}
+                </h1>
+                <span class="badge badge-verified" style="font-size: 0.72rem; text-transform: uppercase;">
+                  STATUS: ${escapeHtml(careerStatusVal)}
+                </span>
+              </div>
+              <p style="font-size: 0.88rem; color: #94a3b8; margin: 0.2rem 0 0 0;">
+                ${escapeHtml(candidate?.headline || currentRole || 'Professional Candidate')} • <span style="color: #64748b;">${escapeHtml(userLocation || 'Location not set')}</span>
+              </p>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+            <span class="badge badge-verified" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
               Career Profile: ${profileReadiness.score}% Populated
             </span>
+            <span class="badge ${completeness.isReadyForJobSearch ? 'badge-verified' : 'badge-claimed'}" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
+              Job Matching: ${completeness.isReadyForJobSearch ? '✓ Ready' : '○ Needs Preferences'}
+            </span>
           </div>
-          <span style="font-size: 0.8rem; color: #94a3b8;">
-            ${escapeHtml(completeness.actionableFeedback || profileReadiness.actionableFeedback)}
-          </span>
         </div>
 
         <div class="completion-bar-track">
@@ -697,29 +804,38 @@ export function renderProfilePage({
 
         <div class="section-status-grid">
           <a href="#section-identity" class="section-status-pill ${candidate?.displayName ? 'status-pill-complete' : 'status-pill-attention'}">
-            <span>${candidate?.displayName ? '✓' : '!'}</span> Professional Identity
+            <span>${candidate?.displayName ? '✓' : '!'}</span> 1. Identity & Standing
+          </a>
+          <a href="#section-experience" class="section-status-pill ${experienceList.length > 0 ? 'status-pill-complete' : 'status-pill-neutral'}">
+            <span>${experienceList.length > 0 ? '✓' : '○'}</span> 2. Experience (${experienceList.length})
+          </a>
+          <a href="#section-education" class="section-status-pill ${educationList.length > 0 ? 'status-pill-complete' : 'status-pill-neutral'}">
+            <span>${educationList.length > 0 ? '✓' : '○'}</span> 3. Education (${educationList.length})
           </a>
           <a href="#section-qualifications" class="section-status-pill ${primarySkillsList.length > 0 ? 'status-pill-complete' : 'status-pill-attention'}">
-            <span>${primarySkillsList.length > 0 ? '✓' : '!'}</span> Skills & Evidence
+            <span>${primarySkillsList.length > 0 ? '✓' : '!'}</span> 4. Skills & Projects
           </a>
           <a href="#section-preferences" class="section-status-pill ${targetRolesList.length > 0 && preferredLocationsList.length > 0 ? 'status-pill-complete' : 'status-pill-attention'}">
-            <span>${targetRolesList.length > 0 && preferredLocationsList.length > 0 ? '✓' : '!'}</span> Job Preferences
+            <span>${targetRolesList.length > 0 && preferredLocationsList.length > 0 ? '✓' : '!'}</span> 5. Job Preferences
           </a>
-          <a href="#section-eligibility" class="section-status-pill ${workAuthList.length > 0 || availability ? 'status-pill-complete' : 'status-pill-neutral'}">
-            <span>${workAuthList.length > 0 || availability ? '✓' : '○'}</span> Eligibility
-          </a>
+        </div>
+
+        <!-- MCP Data Flow Indicator -->
+        <div style="margin-top: 0.75rem; padding: 0.6rem 1rem; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 8px; display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 0.85rem;">🔗</span>
+          <span style="font-size: 0.78rem; color: #a5b4fc;">This profile feeds AI career tools — MCP clients like Claude, ChatGPT & Gemini use your saved data for job matching & resume tailoring.</span>
         </div>
       </div>
 
-      <!-- Quick AI Profile Suggestions Bar (1-Click Fill) -->
+      <!-- Quick AI Suggestions Bar -->
       ${
         targetRolesList.length === 0 || preferredLocationsList.length === 0
           ? `
-        <div class="card" style="background: var(--bg-surface-elevated); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <div class="card" style="background: var(--bg-surface-elevated); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div style="display: flex; align-items: center; gap: 0.75rem;">
             <span style="font-size: 1.35rem;">✨</span>
             <div>
-              <strong style="color: #f8fafc; font-size: 0.88rem; display: block;">AI suggestions based on your verified skills</strong>
+              <strong style="color: #f8fafc; font-size: 0.88rem; display: block;">Suggested preferences based on your skills</strong>
               <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem;">
                 ${recommendedRoles
                   .slice(0, 3)
@@ -744,16 +860,29 @@ export function renderProfilePage({
       <!-- Main Profile Form -->
       <form id="careerProfileForm" action="/profile" method="POST" style="display: flex; flex-direction: column; gap: 1.25rem;">
         <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}" />
+        <input type="hidden" id="experienceHidden" name="experience" value="" />
+        <input type="hidden" id="educationHidden" name="education" value="" />
+        <input type="hidden" id="certificationsHidden" name="certifications" value="" />
+        <input type="hidden" id="languagesHidden" name="languages" value="" />
+        <input type="hidden" id="portfolioLinksHidden" name="portfolioLinks" value="" />
+        <input type="hidden" id="currentEmploymentHidden" name="currentEmployment" value="" />
+
+        <!-- Top-level Save Button (always visible) -->
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; padding: 0.5rem 0;">
+          <span id="dirtyIndicator" style="font-size: 0.78rem; color: #94a3b8; display: none;">● Unsaved changes</span>
+          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 700;">💾 Save Profile</button>
+        </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 1: PROFESSIONAL IDENTITY                                  -->
+        <!-- SECTION 1: PROFESSIONAL IDENTITY & CURRENT STANDING               -->
         <!-- ================================================================= -->
         <div id="section-identity" class="form-section-card">
           <div class="section-title">
-            <span>👤</span> Professional Identity
+            <span>👤 1. Professional Identity & Standing</span>
+            <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ User Editable</span>
           </div>
           <div class="section-subtitle">
-            Your public professional introduction and current standing.
+            Define your authentic professional persona, candidate status, and current employment state.
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
@@ -761,58 +890,77 @@ export function renderProfilePage({
               <label class="form-label" for="displayName">
                 Display Name <span style="color: #ef4444;">*</span>
               </label>
-              <input type="text" id="displayName" name="displayName" value="${escapeHtml(candidate?.displayName || user?.displayName || '')}" required class="form-input" placeholder="e.g. Alex Mercer" />
-              <div class="form-helper">Your preferred full name for applications and profiles.</div>
+              <input type="text" id="displayName" name="displayName" value="${escapeHtml(candidate?.displayName || user?.displayName || '')}" required class="form-input" placeholder="e.g. Alex Mercer" oninput="markFormDirty()" />
+              <div class="form-helper">Your preferred full name for applications and profile views.</div>
             </div>
 
             <div class="form-group">
               <label class="form-label" for="headline">
                 Professional Headline
               </label>
-              <input type="text" id="headline" name="headline" value="${escapeHtml(candidate?.headline || '')}" placeholder="e.g. Backend Engineer specializing in distributed systems" class="form-input" />
-              <div class="form-helper">A concise description of what you do.</div>
+              <input type="text" id="headline" name="headline" value="${escapeHtml(candidate?.headline || '')}" placeholder="e.g. Backend Engineer specializing in distributed systems" class="form-input" oninput="markFormDirty()" />
+              <div class="form-helper">Concise one-line summary of what you do.</div>
             </div>
 
             <div class="form-group">
               <label class="form-label" for="currentRole">
-                Professional Role / Headline Role
+                Professional Role / Persona
               </label>
-              <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" placeholder="e.g. Full-Stack & Backend Developer" class="form-input" />
-              <div class="form-helper">Your overarching professional persona and domain specialization.</div>
+              <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" placeholder="e.g. Full-Stack & Backend Developer" class="form-input" oninput="markFormDirty()" />
+              <div class="form-helper">Your active persona (does not require active employment).</div>
             </div>
 
             <div class="form-group">
-              <label class="form-label">
-                Current Active Employment
+              <label class="form-label" for="careerStatus">
+                Career Status <span style="color: #6366f1; font-size: 0.7rem;">(Confirm or Edit)</span>
               </label>
-              <div style="background: rgba(11, 15, 25, 0.75); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.85rem; color: #f8fafc; min-height: 42px; display: flex; align-items: center; justify-content: space-between;">
-                ${
-                  profile?.currentEmployment
-                    ? `<span>💼 <strong>${escapeHtml(profile.currentEmployment.title)}</strong> at ${escapeHtml(profile.currentEmployment.company)} <span class="badge" style="font-size: 0.68rem; margin-left: 0.4rem;">${escapeHtml(profile.currentEmployment.employmentType)}</span></span>`
-                    : `<span style="color: #94a3b8;">○ Not currently recorded (Job Seeking / Student / Independent)</span>`
-                }
-                <span class="badge badge-verified" style="font-size: 0.7rem; text-transform: uppercase;">
-                  Status: ${escapeHtml(profile?.careerStatus || 'UNKNOWN')}
-                </span>
-              </div>
-              <div class="form-helper">
-                Total Experience: ${profile?.experienceDuration?.totalYears != null ? profile.experienceDuration.totalYears + ' yr(s)' : '0 yrs'} (${profile?.experienceDuration?.totalMonths || 0} mo) | Seniority: ${escapeHtml(profile?.seniority || 'ENTRY_LEVEL')}
-              </div>
+              <select id="careerStatus" name="careerStatus" class="form-select" onchange="handleCareerStatusChange(); markFormDirty();">
+                <option value="FRESHER" ${careerStatusVal === 'FRESHER' ? 'selected' : ''}>Fresher (Recent/Upcoming Graduate)</option>
+                <option value="STUDENT" ${careerStatusVal === 'STUDENT' ? 'selected' : ''}>Student (Currently Enrolled)</option>
+                <option value="EMPLOYED" ${careerStatusVal === 'EMPLOYED' ? 'selected' : ''}>Employed (Currently Working)</option>
+                <option value="UNEMPLOYED" ${careerStatusVal === 'UNEMPLOYED' ? 'selected' : ''}>Unemployed / Job Seeking</option>
+                <option value="FREELANCER" ${careerStatusVal === 'FREELANCER' ? 'selected' : ''}>Freelancer / Independent</option>
+                <option value="CONTRACTOR" ${careerStatusVal === 'CONTRACTOR' ? 'selected' : ''}>Contractor</option>
+                <option value="OTHER" ${careerStatusVal === 'OTHER' ? 'selected' : ''}>Other</option>
+              </select>
+              <div class="form-helper">Detected from your qualifications: <strong>${escapeHtml(careerStatusVal)}</strong></div>
             </div>
 
             <div class="form-group">
               <label class="form-label" for="location">
-                Current Location
+                Current Location (Residence)
               </label>
-              <input type="text" id="location" name="location" value="${escapeHtml(userLocation)}" placeholder="e.g. Bangalore, India or Remote" class="form-input" />
-              <div class="form-helper">City, country, or Remote.</div>
+              <input type="text" id="location" name="location" value="${escapeHtml(userLocation)}" placeholder="e.g. Bengaluru, India" class="form-input" oninput="markFormDirty()" />
+              <div class="form-helper">Where you currently live (Separate from preferred search locations).</div>
               <div class="suggestion-pills-row">
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Remote'; markFormDirty();">Remote</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Bangalore, India'; markFormDirty();">Bangalore, India</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'New Delhi, India'; markFormDirty();">New Delhi, India</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Mumbai, India'; markFormDirty();">Mumbai, India</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Hyderabad, India'; markFormDirty();">Hyderabad, India</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'San Francisco, CA'; markFormDirty();">San Francisco, CA</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Bengaluru, India'; markFormDirty();">Bengaluru</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Hyderabad, India'; markFormDirty();">Hyderabad</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Pune, India'; markFormDirty();">Pune</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Delhi NCR, India'; markFormDirty();">Delhi NCR</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Mumbai, India'; markFormDirty();">Mumbai</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Lucknow, India'; markFormDirty();">Lucknow</span>
+              </div>
+            </div>
+
+            <!-- Current Active Employment Card -->
+            <div class="form-group">
+              <label class="form-label">
+                Current Active Employment
+              </label>
+              <div id="currentEmploymentDisplay" style="background: rgba(11, 15, 25, 0.75); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.85rem; color: #f8fafc; min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                <div id="currentEmploymentText">
+                  ${
+                    currentEmploymentObj
+                      ? `<span>💼 <strong>${escapeHtml(currentEmploymentObj.title)}</strong> at ${escapeHtml(currentEmploymentObj.company)} <span class="badge" style="font-size: 0.68rem; margin-left: 0.3rem;">${escapeHtml(currentEmploymentObj.employmentType || 'FULL_TIME')}</span></span>`
+                      : `<span style="color: #94a3b8;">○ Not currently employed (Job Seeking / Student / Independent)</span>`
+                  }
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openCurrentEmploymentModal()" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">
+                  ${currentEmploymentObj ? 'Edit' : 'Set Employment'}
+                </button>
+              </div>
+              <div class="form-helper">
+                Distinguishes declared active employment from past internships or role titles.
               </div>
             </div>
           </div>
@@ -821,287 +969,222 @@ export function renderProfilePage({
             <label class="form-label" for="summary">
               Executive Summary
             </label>
-            <textarea id="summary" name="summary" rows="3" placeholder="Write a short professional introduction. This will help AI agents understand your experience and career background..." class="form-textarea" style="resize: vertical;">${escapeHtml(summaryText)}</textarea>
-            <div class="form-helper">High-level narrative used when tailoring resumes and cover letters.</div>
+            <textarea id="summary" name="summary" rows="3" placeholder="Write a concise professional introduction..." class="form-textarea" style="resize: vertical;" oninput="markFormDirty()">${escapeHtml(summaryText)}</textarea>
+            <div class="form-helper">Foundational summary used for AI resume tailoring and MCP profile summaries.</div>
           </div>
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 2: QUALIFICATIONS & EVIDENCE                              -->
+        <!-- SECTION 2: WORK EXPERIENCE (MULTI-RECORD CRUD)                    -->
+        <!-- ================================================================= -->
+        <div id="section-experience" class="form-section-card">
+          <div class="section-title">
+            <span>💼 2. Work Experience History</span>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openAddExperienceModal()" style="font-size: 0.78rem; padding: 0.3rem 0.75rem;">
+              + Add Experience
+            </button>
+          </div>
+          <div class="section-subtitle">
+            Manage your employment history, internships, and contracts. User edits are preserved with <code>USER_PROVIDED</code> provenance.
+          </div>
+
+          <div id="experienceListContainer" class="record-card-list">
+            <!-- Rendered dynamically by client-side state -->
+          </div>
+
+          <!-- Derived Tenure Metrics Box -->
+          <div class="derived-metrics-box">
+            <div class="metric-stat-item">
+              <span class="metric-stat-label">Total Experience</span>
+              <span class="metric-stat-value" id="dispTotalExp">${expDuration.totalYears} yr(s) (${expDuration.totalMonths} mo)</span>
+            </div>
+            <div class="metric-stat-item">
+              <span class="metric-stat-label">Full-Time Professional</span>
+              <span class="metric-stat-value" id="dispProfExp">${expDuration.professionalYears} yr(s) (${expDuration.professionalMonths} mo)</span>
+            </div>
+            <div class="metric-stat-item">
+              <span class="metric-stat-label">Software Engineering</span>
+              <span class="metric-stat-value" id="dispSeExp">${expDuration.softwareEngineeringYears || 0} yr(s) (${expDuration.softwareEngineeringMonths || 0} mo)</span>
+            </div>
+            <div class="metric-stat-item">
+              <span class="metric-stat-label">Derived Level</span>
+              <span class="metric-stat-value" id="dispSeniority">${escapeHtml(seniorityLevel)}</span>
+            </div>
+          </div>
+          <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.4rem;">
+            ℹ️ Derived metrics are calculated automatically from your experience records and cannot be directly forged.
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SECTION 3: EDUCATION (MULTI-RECORD CRUD)                          -->
+        <!-- ================================================================= -->
+        <div id="section-education" class="form-section-card">
+          <div class="section-title">
+            <span>🎓 3. Education & Degrees</span>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openAddEducationModal()" style="font-size: 0.78rem; padding: 0.3rem 0.75rem;">
+              + Add Education
+            </button>
+          </div>
+          <div class="section-subtitle">
+            Supports multiple degrees, bootcamps, and diplomas with graduation and currently enrolled tracking.
+          </div>
+
+          <div id="educationListContainer" class="record-card-list">
+            <!-- Rendered dynamically by client-side state -->
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SECTION 4: CERTIFICATIONS, LANGUAGES & LINKS                      -->
+        <!-- ================================================================= -->
+        <div id="section-credentials" class="form-section-card">
+          <div class="section-title">
+            <span>📜 4. Certifications, Languages & Links</span>
+          </div>
+          <div class="section-subtitle">
+            Professional credentials, spoken languages, and online portfolio links.
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem;">
+            <!-- Certifications -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin: 0;">Certifications</h4>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openAddCertModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add</button>
+              </div>
+              <div id="certificationsListContainer" class="record-card-list">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Languages -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin: 0;">Languages</h4>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLangModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add</button>
+              </div>
+              <div id="languagesListContainer" class="record-card-list">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Portfolio Links -->
+          <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h4 style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin: 0;">🔗 Professional Portfolio & Social Links</h4>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLinkModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add Link</button>
+            </div>
+            <div id="portfolioLinksContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SECTION 5: CAREER SKILLS (COMBINED GITHUB + RESUME)             -->
         <!-- ================================================================= -->
         <div id="section-qualifications" class="form-section-card">
           <div class="section-title">
-            <span>🎓</span> Qualifications & Evidence
+            <span>🛡️ 5. Career Skills (${primarySkillsList.length + technologySignalsList.length})</span>
+            <span class="evidence-lock-badge">🔒 Evidence-Controlled</span>
           </div>
           <div class="section-subtitle">
-            Skills extracted from your connected sources and profile. Evidence strength is shown based on available signals.
+            Combined from GitHub repositories (AST code scans) and parsed resumes. GitHub-verified skills are prioritized.
           </div>
 
-          <!-- Professional Skills Categorized Display -->
-          <div style="margin-bottom: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
-              <h3 style="font-size: 0.95rem; font-weight: 600; color: #f8fafc; margin: 0;">
-                Primary Career Skills (${primarySkillsList.length})
-              </h3>
-              <span style="font-size: 0.75rem; color: #94a3b8;" title="Evidence strength reflects signals found across connected repositories, resumes, and other sources. It does not represent a formal certification.">
-                ℹ️ Hover over skills for evidence provenance
-              </span>
+          <div class="evidence-lock-banner">
+            <div>
+              <strong style="color: #c7d2fe; font-size: 0.85rem;">Evidence-Locked Truth Model</strong>
+              <p style="color: #94a3b8; font-size: 0.78rem; margin: 0.2rem 0 0 0;">
+                Skills are classified as ✓ Verified (GitHub evidence), ✓ Corroborated (both sources), or ○ Claimed (resume only).
+              </p>
             </div>
+            <a href="/sources" class="btn btn-secondary btn-sm" style="font-size: 0.75rem; padding: 0.3rem 0.65rem;">
+              Manage Sources →
+            </a>
+          </div>
 
-            ${
-              primarySkillsList.length > 0
-                ? `
-              <div style="display: flex; flex-direction: column; gap: 0.85rem;">
-                ${Object.entries(categorizedSkills)
-                  .filter(([, skills]) => skills.length > 0)
-                  .map(
-                    ([catName, skills]) => `
-                  <div class="skill-category-block">
-                    <div class="skill-category-title">${escapeHtml(catName)} (${skills.length})</div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
-                      ${skills
-                        .map((s) => {
-                          const isVer =
-                            s.truthStatus === 'VERIFIED' || s.provenanceStatus === 'VERIFIED';
-                          const isBoth = s.source === 'BOTH' || (s.githubEvidence && s.resumeClaim);
-                          const label = isBoth
-                            ? '✓ Corroborated'
-                            : isVer
-                              ? '✓ Verified'
-                              : '○ Self-reported';
-                          const badgeClass = isBoth || isVer ? 'badge-verified' : 'badge-claimed';
+          <!-- Source Summary -->
+          <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #34d399;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block;"></span>
+              ${primarySkillsList.filter(s => s.githubEvidence).length + technologySignalsList.filter(s => s.githubEvidence).length} GitHub Verified
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #fbbf24;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; display: inline-block;"></span>
+              ${primarySkillsList.filter(s => s.source === 'BOTH').length + technologySignalsList.filter(s => s.source === 'BOTH').length} Corroborated
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #a5b4fc;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #a5b4fc; display: inline-block;"></span>
+              ${primarySkillsList.filter(s => !s.githubEvidence && s.source !== 'BOTH').length + technologySignalsList.filter(s => !s.githubEvidence && s.source !== 'BOTH').length} Resume Claimed
+            </div>
+          </div>
 
-                          return `
-                            <span class="skill-tag-badge ${badgeClass}" title="Source: ${escapeHtml(s.source || 'UNKNOWN')} | Category: ${escapeHtml(s.fineCategory || s.category || catName)}">
-                              <strong>${escapeHtml(s.name || s)}</strong>
-                              <span style="font-size: 0.68rem; opacity: 0.9;">${label}</span>
-                            </span>
-                          `;
-                        })
-                        .join('')}
-                    </div>
-                  </div>
-                `
-                  )
-                  .join('')}
+          <!-- Categorized Primary Skills -->
+          <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1.25rem;">
+            ${Object.entries(categorizedSkills)
+              .filter(([, skills]) => skills.length > 0)
+              .map(
+                ([catName, skills]) => `
+              <div class="skill-category-block">
+                <div class="skill-category-title">${escapeHtml(catName)} (${skills.length})</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                  ${skills
+                    .map((s) => {
+                      const isVer =
+                        s.truthStatus === 'VERIFIED' || s.provenanceStatus === 'VERIFIED';
+                      const isBoth = s.source === 'BOTH' || (s.githubEvidence && s.resumeClaim);
+                      const label = isBoth
+                        ? '✓ Corroborated'
+                        : isVer
+                          ? '✓ Verified'
+                          : '○ Claimed';
+                      const badgeClass = isBoth || isVer ? 'badge-verified' : 'badge-claimed';
+
+                      return `
+                        <span class="skill-tag-badge ${badgeClass}" title="Source: ${escapeHtml(s.source || 'UNKNOWN')} | Category: ${escapeHtml(s.fineCategory || s.category || catName)} | Evidence: ${s.evidenceCount || 0} signal(s)">
+                          <strong>${escapeHtml(s.name || s)}</strong>
+                          <span style="font-size: 0.68rem; opacity: 0.9;">${label}</span>
+                        </span>
+                      `;
+                    })
+                    .join('')}
+                </div>
               </div>
             `
-                : `<p style="font-size: 0.85rem; color: #94a3b8;">No skills registered. Upload a resume or connect a GitHub repository.</p>`
-            }
+              )
+              .join('')}
           </div>
 
-          <!-- Technology & Implementation Signals (Collapsible) -->
+          <!-- Technology & Implementation Signals (Always visible, not collapsed) -->
           ${
             technologySignalsList.length > 0
               ? `
-            <div style="background: rgba(11, 15, 25, 0.45); border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.5rem;">
-              <details>
-                <summary style="font-size: 0.85rem; font-weight: 500; color: #94a3b8; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-                  <span>🔍 Technology & Implementation Signals (${technologySignalsList.length})</span>
-                  <span style="font-size: 0.72rem; color: #64748b;">Click to view underlying packages & dependencies</span>
-                </summary>
-                <p style="font-size: 0.75rem; color: #64748b; margin: 0.4rem 0 0.6rem 0;">
-                  Utility packages, middleware, UI helpers, and build plugins detected via AST package manifests and entrypoint imports.
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem;">
-                  ${technologySignalsList
-                    .map(
-                      (s) => `
-                    <span class="skill-tag-badge" style="font-size: 0.72rem; background: rgba(255, 255, 255, 0.03); color: #94a3b8;" title="Category: ${escapeHtml(s.fineCategory || s.category || 'LIBRARY')} | Evidence: ${s.evidenceCount || 1} signal(s)">
-                      ${escapeHtml(s.name || s)} <span style="color: #64748b; font-size: 0.65rem;">(${s.evidenceCount || 1})</span>
-                    </span>
-                  `
-                    )
-                    .join('')}
-                </div>
-              </details>
-            </div>
-          `
-              : ''
-          }
-
-          <!-- Highlighted Projects with Filter Tabs -->
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.85rem;">
-              <h3 style="font-size: 0.95rem; font-weight: 600; color: #f8fafc; margin: 0;">
-                Highlighted Projects (${projectsList.length})
-              </h3>
-              <div style="display: flex; gap: 0.3rem;">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="filterProjects('all', this)" style="font-size: 0.72rem; padding: 0.2rem 0.55rem; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.4); color: #e0e7ff;">All</button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="filterProjects('verified', this)" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">Verified</button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="filterProjects('github', this)" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">GitHub</button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="filterProjects('resume', this)" style="font-size: 0.72rem; padding: 0.2rem 0.55rem;">Resume</button>
+            <div style="background: rgba(11, 15, 25, 0.45); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 0.85rem 1rem;">
+              <div style="font-size: 0.85rem; font-weight: 500; color: #94a3b8; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>🔍 Additional Libraries & Tools (${technologySignalsList.length})</span>
+                <span style="font-size: 0.72rem; color: #64748b;">Supporting technologies from code analysis</span>
               </div>
-            </div>
-
-            ${
-              projectsList.length > 0
-                ? `
-              <div class="projects-grid" id="projectsGrid">
-                ${projectsList
-                  .map((p) => {
-                    const isCorroborated = p.provenanceStatus === 'CORROBORATED';
-                    const isVerified = p.provenanceStatus === 'VERIFIED';
-                    const badgeText = isCorroborated
-                      ? '✓ Corroborated'
-                      : isVerified
-                        ? '✓ Verified GitHub'
-                        : '○ Resume Claim';
-                    const badgeClass =
-                      isCorroborated || isVerified
-                        ? 'project-evidence-badge'
-                        : 'project-claimed-badge';
-                    const projectType = isCorroborated
-                      ? 'verified github'
-                      : isVerified
-                        ? 'verified github'
-                        : 'resume';
-
-                    return `
-                      <div class="project-card" data-project-type="${projectType}">
-                        <div>
-                          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem;">
-                            <strong style="color: #f8fafc; font-size: 0.92rem; line-height: 1.3;">${escapeHtml(p.name)}</strong>
-                            <span class="${badgeClass}">${badgeText}</span>
-                          </div>
-                          ${
-                            p.headline
-                              ? `<p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 0.6rem; line-height: 1.4;">${escapeHtml(p.headline)}</p>`
-                              : `<p style="color: #64748b; font-size: 0.78rem; font-style: italic; margin-bottom: 0.6rem;">Technical portfolio project.</p>`
-                          }
-                          ${
-                            Array.isArray(p.technologies) && p.technologies.length > 0
-                              ? `
-                            <div style="display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.6rem;">
-                              ${p.technologies
-                                .slice(0, 4)
-                                .map(
-                                  (t) =>
-                                    `<span class="badge" style="font-size: 0.68rem; background: rgba(255,255,255,0.05); color: #cbd5e1; padding: 0.15rem 0.4rem;">${escapeHtml(t)}</span>`
-                                )
-                                .join('')}
-                              ${p.technologies.length > 4 ? `<span style="font-size: 0.65rem; color: #64748b; align-self: center;">+${p.technologies.length - 4} more</span>` : ''}
-                            </div>
-                          `
-                              : ''
-                          }
-                        </div>
-
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.75rem;">
-                          ${p.id ? `<a href="/projects/${escapeHtml(p.id)}" style="color: #6366f1; font-weight: 500;">View project →</a>` : '<span style="color: #64748b;">Fastify Gateway</span>'}
-                          ${
-                            p.verifiedSignalCount
-                              ? `
-                            <details style="display: inline-block;">
-                              <summary style="color: #64748b; cursor: pointer; font-size: 0.7rem;">Evidence details ▾</summary>
-                              <div style="position: absolute; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0.5rem; font-size: 0.7rem; color: #cbd5e1; z-index: 10; margin-top: 0.2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
-                                <div>Signals: ${p.verifiedSignalCount} AST matches</div>
-                                ${p.role ? `<div>Role: ${escapeHtml(p.role)}</div>` : ''}
-                              </div>
-                            </details>
-                          `
-                              : ''
-                          }
-                        </div>
-                      </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+                ${technologySignalsList
+                  .map(
+                    (s) => {
+                      const isVer = s.truthStatus === 'VERIFIED' || s.provenanceStatus === 'VERIFIED';
+                      const isBoth = s.source === 'BOTH' || (s.githubEvidence && s.resumeClaim);
+                      const badgeStyle = isBoth || isVer
+                        ? 'background: rgba(16, 185, 129, 0.08); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.2);'
+                        : 'background: rgba(255, 255, 255, 0.03); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.06);';
+                      return `
+                      <span class="skill-tag-badge" style="font-size: 0.72rem; ${badgeStyle}" title="Category: ${escapeHtml(s.fineCategory || s.category || 'LIBRARY')} | Evidence: ${s.evidenceCount || 1} signal(s) | Source: ${escapeHtml(s.source || 'UNKNOWN')}">
+                        ${escapeHtml(s.name || s)} <span style="color: #64748b; font-size: 0.65rem;">(${s.evidenceCount || 1})</span>
+                      </span>
                     `;
-                  })
+                    }
+                  )
                   .join('')}
               </div>
-            `
-                : `<p style="font-size: 0.85rem; color: #94a3b8;">No projects registered. Upload a resume with a Projects section or connect GitHub.</p>`
-            }
-          </div>
-
-          <!-- Work History & Education Overview -->
-          ${
-            experienceList.length > 0 || educationList.length > 0
-              ? `
-            <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
-              ${
-                experienceList.length > 0
-                  ? `
-                <div>
-                  <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.5rem;">💼 Work Experience</h4>
-                  <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-                    ${experienceList
-                      .slice(0, 5)
-                      .map(
-                        (exp) => `
-                      <div style="background: rgba(11, 15, 25, 0.5); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.78rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
-                          <strong style="color: #f8fafc;">${escapeHtml(exp.title)}</strong>
-                          <span class="badge" style="font-size: 0.65rem;">${escapeHtml(exp.employmentType || 'FULL_TIME')}</span>
-                        </div>
-                        <div style="color: #94a3b8; margin-top: 0.15rem;">at ${escapeHtml(exp.company)} ${exp.location ? '• ' + escapeHtml(exp.location) : ''}</div>
-                        <div style="color: #64748b; font-size: 0.7rem; margin-top: 0.15rem;">
-                          ${escapeHtml(exp.startDate || '')} — ${exp.isCurrent ? 'Present' : escapeHtml(exp.endDate || exp.rawDateRange || '')}
-                        </div>
-                      </div>
-                    `
-                      )
-                      .join('')}
-                  </div>
-                </div>
-              `
-                  : ''
-              }
-              ${
-                educationList.length > 0
-                  ? `
-                <div>
-                  <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.5rem;">🎓 Education</h4>
-                  <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-                    ${educationList
-                      .map(
-                        (edu) => `
-                      <div style="background: rgba(11, 15, 25, 0.5); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.78rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
-                          <strong style="color: #f8fafc;">${escapeHtml(edu.degree || 'Degree')}</strong>
-                          <span class="badge" style="font-size: 0.65rem;">${escapeHtml(edu.degreeType || 'DEGREE')}</span>
-                        </div>
-                        <div style="color: #94a3b8; font-size: 0.72rem; margin-top: 0.15rem;">
-                          ${escapeHtml(edu.institution)}${edu.location ? ', ' + escapeHtml(edu.location) : ''}
-                        </div>
-                        ${
-                          edu.startDate || edu.endDate
-                            ? `<div style="color: #64748b; font-size: 0.7rem; margin-top: 0.15rem;">${escapeHtml(edu.startDate || '')} — ${edu.isCurrent ? 'Present' : escapeHtml(edu.endDate || '')}</div>`
-                            : ''
-                        }
-                        ${
-                          Array.isArray(edu.coursework) && edu.coursework.length > 0
-                            ? `<div style="margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.2rem;">
-                                ${edu.coursework
-                                  .slice(0, 4)
-                                  .map(
-                                    (c) =>
-                                      `<span class="badge" style="font-size: 0.62rem; background: rgba(255,255,255,0.03);">${escapeHtml(c)}</span>`
-                                  )
-                                  .join('')}
-                               </div>`
-                            : ''
-                        }
-                      </div>
-                    `
-                      )
-                      .join('')}
-                  </div>
-                  ${
-                    certsList.length > 0
-                      ? `
-                    <div style="margin-top: 0.75rem;">
-                      <h5 style="font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.35rem;">📜 Certifications</h5>
-                      <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
-                        ${certsList.map((c) => `<span class="badge" style="font-size: 0.7rem; background: rgba(255,255,255,0.05); color: #cbd5e1;">${escapeHtml(c)}</span>`).join('')}
-                      </div>
-                    </div>
-                  `
-                      : ''
-                  }
-                </div>
-              `
-                  : ''
-              }
             </div>
           `
               : ''
@@ -1109,17 +1192,91 @@ export function renderProfilePage({
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 3: JOB SEARCH PREFERENCES (SOVEREIGN USER INTENT)          -->
+        <!-- SECTION 6: HIGHLIGHTED PROJECTS (EVIDENCE LOCKED)                 -->
+        <!-- ================================================================= -->
+        <div id="section-projects" class="form-section-card">
+          <div class="section-title">
+            <span>🚀 6. Highlighted Portfolio Projects</span>
+            <span class="evidence-lock-badge">🔒 Evidence-Controlled</span>
+          </div>
+          <div class="section-subtitle">
+            Grounded in AST code scanning, entrypoint verification, and GitHub repository commits.
+          </div>
+
+          ${
+            projectsList.length > 0
+              ? `
+            <div class="projects-grid">
+              ${projectsList
+                .map((p) => {
+                  const isCorroborated = p.provenanceStatus === 'CORROBORATED';
+                  const isVerified = p.provenanceStatus === 'VERIFIED';
+                  const badgeText = isCorroborated
+                    ? '✓ Corroborated'
+                    : isVerified
+                      ? '✓ Verified GitHub'
+                      : '○ Resume Claim';
+                  const badgeClass =
+                    isCorroborated || isVerified
+                      ? 'project-evidence-badge'
+                      : 'project-claimed-badge';
+
+                  return `
+                    <div class="project-card">
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem;">
+                          <strong style="color: #f8fafc; font-size: 0.92rem;">${escapeHtml(p.name)}</strong>
+                          <span class="${badgeClass}">${badgeText}</span>
+                        </div>
+                        ${
+                          p.headline
+                            ? `<p style="color: #94a3b8; font-size: 0.8rem; margin-bottom: 0.5rem; line-height: 1.4;">${escapeHtml(p.headline)}</p>`
+                            : `<p style="color: #64748b; font-size: 0.78rem; font-style: italic; margin-bottom: 0.5rem;">Technical portfolio project.</p>`
+                        }
+                        ${
+                          Array.isArray(p.technologies) && p.technologies.length > 0
+                            ? `
+                          <div style="display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.6rem;">
+                            ${p.technologies
+                              .slice(0, 5)
+                              .map(
+                                (t) =>
+                                  `<span class="badge" style="font-size: 0.68rem; background: rgba(255,255,255,0.05); color: #cbd5e1; padding: 0.15rem 0.4rem;">${escapeHtml(t)}</span>`
+                              )
+                              .join('')}
+                          </div>
+                        `
+                            : ''
+                        }
+                      </div>
+
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.75rem;">
+                        ${p.id ? `<a href="/projects/${escapeHtml(p.id)}" style="color: #6366f1; font-weight: 500;">View project →</a>` : '<span style="color: #64748b;">Repository Project</span>'}
+                        ${p.verifiedSignalCount ? `<span style="color: #64748b; font-size: 0.7rem;">${p.verifiedSignalCount} AST signals</span>` : ''}
+                      </div>
+                    </div>
+                  `;
+                })
+                .join('')}
+            </div>
+          `
+              : `<p style="font-size: 0.85rem; color: #94a3b8;">No projects registered. Upload a resume with a Projects section or connect GitHub.</p>`
+          }
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SECTION 7: JOB SEARCH PREFERENCES (SOVEREIGN USER INTENT)          -->
         <!-- ================================================================= -->
         <div id="section-preferences" class="form-section-card">
           <div class="section-title">
-            <span>🎯</span> Job Search Preferences
+            <span>🎯 7. Job Search Preferences & Criteria</span>
+            <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ User Editable</span>
           </div>
           <div class="section-subtitle">
-            Configure your target roles, locations, and expectations. AI agents read these preferences automatically for tailored matching.
+            Configure matching criteria for ATS and AI agents. (Separate from your Current Location above).
           </div>
 
-          <!-- Target Roles (Searchable Multi-Select Chips) -->
+          <!-- Target Roles -->
           <div class="form-group">
             <label class="form-label" for="targetRolesInput">
               Target Roles <span style="color: #ef4444;">*</span>
@@ -1128,465 +1285,1011 @@ export function renderProfilePage({
               <input type="hidden" id="targetRolesHidden" name="targetRoles" value="${escapeHtml(targetRolesList.join(','))}" />
               <input type="text" id="targetRolesInput" class="chips-search-input" placeholder="Type a role and press Enter..." />
             </div>
-            <div class="form-helper">Select or type the roles you want to be matched with.</div>
+            <div class="form-helper">Roles you are actively targeting for discovery.</div>
 
-            <!-- Recommended Roles Suggestions -->
-            <div style="margin-top: 0.5rem;">
-              <span style="font-size: 0.72rem; color: #a5b4fc; font-weight: 500;">✨ Recommended for you:</span>
+            <!-- Suggestions -->
+            <div style="margin-top: 0.4rem;">
+              <span style="font-size: 0.72rem; color: #a5b4fc; font-weight: 500;">✨ Quick Suggestions:</span>
               <div class="suggestion-pills-row" id="recommendedRolesRow">
                 ${recommendedRoles.map((r) => `<span class="suggestion-pill ai-recommended" onclick="addSuggestedRole('${escapeHtml(r)}')">+ ${escapeHtml(r)}</span>`).join('')}
                 <span class="suggestion-pill" onclick="addSuggestedRole('Frontend Engineer')">+ Frontend Engineer</span>
                 <span class="suggestion-pill" onclick="addSuggestedRole('Platform Engineer')">+ Platform Engineer</span>
                 <span class="suggestion-pill" onclick="addSuggestedRole('API Engineer')">+ API Engineer</span>
-                <span class="suggestion-pill" onclick="addSuggestedRole('DevOps Engineer')">+ DevOps Engineer</span>
-                <span class="suggestion-pill" onclick="addSuggestedRole('Cloud Engineer')">+ Cloud Engineer</span>
-                <span class="suggestion-pill" onclick="addSuggestedRole('Solutions Engineer')">+ Solutions Engineer</span>
               </div>
             </div>
           </div>
 
-          <!-- Preferred Locations (Searchable Multi-Select Chips) -->
+          <!-- Preferred Locations -->
           <div class="form-group">
             <label class="form-label" for="preferredLocationsInput">
-              Preferred Work Locations <span style="color: #ef4444;">*</span>
+              Preferred Job Locations <span style="color: #ef4444;">*</span>
             </label>
             <div class="chips-input-box" id="preferredLocationsContainer" onclick="document.getElementById('preferredLocationsInput').focus()">
               <input type="hidden" id="preferredLocationsHidden" name="preferredLocations" value="${escapeHtml(preferredLocationsList.join(','))}" />
-              <input type="text" id="preferredLocationsInput" class="chips-search-input" placeholder="Type a location or country and press Enter..." />
+              <input type="text" id="preferredLocationsInput" class="chips-search-input" placeholder="Type a location and press Enter..." />
             </div>
-            <div class="form-helper">Remote, country, or specific cities.</div>
+            <div class="form-helper">Locations where you are willing to work (Remote, Hybrid, or On-site cities).</div>
 
-            <!-- Location Suggestions -->
-            <div class="suggestion-pills-row">
-              <span class="suggestion-pill" onclick="addSuggestedLocation('Remote')">+ Remote</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('India')">+ India</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('Bangalore, India')">+ Bangalore, India</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('Hyderabad, India')">+ Hyderabad, India</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('Pune, India')">+ Pune, India</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('Mumbai, India')">+ Mumbai, India</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('Delhi NCR')">+ Delhi NCR</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('United States')">+ United States</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('Europe')">+ Europe</span>
-              <span class="suggestion-pill" onclick="addSuggestedLocation('Singapore')">+ Singapore</span>
+            <div style="margin-top: 0.4rem;">
+              <span style="font-size: 0.72rem; color: #a5b4fc; font-weight: 500;">✨ Quick Locations:</span>
+              <div class="suggestion-pills-row">
+                <span class="suggestion-pill" onclick="addSuggestedLocation('Remote')">+ Remote</span>
+                <span class="suggestion-pill" onclick="addSuggestedLocation('Bengaluru')">+ Bengaluru</span>
+                <span class="suggestion-pill" onclick="addSuggestedLocation('Hyderabad')">+ Hyderabad</span>
+                <span class="suggestion-pill" onclick="addSuggestedLocation('Delhi NCR')">+ Delhi NCR</span>
+                <span class="suggestion-pill" onclick="addSuggestedLocation('Pune')">+ Pune</span>
+                <span class="suggestion-pill" onclick="addSuggestedLocation('Mumbai')">+ Mumbai</span>
+              </div>
             </div>
           </div>
 
-          <!-- Remote Work Policy (Segmented Control) -->
-          <div class="form-group">
-            <label class="form-label">
-              Remote Work Policy
-            </label>
-            <input type="hidden" id="remotePreferenceHidden" name="remotePreference" value="${escapeHtml(remotePref)}" />
-            <div class="segmented-control">
-              <button type="button" class="segmented-btn ${remotePref === 'REMOTE_ONLY' ? 'active' : ''}" onclick="setRemotePref('REMOTE_ONLY', this)">Remote Only</button>
-              <button type="button" class="segmented-btn ${remotePref === 'REMOTE_FIRST' ? 'active' : ''}" onclick="setRemotePref('REMOTE_FIRST', this)">Remote First</button>
-              <button type="button" class="segmented-btn ${remotePref === 'HYBRID' ? 'active' : ''}" onclick="setRemotePref('HYBRID', this)">Hybrid</button>
-              <button type="button" class="segmented-btn ${remotePref === 'ON_SITE' ? 'active' : ''}" onclick="setRemotePref('ON_SITE', this)">On-Site</button>
-              <button type="button" class="segmented-btn ${remotePref === 'FLEXIBLE' ? 'active' : ''}" onclick="setRemotePref('FLEXIBLE', this)">Flexible</button>
+          <!-- Preferences Grid -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            <div class="form-group">
+              <label class="form-label" for="remotePreference">Remote Work Preference</label>
+              <select id="remotePreference" name="remotePreference" class="form-select" onchange="markFormDirty()">
+                <option value="REMOTE_ONLY" ${remotePref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
+                <option value="REMOTE_FIRST" ${remotePref === 'REMOTE_FIRST' ? 'selected' : ''}>Remote First</option>
+                <option value="HYBRID" ${remotePref === 'HYBRID' ? 'selected' : ''}>Hybrid</option>
+                <option value="ON_SITE" ${remotePref === 'ON_SITE' ? 'selected' : ''}>On-Site</option>
+                <option value="FLEXIBLE" ${remotePref === 'FLEXIBLE' ? 'selected' : ''}>Flexible</option>
+              </select>
             </div>
-          </div>
 
-          <!-- Compensation / Expected Salary -->
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;" class="grid-2col form-group">
-            <div>
-              <label class="form-label" for="salaryFloor">
-                Minimum Expected Salary
-              </label>
+            <div class="form-group">
+              <label class="form-label">Compensation Floor (Annual Minimum)</label>
               <div style="display: flex; gap: 0.5rem;">
-                <input type="number" id="salaryFloor" name="salaryFloor" value="${escapeHtml(String(salaryFloor))}" placeholder="Leave blank if not specified" min="0" step="1000" class="form-input" />
-              </div>
-              <div class="form-helper">Annual compensation floor. Leave blank if you prefer not to specify.</div>
-            </div>
-
-            <div>
-              <label class="form-label" for="salaryCurrency">
-                Currency
-              </label>
-              <select id="salaryCurrency" name="salaryCurrency" class="form-select">
-                <option value="USD" ${salaryCurrency === 'USD' ? 'selected' : ''}>USD ($)</option>
-                <option value="INR" ${salaryCurrency === 'INR' ? 'selected' : ''}>INR (₹)</option>
-                <option value="EUR" ${salaryCurrency === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                <option value="GBP" ${salaryCurrency === 'GBP' ? 'selected' : ''}>GBP (£)</option>
-                <option value="CAD" ${salaryCurrency === 'CAD' ? 'selected' : ''}>CAD ($)</option>
-                <option value="AUD" ${salaryCurrency === 'AUD' ? 'selected' : ''}>AUD ($)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Preferred Technologies (Searchable Multi-Select Chips) -->
-          <div class="form-group">
-            <label class="form-label" for="preferredTechStackInput">
-              Preferred Technologies & Frameworks
-            </label>
-            <div class="chips-input-box" id="preferredTechStackContainer" onclick="document.getElementById('preferredTechStackInput').focus()">
-              <input type="hidden" id="preferredTechStackHidden" name="preferredTechStack" value="${escapeHtml(preferredTechList.join(','))}" />
-              <input type="text" id="preferredTechStackInput" class="chips-search-input" placeholder="Type a technology and press Enter..." />
-            </div>
-            <div class="form-helper">Technologies you enjoy working with most.</div>
-
-            <!-- Tech Suggestions -->
-            <div class="suggestion-pills-row">
-              <span class="suggestion-pill" onclick="addSuggestedTech('Python')">+ Python</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('FastAPI')">+ FastAPI</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('Node.js')">+ Node.js</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('TypeScript')">+ TypeScript</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('PostgreSQL')">+ PostgreSQL</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('Docker')">+ Docker</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('React')">+ React</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('AWS')">+ AWS</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('Kubernetes')">+ Kubernetes</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('Redis')">+ Redis</span>
-              <span class="suggestion-pill" onclick="addSuggestedTech('GraphQL')">+ GraphQL</span>
-            </div>
-          </div>
-
-          <!-- Target Industries (Selectable Chips) -->
-          <div class="form-group">
-            <label class="form-label">
-              Target Industries
-            </label>
-            <input type="hidden" id="industriesHidden" name="industries" value="${escapeHtml(industriesList.join(','))}" />
-            <div class="suggestion-pills-row" id="industriesPillsRow" style="margin-top: 0.2rem;">
-              ${[
-                'AI & Machine Learning',
-                'Developer Tools',
-                'FinTech',
-                'SaaS',
-                'Cloud Infrastructure',
-                'Cybersecurity',
-                'Healthcare',
-                'E-commerce',
-                'Education Technology',
-              ]
-                .map((ind) => {
-                  const isSel = industriesList.includes(ind);
-                  return `<span class="suggestion-pill ${isSel ? 'selected' : ''}" onclick="toggleIndustry('${escapeHtml(ind)}', this)">${isSel ? '✓ ' : '+ '}${escapeHtml(ind)}</span>`;
-                })
-                .join('')}
-            </div>
-            <div class="form-helper">Click to select industries that interest you.</div>
-          </div>
-
-          <!-- Companies to Prioritize & Avoid (Optional) -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;" class="form-group">
-            <div>
-              <label class="form-label" for="companiesToPrioritize">
-                Preferred Companies <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Optional)</span>
-              </label>
-              <input type="text" id="companiesToPrioritize" name="companiesToPrioritize" value="${escapeHtml(companiesPrioritizeList.join(', '))}" placeholder="e.g. Stripe, Datadog, Vercel, Figma" class="form-input" />
-              <div class="form-helper">Separate multiple company names with commas.</div>
-            </div>
-
-            <div>
-              <label class="form-label" for="companiesToAvoid">
-                Companies to Avoid <span style="font-size: 0.72rem; color: #94a3b8; font-weight: normal;">(Optional)</span>
-              </label>
-              <input type="text" id="companiesToAvoid" name="companiesToAvoid" value="${escapeHtml(companiesAvoidList.join(', '))}" placeholder="e.g. Competitor A, Unfavorable Co" class="form-input" />
-              <div class="form-helper">Companies you do not want to be matched with.</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ================================================================= -->
-        <!-- SECTION 4: WORK ELIGIBILITY & AVAILABILITY                         -->
-        <!-- ================================================================= -->
-        <div id="section-eligibility" class="form-section-card">
-          <div class="section-title">
-            <span>🔒</span> Work Eligibility & Availability
-          </div>
-          <div class="section-subtitle">
-            Used only to improve job matching. This information is never inferred automatically.
-          </div>
-
-          <!-- Work Authorization (Searchable Multi-Select Chips) -->
-          <div class="form-group">
-            <label class="form-label" for="workAuthInput">
-              Where are you currently authorized to work?
-            </label>
-            <div class="chips-input-box" id="workAuthContainer" onclick="document.getElementById('workAuthInput').focus()">
-              <input type="hidden" id="workAuthHidden" name="workAuthorization" value="${escapeHtml(workAuthList.join(','))}" />
-              <input type="text" id="workAuthInput" class="chips-search-input" placeholder="Type countries where you hold work authorization..." />
-            </div>
-            <div class="form-helper">Used to filter jobs that require citizenship or pre-existing permits.</div>
-
-            <!-- Country Suggestions -->
-            <div class="suggestion-pills-row">
-              <span class="suggestion-pill" onclick="addSuggestedWorkAuth('India')">+ India</span>
-              <span class="suggestion-pill" onclick="addSuggestedWorkAuth('United States')">+ United States</span>
-              <span class="suggestion-pill" onclick="addSuggestedWorkAuth('Canada')">+ Canada</span>
-              <span class="suggestion-pill" onclick="addSuggestedWorkAuth('United Kingdom')">+ United Kingdom</span>
-              <span class="suggestion-pill" onclick="addSuggestedWorkAuth('European Union')">+ European Union</span>
-              <span class="suggestion-pill" onclick="addSuggestedWorkAuth('Singapore')">+ Singapore</span>
-              <span class="suggestion-pill" onclick="addSuggestedWorkAuth('Australia')">+ Australia</span>
-            </div>
-          </div>
-
-          <!-- Visa Sponsorship & Relocation -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;" class="form-group">
-            <div>
-              <label class="form-label">
-                Do you require visa sponsorship?
-              </label>
-              <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.35rem;">
-                <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: #cbd5e1; cursor: pointer;">
-                  <input type="radio" name="visaSponsorshipRequired" value="false" ${!visaRequired ? 'checked' : ''} style="accent-color: #6366f1;" onchange="markFormDirty();" />
-                  <span>No</span>
-                </label>
-                <label style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: #cbd5e1; cursor: pointer;">
-                  <input type="radio" name="visaSponsorshipRequired" value="true" ${visaRequired ? 'checked' : ''} style="accent-color: #6366f1;" onchange="markFormDirty();" />
-                  <span>Yes</span>
-                </label>
+                <input type="number" id="salaryFloor" name="salaryFloor" value="${escapeHtml(String(salaryFloor))}" placeholder="e.g. 800000" class="form-input" style="flex: 2;" oninput="markFormDirty()" />
+                <select id="salaryCurrency" name="salaryCurrency" class="form-select" style="flex: 1;" onchange="markFormDirty()">
+                  <option value="INR" ${salaryCurrency === 'INR' ? 'selected' : ''}>INR (₹)</option>
+                  <option value="USD" ${salaryCurrency === 'USD' ? 'selected' : ''}>USD ($)</option>
+                  <option value="EUR" ${salaryCurrency === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                  <option value="GBP" ${salaryCurrency === 'GBP' ? 'selected' : ''}>GBP (£)</option>
+                  <option value="CAD" ${salaryCurrency === 'CAD' ? 'selected' : ''}>CAD ($)</option>
+                </select>
               </div>
             </div>
 
-            <div>
-              <label class="form-label" for="relocationPreference">
-                Relocation Preference
-              </label>
-              <select id="relocationPreference" name="relocationPreference" class="form-select" onchange="markFormDirty();">
-                <option value="REMOTE_ONLY" ${relocationPref === 'REMOTE_ONLY' ? 'selected' : ''}>Not open to relocation (Remote only)</option>
-                <option value="WILLING_TO_RELOCATE" ${relocationPref === 'WILLING_TO_RELOCATE' ? 'selected' : ''}>Open to relocation</option>
-                <option value="NOT_WILLING" ${relocationPref === 'NOT_WILLING' ? 'selected' : ''}>Open for the right opportunity</option>
+            <div class="form-group">
+              <label class="form-label" for="availabilityDate">Availability / Start Timeline</label>
+              <input type="text" id="availabilityDate" name="availabilityDate" value="${escapeHtml(availability)}" placeholder="e.g. Immediately / 2 Weeks" class="form-input" oninput="markFormDirty()" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="relocationPreference">Relocation Willingness</label>
+              <select id="relocationPreference" name="relocationPreference" class="form-select" onchange="markFormDirty()">
+                <option value="REMOTE_ONLY" ${relocationPref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
+                <option value="WILLING_TO_RELOCATE" ${relocationPref === 'WILLING_TO_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
+                <option value="NOT_WILLING" ${relocationPref === 'NOT_WILLING' ? 'selected' : ''}>Not Willing to Relocate</option>
               </select>
             </div>
           </div>
-
-          <!-- Availability & Notice Period -->
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="availabilityDate">
-              Availability / Notice Period
-            </label>
-            <input type="text" id="availabilityDate" name="availabilityDate" value="${escapeHtml(availability)}" placeholder="e.g. Immediately, 2 weeks, 1 month" class="form-input" />
-            <div class="suggestion-pills-row">
-              <span class="suggestion-pill" onclick="document.getElementById('availabilityDate').value = 'Immediately'; markFormDirty();">Immediately</span>
-              <span class="suggestion-pill" onclick="document.getElementById('availabilityDate').value = 'Within 2 weeks'; markFormDirty();">Within 2 weeks</span>
-              <span class="suggestion-pill" onclick="document.getElementById('availabilityDate').value = 'Within 1 month'; markFormDirty();">Within 1 month</span>
-              <span class="suggestion-pill" onclick="document.getElementById('availabilityDate').value = '1–3 months'; markFormDirty();">1–3 months</span>
-              <span class="suggestion-pill" onclick="document.getElementById('availabilityDate').value = 'Just exploring'; markFormDirty();">Just exploring</span>
-            </div>
-          </div>
         </div>
 
-        <!-- Sticky Bottom Action Bar -->
-        <div class="sticky-save-bar" id="stickySaveBar">
-          <div class="sticky-save-content">
-            <div style="display: flex; align-items: center; gap: 0.6rem;">
-              <span id="saveStatusIndicator" style="font-size: 0.82rem; color: #94a3b8;">
-                Ready to save your profile updates.
-              </span>
-            </div>
-            <div style="display: flex; gap: 0.75rem; align-items: center;">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="location.reload()" style="font-size: 0.82rem;">
-                Discard changes
-              </button>
-              <button type="submit" id="saveProfileBtn" class="btn btn-primary btn-sm" style="padding: 0.5rem 1.5rem; font-size: 0.88rem; font-weight: 600; background: #6366f1; border-color: #6366f1;">
-                <span>💾 Save Profile</span>
-              </button>
+        <!-- Bottom Save Button -->
+        <div style="display: flex; justify-content: flex-end; padding: 1rem 0 0.5rem 0; border-top: 1px solid rgba(255,255,255,0.08);">
+          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 700;">💾 Save Profile</button>
+        </div>
+
+        <!-- Sticky Save Action Bar -->
+        <div id="stickySaveBar" class="sticky-save-bar">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <span style="font-size: 1.1rem;">💾</span>
+            <div>
+              <strong style="color: #f8fafc; font-size: 0.88rem;">Unsaved Changes</strong>
+              <div style="color: #94a3b8; font-size: 0.75rem;">You have pending profile adjustments.</div>
             </div>
           </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="discardChanges()">Discard</button>
+            <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.4rem 1.25rem; font-weight: 700;">Save All Changes</button>
+          </div>
         </div>
-      </form>
-
-      <!-- Clear Preferences Option -->
-      <form action="/profile/clear-preferences" method="POST" style="margin-top: 1.5rem; display: inline-block;">
-        <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}" />
-        <button type="submit" class="btn btn-secondary btn-sm" onclick="return confirm('Are you sure you want to reset all job search preferences to defaults?');" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.25); font-size: 0.75rem;">
-          <span>🗑️ Reset Preferences to Defaults</span>
-        </button>
       </form>
     </div>
 
-    <!-- Client-Side Multi-Select & Interaction Engine -->
+    <!-- ================================================================= -->
+    <!-- INTERACTIVE MODALS                                                -->
+    <!-- ================================================================= -->
+
+    <!-- Experience Modal -->
+    <div id="experienceModal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title" id="expModalTitle">Add Experience</h3>
+          <button type="button" class="modal-close-btn" onclick="closeExperienceModal()">×</button>
+        </div>
+        <form id="expForm" onsubmit="saveExperienceModal(event)">
+          <input type="hidden" id="expEditIndex" value="-1" />
+          <div class="form-group">
+            <label class="form-label" for="expCompany">Company Name <span style="color: #ef4444;">*</span></label>
+            <input type="text" id="expCompany" class="form-input" required placeholder="e.g. FTV Saloon" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="expTitle">Job Title <span style="color: #ef4444;">*</span></label>
+            <input type="text" id="expTitle" class="form-input" required placeholder="e.g. Full Stack Developer Intern" />
+          </div>
+          <div class="modal-grid-2col">
+            <div class="form-group">
+              <label class="form-label" for="expType">Employment Type</label>
+              <select id="expType" class="form-select">
+                <option value="FULL_TIME">Full-time</option>
+                <option value="INTERNSHIP">Internship</option>
+                <option value="PART_TIME">Part-time</option>
+                <option value="CONTRACT">Contract</option>
+                <option value="FREELANCE">Freelance</option>
+                <option value="CO_OP">Co-op</option>
+                <option value="VOLUNTEER">Volunteer</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="expLocation">Location</label>
+              <input type="text" id="expLocation" class="form-input" placeholder="e.g. Lucknow, India" />
+            </div>
+          </div>
+          <div class="modal-grid-2col">
+            <div class="form-group">
+              <label class="form-label" for="expStartDate">Start Month/Year</label>
+              <input type="text" id="expStartDate" class="form-input" placeholder="e.g. 2024-06 or June 2024" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="expEndDate">End Month/Year</label>
+              <input type="text" id="expEndDate" class="form-input" placeholder="e.g. 2024-09 or Sept 2024" />
+            </div>
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="expIsCurrent" onchange="document.getElementById('expEndDate').disabled = this.checked;" />
+            <label for="expIsCurrent" style="font-size: 0.82rem; color: #cbd5e1; cursor: pointer;">Currently working here</label>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="expBullets">Key Responsibilities / Accomplishments (One per line)</label>
+            <textarea id="expBullets" rows="3" class="form-textarea" placeholder="Built responsive user interfaces with React and REST APIs..."></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeExperienceModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Save Experience</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Education Modal -->
+    <div id="educationModal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title" id="eduModalTitle">Add Education</h3>
+          <button type="button" class="modal-close-btn" onclick="closeEducationModal()">×</button>
+        </div>
+        <form id="eduForm" onsubmit="saveEducationModal(event)">
+          <input type="hidden" id="eduEditIndex" value="-1" />
+          <div class="form-group">
+            <label class="form-label" for="eduInstitution">Institution / University <span style="color: #ef4444;">*</span></label>
+            <input type="text" id="eduInstitution" class="form-input" required placeholder="e.g. Rajkiya Engineering College" />
+          </div>
+          <div class="modal-grid-edu">
+            <div class="form-group">
+              <label class="form-label" for="eduDegree">Degree Name</label>
+              <input type="text" id="eduDegree" class="form-input" placeholder="e.g. Bachelor of Technology" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="eduType">Degree Type</label>
+              <select id="eduType" class="form-select">
+                <option value="BACHELOR">Bachelor</option>
+                <option value="MASTER">Master</option>
+                <option value="DOCTORATE">Doctorate</option>
+                <option value="ASSOCIATE">Associate</option>
+                <option value="DIPLOMA">Diploma</option>
+                <option value="BOOTCAMP">Bootcamp</option>
+                <option value="COURSEWORK">Coursework</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-grid-2col">
+            <div class="form-group">
+              <label class="form-label" for="eduField">Field of Study</label>
+              <input type="text" id="eduField" class="form-input" placeholder="e.g. Electronics Engineering" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="eduLocation">Location</label>
+              <input type="text" id="eduLocation" class="form-input" placeholder="e.g. Sonbhadra, India" />
+            </div>
+          </div>
+          <div class="modal-grid-2col">
+            <div class="form-group">
+              <label class="form-label" for="eduStartDate">Start Date</label>
+              <input type="text" id="eduStartDate" class="form-input" placeholder="e.g. 2021-06" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="eduEndDate">Graduation Date</label>
+              <input type="text" id="eduEndDate" class="form-input" placeholder="e.g. 2025-07" />
+            </div>
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="checkbox" id="eduIsCurrent" onchange="document.getElementById('eduEndDate').disabled = this.checked;" />
+            <label for="eduIsCurrent" style="font-size: 0.82rem; color: #cbd5e1; cursor: pointer;">Currently enrolled / pursuing</label>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="eduCoursework">Key Coursework / Subjects (Comma separated)</label>
+            <input type="text" id="eduCoursework" class="form-input" placeholder="e.g. Data Structures & Algorithms, DBMS, Operating Systems" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeEducationModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Save Education</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Current Employment Modal -->
+    <div id="currentEmploymentModal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title">Set Current Active Employment</h3>
+          <button type="button" class="modal-close-btn" onclick="closeCurrentEmploymentModal()">×</button>
+        </div>
+        <form onsubmit="saveCurrentEmploymentModal(event)">
+          <div class="form-group" style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <input type="checkbox" id="ceActiveToggle" checked onchange="toggleCurrentEmpFields(this.checked)" />
+            <label for="ceActiveToggle" style="font-size: 0.85rem; font-weight: 600; color: #f8fafc; cursor: pointer;">I am currently employed</label>
+          </div>
+          <div id="ceFieldsGroup">
+            <div class="form-group">
+              <label class="form-label" for="ceCompany">Employer Company <span style="color: #ef4444;">*</span></label>
+              <input type="text" id="ceCompany" class="form-input" placeholder="e.g. Tech Corp" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="ceTitle">Role Title <span style="color: #ef4444;">*</span></label>
+              <input type="text" id="ceTitle" class="form-input" placeholder="e.g. Backend Engineer" />
+            </div>
+            <div class="modal-grid-2col">
+              <div class="form-group">
+                <label class="form-label" for="ceType">Employment Type</label>
+                <select id="ceType" class="form-select">
+                  <option value="FULL_TIME">Full-time</option>
+                  <option value="CONTRACT">Contract</option>
+                  <option value="PART_TIME">Part-time</option>
+                  <option value="INTERNSHIP">Internship</option>
+                  <option value="FREELANCE">Freelance</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ceStartDate">Start Date</label>
+                <input type="text" id="ceStartDate" class="form-input" placeholder="e.g. 2025-06" />
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeCurrentEmploymentModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Confirm Status</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Certification Modal -->
+    <div id="certModal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title" id="certModalTitle">Add Certification</h3>
+          <button type="button" class="modal-close-btn" onclick="closeCertModal()">×</button>
+        </div>
+        <form onsubmit="saveCertModal(event)">
+          <input type="hidden" id="certEditIndex" value="-1" />
+          <div class="form-group">
+            <label class="form-label" for="certName">Certificate Name <span style="color: #ef4444;">*</span></label>
+            <input type="text" id="certName" class="form-input" required placeholder="e.g. AWS Certified Developer" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="certIssuer">Issuing Organization</label>
+            <input type="text" id="certIssuer" class="form-input" placeholder="e.g. Amazon Web Services" />
+          </div>
+          <div class="modal-grid-2col">
+            <div class="form-group">
+              <label class="form-label" for="certDate">Issue Date</label>
+              <input type="text" id="certDate" class="form-input" placeholder="e.g. 2024-05" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="certId">Credential ID</label>
+              <input type="text" id="certId" class="form-input" placeholder="e.g. AWS-94812" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="certUrl">Credential URL</label>
+            <input type="url" id="certUrl" class="form-input" placeholder="https://..." />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeCertModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Save Certificate</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Language Modal -->
+    <div id="langModal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title">Add Language</h3>
+          <button type="button" class="modal-close-btn" onclick="closeLangModal()">×</button>
+        </div>
+        <form onsubmit="saveLangModal(event)">
+          <div class="form-group">
+            <label class="form-label" for="langName">Language <span style="color: #ef4444;">*</span></label>
+            <input type="text" id="langName" class="form-input" required placeholder="e.g. English / Hindi" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="langProf">Proficiency Level</label>
+            <select id="langProf" class="form-select">
+              <option value="NATIVE">Native / Bilingual</option>
+              <option value="FLUENT">Fluent</option>
+              <option value="PROFESSIONAL" selected>Professional Working</option>
+              <option value="INTERMEDIATE">Intermediate</option>
+              <option value="BASIC">Basic</option>
+            </select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeLangModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Save Language</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Link Modal -->
+    <div id="linkModal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title">Add Portfolio Link</h3>
+          <button type="button" class="modal-close-btn" onclick="closeLinkModal()">×</button>
+        </div>
+        <form onsubmit="saveLinkModal(event)">
+          <div class="form-group">
+            <label class="form-label" for="linkPlatform">Platform / Label</label>
+            <input type="text" id="linkPlatform" class="form-input" placeholder="e.g. GitHub / LinkedIn / Portfolio" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="linkUrl">Full URL <span style="color: #ef4444;">*</span></label>
+            <input type="url" id="linkUrl" class="form-input" required placeholder="https://..." />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeLinkModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">Save Link</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Client-Side State Controller & Interactive Scripts -->
     <script>
-      let isFormDirty = false;
-      function markFormDirty() {
-        isFormDirty = true;
-        const status = document.getElementById('saveStatusIndicator');
-        if (status) {
-          status.innerHTML = '<span style="color: #fbbf24;">● You have unsaved changes</span>';
-        }
-      }
-
-      // Chip Selector Helper
-      class ChipsSelector {
-        constructor(containerId, inputId, hiddenId) {
-          this.container = document.getElementById(containerId);
-          this.input = document.getElementById(inputId);
-          this.hidden = document.getElementById(hiddenId);
-          this.chips = [];
-
-          if (this.hidden && this.hidden.value) {
-            this.chips = this.hidden.value.split(',').map(s => s.trim()).filter(Boolean);
-          }
-
-          this.render();
-          this.bindEvents();
-        }
-
-        render() {
-          const existingChips = this.container.querySelectorAll('.chip-tag');
-          existingChips.forEach(el => el.remove());
-
-          this.chips.forEach((chipText, idx) => {
-            const tag = document.createElement('span');
-            tag.className = 'chip-tag';
-            tag.innerHTML = \`\${escapeHtmlText(chipText)} <button type="button" class="chip-remove-btn" onclick="window.chipSelectors['\${this.container.id}'].remove(\${idx})">×</button>\`;
-            this.container.insertBefore(tag, this.input);
-          });
-
-          this.hidden.value = this.chips.join(',');
-        }
-
-        add(val) {
-          const clean = val.trim();
-          if (!clean) return;
-          if (!this.chips.includes(clean)) {
-            this.chips.push(clean);
-            this.render();
-            markFormDirty();
-          }
-          this.input.value = '';
-        }
-
-        remove(idx) {
-          this.chips.splice(idx, 1);
-          this.render();
-          markFormDirty();
-        }
-
-        bindEvents() {
-          this.input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ',') {
-              e.preventDefault();
-              this.add(this.input.value);
-            } else if (e.key === 'Backspace' && !this.input.value && this.chips.length > 0) {
-              this.remove(this.chips.length - 1);
-            }
-          });
-
-          this.input.addEventListener('blur', () => {
-            if (this.input.value) {
-              this.add(this.input.value);
-            }
-          });
-        }
-      }
-
-      function escapeHtmlText(str) {
+      function escapeHtml(str) {
+        if (str == null) return '';
         return String(str)
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;');
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
       }
 
-      window.chipSelectors = {};
-      document.addEventListener('DOMContentLoaded', () => {
-        window.chipSelectors['targetRolesContainer'] = new ChipsSelector('targetRolesContainer', 'targetRolesInput', 'targetRolesHidden');
-        window.chipSelectors['preferredLocationsContainer'] = new ChipsSelector('preferredLocationsContainer', 'preferredLocationsInput', 'preferredLocationsHidden');
-        window.chipSelectors['preferredTechStackContainer'] = new ChipsSelector('preferredTechStackContainer', 'preferredTechStackInput', 'preferredTechStackHidden');
-        window.chipSelectors['workAuthContainer'] = new ChipsSelector('workAuthContainer', 'workAuthInput', 'workAuthHidden');
+      window.__INITIAL_PROFILE__ = ${JSON.stringify(initialProfileState)};
+      let profileState = JSON.parse(JSON.stringify(window.__INITIAL_PROFILE__));
+      let isFormDirty = false;
 
-        // Form change listener
-        const form = document.getElementById('careerProfileForm');
-        if (form) {
-          form.addEventListener('input', () => markFormDirty());
+      function markFormDirty() {
+        isFormDirty = true;
+        document.getElementById('stickySaveBar').classList.add('visible');
+        const dirtyEl = document.getElementById('dirtyIndicator');
+        if (dirtyEl) dirtyEl.style.display = 'inline';
+      }
+
+      function discardChanges() {
+        if (confirm('Discard all unsaved profile modifications and reload?')) {
+          isFormDirty = false;
+          document.getElementById('stickySaveBar').classList.remove('visible');
+          const dirtyEl = document.getElementById('dirtyIndicator');
+          if (dirtyEl) dirtyEl.style.display = 'none';
+          window.location.reload();
         }
-      });
+      }        window.addEventListener('beforeunload', function(e) {
+          if (isFormDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+          }
+        });
+
+        // Synchronize hidden state fields before submit
+        document.getElementById('careerProfileForm').addEventListener('submit', function() {
+          syncHiddenFields();
+          isFormDirty = false;
+          document.getElementById('stickySaveBar').classList.remove('visible');
+          const dirtyEl = document.getElementById('dirtyIndicator');
+          if (dirtyEl) dirtyEl.style.display = 'none';
+        });
+
+      function syncHiddenFields() {
+        document.getElementById('experienceHidden').value = JSON.stringify(profileState.experiences || []);
+        document.getElementById('educationHidden').value = JSON.stringify(profileState.education || []);
+        document.getElementById('certificationsHidden').value = JSON.stringify(profileState.certifications || []);
+        document.getElementById('languagesHidden').value = JSON.stringify(profileState.languages || []);
+        document.getElementById('portfolioLinksHidden').value = JSON.stringify(profileState.portfolioLinks || []);
+        document.getElementById('currentEmploymentHidden').value = JSON.stringify(profileState.currentEmployment);
+      }
+
+      // --- EXPERIENCE RENDERING & CRUD ---
+      function renderExperiences() {
+        const container = document.getElementById('experienceListContainer');
+        if (!profileState.experiences || profileState.experiences.length === 0) {
+          container.innerHTML = '<p style="color: #94a3b8; font-size: 0.85rem; font-style: italic;">No work experience entries recorded. Click "+ Add Experience" above.</p>';
+          return;
+        }
+
+        container.innerHTML = profileState.experiences.map((exp, idx) => {
+          const provBadge = exp.provenanceStatus === 'USER_PROVIDED'
+            ? '<span class="badge badge-user-provided" style="font-size:0.65rem;">✓ User Provided</span>'
+            : exp.provenanceStatus === 'VERIFIED' || exp.provenanceStatus === 'CORROBORATED'
+              ? '<span class="badge badge-verified" style="font-size:0.65rem;">✓ Verified</span>'
+              : '<span class="badge badge-claimed" style="font-size:0.65rem;">○ Claimed (Resume)</span>';
+
+          const datesText = exp.isCurrent
+            ? (exp.startDate || '') + ' — Present'
+            : (exp.startDate || '') + (exp.endDate ? ' — ' + exp.endDate : '');
+
+          return \`
+            <div class="record-item-card">
+              <div class="record-card-header">
+                <div>
+                  <strong style="color: #f8fafc; font-size: 0.95rem;">\${escapeHtml(exp.title || 'Role')}</strong>
+                  <span style="color: #94a3b8; font-size: 0.88rem;"> at <strong>\${escapeHtml(exp.company || 'Company')}</strong></span>
+                  <span class="badge" style="font-size: 0.68rem; margin-left: 0.3rem;">\${escapeHtml(exp.employmentType || 'FULL_TIME')}</span>
+                  \${provBadge}
+                </div>
+                <div class="record-card-actions">
+                  <button type="button" class="btn-icon-action" onclick="openEditExperienceModal(\${idx})">Edit</button>
+                  <button type="button" class="btn-icon-action danger" onclick="deleteExperience(\${idx})">Delete</button>
+                </div>
+              </div>
+              <div style="color: #64748b; font-size: 0.78rem; margin-bottom: 0.4rem;">
+                \${escapeHtml(datesText)} \${exp.location ? '• ' + escapeHtml(exp.location) : ''}
+              </div>
+              \${Array.isArray(exp.bullets) && exp.bullets.length > 0
+                ? '<ul style="margin: 0; padding-left: 1.2rem; color: #cbd5e1; font-size: 0.8rem; line-height: 1.4;">' +
+                  exp.bullets.map(b => '<li>' + escapeHtml(b) + '</li>').join('') +
+                  '</ul>'
+                : ''}
+            </div>
+          \`;
+        }).join('');
+      }
+
+      function openAddExperienceModal() {
+        document.getElementById('expModalTitle').innerText = 'Add Experience';
+        document.getElementById('expEditIndex').value = '-1';
+        document.getElementById('expCompany').value = '';
+        document.getElementById('expTitle').value = '';
+        document.getElementById('expType').value = 'FULL_TIME';
+        document.getElementById('expLocation').value = '';
+        document.getElementById('expStartDate').value = '';
+        document.getElementById('expEndDate').value = '';
+        document.getElementById('expEndDate').disabled = false;
+        document.getElementById('expIsCurrent').checked = false;
+        document.getElementById('expBullets').value = '';
+        document.getElementById('experienceModal').classList.add('open');
+      }
+
+      function openEditExperienceModal(idx) {
+        const exp = profileState.experiences[idx];
+        if (!exp) return;
+        document.getElementById('expModalTitle').innerText = 'Edit Experience';
+        document.getElementById('expEditIndex').value = String(idx);
+        document.getElementById('expCompany').value = exp.company || '';
+        document.getElementById('expTitle').value = exp.title || '';
+        document.getElementById('expType').value = exp.employmentType || 'FULL_TIME';
+        document.getElementById('expLocation').value = exp.location || '';
+        document.getElementById('expStartDate').value = exp.startDate || '';
+        document.getElementById('expEndDate').value = exp.endDate || '';
+        document.getElementById('expIsCurrent').checked = Boolean(exp.isCurrent);
+        document.getElementById('expEndDate').disabled = Boolean(exp.isCurrent);
+        document.getElementById('expBullets').value = Array.isArray(exp.bullets) ? exp.bullets.join('\\n') : '';
+        document.getElementById('experienceModal').classList.add('open');
+      }
+
+      function closeExperienceModal() {
+        document.getElementById('experienceModal').classList.remove('open');
+      }
+
+      function saveExperienceModal(e) {
+        e.preventDefault();
+        const idx = parseInt(document.getElementById('expEditIndex').value, 10);
+        const bulletsText = document.getElementById('expBullets').value;
+        const bullets = bulletsText.split('\\n').map(b => b.trim()).filter(Boolean);
+
+        const record = {
+          company: document.getElementById('expCompany').value.trim(),
+          title: document.getElementById('expTitle').value.trim(),
+          employmentType: document.getElementById('expType').value,
+          location: document.getElementById('expLocation').value.trim() || null,
+          startDate: document.getElementById('expStartDate').value.trim() || null,
+          endDate: document.getElementById('expIsCurrent').checked ? null : (document.getElementById('expEndDate').value.trim() || null),
+          isCurrent: document.getElementById('expIsCurrent').checked,
+          bullets: bullets,
+          provenanceStatus: 'USER_PROVIDED',
+        };
+
+        if (idx >= 0 && idx < profileState.experiences.length) {
+          profileState.experiences[idx] = record;
+        } else {
+          profileState.experiences.push(record);
+        }
+
+        renderExperiences();
+        closeExperienceModal();
+        markFormDirty();
+      }
+
+      function deleteExperience(idx) {
+        if (confirm('Are you sure you want to remove this experience record?')) {
+          profileState.experiences.splice(idx, 1);
+          renderExperiences();
+          markFormDirty();
+        }
+      }
+
+      // --- EDUCATION RENDERING & CRUD ---
+      function renderEducation() {
+        const container = document.getElementById('educationListContainer');
+        if (!profileState.education || profileState.education.length === 0) {
+          container.innerHTML = '<p style="color: #94a3b8; font-size: 0.85rem; font-style: italic;">No education records registered. Click "+ Add Education" above.</p>';
+          return;
+        }
+
+        container.innerHTML = profileState.education.map((edu, idx) => {
+          const statusText = edu.isCurrent || edu.currentlyEnrolled
+            ? 'Currently Enrolled'
+            : edu.endDate ? 'Graduated ' + edu.endDate : 'Completed';
+
+          const provBadge = edu.provenanceStatus === 'USER_PROVIDED'
+            ? '<span class="badge badge-user-provided" style="font-size:0.65rem;">✓ User Provided</span>'
+            : '<span class="badge badge-claimed" style="font-size:0.65rem;">○ Claimed (Resume)</span>';
+
+          return \`
+            <div class="record-item-card">
+              <div class="record-card-header">
+                <div>
+                  <strong style="color: #f8fafc; font-size: 0.95rem;">\${escapeHtml(edu.degree || 'Degree')}</strong>
+                  \${edu.fieldOfStudy ? '<span style="color: #cbd5e1; font-size: 0.88rem;"> in ' + escapeHtml(edu.fieldOfStudy) + '</span>' : ''}
+                  <span class="badge" style="font-size: 0.68rem; margin-left: 0.3rem;">\${escapeHtml(edu.degreeType || 'DEGREE')}</span>
+                  \${provBadge}
+                </div>
+                <div class="record-card-actions">
+                  <button type="button" class="btn-icon-action" onclick="openEditEducationModal(\${idx})">Edit</button>
+                  <button type="button" class="btn-icon-action danger" onclick="deleteEducation(\${idx})">Delete</button>
+                </div>
+              </div>
+              <div style="color: #94a3b8; font-size: 0.82rem;">
+                <strong>\${escapeHtml(edu.institution || '')}</strong> \${edu.location ? '• ' + escapeHtml(edu.location) : ''}
+              </div>
+              <div style="color: #64748b; font-size: 0.75rem; margin-top: 0.15rem;">
+                \${escapeHtml(statusText)}
+              </div>
+              \${Array.isArray(edu.coursework) && edu.coursework.length > 0
+                ? '<div style="margin-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.25rem;">' +
+                  edu.coursework.map(c => '<span class="badge" style="font-size: 0.65rem; background: rgba(255,255,255,0.04);">' + escapeHtml(c) + '</span>').join('') +
+                  '</div>'
+                : ''}
+            </div>
+          \`;
+        }).join('');
+      }
+
+      function openAddEducationModal() {
+        document.getElementById('eduModalTitle').innerText = 'Add Education';
+        document.getElementById('eduEditIndex').value = '-1';
+        document.getElementById('eduInstitution').value = '';
+        document.getElementById('eduDegree').value = '';
+        document.getElementById('eduType').value = 'BACHELOR';
+        document.getElementById('eduField').value = '';
+        document.getElementById('eduLocation').value = '';
+        document.getElementById('eduStartDate').value = '';
+        document.getElementById('eduEndDate').value = '';
+        document.getElementById('eduIsCurrent').checked = false;
+        document.getElementById('eduEndDate').disabled = false;
+        document.getElementById('eduCoursework').value = '';
+        document.getElementById('educationModal').classList.add('open');
+      }
+
+      function openEditEducationModal(idx) {
+        const edu = profileState.education[idx];
+        if (!edu) return;
+        document.getElementById('eduModalTitle').innerText = 'Edit Education';
+        document.getElementById('eduEditIndex').value = String(idx);
+        document.getElementById('eduInstitution').value = edu.institution || '';
+        document.getElementById('eduDegree').value = edu.degree || '';
+        document.getElementById('eduType').value = edu.degreeType || 'BACHELOR';
+        document.getElementById('eduField').value = edu.fieldOfStudy || '';
+        document.getElementById('eduLocation').value = edu.location || '';
+        document.getElementById('eduStartDate').value = edu.startDate || '';
+        document.getElementById('eduEndDate').value = edu.endDate || '';
+        document.getElementById('eduIsCurrent').checked = Boolean(edu.isCurrent || edu.currentlyEnrolled);
+        document.getElementById('eduEndDate').disabled = Boolean(edu.isCurrent || edu.currentlyEnrolled);
+        document.getElementById('eduCoursework').value = Array.isArray(edu.coursework) ? edu.coursework.join(', ') : '';
+        document.getElementById('educationModal').classList.add('open');
+      }
+
+      function closeEducationModal() {
+        document.getElementById('educationModal').classList.remove('open');
+      }
+
+      function saveEducationModal(e) {
+        e.preventDefault();
+        const idx = parseInt(document.getElementById('eduEditIndex').value, 10);
+        const cwText = document.getElementById('eduCoursework').value;
+        const coursework = cwText.split(',').map(s => s.trim()).filter(Boolean);
+
+        const record = {
+          institution: document.getElementById('eduInstitution').value.trim(),
+          degree: document.getElementById('eduDegree').value.trim() || null,
+          degreeType: document.getElementById('eduType').value,
+          fieldOfStudy: document.getElementById('eduField').value.trim() || null,
+          location: document.getElementById('eduLocation').value.trim() || null,
+          startDate: document.getElementById('eduStartDate').value.trim() || null,
+          endDate: document.getElementById('eduIsCurrent').checked ? null : (document.getElementById('eduEndDate').value.trim() || null),
+          isCurrent: document.getElementById('eduIsCurrent').checked,
+          currentlyEnrolled: document.getElementById('eduIsCurrent').checked,
+          coursework: coursework,
+          provenanceStatus: 'USER_PROVIDED',
+        };
+
+        if (idx >= 0 && idx < profileState.education.length) {
+          profileState.education[idx] = record;
+        } else {
+          profileState.education.push(record);
+        }
+
+        renderEducation();
+        closeEducationModal();
+        markFormDirty();
+      }
+
+      function deleteEducation(idx) {
+        if (confirm('Are you sure you want to delete this education record?')) {
+          profileState.education.splice(idx, 1);
+          renderEducation();
+          markFormDirty();
+        }
+      }
+
+      // --- CURRENT EMPLOYMENT MODAL ---
+      function openCurrentEmploymentModal() {
+        const ce = profileState.currentEmployment;
+        if (ce) {
+          document.getElementById('ceActiveToggle').checked = true;
+          toggleCurrentEmpFields(true);
+          document.getElementById('ceCompany').value = ce.company || '';
+          document.getElementById('ceTitle').value = ce.title || '';
+          document.getElementById('ceType').value = ce.employmentType || 'FULL_TIME';
+          document.getElementById('ceStartDate').value = ce.startDate || '';
+        } else {
+          document.getElementById('ceActiveToggle').checked = false;
+          toggleCurrentEmpFields(false);
+          document.getElementById('ceCompany').value = '';
+          document.getElementById('ceTitle').value = '';
+          document.getElementById('ceStartDate').value = '';
+        }
+        document.getElementById('currentEmploymentModal').classList.add('open');
+      }
+
+      function closeCurrentEmploymentModal() {
+        document.getElementById('currentEmploymentModal').classList.remove('open');
+      }
+
+      function toggleCurrentEmpFields(active) {
+        document.getElementById('ceFieldsGroup').style.display = active ? 'block' : 'none';
+      }
+
+      function saveCurrentEmploymentModal(e) {
+        e.preventDefault();
+        const active = document.getElementById('ceActiveToggle').checked;
+        if (!active) {
+          profileState.currentEmployment = null;
+        } else {
+          const comp = document.getElementById('ceCompany').value.trim();
+          const title = document.getElementById('ceTitle').value.trim();
+          if (!comp || !title) {
+            alert('Please specify both company and title, or uncheck "I am currently employed".');
+            return;
+          }
+          profileState.currentEmployment = {
+            company: comp,
+            title: title,
+            employmentType: document.getElementById('ceType').value,
+            startDate: document.getElementById('ceStartDate').value.trim() || null,
+            isCurrent: true,
+          };
+        }
+
+        updateCurrentEmploymentDisplay();
+        closeCurrentEmploymentModal();
+        markFormDirty();
+      }
+
+      function updateCurrentEmploymentDisplay() {
+        const textElem = document.getElementById('currentEmploymentText');
+        const ce = profileState.currentEmployment;
+        if (ce) {
+          textElem.innerHTML = '<span>💼 <strong>' + escapeHtml(ce.title) + '</strong> at ' + escapeHtml(ce.company) + ' <span class="badge" style="font-size:0.68rem; margin-left:0.3rem;">' + escapeHtml(ce.employmentType || 'FULL_TIME') + '</span></span>';
+        } else {
+          textElem.innerHTML = '<span style="color: #94a3b8;">○ Not currently employed (Job Seeking / Student / Independent)</span>';
+        }
+      }
+
+      // --- CERTIFICATIONS CRUD ---
+      function renderCertifications() {
+        const container = document.getElementById('certificationsListContainer');
+        if (!profileState.certifications || profileState.certifications.length === 0) {
+          container.innerHTML = '<p style="color: #64748b; font-size: 0.78rem; font-style: italic;">No certifications added.</p>';
+          return;
+        }
+
+        container.innerHTML = profileState.certifications.map((cert, idx) => {
+          const certName = typeof cert === 'object' ? cert.name : cert;
+          const certIssuer = typeof cert === 'object' && cert.issuer ? cert.issuer : '';
+          const certUrl = typeof cert === 'object' && cert.credentialUrl ? cert.credentialUrl : '';
+
+          return \`
+            <div style="background: rgba(11, 15, 25, 0.4); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+              <div>
+                <strong style="color: #f8fafc;">\${escapeHtml(certName)}</strong>
+                \${certIssuer ? '<div style="color: #94a3b8; font-size: 0.72rem;">' + escapeHtml(certIssuer) + '</div>' : ''}
+              </div>
+              <div style="display: flex; gap: 0.3rem;">
+                \${certUrl ? '<a href="' + escapeHtml(certUrl) + '" target="_blank" class="btn-icon-action" style="text-decoration:none;">View</a>' : ''}
+                <button type="button" class="btn-icon-action danger" onclick="deleteCert(\${idx})">×</button>
+              </div>
+            </div>
+          \`;
+        }).join('');
+      }
+
+      function openAddCertModal() {
+        document.getElementById('certName').value = '';
+        document.getElementById('certIssuer').value = '';
+        document.getElementById('certDate').value = '';
+        document.getElementById('certId').value = '';
+        document.getElementById('certUrl').value = '';
+        document.getElementById('certModal').classList.add('open');
+      }
+
+      function closeCertModal() {
+        document.getElementById('certModal').classList.remove('open');
+      }
+
+      function saveCertModal(e) {
+        e.preventDefault();
+        const record = {
+          name: document.getElementById('certName').value.trim(),
+          issuer: document.getElementById('certIssuer').value.trim() || null,
+          issueDate: document.getElementById('certDate').value.trim() || null,
+          credentialId: document.getElementById('certId').value.trim() || null,
+          credentialUrl: document.getElementById('certUrl').value.trim() || null,
+          provenanceStatus: 'USER_PROVIDED',
+        };
+        profileState.certifications.push(record);
+        renderCertifications();
+        closeCertModal();
+        markFormDirty();
+      }
+
+      function deleteCert(idx) {
+        profileState.certifications.splice(idx, 1);
+        renderCertifications();
+        markFormDirty();
+      }
+
+      // --- LANGUAGES CRUD ---
+      function renderLanguages() {
+        const container = document.getElementById('languagesListContainer');
+        if (!profileState.languages || profileState.languages.length === 0) {
+          container.innerHTML = '<p style="color: #64748b; font-size: 0.78rem; font-style: italic;">No languages added.</p>';
+          return;
+        }
+
+        container.innerHTML = profileState.languages.map((lang, idx) => {
+          const langName = typeof lang === 'object' ? lang.language : lang;
+          const langProf = typeof lang === 'object' && lang.proficiency ? lang.proficiency : 'PROFESSIONAL';
+
+          return \`
+            <div style="background: rgba(11, 15, 25, 0.4); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+              <div>
+                <strong style="color: #f8fafc;">\${escapeHtml(langName)}</strong>
+                <span class="badge" style="font-size: 0.65rem; margin-left: 0.3rem;">\${escapeHtml(langProf)}</span>
+              </div>
+              <button type="button" class="btn-icon-action danger" onclick="deleteLang(\${idx})">×</button>
+            </div>
+          \`;
+        }).join('');
+      }
+
+      function openAddLangModal() {
+        document.getElementById('langName').value = '';
+        document.getElementById('langProf').value = 'PROFESSIONAL';
+        document.getElementById('langModal').classList.add('open');
+      }
+
+      function closeLangModal() {
+        document.getElementById('langModal').classList.remove('open');
+      }
+
+      function saveLangModal(e) {
+        e.preventDefault();
+        const record = {
+          language: document.getElementById('langName').value.trim(),
+          proficiency: document.getElementById('langProf').value,
+          provenanceStatus: 'USER_PROVIDED',
+        };
+        profileState.languages.push(record);
+        renderLanguages();
+        closeLangModal();
+        markFormDirty();
+      }
+
+      function deleteLang(idx) {
+        profileState.languages.splice(idx, 1);
+        renderLanguages();
+        markFormDirty();
+      }
+
+      // --- PORTFOLIO LINKS CRUD ---
+      function renderLinks() {
+        const container = document.getElementById('portfolioLinksContainer');
+        if (!profileState.portfolioLinks || profileState.portfolioLinks.length === 0) {
+          container.innerHTML = '<span style="color: #64748b; font-size: 0.78rem; font-style: italic;">No portfolio links recorded.</span>';
+          return;
+        }
+
+        container.innerHTML = profileState.portfolioLinks.map((link, idx) => {
+          return \`
+            <span class="selected-chip" style="font-size: 0.75rem;">
+              <strong>\${escapeHtml(link.label || 'LINK')}:</strong>
+              <a href="\${escapeHtml(link.url)}" target="_blank" style="color: #e0e7ff; text-decoration: underline;">\${escapeHtml(link.url.replace(/^https?:\\/\\//, ''))}</a>
+              <span class="chip-remove-btn" onclick="deleteLink(\${idx})">×</span>
+            </span>
+          \`;
+        }).join('');
+      }
+
+      function openAddLinkModal() {
+        document.getElementById('linkPlatform').value = '';
+        document.getElementById('linkUrl').value = '';
+        document.getElementById('linkModal').classList.add('open');
+      }
+
+      function closeLinkModal() {
+        document.getElementById('linkModal').classList.remove('open');
+      }
+
+      function saveLinkModal(e) {
+        e.preventDefault();
+        const url = document.getElementById('linkUrl').value.trim();
+        let label = document.getElementById('linkPlatform').value.trim().toUpperCase();
+        if (!label) {
+          if (url.includes('github.com')) label = 'GITHUB';
+          else if (url.includes('linkedin.com')) label = 'LINKEDIN';
+          else if (url.includes('leetcode.com')) label = 'LEETCODE';
+          else label = 'PORTFOLIO';
+        }
+
+        profileState.portfolioLinks.push({ label, url });
+        renderLinks();
+        closeLinkModal();
+        markFormDirty();
+      }
+
+      function deleteLink(idx) {
+        profileState.portfolioLinks.splice(idx, 1);
+        renderLinks();
+        markFormDirty();
+      }
+
+      // --- CHIPS INPUT CONTROLLER (TARGET ROLES & LOCATIONS) ---
+      function initChipsInput(containerId, inputId, hiddenId) {
+        const container = document.getElementById(containerId);
+        const input = document.getElementById(inputId);
+        const hidden = document.getElementById(hiddenId);
+
+        function renderChips() {
+          const values = hidden.value.split(',').map(s => s.trim()).filter(Boolean);
+          const oldChips = container.querySelectorAll('.selected-chip');
+          oldChips.forEach(c => c.remove());
+
+          values.forEach(val => {
+            const chip = document.createElement('span');
+            chip.className = 'selected-chip';
+            chip.innerHTML = escapeHtml(val) + '<span class="chip-remove-btn">×</span>';
+            chip.querySelector('.chip-remove-btn').addEventListener('click', function(e) {
+              e.stopPropagation();
+              removeValue(val);
+            });
+            container.insertBefore(chip, input);
+          });
+        }
+
+        function addValue(val) {
+          val = val.trim();
+          if (!val) return;
+          const current = hidden.value.split(',').map(s => s.trim()).filter(Boolean);
+          if (!current.includes(val)) {
+            current.push(val);
+            hidden.value = current.join(',');
+            renderChips();
+            markFormDirty();
+          }
+          input.value = '';
+        }
+
+        function removeValue(val) {
+          const current = hidden.value.split(',').map(s => s.trim()).filter(Boolean);
+          const filtered = current.filter(v => v !== val);
+          hidden.value = filtered.join(',');
+          renderChips();
+          markFormDirty();
+        }
+
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            addValue(input.value);
+          } else if (e.key === 'Backspace' && !input.value) {
+            const current = hidden.value.split(',').map(s => s.trim()).filter(Boolean);
+            if (current.length > 0) {
+              removeValue(current[current.length - 1]);
+            }
+          }
+        });
+
+        renderChips();
+        return { addValue, removeValue };
+      }
+
+      const rolesController = initChipsInput('targetRolesContainer', 'targetRolesInput', 'targetRolesHidden');
+      const locationsController = initChipsInput('preferredLocationsContainer', 'preferredLocationsInput', 'preferredLocationsHidden');
 
       function addSuggestedRole(role) {
-        if (window.chipSelectors['targetRolesContainer']) {
-          window.chipSelectors['targetRolesContainer'].add(role);
-        }
+        rolesController.addValue(role);
       }
 
       function addSuggestedLocation(loc) {
-        if (window.chipSelectors['preferredLocationsContainer']) {
-          window.chipSelectors['preferredLocationsContainer'].add(loc);
-        }
-      }
-
-      function addSuggestedTech(tech) {
-        if (window.chipSelectors['preferredTechStackContainer']) {
-          window.chipSelectors['preferredTechStackContainer'].add(tech);
-        }
-      }
-
-      function addSuggestedWorkAuth(country) {
-        if (window.chipSelectors['workAuthContainer']) {
-          window.chipSelectors['workAuthContainer'].add(country);
-        }
-      }
-
-      function setRemotePref(val, btn) {
-        document.getElementById('remotePreferenceHidden').value = val;
-        const parent = btn.parentElement;
-        parent.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        markFormDirty();
-      }
-
-      function toggleIndustry(ind, el) {
-        const hidden = document.getElementById('industriesHidden');
-        let current = hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : [];
-        if (current.includes(ind)) {
-          current = current.filter(item => item !== ind);
-          el.classList.remove('selected');
-          el.innerText = '+ ' + ind;
-        } else {
-          current.push(ind);
-          el.classList.add('selected');
-          el.innerText = '✓ ' + ind;
-        }
-        hidden.value = current.join(',');
-        markFormDirty();
+        locationsController.addValue(loc);
       }
 
       function applyAllAiSuggestions() {
-        const roles = ${JSON.stringify(recommendedRoles.slice(0, 3))};
-        roles.forEach(r => addSuggestedRole(r));
-        addSuggestedLocation('Remote');
-        addSuggestedLocation('India');
-        markFormDirty();
+        ${recommendedRoles.map((r) => `rolesController.addValue('${escapeHtml(r)}');`).join('\n')}
+        locationsController.addValue('Remote');
+        locationsController.addValue('India');
       }
 
-      function filterProjects(filter, btn) {
-        const grid = document.getElementById('projectsGrid');
-        if (!grid) return;
-
-        btn.parentElement.querySelectorAll('button').forEach((b) => {
-          b.style.background = '';
-          b.style.borderColor = '';
-          b.style.color = '';
-        });
-        btn.style.background = 'rgba(99, 102, 241, 0.2)';
-        btn.style.borderColor = 'rgba(99, 102, 241, 0.4)';
-        btn.style.color = '#e0e7ff';
-
-        const cards = grid.querySelectorAll('.project-card');
-        cards.forEach(card => {
-          const type = card.getAttribute('data-project-type') || '';
-          if (filter === 'all') {
-            card.style.display = 'flex';
-          } else if (filter === 'verified' && type.includes('verified')) {
-            card.style.display = 'flex';
-          } else if (filter === 'github' && type.includes('github')) {
-            card.style.display = 'flex';
-          } else if (filter === 'resume' && type.includes('resume')) {
-            card.style.display = 'flex';
-          } else {
-            card.style.display = 'none';
-          }
-        });
+      function handleCareerStatusChange() {
+        const val = document.getElementById('careerStatus').value;
+        if (val === 'EMPLOYED' && !profileState.currentEmployment) {
+          openCurrentEmploymentModal();
+        }
       }
+
+      // Initial page initialization
+      renderExperiences();
+      renderEducation();
+      renderCertifications();
+      renderLanguages();
+      renderLinks();
     </script>
   `;
 
   return renderLayout({
     title: 'Career Profile & Preferences',
-    content,
     user,
     tenant,
-    activeNav: 'profile',
+    currentPath: '/profile',
+    content,
   });
 }

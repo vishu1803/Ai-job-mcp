@@ -144,6 +144,52 @@ export class EducationNormalizer {
    */
   static normalize(input, options = {}) {
     const defaultProvenance = options.provenanceStatus || 'CLAIMED';
+
+    if (Array.isArray(input)) {
+      const allStructured = input.every(
+        (item) => item && typeof item === 'object' && !item.rawText && item.institution
+      );
+      if (allStructured && input.length > 0) {
+        return input.map((item) => {
+          const rawDates =
+            item.rawDateRange ||
+            (item.startDate && item.endDate
+              ? `${item.startDate} - ${item.endDate}`
+              : item.startDate || item.endDate || '');
+          const dNorm = rawDates ? DateRangeNormalizer.normalize(rawDates) : null;
+          const degType =
+            item.degreeType && item.degreeType !== 'OTHER'
+              ? item.degreeType
+              : item.degree
+                ? EducationNormalizer.classifyDegreeType(item.degree)
+                : item.degreeType || 'OTHER';
+
+          return {
+            institution: item.institution || 'Institution',
+            degree: item.degree || null,
+            fieldOfStudy: item.fieldOfStudy || null,
+            degreeType: degType,
+            location: item.location || null,
+            startDate: item.startDate || dNorm?.startDate || null,
+            endDate: item.endDate || dNorm?.endDate || null,
+            isCurrent: Boolean(item.isCurrent || item.currentlyEnrolled || dNorm?.isCurrent),
+            rawDateRange: item.rawDateRange || dNorm?.rawDateRange || null,
+            coursework: Array.isArray(item.coursework)
+              ? item.coursework
+              : typeof item.coursework === 'string'
+                ? item.coursework
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                : [],
+            gradeOrGpa: item.gradeOrGpa || null,
+            rawText: item.rawText || `${item.institution} | ${item.degree || ''}`,
+            provenanceStatus: item.provenanceStatus || defaultProvenance,
+          };
+        });
+      }
+    }
+
     let lines = [];
     if (Array.isArray(input)) {
       lines = input

@@ -2241,6 +2241,9 @@ export default async function webRoutes(app, opts = {}) {
   app.post('/profile', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
     if (!sessionContext) {
+      if (req.headers.accept?.includes('application/json')) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
       return reply.redirect('/login?returnTo=/profile');
     }
 
@@ -2267,60 +2270,67 @@ export default async function webRoutes(app, opts = {}) {
           ? val
           : [];
 
-    // 1. Update Candidate Identity & Narrative
-    const candidateUpdates = {};
-    if (body.displayName && typeof body.displayName === 'string') {
-      candidateUpdates.displayName = body.displayName.trim().slice(0, 255);
-    }
-    if (body.headline !== undefined) {
-      candidateUpdates.headline = String(body.headline).trim().slice(0, 500) || null;
-    }
-    if (body.summary !== undefined) {
-      candidateUpdates.summary = String(body.summary).trim().slice(0, 5000) || null;
-    }
-
-    const currentMeta = candidate.profileMetadata || {};
-    const updatedMeta = {
-      ...currentMeta,
-      currentRole:
-        body.currentRole !== undefined
-          ? String(body.currentRole).trim().slice(0, 255) || null
-          : currentMeta.currentRole || null,
-      location:
-        body.location !== undefined
-          ? String(body.location).trim().slice(0, 255) || null
-          : currentMeta.location || null,
-    };
-    candidateUpdates.profileMetadata = updatedMeta;
-    candidateUpdates.updatedAt = new Date();
-
-    await database
-      .update(candidates)
-      .set(candidateUpdates)
-      .where(
-        and(eq(candidates.id, candidate.id), eq(candidates.tenantId, sessionContext.tenant.id))
-      );
-
-    // 2. Update Career Preferences & Intent
-    const preferencesUpdate = {
-      targetRoles: parseList(body.targetRoles),
-      preferredLocations: parseList(body.preferredLocations),
-      remotePreference: body.remotePreference || 'FLEXIBLE',
-      employmentTypes: body.employmentTypes ? parseList(body.employmentTypes) : ['FULL_TIME'],
-      salaryFloor: body.salaryFloor ? Number(body.salaryFloor) : null,
-      salaryCurrency: body.salaryCurrency || 'USD',
-      preferredTechStack: parseList(body.preferredTechStack),
-      industries: parseList(body.industries),
-      companiesToPrioritize: parseList(body.companiesToPrioritize),
-      companiesToAvoid: parseList(body.companiesToAvoid),
-      workAuthorization: parseList(body.workAuthorization),
-      visaSponsorshipRequired:
-        body.visaSponsorshipRequired === 'true' || body.visaSponsorshipRequired === true,
-      availabilityDate: body.availabilityDate ? String(body.availabilityDate).trim() : null,
-      relocationPreference: body.relocationPreference || 'REMOTE_ONLY',
+    const parseJsonField = (val, fallback = null) => {
+      if (typeof val === 'string' && val.trim()) {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return fallback;
+        }
+      }
+      return val !== undefined ? val : fallback;
     };
 
-    await candidateProfileService.updateCareerPreferences(context, candidate.id, preferencesUpdate);
+    // Parse user profile updates
+    const sectionUpdates = {
+      displayName: body.displayName,
+      headline: body.headline,
+      summary: body.summary,
+      currentRole: body.currentRole,
+      location: body.location,
+      careerStatus: body.careerStatus,
+      currentEmployment: parseJsonField(body.currentEmployment, undefined),
+      experience: parseJsonField(body.experience, undefined),
+      education: parseJsonField(body.education, undefined),
+      certifications: parseJsonField(body.certifications, undefined),
+      languages: parseJsonField(body.languages, undefined),
+      portfolioLinks: parseJsonField(body.portfolioLinks, undefined),
+      jobPreferences: {
+        targetRoles: parseList(body.targetRoles),
+        preferredLocations: parseList(body.preferredLocations),
+        remotePreference: body.remotePreference || 'FLEXIBLE',
+        employmentTypes: body.employmentTypes ? parseList(body.employmentTypes) : ['FULL_TIME'],
+        salaryFloor: body.salaryFloor ? Number(body.salaryFloor) : null,
+        salaryCurrency: body.salaryCurrency || 'USD',
+        preferredTechStack: parseList(body.preferredTechStack),
+        industries: parseList(body.industries),
+        companiesToPrioritize: parseList(body.companiesToPrioritize),
+        companiesToAvoid: parseList(body.companiesToAvoid),
+        workAuthorization: parseList(body.workAuthorization),
+        visaSponsorshipRequired:
+          body.visaSponsorshipRequired === 'true' || body.visaSponsorshipRequired === true,
+        availabilityDate: body.availabilityDate ? String(body.availabilityDate).trim() : null,
+        relocationPreference: body.relocationPreference || 'REMOTE_ONLY',
+      },
+    };
+
+    const updatedProfile = await candidateProfileService.updateUserProfileSections(
+      context,
+      candidate.id,
+      sectionUpdates
+    );
+
+    if (
+      req.headers['accept']?.includes('application/json') ||
+      req.headers['content-type']?.includes('application/json')
+    ) {
+      return reply.status(200).send({
+        success: true,
+        message: 'Profile updated successfully',
+        profile: updatedProfile,
+      });
+    }
+
     return reply.redirect('/profile?saved=true');
   });
 

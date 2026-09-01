@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005S (20 tasks) COMPLETE |
-| **Project State** | **ACTIVE / IN PROGRESS** | MCP Streamable HTTP Transport, 26 Tools, 8 Resources & 4 Prompts Synchronized & Contract-Verified (9/9 registry contract tests, 21/21 transport tests, 14/14 functional tests, 1,507/1,507 unit tests passing, 618/618 integration tests passing, 0 DB leaks, 0 lint errors), canonical Career Profile across Web & MCP, two-tier DR, Prometheus operational observability (`/metrics`), Cloudflare Named Tunnel staging (`dev.aicareershub.tech`), OAuth 2.1 PKCE/CIMD, and 100% test pass rate |
-| **Total Tasks** | **106 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **102 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005S (20 tasks) |
-| **In Progress Tasks** | **0 Tasks** | P14-005S completed; ready for P14-006 (Final Production Readiness Review) |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005V (23 tasks) COMPLETE |
+| **Project State** | **ACTIVE / IN PROGRESS** | MCP Streamable HTTP Transport, 26 Tools, 8 Resources & 4 Prompts Synchronized & Contract-Verified (9/9 registry contract tests, 21/21 transport tests, 14/14 functional tests, 1,546/1,546 unit tests passing, 618/618 integration tests passing, 0 DB leaks, 0 lint errors), editable human Career Profile with strict Evidence-Locking on skills & projects, full MCP ↔ Web UI semantic parity, two-tier DR, Prometheus operational observability (`/metrics`), Cloudflare Named Tunnel staging (`dev.aicareershub.tech`), OAuth 2.1 PKCE/CIMD, and 100% test pass rate |
+| **Total Tasks** | **107 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **105 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005V (23 tasks) |
+| **In Progress Tasks** | **0 Tasks** | P14-005V completed; ready for P14-006 (Final Production Readiness Review) |
 | **Blocked Tasks** | **0 Tasks** | No active blockers |
-| **Overall Task Completion** | **96.23% (102 / 106 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **96.30% (16.37 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **98.13% (105 / 107 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **98.20% (16.70 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 23 | 22 | 0 | **IN_PROGRESS** | **95.65%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 24 | 23 | 0 | **IN_PROGRESS** | **95.83%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -3758,6 +3758,29 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 
 ---
 
+* **P14-005V: CAREER PROFILE UX & DATA MODEL REFINEMENT — EDITABLE HUMAN PROFILE WITH EVIDENCE-LOCKED SKILLS & PROJECTS (Completed & Verified)**:
+  * Deliverables Created & Modified:
+    * `src/domain/candidate/career-preferences.schemas.js`: Added structured `CertificationItemSchema` (`{ name, issuer, issueDate, expiryDate, credentialId, credentialUrl, notes, provenanceStatus }`) supporting string and object inputs, `LanguageItemSchema` (`{ language, proficiency, provenanceStatus }`), and updated `CurrentEmploymentSchema` (`endDate`, `isCurrent`).
+    * `src/services/candidate-profile.service.js`: Implemented `updateUserProfileSections(context, candidateId, rawInput)` with strict evidence-locking (silently discarding any manual attempts to tamper with skills, AST signals, or project evidence), derived-field protection (recalculating tenure metrics via `TenureCalculator` rather than accepting client overrides), and storing user adjustments in `candidate.profileMetadata.userCustom` with `provenanceStatus: 'USER_PROVIDED'`, preserving raw resume claims. Updated `getCareerProfile` resolution hierarchy ensuring `userCustom` overrides take strict precedence over raw claims.
+    * `src/routes/web.routes.js`: Connected `POST /profile` to `updateUserProfileSections`, supporting form URL-encoded submissions with flash message redirect and direct JSON API callers.
+    * `src/utils/education-normalizer.js`: Enhanced `normalize()` to preserve structured input objects without flattening degrees or fields.
+    * `src/views/profile.page.js`: Overhauled `/profile` view with interactive multi-record CRUD modals (Experience, Education, Certifications, Languages, Portfolio Links, Active Employment), client-side `escapeHtml(str)` rendering defense, and prominent `🔒 Evidence-Controlled` badges on Primary Career Skills and Portfolio Projects with no manual edit/forge actions.
+    * `tests/unit/career-profile-ux-refinement.test.js`: Created 6-test suite verifying multi-record CRUD, strict evidence-locking (ignoring forged skills/projects), derived metric invariants, and MCP parity between `get_candidate_profile` and `get_career_profile`.
+    * `tests/unit/candidate-career-profile.test.js`: Maintained assertions matching updated badge labels.
+  * Quality Gates & Verification:
+    * `node --test tests/unit/career-profile-ux-refinement.test.js` -> PASS (6/6 tests passing)
+    * `node --test tests/unit/candidate-career-profile.test.js` -> PASS (41/41 tests passing)
+    * `npm run test:unit` -> PASS (1,546/1,546 master unit tests passing across 383 suites)
+    * `npm run test:integration` -> PASS (618/618 integration tests passing across 157 suites)
+    * `npm run lint` -> PASS (0 errors, 0 warnings across entire codebase)
+    * `npm run format:check` -> PASS (100% Prettier compliant)
+    * `npm run db:check` -> PASS (Drizzle schema in sync)
+    * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
+    * `git diff --check` -> PASS (Clean whitespace)
+  * Status: **`COMPLETE & VERIFIED`**.
+
+---
+
 ## PHASE 14: Security Hardening & Production Readiness
 *Objective: Execute comprehensive penetration testing, AST sandbox hardening, cryptographic audit, rate-limiting, and staging/production domain deployment.*
 
@@ -3793,6 +3816,7 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-005S** | MCP Documentation & Registry Reconciliation Audit (26 Tools, 8 Resources, 4 Prompts) | P14-005R | **COMPLETE & VERIFIED** | Reconciled runtime registry with all public and internal documentation and UI views. Full 26-tool catalog across 6 domains, 8 canonical resources (1 MCP App UI + 7 data resources/templates), 4 reusable prompts, zero hardcoded stale counts, bidirectional contract tests (`tests/unit/mcp-registry-contract.test.js` - 9/9 PASS), 1,507/1,507 unit tests pass, Prettier clean, ESLint clean, 0 secrets. |
 | **P14-005T** | Career Profile Data Model & Truth Pipeline Implementation | P14-005S | **COMPLETE & VERIFIED** | Implemented unified career profile data model and normalization pipeline: deterministic date range normalizer (`DateRangeNormalizer`), education normalizer with coursework isolation (`EducationNormalizer`), interval-merging tenure calculator (`TenureCalculator`), semantic role/status derivation engine (`CareerStatusDerivation`), Python stdlib noise filtering (`ImportScanner`, `SkillTaxonomyEngine`), and unified `getCareerProfile` as single source of truth across Web UI (`/profile`) and MCP (`get_candidate_profile`, `get_career_profile`). 12-persona test suite passing (`tests/unit/career-profile-personas.test.js` - 12/12 PASS), 1,540/1,540 master unit tests passing (100%), Prettier clean, ESLint clean, 0 exposed secrets. |
 | **P14-005U** | Real Resume End-to-End Regression & Final Career Profile Verification | P14-005T | **COMPLETE & VERIFIED** | Executed end-to-end regression audit on real candidate resume (`Vishwanath_Nishad_Resume.pdf (1).pdf` for candidate `Vishwanath Nishad`, ID `10a2b51b-09bf-4090-8040-1f60ebeb89c9`). Verified parser date normalization (`June 2024 – September 2024` -> `startDate: 2024-06`, `endDate: 2024-09`, `isCurrent: false`), employment inference (`INTERNSHIP`), non-inflation of current role (`currentRole = "Full-Stack & Backend Developer"`, `currentEmployment = null`), tenure calculations (`totalMonths = 4`, `professionalMonths = 0`), career status derivation (`FRESHER`), education normalization (`Rajkiya Engineering College` + `Sonbhadra` + `BACHELOR` + 8 coursework items, 0 phantom institutions), zero Python stdlib / internal noise (`app`, `server`, `time`, `random`, `tasks`, `forms`, `parser`, `core`, `models`, `os`, `sys`), complete semantic parity between `get_candidate_profile` and `get_career_profile`, and profile readiness decoupling. Verified via automated regression runner (`scratch/real-resume-regression.js` - 100% PASS), 1,540/1,540 unit tests passing across 382 suites, 100% Prettier compliant, 0 ESLint errors, 0 exposed secrets, and database schema clean. |
+| **P14-005V** | Career Profile UX & Data Model Refinement — Editable Human Profile with Evidence-Locked Skills & Projects | P14-005U | **COMPLETE & VERIFIED** | Implemented interactive multi-record CRUD modals (Experience, Education, Certifications, Languages, Links), strict evidence-locking (rejects manual skill/project edits), derived-field protection, `userCustom` overrides, and MCP parity. 6/6 tests in `tests/unit/career-profile-ux-refinement.test.js`, 1,546 unit tests passing (100%), 618 integration tests passing (100%), 0 lint errors, 0 secrets. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---
