@@ -178,15 +178,23 @@ describe('Career Profile UX & Data Model Refinement', () => {
         }),
       }),
       update: () => ({
-        set: (updates) => ({
-          where: () => {
+        set: (updates) => {
+          const applyUpdates = () => {
             if (updates.displayName) candidateRecord.displayName = updates.displayName;
             if (updates.headline !== undefined) candidateRecord.headline = updates.headline;
             if (updates.summary !== undefined) candidateRecord.summary = updates.summary;
             if (updates.profileMetadata) candidateRecord.profileMetadata = updates.profileMetadata;
-            return Promise.resolve([candidateRecord]);
-          },
-        }),
+            candidateRecord.updatedAt = new Date().toISOString();
+          };
+          return {
+            where: () => {
+              applyUpdates();
+              const result = Promise.resolve([candidateRecord]);
+              result.returning = () => Promise.resolve([candidateRecord]);
+              return result;
+            },
+          };
+        },
       }),
     };
 

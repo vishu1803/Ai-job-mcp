@@ -449,36 +449,18 @@ export class ResumeEntityResolver {
 
       // Education Section
       if (sec.sectionType === 'EDUCATION') {
-        const textToNorm = sec.rawText || (Array.isArray(sd.degrees) ? sd.degrees.join('\n') : '');
+        const textToNorm =
+          sec.rawText ||
+          (Array.isArray(sd.education) && sd.education.length > 0
+            ? sd.education
+            : Array.isArray(sd.degrees)
+              ? sd.degrees.join('\n')
+              : '');
         const normalized = EducationNormalizer.normalize(textToNorm, {
           provenanceStatus: 'CLAIMED',
         });
         if (normalized.length > 0) {
           educationList.push(...normalized);
-        } else if (Array.isArray(sd.degrees)) {
-          for (const rawDeg of sd.degrees) {
-            const raw = String(rawDeg || '').trim();
-            if (!raw) continue;
-            const parts = raw
-              .split(/[|,]/)
-              .map((p) => p.trim())
-              .filter(Boolean);
-            if (parts.length >= 2) {
-              educationList.push({
-                institution: parts[1],
-                degree: parts[0],
-                fieldOfStudy: parts[2] || null,
-                rawText: raw,
-              });
-            } else {
-              educationList.push({
-                institution: raw,
-                degree: null,
-                fieldOfStudy: null,
-                rawText: raw,
-              });
-            }
-          }
         }
       }
 

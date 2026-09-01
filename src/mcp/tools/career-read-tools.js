@@ -196,7 +196,7 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
         ? rawCompleteness.percentage
         : 100;
 
-  const profileCompleteness = {
+  const jobSearchReadiness = {
     score: completenessScore,
     status:
       rawCompleteness?.status ||
@@ -221,6 +221,22 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
         : 'Profile is complete and ready.'),
   };
 
+  // Backward-compatibility: profileCompleteness mirrors jobSearchReadiness
+  const profileCompleteness = jobSearchReadiness;
+
+  const rawProfileReadiness = careerProfile?.profileReadiness;
+  const profileReadiness = {
+    score: typeof rawProfileReadiness?.score === 'number' ? rawProfileReadiness.score : 100,
+    status: rawProfileReadiness?.status || 'PROFILE POPULATED',
+    isComplete: Boolean(rawProfileReadiness?.isComplete ?? true),
+    missingFields: Array.isArray(rawProfileReadiness?.missingFields)
+      ? rawProfileReadiness.missingFields
+      : [],
+    actionableFeedback:
+      rawProfileReadiness?.actionableFeedback ||
+      'Career profile contains comprehensive professional identity and verified qualifications.',
+  };
+
   const structuredExperienceDuration =
     careerProfile?.experienceDuration ||
     (tenureMetrics
@@ -232,7 +248,7 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
         }
       : undefined);
 
-  // 2. Format top verified skills (max 15)
+  // 2. Format top verified skills (max 15) with preserved truth & provenance
   let topSkills = undefined;
   if (args.includeSkillsSummary !== false) {
     const rawSkills = careerProfile?.topSkills || profileView.skills || [];
@@ -240,36 +256,67 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
       slug: s.slug,
       name: s.name,
       category: s.category || 'TOOL',
+      tier: s.tier || 'PRIMARY',
       confidenceScore: typeof s.confidenceScore === 'number' ? s.confidenceScore : 0.0,
       evidenceCount: s.evidenceCount || 0,
       provenanceStatus:
         s.provenanceStatus === 'VERIFIED'
           ? 'VERIFIED'
-          : s.provenanceStatus === 'INFERRED'
-            ? 'INFERRED'
-            : 'CLAIMED',
+          : s.provenanceStatus === 'CORROBORATED'
+            ? 'CORROBORATED'
+            : s.provenanceStatus === 'USER_PROVIDED'
+              ? 'USER_PROVIDED'
+              : s.provenanceStatus === 'INFERRED'
+                ? 'INFERRED'
+                : 'CLAIMED',
     }));
   }
 
-  // 3. Format highlighted projects (max 5)
+  // 3. Format highlighted projects (max 5) with technologies, repositoryUrl, and summary bullets
   let highlightedProjects = undefined;
   if (args.includeProjects !== false) {
     const rawProjects = careerProfile?.highlightedProjects || profileView.projects || [];
-    highlightedProjects = rawProjects.slice(0, 5).map((p) => ({
-      id: p.id,
-      name: p.name,
-      headline: p.headline || null,
-      role: p.role || null,
-      startDate: p.startDate ? String(p.startDate) : null,
-      endDate: p.endDate ? String(p.endDate) : null,
-      linkedResourceCount: p.linkedResourceCount || (Array.isArray(p.evidence) ? 1 : 0),
-      verifiedSignalCount:
-        p.verifiedSignalCount || (Array.isArray(p.evidence) ? p.evidence.length : 0),
-      provenanceStatus: p.provenanceStatus || 'CLAIMED',
-    }));
+    highlightedProjects = rawProjects.slice(0, 5).map((p) => {
+      let repositoryUrl =
+        p.repositoryUrl ||
+        (Array.isArray(p.urls) && p.urls.length > 0 ? p.urls[0] : null) ||
+        p.metadata?.repoUrl ||
+        p.metadata?.repositoryUrl ||
+        null;
+      if (
+        !repositoryUrl &&
+        typeof p.summary === 'string' &&
+        p.summary.startsWith('Repository: http')
+      ) {
+        repositoryUrl = p.summary.replace('Repository: ', '').trim();
+      } else if (
+        !repositoryUrl &&
+        typeof p.name === 'string' &&
+        p.name.includes('/') &&
+        !p.name.includes(' ')
+      ) {
+        repositoryUrl = `https://github.com/${p.name}`;
+      }
+      return {
+        id: p.id ? String(p.id) : undefined,
+        name: p.name,
+        headline: p.headline || null,
+        role: p.role || null,
+        summary: p.summary || null,
+        technologies: Array.isArray(p.technologies) ? p.technologies.slice(0, 15) : [],
+        repositoryUrl: repositoryUrl ? String(repositoryUrl) : null,
+        bullets: Array.isArray(p.bullets) ? p.bullets.slice(0, 3) : p.summary ? [p.summary] : [],
+        startDate: p.startDate ? String(p.startDate) : null,
+        endDate: p.endDate ? String(p.endDate) : null,
+        linkedResourceCount: p.linkedResourceCount || (Array.isArray(p.evidence) ? 1 : 0),
+        verifiedSignalCount:
+          p.verifiedSignalCount || (Array.isArray(p.evidence) ? p.evidence.length : 0),
+        provenanceStatus: p.provenanceStatus || 'CLAIMED',
+      };
+    });
   }
 
-  // 4. Format recent experience (max 5) from canonical career profile
+  // 4. Format recent experience (max 5) with bullets, technologies, and provenance
   let recentExperience = undefined;
   if (args.includeExperience !== false) {
     const rawExpList = careerProfile?.recentExperience || rawExperiences || [];
@@ -282,6 +329,12 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
       endDate: exp.endDate ? String(exp.endDate) : null,
       isCurrent: Boolean(exp.isCurrent),
       rawDateRange: exp.rawDateRange || null,
+      bullets: Array.isArray(exp.bullets) ? exp.bullets.slice(0, 3) : [],
+      technologies: Array.isArray(exp.technologies)
+        ? exp.technologies.slice(0, 15)
+        : Array.isArray(exp.skills)
+          ? exp.skills.slice(0, 15)
+          : [],
       verifiedSkillsUsed: Array.isArray(exp.verifiedSkillsUsed)
         ? exp.verifiedSkillsUsed.slice(0, 10)
         : Array.isArray(exp.skills)
@@ -291,13 +344,103 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
     }));
   }
 
-  // 5. Build connected resources summary
+  // 5. Format structured education (max 5)
+  let education = undefined;
+  if (args.includeEducation !== false) {
+    const rawEduList =
+      careerProfile?.education ||
+      rawUserCustom.education ||
+      profileView.candidate.profileMetadata?.education ||
+      [];
+    education = rawEduList.slice(0, 5).map((edu) => ({
+      institution: edu.institution || 'Educational Institution',
+      degree: edu.degree || null,
+      fieldOfStudy: edu.fieldOfStudy || null,
+      degreeType: edu.degreeType || 'OTHER',
+      location: edu.location || null,
+      startDate: edu.startDate ? String(edu.startDate) : null,
+      endDate: edu.endDate ? String(edu.endDate) : null,
+      isCurrent: Boolean(edu.isCurrent),
+      rawDateRange: edu.rawDateRange || null,
+      coursework: Array.isArray(edu.coursework) ? edu.coursework.slice(0, 15) : [],
+      gradeOrGpa: edu.gradeOrGpa || null,
+      provenanceStatus: edu.provenanceStatus || 'CLAIMED',
+    }));
+  }
+
+  // 6. Format certifications (max 5)
+  let certifications = undefined;
+  if (args.includeCertifications !== false) {
+    const rawCerts =
+      careerProfile?.certifications ||
+      rawUserCustom.certifications ||
+      profileView.candidate.profileMetadata?.certifications ||
+      [];
+    certifications = rawCerts.slice(0, 5).map((c) => {
+      if (typeof c === 'string') {
+        return {
+          name: c,
+          issuer: null,
+          issueDate: null,
+          expiryDate: null,
+          credentialId: null,
+          credentialUrl: null,
+          provenanceStatus: 'CLAIMED',
+        };
+      }
+      return {
+        name: c.name || 'Certification',
+        issuer: c.issuer || null,
+        issueDate: c.issueDate ? String(c.issueDate) : null,
+        expiryDate: c.expiryDate ? String(c.expiryDate) : null,
+        credentialId: c.credentialId || null,
+        credentialUrl: c.credentialUrl || null,
+        provenanceStatus: c.provenanceStatus || 'CLAIMED',
+      };
+    });
+  }
+
+  // 7. Format languages (max 5)
+  let languages = undefined;
+  if (args.includeLanguages !== false) {
+    const rawLangs =
+      careerProfile?.languages ||
+      rawUserCustom.languages ||
+      profileView.candidate.profileMetadata?.languages ||
+      [];
+    languages = rawLangs.slice(0, 5).map((l) => {
+      if (typeof l === 'string') {
+        return {
+          language: l,
+          proficiency: null,
+          provenanceStatus: 'CLAIMED',
+        };
+      }
+      return {
+        language: l.language || 'Language',
+        proficiency: l.proficiency || null,
+        provenanceStatus: l.provenanceStatus || 'CLAIMED',
+      };
+    });
+  }
+
+  // 8. Build connected resources summary & portfolio links
   const resourceList = profileView.resources || [];
   const connectedResourcesSummary = {
     totalConnected: resourceList.length,
     publicRepositories: resourceList.filter((r) => !r.isPrivate).length,
     privateRepositories: resourceList.filter((r) => r.isPrivate).length,
   };
+
+  const rawPortfolioLinks =
+    careerProfile?.portfolioLinks ||
+    rawUserCustom.portfolioLinks ||
+    profileView.candidate.profileMetadata?.portfolioLinks ||
+    [];
+  const portfolioLinks = rawPortfolioLinks.slice(0, 10).map((link) => ({
+    label: link.label || 'Link',
+    url: link.url,
+  }));
 
   const output = {
     candidate: {
@@ -316,9 +459,12 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
       status: profileView.candidate.status,
       createdAt: profileView.candidate.createdAt,
       updatedAt: profileView.candidate.updatedAt,
+      portfolioLinks,
     },
     profileCompletenessScore: completenessScore,
     profileCompleteness,
+    profileReadiness,
+    jobSearchReadiness,
     jobPreferences,
     eligibility,
     identities: (profileView.identities || []).map((i) => ({
@@ -327,9 +473,13 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
       verified: Boolean(i.verified),
     })),
     connectedResourcesSummary,
+    portfolioLinks,
     topSkills,
     highlightedProjects,
     recentExperience,
+    education,
+    certifications,
+    languages,
     _meta: {
       cacheControl: DEFAULT_CACHE_CONTROL,
     },
@@ -343,6 +493,18 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
     }
     if (output.highlightedProjects && output.highlightedProjects.length > 3) {
       output.highlightedProjects = output.highlightedProjects.slice(0, 3);
+    }
+    if (output.recentExperience) {
+      output.recentExperience = output.recentExperience.map((exp) => ({
+        ...exp,
+        bullets: exp.bullets ? exp.bullets.slice(0, 2) : [],
+      }));
+    }
+    if (output.education) {
+      output.education = output.education.map((edu) => ({
+        ...edu,
+        coursework: edu.coursework ? edu.coursework.slice(0, 5) : [],
+      }));
     }
   }
 
@@ -366,6 +528,27 @@ export async function handleListVerifiedSkills(context, rawArgs, deps = {}) {
   const args = ListVerifiedSkillsInputSchema.parse(rawArgs || {});
 
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
+
+  // Load resume skill names for provenance cross-reference
+  // This determines whether a VERIFIED skill is also corroborated by a resume claim
+  const resumeSkillNames = new Set();
+  try {
+    const [candidateRow] = await dbClient
+      .select({ profileMetadata: candidates.profileMetadata })
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)))
+      .limit(1);
+
+    const resumeData = candidateRow?.profileMetadata?.resumeData || null;
+    if (resumeData?.skills && Array.isArray(resumeData.skills)) {
+      for (const s of resumeData.skills) {
+        const name = String(s).toLowerCase().trim();
+        if (name) resumeSkillNames.add(name);
+      }
+    }
+  } catch {
+    // Resume data loading is best-effort; missing data means no CORROBORATED promotion
+  }
 
   // Build query conditions (strictly VERIFIED skills only)
   const conditions = [
@@ -441,12 +624,21 @@ export async function handleListVerifiedSkills(context, rawArgs, deps = {}) {
       }
     }
 
+    // Resolve canonical provenance: VERIFIED (GitHub only) or CORROBORATED (GitHub + resume)
+    const resolvedProvenance = CandidateProfileService.resolveSkillProvenanceStatus({
+      dbProvenanceStatus: cs.provenanceStatus,
+      skillName: skillName,
+      canonicalSlug: skillSlug,
+      resumeSkillNames,
+      metadata: cs.metadata || {},
+    });
+
     items.push({
       skillId: cs.skillId,
       slug: skillSlug,
       name: skillName,
       category: cs.category || 'TOOL',
-      provenanceStatus: 'VERIFIED',
+      provenanceStatus: resolvedProvenance,
       confidenceScore: typeof cs.confidenceScore === 'number' ? cs.confidenceScore : 0.0,
       evidenceCount: cs.evidenceCount || 0,
       firstObservedAt: cs.firstObservedAt ? new Date(cs.firstObservedAt).toISOString() : null,

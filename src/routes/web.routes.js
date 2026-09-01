@@ -2314,23 +2314,29 @@ export default async function webRoutes(app, opts = {}) {
       },
     };
 
+    const isJsonRequest =
+      req.headers['accept']?.includes('application/json') ||
+      req.headers['content-type']?.includes('application/json');
+
+    // For JSON/AJAX saves: use minimal response mode to skip expensive getCareerProfile rebuild
     const updatedProfile = await candidateProfileService.updateUserProfileSections(
       context,
       candidate.id,
-      sectionUpdates
+      sectionUpdates,
+      isJsonRequest ? { minimalResponse: true } : null
     );
 
-    if (
-      req.headers['accept']?.includes('application/json') ||
-      req.headers['content-type']?.includes('application/json')
-    ) {
+    if (isJsonRequest) {
       return reply.status(200).send({
-        success: true,
-        message: 'Profile updated successfully',
-        profile: updatedProfile,
+        ok: true,
+        saved: true,
+        updatedAt: updatedProfile.updatedAt,
+        displayName: updatedProfile.displayName,
+        candidateId: updatedProfile.candidateId,
       });
     }
 
+    // Legacy HTML form submission: full profile rebuild + redirect
     return reply.redirect('/profile?saved=true');
   });
 

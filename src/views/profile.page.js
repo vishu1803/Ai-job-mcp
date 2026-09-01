@@ -870,6 +870,7 @@ export function renderProfilePage({
         <!-- Top-level Save Button (always visible) -->
         <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; padding: 0.5rem 0;">
           <span id="dirtyIndicator" style="font-size: 0.78rem; color: #94a3b8; display: none;">● Unsaved changes</span>
+          <span id="saveStatus" style="font-size: 0.78rem; display: none;"></span>
           <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 700;">💾 Save Profile</button>
         </div>
 
@@ -1110,15 +1111,15 @@ export function renderProfilePage({
           <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #34d399;">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block;"></span>
-              ${primarySkillsList.filter(s => s.githubEvidence).length + technologySignalsList.filter(s => s.githubEvidence).length} GitHub Verified
+              ${primarySkillsList.filter((s) => s.githubEvidence).length + technologySignalsList.filter((s) => s.githubEvidence).length} GitHub Verified
             </div>
             <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #fbbf24;">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; display: inline-block;"></span>
-              ${primarySkillsList.filter(s => s.source === 'BOTH').length + technologySignalsList.filter(s => s.source === 'BOTH').length} Corroborated
+              ${primarySkillsList.filter((s) => s.source === 'BOTH').length + technologySignalsList.filter((s) => s.source === 'BOTH').length} Corroborated
             </div>
             <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #a5b4fc;">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #a5b4fc; display: inline-block;"></span>
-              ${primarySkillsList.filter(s => !s.githubEvidence && s.source !== 'BOTH').length + technologySignalsList.filter(s => !s.githubEvidence && s.source !== 'BOTH').length} Resume Claimed
+              ${primarySkillsList.filter((s) => !s.githubEvidence && s.source !== 'BOTH').length + technologySignalsList.filter((s) => !s.githubEvidence && s.source !== 'BOTH').length} Resume Claimed
             </div>
           </div>
 
@@ -1136,11 +1137,7 @@ export function renderProfilePage({
                       const isVer =
                         s.truthStatus === 'VERIFIED' || s.provenanceStatus === 'VERIFIED';
                       const isBoth = s.source === 'BOTH' || (s.githubEvidence && s.resumeClaim);
-                      const label = isBoth
-                        ? '✓ Corroborated'
-                        : isVer
-                          ? '✓ Verified'
-                          : '○ Claimed';
+                      const label = isBoth ? '✓ Corroborated' : isVer ? '✓ Verified' : '○ Claimed';
                       const badgeClass = isBoth || isVer ? 'badge-verified' : 'badge-claimed';
 
                       return `
@@ -1169,20 +1166,19 @@ export function renderProfilePage({
               </div>
               <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
                 ${technologySignalsList
-                  .map(
-                    (s) => {
-                      const isVer = s.truthStatus === 'VERIFIED' || s.provenanceStatus === 'VERIFIED';
-                      const isBoth = s.source === 'BOTH' || (s.githubEvidence && s.resumeClaim);
-                      const badgeStyle = isBoth || isVer
+                  .map((s) => {
+                    const isVer = s.truthStatus === 'VERIFIED' || s.provenanceStatus === 'VERIFIED';
+                    const isBoth = s.source === 'BOTH' || (s.githubEvidence && s.resumeClaim);
+                    const badgeStyle =
+                      isBoth || isVer
                         ? 'background: rgba(16, 185, 129, 0.08); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.2);'
                         : 'background: rgba(255, 255, 255, 0.03); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.06);';
-                      return `
+                    return `
                       <span class="skill-tag-badge" style="font-size: 0.72rem; ${badgeStyle}" title="Category: ${escapeHtml(s.fineCategory || s.category || 'LIBRARY')} | Evidence: ${s.evidenceCount || 1} signal(s) | Source: ${escapeHtml(s.source || 'UNKNOWN')}">
                         ${escapeHtml(s.name || s)} <span style="color: #64748b; font-size: 0.65rem;">(${s.evidenceCount || 1})</span>
                       </span>
                     `;
-                    }
-                  )
+                  })
                   .join('')}
               </div>
             </div>
@@ -1675,7 +1671,10 @@ export function renderProfilePage({
 
       window.__INITIAL_PROFILE__ = ${JSON.stringify(initialProfileState)};
       let profileState = JSON.parse(JSON.stringify(window.__INITIAL_PROFILE__));
+      let lastSavedState = JSON.parse(JSON.stringify(window.__INITIAL_PROFILE__));
       let isFormDirty = false;
+      let currentVersion = null;
+      let saveAbortController = null;
 
       function markFormDirty() {
         isFormDirty = true;
@@ -1686,27 +1685,138 @@ export function renderProfilePage({
 
       function discardChanges() {
         if (confirm('Discard all unsaved profile modifications and reload?')) {
+          profileState = JSON.parse(JSON.stringify(lastSavedState));
           isFormDirty = false;
           document.getElementById('stickySaveBar').classList.remove('visible');
           const dirtyEl = document.getElementById('dirtyIndicator');
           if (dirtyEl) dirtyEl.style.display = 'none';
-          window.location.reload();
+          renderAllSections();
         }
-      }        window.addEventListener('beforeunload', function(e) {
-          if (isFormDirty) {
-            e.preventDefault();
-            e.returnValue = '';
-          }
-        });
+      }
 
-        // Synchronize hidden state fields before submit
-        document.getElementById('careerProfileForm').addEventListener('submit', function() {
-          syncHiddenFields();
-          isFormDirty = false;
-          document.getElementById('stickySaveBar').classList.remove('visible');
-          const dirtyEl = document.getElementById('dirtyIndicator');
-          if (dirtyEl) dirtyEl.style.display = 'none';
-        });
+      function renderAllSections() {
+        renderExperiences();
+        renderEducation();
+        renderCertifications();
+        renderLanguages();
+        renderLinks();
+      }
+
+      window.addEventListener('beforeunload', function(e) {
+        if (isFormDirty) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+
+      function updateSaveStatus(status) {
+        const el = document.getElementById('saveStatus');
+        if (!el) return;
+        if (status === 'saving') {
+          el.textContent = 'Saving...';
+          el.style.color = '#fbbf24';
+          el.style.display = 'inline';
+        } else if (status === 'saved') {
+          el.textContent = '\u2713 Saved';
+          el.style.color = '#34d399';
+          el.style.display = 'inline';
+          setTimeout(() => { el.style.display = 'none'; }, 2500);
+        } else if (status === 'error') {
+          el.textContent = '\u26A0 Save failed';
+          el.style.color = '#ef4444';
+          el.style.display = 'inline';
+        } else {
+          el.style.display = 'none';
+        }
+      }
+
+      function buildSavePayload() {
+        return {
+          displayName: document.getElementById('displayName').value,
+          headline: document.getElementById('headline').value,
+          summary: document.getElementById('summary').value,
+          currentRole: document.getElementById('currentRole').value,
+          location: document.getElementById('location').value,
+          careerStatus: document.getElementById('careerStatus').value,
+          currentEmployment: profileState.currentEmployment,
+          experience: profileState.experiences || [],
+          education: profileState.education || [],
+          certifications: profileState.certifications || [],
+          languages: profileState.languages || [],
+          portfolioLinks: profileState.portfolioLinks || [],
+          targetRoles: (document.getElementById('targetRolesHidden').value || '').split(',').map(s => s.trim()).filter(Boolean),
+          preferredLocations: (document.getElementById('preferredLocationsHidden').value || '').split(',').map(s => s.trim()).filter(Boolean),
+          remotePreference: document.getElementById('remotePreference').value,
+          salaryFloor: document.getElementById('salaryFloor').value || null,
+          salaryCurrency: document.getElementById('salaryCurrency').value,
+          availabilityDate: document.getElementById('availabilityDate').value,
+          relocationPreference: document.getElementById('relocationPreference').value,
+        };
+      }
+
+      async function saveProfileAjax() {
+        if (saveAbortController) saveAbortController.abort();
+        saveAbortController = new AbortController();
+
+        updateSaveStatus('saving');
+        const csrfToken = document.querySelector('input[name="_csrf"]').value;
+
+        try {
+          const payload = buildSavePayload();
+          const response = await fetch('/profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-Token': csrfToken,
+            },
+            body: JSON.stringify(payload),
+            signal: saveAbortController.signal,
+          });
+
+          if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+          }
+
+          const result = await response.json();
+          if (result.ok) {
+            lastSavedState = JSON.parse(JSON.stringify(profileState));
+            currentVersion = result.updatedAt;
+            isFormDirty = false;
+            document.getElementById('stickySaveBar').classList.remove('visible');
+            const dirtyEl = document.getElementById('dirtyIndicator');
+            if (dirtyEl) dirtyEl.style.display = 'none';
+            updateSaveStatus('saved');
+          } else {
+            throw new Error('Server reported failure');
+          }
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+          console.error('Profile save failed:', err);
+          updateSaveStatus('error');
+          // Preserve local edits on failure
+        }
+      }
+
+      // Debounce timer for autosave
+      let autosaveTimer = null;
+      function scheduleAutosave() {
+        clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(saveProfileAjax, 800);
+      }
+
+      // Override markFormDirty to also schedule autosave
+      const _originalMarkFormDirty = markFormDirty;
+      markFormDirty = function() {
+        _originalMarkFormDirty();
+        scheduleAutosave();
+      };
+
+      // Synchronize hidden state fields and save via AJAX
+      document.getElementById('careerProfileForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveProfileAjax();
+      });
 
       function syncHiddenFields() {
         document.getElementById('experienceHidden').value = JSON.stringify(profileState.experiences || []);

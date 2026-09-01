@@ -61,6 +61,32 @@ const INSTITUTION_KEYWORDS = [
   'bits',
 ];
 
+const TECH_OR_COURSEWORK_TOKENS = new Set([
+  'c',
+  'c++',
+  'python',
+  'java',
+  'javascript',
+  'typescript',
+  'dsa',
+  'data structures',
+  'algorithms',
+  'data structures & algorithms',
+  'dbms',
+  'database management systems',
+  'operating systems',
+  'os',
+  'computer networks',
+  'system modeling',
+  'digital logic',
+  'software engineering',
+  'machine learning',
+  'artificial intelligence',
+  'ai',
+  'ml',
+  'deep learning',
+]);
+
 export class EducationNormalizer {
   /**
    * Checks if a line is a coursework declaration.
@@ -84,6 +110,54 @@ export class EducationNormalizer {
   }
 
   /**
+   * Checks if text contains institution keywords.
+   *
+   * @param {string} text
+   * @returns {boolean}
+   */
+  static isInstitutionText(text) {
+    if (!text || typeof text !== 'string') return false;
+    const lower = text.toLowerCase();
+    return INSTITUTION_KEYWORDS.some((kw) => lower.includes(kw));
+  }
+
+  /**
+   * Detects whether an object in an array is a fragmented education piece rather than a complete record.
+   *
+   * @param {object} item
+   * @returns {boolean}
+   */
+  static isFragmentObject(item) {
+    if (!item || typeof item !== 'object') return false;
+    const inst = (item.institution || '').trim();
+    const deg = (item.degree || '').trim();
+    const fos = (item.fieldOfStudy || '').trim();
+
+    if (EducationNormalizer.isCourseworkLine(inst) || EducationNormalizer.isCourseworkLine(deg)) {
+      return true;
+    }
+    if (TECH_OR_COURSEWORK_TOKENS.has(inst.toLowerCase())) {
+      return true;
+    }
+    if (
+      EducationNormalizer.classifyDegreeType(inst) !== 'OTHER' &&
+      !EducationNormalizer.isInstitutionText(inst)
+    ) {
+      return true;
+    }
+    if (/^graduation\s*:/i.test(fos) || /^graduation\s*:/i.test(inst)) {
+      return true;
+    }
+    if (
+      EducationNormalizer.isInstitutionText(deg) &&
+      !EducationNormalizer.isInstitutionText(inst)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Extracts coursework tokens from a coursework line.
    *
    * @param {string} line
@@ -97,6 +171,7 @@ export class EducationNormalizer {
         c
           .replace(/^[^:]*(?:coursework|focus|subjects|courses)\s*[:=]?\s*/i, '')
           .replace(/^[●•\-*]\s*/, '')
+          .replace(/[.,;:]+$/, '')
           .trim()
       )
       .filter(
@@ -123,7 +198,7 @@ export class EducationNormalizer {
   /**
    * Parses raw lines of an Education section into structured, normalized education entries.
    *
-   * @param {string | string[]} input - Section raw text or array of lines.
+   * @param {string | string[] | object[]} input - Section raw text or array of lines / objects.
    * @param {object} [options={}]
    * @param {'CLAIMED' | 'USER_PROVIDED' | 'VERIFIED'} [options.provenanceStatus='CLAIMED']
    * @returns {Array<{
@@ -145,51 +220,86 @@ export class EducationNormalizer {
   static normalize(input, options = {}) {
     const defaultProvenance = options.provenanceStatus || 'CLAIMED';
 
-    if (Array.isArray(input)) {
-      const allStructured = input.every(
-        (item) => item && typeof item === 'object' && !item.rawText && item.institution
-      );
-      if (allStructured && input.length > 0) {
-        return input.map((item) => {
-          const rawDates =
-            item.rawDateRange ||
-            (item.startDate && item.endDate
-              ? `${item.startDate} - ${item.endDate}`
-              : item.startDate || item.endDate || '');
-          const dNorm = rawDates ? DateRangeNormalizer.normalize(rawDates) : null;
-          const degType =
-            item.degreeType && item.degreeType !== 'OTHER'
-              ? item.degreeType
-              : item.degree
-                ? EducationNormalizer.classifyDegreeType(item.degree)
-                : item.degreeType || 'OTHER';
+    // 1. If input is an array of already well-structured, non-fragmented records
+    if (Array.isArray(input) && input.length > 0) {
+      const hasAnyFragment = input.some(EducationNormalizer.isFragmentObject);
+      if (!hasAnyFragment) {
+        const allStructured = input.every(
+          (item) =>
+            item &&
+            typeof item === 'object' &&
+            item.institution &&
+            item.institution !== 'Institution' &&
+            !EducationNormalizer.isFragmentObject(item)
+        );
+        if (allStructured) {
+          return input.map((item) => {
+            const rawDates =
+              item.rawDateRange ||
+              (item.startDate && item.endDate
+                ? `${item.startDate} - ${item.endDate}`
+                : item.startDate || item.endDate || '');
+            const dNorm = rawDates ? DateRangeNormalizer.normalize(rawDates) : null;
+            const degType =
+              item.degreeType && item.degreeType !== 'OTHER'
+                ? item.degreeType
+                : item.degree
+                  ? EducationNormalizer.classifyDegreeType(item.degree)
+                  : item.degreeType || 'OTHER';
 
-          return {
-            institution: item.institution || 'Institution',
-            degree: item.degree || null,
-            fieldOfStudy: item.fieldOfStudy || null,
-            degreeType: degType,
-            location: item.location || null,
-            startDate: item.startDate || dNorm?.startDate || null,
-            endDate: item.endDate || dNorm?.endDate || null,
-            isCurrent: Boolean(item.isCurrent || item.currentlyEnrolled || dNorm?.isCurrent),
-            rawDateRange: item.rawDateRange || dNorm?.rawDateRange || null,
-            coursework: Array.isArray(item.coursework)
-              ? item.coursework
-              : typeof item.coursework === 'string'
-                ? item.coursework
-                    .split(',')
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-                : [],
-            gradeOrGpa: item.gradeOrGpa || null,
-            rawText: item.rawText || `${item.institution} | ${item.degree || ''}`,
-            provenanceStatus: item.provenanceStatus || defaultProvenance,
-          };
-        });
+            const isGraduationOnly =
+              /^graduation\s*:/i.test(rawDates) || /^(?:completed|graduated)\b/i.test(rawDates);
+
+            const finalIsCurrent = Boolean(
+              item.isCurrent || item.currentlyEnrolled || (!item.endDate && dNorm?.isCurrent)
+            );
+            const finalEndDate = finalIsCurrent ? null : item.endDate || dNorm?.endDate || null;
+            const finalStartDate = isGraduationOnly
+              ? null
+              : item.startDate || dNorm?.startDate || null;
+
+            return {
+              institution: item.institution || 'Institution',
+              degree: item.degree || null,
+              fieldOfStudy: item.fieldOfStudy || null,
+              degreeType: degType,
+              location: item.location || null,
+              startDate: finalStartDate,
+              endDate: finalEndDate,
+              isCurrent: finalIsCurrent,
+              rawDateRange: item.rawDateRange || dNorm?.rawDateRange || null,
+              coursework: Array.isArray(item.coursework)
+                ? [
+                    ...new Set(
+                      item.coursework
+                        .map((c) =>
+                          String(c)
+                            .replace(/[.,;:]+$/, '')
+                            .trim()
+                        )
+                        .filter(Boolean)
+                    ),
+                  ]
+                : typeof item.coursework === 'string'
+                  ? [
+                      ...new Set(
+                        item.coursework
+                          .split(',')
+                          .map((s) => s.replace(/[.,;:]+$/, '').trim())
+                          .filter(Boolean)
+                      ),
+                    ]
+                  : [],
+              gradeOrGpa: item.gradeOrGpa || null,
+              rawText: item.rawText || `${item.institution} | ${item.degree || ''}`,
+              provenanceStatus: item.provenanceStatus || defaultProvenance,
+            };
+          });
+        }
       }
     }
 
+    // 2. Flatten and convert input into lines while unpacking fragmented objects
     let lines = [];
     if (Array.isArray(input)) {
       lines = input
@@ -197,17 +307,76 @@ export class EducationNormalizer {
           if (!item) return [];
           if (typeof item === 'string') return item.split('\n');
           if (typeof item === 'object') {
-            if (item.rawText) return String(item.rawText).split('\n');
+            const rawLine = item.rawText || item.text;
+            if (rawLine) return String(rawLine).split('\n');
+
             const parts = [];
-            if (item.institution && item.institution !== 'Institution')
-              parts.push(item.institution);
-            if (item.degree) parts.push(item.degree);
-            if (item.location) parts.push(item.location);
-            if (item.rawDateRange || item.endDate) parts.push(item.rawDateRange || item.endDate);
+            let inst = item.institution || '';
+            let deg = item.degree || '';
+            let fos = item.fieldOfStudy || '';
+            let loc = item.location || '';
+            let dateStr = item.rawDateRange || item.endDate || '';
+
+            // If degree has institution keyword and institution is location or city
+            if (
+              EducationNormalizer.isInstitutionText(deg) &&
+              !EducationNormalizer.isInstitutionText(inst)
+            ) {
+              loc = inst;
+              inst = deg;
+              deg = '';
+            }
+
+            // If institution contains degree keyword
+            if (
+              EducationNormalizer.classifyDegreeType(inst) !== 'OTHER' &&
+              !EducationNormalizer.isInstitutionText(inst)
+            ) {
+              deg = inst;
+              inst = '';
+            }
+
+            // If field of study is actually graduation date
+            if (/^graduation\s*:/i.test(fos)) {
+              dateStr = fos;
+              fos = '';
+            }
+
+            // If degree or institution is coursework
+            if (EducationNormalizer.isCourseworkLine(deg)) {
+              parts.push(deg);
+              deg = '';
+            }
+            if (EducationNormalizer.isCourseworkLine(inst)) {
+              parts.push(inst);
+              inst = '';
+            }
+            if (TECH_OR_COURSEWORK_TOKENS.has(inst.toLowerCase())) {
+              parts.push(`Relevant Coursework: ${inst}`);
+              if (fos) parts.push(`Relevant Coursework: ${fos}`);
+              inst = '';
+              fos = '';
+            }
+
+            const headerParts = [];
+            if (inst && inst !== 'Institution') headerParts.push(inst);
+            if (loc) headerParts.push(loc);
+            if (dateStr) headerParts.push(dateStr);
+
+            if (headerParts.length > 0) {
+              parts.unshift(headerParts.join(' | '));
+            }
+
+            if (deg) {
+              const degFull = fos ? `${deg} in ${fos}` : deg;
+              parts.push(degFull);
+            }
+
             if (Array.isArray(item.coursework) && item.coursework.length > 0) {
               parts.push(`Relevant Coursework: ${item.coursework.join(', ')}`);
             }
-            return parts.length > 0 ? [parts.join(' | ')] : [];
+
+            return parts.length > 0 ? parts : [];
           }
           return [String(item)];
         })
@@ -229,7 +398,7 @@ export class EducationNormalizer {
       const line = rawLine.trim();
       if (!line) continue;
 
-      // 1. Check for coursework line
+      // 1. Check for coursework declaration line
       if (EducationNormalizer.isCourseworkLine(line)) {
         const courses = EducationNormalizer.extractCourseworkItems(line);
         if (currentEntry) {
@@ -249,58 +418,60 @@ export class EducationNormalizer {
         continue;
       }
 
-      // 3. Check for Date line
+      // 3. Check for standalone Date line
       const dateMatch = DateRangeNormalizer.normalize(line);
       if (
         !dateMatch.isUncertain &&
         currentEntry &&
         currentEntry.institution &&
-        !currentEntry.startDate
+        !currentEntry.endDate
       ) {
-        currentEntry.startDate = dateMatch.startDate;
+        const isGraduationOnly =
+          /^graduation\s*:/i.test(line) || /^(?:completed|graduated)\b/i.test(line);
+
+        currentEntry.startDate = isGraduationOnly ? null : dateMatch.startDate;
         currentEntry.endDate = dateMatch.endDate;
-        currentEntry.isCurrent = dateMatch.isCurrent;
+        currentEntry.isCurrent = Boolean(!dateMatch.endDate && dateMatch.isCurrent);
         currentEntry.rawDateRange = dateMatch.rawDateRange;
         currentEntry.rawText += `\n${line}`;
         continue;
       }
 
-      // 4. Check for piped line e.g. "Bachelor of Technology | Rajkiya Engineering College, Sonbhadra | 2020 - 2024"
-      // or "Rajkiya Engineering College | Sonbhadra | Graduation: July 2025"
+      // 4. Check for piped line e.g. "Rajkiya Engineering College | Sonbhadra | Graduation: July 2025"
       if (line.includes('|')) {
-        if (currentEntry) entries.push(currentEntry);
         const parts = line.split('|').map((p) => p.trim());
         let instPart = parts[0] || 'Institution';
         let degPart = null;
         let loc = null;
-        const datePart = parts[2] || null;
+        let datePart = null;
+
+        // Find date part if any
+        for (let i = 0; i < parts.length; i++) {
+          if (/^graduation\s*:/i.test(parts[i]) || /\b(19|20)\d{2}\b/.test(parts[i])) {
+            datePart = parts[i];
+            parts.splice(i, 1);
+            break;
+          }
+        }
 
         const type0 = EducationNormalizer.classifyDegreeType(parts[0]);
         const type1 = parts[1] ? EducationNormalizer.classifyDegreeType(parts[1]) : 'OTHER';
 
-        const instKw0 = INSTITUTION_KEYWORDS.some((kw) => parts[0].toLowerCase().includes(kw));
-        const instKw1 = parts[1]
-          ? INSTITUTION_KEYWORDS.some((kw) => parts[1].toLowerCase().includes(kw))
-          : false;
+        const instKw0 = EducationNormalizer.isInstitutionText(parts[0]);
+        const instKw1 = parts[1] ? EducationNormalizer.isInstitutionText(parts[1]) : false;
 
         if (type0 !== 'OTHER') {
-          // parts[0] is degree, parts[1] is institution
           degPart = parts[0];
           instPart = parts[1] || 'Institution';
         } else if (type1 !== 'OTHER') {
-          // parts[0] is institution, parts[1] is degree
           degPart = parts[1];
           instPart = parts[0] || 'Institution';
         } else if (instKw1 && !instKw0) {
-          // parts[1] has institution keyword and parts[0] does not (e.g. "Sonbhadra | Rajkiya Engineering College")
           instPart = parts[1];
           loc = parts[0];
         } else {
-          // parts[0] is institution, parts[1] is location (e.g. "Rajkiya Engineering College | Sonbhadra")
           instPart = parts[0] || 'Institution';
-          if (parts[1]) {
-            loc = parts[1];
-          }
+          if (parts[1]) loc = parts[1];
         }
 
         if (instPart && instPart.includes(',') && !loc) {
@@ -312,8 +483,6 @@ export class EducationNormalizer {
         const dNorm = datePart ? DateRangeNormalizer.normalize(datePart) : null;
         const degType = degPart ? EducationNormalizer.classifyDegreeType(degPart) : 'OTHER';
 
-        // Extract field of study from degree part if "in" is present
-        const degree = degPart;
         let fieldOfStudy = null;
         if (degPart) {
           const inMatch = degPart.match(/\b(?:in|major in|specialization in)\s+(.+)/i);
@@ -322,15 +491,40 @@ export class EducationNormalizer {
           }
         }
 
+        const isGraduationOnly = Boolean(
+          datePart &&
+          (/^graduation\s*:/i.test(datePart) || /^(?:completed|graduated)\b/i.test(datePart))
+        );
+
+        // If currentEntry already has the same institution, update it rather than creating a new entry
+        if (currentEntry && currentEntry.institution.toLowerCase() === instPart.toLowerCase()) {
+          if (degPart && (!currentEntry.degree || currentEntry.degreeType === 'OTHER')) {
+            currentEntry.degree = degPart;
+            currentEntry.degreeType = degType;
+            currentEntry.fieldOfStudy = fieldOfStudy;
+          }
+          if (loc && !currentEntry.location) currentEntry.location = loc;
+          if (dNorm?.endDate && !currentEntry.endDate) {
+            currentEntry.startDate = isGraduationOnly ? null : dNorm.startDate;
+            currentEntry.endDate = dNorm.endDate;
+            currentEntry.isCurrent = Boolean(!dNorm.endDate && dNorm.isCurrent);
+            currentEntry.rawDateRange = dNorm.rawDateRange;
+          }
+          currentEntry.rawText += `\n${line}`;
+          continue;
+        }
+
+        if (currentEntry) entries.push(currentEntry);
+
         currentEntry = {
           institution: instPart,
-          degree,
+          degree: degPart,
           fieldOfStudy,
           degreeType: degType,
           location: loc,
-          startDate: dNorm?.startDate || null,
+          startDate: isGraduationOnly ? null : dNorm?.startDate || null,
           endDate: dNorm?.endDate || null,
-          isCurrent: dNorm?.isCurrent || false,
+          isCurrent: Boolean(!dNorm?.endDate && dNorm?.isCurrent),
           rawDateRange: dNorm?.rawDateRange || null,
           coursework: [],
           gradeOrGpa: null,
@@ -341,7 +535,7 @@ export class EducationNormalizer {
       }
 
       // 5. Check for Institution + City/Location e.g. "Rajkiya Engineering College, Sonbhadra"
-      const hasInstKw = INSTITUTION_KEYWORDS.some((kw) => line.toLowerCase().includes(kw));
+      const hasInstKw = EducationNormalizer.isInstitutionText(line);
       const hasDegreeKw = DEGREE_PATTERNS.some((dp) => dp.regex.test(line));
 
       if (hasInstKw && !hasDegreeKw) {
@@ -360,6 +554,12 @@ export class EducationNormalizer {
         ) {
           currentEntry.institution = inst;
           currentEntry.location = loc;
+          currentEntry.rawText += `\n${line}`;
+          continue;
+        }
+
+        if (currentEntry && currentEntry.institution.toLowerCase() === inst.toLowerCase()) {
+          if (loc && !currentEntry.location) currentEntry.location = loc;
           currentEntry.rawText += `\n${line}`;
           continue;
         }
@@ -390,7 +590,7 @@ export class EducationNormalizer {
         continue;
       }
 
-      // 6. Check for Degree line e.g. "Bachelor of Technology in Computer Science and Engineering"
+      // 6. Check for Degree line e.g. "Bachelor of Technology in Electronics Engineering"
       if (hasDegreeKw) {
         const degType = EducationNormalizer.classifyDegreeType(line);
         let fieldOfStudy = null;
@@ -432,8 +632,14 @@ export class EducationNormalizer {
 
       // 7. General supporting line or location
       if (currentEntry) {
+        if (/currently\s+enrolled|currently\s+attending|in\s+progress|present\b/i.test(line)) {
+          currentEntry.isCurrent = true;
+          currentEntry.endDate = null;
+        }
         currentEntry.rawText += `\n${line}`;
       } else {
+        const isCurrentHint =
+          /currently\s+enrolled|currently\s+attending|in\s+progress|present\b/i.test(line);
         currentEntry = {
           institution: line,
           degree: null,
@@ -442,7 +648,7 @@ export class EducationNormalizer {
           location: null,
           startDate: null,
           endDate: null,
-          isCurrent: false,
+          isCurrent: isCurrentHint,
           rawDateRange: null,
           coursework: [],
           gradeOrGpa: null,
@@ -456,10 +662,58 @@ export class EducationNormalizer {
       entries.push(currentEntry);
     }
 
-    // Post-process: clean up institutions and ensure deduplication of coursework
-    return entries.map((entry) => ({
+    // 8. Deduplication / Consolidation of same-institution entries
+    const consolidated = [];
+    for (const entry of entries) {
+      const normInst = entry.institution.toLowerCase().trim();
+      const existing = consolidated.find(
+        (c) => c.institution.toLowerCase().trim() === normInst && normInst !== 'institution'
+      );
+
+      if (existing) {
+        // Merge attributes into existing
+        if (!existing.degree || existing.degreeType === 'OTHER') {
+          if (entry.degree && entry.degreeType !== 'OTHER') {
+            existing.degree = entry.degree;
+            existing.degreeType = entry.degreeType;
+            existing.fieldOfStudy = entry.fieldOfStudy;
+          }
+        }
+        if (!existing.location && entry.location) existing.location = entry.location;
+        if (!existing.endDate && entry.endDate) {
+          existing.startDate = entry.startDate;
+          existing.endDate = entry.endDate;
+          existing.isCurrent = entry.isCurrent;
+          existing.rawDateRange = entry.rawDateRange;
+        }
+        if (entry.isCurrent) {
+          existing.isCurrent = true;
+          existing.endDate = null;
+        }
+        if (Array.isArray(entry.coursework) && entry.coursework.length > 0) {
+          existing.coursework.push(...entry.coursework);
+        }
+        if (!existing.gradeOrGpa && entry.gradeOrGpa) existing.gradeOrGpa = entry.gradeOrGpa;
+        existing.rawText += `\n${entry.rawText}`;
+      } else {
+        consolidated.push(entry);
+      }
+    }
+
+    // Final cleanup of coursework formatting
+    return consolidated.map((entry) => ({
       ...entry,
-      coursework: [...new Set(entry.coursework)],
+      coursework: [
+        ...new Set(
+          entry.coursework
+            .map((c) =>
+              String(c)
+                .replace(/[.,;:]+$/, '')
+                .trim()
+            )
+            .filter(Boolean)
+        ),
+      ],
     }));
   }
 }

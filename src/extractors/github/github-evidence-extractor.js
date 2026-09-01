@@ -501,6 +501,16 @@ export class GitHubEvidenceExtractorService {
     for (const item of rawEvidenceItems) {
       // 1. Normalize Skill
       const normalizedSkill = TaxonomyMapper.normalize(item.rawName, item.categoryHint);
+
+      // Skip noise skills (local modules, generic code words, stdlib)
+      if (normalizedSkill.category === 'NOISE') {
+        logger.debug(
+          { rawName: item.rawName, slug: normalizedSkill.slug, evidenceType: item.evidenceType },
+          'Skipping evidence for noise skill'
+        );
+        continue;
+      }
+
       skillSlugMap.set(normalizedSkill.slug, normalizedSkill);
 
       // 2. Scrub & Bound Excerpt

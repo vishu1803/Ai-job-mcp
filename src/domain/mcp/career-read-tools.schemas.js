@@ -88,7 +88,19 @@ export const GetCandidateProfileInputSchema = z
     includeSkillsSummary: z
       .boolean()
       .default(true)
-      .describe('Whether to include verified skills summary (capped at top 15 skills).'),
+      .describe('Whether to include verified skills summary (capped at top 15-20 skills).'),
+    includeEducation: z
+      .boolean()
+      .default(true)
+      .describe('Whether to include structured education entries (capped at top 5).'),
+    includeCertifications: z
+      .boolean()
+      .default(true)
+      .describe('Whether to include professional certifications (capped at top 5).'),
+    includeLanguages: z
+      .boolean()
+      .default(true)
+      .describe('Whether to include language proficiencies (capped at top 5).'),
   })
   .strict();
 
@@ -126,9 +138,37 @@ export const GetCandidateProfileOutputSchema = z
       status: z.string(),
       createdAt: z.string(),
       updatedAt: z.string(),
+      portfolioLinks: z
+        .array(
+          z.object({
+            label: z.string(),
+            url: z.string(),
+          })
+        )
+        .optional()
+        .default([]),
     }),
     profileCompletenessScore: z.number().min(0).max(100),
     profileCompleteness: z
+      .object({
+        score: z.number().min(0).max(100),
+        status: z.string(),
+        isReadyForJobSearch: z.boolean(),
+        missingRequiredForSearch: z.array(z.string()).default([]),
+        missingOptional: z.array(z.string()).default([]),
+        actionableFeedback: z.string(),
+      })
+      .optional(),
+    profileReadiness: z
+      .object({
+        score: z.number().min(0).max(100),
+        status: z.string(),
+        isComplete: z.boolean(),
+        missingFields: z.array(z.string()).default([]),
+        actionableFeedback: z.string(),
+      })
+      .optional(),
+    jobSearchReadiness: z
       .object({
         score: z.number().min(0).max(100),
         status: z.string(),
@@ -178,32 +218,53 @@ export const GetCandidateProfileOutputSchema = z
       publicRepositories: z.number().int().nonnegative(),
       privateRepositories: z.number().int().nonnegative(),
     }),
+    portfolioLinks: z
+      .array(
+        z.object({
+          label: z.string(),
+          url: z.string(),
+        })
+      )
+      .max(10)
+      .optional()
+      .default([]),
     topSkills: z
       .array(
         z.object({
           slug: z.string(),
           name: z.string(),
           category: z.string(),
+          tier: z.enum(['PRIMARY', 'SIGNAL']).optional(),
           confidenceScore: z.number().min(0).max(1),
           evidenceCount: z.number().int().nonnegative(),
-          provenanceStatus: z.enum(['VERIFIED', 'INFERRED', 'CLAIMED']),
+          provenanceStatus: z.enum([
+            'VERIFIED',
+            'CORROBORATED',
+            'INFERRED',
+            'CLAIMED',
+            'USER_PROVIDED',
+          ]),
         })
       )
-      .max(15)
+      .max(20)
       .optional(),
     highlightedProjects: z
       .array(
         z.object({
-          id: z.string().uuid(),
+          id: z.string().optional(),
           name: z.string(),
-          headline: z.string().nullable(),
-          role: z.string().nullable(),
-          startDate: z.string().nullable(),
-          endDate: z.string().nullable(),
-          linkedResourceCount: z.number().int().nonnegative(),
-          verifiedSignalCount: z.number().int().nonnegative(),
+          headline: z.string().nullable().optional(),
+          role: z.string().nullable().optional(),
+          summary: z.string().nullable().optional(),
+          technologies: z.array(z.string()).max(15).optional().default([]),
+          repositoryUrl: z.string().nullable().optional(),
+          bullets: z.array(z.string()).max(3).optional().default([]),
+          startDate: z.string().nullable().optional(),
+          endDate: z.string().nullable().optional(),
+          linkedResourceCount: z.number().int().nonnegative().optional(),
+          verifiedSignalCount: z.number().int().nonnegative().optional(),
           provenanceStatus: z
-            .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'UNVERIFIED'])
+            .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'UNVERIFIED', 'USER_PROVIDED'])
             .optional(),
         })
       )
@@ -220,10 +281,58 @@ export const GetCandidateProfileOutputSchema = z
           endDate: z.string().nullable(),
           isCurrent: z.boolean(),
           rawDateRange: z.string().nullable().optional(),
+          bullets: z.array(z.string()).max(3).optional().default([]),
+          technologies: z.array(z.string()).max(15).optional().default([]),
           verifiedSkillsUsed: z.array(z.string()).max(10).optional().default([]),
           provenanceStatus: z
             .enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED', 'CORROBORATED'])
             .optional(),
+        })
+      )
+      .max(5)
+      .optional(),
+    education: z
+      .array(
+        z.object({
+          institution: z.string(),
+          degree: z.string().nullable().optional(),
+          fieldOfStudy: z.string().nullable().optional(),
+          degreeType: z.string().optional(),
+          location: z.string().nullable().optional(),
+          startDate: z.string().nullable().optional(),
+          endDate: z.string().nullable().optional(),
+          isCurrent: z.boolean().optional().default(false),
+          rawDateRange: z.string().nullable().optional(),
+          coursework: z.array(z.string()).max(15).optional().default([]),
+          gradeOrGpa: z.string().nullable().optional(),
+          provenanceStatus: z
+            .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'USER_PROVIDED'])
+            .optional()
+            .default('CLAIMED'),
+        })
+      )
+      .max(5)
+      .optional(),
+    certifications: z
+      .array(
+        z.object({
+          name: z.string(),
+          issuer: z.string().nullable().optional(),
+          issueDate: z.string().nullable().optional(),
+          expiryDate: z.string().nullable().optional(),
+          credentialId: z.string().nullable().optional(),
+          credentialUrl: z.string().nullable().optional(),
+          provenanceStatus: z.string().optional().default('CLAIMED'),
+        })
+      )
+      .max(5)
+      .optional(),
+    languages: z
+      .array(
+        z.object({
+          language: z.string(),
+          proficiency: z.string().nullable().optional(),
+          provenanceStatus: z.string().optional().default('CLAIMED'),
         })
       )
       .max(5)
@@ -293,7 +402,7 @@ export const ListVerifiedSkillsOutputSchema = z
         slug: z.string(),
         name: z.string(),
         category: z.string(),
-        provenanceStatus: z.literal('VERIFIED'),
+        provenanceStatus: z.enum(['VERIFIED', 'CORROBORATED']),
         confidenceScore: z.number().min(0).max(1),
         evidenceCount: z.number().int().nonnegative(),
         firstObservedAt: z.string().nullable(),

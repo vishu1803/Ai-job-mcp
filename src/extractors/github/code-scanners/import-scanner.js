@@ -132,6 +132,44 @@ export class ImportScanner {
   static PYTHON_FILTERED_MODULES = PYTHON_STDLIB_AND_INTERNAL_MODULES;
 
   /**
+   * Generic module names that should not be treated as third-party packages
+   * in JavaScript/TypeScript imports (e.g., local modules like 'app', 'server').
+   */
+  static JS_INTERNAL_MODULES = new Set([
+    'app',
+    'server',
+    'main',
+    'core',
+    'config',
+    'utils',
+    'helpers',
+    'models',
+    'views',
+    'controllers',
+    'services',
+    'routes',
+    'handlers',
+    'schemas',
+    'constants',
+    'tests',
+    'test',
+    'common',
+    'lib',
+    'shared',
+    'index',
+    'run',
+    'cli',
+    'db',
+    'database',
+    'api',
+    'auth',
+    'middleware',
+    'tasks',
+    'forms',
+    'parser',
+  ]);
+
+  /**
    * Checks if the file is an entrypoint or representative source file suitable for import scanning.
    *
    * @param {string} filePath - Relative file path.
@@ -225,13 +263,20 @@ export class ImportScanner {
         if (esmMatch) {
           const pkg = esmMatch[1].trim();
           if (!pkg.startsWith('.') && !pkg.startsWith('/')) {
-            extracted.push({
-              rawImport: pkg,
-              packageName: pkg,
-              confidence: 1.0,
-              rawExcerpt: trimmed,
-              lineRange: { start: i + 1, end: i + 1 },
-            });
+            // Scoped packages (@scope/pkg) are always third-party — never filter them
+            const isScoped = pkg.startsWith('@');
+            const bareName = isScoped && pkg.includes('/') ? pkg.split('/')[1] : pkg;
+            const shouldFilter =
+              !isScoped && ImportScanner.JS_INTERNAL_MODULES.has(bareName.toLowerCase());
+            if (!shouldFilter) {
+              extracted.push({
+                rawImport: pkg,
+                packageName: pkg,
+                confidence: 1.0,
+                rawExcerpt: trimmed,
+                lineRange: { start: i + 1, end: i + 1 },
+              });
+            }
           }
           continue;
         }
@@ -241,13 +286,20 @@ export class ImportScanner {
         if (cjsMatch) {
           const pkg = cjsMatch[1].trim();
           if (!pkg.startsWith('.') && !pkg.startsWith('/')) {
-            extracted.push({
-              rawImport: pkg,
-              packageName: pkg,
-              confidence: 1.0,
-              rawExcerpt: trimmed,
-              lineRange: { start: i + 1, end: i + 1 },
-            });
+            // Scoped packages (@scope/pkg) are always third-party — never filter them
+            const isScoped = pkg.startsWith('@');
+            const bareName = isScoped && pkg.includes('/') ? pkg.split('/')[1] : pkg;
+            const shouldFilter =
+              !isScoped && ImportScanner.JS_INTERNAL_MODULES.has(bareName.toLowerCase());
+            if (!shouldFilter) {
+              extracted.push({
+                rawImport: pkg,
+                packageName: pkg,
+                confidence: 1.0,
+                rawExcerpt: trimmed,
+                lineRange: { start: i + 1, end: i + 1 },
+              });
+            }
           }
           continue;
         }

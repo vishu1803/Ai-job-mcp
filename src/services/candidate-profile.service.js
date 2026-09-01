@@ -57,6 +57,61 @@ export class CandidateProfileService {
   get _db() {
     return this.db || defaultDb;
   }
+
+  /**
+   * Resolves the canonical provenance status for a candidate skill by cross-referencing
+   * the database provenance with resume claim data.
+   *
+   * This is the single source of truth for provenance determination, used by both:
+   * - get_candidate_profile (via getCareerProfile reconciliation)
+   * - list_verified_skills (direct DB query + resume cross-reference)
+   *
+   * Rules:
+   *   GitHub evidence + resume claim  → CORROBORATED
+   *   GitHub evidence + no resume     → VERIFIED
+   *   Resume only (no GitHub)         → CLAIMED
+   *   AI/taxonomy inference           → INFERRED
+   *   Manual user claim               → USER_PROVIDED
+   *
+   * @param {object} params
+   * @param {string} params.dbProvenanceStatus - Raw provenance_status from candidate_skills table
+   * @param {string} params.skillName - Canonical skill name (lowercase)
+   * @param {string} params.canonicalSlug - Canonical skill slug
+   * @param {Set<string>} params.resumeSkillNames - Set of lowercase skill names from parsed resume
+   * @param {object} [params.metadata] - candidate_skills.metadata JSONB
+   * @returns {string} Canonical provenanceStatus
+   */
+  static resolveSkillProvenanceStatus({
+    dbProvenanceStatus,
+    skillName,
+    canonicalSlug,
+    resumeSkillNames = new Set(),
+    metadata = {},
+  }) {
+    const hasGithubEvidence =
+      dbProvenanceStatus === 'VERIFIED' || dbProvenanceStatus === 'CORROBORATED';
+
+    const hasResumeClaim =
+      dbProvenanceStatus === 'CLAIMED' ||
+      metadata?.source === 'RESUME_UPLOAD' ||
+      metadata?.isUserClaim === true ||
+      resumeSkillNames.has(String(skillName).toLowerCase().trim()) ||
+      resumeSkillNames.has(String(canonicalSlug).toLowerCase().trim());
+
+    if (hasGithubEvidence) {
+      return hasResumeClaim ? 'CORROBORATED' : 'VERIFIED';
+    }
+
+    // No GitHub evidence — determine from other signals
+    if (metadata?.isUserClaim === true || metadata?.source === 'USER_PROVIDED') {
+      return 'USER_PROVIDED';
+    }
+    if (metadata?.source === 'TAXONOMY_INFERRED' || dbProvenanceStatus === 'INFERRED') {
+      return 'INFERRED';
+    }
+    return dbProvenanceStatus || 'CLAIMED';
+  }
+
   /**
    * Retrieves a full candidate profile view aggregating identities, resources, projects,
    * verified skills, and manual user claims without sensitive credentials.
@@ -943,7 +998,7 @@ export class CandidateProfileService {
    * @param {object} rawInput - User profile section updates
    * @returns {Promise<object>} Freshly recalculated canonical CareerProfile
    */
-  async updateUserProfileSections(context, candidateId, rawInput = {}) {
+  async updateUserProfileSections(context, candidateId, rawInput = {}, options = null) {
     this._validateContext(context);
     if (!candidateId) throw new ValidationError('candidateId is required');
 
@@ -1071,38 +1126,8 @@ export class CandidateProfileService {
 
     // 4. Education Records (Multi-record CRUD)
     if (Array.isArray(rawInput.education)) {
-      updatedCustom.education = rawInput.education.map((edu) => {
-        const rawDates = edu.rawDateRange || edu.startDate || '';
-        const dNorm = DateRangeNormalizer.normalize(rawDates);
-        return {
-          institution:
-            String(edu.institution || '')
-              .trim()
-              .slice(0, 255) || 'Institution',
-          degree: edu.degree ? String(edu.degree).trim().slice(0, 255) : null,
-          degreeType: String(edu.degreeType || 'OTHER')
-            .toUpperCase()
-            .trim(),
-          fieldOfStudy: edu.fieldOfStudy ? String(edu.fieldOfStudy).trim().slice(0, 255) : null,
-          location: edu.location ? String(edu.location).trim().slice(0, 255) : null,
-          startDate: dNorm.startDate || edu.startDate || null,
-          endDate: dNorm.endDate || edu.endDate || null,
-          isCurrent: Boolean(edu.isCurrent || edu.currentlyEnrolled || dNorm.isCurrent),
-          rawDateRange: dNorm.rawDateRange || null,
-          coursework: Array.isArray(edu.coursework)
-            ? edu.coursework
-                .map(String)
-                .map((c) => c.trim())
-                .filter(Boolean)
-            : typeof edu.coursework === 'string'
-              ? edu.coursework
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [],
-          notes: edu.notes ? String(edu.notes).trim().slice(0, 2000) : null,
-          provenanceStatus: 'USER_PROVIDED',
-        };
+      updatedCustom.education = EducationNormalizer.normalize(rawInput.education, {
+        provenanceStatus: 'USER_PROVIDED',
       });
       currentMeta.education = updatedCustom.education;
     }
@@ -1194,10 +1219,11 @@ export class CandidateProfileService {
     candidateUpdates.profileMetadata = currentMeta;
     candidateUpdates.updatedAt = new Date();
 
-    await this._db
+    const [updated] = await this._db
       .update(candidates)
       .set(candidateUpdates)
-      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)))
+      .returning();
 
     logger.info(
       {
@@ -1207,6 +1233,19 @@ export class CandidateProfileService {
       },
       'User-adjustable profile sections updated successfully'
     );
+
+    // Minimal response mode: skip expensive getCareerProfile rebuild.
+    // The caller can request a full profile rebuild separately if needed.
+    if (options && options.minimalResponse) {
+      return {
+        ok: true,
+        candidateId,
+        updatedAt: updated?.updatedAt
+          ? new Date(updated.updatedAt).toISOString()
+          : new Date().toISOString(),
+        displayName: updated?.displayName || candidateUpdates.displayName || candidate.displayName,
+      };
+    }
 
     return await this.getCareerProfile(context, candidateId);
   }
@@ -1264,7 +1303,9 @@ export class CandidateProfileService {
               education:
                 freshData.education.length > 0 ? freshData.education : resumeData?.education || [],
               experience:
-                freshData.experience.length > 0 ? freshData.experience : resumeData?.experience || [],
+                freshData.experience.length > 0
+                  ? freshData.experience
+                  : resumeData?.experience || [],
             };
           }
         }
@@ -1953,13 +1994,17 @@ export class CandidateProfileService {
       }
 
       if (sec.sectionType === 'EDUCATION') {
-        // Prefer pre-normalized education objects from the parser output
-        if (Array.isArray(sd.education) && sd.education.length > 0) {
-          resumeEducation.push(...sd.education);
-        } else {
-          const normalizedEdu = EducationNormalizer.normalize(sec.rawText || sd.degrees || []);
-          resumeEducation.push(...normalizedEdu);
-        }
+        const sourceData =
+          sec.rawText ||
+          (Array.isArray(sd.education) && sd.education.length > 0
+            ? sd.education
+            : Array.isArray(sd.degrees)
+              ? sd.degrees
+              : []);
+        const normalizedEdu = EducationNormalizer.normalize(sourceData, {
+          provenanceStatus: 'CLAIMED',
+        });
+        resumeEducation.push(...normalizedEdu);
       }
 
       if (sec.sectionType === 'PROJECTS' && Array.isArray(sd.projects)) {
