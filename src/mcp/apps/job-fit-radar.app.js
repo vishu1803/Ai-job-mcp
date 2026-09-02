@@ -1,14 +1,32 @@
 /**
- * @file Job Fit Radar & ATS Analysis MCP App (SEP-1865 / io.modelcontextprotocol/ui).
+ * @file Job Fit Radar & ATS Analysis MCP App (MCP Apps Official Protocol).
  *
  * Implements the official interactive UI App for the `analyze_job_fit` MCP tool:
  * - Resource URI: `ui://career-hub/job-fit-radar/v1`
  * - MIME Type: `text/html;profile=mcp-app`
  * - 100% Read-Only: Zero write authority or repository mutation capabilities.
  * - Strict Sandboxed Security: Content-Security-Policy with connect-src 'none'.
- * - Pure SVG & HTML5: Zero external CDN dependencies or external script tags.
- * - JSON-RPC postMessage Bridge: Conforms to SEP-1865 host communication.
+ * - Official MCP Apps SDK: Uses App + PostMessageTransport from @modelcontextprotocol/ext-apps.
  */
+
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** Lazily loaded browser SDK bundle (embedded at HTML generation time) */
+let _clientBundle = null;
+function getClientBundle() {
+  if (_clientBundle === null) {
+    try {
+      _clientBundle = readFileSync(join(__dirname, 'mcp-app-client.bundle.js'), 'utf8');
+    } catch {
+      _clientBundle = '// MCP Apps client bundle not found';
+    }
+  }
+  return _clientBundle;
+}
 
 export const JOB_FIT_RADAR_URI = 'ui://career-hub/job-fit-radar/v1';
 export const MCP_APP_MIME_TYPE = 'text/html;profile=mcp-app';
@@ -28,14 +46,17 @@ export const JOB_FIT_RADAR_APP_RESOURCE = Object.freeze({
 
 /**
  * Generates the self-contained sandboxed HTML5 document for the Job Fit Radar app.
+ * Uses the official MCP Apps protocol (App + PostMessageTransport).
  *
  * @param {object} [initialData] Optional pre-hydrated tool output
- * @returns {string} Standalone HTML document conforming to SEP-1865
+ * @returns {string} Standalone HTML document using official MCP Apps SDK
  */
 export function renderJobFitRadarAppHtml(initialData = null) {
   const serializedInitialData = initialData
     ? JSON.stringify(initialData).replace(/</g, '\\u003c')
     : 'null';
+
+  const clientBundle = getClientBundle();
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -604,40 +625,62 @@ export function renderJobFitRadarAppHtml(initialData = null) {
       document.getElementById('evidence-summary-text').textContent = vSkills + ' Verified Skills • ' + totalEvidence + ' Commits/Manifest Citations';
     }
 
+    // === Official MCP Apps SDK ===
+    // The bundled McpApp (App) and McpPostMessageTransport (PostMessageTransport)
+    // are loaded from the embedded @modelcontextprotocol/ext-apps bundle.
+    ${clientBundle}
+
     // Initial hydration if pre-injected
-    const initialPayload = ${serializedInitialData};
+    var initialPayload = ${serializedInitialData};
     if (initialPayload) {
       renderApp(initialPayload);
-    } else {
-      // Show waiting state when no data is pre-injected
-      showErrorState('Waiting for analysis data from host...');
     }
 
-    // SEP-1865 JSON-RPC postMessage Bridge
-    window.addEventListener('message', function(event) {
-      if (!event.data) return;
+    // Official MCP Apps protocol initialization
+    (async function() {
+      try {
+        // Create App instance with identification
+        var app = new window.McpApp(
+          { name: 'job_fit_radar', version: '1.0.0' },
+          {},  // capabilities
+          { autoResize: false, allowUnsafeEval: true }
+        );
 
-      let msg = event.data;
-      if (typeof msg === 'string') {
-        try { msg = JSON.parse(msg); } catch (e) { return; }
-      }
+        // Register tool-result handler BEFORE connect()
+        // This receives the actual analyze_job_fit result from the host
+        app.ontoolresult = function(result) {
+          // The official SDK delivers the CallToolResult:
+          // { content: [...], structuredContent: {...}, _meta: {...} }
+          // Our server wraps the analysis in structuredContent
+          var data = null;
+          if (result && result.structuredContent) {
+            data = result.structuredContent;
+          } else if (result && result.content && Array.isArray(result.content)) {
+            // Fallback: parse from text content blocks
+            for (var i = 0; i < result.content.length; i++) {
+              var block = result.content[i];
+              if (block.type === 'text' && block.text) {
+                try { data = JSON.parse(block.text); } catch(e) { /* skip */ }
+                break;
+              }
+            }
+          }
+          if (data) {
+            renderApp(data);
+          }
+        };
 
-      if (msg.method === 'ui/initialize' || msg.method === 'ui/update') {
-        const payload = msg.params?.result || msg.params?.data || msg.params;
-        if (payload) {
-          renderApp(payload);
+        // Connect using official PostMessageTransport
+        var transport = new window.McpPostMessageTransport(window.parent, window.parent);
+        await app.connect(transport);
+      } catch (err) {
+        console.error('[MCP App] Connection failed:', err);
+        // If official protocol fails, fall back to initial data if available
+        if (!initialPayload) {
+          showErrorState('MCP App connection failed. The host may not support MCP Apps.');
         }
       }
-    });
-
-    // Notify host that MCP App iframe is ready
-    try {
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage({ jsonrpc: '2.0', method: 'ui/ready' }, '*');
-      }
-    } catch (e) {
-      // Sandboxed ignore
-    }
+    })();
 
     // Timeout fallback: if no data received within 15 seconds, show error
     if (!initialPayload) {

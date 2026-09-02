@@ -12,6 +12,10 @@
 
 import { z } from 'zod';
 import { McpRoleEnum } from './mcp.schemas.js';
+import {
+  SkillGapSeverityEnum,
+  SkillGapEvidenceTrustEnum,
+} from '../career/evidence-matching.schemas.js';
 
 // =============================================================================
 // Output Budget Constants
@@ -607,13 +611,30 @@ export const AnalyzeJobFitInputSchema = z
 export const AnalyzeJobFitOutputSchema = z
   .object({
     jobContext: z.object({
+      jobId: z.string().uuid().nullable().optional(),
+      externalJobId: z.string().nullable().optional(),
+      provider: z.string().nullable().optional(),
+      company: z.string().nullable().optional(),
       extractedTitle: z.string().nullable(),
       extractedLevel: z.string().nullable(),
       totalRequirementsIdentified: z.number().int().nonnegative(),
+      sourceUrl: z.string().nullable().optional(),
+      applicationUrl: z.string().nullable().optional(),
     }),
     overallFit: z.object({
-      atsScore: z.number().min(0).max(100),
-      matchGrade: z.enum(['EXCELLENT', 'STRONG', 'GOOD', 'MODERATE', 'WEAK', 'LOW']),
+      atsScore: z.number().min(0).max(100).nullable(),
+      matchGrade: z.enum([
+        'EXCELLENT',
+        'STRONG',
+        'GOOD',
+        'MODERATE',
+        'WEAK',
+        'LOW',
+        'INSUFFICIENT_DATA',
+      ]),
+      analysisStatus: z.enum(['COMPLETE', 'INSUFFICIENT_DATA', 'DEGRADED']).default('COMPLETE'),
+      isFallbackScore: z.boolean().default(false),
+      zeroRequirementWarning: z.string().nullable().optional().default(null),
       fitSummary: z.string(),
       scoreBreakdown: z.object({
         requiredSkillsScore: z.number(),
@@ -623,6 +644,37 @@ export const AnalyzeJobFitOutputSchema = z
         educationFitScore: z.number(),
         locationFitScore: z.number(),
         evidenceConfidenceScore: z.number(),
+        rawScore: z.number().optional(),
+        scoreCap: z.number().nullable().optional(),
+        isCapped: z.boolean().optional(),
+        criticalGapCount: z.number().int().nonnegative().optional(),
+        highGapCount: z.number().int().nonnegative().optional(),
+        explanation: z.any().nullable().optional(),
+        experienceFit: z
+          .object({
+            status: z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN', 'NOT_APPLICABLE']),
+            explanation: z.string(),
+          })
+          .optional(),
+        educationFit: z
+          .object({
+            status: z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN', 'NOT_APPLICABLE']),
+            explanation: z.string(),
+          })
+          .optional(),
+        locationFit: z
+          .object({
+            status: z.enum([
+              'MATCHED',
+              'PARTIAL',
+              'MISSING',
+              'MISMATCH',
+              'UNKNOWN',
+              'NOT_APPLICABLE',
+            ]),
+            explanation: z.string(),
+          })
+          .optional(),
       }),
     }),
     requirementSummary: z.object({
@@ -633,6 +685,27 @@ export const AnalyzeJobFitOutputSchema = z
       keyMatchedSkills: z.array(z.string()).max(10),
       keyMissingSkills: z.array(z.string()).max(10),
     }),
+    requirementMatches: z
+      .array(
+        z.object({
+          requirementId: z.string().optional(),
+          originalRequirement: z.string(),
+          normalizedRequirement: z.string(),
+          category: z.string(),
+          required: z.boolean(),
+          matchStatus: z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN']),
+          candidateSkills: z.array(z.string()).default([]),
+          candidateProvenance: z
+            .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'NONE', 'INFERRED', 'USER_PROVIDED'])
+            .default('NONE'),
+          provenanceTrustClass: z.string().optional(),
+          matchConfidence: z.number().min(0).max(1).optional(),
+          primaryEvidence: z.any().nullable().optional(),
+          supportingEvidence: z.array(z.any()).default([]),
+          explanation: z.string(),
+        })
+      )
+      .optional(),
     topRelevantProjects: z
       .array(
         z.object({
@@ -640,21 +713,33 @@ export const AnalyzeJobFitOutputSchema = z
           projectName: z.string(),
           relevanceScore: z.number().min(0).max(100),
           relevanceRank: z.number().int().positive(),
-          matchedRequirements: z.array(z.string()).max(5),
-          matchedArchitecturalDimensions: z.array(z.string()).max(5),
+          matchedRequirements: z.array(z.any()).max(5),
+          matchedArchitecturalDimensions: z.array(z.string()).max(10),
+          scoreBreakdown: z.any().nullable().optional(),
           summary: z.string().nullable(),
+          supportingEvidence: z.array(z.any()).optional().default([]),
         })
       )
       .max(5),
     prioritizedSkillGaps: z
       .array(
-        z.object({
-          skillSlug: z.string(),
-          skillName: z.string(),
-          category: z.string(),
-          priority: z.enum(['CRITICAL', 'IMPORTANT', 'NICE_TO_HAVE']),
-          remediationAdvice: z.string(),
-        })
+        z
+          .object({
+            skillSlug: z.string(),
+            skillName: z.string(),
+            category: z.string(),
+            // Actionability axis (client-facing ranking).
+            priority: z.enum(['CRITICAL', 'IMPORTANT', 'NICE_TO_HAVE']),
+            // Reason-category axis — why the gap exists.
+            severity: SkillGapSeverityEnum,
+            // Evidence-trust axis — trust state of the backing evidence.
+            // Kept strictly separate from `severity`; `LOW_TRUST` here plus
+            // severity=INSUFFICIENT_EVIDENCE is how low-trust (vendored,
+            // generated, node_modules) evidence is represented.
+            evidenceTrust: SkillGapEvidenceTrustEnum.default('NO_EVIDENCE'),
+            remediationAdvice: z.string(),
+          })
+          .strict()
       )
       .max(10),
     evidenceBacking: z.object({

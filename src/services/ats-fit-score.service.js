@@ -154,6 +154,69 @@ export class AtsFitScoreService {
       ? projectRelevanceAnalysis.projectRankings
       : [];
 
+    // Deduplicate projects and extract top 3 stably sorted projects
+    const seenProjectIds = new Set();
+    const uniqueProjects = [];
+    for (const proj of projectRankings) {
+      if (proj.projectId && !seenProjectIds.has(proj.projectId)) {
+        seenProjectIds.add(proj.projectId);
+        uniqueProjects.push(proj);
+      }
+    }
+    const topThreeProjects = uniqueProjects.slice(0, 3);
+
+    // -------------------------------------------------------------------------
+    // ZERO-REQUIREMENT FAIL-CLOSED GUARD
+    // -------------------------------------------------------------------------
+    if (requirementMatches.length === 0) {
+      const zeroBreakdown = {
+        requiredSkillsScore: 0.0,
+        preferredSkillsScore: 0.0,
+        projectRelevanceScore: 0.0,
+        experienceFitScore: 0.0,
+        educationFitScore: 0.0,
+        locationFitScore: 0.0,
+        evidenceConfidenceScore: 0.0,
+        rawScore: 0.0,
+        scoreCap: null,
+        overallScore: null,
+      };
+
+      const zeroWarning =
+        'Insufficient structured requirements extracted from job description to perform reliable ATS scoring.';
+
+      const result = {
+        jobDescriptionId: jobDescription.id,
+        candidateId: candidateProfile.id,
+        tenantId: trustedTenantId,
+        analysisStatus: 'INSUFFICIENT_DATA',
+        isFallbackScore: false,
+        zeroRequirementWarning: zeroWarning,
+        overallScore: null,
+        fitBand: 'INSUFFICIENT_DATA',
+        scoreBreakdown: zeroBreakdown,
+        criticalGapCount: 0,
+        highGapCount: 0,
+        isCapped: false,
+        keyStrengths: [],
+        skillGaps: [],
+        topRelevantProjects: topThreeProjects,
+        explanations: {
+          overallReason: zeroWarning,
+          strengthsSummary: 'No requirements extracted from job description.',
+          gapsSummary: 'Unable to evaluate gaps without structured requirements.',
+          cappingReason: null,
+        },
+        explanation: zeroWarning,
+        confidence: 0.0,
+        analyzedAt: options.analyzedAt
+          ? new Date(options.analyzedAt).toISOString()
+          : new Date().toISOString(),
+      };
+
+      return CandidateJobFitAnalysisSchema.parse(result);
+    }
+
     // -------------------------------------------------------------------------
     // 2. Component 1: Required Skills Coverage (40 Points Max)
     // -------------------------------------------------------------------------
@@ -161,7 +224,7 @@ export class AtsFitScoreService {
       (m) => m.importance === 'REQUIRED' && m.category === 'SKILL'
     );
 
-    let requiredSkillsScore = ATS_SCORE_WEIGHTS.REQUIRED_SKILLS; // Default to 40 if 0 required skills
+    let requiredSkillsScore = 0.0;
 
     if (requiredSkillMatches.length > 0) {
       let totalReqWeight = 0;
@@ -199,7 +262,7 @@ export class AtsFitScoreService {
       requiredSkillsScore =
         totalReqWeight > 0
           ? round(Math.min(40.0, Math.max(0.0, 40.0 * (totalReqCovered / totalReqWeight))), 2)
-          : 40.0;
+          : 0.0;
     }
 
     // -------------------------------------------------------------------------
@@ -209,7 +272,7 @@ export class AtsFitScoreService {
       (m) => m.importance === 'PREFERRED' || m.importance === 'OPTIONAL'
     );
 
-    let preferredSkillsScore = ATS_SCORE_WEIGHTS.PREFERRED_SKILLS; // Default to 15 if 0 preferred skills
+    let preferredSkillsScore = 0.0;
 
     if (preferredMatches.length > 0) {
       let totalPrefWeight = 0;
@@ -247,23 +310,12 @@ export class AtsFitScoreService {
       preferredSkillsScore =
         totalPrefWeight > 0
           ? round(Math.min(15.0, Math.max(0.0, 15.0 * (totalPrefCovered / totalPrefWeight))), 2)
-          : 15.0;
+          : 0.0;
     }
 
     // -------------------------------------------------------------------------
     // 4. Component 3: Project Relevance & Architecture Depth (20 Points Max)
     // -------------------------------------------------------------------------
-    // Deduplicate projects and extract top 3 stably sorted projects
-    const seenProjectIds = new Set();
-    const uniqueProjects = [];
-    for (const proj of projectRankings) {
-      if (proj.projectId && !seenProjectIds.has(proj.projectId)) {
-        seenProjectIds.add(proj.projectId);
-        uniqueProjects.push(proj);
-      }
-    }
-
-    const topThreeProjects = uniqueProjects.slice(0, 3);
     const s1 = topThreeProjects[0]?.relevanceScore ?? 0.0;
     const s2 = topThreeProjects[1]?.relevanceScore ?? 0.0;
     const s3 = topThreeProjects[2]?.relevanceScore ?? 0.0;
@@ -286,7 +338,7 @@ export class AtsFitScoreService {
     // 5. Component 4: Professional Experience Tenure Fit (10 Points Max)
     // -------------------------------------------------------------------------
     const experienceMatches = requirementMatches.filter((m) => m.category === 'EXPERIENCE');
-    let experienceFitScore = ATS_SCORE_WEIGHTS.EXPERIENCE_FIT; // Default to 10 if 0 exp requirements
+    let experienceFitScore = 0.0;
 
     if (experienceMatches.length > 0) {
       let expScoreSum = 0;
@@ -309,7 +361,7 @@ export class AtsFitScoreService {
     // 6. Component 5: Education Alignment Fit (5 Points Max)
     // -------------------------------------------------------------------------
     const educationMatches = requirementMatches.filter((m) => m.category === 'EDUCATION');
-    let educationFitScore = ATS_SCORE_WEIGHTS.EDUCATION_FIT; // Default to 5 if 0 edu requirements
+    let educationFitScore = 0.0;
 
     if (educationMatches.length > 0) {
       let eduScoreSum = 0;
@@ -331,8 +383,10 @@ export class AtsFitScoreService {
     // -------------------------------------------------------------------------
     // 7. Component 6: Location & Work Authorization Fit (5 Points Max)
     // -------------------------------------------------------------------------
-    const locationMatches = requirementMatches.filter((m) => m.category === 'LOCATION');
-    let locationFitScore = ATS_SCORE_WEIGHTS.LOCATION_FIT; // Default to 5 if 0 location requirements
+    const locationMatches = requirementMatches.filter(
+      (m) => m.category === 'LOCATION' || m.category === 'ELIGIBILITY'
+    );
+    let locationFitScore = 0.0;
 
     if (locationMatches.length > 0) {
       let locScoreSum = 0;
@@ -604,6 +658,9 @@ export class AtsFitScoreService {
       jobDescriptionId: jobDescription.id,
       candidateId: candidateProfile.id,
       tenantId: trustedTenantId,
+      analysisStatus: 'COMPLETE',
+      isFallbackScore: false,
+      zeroRequirementWarning: null,
       overallScore,
       fitBand,
       scoreBreakdown: {

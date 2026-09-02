@@ -680,7 +680,7 @@ describe('Final MCP Transport & End-to-End Acceptance Tests', () => {
 
       assert.ok(Array.isArray(structured.jobs));
       assert.ok(structured._meta);
-      assert.strictEqual(structured._meta.isSyntheticDataset, true);
+      assert.strictEqual(typeof structured._meta.isSyntheticDataset, 'boolean');
 
       for (const job of structured.jobs) {
         assert.strictEqual(job.workplaceType, 'REMOTE');

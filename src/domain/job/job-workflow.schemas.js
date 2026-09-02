@@ -39,7 +39,7 @@ export const SearchJobsInputSchema = z.object({
 });
 
 export const NormalizedJobPostingSchema = z.object({
-  id: z.string().uuid('id must be a valid UUID'),
+  id: z.string().min(1, 'id is required'),
   source: JobSourceEnum,
   provider: JobSourceEnum.optional().describe('Provider that supplied the job'),
   externalJobId: z
@@ -70,7 +70,7 @@ export const NormalizedJobPostingSchema = z.object({
 });
 
 export const GetJobPostingInputSchema = z.object({
-  jobId: z.string().uuid('jobId must be a valid UUID'),
+  jobId: z.string().min(1, 'jobId is required'),
   source: JobSourceEnum.optional().default('STRUCTURED_FEED'),
   sourceUrl: z.string().url().optional(),
 });

@@ -794,6 +794,7 @@ export class JobDiscoveryService {
     const found = allJobs.find(
       (j) =>
         j.id === validated.jobId ||
+        j.externalJobId === validated.jobId ||
         (validated.sourceUrl && j.applicationUrl === validated.sourceUrl)
     );
 

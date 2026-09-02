@@ -31,6 +31,7 @@ import {
 import { NotFoundError, ValidationError, AuthorizationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
 import { EvidenceRefMapper } from './evidence/evidence-ref-mapper.js';
+import { PrimaryEvidenceSelector } from './evidence/primary-evidence-selector.js';
 import {
   CareerPreferencesSchema,
   UpdateCareerPreferencesInputSchema,
@@ -261,24 +262,44 @@ export class CandidateProfileService {
       )
       .orderBy(desc(candidateSkills.confidenceScore), desc(candidateSkills.lastObservedAt));
 
+    // Batch-fetch all evidence items for candidate's skills to ensure high-trust primary selection
+    const allEvidenceRows = await this._db
+      .select()
+      .from(evidenceItems)
+      .where(
+        and(eq(evidenceItems.tenantId, tenantId), eq(evidenceItems.candidateId, candidateId))
+      );
+
+    const evidenceBySkillId = new Map();
+    for (const row of allEvidenceRows) {
+      if (row.skillId) {
+        if (!evidenceBySkillId.has(row.skillId)) {
+          evidenceBySkillId.set(row.skillId, []);
+        }
+        evidenceBySkillId.get(row.skillId).push(row);
+      }
+    }
+
     const skillList = [];
     for (const { cs, skillSlug, skillName } of rawCandidateSkills) {
-      let primaryEvidenceRef = null;
-      if (cs.primaryEvidenceId) {
-        const [primaryRow] = await this._db
-          .select()
-          .from(evidenceItems)
-          .where(
-            and(
-              eq(evidenceItems.id, cs.primaryEvidenceId),
-              eq(evidenceItems.tenantId, tenantId),
-              eq(evidenceItems.candidateId, candidateId)
-            )
-          );
-        if (primaryRow) {
-          primaryEvidenceRef = EvidenceRefMapper.toEvidenceRef(primaryRow, cs.provenanceStatus);
-        }
+      const skillEvidenceRows = evidenceBySkillId.get(cs.skillId) || [];
+
+      // Select best primary evidence using PrimaryEvidenceSelector (enforces candidate-authored high-trust code over node_modules)
+      let primaryEvidenceRow = null;
+      if (skillEvidenceRows.length > 0) {
+        primaryEvidenceRow = PrimaryEvidenceSelector.selectBestPrimary(skillEvidenceRows);
+      } else if (cs.primaryEvidenceId) {
+        primaryEvidenceRow = allEvidenceRows.find((e) => e.id === cs.primaryEvidenceId) || null;
       }
+
+      let primaryEvidenceRef = null;
+      if (primaryEvidenceRow) {
+        primaryEvidenceRef = EvidenceRefMapper.toEvidenceRef(primaryEvidenceRow, cs.provenanceStatus);
+      }
+
+      const evidenceRefs = skillEvidenceRows.map((row) =>
+        EvidenceRefMapper.toEvidenceRef(row, cs.provenanceStatus)
+      );
 
       const isUserClaim = cs.provenanceStatus === 'CLAIMED' || cs.metadata?.isUserClaim === true;
 
@@ -289,8 +310,10 @@ export class CandidateProfileService {
         category: cs.category,
         provenanceStatus: cs.provenanceStatus,
         confidenceScore: typeof cs.confidenceScore === 'number' ? cs.confidenceScore : 0.0,
-        evidenceCount: cs.evidenceCount,
+        evidenceCount: skillEvidenceRows.length || cs.evidenceCount,
         primaryEvidence: primaryEvidenceRef,
+        evidence: evidenceRefs,
+        evidenceItems: evidenceRefs,
         isUserClaim,
         claimLabel:
           isUserClaim && cs.provenanceStatus === 'CLAIMED' ? '[Unverified User Claim]' : null,

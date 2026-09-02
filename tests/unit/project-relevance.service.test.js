@@ -987,14 +987,14 @@ describe('Project Relevance Scoring Service Unit Tests (P5-004)', () => {
       assert.strictEqual(res.projectType, 'DATA_PROJECT');
     });
 
-    it('handles job description with 0 technical requirements by defaulting req coverage to 25.0', () => {
+    it('handles job description with 0 technical requirements by defaulting req coverage to 0.0', () => {
       const job = createMockJobDescription({ requirements: [] });
       const project = createMockProject();
 
       const res = computeProjectRelevance({ tenantId: TENANT_A }, job, project, {
         evaluationDate: FIXED_EVAL_DATE,
       });
-      assert.strictEqual(res.scoreBreakdown.requirementCoverageScore, 25.0);
+      assert.strictEqual(res.scoreBreakdown.requirementCoverageScore, 0.0);
     });
 
     it('handles project with 0 evidence gracefully', () => {

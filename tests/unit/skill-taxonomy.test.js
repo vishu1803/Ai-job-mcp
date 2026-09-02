@@ -262,7 +262,7 @@ describe('Skill Normalizer & Taxonomy Engine (P5-002)', () => {
       { input: 'apollo-graphql', expected: 'graphql', cat: 'CONCEPT' },
       { input: 'pkce', expected: 'oauth', cat: 'CONCEPT' },
       { input: 'infosec', expected: 'application-security', cat: 'CONCEPT' },
-      { input: 'ansi-sql', expected: 'sql', cat: 'CONCEPT' },
+      { input: 'ansi-sql', expected: 'sql', cat: 'DATABASE' },
     ];
 
     it(`verifies all ${synonymMap.length} curated synonyms map to correct canonical slugs and categories`, () => {

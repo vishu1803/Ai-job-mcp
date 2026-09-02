@@ -214,19 +214,26 @@ All explanations are structured, objective, and evidence-backed:
 Every requirement that is not `MATCHED` generates a structured `SkillGap` object:
 
 ```
-+---------------------------------------------------------------------------------------------------+
-|                                      SKILL GAP TAXONOMY MATRIX                                    |
-+-------------------+--------------------+------------------------+---------------------------------+
-| Requirement Tier  | Candidate Status   | Gap Priority           | Gap Severity                    |
-+-------------------+--------------------+------------------------+---------------------------------+
-| REQUIRED          | MISSING            | CRITICAL (Must-Have)   | EXPLICITLY_MISSING              |
-| REQUIRED          | CLAIMED (No Proof) | HIGH (Must Verify)     | UNVERIFIED_CLAIM                |
-| PREFERRED (W>=0.5)| MISSING            | HIGH (Advantageous)    | EXPLICITLY_MISSING              |
-| PREFERRED (W<0.5) | MISSING            | MEDIUM (Standard)      | EXPLICITLY_MISSING              |
-| OPTIONAL / BONUS  | MISSING            | LOW (Bonus Gap)        | EXPLICITLY_MISSING              |
-| ANY TECHNICAL     | LOW CONFIDENCE     | MEDIUM                 | INSUFFICIENT_EVIDENCE           |
-+-------------------+--------------------+------------------------+---------------------------------+
++-------------------------------------------------------------------------------------------------------------------------+
+|                                            SKILL GAP TAXONOMY MATRIX                                                    |
++-------------------+----------------------+------------------------+---------------------------------+-------------------+
+| Requirement Tier  | Candidate Status     | Gap Priority           | Gap Severity                    | Evidence Trust    |
++-------------------+----------------------+------------------------+---------------------------------+-------------------+
+| REQUIRED          | MISSING              | CRITICAL (Must-Have)   | EXPLICITLY_MISSING              | NO_EVIDENCE       |
+| REQUIRED          | CLAIMED (No Proof)   | HIGH (Must Verify)     | UNVERIFIED_CLAIM                | NO_EVIDENCE       |
+| PREFERRED (W>=0.5)| MISSING              | HIGH (Advantageous)    | EXPLICITLY_MISSING              | NO_EVIDENCE       |
+| PREFERRED (W<0.5) | MISSING              | MEDIUM (Standard)      | EXPLICITLY_MISSING              | NO_EVIDENCE       |
+| OPTIONAL / BONUS  | MISSING              | LOW (Bonus Gap)        | EXPLICITLY_MISSING              | NO_EVIDENCE       |
+| ANY TECHNICAL     | LOW CONFIDENCE       | MEDIUM                 | INSUFFICIENT_EVIDENCE           | HIGH_TRUST        |
+| ANY TECHNICAL     | LOW-TRUST EVIDENCE   | (per requirement tier) | INSUFFICIENT_EVIDENCE           | LOW_TRUST         |
++-------------------+----------------------+------------------------+---------------------------------+-------------------+
 ```
+
+**Severity and evidence trust are orthogonal axes and MUST NOT be conflated.** `severity` answers *why* the gap exists;
+`evidenceTrust` answers *what the backing evidence is worth*. Evidence found only in transitive-dependency, generated or
+vendored paths (`node_modules/`, `dist/`, `vendor/`, `coverage/`, `__generated__/`, lockfiles) is represented as
+`severity: INSUFFICIENT_EVIDENCE` combined with `evidenceTrust: LOW_TRUST` — never as a severity value such as
+`LOW_TRUST_EVIDENCE`, which `SkillGapSeverityEnum` rejects by design.
 
 ### 9.1 Skill Gap Fields
 * `requirementId` (`UUIDv4`): ID of the failed or partial job requirement.
@@ -234,7 +241,8 @@ Every requirement that is not `MATCHED` generates a structured `SkillGap` object
 * `skillName` (`String`): Official display name.
 * `category` (`SkillCategoryEnum`): Skill domain.
 * `priority` (`Enum`): `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`.
-* `severity` (`Enum`): `EXPLICITLY_MISSING`, `UNVERIFIED_CLAIM`, `INSUFFICIENT_EVIDENCE`, `PARTIAL_TENURE`.
+* `severity` (`SkillGapSeverityEnum`): `EXPLICITLY_MISSING`, `UNVERIFIED_CLAIM`, `INSUFFICIENT_EVIDENCE`, `PARTIAL_TENURE`. Reason category only.
+* `evidenceTrust` (`SkillGapEvidenceTrustEnum`): `HIGH_TRUST`, `LOW_TRUST`, `NO_EVIDENCE` (default `NO_EVIDENCE`). Provenance trust state of the backing evidence, derived from the `provenanceTrustClass` stamped on each selected `EvidenceRef`.
 * `status` (`Enum`): `MISSING` or `PARTIAL`.
 * `reason` (`String`): Concise factual explanation.
 * `recommendation` (`String`): Actionable suggestion (e.g. *"Connect a repository containing Dockerfile configurations or upload verified deployment evidence."*).
@@ -274,6 +282,13 @@ export const CandidateRequirementMatchSchema = z.object({
   explanation: z.string().max(1000),
 });
 
+// Canonical orthogonal enums — severity is a reason category, trust is a provenance state.
+export const SkillGapSeverityEnum = z.enum([
+  'EXPLICITLY_MISSING', 'UNVERIFIED_CLAIM', 'INSUFFICIENT_EVIDENCE', 'PARTIAL_TENURE',
+]);
+export const EvidenceTrustClassEnum = z.enum(['HIGH_TRUST', 'LOW_TRUST']);
+export const SkillGapEvidenceTrustEnum = z.enum([...EvidenceTrustClassEnum.options, 'NO_EVIDENCE']);
+
 // SkillGapSchema
 export const SkillGapSchema = z.object({
   requirementId: z.string().uuid(),
@@ -281,7 +296,8 @@ export const SkillGapSchema = z.object({
   skillName: z.string().max(100),
   category: SkillCategoryEnum,
   priority: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']),
-  severity: z.enum(['EXPLICITLY_MISSING', 'UNVERIFIED_CLAIM', 'INSUFFICIENT_EVIDENCE', 'PARTIAL_TENURE']),
+  severity: SkillGapSeverityEnum,
+  evidenceTrust: SkillGapEvidenceTrustEnum.default('NO_EVIDENCE'),
   status: z.enum(['MISSING', 'PARTIAL']),
   reason: z.string().max(500),
   recommendation: z.string().max(500),

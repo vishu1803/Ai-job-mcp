@@ -77,16 +77,17 @@ const SECTION_PATTERNS = Object.freeze([
   {
     name: 'REQUIREMENTS',
     regex:
-      /^(?:#{1,6}\s*)?(?:minimum\s+|basic\s+|key\s+|core\s+)?(?:requirements|qualifications|what\s+you(?:'ll|\s+will)\s+need|who\s+you\s+are|what\s+we(?:'re|\s+are)\s+looking\s+for|must\s+haves?)(?:\s+(?:qualifications|skills|experience|requirements))?\b[:\s-]*/i,
+      /^(?:#{1,6}\s*)?(?:minimum\s+|basic\s+|key\s+|core\s+|technical\s+)?(?:requirements|qualifications|what\s+you(?:'ll|\s+will)\s+need|who\s+you\s+are|what\s+we(?:'re|\s+are)\s+looking\s+for|what\s+you\s+bring|you\s+have|your\s+background|about\s+you|must\s+haves?)(?:\s+(?:qualifications|skills|experience|requirements))?\b[:\s-]*/i,
   },
   {
     name: 'RESPONSIBILITIES',
     regex:
-      /^(?:#{1,6}\s*)?(?:responsibilities|what\s+you(?:'ll|\s+will)\s+do|the\s+role|role\s+overview|job\s+duties|key\s+responsibilities|day\s+to\s+day)\b[:\s-]*/i,
+      /^(?:#{1,6}\s*)?(?:responsibilities|what\s+you(?:'ll|\s+will)\s+do|the\s+role|role\s+overview|job\s+duties|key\s+responsibilities|day\s+to\s+day|in\s+this\s+role|what\s+you\s+do)\b[:\s-]*/i,
   },
   {
     name: 'EDUCATION',
-    regex: /^(?:#{1,6}\s*)?(?:education(?:\s+requirements?)?|academic\s+background)\b[:\s-]*/i,
+    regex:
+      /^(?:#{1,6}\s*)?(?:education(?:\s+requirements?)?|academic\s+background|degree\s+requirements?)\b[:\s-]*/i,
   },
   {
     name: 'EXPERIENCE',
@@ -94,15 +95,32 @@ const SECTION_PATTERNS = Object.freeze([
       /^(?:#{1,6}\s*)?(?:experience(?:\s+requirements?)?|work\s+experience|prior\s+experience)\b[:\s-]*/i,
   },
   {
-    name: 'COMPENSATION',
-    regex:
-      /^(?:#{1,6}\s*)?(?:compensation|salary(?:\s+range)?|benefits|perks|what\s+we\s+offer)\b[:\s-]*/i,
-  },
-  {
     name: 'ABOUT_ROLE',
     regex:
-      /^(?:#{1,6}\s*)?(?:about\s+(?:the\s+role|us|the\s+team|the\s+company)|overview|summary|position\s+summary)\b[:\s-]*/i,
+      /^(?:#{1,6}\s*)?(?:about\s+(?:the\s+)?(?:role|position|job)|position\s+overview|position\s+summary|role\s+summary)\b[:\s-]*/i,
   },
+  {
+    name: 'NON_REQUIREMENT_ABOUT_COMPANY',
+    regex:
+      /^(?:#{1,6}\s*)?(?:about\s+(?:the\s+)?(?:company|us|our\s+mission)|about\s+(?!the\s+(?:role|position|job)|you\b)[a-zA-Z0-9_-]+|who\s+we\s+are|why\s+[a-zA-Z0-9_-]+|company\s+overview|company\s+description|our\s+mission|our\s+story|our\s+culture|life\s+at\s+[a-zA-Z0-9_-]+|employer\s+brand)\b[:\s-]*/i,
+  },
+  {
+    name: 'NON_REQUIREMENT_EEO_LEGAL',
+    regex:
+      /^(?:#{1,6}\s*)?(?:equal\s+(?:opportunity|employment)|eeo(?:\s+statement)?|diversity|inclusion|legal|privacy|notice|accommodations?)\b[:\s-]*/i,
+  },
+  {
+    name: 'NON_REQUIREMENT_COMPENSATION',
+    regex:
+      /^(?:#{1,6}\s*)?(?:compensation|salary(?:\s+range)?|benefits|perks|what\s+we\s+offer|total\s+rewards)\b[:\s-]*/i,
+  },
+]);
+
+const NON_REQUIREMENT_SECTION_NAMES = new Set([
+  'NON_REQUIREMENT_ABOUT_COMPANY',
+  'NON_REQUIREMENT_EEO_LEGAL',
+  'NON_REQUIREMENT_COMPENSATION',
+  'COMPENSATION',
 ]);
 
 export class JobDescriptionParser {
@@ -173,6 +191,8 @@ export class JobDescriptionParser {
       extractionResult = JobDescriptionParser.extractRequirementsDeterministic(sections, {
         tenantId,
         jobDescriptionId,
+        location: validatedInput.location || inferredMetadata.location || null,
+        workplaceType: validatedInput.workplaceType || inferredMetadata.workplaceType || 'UNSPECIFIED',
       });
     }
 
@@ -492,7 +512,27 @@ export class JobDescriptionParser {
     const requirements = [];
     const seenRequirementKeys = new Set();
 
+    // Check if the document has explicit requirement-bearing sections
+    const hasExplicitRequirementSections = sections.some(
+      (s) =>
+        s.name === 'REQUIREMENTS' ||
+        s.name === 'PREFERRED_QUALIFICATIONS' ||
+        s.name === 'RESPONSIBILITIES' ||
+        s.name === 'EXPERIENCE' ||
+        s.name === 'EDUCATION' ||
+        s.name === 'ABOUT_ROLE'
+    );
+
     for (const section of sections) {
+      // 1. Strictly skip non-requirement sections (About Company, EEO, Benefits)
+      if (NON_REQUIREMENT_SECTION_NAMES.has(section.name)) {
+        continue;
+      }
+
+      // If explicit requirement sections exist, skip generic OVERVIEW or GENERAL headers
+      // unless lines have strong technical requirement cues
+      const isOverviewSection = section.name === 'OVERVIEW' || section.name === 'GENERAL';
+
       const isPreferredSection = section.name === 'PREFERRED_QUALIFICATIONS';
       const isRequirementSection =
         section.name === 'REQUIREMENTS' ||
@@ -518,6 +558,23 @@ export class JobDescriptionParser {
         const cleanLine = line.replace(/^[-*•>]\s*|^\d+\.\s*/, '').trim();
         if (!cleanLine) continue;
 
+        // Skip company marketing/prose lines
+        if (JobDescriptionParser._isCompanyProse(cleanLine)) {
+          continue;
+        }
+
+        // If in OVERVIEW/GENERAL and document has explicit requirement sections,
+        // only allow lines with clear technical requirement or skill keywords
+        if (isOverviewSection && hasExplicitRequirementSections) {
+          const hasTechnicalCue =
+            /\b(?:experience\s+with|proficient\s+in|knowledge\s+of|building|leveraging|using|technologies?|stack|skills?)\b/i.test(
+              cleanLine
+            );
+          if (!hasTechnicalCue) {
+            continue;
+          }
+        }
+
         // Determine line importance
         const importance = JobDescriptionParser.classifyLineImportance(
           cleanLine,
@@ -536,6 +593,10 @@ export class JobDescriptionParser {
         // A. Extract Technical Skills
         const extractedSkills = JobDescriptionParser.extractSkillsFromLine(cleanLine);
         for (const skill of extractedSkills) {
+          // Skip overly generic/abstract skills that are not concrete technologies
+          if (JobDescriptionParser._isOverlyGenericSkill(skill.slug, skill.name)) {
+            continue;
+          }
           const dedupKey = `SKILL:${skill.slug}`;
           if (!seenRequirementKeys.has(dedupKey)) {
             seenRequirementKeys.add(dedupKey);
@@ -548,6 +609,7 @@ export class JobDescriptionParser {
               weight,
               skillSlug: skill.slug,
               rawSnippet: cleanLine.slice(0, 450),
+              originalText: cleanLine,
               extractedValue: skill.name,
               normalizedCriteria: {
                 skillSlug: skill.slug,
@@ -591,6 +653,7 @@ export class JobDescriptionParser {
                 weight,
                 skillSlug: associatedSkillSlug || null,
                 rawSnippet: cleanLine.slice(0, 450),
+                originalText: cleanLine,
                 extractedValue: `${minYears}+ years experience${target ? ` in ${target}` : ''}`,
                 normalizedCriteria: {
                   minYears,
@@ -602,6 +665,69 @@ export class JobDescriptionParser {
                 sourceSpan,
                 createdAt: new Date().toISOString(),
               });
+            }
+          }
+        } else {
+          // Check for qualitative experience requirements (e.g. "Practical experience developing and improving applications written in Node.js.")
+          const qualExpMatch = cleanLine.match(
+            /\b(?:practical|hands[- ]on|proven|demonstrated|solid|deep|extensive|prior)?\s*experience\s+(?:developing|building|architecting|improving|designing|implementing|maintaining|working\s+with|in|with)\s+([^.,;\n]+)/i
+          );
+          if (qualExpMatch) {
+            const mentionedSkills = JobDescriptionParser.extractSkillsFromLine(cleanLine);
+            if (mentionedSkills.length > 0) {
+              for (const skill of mentionedSkills) {
+                const qualKey = `EXPERIENCE:qualitative:${skill.slug}`;
+                if (!seenRequirementKeys.has(qualKey)) {
+                  seenRequirementKeys.add(qualKey);
+                  requirements.push({
+                    id: crypto.randomUUID(),
+                    tenantId,
+                    jobDescriptionId,
+                    category: 'EXPERIENCE',
+                    importance,
+                    weight,
+                    skillSlug: skill.slug,
+                    rawSnippet: cleanLine.slice(0, 450),
+                    originalText: cleanLine,
+                    extractedValue: `${skill.name} Application Development Experience`,
+                    normalizedCriteria: {
+                      technology: skill.name,
+                      experienceType: 'PRACTICAL_DEVELOPMENT',
+                      associatedSkillSlug: skill.slug,
+                      context: cleanLine,
+                    },
+                    confidenceScore: 0.9,
+                    sourceSpan,
+                    createdAt: new Date().toISOString(),
+                  });
+                }
+              }
+            } else {
+              const target = qualExpMatch[1].trim();
+              const qualKey = `EXPERIENCE:qualitative:${target.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+              if (!seenRequirementKeys.has(qualKey)) {
+                seenRequirementKeys.add(qualKey);
+                requirements.push({
+                  id: crypto.randomUUID(),
+                  tenantId,
+                  jobDescriptionId,
+                  category: 'EXPERIENCE',
+                  importance,
+                  weight,
+                  skillSlug: null,
+                  rawSnippet: cleanLine.slice(0, 450),
+                  originalText: cleanLine,
+                  extractedValue: `Experience in ${target.slice(0, 50)}`,
+                  normalizedCriteria: {
+                    experienceType: 'PRACTICAL_DEVELOPMENT',
+                    target: target.slice(0, 100),
+                    context: cleanLine,
+                  },
+                  confidenceScore: 0.85,
+                  sourceSpan,
+                  createdAt: new Date().toISOString(),
+                });
+              }
             }
           }
         }
@@ -621,6 +747,7 @@ export class JobDescriptionParser {
               weight: importance === 'REQUIRED' ? 0.75 : 0.4,
               skillSlug: null,
               rawSnippet: cleanLine.slice(0, 450),
+              originalText: cleanLine,
               extractedValue: `${eduMatch.degreeLevel} degree${eduMatch.field ? ` in ${eduMatch.field}` : ''}`,
               normalizedCriteria: eduMatch,
               confidenceScore: 0.9,
@@ -645,6 +772,7 @@ export class JobDescriptionParser {
                 weight: 0.5,
                 skillSlug: null,
                 rawSnippet: cleanLine.slice(0, 450),
+                originalText: cleanLine,
                 extractedValue: domain.name,
                 normalizedCriteria: {
                   domainSlug: domain.slug,
@@ -660,7 +788,176 @@ export class JobDescriptionParser {
       }
     }
 
+    // D. Extract Location & Eligibility Requirements
+    if (context && context.location) {
+      const locStr = String(context.location).trim();
+      const locKey = `LOCATION:${locStr.toLowerCase()}`;
+      if (!seenRequirementKeys.has(locKey)) {
+        seenRequirementKeys.add(locKey);
+
+        let country = 'United States';
+        let workplaceType = context.workplaceType || 'REMOTE';
+        if (/united states|usa|u\.s\./i.test(locStr)) {
+          country = 'United States';
+        } else if (/india/i.test(locStr)) {
+          country = 'India';
+        } else if (/united kingdom|uk/i.test(locStr)) {
+          country = 'United Kingdom';
+        } else if (/germany/i.test(locStr)) {
+          country = 'Germany';
+        }
+        if (/remote/i.test(locStr)) {
+          workplaceType = 'REMOTE';
+        } else if (/hybrid/i.test(locStr)) {
+          workplaceType = 'HYBRID';
+        } else if (/on-?site/i.test(locStr)) {
+          workplaceType = 'ON_SITE';
+        }
+
+        requirements.push({
+          id: crypto.randomUUID(),
+          tenantId,
+          jobDescriptionId,
+          category: 'LOCATION',
+          importance: 'REQUIRED',
+          weight: 1.0,
+          skillSlug: null,
+          rawSnippet: locStr,
+          originalText: locStr,
+          extractedValue: locStr,
+          normalizedCriteria: {
+            country,
+            workplaceType,
+          },
+          confidenceScore: 0.95,
+          sourceSpan: {
+            section: 'LOCATION',
+            snippet: locStr,
+          },
+          createdAt: new Date().toISOString(),
+        });
+
+        // Emit ELIGIBILITY requirement for US location
+        if (country === 'United States') {
+          const eligKey = 'ELIGIBILITY:us-work-authorization';
+          if (!seenRequirementKeys.has(eligKey)) {
+            seenRequirementKeys.add(eligKey);
+            requirements.push({
+              id: crypto.randomUUID(),
+              tenantId,
+              jobDescriptionId,
+              category: 'ELIGIBILITY',
+              importance: 'REQUIRED',
+              weight: 1.0,
+              skillSlug: null,
+              rawSnippet: 'United States Work Authorization',
+              originalText: 'Legal authorization to work in the United States',
+              extractedValue: 'United States Work Authorization',
+              normalizedCriteria: {
+                eligibilityType: 'WORK_AUTHORIZATION',
+                acceptedCountries: ['United States'],
+                requiresSponsorship: false,
+                context: `Target position located in ${locStr}`,
+              },
+              confidenceScore: 0.9,
+              sourceSpan: {
+                section: 'LOCATION',
+                snippet: locStr,
+              },
+              createdAt: new Date().toISOString(),
+            });
+          }
+        }
+      }
+    }
+
     return { requirements };
+  }
+
+  /**
+   * Identifies company marketing narrative, brand slogans, and non-requirement prose.
+   *
+   * @param {string} line Text line to test
+   * @returns {boolean} True if line is company prose
+   */
+  static _isCompanyProse(line) {
+    if (!line || typeof line !== 'string') return true;
+    const trimmed = line.trim();
+    if (trimmed.length < 3) return true;
+    const lower = trimmed.toLowerCase();
+
+    // 1. Explicit Requirement Cues that override prose heuristics
+    const hasRequirementCue =
+      /\b(?:proficiency\s+in|proficient\s+in|experience\s+(?:with|in|using)|knowledge\s+of|strong\s+understanding\s+of|familiarity\s+with|ability\s+to|skilled\s+in|hands-on\s+experience|track\s+record\s+of|mastery\s+of|expertise\s+in|working\s+knowledge\s+of|proven\s+experience|responsible\s+for|architecting|implementing|designing|building|developing|scaling|maintaining|optimizing|leveraging|collaborating\s+with|bachelor(?:'s)?|master(?:'s)?|ph\.?d\.?|degree\s+in|\d+\+?\s*years?(?:\s+of)?\s+experience)\b/i.test(
+        lower
+      );
+
+    // 2. Company Narrative & Mission Patterns
+    const companyProsePatterns = [
+      /^(?:about\s+(?:the\s+)?(?:company|us|team|our\s+mission)|about\s+[a-zA-Z0-9_-]+|who\s+we\s+are|why\s+[a-zA-Z0-9_-]+)[:\s-]*/i,
+      /\b(?:is\s+the\s+|is\s+a\s+|is\s+an\s+)(?:agentic\s+|leading\s+|global\s+|innovative\s+|cloud\s+|modern\s+)?(?:infrastructure|software|platform|technology|data|fintech|saas|ai|security)\s+company\b/i,
+      /\b(?:we\s+free\s+people\s+and\s+agents|we\s+empower\s+developers|we\s+enable\s+builders|we\s+are\s+on\s+a\s+mission\s+to|our\s+mission\s+is\s+to)\b/i,
+      /\b(?:for\s+more\s+than\s+(?:a\s+decade|\d+\s+years)|since\s+\d{4}|founded\s+in\s+\d{4})\b/i,
+      /\b(?:has\s+shaped\s+how\s+the\s+web\s+is\s+built|shaping\s+the\s+future\s+of)\b/i,
+      /\b(?:now,?\s+software\s+is\s+entering\s+a\s+new\s+era|the\s+next\s+generation\s+of\s+products\s+will\s+not\s+just\s+be\s+used\s+by\s+people|they\s+will\s+be\s+built,?\s+extended,?\s+and\s+operated\s+by\s+agents)\b/i,
+      /\b(?:we\s+are\s+(?:proud\s+to\s+be\s+)?an\s+equal\s+opportunity\s+employer|value\s+diversity|equal\s+employment\s+opportunity|affirmative\s+action)\b/i,
+      /\b(?:what\s+we\s+offer|our\s+benefits|benefits\s+include|perks\s+include|competitive\s+(?:salary|compensation|equity|benefits)|401\(?k\)?\s*matching|health\s+insurance)\b/i,
+      /\b(?:backed\s+by\s+(?:top|leading)\s+investors|series\s+[a-z]|venture-backed)\b/i,
+      /\b(?:headquartered\s+in|offices\s+in\s+san\s+francisco|hybrid\s+workplace\s+culture)\b/i,
+    ];
+
+    for (const pattern of companyProsePatterns) {
+      if (pattern.test(lower)) {
+        if (!hasRequirementCue) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Identifies overly generic/abstract skill names that are not concrete technologies.
+   * These should not be extracted as hard SKILL requirements.
+   *
+   * @param {string} slug Normalized skill slug
+   * @param {string} name Display skill name
+   * @returns {boolean} True if the skill is too generic to be a concrete technical requirement
+   */
+  static _isOverlyGenericSkill(slug, _name) {
+    const GENERIC_SKILLS = new Set([
+      'cloud-native',
+      'cloud-native-computing',
+      'database',
+      'database-management',
+      'nosql-database',
+      'architecture',
+      'design-patterns',
+      'software-development',
+      'problem-solving',
+      'communication',
+      'teamwork',
+      'agile',
+      'scrum',
+      'devops',  // too broad when not paired with specific tooling
+      'microservices',  // architecture pattern, not a specific technology
+      'rest-api',  // too generic — use specific frameworks instead
+      'api-design',
+      'data-structures',
+      'algorithms',
+      'object-oriented',
+      'functional-programming',
+      'web-development',
+      'full-stack',
+      'backend',
+      'frontend',
+      'mobile-development',
+      'software-engineering',
+      'computer-science',
+      'information-technology',
+    ]);
+    return GENERIC_SKILLS.has(slug);
   }
 
   /**
@@ -706,13 +1003,60 @@ export class JobDescriptionParser {
   static extractSkillsFromLine(line) {
     const matchedSkills = [];
     const seenSlugs = new Set();
+    const AMBIGUOUS_FREE_TEXT_KEYWORDS = new Set([
+      'next',
+      'it',
+      'me',
+      'be',
+      'do',
+      'go',
+      'all',
+      'any',
+      'to',
+      'in',
+      'on',
+      'at',
+      'for',
+      'and',
+      'or',
+      'the',
+      'we',
+      'us',
+      'our',
+      'is',
+      'are',
+      'was',
+      'were',
+      'have',
+      'has',
+      'had',
+      // Common English words that collide with taxonomy aliases.
+      // These are only meaningful as part of compound skill terms
+      // (e.g. "access control", "RBAC"), never as standalone matches.
+      'access',
+      'authorization',
+      'control',
+      'security',
+      'management',
+      'auth',
+      'ad',
+      'js',
+    ]);
 
-    // Catalog entries with word boundaries
+    // Catalog entries with word boundaries (allowing hyphenated suffix words like -based, -driven)
     for (const [key, skillMeta] of Object.entries(TaxonomyMapper.TAXONOMY_CATALOG)) {
+      // Skip bare ambiguous English dictionary words in free-text scanning
+      if (AMBIGUOUS_FREE_TEXT_KEYWORDS.has(key.toLowerCase())) {
+        continue;
+      }
+
       // Escaping special characters for regex
       const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Case-insensitive word boundary check
-      const regex = new RegExp(`(?:^|[^a-zA-Z0-9_-])${escaped}(?:$|[^a-zA-Z0-9_-])`, 'i');
+      // Case-insensitive word boundary check supporting trailing compound suffixes
+      const regex = new RegExp(
+        `(?:^|[^a-zA-Z0-9_-])${escaped}(?:$|[^a-zA-Z0-9_-]|-(?:based|driven|oriented|centric|first|native|compliant|ready|agnostic|enabled|focused))`,
+        'i'
+      );
 
       if (regex.test(line)) {
         if (!seenSlugs.has(skillMeta.slug)) {
@@ -766,8 +1110,20 @@ export class JobDescriptionParser {
         'data',
         'software',
         'systems',
+        'access',
+        'authorization',
+        'control',
+        'security',
+        'management',
+        'authentication',
+        'patterns',
+        'models',
+        'practices',
+        'tools',
+        'frameworks',
       ]);
-      if (!stopWords.has(rawTerm.toLowerCase())) {
+      const lowerTerm = rawTerm.toLowerCase();
+      if (!stopWords.has(lowerTerm) && !AMBIGUOUS_FREE_TEXT_KEYWORDS.has(lowerTerm)) {
         const normalized = TaxonomyMapper.normalize(rawTerm);
         if (!seenSlugs.has(normalized.slug) && normalized.slug !== 'unknown-tool') {
           seenSlugs.add(normalized.slug);

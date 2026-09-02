@@ -36,6 +36,28 @@ export class PrimaryEvidenceSelector {
   }
 
   /**
+   * Checks whether an evidence item comes from a low-trust path (node_modules, vendored, build output).
+   *
+   * @param {object} evidence
+   * @returns {boolean}
+   */
+  static isLowTrust(evidence) {
+    if (!evidence) return true;
+    const filePath =
+      evidence.sourceLocation?.filePath ||
+      evidence.filePath ||
+      evidence.sourceLocation?.file_path ||
+      '';
+    return (
+      /(?:^|[/\\])node_modules[/\\]/i.test(filePath) ||
+      /(?:^|[/\\])(?:vendor|third_party|dist|build|out|\.next|\.nuxt|\.output|\.cache|coverage|__generated__|generated)[/\\]/i.test(
+        filePath
+      ) ||
+      /(?:^|[/\\])(?:package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$/i.test(filePath)
+    );
+  }
+
+  /**
    * Compares two evidence items to determine deterministic ordering.
    *
    * @param {object} a - First evidence item.
@@ -46,6 +68,12 @@ export class PrimaryEvidenceSelector {
     if (!a && !b) return 0;
     if (!a) return 1;
     if (!b) return -1;
+
+    // 0. Trust boundary: Candidate-authored high-trust evidence strictly beats low-trust evidence
+    const lowA = PrimaryEvidenceSelector.isLowTrust(a);
+    const lowB = PrimaryEvidenceSelector.isLowTrust(b);
+    if (!lowA && lowB) return -1; // a is high-trust, b is low-trust -> a wins
+    if (lowA && !lowB) return 1;  // a is low-trust, b is high-trust -> b wins
 
     // 1. Confidence Score comparison (higher is better)
     const confA = typeof a.confidenceScore === 'number' ? a.confidenceScore : 0;

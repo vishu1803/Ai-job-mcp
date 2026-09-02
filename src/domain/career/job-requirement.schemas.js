@@ -28,6 +28,7 @@ export const RequirementCategoryEnum = z.enum([
   'EDUCATION',
   'DOMAIN',
   'LOCATION',
+  'ELIGIBILITY',
   'CERTIFICATION',
   'OTHER',
 ]);
@@ -84,15 +85,18 @@ export const JobSkillRequirementCriteriaSchema = z
 
 export const JobExperienceRequirementCriteriaSchema = z
   .object({
-    minYears: z.number().nonnegative(),
+    minYears: z.number().nonnegative().optional(),
     maxYears: z.number().nonnegative().optional(),
     target: z.string().trim().max(100).optional(),
     associatedSkillSlug: SafeSlugSchema.optional(),
+    experienceType: z.string().trim().max(100).optional(),
+    technology: z.string().trim().max(100).optional(),
+    experienceConstraint: z.record(z.unknown()).optional(),
   })
   .strict()
   .refine(
     (data) => {
-      if (data.maxYears !== undefined) {
+      if (data.minYears !== undefined && data.maxYears !== undefined) {
         return data.minYears <= data.maxYears;
       }
       return true;
@@ -126,6 +130,15 @@ export const JobDomainRequirementCriteriaSchema = z
   })
   .strict();
 
+export const JobEligibilityRequirementCriteriaSchema = z
+  .object({
+    eligibilityType: z.string().trim().max(100).optional(),
+    acceptedCountries: z.array(z.string().trim().max(100)).optional(),
+    requiresSponsorship: z.boolean().optional(),
+    context: z.string().trim().max(255).optional(),
+  })
+  .strict();
+
 // ---------------------------------------------------------------------------
 // 4. Canonical Job Requirement Schema
 // ---------------------------------------------------------------------------
@@ -144,6 +157,7 @@ export const JobRequirementSchema = z
       .default(1.0),
     skillSlug: SafeSlugSchema.nullable().optional(),
     rawSnippet: z.string().trim().max(500),
+    originalText: z.string().trim().max(500).optional(),
     extractedValue: z.string().trim().min(1).max(255),
     normalizedCriteria: z
       .union([
@@ -152,6 +166,7 @@ export const JobRequirementSchema = z
         JobEducationRequirementCriteriaSchema,
         JobLocationRequirementCriteriaSchema,
         JobDomainRequirementCriteriaSchema,
+        JobEligibilityRequirementCriteriaSchema,
         z.record(z.unknown()),
       ])
       .default({}),
@@ -190,6 +205,7 @@ export const JobExtractionStatsSchema = z
     educationCount: z.number().int().nonnegative(),
     domainCount: z.number().int().nonnegative(),
     locationCount: z.number().int().nonnegative(),
+    eligibilityCount: z.number().int().nonnegative().optional(),
   })
   .strict();
 

@@ -43,8 +43,8 @@ function normalizeGreenhouseJob(ghJob, boardToken) {
   const offices = ghJob.offices || [];
   const departments = ghJob.departments || [];
 
-  // Extract skills from content (basic keyword extraction)
-  const contentText = (ghJob.content || '').replace(/<[^>]*>/g, ' ');
+  const rawContent = ghJob.content || '';
+  const contentText = cleanHtmlToPlainText(rawContent);
   const skills = extractSkillsFromText(contentText);
 
   // Determine workplace type from location
@@ -61,9 +61,9 @@ function normalizeGreenhouseJob(ghJob, boardToken) {
     location: locationName,
     workplaceType,
     employmentType: 'FULL_TIME', // Greenhouse doesn't expose this directly
-    description: contentText.trim().slice(0, 2000),
-    responsibilities: extractListItems(contentText, 'responsibilities'),
-    requirements: extractListItems(contentText, 'requirements'),
+    description: contentText.slice(0, 50000),
+    responsibilities: extractListItemsFromHtml(rawContent, 'responsibilities'),
+    requirements: extractListItemsFromHtml(rawContent, 'requirements'),
     skills,
     // Greenhouse pay ranges require pay_transparency param; omit when unavailable
     salary: undefined,
@@ -213,21 +213,120 @@ function inferWorkplaceType(location, content) {
 }
 
 /**
- * Extracts list items from HTML content near a keyword.
+ * Decodes standard HTML entities.
  *
- * @param {string} content HTML content
- * @param {string} keyword Section keyword
- * @returns {string[]} Extracted items
+ * @param {string} str HTML string
+ * @returns {string} Decoded string
  */
-function extractListItems(content, _keyword) {
+export function decodeHtmlEntities(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#([0-9]+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+}
+
+/**
+ * Cleans HTML content to readable plain text.
+ *
+ * @param {string} html Raw HTML
+ * @returns {string} Plain text
+ */
+export function cleanHtmlToPlainText(html) {
+  if (!html || typeof html !== 'string') return '';
+  const decoded = decodeHtmlEntities(html);
+  return decoded
+    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Extracts list items or bullet points from raw HTML near a section keyword.
+ *
+ * @param {string} rawHtml Raw HTML content
+ * @param {'requirements'|'responsibilities'} keyword Target section type
+ * @returns {string[]} Extracted list items
+ */
+export function extractListItemsFromHtml(rawHtml, keyword) {
+  if (!rawHtml || typeof rawHtml !== 'string') return [];
+  const decoded = decodeHtmlEntities(rawHtml);
   const items = [];
-  const liPattern = /<li[^>]*>(.*?)<\/li>/gi;
-  let match;
-  while ((match = liPattern.exec(content)) !== null) {
-    const text = match[1].replace(/<[^>]*>/g, '').trim();
+
+  const reqKeywords = [
+    'requirement',
+    'qualification',
+    'what you bring',
+    'what we look for',
+    'what we are looking for',
+    'what you need',
+    'must have',
+    'who you are',
+    'skills',
+    'about you',
+  ];
+  const respKeywords = [
+    'responsibilit',
+    'what you will do',
+    "what you'll do",
+    'the role',
+    'role overview',
+    'duties',
+    'what you do',
+    'about the role',
+  ];
+
+  const targetKeywords = keyword === 'requirements' ? reqKeywords : respKeywords;
+
+  // 1. Try to find section header and extract subsequent <li> items or bullet points
+  const sectionPattern =
+    /<(?:h[1-6]|strong|b|p)[^>]*>([\s\S]*?(?:requirement|qualification|what you|responsibilit|the role|about you|about the role)[\s\S]*?)<\/(?:h[1-6]|strong|b|p)>([\s\S]*?)(?=<(?:h[1-6]|strong|b)[^>]*>[\s\S]*?(?:requirement|qualification|responsibilit|about|compensation|benefits|what we offer)|$)/gi;
+
+  let sectionMatch;
+  while ((sectionMatch = sectionPattern.exec(decoded)) !== null) {
+    const headerText = cleanHtmlToPlainText(sectionMatch[1]).toLowerCase();
+    const sectionBody = sectionMatch[2];
+
+    const matchesTarget = targetKeywords.some((kw) => headerText.includes(kw));
+    if (matchesTarget) {
+      // Extract <li> items from sectionBody
+      const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+      let liMatch;
+      while ((liMatch = liPattern.exec(sectionBody)) !== null) {
+        const text = cleanHtmlToPlainText(liMatch[1]).trim();
+        if (text.length > 5) items.push(text);
+      }
+      // If no <li> found, try bullet points or lines
+      if (items.length === 0) {
+        const lines = sectionBody.split(/\n|<br\s*\/?>/i);
+        for (const line of lines) {
+          const cleaned = cleanHtmlToPlainText(line)
+            .replace(/^[\s•\-*\d.)]+/, '')
+            .trim();
+          if (cleaned.length > 15) items.push(cleaned);
+        }
+      }
+      if (items.length > 0) return items.slice(0, 15);
+    }
+  }
+
+  // 2. Fallback: extract all <li> tags from HTML
+  const fallbackLiPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let fallbackMatch;
+  while ((fallbackMatch = fallbackLiPattern.exec(decoded)) !== null) {
+    const text = cleanHtmlToPlainText(fallbackMatch[1]).trim();
     if (text.length > 5) items.push(text);
   }
-  return items.slice(0, 10);
+
+  return items.slice(0, 15);
 }
 
 /**

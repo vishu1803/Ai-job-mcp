@@ -17,6 +17,7 @@
  * - Zero Database Mutations: Read-only queries only.
  */
 
+import { randomUUID } from 'node:crypto';
 import { eq, and, or, desc, asc, count, ilike, gte, sql } from 'drizzle-orm';
 import { db as defaultDb } from '../../db/index.js';
 import {
@@ -38,6 +39,7 @@ import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import { JobDiscoveryService } from '../../services/job-discovery.service.js';
 import { config } from '../../config/env.js';
+import { logger } from '../../utils/logger.js';
 import {
   GetCandidateProfileInputSchema,
   GetCandidateProfileOutputSchema,
@@ -54,6 +56,97 @@ import {
 import { CareerPreferencesSchema } from '../../domain/candidate/career-preferences.schemas.js';
 import { TenureCalculator } from '../../utils/tenure-calculator.js';
 import { CareerStatusDerivation } from '../../utils/career-status-derivation.js';
+import { decodeHtmlEntities } from '../../services/job-board-adapters/greenhouse.adapter.js';
+
+/**
+ * Splits a compound requirement sentence into atomic skill/competency names.
+ * Handles: comma-separated lists, "X, Y, and Z", slash-separated, parenthetical examples,
+ * "such as", "including", conjunctions, and technology aliases.
+ * Returns individual atomic skill names.
+ * @private
+ */
+function _splitIntoAtomicSkills(text) {
+  if (!text || typeof text !== 'string') return [];
+
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+
+  // If the text is very short (single word or short phrase), return as-is
+  if (cleaned.length < 40) {
+    const norm = cleaned.replace(/^[\s•\-*\d.)]+/, '').trim();
+    if (norm) return [norm];
+    return [];
+  }
+
+  // Strip common prefix patterns that aren't actual skills
+  const stripped = cleaned
+    .replace(
+      /^(?:proficiency\s+in|experience\s+(?:with|in|using)|knowledge\s+of|familiarity\s+with|skills?\s+(?:in|with)|understanding\s+of|background\s+in|exposure\s+to|working\s+(?:knowledge\s+of|with)|hands[- ]on\s+(?:experience\s+with|knowledge\s+of)|practical\s+experience\s+(?:developing\s+and\s+improving|with|in)|strong\s+(?:knowledge\s+of|understanding\s+of|background\s+in)|good\s+(?:knowledge\s+of|understanding\s+of)|solid\s+(?:knowledge\s+of|understanding\s+of|experience\s+with)|demonstrated\s+(?:experience\s+with|knowledge\s+of)|proven\s+(?:experience\s+with|track\s+record\s+in))\s*/i,
+      ''
+    )
+    .replace(/$/i, '');
+
+  // Split by commas, semicolons, "and" conjunctions, and slashes
+  // But preserve things like "Next.js" which contain dots
+  const candidates = stripped
+    .split(/\s*[,;]\s*|\s+and\s+|\s+or\s+/)
+    .flatMap((s) => s.split(/\s*[/]\s*/))
+    .map((s) => s.replace(/^[\s•\-*\d.)]+/, '').trim())
+    .map((s) => s.replace(/^(?:and|or|,|and\s+|or\s+)\s*/i, '').trim())
+    .filter((s) => s.length >= 2 && s.length <= 80);
+
+  const results = [];
+  for (const candidate of candidates) {
+    // Skip filler words and non-skill patterns
+    const lower = candidate.toLowerCase();
+    if (
+      /^(?:the|our|a|an|in|of|for|with|to|and|or|etc|e\.g|i\.e|such as|including|related|equivalent|similar|etc\.)$/.test(
+        lower
+      )
+    )
+      continue;
+    if (lower.length < 2) continue;
+    // Skip standalone generic English words that are not defensible skill names
+    if (
+      /^(?:access|authorization|control|security|management|models?|tools?|systems?|platforms?|solutions?|services?|resources?)$/.test(
+        lower
+      )
+    )
+      continue;
+    // Skip pure verb/adjective fragments
+    if (
+      /^(?:building|developing|creating|designing|implementing|managing|leading|writing|building and|maintaining|deploying)$/.test(
+        lower
+      )
+    )
+      continue;
+    // Strip internal connecting phrases like "such as", "including"
+    const cleaned2 = candidate
+      .replace(/\bsuch\s+as\s+/gi, '')
+      .replace(/\bincluding\s+/gi, '')
+      .replace(/\bfor\s+(?:example|instance)\s*/gi, '')
+      .trim();
+    if (cleaned2.length >= 2) {
+      results.push(cleaned2);
+    }
+  }
+
+  return results.length > 0 ? results : [cleaned.slice(0, 80)];
+}
+
+/**
+ * Creates a URL-safe slug from a skill name.
+ * @private
+ */
+function _slugify(name) {
+  if (!name) return 'unknown-skill';
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 64) || 'unknown-skill'
+  );
+}
 
 // Default Cache Control Metadata for Read Tools
 const DEFAULT_CACHE_CONTROL = Object.freeze({
@@ -847,8 +940,66 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
 
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
 
-  // 1. Fetch Candidate Profile View
+  // 1. Fetch Candidate Profile View & Career Profile
   const profileView = await profileService.getProfile(context, candidateId);
+  const careerProfile =
+    typeof profileService.getCareerProfile === 'function'
+      ? await profileService.getCareerProfile(context, candidateId)
+      : null;
+
+  const rawUserCustom = profileView.candidate.profileMetadata?.userCustom || {};
+  const rawExperiences =
+    rawUserCustom.experience || profileView.candidate.profileMetadata?.experience || [];
+  const tenureMetrics =
+    careerProfile?.tenureMetrics || TenureCalculator.calculateTenure(rawExperiences);
+  const currentEmployment =
+    careerProfile?.currentEmployment ||
+    CareerStatusDerivation.deriveCurrentEmployment(rawExperiences);
+  const currentRole =
+    careerProfile?.currentRole ||
+    CareerStatusDerivation.resolveCurrentRole({
+      userCustomRole:
+        rawUserCustom.currentRole || profileView.candidate.profileMetadata?.currentRole,
+      headline: profileView.candidate.headline,
+      currentEmployment,
+    });
+  const seniority =
+    careerProfile?.seniority ||
+    CareerStatusDerivation.deriveSeniority({
+      experiences: rawExperiences,
+      education: rawUserCustom.education || profileView.candidate.profileMetadata?.education || [],
+      professionalTenureYears: tenureMetrics.professionalTenureYears,
+    });
+  const careerStatus =
+    careerProfile?.careerStatus ||
+    CareerStatusDerivation.deriveCareerStatus({
+      experiences: rawExperiences,
+      education: rawUserCustom.education || profileView.candidate.profileMetadata?.education || [],
+      professionalTenureMonths: tenureMetrics.professionalTenureMonths,
+    });
+
+  // Reconcile candidate skills with authoritative career profile evaluation (e.g. CORROBORATED status)
+  const reconciledSkillsMap = new Map();
+  if (careerProfile && Array.isArray(careerProfile.topSkills)) {
+    for (const skill of careerProfile.topSkills) {
+      if (skill.slug) {
+        reconciledSkillsMap.set(skill.slug, skill);
+      }
+    }
+  }
+
+  const reconciledCandidateSkills = (profileView.skills || []).map((s) => {
+    const cpSkill = reconciledSkillsMap.get(s.slug);
+    if (cpSkill && cpSkill.provenanceStatus) {
+      return {
+        ...s,
+        provenanceStatus: cpSkill.provenanceStatus,
+        truthStatus: cpSkill.truthStatus || cpSkill.provenanceStatus,
+        source: cpSkill.source || s.source,
+      };
+    }
+    return s;
+  });
 
   // Convert profile view to standard CandidateProfile entity for career engines
   const candidateProfileObj = {
@@ -859,12 +1010,27 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     headline: profileView.candidate.headline,
     summary: profileView.candidate.summary,
     canonicalEmail: profileView.candidate.canonicalEmail,
-    skills: profileView.skills || [],
+    skills: reconciledCandidateSkills,
     projects: profileView.projects || [],
     resources: profileView.resources || [],
     identities: profileView.identities || [],
-    workHistory: profileView.candidate.profileMetadata?.userCustom?.experience || [],
-    education: profileView.candidate.profileMetadata?.userCustom?.education || [],
+    profileMetadata: profileView.candidate.profileMetadata || {},
+    careerStatus,
+    seniority,
+    currentRole,
+    currentEmployment,
+    tenureMetrics,
+    workHistory: rawExperiences,
+    education: rawUserCustom.education || profileView.candidate.profileMetadata?.education || [],
+    jobPreferences:
+      careerProfile?.jobPreferences ||
+      profileView.candidate.profileMetadata?.careerPreferences ||
+      {},
+    location:
+      profileView.candidate.location ||
+      rawUserCustom.location ||
+      profileView.candidate.profileMetadata?.location ||
+      null,
   };
 
   // 2. Parse or resolve Job Description
@@ -874,18 +1040,93 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
   if (args.jobId) {
     // Resolve job from canonical UUID via JobDiscoveryService
     const boards = (config.GREENHOUSE_BOARDS || '')
-      .split(',').map(s => s.trim()).filter(Boolean).map(boardToken => ({ boardToken }));
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((boardToken) => ({ boardToken }));
     const sites = (config.LEVER_SITES || '')
-      .split(',').map(s => s.trim()).filter(Boolean).map(site => ({ site }));
-    const discoveryService = deps.discoveryService || new JobDiscoveryService({
-      greenhouseBoards: boards,
-      leverSites: sites,
-      fetchTimeoutMs: config.JOB_BOARD_FETCH_TIMEOUT_MS,
-    });
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((site) => ({ site }));
+    const discoveryService =
+      deps.discoveryService ||
+      new JobDiscoveryService({
+        greenhouseBoards: boards,
+        leverSites: sites,
+        fetchTimeoutMs: config.JOB_BOARD_FETCH_TIMEOUT_MS,
+      });
     const job = await discoveryService.findJobById(args.jobId);
     if (!job) {
       throw new NotFoundError(`Job posting not found for ID "${args.jobId}".`, 'JOB_NOT_FOUND');
     }
+
+    // ALWAYS use JobDescriptionParser on the full description text to extract
+    // atomic requirements (individual skills, experience, education, domain).
+    // Raw adapter requirements are full sentences that create compound pseudo-skills.
+    let extractedRequirements = [];
+    const descriptionText = job.description || '';
+    if (descriptionText.trim().length >= 30) {
+      const cleanDesc = decodeHtmlEntities(descriptionText);
+      try {
+        const parserInput = {
+            rawText: cleanDesc,
+            title: job.title || args.jobTitle || 'Target Role',
+            company: job.company || args.companyName || 'Target Company',
+            workplaceType: job.workplaceType || 'UNSPECIFIED',
+            source: 'API',
+          };
+          if (job.location) parserInput.location = job.location;
+          const classification = await JobDescriptionParser.parse(
+            parserInput,
+          {
+            tenantId: context.tenantId,
+            userId: context.userId,
+          }
+        );
+        extractedRequirements = classification.requirements || [];
+      } catch {
+        // Leave extractedRequirements empty if parser genuinely fails
+        extractedRequirements = [];
+      }
+    }
+
+    // Fallback: if parser produced nothing, use raw adapter requirements
+    // but split compound sentences into atomic requirements
+    if (
+      extractedRequirements.length === 0 &&
+      Array.isArray(job.requirements) &&
+      job.requirements.length > 0
+    ) {
+      extractedRequirements = [];
+      const seenKeys = new Set();
+      for (const rawReq of job.requirements) {
+        if (!rawReq || typeof rawReq !== 'string' || rawReq.trim().length < 3) continue;
+        // Split compound sentences by comma, 'and', slash to extract atomic skills
+        const atomicSkills = _splitIntoAtomicSkills(rawReq);
+        for (const skill of atomicSkills) {
+          const dedupKey = skill.toLowerCase().trim();
+          if (dedupKey && !seenKeys.has(dedupKey)) {
+            seenKeys.add(dedupKey);
+            extractedRequirements.push({
+              id: randomUUID(),
+              category: 'SKILL',
+              importance: 'REQUIRED',
+              weight: 1.0,
+              skillSlug: null,
+              rawSnippet: rawReq.slice(0, 450),
+              extractedValue: skill,
+              originalText: rawReq,
+              normalizedCriteria: {},
+              confidenceScore: 0.85,
+              sourceSpan: { section: 'RAW_REQUIREMENT', snippet: rawReq.slice(0, 450) },
+              createdAt: new Date().toISOString(),
+            });
+          }
+        }
+      }
+    }
+
     // Construct job description from resolved posting
     jobDescription = {
       id: args.jobId,
@@ -893,16 +1134,15 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
       title: args.jobTitle || job.title || 'Target Role',
       companyName: args.companyName || job.company || 'Target Company',
       level: args.targetRoleLevel || 'MID',
-      requirements: (job.requirements || []).map((r, i) => ({
-        id: `req-${i}`,
-        description: r,
-        category: 'TECHNICAL',
-        required: true,
-      })),
+      requirements: extractedRequirements,
       skills: job.skills || [],
-      description: job.description || '',
+      description: descriptionText,
+      externalJobId: job.externalJobId || null,
+      provider: job.provider || job.source || 'EXTERNAL',
+      sourceUrl: job.sourceUrl || null,
+      applicationUrl: job.applicationUrl || null,
     };
-    rawRequirements = jobDescription.requirements;
+    rawRequirements = extractedRequirements;
   } else if (args.jobDescriptionText) {
     const classification = await JobDescriptionParser.parse(
       {
@@ -924,6 +1164,11 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
       companyName: args.companyName || classification.jobDescription.company || 'Target Company',
       level: args.targetRoleLevel || classification.jobDescription.level || 'MID',
       requirements: classification.requirements || [],
+      description: args.jobDescriptionText,
+      externalJobId: null,
+      provider: 'PASTE',
+      sourceUrl: null,
+      applicationUrl: null,
     };
     rawRequirements = classification.requirements || [];
   } else {
@@ -962,84 +1207,313 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     missingCount: matchAnalysis.summary.missingCount || 0,
     unknownCount: matchAnalysis.summary.unknownCount || 0,
     keyMatchedSkills: (matchAnalysis.requirementMatches || [])
-      .filter((m) => m.matchStatus === 'MATCHED' && m.skillSlug)
+      .filter(
+        (m) =>
+          m.matchStatus === 'MATCHED' &&
+          (m.normalizedRequirement || m.extractedValue || m.skillSlug)
+      )
       .slice(0, 10)
-      .map((m) => m.skillSlug),
-    keyMissingSkills: (matchAnalysis.skillGaps || [])
+      .map((m) => m.normalizedRequirement || m.extractedValue || m.skillSlug),
+    keyMissingSkills: (matchAnalysis.requirementMatches || [])
+      .filter(
+        (m) =>
+          m.matchStatus === 'MISSING' &&
+          (m.normalizedRequirement || m.extractedValue || m.skillSlug)
+      )
       .slice(0, 10)
-      .map((g) => g.skillSlug || g.requirementName || 'unknown'),
+      .map((m) => m.normalizedRequirement || m.extractedValue || m.skillSlug),
   };
 
   const topRelevantProjects = (projectAnalysis.projectRankings || [])
     .slice(0, args.maxRecommendedProjects || 3)
-    .map((p, idx) => ({
-      projectId: p.projectId,
-      projectName: p.projectName || 'Project',
-      relevanceScore: typeof p.relevanceScore === 'number' ? p.relevanceScore : 0.0,
-      relevanceRank: idx + 1,
-      matchedRequirements: (p.matchedRequirementIds || []).slice(0, 5),
-      matchedArchitecturalDimensions: (p.matchedArchitecturalDimensions || []).slice(0, 5),
-      summary: p.summary || null,
-    }));
+    .map((p, idx) => {
+      // Task 5: Explainable project-requirement linkage with full provenance & evidence
+      const matchedRequirements = (p.matchedRequirementIds || []).slice(0, 5).map((reqId) => {
+        const reqMatch = (matchAnalysis.requirementMatches || []).find(
+          (m) => m.requirementId === reqId
+        );
+        if (reqMatch) {
+          return {
+            requirementId: reqId,
+            normalizedRequirement:
+              reqMatch.normalizedRequirement || reqMatch.extractedValue || reqId,
+            matchStatus: reqMatch.matchStatus || 'UNKNOWN',
+            candidateSkills: Array.isArray(reqMatch.candidateSkills)
+              ? reqMatch.candidateSkills
+              : [],
+            candidateProvenance: reqMatch.candidateProvenance || 'NONE',
+            provenanceTrustClass:
+              reqMatch.provenanceTrustClass ||
+              (reqMatch.primaryEvidence?.filePath &&
+              /node_modules|vendor|dist/i.test(reqMatch.primaryEvidence.filePath)
+                ? 'LOW_TRUST'
+                : 'HIGH_TRUST'),
+            supportingEvidence: Array.isArray(reqMatch.supportingEvidence)
+              ? reqMatch.supportingEvidence
+              : reqMatch.primaryEvidence
+                ? [reqMatch.primaryEvidence]
+                : [],
+            explanation: reqMatch.explanation || '',
+          };
+        }
+        return {
+          requirementId: reqId,
+          normalizedRequirement: reqId,
+          matchStatus: 'UNKNOWN',
+          candidateSkills: [],
+          candidateProvenance: 'NONE',
+          provenanceTrustClass: 'NO_EVIDENCE',
+          supportingEvidence: [],
+          explanation: '',
+        };
+      });
 
+      return {
+        projectId: p.projectId,
+        projectName: p.projectName || 'Project',
+        relevanceScore: typeof p.relevanceScore === 'number' ? p.relevanceScore : 0.0,
+        relevanceRank: idx + 1,
+        matchedRequirements,
+        matchedArchitecturalDimensions: (
+          p.architecturalSignals ||
+          p.matchedArchitecturalDimensions ||
+          []
+        ).slice(0, 10),
+        // Task 6: Traceable project relevance score breakdown
+        scoreBreakdown: p.scoreBreakdown || null,
+        summary: p.summary || null,
+        supportingEvidence: Array.isArray(p.supportingEvidence) ? p.supportingEvidence : [],
+      };
+    });
+
+  // Build requirement-level matches for output
+  const requirementLevelMatches = (matchAnalysis.requirementMatches || []).map((m) => {
+    const rawSupporting = Array.isArray(m.supportingEvidence) ? m.supportingEvidence : [];
+    const supportingEvidence =
+      rawSupporting.length > 0 ? rawSupporting : m.primaryEvidence ? [m.primaryEvidence] : [];
+
+    return {
+      requirementId: m.requirementId,
+      originalRequirement: m.originalRequirement || m.extractedValue || '',
+      normalizedRequirement: m.normalizedRequirement || m.extractedValue || '',
+      category: m.category || 'SKILL',
+      required: m.importance === 'REQUIRED',
+      matchStatus: m.matchStatus || 'UNKNOWN',
+      matchConfidence: typeof m.matchConfidence === 'number' ? m.matchConfidence : 0,
+      candidateSkills: Array.isArray(m.candidateSkills) ? m.candidateSkills : [],
+      candidateProvenance: m.candidateProvenance || 'NONE',
+      provenanceTrustClass:
+        m.provenanceTrustClass ||
+        (m.primaryEvidence?.filePath &&
+        /node_modules|vendor|dist/i.test(m.primaryEvidence.filePath)
+          ? 'LOW_TRUST'
+          : m.candidateProvenance === 'NONE'
+            ? 'NO_EVIDENCE'
+            : 'HIGH_TRUST'),
+      primaryEvidence: m.primaryEvidence || null,
+      supportingEvidence,
+      explanation: m.explanation || '',
+    };
+  });
+
+  // Build prioritized skill gaps with atomic skill names (not compound slugs)
   const prioritizedSkillGaps = (matchAnalysis.skillGaps || [])
     .slice(0, args.maxSkillGaps || 5)
     .map((gap) => {
+      // `priority` is derived exclusively from the canonical gap priority axis.
+      // Gap `severity` (reason category) and `evidenceTrust` are separate axes
+      // and are surfaced verbatim below — never collapsed into `priority`.
       let priority = 'IMPORTANT';
-      if (gap.priority === 'CRITICAL' || gap.severity === 'CRITICAL') {
+      if (gap.priority === 'CRITICAL') {
         priority = 'CRITICAL';
-      } else if (gap.priority === 'LOW' || gap.severity === 'LOW') {
+      } else if (gap.priority === 'LOW') {
         priority = 'NICE_TO_HAVE';
-      } else if (gap.priority === 'HIGH' || gap.priority === 'MEDIUM') {
-        priority = 'IMPORTANT';
+      }
+      // Ensure skill name is atomic — not a compound sentence slug
+      const rawName = gap.skillName || gap.skillSlug || 'Unknown Skill';
+      // If the name looks like a compound slug (contains spaces and multiple words),
+      // try to extract the core technology name
+      let atomicName = rawName;
+      if (
+        rawName.length > 40 ||
+        /\b(?:proficiency|knowledge|experience|familiarity|strong|practical|hands)\b/i.test(rawName)
+      ) {
+        // This is a compound requirement text, not an atomic skill name
+        // Use the extracted value from the original requirement if available
+        const atomicSkills = _splitIntoAtomicSkills(rawName);
+        if (atomicSkills.length > 0) {
+          atomicName = atomicSkills[0];
+        }
       }
       return {
-        skillSlug: gap.skillSlug || 'unknown-skill',
-        skillName: gap.skillName || gap.skillSlug || 'Unknown Skill',
+        skillSlug: gap.skillSlug || _slugify(atomicName),
+        skillName: atomicName,
         category: gap.category || 'TOOL',
         priority,
+        severity: gap.severity,
+        evidenceTrust: gap.evidenceTrust || 'NO_EVIDENCE',
         remediationAdvice:
           gap.recommendation ||
           gap.remediationAdvice ||
-          'Build a repository project demonstrating this technology.',
+          `Build a repository project demonstrating ${atomicName}.`,
       };
     });
+
+  // Deduplicate skill gaps by skillSlug
+  const seenGaps = new Set();
+  const dedupedGaps = [];
+  for (const gap of prioritizedSkillGaps) {
+    if (!seenGaps.has(gap.skillSlug)) {
+      seenGaps.add(gap.skillSlug);
+      dedupedGaps.push(gap);
+    }
+  }
 
   const verifiedSkillsCount = (profileView.skills || []).filter(
     (s) => s.provenanceStatus === 'VERIFIED'
   ).length;
 
-  let totalEvidenceCited = 0;
+  // Authoritative Evidence Citation Map across requirements and top projects
+  const authoritativeEvidenceMap = new Map();
   for (const m of matchAnalysis.requirementMatches || []) {
-    if (m.primaryEvidence) totalEvidenceCited++;
-    if (Array.isArray(m.supportingEvidence)) totalEvidenceCited += m.supportingEvidence.length;
+    if (m.primaryEvidence && m.primaryEvidence.id) {
+      authoritativeEvidenceMap.set(m.primaryEvidence.id, m.primaryEvidence);
+    }
+    if (Array.isArray(m.supportingEvidence)) {
+      for (const ev of m.supportingEvidence) {
+        if (ev && ev.id) authoritativeEvidenceMap.set(ev.id, ev);
+      }
+    }
   }
+  for (const p of (projectAnalysis.projectRankings || []).slice(0, 3)) {
+    if (Array.isArray(p.supportingEvidence)) {
+      for (const ev of p.supportingEvidence) {
+        if (ev && ev.id) authoritativeEvidenceMap.set(ev.id, ev);
+      }
+    }
+  }
+  const totalEvidenceCited = authoritativeEvidenceMap.size;
 
   const output = {
     jobContext: {
+      jobId: args.jobId || (jobDescription.id ? jobDescription.id : null),
+      externalJobId: jobDescription.externalJobId || null,
+      provider: jobDescription.provider || null,
+      company: jobDescription.companyName || null,
       extractedTitle: jobDescription.title,
       extractedLevel: jobDescription.level,
       totalRequirementsIdentified: rawRequirements.length,
+      sourceUrl: jobDescription.sourceUrl || null,
+      applicationUrl: jobDescription.applicationUrl || null,
     },
     overallFit: {
       atsScore: fitScoreAnalysis.overallScore,
       matchGrade: fitScoreAnalysis.fitBand,
+      // Task 8: Analysis status semantics — comprehensive completeness check
+      analysisStatus: (() => {
+        if (fitScoreAnalysis.analysisStatus) return fitScoreAnalysis.analysisStatus;
+        if (rawRequirements.length < 20) return 'DEGRADED';
+        // Verify that experience and location requirements were captured
+        const hasExpReq = requirementLevelMatches.some((m) => m.category === 'EXPERIENCE');
+        const hasLocReq = requirementLevelMatches.some((m) => m.category === 'LOCATION');
+        if (!hasExpReq || !hasLocReq) return 'DEGRADED';
+
+        // Verify data integrity: counts should be consistent
+        const totalMatches = requirementLevelMatches.length;
+        const countSum =
+          (requirementSummary.matchedCount || 0) +
+          (requirementSummary.partialCount || 0) +
+          (requirementSummary.missingCount || 0) +
+          (requirementSummary.unknownCount || 0);
+        if (totalMatches !== countSum) return 'DEGRADED';
+
+        // If matched items lack evidence or explanation, flag as DEGRADED
+        const matchedWithoutEvidence = requirementLevelMatches.filter(
+          (m) =>
+            m.matchStatus === 'MATCHED' &&
+            !m.primaryEvidence &&
+            (!m.supportingEvidence || m.supportingEvidence.length === 0) &&
+            !m.explanation
+        );
+        if (matchedWithoutEvidence.length > 0) {
+          return 'DEGRADED';
+        }
+        return 'COMPLETE';
+      })(),
+      isFallbackScore: Boolean(fitScoreAnalysis.isFallbackScore),
+      zeroRequirementWarning:
+        fitScoreAnalysis.zeroRequirementWarning ||
+        (rawRequirements.length === 0
+          ? 'Insufficient structured requirements extracted from job description to perform reliable ATS scoring.'
+          : null),
       fitSummary:
+        fitScoreAnalysis.explanation ||
         fitScoreAnalysis.verdictSummary ||
-        `Candidate has a ${fitScoreAnalysis.fitBand} fit with an ATS score of ${fitScoreAnalysis.overallScore}/100.`,
-      scoreBreakdown: {
-        requiredSkillsScore: fitScoreAnalysis.scoreBreakdown?.requiredSkillsScore ?? 0,
-        preferredSkillsScore: fitScoreAnalysis.scoreBreakdown?.preferredSkillsScore ?? 0,
-        projectRelevanceScore: fitScoreAnalysis.scoreBreakdown?.projectRelevanceScore ?? 0,
-        experienceFitScore: fitScoreAnalysis.scoreBreakdown?.experienceFitScore ?? 0,
-        educationFitScore: fitScoreAnalysis.scoreBreakdown?.educationFitScore ?? 0,
-        locationFitScore: fitScoreAnalysis.scoreBreakdown?.locationFitScore ?? 0,
-        evidenceConfidenceScore: fitScoreAnalysis.scoreBreakdown?.evidenceConfidenceScore ?? 0,
-      },
+        `Candidate has a ${fitScoreAnalysis.fitBand} fit with an ATS score of ${fitScoreAnalysis.overallScore !== null ? `${fitScoreAnalysis.overallScore}/100` : 'N/A'}.`,
+      // Task 7: Reproducible score breakdown with trace and semantic fit objects
+      scoreBreakdown: (() => {
+        const expReqMatch = requirementLevelMatches.find((m) => m.category === 'EXPERIENCE');
+        const eduReqMatch = requirementLevelMatches.find((m) => m.category === 'EDUCATION');
+        const locReqMatch = requirementLevelMatches.find((m) => m.category === 'LOCATION');
+
+        const experienceFit = expReqMatch
+          ? {
+              status: expReqMatch.matchStatus,
+              explanation: expReqMatch.explanation,
+            }
+          : {
+              status: 'NOT_APPLICABLE',
+              explanation:
+                'No explicit experience duration or development requirements specified in posting.',
+            };
+
+        const educationFit = eduReqMatch
+          ? {
+              status: eduReqMatch.matchStatus,
+              explanation: eduReqMatch.explanation,
+            }
+          : {
+              status: 'NOT_APPLICABLE',
+              explanation:
+                'No explicit formal education or academic degree requirements specified in posting.',
+            };
+
+        const locationFit = locReqMatch
+          ? {
+              status: locReqMatch.explanation?.toLowerCase().includes('mismatch')
+                ? 'MISMATCH'
+                : locReqMatch.matchStatus,
+              explanation: locReqMatch.explanation,
+            }
+          : {
+              status: 'NOT_APPLICABLE',
+              explanation: 'No explicit geographical location constraints specified in posting.',
+            };
+
+        return {
+          requiredSkillsScore: fitScoreAnalysis.scoreBreakdown?.requiredSkillsScore ?? 0,
+          preferredSkillsScore: fitScoreAnalysis.scoreBreakdown?.preferredSkillsScore ?? 0,
+          projectRelevanceScore: fitScoreAnalysis.scoreBreakdown?.projectRelevanceScore ?? 0,
+          experienceFitScore: fitScoreAnalysis.scoreBreakdown?.experienceFitScore ?? 0,
+          educationFitScore: fitScoreAnalysis.scoreBreakdown?.educationFitScore ?? 0,
+          locationFitScore: fitScoreAnalysis.scoreBreakdown?.locationFitScore ?? 0,
+          evidenceConfidenceScore: fitScoreAnalysis.scoreBreakdown?.evidenceConfidenceScore ?? 0,
+          rawScore: fitScoreAnalysis.scoreBreakdown?.rawScore ?? 0,
+          scoreCap: fitScoreAnalysis.scoreBreakdown?.scoreCap ?? null,
+          isCapped: fitScoreAnalysis.isCapped ?? false,
+          criticalGapCount: fitScoreAnalysis.criticalGapCount ?? 0,
+          highGapCount: fitScoreAnalysis.highGapCount ?? 0,
+          explanation: fitScoreAnalysis.explanations || null,
+          experienceFit,
+          educationFit,
+          locationFit,
+        };
+      })(),
     },
     requirementSummary,
+    requirementMatches: requirementLevelMatches,
     topRelevantProjects,
-    prioritizedSkillGaps,
+    prioritizedSkillGaps: dedupedGaps,
     evidenceBacking: {
       verifiedSkillsCount,
       totalEvidenceItemsCited: totalEvidenceCited,
@@ -1052,6 +1526,43 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     },
   };
 
+  // INVARIANT GATE: verify count consistency before returning.
+  // If requirementMatches.length !== rawRequirements.length, log diagnostic data
+  // so the discrepancy can be traced to its source.
+  const matchesLength = requirementLevelMatches.length;
+  const reqsLength = rawRequirements.length;
+  const statusSum =
+    (requirementSummary.matchedCount || 0) +
+    (requirementSummary.partialCount || 0) +
+    (requirementSummary.missingCount || 0) +
+    (requirementSummary.unknownCount || 0);
+  if (matchesLength !== reqsLength || statusSum !== matchesLength) {
+    const catCounts = {};
+    for (const m of requirementLevelMatches) {
+      catCounts[m.category] = (catCounts[m.category] || 0) + 1;
+    }
+    const statusCounts = {};
+    for (const m of requirementLevelMatches) {
+      statusCounts[m.matchStatus] = (statusCounts[m.matchStatus] || 0) + 1;
+    }
+    logger.warn({
+      operation: 'analyze_job_fit.count_mismatch',
+      jobId: args.jobId,
+      candidateId,
+      rawRequirementsLength: reqsLength,
+      requirementMatchesLength: matchesLength,
+      statusSum,
+      categoryCounts: catCounts,
+      statusCounts,
+      requirementSummary,
+      msg: `Count invariant violated: rawRequirements=${reqsLength}, requirementMatches=${matchesLength}, statusSum=${statusSum}`,
+    });
+  }
+
+  // FINAL CONTRACT GATE: validate the COMPLETE assembled response against the
+  // strict output schema before it leaves the handler for the MCP transport.
+  // No partial/unvalidated payload may be returned, and no unknown or invalid
+  // enum value may escape — `.strict()` rejects drift instead of stripping it.
   return AnalyzeJobFitOutputSchema.parse(output);
 }
 

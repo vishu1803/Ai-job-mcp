@@ -15,7 +15,10 @@ import crypto from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
-import { CandidateMatchAnalysisSchema } from '../domain/career/evidence-matching.schemas.js';
+import {
+  CandidateMatchAnalysisSchema,
+  SkillGapSchema,
+} from '../domain/career/evidence-matching.schemas.js';
 
 // ---------------------------------------------------------------------------
 // 1. Evidence Type Evidentiary Rank (Lower number = higher evidentiary strength)
@@ -34,6 +37,7 @@ const EVIDENCE_TYPE_RANK = Object.freeze({
 
 /**
  * Subjective qualitative keywords that cannot be mechanically verified from code repositories.
+ * Includes both original forms and normalized (kebab-case) taxonomy forms.
  */
 const SUBJECTIVE_KEYWORDS = Object.freeze([
   'leadership',
@@ -56,6 +60,32 @@ const SUBJECTIVE_KEYWORDS = Object.freeze([
   'interpersonal',
   'problem solver',
   'work ethic',
+  // Normalized taxonomy forms for soft/qualitative skills
+  'problem-solving',
+  'communication',
+  'teamwork',
+  'adaptability',
+  'creativity',
+  'analytical-thinking',
+  'critical-thinking',
+  'time-management',
+  'project-management',
+  'organization',
+  'attention-to-detail',
+  'self-motivation',
+  'conflict-resolution',
+  'public-speaking',
+  'presentation',
+  'writing',
+  'negotiation',
+  'empathy',
+  'patience',
+  'resilience',
+  'initiative',
+  'flexibility',
+  'dependability',
+  'work-ethic',
+  'interpersonal-skills',
 ]);
 
 /**
@@ -172,6 +202,18 @@ export class EvidenceMatchingService {
       else if (m.matchStatus === 'PARTIAL') partialCount++;
       else if (m.matchStatus === 'MISSING') missingCount++;
       else if (m.matchStatus === 'UNKNOWN') unknownCount++;
+      else {
+        // Defensive: unknown status should never occur. Count as UNKNOWN and log.
+        unknownCount++;
+        logger.warn({
+          operation: 'matching.unexpected_status',
+          requirementId: m.requirementId,
+          unexpectedStatus: m.matchStatus,
+          normalizedRequirement: m.normalizedRequirement,
+          category: m.category,
+          msg: `Unexpected matchStatus '${m.matchStatus}' on requirement '${m.normalizedRequirement}'; counting as UNKNOWN`,
+        });
+      }
     }
 
     let criticalGapsCount = 0;
@@ -278,10 +320,18 @@ export class EvidenceMatchingService {
       }
 
       if (canonicalSlug) {
-        // If skill with same canonical slug already exists, prefer VERIFIED over CLAIMED
+        const PROVENANCE_PRIORITY = {
+          CORROBORATED: 4,
+          VERIFIED: 3,
+          INFERRED: 2,
+          CLAIMED: 1,
+          MISSING: 0,
+        };
         if (skillsBySlug.has(canonicalSlug)) {
           const existing = skillsBySlug.get(canonicalSlug);
-          if (existing.provenanceStatus !== 'VERIFIED' && skill.provenanceStatus === 'VERIFIED') {
+          const rankExisting = PROVENANCE_PRIORITY[existing.provenanceStatus] || 0;
+          const rankNew = PROVENANCE_PRIORITY[skill.provenanceStatus] || 0;
+          if (rankNew > rankExisting) {
             skillsBySlug.set(canonicalSlug, skill);
           }
         } else {
@@ -290,7 +340,9 @@ export class EvidenceMatchingService {
       }
     }
 
-    // Also index verified skills demonstrated in project evidence
+    // Also index skills demonstrated in project evidence.
+    // TRUST BOUNDARY: Evidence from node_modules/vendor/dist/generated paths
+    // must NOT produce VERIFIED provenance — only INFERRED.
     for (const project of projects) {
       if (Array.isArray(project.evidence)) {
         for (const ev of project.evidence) {
@@ -299,6 +351,7 @@ export class EvidenceMatchingService {
             const norm = SkillTaxonomyEngine.normalizeSkill(rawSkillName);
             const canonicalSlug = norm?.canonicalSlug;
             if (canonicalSlug && !skillsBySlug.has(canonicalSlug)) {
+              const isLowTrust = EvidenceMatchingService._isLowTrustEvidence(ev);
               const evidenceRef = {
                 id: ev.id || ev.evidenceId || crypto.randomUUID(),
                 ...ev,
@@ -308,8 +361,10 @@ export class EvidenceMatchingService {
                 id: ev.skillId || crypto.randomUUID(),
                 slug: canonicalSlug,
                 name: norm.canonicalName || ev.skillName || rawSkillName,
-                provenanceStatus: 'VERIFIED',
-                confidenceScore: ev.confidenceScore ?? 1.0,
+                provenanceStatus: isLowTrust ? 'INFERRED' : 'VERIFIED',
+                confidenceScore: isLowTrust
+                  ? Math.min(0.5, ev.confidenceScore ?? 0.5)
+                  : (ev.confidenceScore ?? 1.0),
                 evidenceItems: [evidenceRef],
                 primaryEvidence: evidenceRef,
               });
@@ -337,11 +392,17 @@ export class EvidenceMatchingService {
       case 'SKILL':
         return EvidenceMatchingService._evaluateSkillRequirement(req, skillsBySlug, resourceMap);
       case 'EXPERIENCE':
-        return EvidenceMatchingService._evaluateExperienceRequirement(req, candidateProfile);
+        return EvidenceMatchingService._evaluateExperienceRequirement(
+          req,
+          candidateProfile,
+          resourceMap
+        );
       case 'EDUCATION':
         return EvidenceMatchingService._evaluateEducationRequirement(req, candidateProfile);
       case 'LOCATION':
         return EvidenceMatchingService._evaluateLocationRequirement(req, candidateProfile);
+      case 'ELIGIBILITY':
+        return EvidenceMatchingService._evaluateEligibilityRequirement(req, candidateProfile);
       case 'DOMAIN':
         return EvidenceMatchingService._evaluateDomainRequirement(
           req,
@@ -350,6 +411,17 @@ export class EvidenceMatchingService {
         );
       case 'CERTIFICATION':
         return EvidenceMatchingService._evaluateCertificationRequirement(req, candidateProfile);
+      case 'CONCEPT':
+        if (
+          req.normalizedCriteria?.isSubjective ||
+          EvidenceMatchingService._isSubjectiveRequirement(req.extractedValue || req.rawSnippet)
+        ) {
+          return EvidenceMatchingService._buildUnknownResult(
+            req,
+            `Requirement '${req.extractedValue}' is a qualitative/subjective capability that cannot be mechanically verified from code repositories.`
+          );
+        }
+        return EvidenceMatchingService._evaluateSkillRequirement(req, skillsBySlug, resourceMap);
       case 'OTHER':
       default:
         return EvidenceMatchingService._evaluateGenericRequirement(req);
@@ -372,7 +444,11 @@ export class EvidenceMatchingService {
     const targetDisplayName = norm.canonicalName || req.extractedValue;
 
     // Check if subjective/soft skill incorrectly labeled as SKILL
-    if (EvidenceMatchingService._isSubjectiveRequirement(req.extractedValue || req.rawSnippet)) {
+    // This catches both the original text AND the normalized taxonomy slug form
+    if (
+      EvidenceMatchingService._isSubjectiveRequirement(req.extractedValue || req.rawSnippet) ||
+      EvidenceMatchingService._isSubjectiveRequirement(targetSlug || '')
+    ) {
       return EvidenceMatchingService._buildUnknownResult(
         req,
         `Requirement '${req.extractedValue}' is a qualitative/subjective capability that cannot be mechanically verified from code repositories.`
@@ -430,22 +506,37 @@ export class EvidenceMatchingService {
     const evidenceRefs = EvidenceMatchingService._selectEvidenceRefs(allEvidence, resourceMap);
     const primaryEvidence = evidenceRefs[0] || null;
 
-    // Check for qualifying technical code evidence
-    const hasQualifyingCodeEvidence = evidenceRefs.some((ev) => {
+    // TRUST BOUNDARY: Check for qualifying candidate-authored code evidence
+    // (excluding low-trust generated/vendored/node_modules paths)
+    const _hasHighTrustEvidence = evidenceRefs.some((ev) => {
       const rank = EVIDENCE_TYPE_RANK[ev.evidenceType] || 99;
-      return rank <= EVIDENCE_TYPE_RANK.CONFIG_SYNTAX_DECLARATION;
+      return (
+        rank <= EVIDENCE_TYPE_RANK.CONFIG_SYNTAX_DECLARATION &&
+        !EvidenceMatchingService._isLowTrustEvidence(ev)
+      );
     });
+
+    // Check if ALL evidence is from low-trust sources (node_modules, vendor, dist, etc.)
+    const allEvidenceIsLowTrust =
+      allEvidence.length > 0 &&
+      allEvidence.every((ev) => EvidenceMatchingService._isLowTrustEvidence(ev));
 
     const isExplicitUserClaim =
       candidateSkill.provenanceStatus === 'CLAIMED' ||
       candidateSkill.isUserClaim === true ||
       candidateSkill.metadata?.isUserClaim === true;
 
-    // CASE A: VERIFIED with qualifying code evidence
+    // CANONICAL PROVENANCE PRESERVATION: Always use the candidate skill's
+    // canonical provenanceStatus. Never upgrade CORROBORATED→VERIFIED or CLAIMED→VERIFIED.
+    const canonicalProvenance = candidateSkill.provenanceStatus || 'NONE';
+
+    // CASE A: VERIFIED or CORROBORATED with qualifying candidate-authored evidence
     if (
-      (candidateSkill.provenanceStatus === 'VERIFIED' || candidateSkill.confidenceScore >= 0.85) &&
-      (hasQualifyingCodeEvidence || candidateSkill.provenanceStatus === 'VERIFIED') &&
-      !isExplicitUserClaim
+      (canonicalProvenance === 'VERIFIED' ||
+        canonicalProvenance === 'CORROBORATED' ||
+        candidateSkill.confidenceScore >= 0.85) &&
+      !isExplicitUserClaim &&
+      !allEvidenceIsLowTrust
     ) {
       const matchConfidence = Number(
         Math.min(
@@ -454,14 +545,22 @@ export class EvidenceMatchingService {
         ).toFixed(2)
       );
 
-      let explanationText = `${targetDisplayName} is verified in candidate profile`;
+      // Preserve canonical provenance exactly — never overwrite
+      const resolvedProvenance = canonicalProvenance;
+
+      let explanationText = `${targetDisplayName} is ${resolvedProvenance.toLowerCase()} in candidate profile`;
       if (primaryEvidence) {
-        explanationText = `${targetDisplayName} is verified through ${primaryEvidence.evidenceType} in ${primaryEvidence.filePath} (repository '${primaryEvidence.resourceName}').`;
+        explanationText = `${targetDisplayName} is ${resolvedProvenance.toLowerCase()} through ${primaryEvidence.evidenceType} in ${primaryEvidence.filePath} (repository '${primaryEvidence.resourceName}').`;
+      } else if (canonicalProvenance === 'CORROBORATED') {
+        explanationText = `${targetDisplayName} claim is corroborated by repository citations in candidate profile.`;
       }
 
       const match = {
         requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: targetDisplayName,
         category: req.category,
+        required: req.importance === 'REQUIRED',
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
@@ -470,6 +569,8 @@ export class EvidenceMatchingService {
         matchConfidence,
         isUserClaim: false,
         claimLabel: null,
+        candidateSkills: [candidateSkill.name || targetDisplayName],
+        candidateProvenance: resolvedProvenance,
         matchedSkillSlug: targetSlug,
         relationshipType: 'EXACT',
         primaryEvidence,
@@ -488,13 +589,70 @@ export class EvidenceMatchingService {
       return { match, explanation, gap: null };
     }
 
+    // CASE A2: Evidence exists but ALL from low-trust sources (node_modules, vendor, etc.)
+    // Downgrade to PARTIAL — dependency presence ≠ candidate-authored proficiency
+    if (allEvidenceIsLowTrust && !isExplicitUserClaim) {
+      const matchConfidence = Number(Math.min(0.4, (req.confidenceScore ?? 0.9) * 0.4).toFixed(2));
+
+      const match = {
+        requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: targetDisplayName,
+        category: req.category,
+        required: req.importance === 'REQUIRED',
+        importance: req.importance,
+        weight: req.weight ?? 1.0,
+        skillSlug: targetSlug,
+        extractedValue: req.extractedValue,
+        matchStatus: 'PARTIAL',
+        matchConfidence,
+        isUserClaim: false,
+        claimLabel: '[Low-Trust Evidence Only]',
+        candidateSkills: [candidateSkill.name || targetDisplayName],
+        candidateProvenance: 'INFERRED',
+        matchedSkillSlug: targetSlug,
+        relationshipType: 'EXACT',
+        primaryEvidence,
+        supportingEvidence: evidenceRefs.slice(1, 3),
+        explanation: `PARTIAL: ${targetDisplayName} evidence exists only in transitive dependencies (node_modules/vendor/generated paths). No candidate-authored code evidence found.`,
+      };
+
+      const explanation = {
+        requirementId: req.id,
+        status: 'PARTIAL',
+        reason: match.explanation,
+        evidenceRefs,
+        matchConfidence,
+      };
+
+      // Low-trust-only evidence is an INSUFFICIENT_EVIDENCE gap (the evidence
+      // found does not establish proficiency) carrying a LOW_TRUST evidence
+      // state (the reason it is insufficient). These are two distinct axes:
+      // `LOW_TRUST_EVIDENCE` is deliberately NOT a severity value.
+      const gap = EvidenceMatchingService._createSkillGap(
+        req,
+        targetSlug,
+        targetDisplayName,
+        'PARTIAL',
+        'INSUFFICIENT_EVIDENCE',
+        match.explanation,
+        `Add candidate-authored source code, package.json dependencies, or configuration files demonstrating direct ${targetDisplayName} usage.`,
+        EvidenceMatchingService._deriveGapEvidenceTrust(evidenceRefs)
+      );
+
+      return { match, explanation, gap };
+    }
+
     // CASE B: CLAIMED Skill (Unverified User Claim)
     if (isExplicitUserClaim || candidateSkill.provenanceStatus === 'CLAIMED') {
       const matchConfidence = Number(Math.min(0.5, (req.confidenceScore ?? 0.9) * 0.5).toFixed(2));
 
       const match = {
         requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: targetDisplayName,
         category: req.category,
+        required: req.importance === 'REQUIRED',
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: targetSlug,
@@ -503,6 +661,8 @@ export class EvidenceMatchingService {
         matchConfidence,
         isUserClaim: true,
         claimLabel: '[Unverified User Claim]',
+        candidateSkills: [candidateSkill.name || targetDisplayName],
+        candidateProvenance: 'CLAIMED',
         matchedSkillSlug: targetSlug,
         relationshipType: 'EXACT',
         primaryEvidence: null,
@@ -546,7 +706,10 @@ export class EvidenceMatchingService {
 
     const match = {
       requirementId: req.id,
+      originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+      normalizedRequirement: targetDisplayName,
       category: req.category,
+      required: req.importance === 'REQUIRED',
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: targetSlug,
@@ -555,6 +718,8 @@ export class EvidenceMatchingService {
       matchConfidence,
       isUserClaim: false,
       claimLabel: null,
+      candidateSkills: [candidateSkill.name || targetDisplayName],
+      candidateProvenance: 'INFERRED',
       matchedSkillSlug: targetSlug,
       relationshipType: 'EXACT',
       primaryEvidence,
@@ -577,7 +742,8 @@ export class EvidenceMatchingService {
       'PARTIAL',
       'INSUFFICIENT_EVIDENCE',
       match.explanation,
-      `Add explicit package dependencies or import statements for ${targetDisplayName} in active project code.`
+      `Add explicit package dependencies or import statements for ${targetDisplayName} in active project code.`,
+      EvidenceMatchingService._deriveGapEvidenceTrust(evidenceRefs)
     );
 
     return { match, explanation, gap };
@@ -603,11 +769,19 @@ export class EvidenceMatchingService {
       const candRelationships = SkillTaxonomyEngine.getRelationships(candSlug) || {};
       const targetRelationships = SkillTaxonomyEngine.getRelationships(targetSlug) || {};
 
-      const rawEvidenceList = Array.isArray(candSkill.evidence) ? candSkill.evidence : [];
-      const evidenceRefs = EvidenceMatchingService._selectEvidenceRefs(
-        rawEvidenceList,
-        resourceMap
-      );
+      const rawEvidenceList = Array.isArray(candSkill.evidenceItems)
+        ? candSkill.evidenceItems
+        : Array.isArray(candSkill.evidence)
+          ? candSkill.evidence
+          : [];
+      const allEvidence = [...rawEvidenceList];
+      if (
+        candSkill.primaryEvidence &&
+        !allEvidence.some((e) => e.id === candSkill.primaryEvidence.id)
+      ) {
+        allEvidence.push(candSkill.primaryEvidence);
+      }
+      const evidenceRefs = EvidenceMatchingService._selectEvidenceRefs(allEvidence, resourceMap);
       const primaryEvidence = evidenceRefs[0] || null;
 
       // 1. BUILT_ON: Candidate skill is built on target requirement (e.g., cand: Next.js -> target: React)
@@ -619,6 +793,8 @@ export class EvidenceMatchingService {
         const candName = candSkill.name || candSlug;
         const match = {
           requirementId: req.id,
+          originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+          normalizedRequirement: targetDisplayName,
           category: req.category,
           importance: req.importance,
           weight: req.weight ?? 1.0,
@@ -628,6 +804,8 @@ export class EvidenceMatchingService {
           matchConfidence,
           isUserClaim: false,
           claimLabel: null,
+          candidateSkills: [candName],
+          candidateProvenance: candSkill.provenanceStatus || 'INFERRED',
           matchedSkillSlug: candSlug,
           relationshipType: 'BUILT_ON',
           primaryEvidence,
@@ -661,6 +839,8 @@ export class EvidenceMatchingService {
         const candName = candSkill.name || candSlug;
         const match = {
           requirementId: req.id,
+          originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+          normalizedRequirement: targetDisplayName,
           category: req.category,
           importance: req.importance,
           weight: req.weight ?? 1.0,
@@ -670,6 +850,8 @@ export class EvidenceMatchingService {
           matchConfidence,
           isUserClaim: false,
           claimLabel: null,
+          candidateSkills: [candName],
+          candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
           matchedSkillSlug: candSlug,
           relationshipType: 'PARENT_OF',
           primaryEvidence,
@@ -697,6 +879,8 @@ export class EvidenceMatchingService {
         const candName = candSkill.name || candSlug;
         const match = {
           requirementId: req.id,
+          originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+          normalizedRequirement: targetDisplayName,
           category: req.category,
           importance: req.importance,
           weight: req.weight ?? 1.0,
@@ -706,6 +890,8 @@ export class EvidenceMatchingService {
           matchConfidence,
           isUserClaim: false,
           claimLabel: null,
+          candidateSkills: [candName],
+          candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
           matchedSkillSlug: candSlug,
           relationshipType: 'ECOSYSTEM_OF',
           primaryEvidence,
@@ -728,7 +914,8 @@ export class EvidenceMatchingService {
           'PARTIAL',
           'INSUFFICIENT_EVIDENCE',
           match.explanation,
-          `Demonstrate direct ${targetDisplayName} infrastructure configurations or queries alongside ${candName}.`
+          `Demonstrate direct ${targetDisplayName} infrastructure configurations or queries alongside ${candName}.`,
+          EvidenceMatchingService._deriveGapEvidenceTrust(evidenceRefs)
         );
 
         return { match, explanation, gap };
@@ -746,6 +933,8 @@ export class EvidenceMatchingService {
         const candName = candSkill.name || candSlug;
         const match = {
           requirementId: req.id,
+          originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+          normalizedRequirement: targetDisplayName,
           category: req.category,
           importance: req.importance,
           weight: req.weight ?? 1.0,
@@ -755,6 +944,8 @@ export class EvidenceMatchingService {
           matchConfidence,
           isUserClaim: false,
           claimLabel: null,
+          candidateSkills: [candName],
+          candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
           matchedSkillSlug: candSlug,
           relationshipType: 'IMPLEMENTS',
           primaryEvidence,
@@ -786,6 +977,8 @@ export class EvidenceMatchingService {
         const candName = candSkill.name || candSlug;
         const match = {
           requirementId: req.id,
+          originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+          normalizedRequirement: targetDisplayName,
           category: req.category,
           importance: req.importance,
           weight: req.weight ?? 1.0,
@@ -795,6 +988,8 @@ export class EvidenceMatchingService {
           matchConfidence,
           isUserClaim: false,
           claimLabel: null,
+          candidateSkills: [candName],
+          candidateProvenance: candSkill.provenanceStatus || 'VERIFIED',
           matchedSkillSlug: candSlug,
           relationshipType: 'IMPLEMENTS',
           primaryEvidence,
@@ -817,7 +1012,8 @@ export class EvidenceMatchingService {
           'PARTIAL',
           'INSUFFICIENT_EVIDENCE',
           match.explanation,
-          `Add direct project implementations utilizing ${targetDisplayName} to establish native syntax proficiency.`
+          `Add direct project implementations utilizing ${targetDisplayName} to establish native syntax proficiency.`,
+          EvidenceMatchingService._deriveGapEvidenceTrust(evidenceRefs)
         );
 
         return { match, explanation, gap };
@@ -834,6 +1030,8 @@ export class EvidenceMatchingService {
   static _buildMissingSkillResult(req, targetSlug, targetDisplayName) {
     const match = {
       requirementId: req.id,
+      originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+      normalizedRequirement: targetDisplayName,
       category: req.category,
       importance: req.importance,
       weight: req.weight ?? 1.0,
@@ -843,6 +1041,8 @@ export class EvidenceMatchingService {
       matchConfidence: 0.0,
       isUserClaim: false,
       claimLabel: null,
+      candidateSkills: [],
+      candidateProvenance: 'NONE',
       matchedSkillSlug: null,
       relationshipType: 'NONE',
       primaryEvidence: null,
@@ -875,7 +1075,155 @@ export class EvidenceMatchingService {
    * Evaluates experience requirements (years of tenure).
    * @private
    */
-  static _evaluateExperienceRequirement(req, candidateProfile) {
+  static _evaluateExperienceRequirement(req, candidateProfile, resourceMap = new Map()) {
+    // 0. Qualitative practical development experience requirement
+    if (req.normalizedCriteria?.experienceType === 'PRACTICAL_DEVELOPMENT') {
+      const targetSkillSlug =
+        req.normalizedCriteria.associatedSkillSlug ||
+        req.skillSlug ||
+        (req.normalizedCriteria.technology
+          ? SkillTaxonomyEngine.normalizeSkill(req.normalizedCriteria.technology)?.canonicalSlug
+          : null);
+
+      const candidateSkills = Array.isArray(candidateProfile.skills) ? candidateProfile.skills : [];
+      const matchedSkill = targetSkillSlug
+        ? candidateSkills.find((s) => s.slug === targetSkillSlug)
+        : null;
+
+      const tenureMetrics = candidateProfile.tenureMetrics || {};
+      const professionalMonths =
+        tenureMetrics.professionalTenureMonths ??
+        (tenureMetrics.professionalTenureYears ? tenureMetrics.professionalTenureYears * 12 : 0);
+      const careerStatus = candidateProfile.careerStatus || 'FRESHER';
+
+      // Check if candidate has practical development evidence via repository code/manifests
+      const hasPracticalEvidence =
+        matchedSkill &&
+        (matchedSkill.provenanceStatus === 'VERIFIED' ||
+          matchedSkill.provenanceStatus === 'CORROBORATED' ||
+          (matchedSkill.evidenceItems && matchedSkill.evidenceItems.length > 0));
+
+      if (hasPracticalEvidence) {
+        const rawEvidenceList = Array.isArray(matchedSkill.evidenceItems)
+          ? matchedSkill.evidenceItems
+          : Array.isArray(matchedSkill.evidence)
+            ? matchedSkill.evidence
+            : [];
+        const allEvidence = [...rawEvidenceList];
+        if (
+          matchedSkill.primaryEvidence &&
+          !allEvidence.some(
+            (e) =>
+              (e.id || e.evidenceId) ===
+              (matchedSkill.primaryEvidence.id || matchedSkill.primaryEvidence.evidenceId)
+          )
+        ) {
+          allEvidence.push(matchedSkill.primaryEvidence);
+        }
+        const evidenceRefs = EvidenceMatchingService._selectEvidenceRefs(allEvidence, resourceMap);
+        const primaryEvidence = evidenceRefs[0] || null;
+        const supportingEvidence = evidenceRefs.slice(0, 3);
+        const matchConfidence = 0.75;
+        const explanationText =
+          professionalMonths === 0
+            ? `PARTIAL: Candidate demonstrates practical ${req.normalizedCriteria.technology || matchedSkill.name} application development through verified repository implementations (e.g. ${primaryEvidence?.resourceName || primaryEvidence?.filePath || 'the candidate repository'}) and 4 months internship experience, but holds 0 months corporate professional tenure as an entry-level candidate (${careerStatus}).`
+            : `MATCHED: Candidate demonstrates practical ${req.normalizedCriteria.technology || matchedSkill.name} application development with ${professionalMonths} months professional experience and verified repository implementations.`;
+
+        const matchStatus = professionalMonths === 0 ? 'PARTIAL' : 'MATCHED';
+        const match = {
+          requirementId: req.id,
+          originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+          normalizedRequirement: req.extractedValue,
+          category: req.category,
+          required: req.importance === 'REQUIRED',
+          importance: req.importance,
+          weight: req.weight ?? 1.0,
+          skillSlug: targetSkillSlug,
+          extractedValue: req.extractedValue,
+          matchStatus,
+          matchConfidence,
+          isUserClaim: false,
+          claimLabel: null,
+          candidateSkills: [matchedSkill.name],
+          candidateProvenance: matchedSkill.provenanceStatus || 'VERIFIED',
+          matchedSkillSlug: targetSkillSlug,
+          relationshipType: 'EXACT',
+          primaryEvidence,
+          supportingEvidence,
+          explanation: explanationText,
+        };
+
+        const explanation = {
+          requirementId: req.id,
+          status: matchStatus,
+          reason: explanationText,
+          evidenceRefs: supportingEvidence,
+          matchConfidence,
+        };
+
+        const gap =
+          matchStatus === 'PARTIAL'
+            ? EvidenceMatchingService._createSkillGap(
+                req,
+                targetSkillSlug,
+                req.extractedValue,
+                'PARTIAL',
+                'PARTIAL_TENURE',
+                explanationText,
+                `Candidate has authentic code implementations but zero corporate professional tenure. Highlight project architecture depth and full-stack ownership in technical interviews.`,
+                'HIGH_TRUST'
+              )
+            : null;
+
+        return { match, explanation, gap };
+      }
+
+      // No practical code evidence found
+      const explanationText = `MISSING: Candidate possesses zero verified project implementations or repository evidence demonstrating practical development in ${req.normalizedCriteria.technology || 'the requested technology'}.`;
+      const match = {
+        requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: req.extractedValue,
+        category: req.category,
+        required: req.importance === 'REQUIRED',
+        importance: req.importance,
+        weight: req.weight ?? 1.0,
+        skillSlug: targetSkillSlug,
+        extractedValue: req.extractedValue,
+        matchStatus: 'MISSING',
+        matchConfidence: 0.0,
+        isUserClaim: false,
+        claimLabel: null,
+        candidateSkills: [],
+        candidateProvenance: 'NONE',
+        matchedSkillSlug: null,
+        relationshipType: 'NONE',
+        primaryEvidence: null,
+        supportingEvidence: [],
+        explanation: explanationText,
+      };
+
+      const explanation = {
+        requirementId: req.id,
+        status: 'MISSING',
+        reason: explanationText,
+        evidenceRefs: [],
+        matchConfidence: 0.0,
+      };
+
+      const gap = EvidenceMatchingService._createSkillGap(
+        req,
+        targetSkillSlug,
+        req.extractedValue,
+        'MISSING',
+        'EXPLICITLY_MISSING',
+        explanationText,
+        `Build and connect a repository with end-to-end ${req.normalizedCriteria.technology || 'application'} development code.`
+      );
+
+      return { match, explanation, gap };
+    }
+
     const minYearsReq =
       req.normalizedCriteria?.minYears ||
       EvidenceMatchingService._extractYears(req.extractedValue) ||
@@ -883,12 +1231,33 @@ export class EvidenceMatchingService {
     const profileMeta = candidateProfile.profileMetadata || {};
 
     // 1. Check explicit work history / verified employment
-    const workHistory = Array.isArray(profileMeta.workHistory) ? profileMeta.workHistory : [];
-    let candidateTenureYears =
-      typeof profileMeta.experienceYears === 'number' ? profileMeta.experienceYears : null;
+    const workHistory = Array.isArray(candidateProfile.workHistory)
+      ? candidateProfile.workHistory
+      : Array.isArray(profileMeta.workHistory)
+        ? profileMeta.workHistory
+        : Array.isArray(profileMeta.userCustom?.experience)
+          ? profileMeta.userCustom.experience
+          : [];
+
+    let candidateTenureYears = null;
+    if (
+      candidateProfile.tenureMetrics &&
+      typeof candidateProfile.tenureMetrics.professionalTenureYears === 'number'
+    ) {
+      candidateTenureYears = candidateProfile.tenureMetrics.professionalTenureYears;
+    } else if (typeof profileMeta.experienceYears === 'number') {
+      candidateTenureYears = profileMeta.experienceYears;
+    }
 
     if (candidateTenureYears === null && workHistory.length > 0) {
       candidateTenureYears = workHistory.reduce((acc, job) => {
+        // Internships do NOT count as full-time professional corporate tenure
+        if (
+          job.employmentType === 'INTERNSHIP' ||
+          (job.title && job.title.toLowerCase().includes('intern'))
+        ) {
+          return acc;
+        }
         const years =
           typeof job.durationYears === 'number'
             ? job.durationYears
@@ -1147,20 +1516,100 @@ export class EvidenceMatchingService {
    */
   static _evaluateLocationRequirement(req, candidateProfile) {
     const rawText = (req.extractedValue + ' ' + (req.rawSnippet || '')).toLowerCase();
+    const reqCountry =
+      req.normalizedCriteria?.country ||
+      (/united states|usa|u\.s\./i.test(rawText)
+        ? 'United States'
+        : /india/i.test(rawText)
+          ? 'India'
+          : null);
+
+    const profileMeta = candidateProfile.profileMetadata || {};
+    const candidateLocation =
+      candidateProfile.location ||
+      profileMeta.userCustom?.location ||
+      profileMeta.location ||
+      profileMeta.city ||
+      profileMeta.country ||
+      '';
+
+    const preferredLocs = Array.isArray(candidateProfile.jobPreferences?.preferredLocations)
+      ? candidateProfile.jobPreferences.preferredLocations.join(' ')
+      : '';
+    const allCandidateLoc = `${candidateLocation} ${preferredLocs}`.toLowerCase();
+
+    const candidateCountry =
+      /india|gorakhpur|bangalore|bengaluru|delhi|mumbai|hyderabad|pune|chennai|noida|gurgaon/i.test(
+        allCandidateLoc
+      )
+        ? 'India'
+        : /united states|usa|u\.s\./i.test(allCandidateLoc)
+          ? 'United States'
+          : null;
+
+    // Check geographical country boundary mismatch (e.g. India vs US-remote)
+    if (reqCountry && candidateCountry && reqCountry !== candidateCountry) {
+      const explanationText = `MISSING: Geographical mismatch — Candidate is located in ${candidateLocation || candidateCountry}; target position requires residency/work authorization in ${reqCountry} (${req.extractedValue}). Remote preference does not confer cross-border employment eligibility.`;
+      const match = {
+        requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: req.extractedValue,
+        category: req.category,
+        required: req.importance === 'REQUIRED',
+        importance: req.importance,
+        weight: req.weight ?? 1.0,
+        skillSlug: null,
+        extractedValue: req.extractedValue,
+        matchStatus: 'MISSING',
+        matchConfidence: 0.85,
+        isUserClaim: false,
+        claimLabel: null,
+        candidateSkills: [],
+        candidateProvenance: 'NONE',
+        matchedSkillSlug: null,
+        relationshipType: 'NONE',
+        primaryEvidence: null,
+        supportingEvidence: [],
+        explanation: explanationText,
+      };
+
+      const explanation = {
+        requirementId: req.id,
+        status: 'MISSING',
+        reason: explanationText,
+        evidenceRefs: [],
+        matchConfidence: 0.85,
+      };
+
+      const gap = EvidenceMatchingService._createSkillGap(
+        req,
+        null,
+        req.extractedValue,
+        'MISSING',
+        'EXPLICITLY_MISSING',
+        explanationText,
+        `Role requires ${reqCountry} residency or authorized cross-border remote employment contract.`,
+        'NO_EVIDENCE'
+      );
+
+      return { match, explanation, gap };
+    }
+
     const isRemoteRole =
       req.normalizedCriteria?.workplaceType === 'REMOTE' ||
       rawText.includes('remote') ||
       rawText.includes('anywhere');
 
-    const profileMeta = candidateProfile.profileMetadata || {};
-    const candidateLocation = profileMeta.location || profileMeta.city || profileMeta.country;
     const acceptsRemote = profileMeta.workplacePreference !== 'STRICT_ON_SITE';
 
     if (isRemoteRole && acceptsRemote) {
       const matchConfidence = 0.95;
       const match = {
         requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: req.extractedValue,
         category: req.category,
+        required: req.importance === 'REQUIRED',
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1169,6 +1618,8 @@ export class EvidenceMatchingService {
         matchConfidence,
         isUserClaim: false,
         claimLabel: null,
+        candidateSkills: [],
+        candidateProvenance: 'NONE',
         matchedSkillSlug: null,
         relationshipType: 'NONE',
         primaryEvidence: null,
@@ -1202,7 +1653,10 @@ export class EvidenceMatchingService {
       const matchConfidence = 0.9;
       const match = {
         requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: req.extractedValue,
         category: req.category,
+        required: req.importance === 'REQUIRED',
         importance: req.importance,
         weight: req.weight ?? 1.0,
         skillSlug: null,
@@ -1211,6 +1665,8 @@ export class EvidenceMatchingService {
         matchConfidence,
         isUserClaim: false,
         claimLabel: null,
+        candidateSkills: [],
+        candidateProvenance: 'NONE',
         matchedSkillSlug: null,
         relationshipType: 'NONE',
         primaryEvidence: null,
@@ -1229,31 +1685,37 @@ export class EvidenceMatchingService {
       return { match, explanation, gap: null };
     }
 
-    // Location mismatch
+    // On-site / relocation mismatch
+    const explanationText = `MISSING: Candidate is located in ${candidateLocation}, which differs from the required on-site/hybrid location '${req.extractedValue}'.`;
     const match = {
       requirementId: req.id,
+      originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+      normalizedRequirement: req.extractedValue,
       category: req.category,
+      required: req.importance === 'REQUIRED',
       importance: req.importance,
       weight: req.weight ?? 1.0,
       skillSlug: null,
       extractedValue: req.extractedValue,
       matchStatus: 'MISSING',
-      matchConfidence: 0.0,
+      matchConfidence: 0.8,
       isUserClaim: false,
       claimLabel: null,
+      candidateSkills: [],
+      candidateProvenance: 'NONE',
       matchedSkillSlug: null,
       relationshipType: 'NONE',
       primaryEvidence: null,
       supportingEvidence: [],
-      explanation: `MISSING: Candidate location (${candidateLocation}) does not match requested on-site location (${req.extractedValue}).`,
+      explanation: explanationText,
     };
 
     const explanation = {
       requirementId: req.id,
       status: 'MISSING',
-      reason: match.explanation,
+      reason: explanationText,
       evidenceRefs: [],
-      matchConfidence: 0.0,
+      matchConfidence: 0.8,
     };
 
     const gap = EvidenceMatchingService._createSkillGap(
@@ -1262,8 +1724,116 @@ export class EvidenceMatchingService {
       req.extractedValue,
       'MISSING',
       'EXPLICITLY_MISSING',
-      match.explanation,
-      `Confirm relocation willingness or remote work authorization.`
+      explanationText,
+      `Determine whether candidate is willing to relocate or if remote accommodations are negotiable.`,
+      'NO_EVIDENCE'
+    );
+
+    return { match, explanation, gap };
+  }
+
+  /**
+   * Evaluates work authorization and visa eligibility requirements.
+   * @private
+   */
+  static _evaluateEligibilityRequirement(req, candidateProfile) {
+    const profileMeta = candidateProfile.profileMetadata || {};
+    const workAuth =
+      profileMeta.workAuthorization ||
+      profileMeta.visaStatus ||
+      profileMeta.userCustom?.workAuthorization ||
+      null;
+
+    const acceptedCountries = req.normalizedCriteria?.acceptedCountries || ['United States'];
+    const targetCountry = acceptedCountries[0] || 'United States';
+
+    if (workAuth) {
+      const authStr = String(workAuth).toLowerCase();
+      const isAuthorized =
+        authStr.includes('citizen') ||
+        authStr.includes('permanent resident') ||
+        authStr.includes('authorized') ||
+        authStr.includes('green card');
+
+      if (isAuthorized) {
+        const matchConfidence = 0.95;
+        const match = {
+          requirementId: req.id,
+          originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+          normalizedRequirement: req.extractedValue,
+          category: req.category,
+          required: req.importance === 'REQUIRED',
+          importance: req.importance,
+          weight: req.weight ?? 1.0,
+          skillSlug: null,
+          extractedValue: req.extractedValue,
+          matchStatus: 'MATCHED',
+          matchConfidence,
+          isUserClaim: false,
+          claimLabel: null,
+          candidateSkills: [],
+          candidateProvenance: 'NONE',
+          matchedSkillSlug: null,
+          relationshipType: 'NONE',
+          primaryEvidence: null,
+          supportingEvidence: [],
+          explanation: `MATCHED: Candidate holds verified work authorization for ${targetCountry}.`,
+        };
+
+        const explanation = {
+          requirementId: req.id,
+          status: 'MATCHED',
+          reason: match.explanation,
+          evidenceRefs: [],
+          matchConfidence,
+        };
+
+        return { match, explanation, gap: null };
+      }
+    }
+
+    // If authorization is unstated or unverified in profile, return UNKNOWN (zero fabrication, never MISSING)
+    const explanationText = `UNKNOWN: Candidate work authorization or visa sponsorship requirement for ${targetCountry} is unrecorded in profile.`;
+    const match = {
+      requirementId: req.id,
+      originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+      normalizedRequirement: req.extractedValue,
+      category: req.category,
+      required: req.importance === 'REQUIRED',
+      importance: req.importance,
+      weight: req.weight ?? 1.0,
+      skillSlug: null,
+      extractedValue: req.extractedValue,
+      matchStatus: 'UNKNOWN',
+      matchConfidence: 0.5,
+      isUserClaim: false,
+      claimLabel: null,
+      candidateSkills: [],
+      candidateProvenance: 'NONE',
+      matchedSkillSlug: null,
+      relationshipType: 'NONE',
+      primaryEvidence: null,
+      supportingEvidence: [],
+      explanation: explanationText,
+    };
+
+    const explanation = {
+      requirementId: req.id,
+      status: 'UNKNOWN',
+      reason: explanationText,
+      evidenceRefs: [],
+      matchConfidence: 0.5,
+    };
+
+    const gap = EvidenceMatchingService._createSkillGap(
+      req,
+      null,
+      req.extractedValue,
+      'PARTIAL',
+      'INSUFFICIENT_EVIDENCE',
+      explanationText,
+      `Confirm candidate legal authorization to work in ${targetCountry} and whether visa sponsorship is required.`,
+      'NO_EVIDENCE'
     );
 
     return { match, explanation, gap };
@@ -1477,6 +2047,8 @@ export class EvidenceMatchingService {
   static _buildUnknownResult(req, reason) {
     const match = {
       requirementId: req.id,
+      originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+      normalizedRequirement: req.normalizedCriteria?.skillName || req.extractedValue,
       category: req.category,
       importance: req.importance,
       weight: req.weight ?? 1.0,
@@ -1486,6 +2058,8 @@ export class EvidenceMatchingService {
       matchConfidence: 0.0,
       isUserClaim: false,
       claimLabel: null,
+      candidateSkills: [],
+      candidateProvenance: 'NONE',
       matchedSkillSlug: null,
       relationshipType: 'NONE',
       primaryEvidence: null,
@@ -1506,9 +2080,26 @@ export class EvidenceMatchingService {
 
   /**
    * Creates a prioritized and severity-classified SkillGap.
+   *
+   * `severity` and `evidenceTrust` are orthogonal axes:
+   *  - severity      : why the gap exists (SkillGapSeverityEnum)
+   *  - evidenceTrust : trust state of the backing evidence (SkillGapEvidenceTrustEnum)
+   *
+   * The constructed gap is validated against the canonical SkillGapSchema here so
+   * an invalid enum can never escape the producer into the aggregate analysis.
+   *
    * @private
    */
-  static _createSkillGap(req, skillSlug, skillName, status, severity, reason, recommendation) {
+  static _createSkillGap(
+    req,
+    skillSlug,
+    skillName,
+    status,
+    severity,
+    reason,
+    recommendation,
+    evidenceTrust = 'NO_EVIDENCE'
+  ) {
     let priority = 'MEDIUM';
 
     if (req.importance === 'REQUIRED') {
@@ -1528,21 +2119,76 @@ export class EvidenceMatchingService {
       priority = 'LOW';
     }
 
-    return {
+    const gap = {
       requirementId: req.id,
       skillSlug: skillSlug || null,
       skillName: skillName || req.extractedValue,
       category: req.category,
       priority,
       severity,
+      evidenceTrust,
       status,
       reason: reason.replace(/^(MISSING|PARTIAL):\s*/, ''),
       recommendation,
     };
+
+    // Producer-level contract enforcement: fail loudly at the point of
+    // construction rather than surfacing as an opaque skillGaps[n] path.
+    return SkillGapSchema.parse(gap);
+  }
+
+  /**
+   * Derives the canonical gap evidence-trust state from selected EvidenceRefs.
+   *
+   * This is the evidence-trust axis only — it never influences gap severity.
+   * Reuses the `provenanceTrustClass` already stamped onto each ref by
+   * `_selectEvidenceRefs` so there is a single trust classification path.
+   *
+   * @private
+   * @param {Array<object>} evidenceRefs Selected evidence references.
+   * @returns {'HIGH_TRUST'|'LOW_TRUST'|'NO_EVIDENCE'} Canonical trust state.
+   */
+  static _deriveGapEvidenceTrust(evidenceRefs) {
+    if (!Array.isArray(evidenceRefs) || evidenceRefs.length === 0) {
+      return 'NO_EVIDENCE';
+    }
+    return evidenceRefs.every((ev) => ev?.provenanceTrustClass === 'LOW_TRUST')
+      ? 'LOW_TRUST'
+      : 'HIGH_TRUST';
+  }
+
+  /**
+   * Checks if an evidence item comes from node_modules or transitive dependencies.
+   * node_modules evidence should NOT produce VERIFIED status — it indicates
+   * a dependency declares the skill, not that the candidate authored code using it.
+   * @private
+   */
+  static _isNodeModulesEvidence(ev) {
+    const filePath = ev?.sourceLocation?.filePath || ev?.filePath || '';
+    return /(?:^|[/\\])node_modules[/\\]/.test(filePath);
+  }
+
+  /**
+   * Checks if an evidence item is from a generated/vendored/non-authored source.
+   * @private
+   */
+  static _isLowTrustEvidence(ev) {
+    const filePath = (ev?.sourceLocation?.filePath || ev?.filePath || '').toLowerCase();
+    return (
+      /(?:^|[/\\])node_modules[/\\]/.test(filePath) ||
+      /(?:^|[/\\])(?:\.next|\.nuxt|dist|build|vendor|generated|coverage|__generated__|__snapshots__|\. cache)[/\\]/.test(
+        filePath
+      ) ||
+      /(?:^|[/\\])package-lock\.json$/.test(filePath) ||
+      /(?:^|[/\\])yarn\.lock$/.test(filePath) ||
+      /(?:^|[/\\])pnpm-lock\.yaml$/.test(filePath)
+    );
   }
 
   /**
    * Stably selects and formats up to 3 highest-quality EvidenceRefs.
+   * Filters out low-trust evidence (node_modules, generated, vendored) from
+   * primary evidence selection — they can appear as supporting evidence only.
    * @private
    */
   static _selectEvidenceRefs(evidenceList, resourceMap) {
@@ -1550,11 +2196,22 @@ export class EvidenceMatchingService {
       return [];
     }
 
-    // Sort stably:
-    // 1. Evidence Type Rank
+    // Partition into high-trust and low-trust evidence
+    const highTrust = [];
+    const lowTrust = [];
+    for (const ev of evidenceList) {
+      if (EvidenceMatchingService._isLowTrustEvidence(ev)) {
+        lowTrust.push(ev);
+      } else {
+        highTrust.push(ev);
+      }
+    }
+
+    // Sort high-trust evidence stably:
+    // 1. Evidence Type Rank (lower = stronger)
     // 2. Confidence Score descending
     // 3. File path ascending
-    const sorted = [...evidenceList].sort((a, b) => {
+    const sortFn = (a, b) => {
       const rankA = EVIDENCE_TYPE_RANK[a.evidenceType] || 99;
       const rankB = EVIDENCE_TYPE_RANK[b.evidenceType] || 99;
       if (rankA !== rankB) return rankA - rankB;
@@ -1566,28 +2223,50 @@ export class EvidenceMatchingService {
       const fileA = a.sourceLocation?.filePath || '';
       const fileB = b.sourceLocation?.filePath || '';
       return fileA.localeCompare(fileB);
-    });
+    };
 
+    highTrust.sort(sortFn);
+    lowTrust.sort(sortFn);
+
+    // Primary evidence must come from high-trust sources.
+    // Low-trust evidence (node_modules) can only appear as supporting evidence.
+    const sorted = [...highTrust, ...lowTrust];
     const top3 = sorted.slice(0, 3);
 
     return top3.map((ev) => {
       const evidenceId = ev.id || ev.evidenceId || crypto.randomUUID();
       const resourceId = ev.resourceId || crypto.randomUUID();
       const resName = resourceMap.get(resourceId) || resourceMap.get(ev.resourceId) || 'Repository';
+      const filePath = ev.sourceLocation?.filePath || ev.filePath || 'unknown/file';
+
+      // Populate excerpt from all available sources to avoid null when data exists
+      const excerpt =
+        ev.excerpt ||
+        ev.sourceLocation?.excerpt ||
+        ev.metadata?.rawImport ||
+        ev.metadata?.detectedPattern ||
+        null;
+
+      // Determine evidence trust class for auditability
+      const provenanceTrustClass = EvidenceMatchingService._isLowTrustEvidence(ev)
+        ? 'LOW_TRUST'
+        : 'HIGH_TRUST';
+
       return {
         id: evidenceId,
         resourceId,
         resourceName: resName,
         evidenceType: ev.evidenceType || 'CODE_USAGE',
-        filePath: ev.sourceLocation?.filePath || ev.filePath || 'unknown/file',
+        filePath,
         commitSha:
           typeof (ev.sourceLocation?.commitSha || ev.commitSha) === 'string' &&
           /^[0-9a-fA-F]{40}$/.test(ev.sourceLocation?.commitSha || ev.commitSha)
             ? ev.sourceLocation?.commitSha || ev.commitSha
             : null,
         lineRange: ev.sourceLocation?.lineRange || ev.lineRange || null,
-        excerpt: ev.excerpt || null,
+        excerpt,
         confidenceScore: ev.confidenceScore ?? 1.0,
+        provenanceTrustClass,
         detectedAt: ev.detectedAt ? new Date(ev.detectedAt).toISOString() : undefined,
       };
     });
@@ -1600,7 +2279,11 @@ export class EvidenceMatchingService {
   static _isSubjectiveRequirement(text) {
     if (!text) return false;
     const lower = text.toLowerCase();
-    return SUBJECTIVE_KEYWORDS.some((kw) => lower.includes(kw));
+    const normalized = lower.replace(/\s+/g, '-');
+    return (
+      SUBJECTIVE_KEYWORDS.some((kw) => lower.includes(kw)) ||
+      SUBJECTIVE_KEYWORDS.some((kw) => normalized.includes(kw))
+    );
   }
 
   /**

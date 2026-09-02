@@ -13,7 +13,15 @@ import { ProjectRelevanceSchema } from './project-relevance.schemas.js';
 // 1. Fit Score Band Enum
 // ---------------------------------------------------------------------------
 
-export const FitScoreBandEnum = z.enum(['EXCELLENT', 'STRONG', 'MODERATE', 'WEAK', 'LOW']);
+export const FitScoreBandEnum = z.enum([
+  'EXCELLENT',
+  'STRONG',
+  'GOOD',
+  'MODERATE',
+  'WEAK',
+  'LOW',
+  'INSUFFICIENT_DATA',
+]);
 
 // ---------------------------------------------------------------------------
 // 2. Fit Strength Category Enum
@@ -74,7 +82,8 @@ export const FitScoreBreakdownSchema = z.strictObject({
   overallScore: z
     .number()
     .min(0.0, { message: 'overallScore must be >= 0.0' })
-    .max(100.0, { message: 'overallScore cannot exceed 100.0' }),
+    .max(100.0, { message: 'overallScore cannot exceed 100.0' })
+    .nullable(),
 });
 
 // ---------------------------------------------------------------------------
@@ -108,10 +117,14 @@ export const CandidateJobFitAnalysisSchema = z.strictObject({
   jobDescriptionId: z.string().uuid({ message: 'JobDescription ID must be a valid UUID' }),
   candidateId: z.string().uuid({ message: 'Candidate ID must be a valid UUID' }),
   tenantId: z.string().uuid({ message: 'Tenant ID must be a valid UUID' }),
+  analysisStatus: z.enum(['COMPLETE', 'INSUFFICIENT_DATA']).default('COMPLETE'),
+  isFallbackScore: z.boolean().default(false),
+  zeroRequirementWarning: z.string().nullable().optional().default(null),
   overallScore: z
     .number()
     .min(0.0, { message: 'overallScore must be >= 0.0' })
-    .max(100.0, { message: 'overallScore cannot exceed 100.0' }),
+    .max(100.0, { message: 'overallScore cannot exceed 100.0' })
+    .nullable(),
   fitBand: FitScoreBandEnum,
   scoreBreakdown: FitScoreBreakdownSchema,
   criticalGapCount: z.number().int().nonnegative(),

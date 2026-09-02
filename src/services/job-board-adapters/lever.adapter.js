@@ -241,9 +241,31 @@ function extractSkillsFromText(text) {
 function extractSections(lists, keyword) {
   if (!Array.isArray(lists)) return [];
   const items = [];
+  const reqKeywords = [
+    'requirement',
+    'qualification',
+    'what you bring',
+    'what we look for',
+    'what we are looking for',
+    'what you need',
+    'must have',
+    'who you are',
+    'skills',
+  ];
+  const respKeywords = [
+    'responsibilit',
+    'what you will do',
+    "what you'll do",
+    'the role',
+    'role overview',
+    'duties',
+    'what you do',
+  ];
+  const targetKeywords = keyword === 'requirements' ? reqKeywords : respKeywords;
+
   for (const list of lists) {
     const name = (list.text || '').toLowerCase();
-    if (name.includes(keyword)) {
+    if (targetKeywords.some((kw) => name.includes(kw))) {
       const content = list.content || '';
       const liPattern = /<li[^>]*>(.*?)<\/li>/gi;
       let match;
@@ -253,7 +275,7 @@ function extractSections(lists, keyword) {
       }
     }
   }
-  return items.slice(0, 10);
+  return items.slice(0, 15);
 }
 
 /**

@@ -277,7 +277,94 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
     it('computes transparent 7-part score breakdown summing up to overallScore', () => {
       const job = createMockJob();
       const profile = createMockProfile();
-      const matchAnalysis = createMockMatchAnalysis();
+      const matchAnalysis = createMockMatchAnalysis({
+        requirementMatches: [
+          {
+            requirementId: randomUUID(),
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            skillSlug: 'python',
+            extractedValue: 'Python',
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.95,
+            isUserClaim: false,
+            relationshipType: 'EXACT',
+            primaryEvidence: { id: randomUUID(), resourceId: randomUUID(), resourceName: 'trading-api', evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY', filePath: 'requirements.txt', confidenceScore: 0.95 },
+            supportingEvidence: [],
+            explanation: 'Verified',
+          },
+          {
+            requirementId: randomUUID(),
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            skillSlug: 'fastapi',
+            extractedValue: 'FastAPI',
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.95,
+            isUserClaim: false,
+            relationshipType: 'EXACT',
+            primaryEvidence: { id: randomUUID(), resourceId: randomUUID(), resourceName: 'trading-api', evidenceType: 'CODE_IMPORT_USAGE', filePath: 'src/main.py', confidenceScore: 0.95 },
+            supportingEvidence: [],
+            explanation: 'Verified',
+          },
+          {
+            requirementId: randomUUID(),
+            category: 'SKILL',
+            importance: 'PREFERRED',
+            weight: 1.0,
+            skillSlug: 'docker',
+            extractedValue: 'Docker',
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.9,
+            isUserClaim: false,
+            relationshipType: 'EXACT',
+            primaryEvidence: { id: randomUUID(), resourceId: randomUUID(), resourceName: 'trading-api', evidenceType: 'CONFIG_SYNTAX_DECLARATION', filePath: 'Dockerfile', confidenceScore: 0.9 },
+            supportingEvidence: [],
+            explanation: 'Verified',
+          },
+          {
+            requirementId: randomUUID(),
+            category: 'EXPERIENCE',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            extractedValue: '5 years backend experience',
+            matchStatus: 'MATCHED',
+            matchConfidence: 1.0,
+            isUserClaim: false,
+            relationshipType: 'NONE',
+            supportingEvidence: [],
+            explanation: 'Candidate has 6 years verified experience',
+          },
+          {
+            requirementId: randomUUID(),
+            category: 'EDUCATION',
+            importance: 'REQUIRED',
+            weight: 0.75,
+            extractedValue: 'Bachelor degree in CS',
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.95,
+            isUserClaim: false,
+            relationshipType: 'NONE',
+            supportingEvidence: [],
+            explanation: 'Candidate has Bachelors in CS',
+          },
+          {
+            requirementId: randomUUID(),
+            category: 'LOCATION',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            extractedValue: 'Remote',
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.95,
+            isUserClaim: false,
+            relationshipType: 'NONE',
+            supportingEvidence: [],
+            explanation: 'Remote role compatible',
+          },
+        ],
+      });
       const projectAnalysis = createMockProjectAnalysis();
 
       const result = calculateCandidateJobFit(
@@ -459,6 +546,33 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
             weight: 1.0,
             matchStatus: 'MATCHED',
             matchConfidence: 1.0,
+            supportingEvidence: [],
+          },
+          {
+            requirementId: randomUUID(),
+            category: 'EXPERIENCE',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            matchStatus: 'MATCHED',
+            matchConfidence: 1.0,
+            supportingEvidence: [],
+          },
+          {
+            requirementId: randomUUID(),
+            category: 'EDUCATION',
+            importance: 'REQUIRED',
+            weight: 0.75,
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.95,
+            supportingEvidence: [],
+          },
+          {
+            requirementId: randomUUID(),
+            category: 'LOCATION',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            matchStatus: 'MATCHED',
+            matchConfidence: 0.95,
             supportingEvidence: [],
           },
         ],
@@ -684,18 +798,24 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
       );
     });
 
-    it('awards neutral baseline credit when JD has 0 education or location requirements', () => {
+    it('fails closed with INSUFFICIENT_DATA when JD has 0 total requirements', () => {
       const job = createMockJob();
       const profile = createMockProfile();
       const matchAnalysis = createMockMatchAnalysis({
-        requirementMatches: [], // 0 non-skill requirements
+        requirementMatches: [], // 0 total requirements
       });
       const projectAnalysis = createMockProjectAnalysis();
 
       const res = calculateCandidateJobFit(context, job, matchAnalysis, projectAnalysis, profile);
-      assert.strictEqual(res.scoreBreakdown.educationFitScore, 5.0);
-      assert.strictEqual(res.scoreBreakdown.locationFitScore, 5.0);
-      assert.strictEqual(res.scoreBreakdown.experienceFitScore, 10.0);
+      assert.strictEqual(res.analysisStatus, 'INSUFFICIENT_DATA');
+      assert.strictEqual(res.fitBand, 'INSUFFICIENT_DATA');
+      assert.strictEqual(res.overallScore, null);
+      assert.strictEqual(res.scoreBreakdown.educationFitScore, 0.0);
+      assert.strictEqual(res.scoreBreakdown.locationFitScore, 0.0);
+      assert.strictEqual(res.scoreBreakdown.experienceFitScore, 0.0);
+      assert.strictEqual(res.scoreBreakdown.requiredSkillsScore, 0.0);
+      assert.strictEqual(res.scoreBreakdown.preferredSkillsScore, 0.0);
+      assert.ok(res.zeroRequirementWarning.includes('Insufficient structured requirements'));
     });
   });
 
@@ -769,7 +889,34 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
     it('maps scores >= 90.0 to EXCELLENT', () => {
       const job = createMockJob();
       const profile = createMockProfile();
-      const matchAnalysis = createMockMatchAnalysis();
+      const matchAnalysis = createMockMatchAnalysis({
+        requirementMatches: [
+          {
+            requirementId: randomUUID(), category: 'SKILL', importance: 'REQUIRED', weight: 1.0,
+            matchStatus: 'MATCHED', matchConfidence: 1.0, supportingEvidence: [],
+          },
+          {
+            requirementId: randomUUID(), category: 'SKILL', importance: 'REQUIRED', weight: 1.0,
+            matchStatus: 'MATCHED', matchConfidence: 1.0, supportingEvidence: [],
+          },
+          {
+            requirementId: randomUUID(), category: 'SKILL', importance: 'PREFERRED', weight: 1.0,
+            matchStatus: 'MATCHED', matchConfidence: 1.0, supportingEvidence: [],
+          },
+          {
+            requirementId: randomUUID(), category: 'EXPERIENCE', importance: 'REQUIRED', weight: 1.0,
+            matchStatus: 'MATCHED', matchConfidence: 1.0, supportingEvidence: [],
+          },
+          {
+            requirementId: randomUUID(), category: 'EDUCATION', importance: 'REQUIRED', weight: 0.75,
+            matchStatus: 'MATCHED', matchConfidence: 0.95, supportingEvidence: [],
+          },
+          {
+            requirementId: randomUUID(), category: 'LOCATION', importance: 'REQUIRED', weight: 1.0,
+            matchStatus: 'MATCHED', matchConfidence: 0.95, supportingEvidence: [],
+          },
+        ],
+      });
       const projectAnalysis = createMockProjectAnalysis();
 
       const res = calculateCandidateJobFit(context, job, matchAnalysis, projectAnalysis, profile);

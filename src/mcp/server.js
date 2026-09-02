@@ -308,6 +308,11 @@ export class McpServerWrapper {
           const result = await handler(context, args);
 
           if (result && Array.isArray(result.content)) {
+            // If the handler already returned a standard MCP content array,
+            // ensure structuredContent is set for MCP Apps consumption.
+            if (result.structuredContent === undefined && typeof result === 'object') {
+              return { ...result, structuredContent: result };
+            }
             return result;
           }
 
@@ -318,7 +323,7 @@ export class McpServerWrapper {
                 text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
               },
             ],
-            ...(result && typeof result === 'object' ? { structuredData: result } : {}),
+            structuredContent: result && typeof result === 'object' ? result : undefined,
             ...(result?._meta ? { _meta: result._meta } : {}),
           };
         }

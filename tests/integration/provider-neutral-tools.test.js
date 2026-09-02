@@ -131,6 +131,12 @@ describe('Provider-Neutral Tool Response Parity Tests (P10-003)', () => {
 
     const transientKeys = new Set([
       'requestId',
+      'jobId',
+      // Requirements parsed from raw job text are assigned a fresh synthetic
+      // UUID per parse, so requirementId is transient across two independent
+      // transport invocations. Cross-transport parity is still asserted on
+      // every domain field (status, confidence, skills, explanation, scores).
+      'requirementId',
       'timestamp',
       'executedAt',
       'detectedAt',

@@ -584,8 +584,16 @@ export class ProjectRelevanceService {
       let matchingSkillSlug = null;
       let matchingEvidence = null;
 
+      const rawSkill =
+        req.skillSlug ||
+        req.extractedValue ||
+        req.name ||
+        req.normalizedCriteria?.skillName ||
+        '';
+      const reqDisplayName = req.extractedValue || req.name || req.skillSlug || 'Requirement';
+
       if (req.category === 'SKILL') {
-        const targetNorm = SkillTaxonomyEngine.normalizeSkill(req.name);
+        const targetNorm = SkillTaxonomyEngine.normalizeSkill(rawSkill);
         const targetSlug = targetNorm.canonicalSlug;
 
         // 1. Direct match
@@ -681,7 +689,7 @@ export class ProjectRelevanceService {
           contribution: round(contribution * 10, 2),
           relationshipType: matchRelType,
           evidenceRefs: evidRefs,
-          reason: `Project demonstrates '${req.name}' via ${matchRelType} ${matchingSkillSlug ? `'${matchingSkillSlug}'` : 'domain context'} (+${round(contribution * 10, 2)} pts)`,
+          reason: `Project demonstrates '${reqDisplayName}' via ${matchRelType} ${matchingSkillSlug ? `'${matchingSkillSlug}'` : 'domain context'} (+${round(contribution * 10, 2)} pts)`,
         });
       }
     }
@@ -689,7 +697,7 @@ export class ProjectRelevanceService {
     const requirementCoverageScore =
       totalTierWeight > 0
         ? round(Math.min(50.0, 50.0 * (totalCoveredWeight / totalTierWeight)), 2)
-        : 25.0;
+        : 0.0;
 
     // -------------------------------------------------------------------------
     // D. 2. Architectural Density Calculation (25 Pts Max across 10 dimensions)

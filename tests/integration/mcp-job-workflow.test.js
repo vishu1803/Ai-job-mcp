@@ -274,7 +274,8 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
     assert.strictEqual(body.error, undefined);
 
     retrievedJob = JSON.parse(body.result.content[0].text);
-    assert.strictEqual(retrievedJob.id, 'job-gh-stripe-001');
+    assert.ok(retrievedJob.id);
+    assert.strictEqual(retrievedJob.externalJobId, 'job-gh-stripe-001');
     assert.strictEqual(retrievedJob.company, 'Stripe');
     assert.ok(retrievedJob.requirements.length > 0);
     assert.ok(retrievedJob.applicationUrl);
@@ -425,7 +426,7 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
   it('7d. submit_job_application on unsupported portal provides instant manual handoff kit', async () => {
     const workdayJob = {
       ...retrievedJob,
-      id: 'job-workday-netflix-005',
+      id: crypto.randomUUID(),
       company: 'Netflix',
       title: 'Staff Distributed Systems Engineer',
       description:

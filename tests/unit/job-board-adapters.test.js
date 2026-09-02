@@ -16,7 +16,10 @@ import assert from 'node:assert/strict';
 import { GreenhouseAdapter } from '../../src/services/job-board-adapters/greenhouse.adapter.js';
 import { LeverAdapter } from '../../src/services/job-board-adapters/lever.adapter.js';
 import { NormalizedJobPostingSchema } from '../../src/domain/job/job-workflow.schemas.js';
-import { generateCanonicalJobId as generateCanonicalJobIdFromService, JobDiscoveryService as JobDiscoveryServiceFromService } from '../../src/services/job-discovery.service.js';
+import {
+  generateCanonicalJobId as generateCanonicalJobIdFromService,
+  JobDiscoveryService as JobDiscoveryServiceFromService,
+} from '../../src/services/job-discovery.service.js';
 
 // ============================================================================
 // Greenhouse Adapter Tests
@@ -73,7 +76,10 @@ describe('GreenhouseAdapter', () => {
       assert.equal(jobs[0].title, 'Senior Software Engineer');
       assert.equal(jobs[0].location, 'San Francisco, CA');
       // ID must be a canonical UUID
-      assert.ok(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(jobs[0].id), 'ID must be a UUID');
+      assert.ok(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(jobs[0].id),
+        'ID must be a UUID'
+      );
       assert.equal(jobs[0].externalJobId, 'gh-testcompany-12345');
       assert.equal(jobs[0].provider, 'GREENHOUSE');
       assert.ok(jobs[0].skills.includes('Python'));
@@ -242,7 +248,10 @@ describe('LeverAdapter', () => {
       assert.equal(jobs[0].workplaceType, 'REMOTE');
       assert.equal(jobs[0].employmentType, 'FULL_TIME');
       // ID must be a canonical UUID
-      assert.ok(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(jobs[0].id), 'ID must be a UUID');
+      assert.ok(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(jobs[0].id),
+        'ID must be a UUID'
+      );
       assert.equal(jobs[0].externalJobId, 'lever-testcompany-abc123');
       assert.equal(jobs[0].provider, 'LEVER');
       assert.ok(jobs[0].skills.includes('Node.js'));

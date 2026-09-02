@@ -51,6 +51,8 @@ import { AtsFitScoreService } from '../../src/services/ats-fit-score.service.js'
 import { ZeroHallucinationIntegrityService } from '../../src/services/zero-hallucination-integrity.service.js';
 import { GeminiProviderAdapter } from '../../src/clients/gemini/gemini-adapter.js';
 import { SecretScrubber } from '../../src/extractors/github/security/secret-scrubber.js';
+import { TenureCalculator } from '../../src/utils/tenure-calculator.js';
+import { CareerStatusDerivation } from '../../src/utils/career-status-derivation.js';
 import {
   AnalyzeJobFitOutputSchema,
   InspectProjectEvidenceOutputSchema,
@@ -541,49 +543,76 @@ describe('Gemini End-to-End Golden Path Deterministic Integration Tests (P8-003)
     const profileService = new CandidateProfileService(db);
     const profileView = await profileService.getProfile(context, candidateA.id);
 
+    const rawUserCustom = profileView.candidate.profileMetadata?.userCustom || {};
+    const rawExperiences =
+      rawUserCustom.experience || profileView.candidate.profileMetadata?.experience || [];
+    const tenureMetrics = TenureCalculator.calculateTenure(rawExperiences);
+    const currentEmployment = CareerStatusDerivation.deriveCurrentEmployment(rawExperiences);
+    const currentRole = CareerStatusDerivation.resolveCurrentRole({
+      userCustomRole:
+        rawUserCustom.currentRole || profileView.candidate.profileMetadata?.currentRole,
+      headline: profileView.candidate.headline,
+      currentEmployment,
+    });
+    const seniority = CareerStatusDerivation.deriveSeniority({
+      experiences: rawExperiences,
+      education: rawUserCustom.education || profileView.candidate.profileMetadata?.education || [],
+      professionalTenureYears: tenureMetrics.professionalTenureYears,
+    });
+    const careerStatus = CareerStatusDerivation.deriveCareerStatus({
+      experiences: rawExperiences,
+      education: rawUserCustom.education || profileView.candidate.profileMetadata?.education || [],
+      professionalTenureMonths: tenureMetrics.professionalTenureMonths,
+    });
+
     const candidateProfileObj = {
       id: profileView.candidate.id,
       tenantId: tenantA.id,
       userId: userA.id,
       displayName: profileView.candidate.displayName,
+      headline: profileView.candidate.headline,
+      currentRole,
+      currentEmployment,
+      careerStatus,
+      seniority,
+      tenureMetrics,
+      location: profileView.candidate.location,
       skills: profileView.skills || [],
       projects: profileView.projects || [],
       resources: profileView.resources || [],
-      workHistory: profileView.candidate.profileMetadata?.userCustom?.experience || [],
-      education: [],
+      workHistory: rawExperiences,
+      experience: rawExperiences,
+      education: rawUserCustom.education || profileView.candidate.profileMetadata?.education || [],
+      jobPreferences: profileView.candidate.jobPreferences,
+      profileMetadata: profileView.candidate.profileMetadata,
+    };
+
+    const jobDescriptionObj = {
+      id: parsedJob.jobDescription.id,
+      tenantId: tenantA.id,
+      title: 'Senior Distributed Systems Engineer',
+      companyName: 'Nexus Cloud Labs',
+      level: parsedJob.jobDescription.level || 'MID',
+      requirements: parsedJob.requirements,
+      description: syntheticJobDescription,
     };
 
     const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
       context,
-      {
-        id: parsedJob.jobDescription.id,
-        tenantId: tenantA.id,
-        title: 'Senior Distributed Systems Engineer',
-        requirements: parsedJob.requirements,
-      },
+      jobDescriptionObj,
       candidateProfileObj
     );
 
     const projectAnalysis = ProjectRelevanceService.computeProjectsRelevance(
       context,
-      {
-        id: parsedJob.jobDescription.id,
-        tenantId: tenantA.id,
-        title: 'Senior Distributed Systems Engineer',
-        requirements: parsedJob.requirements,
-      },
+      jobDescriptionObj,
       candidateProfileObj.projects,
-      { candidateId: candidateA.id }
+      { candidateId: candidateA.id, skills: candidateProfileObj.skills }
     );
 
     const fitScoreAnalysis = AtsFitScoreService.calculateCandidateJobFit(
       context,
-      {
-        id: parsedJob.jobDescription.id,
-        tenantId: tenantA.id,
-        title: 'Senior Distributed Systems Engineer',
-        requirements: parsedJob.requirements,
-      },
+      jobDescriptionObj,
       matchAnalysis,
       projectAnalysis,
       candidateProfileObj
