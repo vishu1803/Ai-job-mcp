@@ -64,6 +64,9 @@ import { renderSubprocessorsPage } from '../views/subprocessors.page.js';
 import { renderJobFitRadarAppHtml } from '../mcp/apps/job-fit-radar.app.js';
 import { renderRadarFormPage, renderRadarResultPage } from '../views/radar.page.js';
 import { CandidateProfileService } from '../services/candidate-profile.service.js';
+import { SkillCatalogService } from '../services/skill-catalog.service.js';
+import { CandidateAdditionalSkillsService } from '../services/candidate-additional-skills.service.js';
+import { logger } from '../utils/logger.js';
 import { sourceResumeIngestionService as defaultSourceResumeIngestionService } from '../services/source-resume-ingestion.service.js';
 import { defaultMcpApiTokenService } from '../services/mcp-api-token.service.js';
 import { AiConnectionStatusService } from '../services/ai-connection-status.service.js';
@@ -2224,6 +2227,17 @@ export default async function webRoutes(app, opts = {}) {
     const flashMessage =
       req.query.saved === 'true' ? 'Career Profile and preferences saved successfully.' : '';
 
+    // Load additional skills and catalog for inline bootstrap
+    let additionalSkills = [];
+    let skillCatalog = { items: [], categories: [] };
+    try {
+      additionalSkills = await additionalSkillsService.listAdditionalSkills(context, candidate.id);
+    } catch { /* additional skills load skipped */ }
+    try {
+      skillCatalog = await skillCatalogService.searchSkills({ query: '', pageSize: 500 });
+      skillCatalog.categories = await skillCatalogService.getCategories();
+    } catch { /* skill catalog load skipped */ }
+
     const html = renderProfilePage({
       user: sessionContext.user,
       tenant: sessionContext.tenant,
@@ -2233,6 +2247,8 @@ export default async function webRoutes(app, opts = {}) {
       verifiedSkills: profile.verifiedSkillsSummary,
       csrfToken: 'csrf-profile-token-2026',
       flashMessage,
+      additionalSkills,
+      skillCatalog,
     });
 
     reply.type('text/html').send(html);
@@ -2376,6 +2392,237 @@ export default async function webRoutes(app, opts = {}) {
     });
 
     return reply.redirect('/profile?saved=true');
+  });
+
+  // -------------------------------------------------------------------------
+  // 22a-i. Profile Bootstrap API (single request for all profile data)
+  // -------------------------------------------------------------------------
+  const skillCatalogService = new SkillCatalogService(database);
+  const additionalSkillsService = new CandidateAdditionalSkillsService(database);
+
+  app.get('/api/profile/bootstrap', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const candidate = await getOrCreateCandidate(
+      database,
+      sessionContext.tenant.id,
+      sessionContext.user
+    );
+
+    const context = {
+      tenantId: sessionContext.tenant.id,
+      userId: sessionContext.user.id,
+      role: sessionContext.user.role,
+    };
+
+    // Get full career profile (includes education, experience, preferences, skills, etc.)
+    const profile = await candidateProfileService.getCareerProfile(context, candidate.id);
+
+    // Get additional skills (self-declared)
+    let additionalSkills = [];
+    try {
+      additionalSkills = await additionalSkillsService.listAdditionalSkills(context, candidate.id);
+    } catch (err) {
+      logger.debug({ err, candidateId: candidate.id }, 'Additional skills load skipped during bootstrap');
+    }
+
+    // Get full skill catalog for client-side search
+    let skillCatalog = { items: [], categories: [] };
+    try {
+      skillCatalog = await skillCatalogService.searchSkills({ query: '', pageSize: 500 });
+      const categories = await skillCatalogService.getCategories();
+      skillCatalog.categories = categories;
+    } catch (err) {
+      logger.debug({ err }, 'Skill catalog load skipped during bootstrap');
+    }
+
+    const userCustom = candidate.profileMetadata?.userCustom || {};
+    const jobPrefs = profile.jobPreferences || {};
+
+    // Build the canonical bootstrap DTO
+    const bootstrap = {
+      profile: {
+        candidateId: candidate.id,
+        displayName: candidate.displayName || sessionContext.user.displayName || '',
+        headline: candidate.headline || userCustom.headline || '',
+        summary: candidate.summary || userCustom.summary || '',
+        currentRole: profile.currentRole || userCustom.currentRole || '',
+        location: profile.location || userCustom.location || '',
+        careerStatus: profile.careerStatus || userCustom.careerStatus || 'FRESHER',
+        currentEmployment: userCustom.currentEmployment || null,
+        experience: userCustom.experience || [],
+        education: userCustom.education || [],
+        certifications: userCustom.certifications || [],
+        languages: userCustom.languages || [],
+        portfolioLinks: userCustom.portfolioLinks || [],
+      },
+      preferences: {
+        targetRoles: jobPrefs.targetRoles || [],
+        preferredLocations: jobPrefs.preferredLocations || [],
+        remotePreference: jobPrefs.remotePreference || 'FLEXIBLE',
+        employmentTypes: jobPrefs.employmentTypes || ['FULL_TIME'],
+        salaryFloor: jobPrefs.salaryFloor || null,
+        salaryCurrency: jobPrefs.salaryCurrency || 'USD',
+        preferredTechStack: jobPrefs.preferredTechStack || [],
+        industries: jobPrefs.industries || [],
+        companiesToPrioritize: jobPrefs.companiesToPrioritize || [],
+        companiesToAvoid: jobPrefs.companiesToAvoid || [],
+        workAuthorization: jobPrefs.workAuthorization || [],
+        visaSponsorshipRequired: jobPrefs.visaSponsorshipRequired || false,
+        availabilityDate: jobPrefs.availabilityDate || null,
+        relocationPreference: jobPrefs.relocationPreference || 'REMOTE_ONLY',
+      },
+      skills: {
+        evidenceBacked: (profile.primarySkills || []).concat(profile.technologySignals || []),
+        additional: additionalSkills,
+      },
+      skillCatalog: {
+        items: skillCatalog.items || [],
+        categories: skillCatalog.categories || [],
+      },
+      meta: {
+        updatedAt: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : new Date().toISOString(),
+      },
+    };
+
+    return reply.status(200).send(bootstrap);
+  });
+
+  // -------------------------------------------------------------------------
+  // 22a-ii. Profile PATCH (batched save — JSON only, no redirect)
+  // -------------------------------------------------------------------------
+  app.patch('/api/profile', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const candidate = await getOrCreateCandidate(
+      database,
+      sessionContext.tenant.id,
+      sessionContext.user
+    );
+
+    const context = {
+      tenantId: sessionContext.tenant.id,
+      userId: sessionContext.user.id,
+      role: sessionContext.user.role,
+    };
+
+    const body = req.body || {};
+    const sections = body.sections || {};
+
+    // Build sectionUpdates from only the sections provided
+    const sectionUpdates = {};
+
+    if (sections.identity) {
+      Object.assign(sectionUpdates, {
+        displayName: sections.identity.displayName,
+        headline: sections.identity.headline,
+        summary: sections.identity.summary,
+        currentRole: sections.identity.currentRole,
+        location: sections.identity.location,
+        careerStatus: sections.identity.careerStatus,
+      });
+    }
+
+    if (sections.currentEmployment !== undefined) {
+      sectionUpdates.currentEmployment = sections.currentEmployment;
+    }
+
+    if (sections.experience !== undefined) {
+      sectionUpdates.experience = sections.experience;
+    }
+
+    if (sections.education !== undefined) {
+      sectionUpdates.education = sections.education;
+    }
+
+    if (sections.certifications !== undefined) {
+      sectionUpdates.certifications = sections.certifications;
+    }
+
+    if (sections.languages !== undefined) {
+      sectionUpdates.languages = sections.languages;
+    }
+
+    if (sections.portfolioLinks !== undefined) {
+      sectionUpdates.portfolioLinks = sections.portfolioLinks;
+    }
+
+    if (sections.preferences) {
+      const prefs = sections.preferences;
+      sectionUpdates.jobPreferences = {
+        targetRoles: prefs.targetRoles || [],
+        preferredLocations: prefs.preferredLocations || [],
+        remotePreference: prefs.remotePreference || 'FLEXIBLE',
+        employmentTypes: prefs.employmentTypes || ['FULL_TIME'],
+        salaryFloor: prefs.salaryFloor != null ? Number(prefs.salaryFloor) : null,
+        salaryCurrency: prefs.salaryCurrency || 'USD',
+        preferredTechStack: prefs.preferredTechStack || [],
+        industries: prefs.industries || [],
+        companiesToPrioritize: prefs.companiesToPrioritize || [],
+        companiesToAvoid: prefs.companiesToAvoid || [],
+        workAuthorization: prefs.workAuthorization || [],
+        visaSponsorshipRequired: prefs.visaSponsorshipRequired || false,
+        availabilityDate: prefs.availabilityDate || null,
+        relocationPreference: prefs.relocationPreference || 'REMOTE_ONLY',
+      };
+    }
+
+    // Handle additional skills separately via domain service
+    let additionalSkillsResult = null;
+    if (sections.additionalSkills) {
+      try {
+        // Replace all additional skills atomically
+        const existingSkills = await additionalSkillsService.listAdditionalSkills(context, candidate.id);
+        // Remove old ones
+        for (const skill of existingSkills) {
+          try {
+            await additionalSkillsService.removeAdditionalSkill(context, candidate.id, skill.id);
+          } catch (err) {
+            logger.debug({ err, skillId: skill.id }, 'Failed to remove old additional skill during batch update');
+          }
+        }
+        // Add new ones
+        for (const skill of sections.additionalSkills) {
+          try {
+            await additionalSkillsService.addAdditionalSkill(context, candidate.id, {
+              catalogSkillId: skill.catalogSkillId,
+              proficiency: skill.proficiency || 'WORKING_KNOWLEDGE',
+              usageContext: skill.usageContext || null,
+              notes: skill.notes || null,
+            });
+          } catch (err) {
+            logger.debug({ err, skill }, 'Failed to add additional skill during batch update');
+          }
+        }
+        additionalSkillsResult = 'ok';
+      } catch (err) {
+        logger.error({ err, candidateId: candidate.id }, 'Additional skills batch update failed');
+        additionalSkillsResult = 'failed';
+      }
+    }
+
+    // Save profile sections via existing service
+    const updatedProfile = await candidateProfileService.updateUserProfileSections(
+      context,
+      candidate.id,
+      sectionUpdates,
+      { minimalResponse: true }
+    );
+
+    return reply.status(200).send({
+      ok: true,
+      saved: true,
+      updatedAt: updatedProfile.updatedAt ? new Date(updatedProfile.updatedAt).toISOString() : new Date().toISOString(),
+      displayName: updatedProfile.displayName,
+      candidateId: updatedProfile.candidateId,
+      additionalSkills: additionalSkillsResult,
+    });
   });
 
   // -------------------------------------------------------------------------

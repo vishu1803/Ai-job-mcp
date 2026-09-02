@@ -64,6 +64,13 @@
       "when": 1787763378954,
       "tag": "0008_material_peter_quill",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1787850000000,
+      "tag": "0009_canonical_skill_registry",
+      "breakpoints": true
     }
   ]
 }

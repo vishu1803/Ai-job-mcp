@@ -567,7 +567,7 @@ export function renderJobFitRadarAppHtml(initialData = null) {
       // 3. Requirement Matches
       const reqSummary = data.requirementSummary || {};
       const matched = reqSummary.matchedCount || 0;
-      const total = (matched + (reqSummary.missingCount || 0) + (reqSummary.partialCount || 0)) || 1;
+      const total = reqSummary.totalRequirements || (matched + (reqSummary.missingCount || 0) + (reqSummary.partialCount || 0) + (reqSummary.unknownCount || 0)) || 1;
       document.getElementById('match-counts-summary').textContent = matched + ' / ' + total + ' Matched';
 
       const matchedChipsContainer = document.getElementById('matched-skills-chips');
@@ -591,7 +591,7 @@ export function renderJobFitRadarAppHtml(initialData = null) {
       const projects = data.topRelevantProjects || [];
       if (projects.length > 0) {
         projectsContainer.innerHTML = projects.map(p => {
-          const relPct = Math.round((p.relevanceScore || 0) * 100);
+          const relPct = Math.round(Math.min(100, Math.max(0, p.relevanceScore || 0)));
           return '<div class="project-item">' +
             '<div class="project-header">' +
               '<span class="project-name">#' + esc(p.relevanceRank) + ' ' + esc(p.projectName) + '</span>' +

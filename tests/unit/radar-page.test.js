@@ -48,7 +48,7 @@ const mockAnalysisData = {
     {
       projectId: 'proj-1',
       projectName: 'AI Code Review Assistant',
-      relevanceScore: 0.92,
+      relevanceScore: 92,
       relevanceRank: 1,
       matchedRequirements: ['python', 'fastapi'],
       summary: 'AI-powered code review tool',
@@ -56,7 +56,7 @@ const mockAnalysisData = {
     {
       projectId: 'proj-2',
       projectName: 'Collaborative Task Manager',
-      relevanceScore: 0.78,
+      relevanceScore: 78,
       relevanceRank: 2,
       matchedRequirements: ['node.js', 'postgresql'],
       summary: 'Real-time task management',

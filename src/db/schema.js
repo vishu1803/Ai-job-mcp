@@ -124,8 +124,11 @@ export const skillCategoryEnum = pgEnum('skill_category', [
  */
 export const provenanceStatusEnum = pgEnum('provenance_status', [
   'VERIFIED',
+  'CORROBORATED',
   'INFERRED',
   'CLAIMED',
+  'SELF_DECLARED',
+  'LEARNING',
   'MISSING',
 ]);
 
@@ -600,6 +603,13 @@ export const candidateSkills = pgTable(
     primaryEvidenceId: uuid('primary_evidence_id'),
     firstObservedAt: timestamp('first_observed_at', { withTimezone: true }),
     lastObservedAt: timestamp('last_observed_at', { withTimezone: true }),
+    // Additional Skills support: candidate-declared skill metadata
+    proficiency: text('proficiency').default('WORKING_KNOWLEDGE'),
+    source: text('source').default('GITHUB'),
+    usageContext: text('usage_context'),
+    yearsExperience: real('years_experience'),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    notes: text('notes'),
     metadata: jsonb('metadata').default('{}').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -1062,6 +1072,32 @@ export const candidateClaims = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 24. Skill Catalog Table (Reusable Canonical Skill Registry)
+// ---------------------------------------------------------------------------
+
+export const skillCatalog = pgTable('skill_catalog', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  canonicalName: text('canonical_name').notNull(),
+  slug: text('slug').notNull().unique(),
+  category: text('category').notNull(),
+  subcategory: text('subcategory'),
+  skillType: text('skill_type').default('TECHNOLOGY').notNull(),
+  description: text('description'),
+  aliases: jsonb('aliases').default('[]').notNull(),
+  parentSkillId: uuid('parent_skill_id'),
+  active: boolean('active').default(true).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  metadata: jsonb('metadata').default('{}').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('idx_skill_catalog_category').on(table.category),
+  index('idx_skill_catalog_subcategory').on(table.subcategory),
+  index('idx_skill_catalog_active').on(table.active),
+  index('idx_skill_catalog_sort_order').on(table.sortOrder),
+]);
+
+// ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
 
@@ -1112,4 +1148,5 @@ export const schema = {
   resumes,
   resumeSections,
   candidateClaims,
+  skillCatalog,
 };

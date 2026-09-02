@@ -42,6 +42,8 @@ export function renderProfilePage({
   csrfToken = '',
   flashMessage = '',
   errorMessage = '',
+  additionalSkills = [],
+  skillCatalog = { items: [], categories: [] },
 }) {
   const jobPrefs = profile?.jobPreferences || preferences || {};
   const targetRolesList = jobPrefs.targetRoles || [];
@@ -208,6 +210,9 @@ export function renderProfilePage({
     languages: languagesList,
     portfolioLinks: portfolioLinksList,
     currentEmployment: currentEmploymentObj,
+    additionalSkills: additionalSkills || [],
+    skillCatalogItems: (skillCatalog && skillCatalog.items) || [],
+    skillCatalogCategories: (skillCatalog && skillCatalog.categories) || [],
   };
 
   const content = `
@@ -1188,6 +1193,47 @@ export function renderProfilePage({
         </div>
 
         <!-- ================================================================= -->
+        <!-- SECTION 5B: ADDITIONAL SKILLS (CANDIDATE DECLARED)               -->
+        <!-- ================================================================= -->
+        <div id="section-additional-skills" class="form-section-card">
+          <div class="section-title">
+            <span>🎯 5B. Additional Skills</span>
+            <span style="font-size: 0.72rem; color: #a5b4fc; background: rgba(165, 180, 252, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 500;">YOUR DECLARATION</span>
+          </div>
+          <div class="section-subtitle">
+            Add skills you know or are learning that may not be visible in your connected GitHub repositories or resume.
+          </div>
+
+          <div class="evidence-lock-banner" style="background: rgba(165, 180, 252, 0.06); border-color: rgba(165, 180, 252, 0.15);">
+            <div>
+              <strong style="color: #c7d2fe; font-size: 0.85rem;">Self-Declared Skills</strong>
+              <p style="color: #94a3b8; font-size: 0.78rem; margin: 0.2rem 0 0 0;">
+                These are your self-declared skills. They help career tools understand your full skillset but are marked as <span style="color: #fbbf24;">SELF_DECLARED</span> until independently verified.
+              </p>
+            </div>
+          </div>
+
+          <!-- Additional Skills List -->
+          <div id="additionalSkillsContainer" style="margin-bottom: 1rem;">
+            <div style="color: #64748b; font-size: 0.82rem; font-style: italic;">Loading additional skills...</div>
+          </div>
+
+          <!-- Add Skill Button -->
+          <button
+            id="openAddSkillModal"
+            class="btn btn-secondary"
+            style="font-size: 0.82rem; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.4rem;"
+            onclick="openSkillCatalogModal()"
+          >
+            <span style="font-size: 1rem;">+</span> Add Skill
+          </button>
+
+          <div style="margin-top: 0.5rem; font-size: 0.72rem; color: #64748b;">
+            🔗 These skills feed AI career tools — MCP clients use your saved data for job matching.
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
         <!-- SECTION 6: HIGHLIGHTED PROJECTS (EVIDENCE LOCKED)                 -->
         <!-- ================================================================= -->
         <div id="section-projects" class="form-section-card">
@@ -1700,6 +1746,7 @@ export function renderProfilePage({
         renderCertifications();
         renderLanguages();
         renderLinks();
+        renderAdditionalSkills();
       }
 
       window.addEventListener('beforeunload', function(e) {
@@ -1732,25 +1779,37 @@ export function renderProfilePage({
 
       function buildSavePayload() {
         return {
-          displayName: document.getElementById('displayName').value,
-          headline: document.getElementById('headline').value,
-          summary: document.getElementById('summary').value,
-          currentRole: document.getElementById('currentRole').value,
-          location: document.getElementById('location').value,
-          careerStatus: document.getElementById('careerStatus').value,
-          currentEmployment: profileState.currentEmployment,
-          experience: profileState.experiences || [],
-          education: profileState.education || [],
-          certifications: profileState.certifications || [],
-          languages: profileState.languages || [],
-          portfolioLinks: profileState.portfolioLinks || [],
-          targetRoles: (document.getElementById('targetRolesHidden').value || '').split(',').map(s => s.trim()).filter(Boolean),
-          preferredLocations: (document.getElementById('preferredLocationsHidden').value || '').split(',').map(s => s.trim()).filter(Boolean),
-          remotePreference: document.getElementById('remotePreference').value,
-          salaryFloor: document.getElementById('salaryFloor').value || null,
-          salaryCurrency: document.getElementById('salaryCurrency').value,
-          availabilityDate: document.getElementById('availabilityDate').value,
-          relocationPreference: document.getElementById('relocationPreference').value,
+          sections: {
+            identity: {
+              displayName: document.getElementById('displayName').value,
+              headline: document.getElementById('headline').value,
+              summary: document.getElementById('summary').value,
+              currentRole: document.getElementById('currentRole').value,
+              location: document.getElementById('location').value,
+              careerStatus: document.getElementById('careerStatus').value,
+            },
+            currentEmployment: profileState.currentEmployment,
+            experience: profileState.experiences || [],
+            education: profileState.education || [],
+            certifications: profileState.certifications || [],
+            languages: profileState.languages || [],
+            portfolioLinks: profileState.portfolioLinks || [],
+            preferences: {
+              targetRoles: (document.getElementById('targetRolesHidden').value || '').split(',').map(s => s.trim()).filter(Boolean),
+              preferredLocations: (document.getElementById('preferredLocationsHidden').value || '').split(',').map(s => s.trim()).filter(Boolean),
+              remotePreference: document.getElementById('remotePreference').value,
+              salaryFloor: document.getElementById('salaryFloor').value || null,
+              salaryCurrency: document.getElementById('salaryCurrency').value,
+              availabilityDate: document.getElementById('availabilityDate').value,
+              relocationPreference: document.getElementById('relocationPreference').value,
+            },
+            additionalSkills: additionalSkillsData.map(s => ({
+              catalogSkillId: s.catalogSkillId || s.skillId,
+              proficiency: s.proficiency,
+              usageContext: s.usageContext || null,
+              notes: s.notes || null,
+            })),
+          },
         };
       }
 
@@ -1763,8 +1822,8 @@ export function renderProfilePage({
 
         try {
           const payload = buildSavePayload();
-          const response = await fetch('/profile', {
-            method: 'POST',
+          const response = await fetch('/api/profile', {
+            method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -1780,6 +1839,8 @@ export function renderProfilePage({
 
           const result = await response.json();
           if (result.ok) {
+            // Sync local state with saved state
+            profileState.additionalSkills = JSON.parse(JSON.stringify(additionalSkillsData));
             lastSavedState = JSON.parse(JSON.stringify(profileState));
             currentVersion = result.updatedAt;
             isFormDirty = false;
@@ -1794,7 +1855,7 @@ export function renderProfilePage({
           if (err.name === 'AbortError') return;
           console.error('Profile save failed:', err);
           updateSaveStatus('error');
-          // Preserve local edits on failure
+          // Preserve local edits on failure — user can retry
         }
       }
 
@@ -2386,13 +2447,271 @@ export function renderProfilePage({
         }
       }
 
+      // ================================================================
+      // Additional Skills Management — LOCAL STATE (no server calls)
+      // ================================================================
+      let additionalSkillsData = profileState.additionalSkills || [];
+      let allCatalogSkills = profileState.skillCatalogItems || [];
+      let catalogCategories = profileState.skillCatalogCategories || [];
+      let selectedCatalogSkill = null;
+      let _localSkillIdCounter = 10000;
+
+      /* eslint-disable no-useless-escape */
+      // --- Additional Skills Rendering (local state only) ---
+      function renderAdditionalSkills() {
+        const container = document.getElementById('additionalSkillsContainer');
+        if (!container) return;
+
+        if (additionalSkillsData.length === 0) {
+          container.innerHTML = '<div style="color: #64748b; font-size: 0.82rem; font-style: italic; padding: 0.5rem 0;">No additional skills declared yet. Click "Add Skill" to get started.</div>';
+          return;
+        }
+
+        const proficiencyColors = {
+          BASIC: { bg: 'rgba(251, 191, 36, 0.1)', border: 'rgba(251, 191, 36, 0.2)', text: '#fbbf24' },
+          WORKING_KNOWLEDGE: { bg: 'rgba(96, 165, 250, 0.1)', border: 'rgba(96, 165, 250, 0.2)', text: '#60a5fa' },
+          PROFICIENT: { bg: 'rgba(52, 211, 153, 0.1)', border: 'rgba(52, 211, 153, 0.2)', text: '#34d399' },
+          ADVANCED: { bg: 'rgba(167, 139, 250, 0.1)', border: 'rgba(167, 139, 250, 0.2)', text: '#a78bfa' },
+          CURRENTLY_LEARNING: { bg: 'rgba(251, 146, 60, 0.1)', border: 'rgba(251, 146, 60, 0.2)', text: '#fb923c' },
+        };
+
+        container.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+          ' + additionalSkillsData.map(s => {
+            const pColor = proficiencyColors[s.proficiency] || proficiencyColors.WORKING_KNOWLEDGE;
+            const provLabel = s.provenanceStatus === 'LEARNING' ? '📖 Learning' : '○ Self-Declared';
+            return '<span class="skill-tag-badge" style="background: ' + pColor.bg + '; color: ' + pColor.text + '; border: 1px solid ' + pColor.border + '; font-size: 0.78rem; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.3rem; cursor: default;" title="Proficiency: ' + escapeHtml(s.proficiency) + ' | Status: ' + provLabel + (s.notes ? ' | ' + escapeHtml(s.notes) : '') + '">
+              <strong>' + escapeHtml(s.skillName) + '</strong>
+              <span style="font-size: 0.68rem; opacity: 0.8;">' + escapeHtml(s.proficiency.replace(/_/g, ' ')) + '</span>
+              <button onclick="removeAdditionalSkill(\'' + s.id + '\')" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 0.8rem; padding: 0; margin-left: 0.2rem; opacity: 0.6;" title="Remove">×</button>
+            </span>';
+          }).join('') + '
+        </div>';
+      }
+
+      function removeAdditionalSkill(skillId) {
+        if (!confirm('Remove this skill from your additional skills?')) return;
+        additionalSkillsData = additionalSkillsData.filter(s => s.id !== skillId);
+        renderAdditionalSkills();
+        markFormDirty();
+      }
+
+      // --- Skill Catalog Modal — ENTIRELY CLIENT-SIDE ---
+      function openSkillCatalogModal() {
+        const modal = document.getElementById('skillCatalogModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        document.getElementById('catalogSearchInput').value = '';
+        document.getElementById('addSkillForm').style.display = 'none';
+        document.getElementById('catalogBrowseArea').style.display = 'block';
+        document.getElementById('catalogSkillsList').innerHTML = '';
+        renderCatalogCategories();
+      }
+
+      function closeSkillCatalogModal() {
+        const modal = document.getElementById('skillCatalogModal');
+        if (modal) modal.style.display = 'none';
+        selectedCatalogSkill = null;
+      }
+
+      function renderCatalogCategories() {
+        const container = document.getElementById('catalogCategoriesList');
+        if (!container) return;
+
+        const categoryLabels = {
+          CLOUD: '☁️ Cloud & Infrastructure',
+          CONTAINERS: '📦 Containers & IaC',
+          CICD: '🔄 CI/CD & GitOps',
+          DATABASES: '🗄️ Databases / Cache / Search',
+          MESSAGING: '📨 Messaging & Events',
+          NETWORKING: '🌐 Networking',
+          OBSERVABILITY: '📊 Observability / Reliability',
+          SECURITY: '🔐 Security / Identity',
+          ARCHITECTURE: '🏗️ Software Architecture',
+          DEVELOPMENT: '💻 Development / Testing',
+          AI_DEVELOPMENT: '🤖 AI-Assisted Development',
+          GENAI: '🧠 Generative AI',
+          AI_AGENTS: 'Agent AI',
+          MCP: '🔌 MCP / AI Interop',
+          AI_QUALITY: '✅ AI Evaluation / Quality',
+          MLOPS: '⚙️ MLOps / AI Platform',
+          DX: '🚀 Developer Experience',
+          PRACTICES: '📋 Engineering Practices',
+        };
+
+        container.innerHTML = catalogCategories.map(cat =>
+          '<button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 0.4rem 0.8rem; text-align: left; width: 100%;" onclick="loadCatalogByCategory(\'' + escapeHtml(cat.category) + '\')">
+            ' + (categoryLabels[cat.category] || escapeHtml(cat.category)) + ' <span style="color: #64748b; font-size: 0.7rem;">(' + cat.count + ')</span>
+          </button>'
+        ).join('');
+      }
+
+      function loadCatalogByCategory(category) {
+        // LOCAL filter — no network call
+        const existingSlugs = new Set(additionalSkillsData.map(s => s.skillSlug));
+        const filtered = allCatalogSkills
+          .filter(s => s.category === category && !existingSlugs.has(s.slug))
+          .slice(0, 100);
+        _showCatalogResults(filtered, category);
+      }
+
+      function searchCatalogSkills(query) {
+        if (!query || query.length < 2) {
+          document.getElementById('catalogSkillsList').innerHTML = '';
+          return;
+        }
+        // LOCAL search — normalize and match
+        const q = query.toLowerCase().trim();
+        const existingSlugs = new Set(additionalSkillsData.map(s => s.skillSlug));
+        const results = allCatalogSkills
+          .filter(s => {
+            if (existingSlugs.has(s.slug)) return false;
+            const name = (s.canonicalName || '').toLowerCase();
+            const slug = (s.slug || '').toLowerCase();
+            const aliases = Array.isArray(s.aliases) ? s.aliases.map(a => a.toLowerCase()) : [];
+            return name.includes(q) || slug.includes(q) || aliases.some(a => a.includes(q));
+          })
+          .slice(0, 30);
+        _showCatalogResults(results, 'Search: ' + query);
+      }
+
+      function _showCatalogResults(skills, label) {
+        const container = document.getElementById('catalogSkillsList');
+        if (!container) return;
+        const items = skills.map(skill => {
+          const sid = JSON.stringify(skill.id);
+          const sname = JSON.stringify(escapeHtml(skill.canonicalName));
+          const scat = JSON.stringify(escapeHtml(skill.category));
+          return '<button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 0.4rem 0.8rem; text-align: left; width: 100%; display: flex; justify-content: space-between; align-items: center;" onclick="selectCatalogSkill(' + sid + ', ' + sname + ', ' + scat + ')">
+              <span><strong>' + escapeHtml(skill.canonicalName) + '</strong> <span style="color: #64748b; font-size: 0.7rem;">' + escapeHtml(skill.category) + '</span></span>
+              <span style="color: #34d399; font-size: 0.85rem;">+</span>
+            </button>';
+        }).join('');
+        container.innerHTML = '<div style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.5rem;">' + escapeHtml(label) + ' (' + skills.length + ' available)</div>
+          <div style="display: flex; flex-direction: column; gap: 0.3rem; max-height: 300px; overflow-y: auto;">
+          ' + items + '
+        </div>';
+      }
+
+      function selectCatalogSkill(skillId, skillName, category) {
+        selectedCatalogSkill = { id: skillId, name: skillName, category: category };
+        document.getElementById('selectedSkillName').textContent = skillName;
+        document.getElementById('addSkillForm').style.display = 'block';
+        document.getElementById('catalogBrowseArea').style.display = 'none';
+      }
+
+      function confirmAddSkill() {
+        if (!selectedCatalogSkill) return;
+        const proficiency = document.getElementById('skillProficiency').value;
+        const usageContext = document.getElementById('skillUsageContext').value || null;
+        const notes = document.getElementById('skillNotes').value || null;
+        const isLearning = proficiency === 'CURRENTLY_LEARNING';
+
+        // Add to local state — NO network call
+        const newSkill = {
+          id: 'local-' + (++_localSkillIdCounter),
+          catalogSkillId: selectedCatalogSkill.id,
+          skillName: selectedCatalogSkill.name,
+          skillSlug: selectedCatalogSkill.name.toLowerCase().replace(/\s+/g, '-'),
+          category: selectedCatalogSkill.category,
+          proficiency: proficiency,
+          provenanceStatus: isLearning ? 'LEARNING' : 'SELF_DECLARED',
+          source: 'CANDIDATE_DECLARED',
+          usageContext: usageContext,
+          notes: notes,
+        };
+        additionalSkillsData.push(newSkill);
+        renderAdditionalSkills();
+        closeSkillCatalogModal();
+        markFormDirty();
+      }
+
       // Initial page initialization
       renderExperiences();
       renderEducation();
       renderCertifications();
       renderLanguages();
       renderLinks();
+      renderAdditionalSkills();
     </script>
+
+    <!-- ================================================================ -->
+    <!-- SKILL CATALOG MODAL                                              -->
+    <!-- ================================================================ -->
+    <div id="skillCatalogModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 1000; justify-content: center; align-items: center; padding: 1rem;">
+      <div style="background: #1a1f35; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h3 style="color: #f8fafc; font-size: 1.1rem; margin: 0;">Add Skill</h3>
+          <button onclick="closeSkillCatalogModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">×</button>
+        </div>
+
+        <!-- Search -->
+        <div style="margin-bottom: 1rem;">
+          <input
+            type="text"
+            id="catalogSearchInput"
+            placeholder="Search skills..."
+            style="width: 100%; padding: 0.6rem 0.8rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #f8fafc; font-size: 0.85rem; outline: none;"
+            oninput="searchCatalogSkills(this.value)"
+          />
+        </div>
+
+        <!-- Browse by Category -->
+        <div id="catalogBrowseArea">
+          <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;">Browse by Category</div>
+          <div id="catalogCategoriesList" style="display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 1rem;"></div>
+          <div id="catalogSkillsList"></div>
+        </div>
+
+        <!-- Add Skill Form (shown after selection) -->
+        <div id="addSkillForm" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+          <div style="margin-bottom: 0.8rem;">
+            <span style="color: #94a3b8; font-size: 0.82rem;">Selected: </span>
+            <strong id="selectedSkillName" style="color: #f8fafc; font-size: 0.9rem;"></strong>
+            <button onclick="document.getElementById('addSkillForm').style.display='none'; document.getElementById('catalogBrowseArea').style.display='block';" style="background: none; border: none; color: #60a5fa; font-size: 0.78rem; cursor: pointer; margin-left: 0.5rem;">← Change</button>
+          </div>
+
+          <div style="margin-bottom: 0.8rem;">
+            <label style="display: block; color: #94a3b8; font-size: 0.78rem; margin-bottom: 0.3rem;">Proficiency</label>
+            <select id="skillProficiency" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #f8fafc; font-size: 0.85rem;">
+              <option value="BASIC">Basic</option>
+              <option value="WORKING_KNOWLEDGE" selected>Working Knowledge</option>
+              <option value="PROFICIENT">Proficient</option>
+              <option value="ADVANCED">Advanced</option>
+              <option value="CURRENTLY_LEARNING">Currently Learning</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 0.8rem;">
+            <label style="display: block; color: #94a3b8; font-size: 0.78rem; margin-bottom: 0.3rem;">Usage Context (optional)</label>
+            <select id="skillUsageContext" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #f8fafc; font-size: 0.85rem;">
+              <option value="">-- Select --</option>
+              <option value="PROFESSIONAL_WORK">Professional Work</option>
+              <option value="INTERNSHIP">Internship</option>
+              <option value="PERSONAL_PROJECT">Personal Project</option>
+              <option value="FREELANCE">Freelance</option>
+              <option value="ACADEMIC_PROJECT">Academic Project</option>
+              <option value="CERTIFICATION">Certification / Training</option>
+              <option value="SELF_STUDY">Self-Study</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom: 1rem;">
+            <label style="display: block; color: #94a3b8; font-size: 0.78rem; margin-bottom: 0.3rem;">Notes (optional)</label>
+            <textarea
+              id="skillNotes"
+              placeholder="How have you used this skill?"
+              rows="2"
+              style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #f8fafc; font-size: 0.85rem; resize: vertical; outline: none;"
+            ></textarea>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+            <button onclick="closeSkillCatalogModal()" class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.5rem 1rem;">Cancel</button>
+            <button onclick="confirmAddSkill()" class="btn btn-primary" style="font-size: 0.82rem; padding: 0.5rem 1rem;">Add Skill</button>
+          </div>
+        </div>
+      </div>
+    </div>
   `;
 
   return renderLayout({

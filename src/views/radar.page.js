@@ -253,7 +253,7 @@ function renderEmbeddedRadarWidget(data) {
   // Requirement matches
   const reqSummary = data.requirementSummary || {};
   const matched = reqSummary.matchedCount || 0;
-  const total = matched + (reqSummary.missingCount || 0) + (reqSummary.partialCount || 0) || 1;
+  const total = reqSummary.totalRequirements || (matched + (reqSummary.missingCount || 0) + (reqSummary.partialCount || 0) + (reqSummary.unknownCount || 0)) || 1;
   const keyMatched = reqSummary.keyMatchedSkills || [];
   const keyMissing = reqSummary.keyMissingSkills || [];
 
@@ -394,7 +394,7 @@ function renderEmbeddedRadarWidget(data) {
               projects.length > 0
                 ? projects
                     .map((p) => {
-                      const relPct = Math.round((p.relevanceScore || 0) * 100);
+                      const relPct = Math.round(Math.min(100, Math.max(0, p.relevanceScore || 0)));
                       return `
                     <div style="display: flex; flex-direction: column; gap: 4px; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-md);">
                       <div style="display: flex; justify-content: space-between; align-items: center;">

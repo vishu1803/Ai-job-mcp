@@ -14,6 +14,7 @@ import oauthRoutes from './routes/oauth.routes.js';
 import candidateRoutes from './routes/candidate.routes.js';
 import accountRoutes from './routes/account.routes.js';
 import webRoutes from './routes/web.routes.js';
+import skillRoutes from './routes/skill.routes.js';
 import { config } from './config/env.js';
 import { db as defaultDb } from './db/index.js';
 import { connectorRegistry } from './connectors/registry/connector-registry.js';
@@ -232,6 +233,12 @@ export function buildApp(opts = {}) {
   app.register(accountRoutes, {
     prefix: '/account',
     dataSovereigntyService: opts.dataSovereigntyService,
+  });
+
+  // Skill Catalog & Additional Skills Routes (/skills)
+  app.register(skillRoutes, {
+    prefix: '/skills',
+    db: opts.db,
   });
 
   // Human Web Application & View Routes (/, /login, /onboarding, /dashboard, /connect, /settings, /docs/mcp)

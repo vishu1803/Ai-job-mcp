@@ -319,12 +319,13 @@ export class EvidenceMatchingService {
         canonicalSlug = norm.canonicalSlug;
       }
 
-      if (canonicalSlug) {
-        const PROVENANCE_PRIORITY = {
-          CORROBORATED: 4,
-          VERIFIED: 3,
-          INFERRED: 2,
-          CLAIMED: 1,
+      if (canonicalSlug) {          const PROVENANCE_PRIORITY = {
+          CORROBORATED: 5,
+          VERIFIED: 4,
+          INFERRED: 3,
+          CLAIMED: 2,
+          SELF_DECLARED: 1,
+          LEARNING: 0,
           MISSING: 0,
         };
         if (skillsBySlug.has(canonicalSlug)) {
@@ -686,6 +687,105 @@ export class EvidenceMatchingService {
         'UNVERIFIED_CLAIM',
         match.explanation,
         `Connect a repository containing ${targetDisplayName} code, manifests, or deployment configurations.`
+      );
+
+      return { match, explanation, gap };
+    }
+
+    // CASE B2: SELF_DECLARED Skill (Candidate-declared, not evidence-backed)
+    if (candidateSkill.provenanceStatus === 'SELF_DECLARED') {
+      const matchConfidence = Number(Math.min(0.45, (req.confidenceScore ?? 0.9) * 0.45).toFixed(2));
+
+      // Preserve SELF_DECLARED provenance — never upgrade
+      const match = {
+        requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: targetDisplayName,
+        category: req.category,
+        required: req.importance === 'REQUIRED',
+        importance: req.importance,
+        weight: req.weight ?? 1.0,
+        skillSlug: targetSlug,
+        extractedValue: req.extractedValue,
+        matchStatus: 'PARTIAL',
+        matchConfidence,
+        isUserClaim: true,
+        claimLabel: '[Self-Declared Skill]',
+        candidateSkills: [candidateSkill.name || targetDisplayName],
+        candidateProvenance: 'SELF_DECLARED',
+        matchedSkillSlug: targetSlug,
+        relationshipType: 'EXACT',
+        primaryEvidence: null,
+        supportingEvidence: [],
+        explanation: `PARTIAL: Candidate declares ${targetDisplayName} (Self-Declared, proficiency: ${candidateSkill.proficiency || 'WORKING_KNOWLEDGE'}), but no independent evidence exists in connected repositories or resume.`,
+      };
+
+      const explanation = {
+        requirementId: req.id,
+        status: 'PARTIAL',
+        reason: match.explanation,
+        evidenceRefs: [],
+        matchConfidence,
+      };
+
+      const gap = EvidenceMatchingService._createSkillGap(
+        req,
+        targetSlug,
+        targetDisplayName,
+        'PARTIAL',
+        'UNVERIFIED_CLAIM',
+        match.explanation,
+        `Connect a repository or resume demonstrating ${targetDisplayName} usage to upgrade from self-declared to verified.`,
+        'NO_EVIDENCE'
+      );
+
+      return { match, explanation, gap };
+    }
+
+    // CASE B3: LEARNING Skill (Candidate is learning, does not satisfy requirement)
+    if (candidateSkill.provenanceStatus === 'LEARNING') {
+      const matchConfidence = 0.0;
+
+      const match = {
+        requirementId: req.id,
+        originalRequirement: req.originalText || req.rawSnippet || req.extractedValue,
+        normalizedRequirement: targetDisplayName,
+        category: req.category,
+        required: req.importance === 'REQUIRED',
+        importance: req.importance,
+        weight: req.weight ?? 1.0,
+        skillSlug: targetSlug,
+        extractedValue: req.extractedValue,
+        matchStatus: 'MISSING',
+        matchConfidence,
+        isUserClaim: true,
+        claimLabel: '[Currently Learning]',
+        candidateSkills: [candidateSkill.name || targetDisplayName],
+        candidateProvenance: 'LEARNING',
+        matchedSkillSlug: targetSlug,
+        relationshipType: 'EXACT',
+        primaryEvidence: null,
+        supportingEvidence: [],
+        explanation: `MISSING: Candidate is currently learning ${targetDisplayName} (LEARNING status), which does not yet satisfy a current job requirement.`,
+      };
+
+      const explanation = {
+        requirementId: req.id,
+        status: 'MISSING',
+        reason: match.explanation,
+        evidenceRefs: [],
+        matchConfidence,
+      };
+
+      const gap = EvidenceMatchingService._createSkillGap(
+        req,
+        targetSlug,
+        targetDisplayName,
+        'MISSING',
+        'INSUFFICIENT_EVIDENCE',
+        match.explanation,
+        `Build projects or complete training to demonstrate proficiency in ${targetDisplayName}.`,
+        'NO_EVIDENCE'
       );
 
       return { match, explanation, gap };

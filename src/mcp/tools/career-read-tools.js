@@ -359,11 +359,15 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
           ? 'VERIFIED'
           : s.provenanceStatus === 'CORROBORATED'
             ? 'CORROBORATED'
-            : s.provenanceStatus === 'USER_PROVIDED'
-              ? 'USER_PROVIDED'
-              : s.provenanceStatus === 'INFERRED'
-                ? 'INFERRED'
-                : 'CLAIMED',
+            : s.provenanceStatus === 'SELF_DECLARED'
+              ? 'SELF_DECLARED'
+              : s.provenanceStatus === 'LEARNING'
+                ? 'LEARNING'
+                : s.provenanceStatus === 'USER_PROVIDED'
+                  ? 'USER_PROVIDED'
+                  : s.provenanceStatus === 'INFERRED'
+                    ? 'INFERRED'
+                    : 'CLAIMED',
     }));
   }
 
@@ -645,12 +649,19 @@ export async function handleListVerifiedSkills(context, rawArgs, deps = {}) {
     // Resume data loading is best-effort; missing data means no CORROBORATED promotion
   }
 
-  // Build query conditions (strictly VERIFIED skills only)
+  // Build query conditions
+  // Default: return all skills (VERIFIED + CORROBORATED + CLAIMED + SELF_DECLARED + LEARNING)
+  // The 'status' filter allows MCP clients to narrow to specific provenance levels
   const conditions = [
     eq(candidateSkills.tenantId, context.tenantId),
     eq(candidateSkills.candidateId, candidateId),
-    eq(candidateSkills.provenanceStatus, 'VERIFIED'),
   ];
+
+  // If a specific provenance status is requested, filter by it
+  // Otherwise return all skills (including additional/declared skills)
+  if (args.provenanceStatus) {
+    conditions.push(eq(candidateSkills.provenanceStatus, args.provenanceStatus));
+  }
 
   if (args.category) {
     conditions.push(sql`${candidateSkills.category}::text ILIKE ${`%${args.category}%`}`);
