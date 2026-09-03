@@ -175,10 +175,25 @@ export const GetCandidateProfileInputSchema = z
     includeSkillsSummary: z
       .boolean()
       .default(true)
-      .describe('Whether to include high-level verified skills summary (capped at top 15 skills).'),
+      .describe('Whether to include high-level verified skills summary (capped at top 15-20 skills).'),
+    includeEducation: z
+      .boolean()
+      .default(true)
+      .describe('Whether to include structured education entries (capped at top 5).'),
+    includeCertifications: z
+      .boolean()
+      .default(true)
+      .describe('Whether to include professional certifications (capped at top 5).'),
+    includeLanguages: z
+      .boolean()
+      .default(true)
+      .describe('Whether to include language proficiencies (capped at top 5).'),
   })
   .strict();
 ```
+
+All seven fields are optional. Every `include*` boolean defaults to `true`;
+when set to `false` the corresponding section is omitted from the output.
 
 ### 6.3 Output Schema (Zod)
 ```javascript
@@ -720,7 +735,7 @@ When client models invoke `tools/list`, the server returns only the four registe
     {
       "name": "get_candidate_profile",
       "description": "Retrieves high-level candidate profile summary, verified skills rollup, highlighted projects, and work experience.",
-      "inputSchema": { "type": "object", "properties": { "candidateId": { "type": "string" }, "includeExperience": { "type": "boolean" }, "includeProjects": { "type": "boolean" }, "includeSkillsSummary": { "type": "boolean" } } },
+      "inputSchema": { "type": "object", "properties": { "candidateId": { "type": "string" }, "includeExperience": { "type": "boolean" }, "includeProjects": { "type": "boolean" }, "includeSkillsSummary": { "type": "boolean" }, "includeEducation": { "type": "boolean" }, "includeCertifications": { "type": "boolean" }, "includeLanguages": { "type": "boolean" } } },
       "annotations": { "readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
     },
     {

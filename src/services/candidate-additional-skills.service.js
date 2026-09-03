@@ -15,7 +15,7 @@
 
 import { eq, and, desc } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
-import { candidates, candidateSkills, skills } from '../db/schema.js';
+import { candidates, candidateSkills, skills, skillCatalog } from '../db/schema.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { SkillCatalogService } from './skill-catalog.service.js';
 import { ValidationError, NotFoundError } from '../errors/index.js';
@@ -217,7 +217,7 @@ export class CandidateAdditionalSkillsService {
           preservedProvenance: true,
         }, 'Additional skill declaration added, preserving stronger existing provenance');
 
-        return { ...updated, skill: catalogSkill, preservedProvenance: true };
+        return { ...updated, skillId: globalSkill.id, catalogSkillId: catalogSkill.id, skill: catalogSkill, preservedProvenance: true };
       }
 
       // Update existing SELF_DECLARED/CLAIMED/INFERRED record
@@ -235,7 +235,7 @@ export class CandidateAdditionalSkillsService {
         .where(eq(candidateSkills.id, existing.id))
         .returning();
 
-      return { ...updated, skill: catalogSkill, preservedProvenance: false };
+      return { ...updated, skillId: globalSkill.id, catalogSkillId: catalogSkill.id, skill: catalogSkill, preservedProvenance: false };
     }
 
     // Create new candidate skill record
@@ -265,7 +265,7 @@ export class CandidateAdditionalSkillsService {
       })
       .returning();
 
-    return { ...created, skill: catalogSkill, preservedProvenance: false };
+    return { ...created, skillId: globalSkill.id, catalogSkillId: catalogSkill.id, skill: catalogSkill, preservedProvenance: false };
   }
 
   /**
@@ -330,9 +330,11 @@ export class CandidateAdditionalSkillsService {
         cs: candidateSkills,
         skillSlug: skills.slug,
         skillName: skills.name,
+        catalogSkillId: skillCatalog.id,
       })
       .from(candidateSkills)
       .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .leftJoin(skillCatalog, eq(skills.slug, skillCatalog.slug))
       .where(
         and(
           eq(candidateSkills.tenantId, context.tenantId),
@@ -342,9 +344,10 @@ export class CandidateAdditionalSkillsService {
       )
       .orderBy(desc(candidateSkills.updatedAt));
 
-    return rows.map(({ cs, skillSlug, skillName }) => ({
+    return rows.map(({ cs, skillSlug, skillName, catalogSkillId }) => ({
       id: cs.id,
       skillId: cs.skillId,
+      catalogSkillId: catalogSkillId || null,
       skillSlug,
       skillName,
       category: cs.category,
@@ -359,6 +362,204 @@ export class CandidateAdditionalSkillsService {
       createdAt: cs.createdAt ? new Date(cs.createdAt).toISOString() : null,
       updatedAt: cs.updatedAt ? new Date(cs.updatedAt).toISOString() : null,
     }));
+  }
+
+  /**
+   * Atomically replaces the candidate's additional skills list.
+   * Ensures pre-validation of all skills before any deletion occurs.
+   * If any skill validation fails, no changes are committed to the database.
+   *
+   * @param {object} context - Trusted context
+   * @param {string} candidateId - Candidate UUID
+   * @param {Array<object>} skillsList - Array of { catalogSkillId, proficiency, usageContext, yearsExperience, notes }
+   * @returns {Promise<Array<object>>} Updated list of additional skills
+   */
+  async setAdditionalSkills(context, candidateId, skillsList) {
+    this._validateContext(context);
+
+    if (!candidateId) throw new ValidationError('candidateId is required');
+    if (!Array.isArray(skillsList)) throw new ValidationError('skillsList must be an array');
+
+    // 1. Verify candidate exists in this tenant
+    const [candidate] = await this._db
+      .select({ id: candidates.id })
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)))
+      .limit(1);
+
+    if (!candidate) {
+      throw new NotFoundError(`Candidate not found: ${candidateId}`);
+    }
+
+    // 2. Pre-validate all items BEFORE touching the database
+    const validatedEntries = [];
+    const seenCatalogIds = new Set();
+
+    for (let i = 0; i < skillsList.length; i++) {
+      const item = skillsList[i];
+      if (!item || typeof item !== 'object') {
+        throw new ValidationError(`Skill at index ${i} is invalid`);
+      }
+
+      const {
+        catalogSkillId,
+        proficiency = 'WORKING_KNOWLEDGE',
+        usageContext = null,
+        yearsExperience = null,
+        notes = null,
+      } = item;
+
+      if (!catalogSkillId) {
+        throw new ValidationError(`Skill at index ${i} is missing required catalogSkillId`);
+      }
+
+      if (seenCatalogIds.has(catalogSkillId)) {
+        continue;
+      }
+      seenCatalogIds.add(catalogSkillId);
+
+      // Validate proficiency
+      if (!Object.values(PROFICIENCY_LEVELS).includes(proficiency)) {
+        throw new ValidationError(`Invalid proficiency: ${proficiency} at index ${i}. Must be one of: ${Object.values(PROFICIENCY_LEVELS).join(', ')}`);
+      }
+
+      // Validate usageContext if provided
+      if (usageContext && !Object.values(USAGE_CONTEXTS).includes(usageContext)) {
+        throw new ValidationError(`Invalid usageContext: ${usageContext} at index ${i}. Must be one of: ${Object.values(USAGE_CONTEXTS).join(', ')}`);
+      }
+
+      // Resolve from catalogService
+      const catalogSkill = await this.catalogService.getSkillById(catalogSkillId);
+      if (!catalogSkill) {
+        throw new NotFoundError(`Skill catalog entry not found: ${catalogSkillId}`);
+      }
+
+      // Find or create global skill
+      const globalSkill = await this._findOrCreateGlobalSkill(catalogSkill);
+
+      const isLearning = proficiency === 'CURRENTLY_LEARNING';
+      const provenanceStatus = isLearning ? 'LEARNING' : 'SELF_DECLARED';
+
+      validatedEntries.push({
+        catalogSkill,
+        globalSkill,
+        provenanceStatus,
+        proficiency,
+        usageContext,
+        yearsExperience,
+        notes,
+      });
+    }
+
+    // 3. Execute atomic transaction
+    await this._db.transaction(async (tx) => {
+      // Find existing skills for this candidate
+      const existingCandidateSkills = await tx
+        .select()
+        .from(candidateSkills)
+        .where(
+          and(
+            eq(candidateSkills.tenantId, context.tenantId),
+            eq(candidateSkills.candidateId, candidateId),
+            eq(candidateSkills.source, 'CANDIDATE_DECLARED')
+          )
+        );
+
+      // Remove or strip metadata for skills not in the new set
+      for (const existing of existingCandidateSkills) {
+        const strongerProvenances = ['VERIFIED', 'CORROBORATED'];
+        if (strongerProvenances.includes(existing.provenanceStatus)) {
+          const stillPresent = validatedEntries.some(v => v.globalSkill.id === existing.skillId);
+          if (!stillPresent) {
+            const cleanMeta = { ...(existing.metadata || {}) };
+            delete cleanMeta.additionalSkillDeclaration;
+            await tx
+              .update(candidateSkills)
+              .set({ metadata: cleanMeta, updatedAt: new Date() })
+              .where(eq(candidateSkills.id, existing.id));
+          }
+        } else {
+          await tx
+            .delete(candidateSkills)
+            .where(eq(candidateSkills.id, existing.id));
+        }
+      }
+
+      // Insert or update validated items
+      for (const entry of validatedEntries) {
+        const [existing] = await tx
+          .select()
+          .from(candidateSkills)
+          .where(
+            and(
+              eq(candidateSkills.tenantId, context.tenantId),
+              eq(candidateSkills.candidateId, candidateId),
+              eq(candidateSkills.skillId, entry.globalSkill.id)
+            )
+          )
+          .limit(1);
+
+        if (existing) {
+          const strongerProvenances = ['VERIFIED', 'CORROBORATED'];
+          if (strongerProvenances.includes(existing.provenanceStatus)) {
+            const updatedMetadata = {
+              ...(existing.metadata || {}),
+              additionalSkillDeclaration: {
+                proficiency: entry.proficiency,
+                usageContext: entry.usageContext,
+                yearsExperience: entry.yearsExperience,
+                notes: entry.notes,
+                declaredAt: new Date().toISOString(),
+              },
+            };
+            await tx
+              .update(candidateSkills)
+              .set({ metadata: updatedMetadata, updatedAt: new Date() })
+              .where(eq(candidateSkills.id, existing.id));
+          } else {
+            await tx
+              .update(candidateSkills)
+              .set({
+                provenanceStatus: entry.provenanceStatus,
+                proficiency: entry.proficiency,
+                source: 'CANDIDATE_DECLARED',
+                usageContext: entry.usageContext,
+                yearsExperience: entry.yearsExperience,
+                notes: entry.notes,
+                updatedAt: new Date(),
+              })
+              .where(eq(candidateSkills.id, existing.id));
+          }
+        } else {
+          await tx
+            .insert(candidateSkills)
+            .values({
+              tenantId: context.tenantId,
+              candidateId,
+              skillId: entry.globalSkill.id,
+              category: _mapCatalogCategoryToDbEnum(entry.catalogSkill.category) || 'TOOL',
+              provenanceStatus: entry.provenanceStatus,
+              confidenceScore: 0.0,
+              evidenceCount: 0,
+              proficiency: entry.proficiency,
+              source: 'CANDIDATE_DECLARED',
+              usageContext: entry.usageContext,
+              yearsExperience: entry.yearsExperience,
+              notes: entry.notes,
+              firstObservedAt: new Date(),
+              lastObservedAt: new Date(),
+              metadata: {
+                source: 'CANDIDATE_DECLARED',
+                isUserClaim: true,
+                catalogSkillSlug: entry.catalogSkill.slug,
+                catalogSkillName: entry.catalogSkill.canonicalName,
+              },
+            });
+        }
+      }
+    });
+
+    return await this.listAdditionalSkills(context, candidateId);
   }
 
   /**
@@ -497,9 +698,10 @@ export class CandidateAdditionalSkillsService {
    * Finds or creates a global skill record from a catalog entry.
    * @private
    */
-  async _findOrCreateGlobalSkill(catalogSkill) {
+  async _findOrCreateGlobalSkill(catalogSkill, tx = null) {
+    const db = tx || this._db;
     // Check if global skill already exists
-    const existing = await this._db
+    const existing = await db
       .select()
       .from(skills)
       .where(eq(skills.slug, catalogSkill.slug))
@@ -523,7 +725,7 @@ export class CandidateAdditionalSkillsService {
     const dbCategory = DB_CATEGORY_MAP[fineCategory] || 'TOOL';
 
     // Create global skill record
-    const [created] = await this._db
+    const [created] = await db
       .insert(skills)
       .values({
         slug: catalogSkill.slug,

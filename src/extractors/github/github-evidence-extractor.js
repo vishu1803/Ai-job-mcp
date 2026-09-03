@@ -502,11 +502,51 @@ export class GitHubEvidenceExtractorService {
       // 1. Normalize Skill
       const normalizedSkill = TaxonomyMapper.normalize(item.rawName, item.categoryHint);
 
-      // Skip noise skills (local modules, generic code words, stdlib)
-      if (normalizedSkill.category === 'NOISE') {
+      // Handle child packages that map to canonical parent skills (e.g. tailwind-merge -> tailwindcss)
+      if (normalizedSkill.parentMappings && normalizedSkill.parentMappings.length > 0) {
+        for (const parent of normalizedSkill.parentMappings) {
+          const parentNorm = TaxonomyMapper.normalize(parent.parentSlug, item.categoryHint);
+          if (parentNorm.category !== 'NOISE' && parentNorm.isSkillWorthy) {
+            skillSlugMap.set(parentNorm.slug, parentNorm);
+            const sanitizedExcerpt = SecretScrubber.sanitizeExcerpt(item.rawExcerpt, 1024);
+            const fingerprint = computeEvidenceFingerprint({
+              tenantId,
+              candidateId,
+              resourceId,
+              skillSlug: parentNorm.slug,
+              evidenceType: item.evidenceType,
+              filePath: item.sourceLocation.filePath,
+              commitSha: item.sourceLocation.commitSha,
+            });
+
+            processedEvidence.push({
+              tenantId,
+              candidateId,
+              resourceId,
+              skillSlug: parentNorm.slug,
+              evidenceType: item.evidenceType,
+              sourceProvider: 'GITHUB_APP',
+              sourceLocation: item.sourceLocation,
+              excerpt: sanitizedExcerpt,
+              confidenceScore: Math.min(item.confidenceScore, parent.confidence),
+              metadata: {
+                ...item.metadata,
+                derivedFromPackage: item.rawName,
+                isChildPackageEvidence: true,
+                fingerprint,
+              },
+              fingerprint,
+            });
+          }
+        }
+        continue;
+      }
+
+      // Skip noise and non-worthy skills (micro-utilities, middleware, stdlib, internal modules, configs)
+      if (normalizedSkill.category === 'NOISE' || !normalizedSkill.isSkillWorthy) {
         logger.debug(
           { rawName: item.rawName, slug: normalizedSkill.slug, evidenceType: item.evidenceType },
-          'Skipping evidence for noise skill'
+          'Skipping evidence for non-worthy skill / noise'
         );
         continue;
       }

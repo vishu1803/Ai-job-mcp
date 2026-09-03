@@ -633,6 +633,205 @@ export function renderProfilePage({
         border-top: 1px solid rgba(255, 255, 255, 0.08);
       }
 
+      /* Enhanced Additional Skills Catalog Modal (SaaS Design System) */
+      .modal-catalog-dialog {
+        max-width: 620px;
+        width: 100%;
+        height: 620px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 0;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: #0f172a;
+        border-radius: 14px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+      }
+
+      .modal-catalog-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.15rem 1.4rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(15, 23, 42, 0.95);
+        flex-shrink: 0;
+      }
+
+      .modal-catalog-body {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+        padding: 1.25rem 1.4rem;
+      }
+
+      .modal-catalog-footer {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.9rem 1.4rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(11, 15, 25, 0.5);
+        flex-shrink: 0;
+      }
+
+      .catalog-search-wrap {
+        position: relative;
+        margin-bottom: 1rem;
+      }
+
+      .catalog-search-input {
+        width: 100%;
+        padding: 0.65rem 1rem 0.65rem 2.4rem;
+        background: rgba(11, 15, 25, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        color: #f8fafc;
+        font-size: 0.88rem;
+        font-family: inherit;
+        outline: none;
+        transition: all 0.2s ease;
+      }
+
+      .catalog-search-input:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        background: rgba(11, 15, 25, 0.9);
+      }
+
+      .catalog-search-icon {
+        position: absolute;
+        left: 0.8rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #64748b;
+        font-size: 0.85rem;
+        pointer-events: none;
+      }
+
+      .catalog-categories-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-bottom: 1.1rem;
+      }
+
+      .catalog-cat-pill {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #94a3b8;
+        padding: 0.25rem 0.65rem;
+        border-radius: 9999px;
+        font-size: 0.74rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+
+      .catalog-cat-pill:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #f8fafc;
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+
+      .catalog-cat-pill.active {
+        background: rgba(99, 102, 241, 0.18);
+        border-color: rgba(99, 102, 241, 0.45);
+        color: #c7d2fe;
+        font-weight: 600;
+      }
+
+      .catalog-cat-pill .pill-count {
+        font-size: 0.68rem;
+        opacity: 0.7;
+      }
+
+      .catalog-skills-container {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .catalog-skill-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.6rem 0.9rem;
+        background: rgba(11, 15, 25, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        transition: all 0.15s ease;
+      }
+
+      .catalog-skill-card:hover {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: rgba(99, 102, 241, 0.3);
+      }
+
+      .catalog-skill-info {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+
+      .catalog-skill-name {
+        color: #f8fafc;
+        font-weight: 600;
+        font-size: 0.875rem;
+      }
+
+      .catalog-skill-cat-tag {
+        font-size: 0.7rem;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #94a3b8;
+      }
+
+      .catalog-selected-card {
+        background: rgba(99, 102, 241, 0.08);
+        border: 1px solid rgba(99, 102, 241, 0.25);
+        border-radius: 10px;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .status-pill-toggle {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+      }
+
+      .status-toggle-btn {
+        padding: 0.6rem 0.75rem;
+        background: rgba(11, 15, 25, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: #94a3b8;
+        font-size: 0.82rem;
+        font-weight: 500;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.15s ease;
+      }
+
+      .status-toggle-btn.active {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: #6366f1;
+        color: #f8fafc;
+        font-weight: 600;
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+      }
+
       /* Skills Grid Categorization */
       .skill-category-block {
         background: rgba(11, 15, 25, 0.5);
@@ -753,6 +952,21 @@ export function renderProfilePage({
         }
         .modal-grid-2col,
         .modal-grid-edu {
+          grid-template-columns: 1fr;
+        }
+        .modal-catalog-dialog {
+          max-width: 100%;
+          height: 90vh;
+          max-height: 90vh;
+          border-radius: 10px;
+        }
+        .modal-catalog-header,
+        .modal-catalog-body,
+        .modal-catalog-footer {
+          padding-left: 1rem;
+          padding-right: 1rem;
+        }
+        .status-pill-toggle {
           grid-template-columns: 1fr;
         }
       }
@@ -1220,6 +1434,7 @@ export function renderProfilePage({
 
           <!-- Add Skill Button -->
           <button
+            type="button"
             id="openAddSkillModal"
             class="btn btn-secondary"
             style="font-size: 0.82rem; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.4rem;"
@@ -1803,12 +2018,17 @@ export function renderProfilePage({
               availabilityDate: document.getElementById('availabilityDate').value,
               relocationPreference: document.getElementById('relocationPreference').value,
             },
-            additionalSkills: additionalSkillsData.map(s => ({
-              catalogSkillId: s.catalogSkillId || s.skillId,
-              proficiency: s.proficiency,
-              usageContext: s.usageContext || null,
-              notes: s.notes || null,
-            })),
+            additionalSkills: additionalSkillsData.map((s, idx) => {
+              if (!s.catalogSkillId) {
+                throw new Error('Additional skill at position ' + (idx + 1) + ' (' + (s.skillName || 'Unknown') + ') is missing required catalogSkillId');
+              }
+              return {
+                catalogSkillId: s.catalogSkillId,
+                proficiency: s.proficiency || 'WORKING_KNOWLEDGE',
+                usageContext: s.usageContext || null,
+                notes: s.notes || null,
+              };
+            }),
           },
         };
       }
@@ -1834,7 +2054,12 @@ export function renderProfilePage({
           });
 
           if (!response.ok) {
-            throw new Error('HTTP ' + response.status);
+            let errorMsg = 'HTTP ' + response.status;
+            try {
+              const errData = await response.json();
+              if (errData.error) errorMsg = errData.error;
+            } catch {}
+            throw new Error(errorMsg);
           }
 
           const result = await response.json();
@@ -2475,17 +2700,17 @@ export function renderProfilePage({
           CURRENTLY_LEARNING: { bg: 'rgba(251, 146, 60, 0.1)', border: 'rgba(251, 146, 60, 0.2)', text: '#fb923c' },
         };
 
-        container.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
-          ' + additionalSkillsData.map(s => {
+        container.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">' +
+          additionalSkillsData.map(s => {
             const pColor = proficiencyColors[s.proficiency] || proficiencyColors.WORKING_KNOWLEDGE;
             const provLabel = s.provenanceStatus === 'LEARNING' ? '📖 Learning' : '○ Self-Declared';
-            return '<span class="skill-tag-badge" style="background: ' + pColor.bg + '; color: ' + pColor.text + '; border: 1px solid ' + pColor.border + '; font-size: 0.78rem; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.3rem; cursor: default;" title="Proficiency: ' + escapeHtml(s.proficiency) + ' | Status: ' + provLabel + (s.notes ? ' | ' + escapeHtml(s.notes) : '') + '">
-              <strong>' + escapeHtml(s.skillName) + '</strong>
-              <span style="font-size: 0.68rem; opacity: 0.8;">' + escapeHtml(s.proficiency.replace(/_/g, ' ')) + '</span>
-              <button onclick="removeAdditionalSkill(\'' + s.id + '\')" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 0.8rem; padding: 0; margin-left: 0.2rem; opacity: 0.6;" title="Remove">×</button>
-            </span>';
-          }).join('') + '
-        </div>';
+            return '<span class="skill-tag-badge" style="background: ' + pColor.bg + '; color: ' + pColor.text + '; border: 1px solid ' + pColor.border + '; font-size: 0.78rem; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.3rem; cursor: default;" title="Proficiency: ' + escapeHtml(s.proficiency) + ' | Status: ' + provLabel + (s.notes ? ' | ' + escapeHtml(s.notes) : '') + '">' +
+              '<strong>' + escapeHtml(s.skillName) + '</strong> ' +
+              '<span style="font-size: 0.68rem; opacity: 0.8;">' + escapeHtml(s.proficiency.replace(/_/g, ' ')) + '</span>' +
+              '<button type="button" data-remove-id="' + escapeHtml(s.id) + '" onclick="removeAdditionalSkill(this.dataset.removeId)" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 0.8rem; padding: 0; margin-left: 0.2rem; opacity: 0.6;" title="Remove">×</button>' +
+            '</span>';
+          }).join('') +
+        '</div>';
       }
 
       function removeAdditionalSkill(skillId) {
@@ -2496,107 +2721,230 @@ export function renderProfilePage({
       }
 
       // --- Skill Catalog Modal — ENTIRELY CLIENT-SIDE ---
+      const categoryLabels = {
+        CLOUD: 'Cloud & Infrastructure',
+        CONTAINERS: 'Containers & IaC',
+        CICD: 'CI/CD & GitOps',
+        DATABASES: 'Databases / Cache / Search',
+        MESSAGING: 'Messaging & Events',
+        NETWORKING: 'Networking',
+        OBSERVABILITY: 'Observability & Reliability',
+        SECURITY: 'Security & Identity',
+        ARCHITECTURE: 'Software Architecture',
+        DEVELOPMENT: 'Development & Testing',
+        AI_DEVELOPMENT: 'AI-Assisted Development',
+        GENAI: 'Generative AI',
+        AI_AGENTS: 'AI Agents',
+        MCP: 'MCP & AI Interop',
+        AI_QUALITY: 'AI Evaluation & Quality',
+        MLOPS: 'MLOps & AI Platform',
+        DX: 'Developer Experience',
+        PRACTICES: 'Engineering Practices',
+      };
+      let currentActiveCategory = 'ALL';
+
       function openSkillCatalogModal() {
         const modal = document.getElementById('skillCatalogModal');
         if (!modal) return;
+        modal.classList.add('open');
         modal.style.display = 'flex';
         document.getElementById('catalogSearchInput').value = '';
         document.getElementById('addSkillForm').style.display = 'none';
         document.getElementById('catalogBrowseArea').style.display = 'block';
-        document.getElementById('catalogSkillsList').innerHTML = '';
-        renderCatalogCategories();
+        const confirmBtn = document.getElementById('btnConfirmAddSkill');
+        if (confirmBtn) confirmBtn.style.display = 'none';
+        const titleEl = document.getElementById('catalogModalTitle');
+        if (titleEl) titleEl.textContent = 'Add Skill to Profile';
+        const subtitleEl = document.getElementById('catalogModalSubtitle');
+        if (subtitleEl) subtitleEl.textContent = 'Browse canonical skill catalog or search by keyword';
+        currentActiveCategory = 'ALL';
+        renderCatalogCategories('ALL');
+        loadCatalogByCategory('ALL');
       }
 
       function closeSkillCatalogModal() {
         const modal = document.getElementById('skillCatalogModal');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+          modal.classList.remove('open');
+          modal.style.display = 'none';
+        }
         selectedCatalogSkill = null;
       }
 
-      function renderCatalogCategories() {
+      function renderCatalogCategories(activeCat) {
         const container = document.getElementById('catalogCategoriesList');
         if (!container) return;
+        const active = activeCat || currentActiveCategory || 'ALL';
+        const totalCount = allCatalogSkills.length;
 
-        const categoryLabels = {
-          CLOUD: '☁️ Cloud & Infrastructure',
-          CONTAINERS: '📦 Containers & IaC',
-          CICD: '🔄 CI/CD & GitOps',
-          DATABASES: '🗄️ Databases / Cache / Search',
-          MESSAGING: '📨 Messaging & Events',
-          NETWORKING: '🌐 Networking',
-          OBSERVABILITY: '📊 Observability / Reliability',
-          SECURITY: '🔐 Security / Identity',
-          ARCHITECTURE: '🏗️ Software Architecture',
-          DEVELOPMENT: '💻 Development / Testing',
-          AI_DEVELOPMENT: '🤖 AI-Assisted Development',
-          GENAI: '🧠 Generative AI',
-          AI_AGENTS: 'Agent AI',
-          MCP: '🔌 MCP / AI Interop',
-          AI_QUALITY: '✅ AI Evaluation / Quality',
-          MLOPS: '⚙️ MLOps / AI Platform',
-          DX: '🚀 Developer Experience',
-          PRACTICES: '📋 Engineering Practices',
-        };
+        const allPill = '<button type="button" class="catalog-cat-pill ' + (active === 'ALL' ? 'active' : '') + '" data-cat="ALL" onclick="loadCatalogByCategory(this.dataset.cat)">' +
+          'All <span class="pill-count">(' + totalCount + ')</span>' +
+        '</button>';
 
-        container.innerHTML = catalogCategories.map(cat =>
-          '<button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 0.4rem 0.8rem; text-align: left; width: 100%;" onclick="loadCatalogByCategory(\'' + escapeHtml(cat.category) + '\')">
-            ' + (categoryLabels[cat.category] || escapeHtml(cat.category)) + ' <span style="color: #64748b; font-size: 0.7rem;">(' + cat.count + ')</span>
-          </button>'
-        ).join('');
+        const catPills = catalogCategories.map(cat => {
+          const isAct = active === cat.category;
+          const label = categoryLabels[cat.category] || escapeHtml(cat.category);
+          return '<button type="button" class="catalog-cat-pill ' + (isAct ? 'active' : '') + '" data-cat="' + escapeHtml(cat.category) + '" onclick="loadCatalogByCategory(this.dataset.cat)">' +
+            label + ' <span class="pill-count">(' + cat.count + ')</span>' +
+          '</button>';
+        }).join('');
+
+        container.innerHTML = allPill + catPills;
       }
 
       function loadCatalogByCategory(category) {
-        // LOCAL filter — no network call
-        const existingSlugs = new Set(additionalSkillsData.map(s => s.skillSlug));
-        const filtered = allCatalogSkills
-          .filter(s => s.category === category && !existingSlugs.has(s.slug))
-          .slice(0, 100);
-        _showCatalogResults(filtered, category);
+        currentActiveCategory = category || 'ALL';
+        renderCatalogCategories(currentActiveCategory);
+        const summaryEl = document.getElementById('catalogCategorySummary');
+
+        let filtered;
+        let label;
+        if (!category || category === 'ALL') {
+          filtered = allCatalogSkills.slice(0, 80);
+          label = 'All Skills';
+          if (summaryEl) summaryEl.textContent = 'Showing all (' + filtered.length + ' shown)';
+        } else {
+          filtered = allCatalogSkills.filter(s => s.category === category).slice(0, 100);
+          label = categoryLabels[category] || category;
+          if (summaryEl) summaryEl.textContent = label + ' (' + filtered.length + ')';
+        }
+        _showCatalogResults(filtered, label);
       }
 
       function searchCatalogSkills(query) {
-        if (!query || query.length < 2) {
-          document.getElementById('catalogSkillsList').innerHTML = '';
+        const q = (query || '').toLowerCase().trim();
+
+        if (!q || q.length < 1) {
+          loadCatalogByCategory(currentActiveCategory || 'ALL');
           return;
         }
-        // LOCAL search — normalize and match
-        const q = query.toLowerCase().trim();
-        const existingSlugs = new Set(additionalSkillsData.map(s => s.skillSlug));
-        const results = allCatalogSkills
-          .filter(s => {
-            if (existingSlugs.has(s.slug)) return false;
-            const name = (s.canonicalName || '').toLowerCase();
-            const slug = (s.slug || '').toLowerCase();
-            const aliases = Array.isArray(s.aliases) ? s.aliases.map(a => a.toLowerCase()) : [];
-            return name.includes(q) || slug.includes(q) || aliases.some(a => a.includes(q));
-          })
-          .slice(0, 30);
-        _showCatalogResults(results, 'Search: ' + query);
+
+        const results = allCatalogSkills.filter(s => {
+          const name = (s.canonicalName || '').toLowerCase();
+          const slug = (s.slug || '').toLowerCase();
+          const aliases = Array.isArray(s.aliases) ? s.aliases.map(a => a.toLowerCase()) : [];
+          return name.includes(q) || slug.includes(q) || aliases.some(a => a.includes(q));
+        }).slice(0, 40);
+
+        _showCatalogResults(results, 'Results for "' + escapeHtml(query) + '"');
       }
 
       function _showCatalogResults(skills, label) {
         const container = document.getElementById('catalogSkillsList');
         if (!container) return;
+
+        if (!skills || skills.length === 0) {
+          container.innerHTML = '<div style="text-align: center; padding: 2.5rem 1rem; color: #64748b; font-size: 0.85rem;">' +
+            '<div style="font-size: 1.5rem; margin-bottom: 0.5rem; opacity: 0.6;">🔍</div>' +
+            'No matching skills found in catalog.' +
+          '</div>';
+          return;
+        }
+
+        const existingSlugs = new Set(additionalSkillsData.map(s => (s.skillSlug || '').toLowerCase()));
+        const existingIds = new Set(additionalSkillsData.map(s => s.catalogSkillId).filter(Boolean));
+        const existingNames = new Set(additionalSkillsData.map(s => (s.skillName || '').toLowerCase()));
+
         const items = skills.map(skill => {
-          const sid = JSON.stringify(skill.id);
-          const sname = JSON.stringify(escapeHtml(skill.canonicalName));
-          const scat = JSON.stringify(escapeHtml(skill.category));
-          return '<button type="button" class="btn btn-secondary" style="font-size: 0.78rem; padding: 0.4rem 0.8rem; text-align: left; width: 100%; display: flex; justify-content: space-between; align-items: center;" onclick="selectCatalogSkill(' + sid + ', ' + sname + ', ' + scat + ')">
-              <span><strong>' + escapeHtml(skill.canonicalName) + '</strong> <span style="color: #64748b; font-size: 0.7rem;">' + escapeHtml(skill.category) + '</span></span>
-              <span style="color: #34d399; font-size: 0.85rem;">+</span>
-            </button>';
+          const sid = escapeHtml(skill.id);
+          const sname = escapeHtml(skill.canonicalName);
+          const scat = escapeHtml(skill.category);
+          const catDisplay = categoryLabels[skill.category] || scat;
+          const isAdded = existingIds.has(skill.id) ||
+                          existingSlugs.has((skill.slug || '').toLowerCase()) ||
+                          existingNames.has((skill.canonicalName || '').toLowerCase());
+
+          return '<div class="catalog-skill-card">' +
+            '<div class="catalog-skill-info">' +
+              '<span class="catalog-skill-name">' + sname + '</span>' +
+              '<span class="catalog-skill-cat-tag">' + catDisplay + '</span>' +
+            '</div>' +
+            (isAdded ?
+              '<span class="badge" style="background: rgba(255, 255, 255, 0.06); color: #94a3b8; font-size: 0.72rem; padding: 0.25rem 0.6rem; border: 1px solid rgba(255, 255, 255, 0.1);">✓ Added</span>' :
+              '<button type="button" class="catalog-skill-item-btn btn btn-secondary btn-sm" ' +
+                'data-skill-id="' + sid + '" ' +
+                'data-skill-name="' + sname + '" ' +
+                'data-skill-category="' + scat + '" ' +
+                'onclick="handleCatalogSkillClick(this)" ' +
+                'style="padding: 0.3rem 0.75rem; font-size: 0.78rem;">' +
+                '+ Add' +
+              '</button>'
+            ) +
+          '</div>';
         }).join('');
-        container.innerHTML = '<div style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 0.5rem;">' + escapeHtml(label) + ' (' + skills.length + ' available)</div>
-          <div style="display: flex; flex-direction: column; gap: 0.3rem; max-height: 300px; overflow-y: auto;">
-          ' + items + '
-        </div>';
+
+        container.innerHTML = items;
+      }
+
+      function handleCatalogSkillClick(btn) {
+        if (!btn) return;
+        const target = btn.closest ? btn.closest('[data-skill-id]') : btn;
+        if (!target) return;
+        const skillId = target.getAttribute('data-skill-id');
+        const skillName = target.getAttribute('data-skill-name');
+        const category = target.getAttribute('data-skill-category');
+        selectCatalogSkill(skillId, skillName, category);
       }
 
       function selectCatalogSkill(skillId, skillName, category) {
         selectedCatalogSkill = { id: skillId, name: skillName, category: category };
         document.getElementById('selectedSkillName').textContent = skillName;
+        const catBadge = document.getElementById('selectedSkillCategoryBadge');
+        if (catBadge) catBadge.textContent = categoryLabels[category] || category;
+
         document.getElementById('addSkillForm').style.display = 'block';
         document.getElementById('catalogBrowseArea').style.display = 'none';
+        const confirmBtn = document.getElementById('btnConfirmAddSkill');
+        if (confirmBtn) confirmBtn.style.display = 'inline-flex';
+        const titleEl = document.getElementById('catalogModalTitle');
+        if (titleEl) titleEl.textContent = 'Configure Skill';
+        const subtitleEl = document.getElementById('catalogModalSubtitle');
+        if (subtitleEl) subtitleEl.textContent = 'Set proficiency level and optional usage context';
+
+        // Default to Self-Declared mode
+        setSkillStatusMode('SELF_DECLARED');
+      }
+
+      function backToCatalogBrowse() {
+        document.getElementById('addSkillForm').style.display = 'none';
+        document.getElementById('catalogBrowseArea').style.display = 'block';
+        const confirmBtn = document.getElementById('btnConfirmAddSkill');
+        if (confirmBtn) confirmBtn.style.display = 'none';
+        const titleEl = document.getElementById('catalogModalTitle');
+        if (titleEl) titleEl.textContent = 'Add Skill to Profile';
+        const subtitleEl = document.getElementById('catalogModalSubtitle');
+        if (subtitleEl) subtitleEl.textContent = 'Browse canonical skill catalog or search by keyword';
+      }
+
+      function setSkillStatusMode(mode) {
+        const btnSelf = document.getElementById('btnStatusSelfDeclared');
+        const btnLearn = document.getElementById('btnStatusLearning');
+        const tierGroup = document.getElementById('proficiencyTierGroup');
+        const desc = document.getElementById('skillStatusDesc');
+        const profInput = document.getElementById('skillProficiency');
+
+        if (mode === 'LEARNING') {
+          if (btnSelf) btnSelf.classList.remove('active');
+          if (btnLearn) btnLearn.classList.add('active');
+          if (tierGroup) tierGroup.style.display = 'none';
+          if (desc) desc.textContent = 'This skill will be marked as an active learning goal in your career profile.';
+          if (profInput) profInput.value = 'CURRENTLY_LEARNING';
+        } else {
+          if (btnSelf) btnSelf.classList.add('active');
+          if (btnLearn) btnLearn.classList.remove('active');
+          if (tierGroup) tierGroup.style.display = 'block';
+          if (desc) desc.textContent = 'You actively use or have practical experience with this skill.';
+          const tierSelect = document.getElementById('selectedProficiencyTier');
+          if (profInput) profInput.value = tierSelect ? tierSelect.value : 'WORKING_KNOWLEDGE';
+        }
+      }
+
+      function handleProficiencyTierChange(val) {
+        const btnSelf = document.getElementById('btnStatusSelfDeclared');
+        if (btnSelf && btnSelf.classList.contains('active')) {
+          const profInput = document.getElementById('skillProficiency');
+          if (profInput) profInput.value = val;
+        }
       }
 
       function confirmAddSkill() {
@@ -2611,7 +2959,7 @@ export function renderProfilePage({
           id: 'local-' + (++_localSkillIdCounter),
           catalogSkillId: selectedCatalogSkill.id,
           skillName: selectedCatalogSkill.name,
-          skillSlug: selectedCatalogSkill.name.toLowerCase().replace(/\s+/g, '-'),
+          skillSlug: selectedCatalogSkill.name.toLowerCase().replace(/ +/g, '-'),
           category: selectedCatalogSkill.category,
           proficiency: proficiency,
           provenanceStatus: isLearning ? 'LEARNING' : 'SELF_DECLARED',
@@ -2635,80 +2983,141 @@ export function renderProfilePage({
     </script>
 
     <!-- ================================================================ -->
-    <!-- SKILL CATALOG MODAL                                              -->
+    <!-- SKILL CATALOG MODAL (SaaS Production Design)                     -->
     <!-- ================================================================ -->
-    <div id="skillCatalogModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 1000; justify-content: center; align-items: center; padding: 1rem;">
-      <div style="background: #1a1f35; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h3 style="color: #f8fafc; font-size: 1.1rem; margin: 0;">Add Skill</h3>
-          <button onclick="closeSkillCatalogModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">×</button>
+    <div id="skillCatalogModal" class="modal-backdrop" style="display: none;">
+      <div class="modal-catalog-dialog">
+        <!-- Modal Header -->
+        <div class="modal-catalog-header">
+          <div>
+            <h3 id="catalogModalTitle" class="modal-title" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc;">Add Skill to Profile</h3>
+            <div id="catalogModalSubtitle" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.15rem;">Browse canonical skill catalog or search by keyword</div>
+          </div>
+          <button type="button" class="modal-close-btn" onclick="closeSkillCatalogModal()" aria-label="Close modal">×</button>
         </div>
 
-        <!-- Search -->
-        <div style="margin-bottom: 1rem;">
-          <input
-            type="text"
-            id="catalogSearchInput"
-            placeholder="Search skills..."
-            style="width: 100%; padding: 0.6rem 0.8rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #f8fafc; font-size: 0.85rem; outline: none;"
-            oninput="searchCatalogSkills(this.value)"
-          />
+        <!-- Scrollable Modal Body (The ONLY scroll container) -->
+        <div id="catalogModalBody" class="modal-catalog-body">
+          <!-- STAGE 1: BROWSE & SEARCH -->
+          <div id="catalogBrowseArea">
+            <!-- Search Box -->
+            <div class="catalog-search-wrap">
+              <span class="catalog-search-icon">🔍</span>
+              <input
+                type="text"
+                id="catalogSearchInput"
+                class="catalog-search-input"
+                placeholder="Search skills (e.g. Docker, PostgreSQL, React, AWS)..."
+                autocomplete="off"
+                oninput="searchCatalogSkills(this.value)"
+              />
+            </div>
+
+            <!-- Categories Filter Pills -->
+            <div style="margin-bottom: 0.85rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
+                <span style="font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Categories</span>
+                <span id="catalogCategorySummary" style="font-size: 0.72rem; color: #64748b;">Showing all</span>
+              </div>
+              <div id="catalogCategoriesList" class="catalog-categories-bar"></div>
+            </div>
+
+            <!-- Skills Results List -->
+            <div>
+              <div style="font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.45rem;">Available Skills</div>
+              <div id="catalogSkillsList" class="catalog-skills-container"></div>
+            </div>
+          </div>
+
+          <!-- STAGE 2: CONFIGURE SKILL -->
+          <div id="addSkillForm" style="display: none;">
+            <!-- Selected Skill Glass Card -->
+            <div class="catalog-selected-card">
+              <div>
+                <div style="font-size: 0.7rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Selected Skill</div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem;">
+                  <strong id="selectedSkillName" style="color: #f8fafc; font-size: 1.1rem;"></strong>
+                  <span id="selectedSkillCategoryBadge" class="badge badge-indigo" style="font-size: 0.7rem;"></span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="backToCatalogBrowse()" style="font-size: 0.75rem; padding: 0.3rem 0.65rem;">
+                ← Change Skill
+              </button>
+            </div>
+
+            <!-- Skill Provenance Status Selector -->
+            <div style="margin-bottom: 1.1rem;">
+              <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.4rem;">Skill Status</label>
+              <div class="status-pill-toggle">
+                <button type="button" id="btnStatusSelfDeclared" class="status-toggle-btn active" onclick="setSkillStatusMode('SELF_DECLARED')">
+                  ○ Self-Declared Skill
+                </button>
+                <button type="button" id="btnStatusLearning" class="status-toggle-btn" onclick="setSkillStatusMode('LEARNING')">
+                  📖 Currently Learning
+                </button>
+              </div>
+              <div id="skillStatusDesc" style="font-size: 0.72rem; color: #64748b; margin-top: -0.2rem;">
+                You actively use or have practical experience with this skill.
+              </div>
+            </div>
+
+            <!-- Hidden input maintaining exact contract with backend / tests -->
+            <input type="hidden" id="skillProficiency" value="WORKING_KNOWLEDGE" />
+
+            <!-- Proficiency Tier Selector (shown when Self-Declared) -->
+            <div id="proficiencyTierGroup" class="form-group" style="margin-bottom: 1rem;">
+              <label class="form-label" for="selectedProficiencyTier" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
+                Proficiency Level
+              </label>
+              <select id="selectedProficiencyTier" class="form-select" onchange="handleProficiencyTierChange(this.value)">
+                <option value="BASIC">Basic — Conceptual understanding or introductory experience</option>
+                <option value="WORKING_KNOWLEDGE" selected>Working Knowledge — Practical hands-on project experience</option>
+                <option value="PROFICIENT">Proficient — Confident independent implementation</option>
+                <option value="ADVANCED">Advanced — Deep architectural and production expertise</option>
+              </select>
+            </div>
+
+            <!-- Usage Context Selector -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+              <label class="form-label" for="skillUsageContext" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
+                Usage Context <span style="font-weight: 400; color: #64748b;">(Optional)</span>
+              </label>
+              <select id="skillUsageContext" class="form-select">
+                <option value="">-- How have you used this skill? --</option>
+                <option value="PROFESSIONAL_WORK">Professional Production Work</option>
+                <option value="INTERNSHIP">Internship Experience</option>
+                <option value="PERSONAL_PROJECT">Personal Project / Open Source</option>
+                <option value="FREELANCE">Freelance / Client Engagement</option>
+                <option value="ACADEMIC_PROJECT">Academic Coursework / Capstone</option>
+                <option value="CERTIFICATION">Certification / Structured Course</option>
+                <option value="SELF_STUDY">Self-Directed Study & Labs</option>
+              </select>
+            </div>
+
+            <!-- Context Notes -->
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label class="form-label" for="skillNotes" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
+                Practical Notes <span style="font-weight: 400; color: #64748b;">(Optional)</span>
+              </label>
+              <textarea
+                id="skillNotes"
+                class="form-control"
+                placeholder="Briefly describe what you built or learned with this skill (e.g. Set up multi-container development environment with Docker Compose)..."
+                rows="2"
+                style="resize: vertical; font-size: 0.82rem; min-height: 60px;"
+              ></textarea>
+            </div>
+          </div>
         </div>
 
-        <!-- Browse by Category -->
-        <div id="catalogBrowseArea">
-          <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem;">Browse by Category</div>
-          <div id="catalogCategoriesList" style="display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 1rem;"></div>
-          <div id="catalogSkillsList"></div>
-        </div>
-
-        <!-- Add Skill Form (shown after selection) -->
-        <div id="addSkillForm" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-          <div style="margin-bottom: 0.8rem;">
-            <span style="color: #94a3b8; font-size: 0.82rem;">Selected: </span>
-            <strong id="selectedSkillName" style="color: #f8fafc; font-size: 0.9rem;"></strong>
-            <button onclick="document.getElementById('addSkillForm').style.display='none'; document.getElementById('catalogBrowseArea').style.display='block';" style="background: none; border: none; color: #60a5fa; font-size: 0.78rem; cursor: pointer; margin-left: 0.5rem;">← Change</button>
-          </div>
-
-          <div style="margin-bottom: 0.8rem;">
-            <label style="display: block; color: #94a3b8; font-size: 0.78rem; margin-bottom: 0.3rem;">Proficiency</label>
-            <select id="skillProficiency" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #f8fafc; font-size: 0.85rem;">
-              <option value="BASIC">Basic</option>
-              <option value="WORKING_KNOWLEDGE" selected>Working Knowledge</option>
-              <option value="PROFICIENT">Proficient</option>
-              <option value="ADVANCED">Advanced</option>
-              <option value="CURRENTLY_LEARNING">Currently Learning</option>
-            </select>
-          </div>
-
-          <div style="margin-bottom: 0.8rem;">
-            <label style="display: block; color: #94a3b8; font-size: 0.78rem; margin-bottom: 0.3rem;">Usage Context (optional)</label>
-            <select id="skillUsageContext" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #f8fafc; font-size: 0.85rem;">
-              <option value="">-- Select --</option>
-              <option value="PROFESSIONAL_WORK">Professional Work</option>
-              <option value="INTERNSHIP">Internship</option>
-              <option value="PERSONAL_PROJECT">Personal Project</option>
-              <option value="FREELANCE">Freelance</option>
-              <option value="ACADEMIC_PROJECT">Academic Project</option>
-              <option value="CERTIFICATION">Certification / Training</option>
-              <option value="SELF_STUDY">Self-Study</option>
-            </select>
-          </div>
-
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; color: #94a3b8; font-size: 0.78rem; margin-bottom: 0.3rem;">Notes (optional)</label>
-            <textarea
-              id="skillNotes"
-              placeholder="How have you used this skill?"
-              rows="2"
-              style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #f8fafc; font-size: 0.85rem; resize: vertical; outline: none;"
-            ></textarea>
-          </div>
-
-          <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-            <button onclick="closeSkillCatalogModal()" class="btn btn-secondary" style="font-size: 0.82rem; padding: 0.5rem 1rem;">Cancel</button>
-            <button onclick="confirmAddSkill()" class="btn btn-primary" style="font-size: 0.82rem; padding: 0.5rem 1rem;">Add Skill</button>
-          </div>
+        <!-- Fixed Modal Footer -->
+        <div id="catalogModalFooter" class="modal-catalog-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeSkillCatalogModal()" style="padding: 0.5rem 1rem;">
+            Cancel
+          </button>
+          <button type="button" id="btnConfirmAddSkill" class="btn btn-primary btn-sm" onclick="confirmAddSkill()" style="padding: 0.5rem 1.25rem; display: none;">
+            Add Skill
+          </button>
         </div>
       </div>
     </div>

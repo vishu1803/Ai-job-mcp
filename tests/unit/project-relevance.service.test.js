@@ -667,7 +667,7 @@ describe('Project Relevance Scoring Service Unit Tests (P5-004)', () => {
         evaluationDate: FIXED_EVAL_DATE,
       });
 
-      assert.strictEqual(resManifest.scoreBreakdown.evidenceQualityScore, 15.0); // 15 * 1.0 = 15.0
+      assert.strictEqual(resManifest.scoreBreakdown.evidenceQualityScore, 11.25); // 15 * 0.75 = 11.25
       assert.strictEqual(resReadme.scoreBreakdown.evidenceQualityScore, 4.5); // 15 * 0.3 = 4.5
     });
 

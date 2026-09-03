@@ -33,7 +33,10 @@ import { NotFoundError, ValidationError } from '../../errors/index.js';
 import { CandidateProfileService } from '../../services/candidate-profile.service.js';
 import { JobDescriptionParser } from '../../domain/career/job-parser.js';
 import { EvidenceMatchingService } from '../../services/evidence-matching.service.js';
-import { ProjectRelevanceService } from '../../services/project-relevance.service.js';
+import {
+  ProjectRelevanceService,
+  isSkillWorthyEvidence,
+} from '../../services/project-relevance.service.js';
 import { AtsFitScoreService } from '../../services/ats-fit-score.service.js';
 import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
@@ -371,6 +374,33 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
     }));
   }
 
+  // 2b. Candidate-declared Additional Skills and LEARNING skills — always surfaced (independent of
+  // includeSkillsSummary) as first-class profile sections. profileView.skills preserves the raw
+  // candidate_skills provenanceStatus/source, so SELF_DECLARED never leaks into CORROBORATED/VERIFIED
+  // and LEARNING stays distinct. Empty arrays mean the candidate declared nothing.
+  const declaredSkillRows = profileView.skills || [];
+  const formatDeclaredSkill = (s) => ({
+    skillId: s.skillId,
+    slug: s.slug,
+    name: s.name,
+    category: s.category || 'TOOL',
+    provenanceStatus: s.provenanceStatus === 'LEARNING' ? 'LEARNING' : 'SELF_DECLARED',
+    proficiency: s.proficiency || null,
+    source: s.source || 'CANDIDATE_DECLARED',
+    usageContext: s.usageContext || null,
+    yearsExperience: typeof s.yearsExperience === 'number' ? s.yearsExperience : null,
+    confidenceScore: typeof s.confidenceScore === 'number' ? s.confidenceScore : 0.0,
+    notes: s.notes || null,
+  });
+  const additionalSkills = declaredSkillRows
+    .filter((s) => s.provenanceStatus === 'SELF_DECLARED')
+    .slice(0, 25)
+    .map(formatDeclaredSkill);
+  const learningSkills = declaredSkillRows
+    .filter((s) => s.provenanceStatus === 'LEARNING')
+    .slice(0, 25)
+    .map(formatDeclaredSkill);
+
   // 3. Format highlighted projects (max 5) with technologies, repositoryUrl, and summary bullets
   let highlightedProjects = undefined;
   if (args.includeProjects !== false) {
@@ -574,6 +604,8 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
     connectedResourcesSummary,
     portfolioLinks,
     topSkills,
+    additionalSkills,
+    learningSkills,
     highlightedProjects,
     recentExperience,
     education,
@@ -604,6 +636,23 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
         ...edu,
         coursework: edu.coursework ? edu.coursework.slice(0, 5) : [],
       }));
+    }
+  }
+
+  // Gated sections whose include-flag was false stay absent at the object level
+  // (not merely after JSON serialization), so the returned contract matches the
+  // include-flag semantics deterministically for every consumer. additionalSkills /
+  // learningSkills are never gated and always remain structural fields.
+  for (const gatedKey of [
+    'topSkills',
+    'highlightedProjects',
+    'recentExperience',
+    'education',
+    'certifications',
+    'languages',
+  ]) {
+    if (output[gatedKey] === undefined) {
+      delete output[gatedKey];
     }
   }
 
@@ -999,7 +1048,9 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     }
   }
 
+  const seenSlugs = new Set();
   const reconciledCandidateSkills = (profileView.skills || []).map((s) => {
+    seenSlugs.add(s.slug);
     const cpSkill = reconciledSkillsMap.get(s.slug);
     if (cpSkill && cpSkill.provenanceStatus) {
       return {
@@ -1011,6 +1062,30 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     }
     return s;
   });
+
+  // Also include any verified or claimed skills from careerProfile.topSkills not in raw profileView.skills
+  if (careerProfile && Array.isArray(careerProfile.topSkills)) {
+    for (const cpSkill of careerProfile.topSkills) {
+      if (cpSkill.slug && !seenSlugs.has(cpSkill.slug)) {
+        seenSlugs.add(cpSkill.slug);
+        reconciledCandidateSkills.push({
+          skillId: cpSkill.id || randomUUID(),
+          slug: cpSkill.slug,
+          name: cpSkill.name || cpSkill.canonicalName || cpSkill.slug,
+          category: cpSkill.category || 'TOOL',
+          provenanceStatus: cpSkill.provenanceStatus || 'CLAIMED',
+          truthStatus: cpSkill.truthStatus || cpSkill.provenanceStatus || 'CLAIMED',
+          confidenceScore: cpSkill.confidenceScore ?? 0.5,
+          evidenceCount: cpSkill.evidenceCount ?? 0,
+          primaryEvidence: cpSkill.primaryEvidence || null,
+          evidence: cpSkill.evidence || [],
+          evidenceItems: cpSkill.evidenceItems || cpSkill.evidence || [],
+          source: cpSkill.source || 'RESUME',
+          isUserClaim: cpSkill.isUserClaim ?? cpSkill.provenanceStatus === 'CLAIMED',
+        });
+      }
+    }
+  }
 
   // Convert profile view to standard CandidateProfile entity for career engines
   const candidateProfileObj = {
@@ -1081,20 +1156,17 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
       const cleanDesc = decodeHtmlEntities(descriptionText);
       try {
         const parserInput = {
-            rawText: cleanDesc,
-            title: job.title || args.jobTitle || 'Target Role',
-            company: job.company || args.companyName || 'Target Company',
-            workplaceType: job.workplaceType || 'UNSPECIFIED',
-            source: 'API',
-          };
-          if (job.location) parserInput.location = job.location;
-          const classification = await JobDescriptionParser.parse(
-            parserInput,
-          {
-            tenantId: context.tenantId,
-            userId: context.userId,
-          }
-        );
+          rawText: cleanDesc,
+          title: job.title || args.jobTitle || 'Target Role',
+          company: job.company || args.companyName || 'Target Company',
+          workplaceType: job.workplaceType || 'UNSPECIFIED',
+          source: 'API',
+        };
+        if (job.location) parserInput.location = job.location;
+        const classification = await JobDescriptionParser.parse(parserInput, {
+          tenantId: context.tenantId,
+          userId: context.userId,
+        });
         extractedRequirements = classification.requirements || [];
       } catch {
         // Leave extractedRequirements empty if parser genuinely fails
@@ -1244,6 +1316,36 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
           (m) => m.requirementId === reqId
         );
         if (reqMatch) {
+          const candidateProvenance = reqMatch.candidateProvenance || 'NONE';
+          const isUserClaim = Boolean(
+            reqMatch.isUserClaim ||
+            candidateProvenance === 'CLAIMED' ||
+            candidateProvenance === 'SELF_DECLARED' ||
+            candidateProvenance === 'LEARNING'
+          );
+          const rawSupporting = Array.isArray(reqMatch.supportingEvidence)
+            ? reqMatch.supportingEvidence
+            : reqMatch.primaryEvidence
+              ? [reqMatch.primaryEvidence]
+              : [];
+          const hasEvidence = Boolean(reqMatch.primaryEvidence || rawSupporting.length > 0);
+
+          let provenanceTrustClass = reqMatch.provenanceTrustClass;
+          if (!provenanceTrustClass) {
+            if (isUserClaim) {
+              provenanceTrustClass = 'LOW_TRUST';
+            } else if (candidateProvenance === 'NONE' || !hasEvidence) {
+              provenanceTrustClass = 'NO_EVIDENCE';
+            } else if (
+              reqMatch.primaryEvidence?.filePath &&
+              /node_modules|vendor|dist/i.test(reqMatch.primaryEvidence.filePath)
+            ) {
+              provenanceTrustClass = 'LOW_TRUST';
+            } else {
+              provenanceTrustClass = 'HIGH_TRUST';
+            }
+          }
+
           return {
             requirementId: reqId,
             normalizedRequirement:
@@ -1252,18 +1354,9 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
             candidateSkills: Array.isArray(reqMatch.candidateSkills)
               ? reqMatch.candidateSkills
               : [],
-            candidateProvenance: reqMatch.candidateProvenance || 'NONE',
-            provenanceTrustClass:
-              reqMatch.provenanceTrustClass ||
-              (reqMatch.primaryEvidence?.filePath &&
-              /node_modules|vendor|dist/i.test(reqMatch.primaryEvidence.filePath)
-                ? 'LOW_TRUST'
-                : 'HIGH_TRUST'),
-            supportingEvidence: Array.isArray(reqMatch.supportingEvidence)
-              ? reqMatch.supportingEvidence
-              : reqMatch.primaryEvidence
-                ? [reqMatch.primaryEvidence]
-                : [],
+            candidateProvenance,
+            provenanceTrustClass,
+            supportingEvidence: rawSupporting,
             explanation: reqMatch.explanation || '',
           };
         }
@@ -1293,7 +1386,9 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
         // Task 6: Traceable project relevance score breakdown
         scoreBreakdown: p.scoreBreakdown || null,
         summary: p.summary || null,
-        supportingEvidence: Array.isArray(p.supportingEvidence) ? p.supportingEvidence : [],
+        supportingEvidence: (Array.isArray(p.supportingEvidence) ? p.supportingEvidence : []).filter(
+          isSkillWorthyEvidence
+        ),
       };
     });
 
@@ -1302,6 +1397,30 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
     const rawSupporting = Array.isArray(m.supportingEvidence) ? m.supportingEvidence : [];
     const supportingEvidence =
       rawSupporting.length > 0 ? rawSupporting : m.primaryEvidence ? [m.primaryEvidence] : [];
+    const candidateProvenance = m.candidateProvenance || 'NONE';
+    const isUserClaim = Boolean(
+      m.isUserClaim ||
+      candidateProvenance === 'CLAIMED' ||
+      candidateProvenance === 'SELF_DECLARED' ||
+      candidateProvenance === 'LEARNING'
+    );
+    const hasEvidence = Boolean(m.primaryEvidence || supportingEvidence.length > 0);
+
+    let provenanceTrustClass = m.provenanceTrustClass;
+    if (!provenanceTrustClass) {
+      if (isUserClaim) {
+        provenanceTrustClass = 'LOW_TRUST';
+      } else if (candidateProvenance === 'NONE' || !hasEvidence) {
+        provenanceTrustClass = 'NO_EVIDENCE';
+      } else if (
+        m.primaryEvidence?.filePath &&
+        /node_modules|vendor|dist/i.test(m.primaryEvidence.filePath)
+      ) {
+        provenanceTrustClass = 'LOW_TRUST';
+      } else {
+        provenanceTrustClass = 'HIGH_TRUST';
+      }
+    }
 
     return {
       requirementId: m.requirementId,
@@ -1312,15 +1431,8 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
       matchStatus: m.matchStatus || 'UNKNOWN',
       matchConfidence: typeof m.matchConfidence === 'number' ? m.matchConfidence : 0,
       candidateSkills: Array.isArray(m.candidateSkills) ? m.candidateSkills : [],
-      candidateProvenance: m.candidateProvenance || 'NONE',
-      provenanceTrustClass:
-        m.provenanceTrustClass ||
-        (m.primaryEvidence?.filePath &&
-        /node_modules|vendor|dist/i.test(m.primaryEvidence.filePath)
-          ? 'LOW_TRUST'
-          : m.candidateProvenance === 'NONE'
-            ? 'NO_EVIDENCE'
-            : 'HIGH_TRUST'),
+      candidateProvenance,
+      provenanceTrustClass,
       primaryEvidence: m.primaryEvidence || null,
       supportingEvidence,
       explanation: m.explanation || '',

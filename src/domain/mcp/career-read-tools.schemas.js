@@ -247,11 +247,53 @@ export const GetCandidateProfileOutputSchema = z
             'INFERRED',
             'CLAIMED',
             'USER_PROVIDED',
+            'SELF_DECLARED',
+            'LEARNING',
           ]),
         })
       )
       .max(20)
       .optional(),
+    // Candidate-declared (Additional Skills) and learning skills, kept separate from
+    // evidence-backed topSkills so SELF_DECLARED / LEARNING provenance is never flattened.
+    additionalSkills: z
+      .array(
+        z.object({
+          skillId: z.string().uuid(),
+          slug: z.string(),
+          name: z.string(),
+          category: z.string(),
+          provenanceStatus: z.enum(['SELF_DECLARED', 'LEARNING']),
+          proficiency: z.string().nullable().optional(),
+          source: z.string().nullable().optional(),
+          usageContext: z.string().nullable().optional(),
+          yearsExperience: z.number().nullable().optional(),
+          confidenceScore: z.number().min(0).max(1).optional(),
+          notes: z.string().nullable().optional(),
+        })
+      )
+      .max(50)
+      .optional()
+      .default([]),
+    learningSkills: z
+      .array(
+        z.object({
+          skillId: z.string().uuid(),
+          slug: z.string(),
+          name: z.string(),
+          category: z.string(),
+          provenanceStatus: z.literal('LEARNING'),
+          proficiency: z.string().nullable().optional(),
+          source: z.string().nullable().optional(),
+          usageContext: z.string().nullable().optional(),
+          yearsExperience: z.number().nullable().optional(),
+          confidenceScore: z.number().min(0).max(1).optional(),
+          notes: z.string().nullable().optional(),
+        })
+      )
+      .max(50)
+      .optional()
+      .default([]),
     highlightedProjects: z
       .array(
         z.object({

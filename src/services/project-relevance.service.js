@@ -17,6 +17,7 @@
 import { logger } from '../utils/logger.js';
 import { ValidationError, NotFoundError } from '../errors/index.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
+import { SkillWorthinessGate } from '../domain/career/skill-worthiness-gate.js';
 import {
   ProjectRelevanceSchema,
   CandidateProjectRelevanceAnalysisSchema,
@@ -27,21 +28,21 @@ import {
 // ---------------------------------------------------------------------------
 
 const EVIDENCE_TYPE_WEIGHTS = Object.freeze({
-  PACKAGE_MANIFEST_DEPENDENCY: 1.0,
+  CODE_USAGE: 1.0,
   CODE_IMPORT_USAGE: 0.95,
-  CODE_USAGE: 0.9,
   CONFIG_SYNTAX_DECLARATION: 0.85,
-  COMMIT_CONTRIBUTION: 0.75,
-  FILE_PATTERN_MATCH: 0.65,
+  PACKAGE_MANIFEST_DEPENDENCY: 0.75,
+  COMMIT_CONTRIBUTION: 0.7,
+  FILE_PATTERN_MATCH: 0.6,
   DIRECTORY_STRUCTURE: 0.5,
   README_SPECIFICATION: 0.3,
   DOCUMENT_CLAIM: 0.0,
 });
 
 const EVIDENCE_TYPE_RANK = Object.freeze({
-  PACKAGE_MANIFEST_DEPENDENCY: 1,
+  CODE_USAGE: 1,
   CODE_IMPORT_USAGE: 2,
-  CODE_USAGE: 3,
+  PACKAGE_MANIFEST_DEPENDENCY: 3,
   CONFIG_SYNTAX_DECLARATION: 4,
   COMMIT_CONTRIBUTION: 5,
   FILE_PATTERN_MATCH: 6,
@@ -287,6 +288,71 @@ function buildEvidenceRef(evidence, resourceMap = new Map()) {
     confidenceScore: round(Math.min(1.0, Math.max(0.0, evidence.confidenceScore ?? 1.0)), 4),
     detectedAt: evidence.detectedAt ? new Date(evidence.detectedAt).toISOString() : undefined,
   };
+}
+
+/**
+ * Determines whether an evidence item represents skill-worthy technical evidence
+ * rather than low-level implementation plumbing or styling helpers.
+ *
+ * @param {object} ev
+ * @returns {boolean}
+ */
+export function isSkillWorthyEvidence(ev) {
+  if (!ev) return false;
+
+  // Direct fast check on excerpt for known non-skill-worthy UI / helper packages
+  if (typeof ev.excerpt === 'string') {
+    if (
+      /@heroicons\//i.test(ev.excerpt) ||
+      /@radix-ui\//i.test(ev.excerpt) ||
+      /@headlessui\//i.test(ev.excerpt) ||
+      /\blucide-react\b/i.test(ev.excerpt) ||
+      /\breact-icons\b/i.test(ev.excerpt) ||
+      /\btailwind-merge\b/i.test(ev.excerpt) ||
+      /\bclsx\b/i.test(ev.excerpt)
+    ) {
+      return false;
+    }
+  }
+
+  // Non-manifest evidence (code usage, config, commits, readme) represents direct project engineering artifacts
+  // unless the excerpt or filePath itself is from package.json or contains non-skill-worthy libraries
+  const isManifest =
+    ev.evidenceType === 'PACKAGE_MANIFEST_DEPENDENCY' ||
+    (typeof ev.filePath === 'string' && ev.filePath.endsWith('package.json'));
+
+  // Extract candidate slug if available
+  let candidateSlug =
+    ev.metadata?.derivedFromPackage ||
+    ev.skillSlug ||
+    ev.skillName ||
+    ev.metadata?.rawImport ||
+    ev.metadata?.technology;
+
+  if (!candidateSlug && typeof ev.excerpt === 'string') {
+    const match = ev.excerpt.match(/["']([^"']+)["']\s*:/);
+    if (match) {
+      candidateSlug = match[1];
+    } else {
+      candidateSlug = ev.excerpt
+        .trim()
+        .split(/[\s=<>^~:]+/)[0]
+        .replace(/["']/g, '');
+    }
+  }
+
+  if (candidateSlug) {
+    if (!SkillWorthinessGate.isSkillWorthy(candidateSlug)) {
+      return false;
+    }
+  }
+
+  if (!isManifest) {
+    return true;
+  }
+
+  if (!candidateSlug) return true;
+  return SkillWorthinessGate.isSkillWorthy(candidateSlug);
 }
 
 /**
@@ -585,11 +651,7 @@ export class ProjectRelevanceService {
       let matchingEvidence = null;
 
       const rawSkill =
-        req.skillSlug ||
-        req.extractedValue ||
-        req.name ||
-        req.normalizedCriteria?.skillName ||
-        '';
+        req.skillSlug || req.extractedValue || req.name || req.normalizedCriteria?.skillName || '';
       const reqDisplayName = req.extractedValue || req.name || req.skillSlug || 'Requirement';
 
       if (req.category === 'SKILL') {
@@ -676,7 +738,7 @@ export class ProjectRelevanceService {
         }
 
         const evidRefs = matchingEvidence ? [buildEvidenceRef(matchingEvidence, resourceMap)] : [];
-        if (matchingEvidence) {
+        if (matchingEvidence && isSkillWorthyEvidence(matchingEvidence)) {
           supportingEvidenceMap.set(
             matchingEvidence.id,
             buildEvidenceRef(matchingEvidence, resourceMap)
@@ -850,10 +912,16 @@ export class ProjectRelevanceService {
     // -------------------------------------------------------------------------
     // I. Top Supporting Evidence Selection (Max 5, Sorted by Rank)
     // -------------------------------------------------------------------------
-    const allSupportingRefs = Array.from(supportingEvidenceMap.values());
+    const allSupportingRefs = Array.from(supportingEvidenceMap.values()).filter((ref) =>
+      isSkillWorthyEvidence(ref)
+    );
     if (allSupportingRefs.length < 5) {
       for (const ev of pooledEvidence) {
-        if (!supportingEvidenceMap.has(ev.id) && ev.evidenceType !== 'DOCUMENT_CLAIM') {
+        if (
+          !supportingEvidenceMap.has(ev.id) &&
+          ev.evidenceType !== 'DOCUMENT_CLAIM' &&
+          isSkillWorthyEvidence(ev)
+        ) {
           allSupportingRefs.push(buildEvidenceRef(ev, resourceMap));
           if (allSupportingRefs.length >= 5) break;
         }
@@ -868,7 +936,34 @@ export class ProjectRelevanceService {
       return a.filePath.localeCompare(b.filePath);
     });
 
-    const topSupportingEvidence = allSupportingRefs.slice(0, 5);
+    // ISSUE 2 FIX: Cap manifest evidence in top 5 when source-level evidence exists.
+    // Prefer source implementation evidence (CODE_USAGE, CODE_IMPORT_USAGE, CONFIG_SYNTAX_DECLARATION)
+    // over passive PACKAGE_MANIFEST_DEPENDENCY entries.
+    const MAX_MANIFEST_IN_TOP = 2;
+    const sourceEvidence = allSupportingRefs.filter(
+      (e) => e.evidenceType !== 'PACKAGE_MANIFEST_DEPENDENCY'
+    );
+    const manifestEvidence = allSupportingRefs.filter(
+      (e) => e.evidenceType === 'PACKAGE_MANIFEST_DEPENDENCY'
+    );
+
+    let topSupportingEvidence;
+    if (sourceEvidence.length > 0 && manifestEvidence.length > MAX_MANIFEST_IN_TOP) {
+      // When source evidence exists, prioritize it and cap manifest entries
+      const cappedManifest = manifestEvidence.slice(0, MAX_MANIFEST_IN_TOP);
+      const combined = [...sourceEvidence, ...cappedManifest];
+      // Re-sort combined by rank
+      combined.sort((a, b) => {
+        const rankA = EVIDENCE_TYPE_RANK[a.evidenceType] || 99;
+        const rankB = EVIDENCE_TYPE_RANK[b.evidenceType] || 99;
+        if (rankA !== rankB) return rankA - rankB;
+        if (b.confidenceScore !== a.confidenceScore) return b.confidenceScore - a.confidenceScore;
+        return a.filePath.localeCompare(b.filePath);
+      });
+      topSupportingEvidence = combined.slice(0, 5);
+    } else {
+      topSupportingEvidence = allSupportingRefs.slice(0, 5);
+    }
 
     // -------------------------------------------------------------------------
     // J. Confidence Calculation & Explanation Summary

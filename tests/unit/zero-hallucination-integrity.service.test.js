@@ -505,15 +505,15 @@ describe('Zero-Hallucination Integrity Gate Service Unit Tests (P5-006)', () => 
 
     // Capped at 5
     assert.equal(auditedRefs.length, 5);
-    // Highest quality weight first: PACKAGE_MANIFEST_DEPENDENCY (1.00)
-    assert.equal(auditedRefs[0].evidenceType, 'PACKAGE_MANIFEST_DEPENDENCY');
-    // Second: CODE_IMPORT_USAGE (0.95)
-    assert.equal(auditedRefs[1].evidenceType, 'CODE_IMPORT_USAGE');
-    // Third: CONFIG_SYNTAX_DECLARATION (0.85)
-    assert.equal(auditedRefs[2].evidenceType, 'CONFIG_SYNTAX_DECLARATION');
-    // Fourth: COMMIT_CONTRIBUTION (0.75)
+    // Highest quality weight first: CODE_IMPORT_USAGE (0.95)
+    assert.equal(auditedRefs[0].evidenceType, 'CODE_IMPORT_USAGE');
+    // Second: CONFIG_SYNTAX_DECLARATION (0.85)
+    assert.equal(auditedRefs[1].evidenceType, 'CONFIG_SYNTAX_DECLARATION');
+    // Third: PACKAGE_MANIFEST_DEPENDENCY (0.75)
+    assert.equal(auditedRefs[2].evidenceType, 'PACKAGE_MANIFEST_DEPENDENCY');
+    // Fourth: COMMIT_CONTRIBUTION (0.70)
     assert.equal(auditedRefs[3].evidenceType, 'COMMIT_CONTRIBUTION');
-    // Fifth: FILE_PATTERN_MATCH (0.65)
+    // Fifth: FILE_PATTERN_MATCH (0.60)
     assert.equal(auditedRefs[4].evidenceType, 'FILE_PATTERN_MATCH');
   });
 

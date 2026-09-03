@@ -120,9 +120,19 @@ export const CandidateRequirementMatchSchema = z
     claimLabel: z.string().trim().max(100).nullable().optional(),
     candidateSkills: z.array(z.string()).default([]).optional(),
     candidateProvenance: z
-      .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'NONE', 'INFERRED', 'USER_PROVIDED'])
+      .enum([
+        'VERIFIED',
+        'CORROBORATED',
+        'CLAIMED',
+        'NONE',
+        'INFERRED',
+        'USER_PROVIDED',
+        'SELF_DECLARED',
+        'LEARNING',
+      ])
       .default('NONE')
       .optional(),
+    provenanceTrustClass: z.enum(['HIGH_TRUST', 'LOW_TRUST', 'NO_EVIDENCE']).optional(),
     matchedSkillSlug: SafeSlugSchema.nullable().optional(),
     relationshipType: MatchRelationshipTypeEnum.default('NONE'),
     primaryEvidence: EvidenceRefSchema.nullable().optional(),

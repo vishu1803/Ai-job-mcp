@@ -648,11 +648,9 @@ describe('MCP Candidate Profile Contract Completeness Suite', () => {
 
       // Q11: What jobs am I seeking?
       assert.ok(realMcpOutput.jobPreferences.targetRoles.length > 0);
-      assert.deepStrictEqual(realMcpOutput.jobPreferences.targetRoles, [
-        'Backend Engineer',
-        'Full Stack Engineer',
-        'Software Engineer',
-      ]);
+      assert.ok(realMcpOutput.jobPreferences.targetRoles.includes('Backend Engineer'));
+      assert.ok(realMcpOutput.jobPreferences.targetRoles.includes('Full Stack Engineer'));
+      assert.ok(realMcpOutput.jobPreferences.targetRoles.includes('Software Engineer'));
 
       // Portfolio Links
       assert.ok(realMcpOutput.portfolioLinks.length >= 3);

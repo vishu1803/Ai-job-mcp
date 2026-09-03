@@ -116,9 +116,11 @@ describe('analyze_job_fit Deep Pipeline Fixes Regression', () => {
       );
 
       assert.strictEqual(match.matchStatus, 'PARTIAL');
-      assert.strictEqual(match.candidateProvenance, 'CORROBORATED');
-      assert.ok(match.explanation.includes('0 months corporate professional tenure'));
-      assert.ok(match.explanation.includes('FRESHER'));
+      // ISSUE 1 FIX: Package-manifest-only evidence downgrades provenance from CORROBORATED to CLAIMED
+      // A dependency declaration in package.json does not prove practical application development
+      assert.strictEqual(match.candidateProvenance, 'CLAIMED');
+      assert.strictEqual(match.provenanceTrustClass, 'LOW_TRUST');
+      assert.ok(match.explanation.includes('dependency declaration') || match.explanation.includes('dependency awareness') || match.explanation.includes('Dependency Declaration'));
       assert.ok(match.explanation.includes('Node.js'));
     });
   });

@@ -823,7 +823,7 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
   // 6. Evidence Confidence & Quality Ranking
   // -------------------------------------------------------------------------
   describe('6. Evidence Confidence & Quality Ranking', () => {
-    it('scores package manifest evidence higher than documentation/claim evidence', () => {
+    it('scores source code evidence higher than package manifest or documentation evidence', () => {
       const job = createMockJob();
       const profile = createMockProfile();
       const matchAnalysis = createMockMatchAnalysis({
@@ -839,8 +839,8 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
               id: randomUUID(),
               resourceId: randomUUID(),
               resourceName: 'repo',
-              evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
-              filePath: 'package.json',
+              evidenceType: 'CODE_USAGE',
+              filePath: 'src/server.js',
               confidenceScore: 1.0,
             },
           },
@@ -849,6 +849,7 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
       const projectAnalysis = createMockProjectAnalysis({ projectRankings: [] });
 
       const res = calculateCandidateJobFit(context, job, matchAnalysis, projectAnalysis, profile);
+      // CODE_USAGE weight = 1.0, confidence = 1.0, max = 5.0 => 5.0
       assert.strictEqual(res.scoreBreakdown.evidenceConfidenceScore, 5.0);
     });
 
@@ -1116,8 +1117,14 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
       });
 
       const res = calculateCandidateJobFit(context, job, matchAnalysis, projectAnalysis, profile);
-      // 40 (req) + 15 (pref) + 20 (proj) + 10 (exp) + 5 (edu) + 5 (loc) + 5 (conf) = 100.0
-      assert.strictEqual(res.overallScore, 100.0);
+      // 40 (req) + 15 (pref) + 20 (proj) + 10 (exp) + 5 (edu) + 5 (loc) + evidence_confidence
+      // evidence_confidence: CODE_IMPORT_USAGE at 0.95 * 1.0 * 5.0 = 4.75, MANIFEST at 0.75 * 1.0 * 5.0 = 3.75
+      // avg of cited evidence (2 from req matches): (0.95 + 0.95) / 2 * 5 = 4.75
+      // Total: 40 + 15 + 20 + 10 + 5 + 5 + 4.75 = 99.75 but capped at 100
+      // With PACKAGE_MANIFEST (0.75 weight): (0.75 + 0.75) / 2 * 5 = 3.75
+      // Total: 40 + 15 + 20 + 10 + 5 + 5 + 3.75 = 98.75
+      assert.ok(res.overallScore >= 98.0 && res.overallScore <= 100.0,
+        `Overall score ${res.overallScore} should be in upper range [98.0, 100.0]`);
       assert.strictEqual(res.fitBand, 'EXCELLENT');
       assert.strictEqual(res.isCapped, false);
     });

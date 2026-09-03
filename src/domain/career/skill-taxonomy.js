@@ -10,6 +10,11 @@
 
 import { logger } from '../../utils/logger.js';
 import { SafeSlugSchema } from '../candidate/candidate.schemas.js';
+import { SkillWorthinessGate, SKILL_CLASSIFICATIONS } from './skill-worthiness-gate.js';
+
+// Cache for rate-limiting unknown-term telemetry emissions (prevents log storms on repeat requests)
+const _observedTermsCache = new Map();
+const TELEMETRY_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Maximum permitted raw input string length for skill normalizer.
@@ -350,8 +355,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     description: 'React framework enabling server-side rendering and static web applications.',
     aliases: ['next-js', 'nextjs', 'next.js', 'next-framework', 'next'],
     relationships: {
-      builtOn: ['react', 'javascript', 'node-js'],
-      ecosystemOf: ['react', 'vercel'],
+      builtOn: ['react', 'javascript'],
+      ecosystemOf: ['react', 'vercel', 'node-js'],
       implements: ['server-side-rendering', 'static-site-generation'],
       parentOf: [],
     },
@@ -821,7 +826,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'sql',
     name: 'SQL',
     category: 'DATABASE',
-    description: 'Domain-specific language used in programming and designed for managing data held in an RDBMS.',
+    description:
+      'Domain-specific language used in programming and designed for managing data held in an RDBMS.',
     aliases: ['sql', 'structured-query-language', 'ansi-sql', 'sql-queries', 'sql-database'],
     relationships: {
       builtOn: [],
@@ -1674,7 +1680,16 @@ export const CANONICAL_SKILLS = Object.freeze({
     name: 'OAuth 2.0',
     category: 'CONCEPT',
     description: 'Open standard for access delegation commonly used for Internet authorization.',
-    aliases: ['oauth', 'oauth2', 'oauth-2-0', 'oauth2.1', 'pkce', 'oauth-2', 'oauth-2.0', 'oauth2.0'],
+    aliases: [
+      'oauth',
+      'oauth2',
+      'oauth-2-0',
+      'oauth2.1',
+      'pkce',
+      'oauth-2',
+      'oauth-2.0',
+      'oauth2.0',
+    ],
     relationships: {
       builtOn: [],
       ecosystemOf: ['security'],
@@ -1700,7 +1715,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'security-architecture',
     name: 'Security Architecture',
     category: 'ARCHITECTURE',
-    description: 'Unified security design addressing the necessities and potential risks involved in a scenario.',
+    description:
+      'Unified security design addressing the necessities and potential risks involved in a scenario.',
     aliases: ['security-architecture', 'security architecture', 'system-security'],
     relationships: {
       builtOn: [],
@@ -1759,7 +1775,8 @@ export const CANONICAL_SKILLS = Object.freeze({
       ecosystemOf: ['security'],
       implements: ['access-control'],
       parentOf: [],
-    },  },
+    },
+  },
 
   'static-typing': {
     slug: 'static-typing',
@@ -2324,7 +2341,7 @@ export const CANONICAL_SKILLS = Object.freeze({
   // Pre-existing: rbac, access-control, oauth, ldap, active-directory,
   //   identity-federation, security-architecture, authorization
   // ===========================================================================
-  'abac': {
+  abac: {
     slug: 'abac',
     name: 'ABAC',
     category: 'CONCEPT',
@@ -2337,11 +2354,12 @@ export const CANONICAL_SKILLS = Object.freeze({
       parentOf: [],
     },
   },
-  'rebac': {
+  rebac: {
     slug: 'rebac',
     name: 'ReBAC',
     category: 'CONCEPT',
-    description: 'Relationship-Based Access Control — authorization model using entity relationships.',
+    description:
+      'Relationship-Based Access Control — authorization model using entity relationships.',
     aliases: ['rebac', 'relationship-based-access-control', 'relationship-based-access'],
     relationships: {
       builtOn: [],
@@ -2363,7 +2381,7 @@ export const CANONICAL_SKILLS = Object.freeze({
       parentOf: [],
     },
   },
-  'saml': {
+  saml: {
     slug: 'saml',
     name: 'SAML',
     category: 'CONCEPT',
@@ -2376,7 +2394,7 @@ export const CANONICAL_SKILLS = Object.freeze({
       parentOf: [],
     },
   },
-  'jwt': {
+  jwt: {
     slug: 'jwt',
     name: 'JSON Web Tokens',
     category: 'CONCEPT',
@@ -2393,7 +2411,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'zero-trust',
     name: 'Zero Trust Architecture',
     category: 'CONCEPT',
-    description: 'Security model that requires strict verification from everyone trying to access resources.',
+    description:
+      'Security model that requires strict verification from everyone trying to access resources.',
     aliases: ['zero-trust', 'zero-trust-architecture', 'ztna', 'zero-trust-network-access'],
     relationships: {
       builtOn: [],
@@ -2406,7 +2425,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'sso',
     name: 'Single Sign-On (SSO)',
     category: 'CONCEPT',
-    description: 'Authentication scheme allowing a user to log in with a single ID to multiple systems.',
+    description:
+      'Authentication scheme allowing a user to log in with a single ID to multiple systems.',
     aliases: ['sso', 'single-sign-on', 'single-signon'],
     relationships: {
       builtOn: [],
@@ -2419,7 +2439,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'scim',
     name: 'SCIM',
     category: 'TOOL',
-    description: 'System for Cross-domain Identity Management — standard for automating user identity lifecycle provisioning.',
+    description:
+      'System for Cross-domain Identity Management — standard for automating user identity lifecycle provisioning.',
     aliases: ['scim', 'scim-protocol', 'system-for-cross-domain-identity-management'],
     relationships: {
       builtOn: ['rest-api', 'json'],
@@ -2432,7 +2453,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'aws-cloudformation',
     name: 'AWS CloudFormation',
     category: 'TOOL',
-    description: 'Infrastructure as Code service by AWS for modeling and provisioning cloud resources.',
+    description:
+      'Infrastructure as Code service by AWS for modeling and provisioning cloud resources.',
     aliases: ['aws-cloudformation', 'cloudformation', 'aws-cfn', 'cloud-formation'],
     relationships: {
       builtOn: ['aws'],
@@ -2471,7 +2493,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'soap',
     name: 'SOAP',
     category: 'TOOL',
-    description: 'Simple Object Access Protocol for exchanging structured information in web services.',
+    description:
+      'Simple Object Access Protocol for exchanging structured information in web services.',
     aliases: ['soap', 'soap-protocol', 'soap-api'],
     relationships: {
       builtOn: ['xml'],
@@ -2484,7 +2507,8 @@ export const CANONICAL_SKILLS = Object.freeze({
     slug: 'problem-solving',
     name: 'Problem Solving',
     category: 'CONCEPT',
-    description: 'Analytical ability to define, troubleshoot, and solve complex software and engineering problems.',
+    description:
+      'Analytical ability to define, troubleshoot, and solve complex software and engineering problems.',
     aliases: ['problem-solving', 'problem-solving-abilities', 'problem-solver'],
     relationships: {
       builtOn: [],
@@ -2679,7 +2703,7 @@ export class SkillTaxonomyEngine {
       return SkillTaxonomyEngine.buildKnownResult(skill, 0.9, cleaned);
     }
 
-    // Stage 6: Unknown Technology Handling
+    // Stage 6: Unknown Technology Handling & Skill-Worthiness Gate
     const safeSlug = SkillTaxonomyEngine.generateSafeSlug(cleaned);
 
     // Reject generic code words and standard library module names
@@ -2693,6 +2717,8 @@ export class SkillTaxonomyEngine {
         isKnown: false,
         isNoise: true,
         isCustom: false,
+        isSkillWorthy: false,
+        classification: SKILL_CLASSIFICATIONS.INTERNAL_MODULE,
         requiresReview: false,
         relationships: {
           builtOn: [],
@@ -2703,26 +2729,48 @@ export class SkillTaxonomyEngine {
       };
     }
 
-    const parsedCategory = SKILL_CATEGORIES.includes(categoryHint) ? categoryHint : 'TOOL';
+    // Skill-Worthiness Gate evaluation for metadata annotation
+    const gateEval = SkillWorthinessGate.evaluate(cleaned);
 
-    // Telemetry: Log unknown term observation safely
-    logger.info({
-      operation: 'taxonomy.unknown_term_observed',
-      term: safeSlug,
-      category: parsedCategory,
-      requiresReview: true,
-      requestId,
-      msg: `Observed uncataloged technical term '${safeSlug}'`,
-    });
+    const parsedCategory = SKILL_CATEGORIES.includes(categoryHint) ? categoryHint : 'TOOL';
+    const fineCategory = SkillTaxonomyEngine.classifyCategory(safeSlug, parsedCategory);
+    const tier = SkillTaxonomyEngine.classifyTier(safeSlug, fineCategory);
+
+    // Telemetry: Log unknown term observation only for plausible, uncataloged technologies
+    // Deduplicate and rate-limit to prevent log storms
+    const now = Date.now();
+    const lastObserved = _observedTermsCache.get(safeSlug);
+    const shouldEmitTelemetry =
+      SkillWorthinessGate.isPlausibleSkill(cleaned) &&
+      (!lastObserved || now - lastObserved > TELEMETRY_CACHE_TTL_MS);
+
+    if (shouldEmitTelemetry) {
+      _observedTermsCache.set(safeSlug, now);
+      logger.info({
+        operation: 'taxonomy.unknown_term_observed',
+        term: safeSlug,
+        category: parsedCategory,
+        classification: gateEval.classification,
+        requiresReview: true,
+        requestId,
+        msg: `Observed uncataloged technical term '${safeSlug}'`,
+      });
+    }
 
     return {
       canonicalSlug: safeSlug,
       canonicalName: SkillTaxonomyEngine.formatDisplayName(safeSlug),
       category: parsedCategory,
+      fineCategory,
+      tier,
       normalizationConfidence: 0.5,
       matchedAlias: null,
       isKnown: false,
+      isNoise: false,
       isCustom: true,
+      isSkillWorthy: gateEval.isSkillWorthy,
+      classification: gateEval.classification,
+      parentMappings: gateEval.parentMappings,
       requiresReview: true,
       relationships: {
         builtOn: [],
@@ -3823,4 +3871,5 @@ export const getPrimarySkillRank = SkillTaxonomyEngine.getPrimarySkillRank;
 export const evaluateEvidenceStrength = SkillTaxonomyEngine.evaluateEvidenceStrength;
 export const reconcileLanguageEvidence = SkillTaxonomyEngine.reconcileLanguageEvidence;
 export const isLanguage = SkillTaxonomyEngine.isLanguage;
+export const clearObservedTermsCache = () => _observedTermsCache.clear();
 export const classify = SkillTaxonomyEngine.classify;

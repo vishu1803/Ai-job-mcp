@@ -317,6 +317,15 @@ export class CandidateProfileService {
         isUserClaim,
         claimLabel:
           isUserClaim && cs.provenanceStatus === 'CLAIMED' ? '[Unverified User Claim]' : null,
+        // Candidate-declared skill metadata (Additional Skills): preserve raw provenance fields
+        // so downstream consumers (MCP get_candidate_profile, evidence matching) can distinguish
+        // SELF_DECLARED / LEARNING from evidence-backed skills without re-querying.
+        source: cs.source ?? null,
+        proficiency: cs.proficiency ?? null,
+        usageContext: cs.usageContext ?? null,
+        yearsExperience: cs.yearsExperience ?? null,
+        lastUsedAt: cs.lastUsedAt ? new Date(cs.lastUsedAt).toISOString() : null,
+        notes: cs.notes ?? null,
         firstObservedAt: cs.firstObservedAt ? new Date(cs.firstObservedAt).toISOString() : null,
         lastObservedAt: cs.lastObservedAt ? new Date(cs.lastObservedAt).toISOString() : null,
         metadata: cs.metadata || {},

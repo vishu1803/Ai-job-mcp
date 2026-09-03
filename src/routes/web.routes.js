@@ -2577,33 +2577,19 @@ export default async function webRoutes(app, opts = {}) {
     let additionalSkillsResult = null;
     if (sections.additionalSkills) {
       try {
-        // Replace all additional skills atomically
-        const existingSkills = await additionalSkillsService.listAdditionalSkills(context, candidate.id);
-        // Remove old ones
-        for (const skill of existingSkills) {
-          try {
-            await additionalSkillsService.removeAdditionalSkill(context, candidate.id, skill.id);
-          } catch (err) {
-            logger.debug({ err, skillId: skill.id }, 'Failed to remove old additional skill during batch update');
-          }
-        }
-        // Add new ones
-        for (const skill of sections.additionalSkills) {
-          try {
-            await additionalSkillsService.addAdditionalSkill(context, candidate.id, {
-              catalogSkillId: skill.catalogSkillId,
-              proficiency: skill.proficiency || 'WORKING_KNOWLEDGE',
-              usageContext: skill.usageContext || null,
-              notes: skill.notes || null,
-            });
-          } catch (err) {
-            logger.debug({ err, skill }, 'Failed to add additional skill during batch update');
-          }
-        }
+        await additionalSkillsService.setAdditionalSkills(
+          context,
+          candidate.id,
+          sections.additionalSkills
+        );
         additionalSkillsResult = 'ok';
       } catch (err) {
-        logger.error({ err, candidateId: candidate.id }, 'Additional skills batch update failed');
-        additionalSkillsResult = 'failed';
+        logger.error({ err, candidateId: candidate.id }, 'Additional skills update failed');
+        return reply.status(err.statusCode || 400).send({
+          ok: false,
+          error: err.message || 'Failed to update additional skills',
+          section: 'additionalSkills',
+        });
       }
     }
 

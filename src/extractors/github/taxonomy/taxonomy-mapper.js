@@ -8,6 +8,7 @@
  */
 
 import { SkillTaxonomyEngine } from '../../../domain/career/skill-taxonomy.js';
+import { SkillWorthinessGate } from '../../../domain/career/skill-worthiness-gate.js';
 
 export class TaxonomyMapper {
   /**
@@ -24,17 +25,55 @@ export class TaxonomyMapper {
    */
   static normalize(rawIdentifier, categoryHint = 'TOOL') {
     const result = SkillTaxonomyEngine.normalizeSkill(rawIdentifier, { categoryHint });
+    const gateEval = SkillWorthinessGate.evaluate(rawIdentifier);
+
     if (!result) {
-      return {
+      const fallback = {
         slug: 'unknown-tool',
         name: 'Unknown Tool',
         category: 'TOOL',
       };
+      Object.defineProperties(fallback, {
+        isNoise: { value: true, enumerable: false, writable: true, configurable: true },
+        isSkillWorthy: { value: false, enumerable: false, writable: true, configurable: true },
+        parentMappings: { value: null, enumerable: false, writable: true, configurable: true },
+      });
+      return fallback;
     }
-    return {
+
+    // A known catalog technology (e.g. pg -> postgresql) is skill-worthy and not noise
+    const isKnownValid = result.isKnown && result.category !== 'NOISE' && !result.isNoise;
+    const isRejected =
+      !isKnownValid && (!gateEval.isSkillWorthy || result.isNoise || result.category === 'NOISE');
+    const category = isRejected ? 'NOISE' : result.category;
+
+    const out = {
       slug: result.canonicalSlug,
       name: result.canonicalName,
-      category: result.category,
+      category,
     };
+    Object.defineProperties(out, {
+      isNoise: {
+        value: Boolean(isRejected),
+        enumerable: false,
+        writable: true,
+        configurable: true,
+      },
+      isSkillWorthy: {
+        value: Boolean(
+          isKnownValid || (gateEval.isSkillWorthy && !result.isNoise && result.category !== 'NOISE')
+        ),
+        enumerable: false,
+        writable: true,
+        configurable: true,
+      },
+      parentMappings: {
+        value: gateEval.parentMappings || result.parentMappings || null,
+        enumerable: false,
+        writable: true,
+        configurable: true,
+      },
+    });
+    return out;
   }
 }
