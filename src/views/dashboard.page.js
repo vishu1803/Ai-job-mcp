@@ -123,7 +123,7 @@ export function renderDashboardPage({
       </div>
 
       <!-- Profile Header Card -->
-      <div class="card" style="padding:28px 32px; margin-bottom:28px; background:var(--bg-surface-elevated);">
+      <div class="card" style="padding:28px 32px; margin-bottom:28px; background:var(--bg-surface);">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
           <div style="display:flex; gap:20px; align-items:center;">
             <div style="width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); color:#FFF; display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:800; box-shadow:0 8px 24px rgba(99,102,241,0.35);">
@@ -296,7 +296,7 @@ export function renderDashboardPage({
                       label = 'INFERRED';
                     }
                     return `
-                    <span class="badge ${badgeClass}" title="Status: ${label} | Evidence Count: ${s.evidenceCount || 1}" style="padding:6px 12px; font-size:0.8rem;">
+                    <span class="badge ${badgeClass}" title="Status: ${label} | Evidence Count: ${s.evidenceCount || 1}" style="padding:4px 10px; font-size:0.75rem;">
                       ${escapeHtml(s.name || s.slug)}
                       ${s.evidenceCount ? `<small style="opacity:0.75; margin-left:4px;">(${s.evidenceCount})</small>` : ''}
                     </span>

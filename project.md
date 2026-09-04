@@ -9,13 +9,13 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AJ (32 tasks) COMPLETE; P14-005W and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
-| **Project State** | **ACTIVE / IN PROGRESS — PROFILE SINGLE-LOAD & TEST FIXTURE ISOLATION COMPLETE** | P14-005AJ eliminated N+1 queries in profile assembly via batched project resources and evidence fetching, implemented single-load profile reuse in getCareerProfile and MCP tools, introduced in-process TTL reference cache for SkillCatalogService, and established dedicated disposable E2E test fixtures preventing mutable tests from altering the stable MCP candidate. 1,889+ tests passing, 0 ESLint errors, 0 exposed secrets. |
-| **Total Tasks** | **120 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **114 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AJ (32 tasks) |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AK (33 tasks) COMPLETE; P14-005W and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
+| **Project State** | **ACTIVE / IN PROGRESS — UI REDESIGN PHASE 1 COMPLETE** | P14-005AK implemented Phase 1 UI-only redesign across layout.js and dashboard.page.js according to DESIGN.md. Preserved 100% of JavaScript, logic, routes, IDs, and dynamic expressions. 1,920/1,920 unit tests passing, 0 ESLint errors, 0 secrets exposed. |
+| **Total Tasks** | **121 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **115 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AK (33 tasks) |
 | **In Progress Tasks** | **2 Tasks** | P14-005W (MCP Candidate Profile Contract Fix) and P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation) — both Local Implementation Verified, Live ChatGPT MCP Verification Required |
 | **Blocked Tasks** | **1 Task** | P14-005AB — blocked on a live ChatGPT MCP `analyze_job_fit` call returning the actual analysis payload |
-| **Overall Task Completion** | **96.61% (114 / 118 Tasks)** | Strict calculation, zero inflation |
+| **Overall Task Completion** | **96.64% (115 / 119 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **98.53% (16.75 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 31 | 30 | 1 | **IN_PROGRESS** | **96.8%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 32 | 31 | 1 | **IN_PROGRESS** | **96.9%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -4464,6 +4464,46 @@ Architecturally optimized the candidate profile pipeline, reference catalog data
   - `node --test tests/acceptance/full-acceptance.test.js` $\rightarrow$ **6/6 PASS**.
 - **ESLint**: `npx eslint` across all modified and created files $\rightarrow$ **0 errors, 0 warnings**.
 - **Secrets Audit**: `npm run scan:secrets` $\rightarrow$ **PASS** (0 secrets detected).
+
+---
+
+### P14-005AK UI Redesign Phase 1: Precision Design System (Layout & Candidate Dashboard Presentation)
+
+#### 1. Description & Context
+Executed Phase 1 of the application-wide visual polish strictly adhering to `DESIGN.md` (*AI Careers Hub Precision Design System*), under strict UI-only presentation invariants:
+1. **Design System `:root` Tokens & Foundations (`src/views/layout.js`)**:
+   - Aligned color palette tokens with `DESIGN.md §2.1`: Slate 950 deep canvas (`--bg-canvas: #0B0F19`), Slate 900 card surface (`--bg-card: #111827`), elevated hover/dropdown (`--bg-surface-elevated: #1F2937`), subtle borders (`--border-subtle: rgba(255, 255, 255, 0.08)`), muted dropdown borders (`--border-muted: rgba(255, 255, 255, 0.14)`), focus ring (`--border-focus: #6366F1`), and high-contrast typography tokens (`--text-main: #F9FAFB`, `--text-secondary: #E2E8F0`, `--text-muted: #94A3B8`, `--text-dim: #64748B`).
+   - Aligned typography scale and tracking rules (`DESIGN.md §2.4`): Display `36px/44px` (`800`, `-0.03em`), h1 `26px/34px` (`700`, `-0.02em`), h2 `20px/28px` (`600`, `-0.015em`), h3 `16px/24px` (`600`, `-0.01em`), Body `14px/22px` (`#E2E8F0`), Small `12px/18px` (`#94A3B8`).
+   - Standardized drop shadows: `--shadow-card` (`0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)`) and `--shadow-dropdown` (`0 16px 36px -4px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08)`).
+2. **Semantic Truth & Operational Badges (`DESIGN.md §2.2 & §2.3`)**:
+   - Refined `.badge` base: `padding: 3px 8px; font-size: 0.725rem; font-weight: 600; line-height: 1; letter-spacing: 0.03em; white-space: nowrap`.
+   - Updated `.badge-verified` (`rgba(16, 185, 129, 0.15)` / `#34D399`), `.badge-corroborated` (`rgba(20, 184, 166, 0.15)` / `#2DD4BF`), `.badge-inferred` (`rgba(6, 182, 212, 0.15)` / `#38BDF8`), `.badge-claimed` (`rgba(245, 158, 11, 0.15)` / `#FBBF24`), `.badge-unknown` (`rgba(148, 163, 184, 0.12)` / `#94A3B8`), and operational badges (`.badge-status-connected` `#34D399`, `.badge-status-disconnected` `#94A3B8`).
+3. **Buttons, Cards, and Stat Cards**:
+   - Refined `.btn` base: `padding: 8px 16px; font-size: 0.875rem; font-weight: 600; line-height: 1.25; border-radius: var(--radius-md)`.
+   - `.btn-primary`: Solid Indigo `#6366F1` with inset highlight `0 1px 0 rgba(255, 255, 255, 0.15)`, hover `#4F46E5`.
+   - `.btn-secondary`: `background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-main)`, hover `var(--bg-surface-elevated)`.
+   - `.card`: `background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 24px`.
+   - `.stat-card`: `padding: 18px 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle)`, `.stat-val`: `1.75rem; font-weight: 800; letter-spacing: -0.02em`, `.stat-label`: `0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em`.
+4. **Candidate Dashboard Presentation (`src/views/dashboard.page.js`)**:
+   - Aligned profile header card background with `var(--bg-surface)`.
+   - Refined skill badge pill sizing (`padding: 4px 10px; font-size: 0.75rem;`) matching badge micro-typography.
+5. **Preservation & Invariant Enforcements**:
+   - Preserved 100% of the client-side `<script>` block in `src/views/layout.js` (lines 1523–1618) with zero modifications to event listeners, IDs (`#mobileNavToggle`, `#mobileNavMenu`, `#userDropdown`), or class toggles.
+   - Preserved 100% of template expressions, variables, conditionals, loops, links, hrefs, and status text in `src/views/dashboard.page.js`.
+
+#### 2. Files Modified
+- `src/views/layout.js`
+- `src/views/dashboard.page.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Diff Inspection**: `git diff -- src/views/layout.js src/views/dashboard.page.js` $\rightarrow$ **PASS** (Zero JavaScript, route, URL, form attribute, ID, dynamic expression, or event handler changes).
+- **ESLint**: `npx eslint src/views/layout.js src/views/dashboard.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+- **Unit Test Suite**: `npm run test:unit` $\rightarrow$ **PASS (1,920/1,920 PASS across 489 suites, 0 failures)**.
+- **Live Browser Visual Inspection**:
+  - Desktop Viewport (1280×800): `desktop_dashboard_1788500647132.png` $\rightarrow$ **PASS** (Crisp typography, balanced card contrast, sticky blur navbar, accurate truth badges, verified metrics).
+  - Mobile Viewport (375×812): `mobile_dashboard_1788500679833.png` $\rightarrow$ **PASS** (Responsive wrap, 2-column checklist grid, vertical stat card flow, no horizontal overflow).
+- **Git Status Isolation**: Confirmed only approved presentation files and the project ledger were touched.
 
 ---
 

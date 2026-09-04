@@ -41,35 +41,36 @@ export function renderLayout({
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* Palette Tokens (DESIGN.md) */
+      /* Palette Tokens (DESIGN.md §2.1) */
       --bg-canvas: #0B0F19;
       --bg-surface: #111827;
       --bg-surface-elevated: #1F2937;
-      --bg-card: rgba(17, 24, 39, 0.85);
-      --bg-glass: rgba(31, 41, 55, 0.65);
+      --bg-card: #111827;
+      --bg-glass: rgba(17, 24, 39, 0.75);
       --bg-dim: #070E1D;
       --bg-primary: #0B0F19;
       --bg-secondary: #111827;
 
       /* Border Tokens */
-      --border-subtle: #1E293B;
-      --border-highlight: #334155;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-muted: rgba(255, 255, 255, 0.14);
+      --border-highlight: rgba(99, 102, 241, 0.3);
       --border-outline: #475569;
-      --border-focus: rgba(99, 102, 241, 0.5);
+      --border-focus: #6366F1;
 
-      /* Typography Tokens */
+      /* Typography Tokens (DESIGN.md §2.1 & §2.4) */
       --text-main: #F9FAFB;
+      --text-secondary: #E2E8F0;
       --text-muted: #94A3B8;
       --text-dim: #64748B;
       --text-primary: #F9FAFB;
-      --text-secondary: #94A3B8;
 
       /* Brand & Semantic Accents */
       --accent-indigo: #6366F1;
       --accent-indigo-hover: #4F46E5;
       --accent-primary: #6366F1;
       --accent-emerald: #10B981;
-      --accent-teal: #0D9488;
+      --accent-teal: #14B8A6;
       --accent-cyan: #06B6D4;
       --accent-amber: #F59E0B;
       --accent-rose: #F43F5E;
@@ -79,7 +80,7 @@ export function renderLayout({
       --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 
-      /* Radii */
+      /* Radii (DESIGN.md §2.5) */
       --radius-xs: 4px;
       --radius-sm: 6px;
       --radius-md: 8px;
@@ -88,7 +89,8 @@ export function renderLayout({
       --radius-full: 9999px;
 
       /* Shadows & Elevations */
-      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+      --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      --shadow-dropdown: 0 16px 36px -4px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
       --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.25);
       --shadow-glow-emerald: 0 0 20px rgba(16, 185, 129, 0.2);
     }
@@ -108,6 +110,31 @@ export function renderLayout({
       display: flex;
       flex-direction: column;
       -webkit-font-smoothing: antialiased;
+    }
+
+    h1 {
+      font-size: 1.625rem;
+      line-height: 2.125rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+    }
+    h2 {
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      color: var(--text-main);
+    }
+    h3 {
+      font-size: 1rem;
+      line-height: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-main);
+    }
+    p {
+      color: var(--text-secondary);
     }
 
     a {
@@ -243,10 +270,10 @@ export function renderLayout({
       top: calc(100% + 6px);
       left: 0;
       min-width: 220px;
-      background: #111827;
-      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-muted);
       border-radius: var(--radius-md);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      box-shadow: var(--shadow-dropdown);
       padding: 6px;
       display: none;
       flex-direction: column;
@@ -330,10 +357,10 @@ export function renderLayout({
       right: 0;
       left: auto;
       min-width: 230px;
-      background: #111827;
-      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-muted);
       border-radius: var(--radius-md);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      box-shadow: var(--shadow-dropdown);
       padding: 6px;
       display: none;
       flex-direction: column;
@@ -497,46 +524,48 @@ export function renderLayout({
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 9px 18px;
-      font-size: 0.9rem;
+      padding: 8px 16px;
+      font-size: 0.875rem;
       font-weight: 600;
+      line-height: 1.25;
       border-radius: var(--radius-md);
       cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
       border: 1px solid transparent;
       text-decoration: none;
+      font-family: inherit;
     }
     .btn-primary {
-      background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+      background: #6366F1;
       color: #FFFFFF;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .btn-primary:hover {
-      background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
-      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
-      color: #FFF;
+      background: #4F46E5;
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
       transform: translateY(-1px);
     }
     .btn-secondary {
-      background: var(--bg-glass);
+      background: var(--bg-surface);
       color: var(--text-main);
       border: 1px solid var(--border-subtle);
     }
     .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.2);
-      color: #FFF;
+      background: var(--bg-surface-elevated);
+      border-color: var(--border-muted);
+      color: #FFFFFF;
     }
     .btn-sm {
-      padding: 6px 12px;
+      padding: 5px 12px;
       font-size: 0.8rem;
+      border-radius: var(--radius-sm);
     }
 
     /* Cards */
     .card {
-      background: var(--bg-card);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       padding: 24px;
@@ -548,11 +577,13 @@ export function renderLayout({
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 3px 10px;
+      padding: 3px 8px;
       border-radius: var(--radius-full);
-      font-size: 0.75rem;
+      font-size: 0.725rem;
       font-weight: 600;
-      letter-spacing: 0.02em;
+      line-height: 1;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
     }
     .badge-verified {
       background: rgba(16, 185, 129, 0.15);
@@ -560,13 +591,13 @@ export function renderLayout({
       border: 1px solid rgba(16, 185, 129, 0.35);
     }
     .badge-corroborated {
-      background: rgba(13, 148, 136, 0.18);
+      background: rgba(20, 184, 166, 0.15);
       color: #2DD4BF;
-      border: 1px solid rgba(13, 148, 136, 0.35);
+      border: 1px solid rgba(20, 184, 166, 0.35);
     }
     .badge-inferred {
       background: rgba(6, 182, 212, 0.15);
-      color: #22D3EE;
+      color: #38BDF8;
       border: 1px solid rgba(6, 182, 212, 0.35);
     }
     .badge-claimed {
@@ -580,13 +611,13 @@ export function renderLayout({
       border: 1px solid rgba(244, 63, 94, 0.35);
     }
     .badge-unknown {
-      background: rgba(100, 116, 139, 0.18);
+      background: rgba(148, 163, 184, 0.12);
       color: #94A3B8;
-      border: 1px solid rgba(100, 116, 139, 0.3);
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
     .badge-cyan {
       background: rgba(6, 182, 212, 0.15);
-      color: #22D3EE;
+      color: #38BDF8;
       border: 1px solid rgba(6, 182, 212, 0.3);
     }
     .badge-indigo {
@@ -600,14 +631,14 @@ export function renderLayout({
       border: 1px solid rgba(245, 158, 11, 0.3);
     }
     .badge-status-connected {
-      background: rgba(16, 185, 129, 0.15);
+      background: rgba(16, 185, 129, 0.12);
       color: #34D399;
       border: 1px solid rgba(16, 185, 129, 0.3);
     }
     .badge-status-disconnected {
-      background: rgba(100, 116, 139, 0.15);
+      background: rgba(148, 163, 184, 0.1);
       color: #94A3B8;
-      border: 1px solid rgba(100, 116, 139, 0.3);
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
     .badge-status-processing {
       background: rgba(99, 102, 241, 0.15);
@@ -697,27 +728,28 @@ export function renderLayout({
 
     /* Metric Cards */
     .stat-card {
-      background: var(--bg-card);
+      background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 20px;
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      transition: transform 0.2s ease, border-color 0.2s ease;
+      transition: transform 0.15s ease, border-color 0.15s ease;
     }
     .stat-card:hover {
       transform: translateY(-2px);
-      border-color: rgba(99, 102, 241, 0.4);
+      border-color: var(--border-highlight);
     }
     .stat-val {
-      font-size: 1.85rem;
+      font-size: 1.75rem;
       font-weight: 800;
+      letter-spacing: -0.02em;
       color: var(--text-main);
       line-height: 1.2;
     }
     .stat-label {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
       font-weight: 600;
       text-transform: uppercase;
