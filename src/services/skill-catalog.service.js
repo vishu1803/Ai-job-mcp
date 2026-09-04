@@ -21,17 +21,83 @@ import { SKILL_CATALOG_SEED } from './skill-catalog.seed.js';
 export class SkillCatalogService {
   /**
    * @param {import('drizzle-orm/node-postgres').NodePgDatabase|object} [database]
+   * @param {object} [options]
+   * @param {number} [options.referenceCacheTtlMs=60000] - TTL for in-process reference-data cache
+   * @param {boolean} [options.disableReferenceCache=false] - Disable caching (test isolation valve)
    */
-  constructor(database = null) {
+  constructor(database = null, options = {}) {
     if (database && typeof database === 'object' && !database.select) {
       this.db = database.db || database.database || defaultDb;
     } else {
       this.db = database || defaultDb;
     }
+    // The skill catalog + category aggregates are static, slow-changing, tenant-agnostic
+    // reference data. An in-process TTL cache avoids reloading them on every profile page
+    // request. The cache is instance-scoped (production creates one long-lived instance per
+    // route registrar) and never stores candidate-specific data.
+    this.referenceCacheTtlMs = options.referenceCacheTtlMs ?? 60000;
+    this.referenceCacheEnabled = options.disableReferenceCache !== true;
+    /** @type {Map<string, { loadedAt: number, value: unknown }>} */
+    this._referenceCache = new Map();
   }
 
   get _db() {
     return this.db || defaultDb;
+  }
+
+  /**
+   * @param {string} key
+   * @returns {unknown|undefined} Cached value if present and unexpired
+   * @private
+   */
+  _cacheGet(key) {
+    if (!this.referenceCacheEnabled) return undefined;
+    const entry = this._referenceCache.get(key);
+    if (!entry) return undefined;
+    if (Date.now() - entry.loadedAt > this.referenceCacheTtlMs) {
+      this._referenceCache.delete(key);
+      return undefined;
+    }
+    return entry.value;
+  }
+
+  /**
+   * @param {string} key
+   * @param {unknown} value
+   * @private
+   */
+  _cacheSet(key, value) {
+    if (!this.referenceCacheEnabled) return;
+    this._referenceCache.set(key, { loadedAt: Date.now(), value });
+  }
+
+  /**
+   * Clears all cached reference data. Call after any catalog mutation (e.g. seeding).
+   * @private
+   */
+  _invalidateReferenceCache() {
+    this._referenceCache.clear();
+  }
+
+  /**
+   * Returns the full ordered snapshot of active catalog rows (sortOrder, canonicalName).
+   * Cached in process memory for reference-cache TTL since the catalog is slow-changing.
+   *
+   * @returns {Promise<Array<object>>}
+   * @private
+   */
+  async _getActiveSkillsSnapshot() {
+    const cached = this._cacheGet('activeSkills');
+    if (cached !== undefined) return cached;
+
+    const rows = await this._db
+      .select()
+      .from(skillCatalog)
+      .where(eq(skillCatalog.active, true))
+      .orderBy(asc(skillCatalog.sortOrder), asc(skillCatalog.canonicalName));
+
+    this._cacheSet('activeSkills', rows);
+    return rows;
   }
 
   /**
@@ -80,6 +146,7 @@ export class SkillCatalogService {
     }
 
     logger.info({ inserted, existing: existingCount }, 'Skill catalog seed completed');
+    this._invalidateReferenceCache();
     return { inserted, existing: existingCount };
   }
 
@@ -95,6 +162,27 @@ export class SkillCatalogService {
    * @returns {Promise<{ items: Array, total: number, page: number, pageSize: number, totalPages: number }>}
    */
   async searchSkills({ query = '', category = null, subcategory = null, page = 1, pageSize = 20 }) {
+    // Unfiltered whole-catalog requests (the profile UI/bootstraps fetch the full catalog
+    // with pageSize=500) can be served from the cached active-skill snapshot without any
+    // database round trip. JS slice reproduces the SQL OFFSET/LIMIT semantics exactly when
+    // page/pageSize are valid positive integers; otherwise fall through to the DB path.
+    const hasNoFilters = !(query && query.trim()) && !category && !subcategory;
+    const validPaging =
+      Number.isInteger(page) && page >= 1 && Number.isInteger(pageSize) && pageSize >= 1;
+    if (hasNoFilters && validPaging) {
+      const allActiveSkills = await this._getActiveSkillsSnapshot();
+      const totalCount = allActiveSkills.length;
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      const offset = (page - 1) * pageSize;
+      return {
+        items: allActiveSkills.slice(offset, offset + pageSize),
+        total: totalCount,
+        page,
+        pageSize,
+        totalPages,
+      };
+    }
+
     const conditions = [eq(skillCatalog.active, true)];
 
     if (query && query.trim()) {
@@ -191,7 +279,10 @@ export class SkillCatalogService {
    * @returns {Promise<Array<{ category: string, count: number }>>}
    */
   async getCategories() {
-    return this._db
+    const cached = this._cacheGet('categories');
+    if (cached !== undefined) return cached;
+
+    const rows = await this._db
       .select({
         category: skillCatalog.category,
         count: sql`count(*)::int`,
@@ -200,6 +291,9 @@ export class SkillCatalogService {
       .where(eq(skillCatalog.active, true))
       .groupBy(skillCatalog.category)
       .orderBy(asc(skillCatalog.category));
+
+    this._cacheSet('categories', rows);
+    return rows;
   }
 
   /**

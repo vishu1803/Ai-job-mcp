@@ -1,24 +1,40 @@
-import { describe, it } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { db } from '../../src/db/index.js';
-import { skillCatalog, candidateSkills, skills } from '../../src/db/schema.js';
-import { eq, sql } from 'drizzle-orm';
+import { skillCatalog } from '../../src/db/schema.js';
+import { sql } from 'drizzle-orm';
 import { SKILL_CATALOG_SEED } from '../../src/services/skill-catalog.seed.js';
 import { CandidateAdditionalSkillsService } from '../../src/services/candidate-additional-skills.service.js';
-import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import { EvidenceMatchingService } from '../../src/services/evidence-matching.service.js';
+import {
+  ensureE2eFixture,
+  ensureFixtureEvidenceSkills,
+  cleanupFixtureCandidateSkills,
+  assertNotProtectedCandidate,
+} from '../helpers/e2e-fixture.js';
 
-const CANDIDATE_ID = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
+describe('Full Acceptance Test (dedicated E2E fixture)', () => {
+  let fixture;
+  let tenantId;
+  let candidateId;
 
-async function getTenantId() {
-  const result = await db.execute(sql`SELECT tenant_id FROM candidates WHERE id = ${CANDIDATE_ID}`);
-  const tenantId = result.rows?.[0]?.tenant_id;
-  if (!tenantId) throw new Error('Candidate not found');
-  return tenantId;
-}
+  before(async () => {
+    // Mutable acceptance tests ALWAYS run against the dedicated disposable fixture,
+    // never against the stable READ-ONLY MCP acceptance candidate.
+    fixture = await ensureE2eFixture(db);
+    tenantId = fixture.tenantId;
+    candidateId = fixture.candidateId;
+    assertNotProtectedCandidate(candidateId);
+    await ensureFixtureEvidenceSkills(db, fixture);
+    console.log(`  Fixture candidate: ${candidateId} (tenant ${tenantId})`);
+  });
 
-describe('Full Acceptance Test', () => {
+  after(async () => {
+    await cleanupFixtureCandidateSkills(db, candidateId);
+    console.log('  ✅ Fixture candidate skills cleaned up (stable MCP candidate untouched).');
+  });
+
   // STEP 1: Seed catalog
   it('Step 1: Skill catalog seeded', async () => {
     const result = await db.execute(sql`SELECT count(*)::int as count FROM skill_catalog`);
@@ -38,7 +54,7 @@ describe('Full Acceptance Test', () => {
             });
             inserted++;
           }
-        } catch {}
+        } catch { /* ignore duplicate/seed conflicts */ }
       }
       console.log(`  Seeded ${inserted} new entries`);
     }
@@ -48,7 +64,6 @@ describe('Full Acceptance Test', () => {
 
   // STEP 2: Add 5 additional skills
   it('Step 2: Add additional skills', async () => {
-    const tenantId = await getTenantId();
     const service = new CandidateAdditionalSkillsService(db);
     const toAdd = [
       { slug: 'aws', proficiency: 'PROFICIENT' },
@@ -60,7 +75,7 @@ describe('Full Acceptance Test', () => {
     for (const { slug, proficiency } of toAdd) {
       const catRes = await db.execute(sql`SELECT id FROM skill_catalog WHERE slug = ${slug}`);
       assert.ok(catRes.rows.length > 0, `${slug} must exist in catalog`);
-      const result = await service.addAdditionalSkill({ tenantId }, CANDIDATE_ID, {
+      const result = await service.addAdditionalSkill({ tenantId }, candidateId, {
         catalogSkillId: catRes.rows[0].id, proficiency,
       });
       const expected = proficiency === 'CURRENTLY_LEARNING' ? 'LEARNING' : 'SELF_DECLARED';
@@ -69,7 +84,7 @@ describe('Full Acceptance Test', () => {
     }
 
     // Verify persistence
-    const list = await service.listAdditionalSkills({ tenantId }, CANDIDATE_ID);
+    const list = await service.listAdditionalSkills({ tenantId }, candidateId);
     assert.ok(list.length >= 5, `Expected >=5, got ${list.length}`);
     console.log(`  ✅ All ${list.length} additional skills persisted`);
     console.log('  ✅ Step 2 PASS');
@@ -77,8 +92,8 @@ describe('Full Acceptance Test', () => {
 
   // STEP 3: Evidence protection
   it('Step 3: Evidence-backed skills not downgraded', async () => {
-    const verifiedRes = await db.execute(sql`SELECT cs.provenance_status, s.slug FROM candidate_skills cs JOIN skills s ON cs.skill_id = s.id WHERE cs.candidate_id = ${CANDIDATE_ID} AND cs.provenance_status = 'VERIFIED'`);
-    const corroboratedRes = await db.execute(sql`SELECT cs.provenance_status, s.slug FROM candidate_skills cs JOIN skills s ON cs.skill_id = s.id WHERE cs.candidate_id = ${CANDIDATE_ID} AND cs.provenance_status = 'CORROBORATED'`);
+    const verifiedRes = await db.execute(sql`SELECT cs.provenance_status, s.slug FROM candidate_skills cs JOIN skills s ON cs.skill_id = s.id WHERE cs.candidate_id = ${candidateId} AND cs.provenance_status = 'VERIFIED'`);
+    const corroboratedRes = await db.execute(sql`SELECT cs.provenance_status, s.slug FROM candidate_skills cs JOIN skills s ON cs.skill_id = s.id WHERE cs.candidate_id = ${candidateId} AND cs.provenance_status = 'CORROBORATED'`);
     const evidenceSkills = [...verifiedRes.rows, ...corroboratedRes.rows];
     console.log(`  Evidence-backed: ${evidenceSkills.length}`);
     for (const s of evidenceSkills) console.log(`    ${s.slug}: ${s.provenance_status}`);
@@ -88,9 +103,8 @@ describe('Full Acceptance Test', () => {
 
   // STEP 4: Combined view
   it('Step 4: Combined skill view', async () => {
-    const tenantId = await getTenantId();
     const service = new CandidateAdditionalSkillsService(db);
-    const view = await service.getCombinedSkillView({ tenantId }, CANDIDATE_ID);
+    const view = await service.getCombinedSkillView({ tenantId }, candidateId);
     console.log(`  Evidence-backed: ${view.evidenceBackedSkills.length}`);
     console.log(`  Additional: ${view.additionalSkills.length}`);
     console.log(`  Learning: ${view.learningSkills.length}`);

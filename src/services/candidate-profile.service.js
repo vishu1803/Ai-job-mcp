@@ -13,7 +13,7 @@
  * - Credential Redaction: Strips all tokens, installation IDs, and secrets from profile outputs
  */
 
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, asc, sql, inArray } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import {
   users,
@@ -190,45 +190,80 @@ export class CandidateProfileService {
       .where(and(eq(projects.tenantId, tenantId), eq(projects.candidateId, candidateId)))
       .orderBy(desc(projects.createdAt));
 
+    // Batch-fetch per-project linked resources and per-project evidence in two queries
+    // (previously 2 N+1 queries per project). Row ordering semantics are preserved:
+    // evidence rows are ordered by (confidenceScore DESC, detectedAt DESC) and grouped
+    // per project in encounter order, so each project's evidence array is byte-identical
+    // to the previous per-project query results.
+    const projectIds = rawProjects.map((p) => p.id);
+
+    const linkedResourceRows =
+      projectIds.length > 0
+        ? await this._db
+            .select()
+            .from(projectResources)
+            .where(
+              and(
+                eq(projectResources.tenantId, tenantId),
+                inArray(projectResources.projectId, projectIds)
+              )
+            )
+        : [];
+    const linkedResourcesByProjectId = new Map();
+    for (const prRow of linkedResourceRows) {
+      if (!linkedResourcesByProjectId.has(prRow.projectId)) {
+        linkedResourcesByProjectId.set(prRow.projectId, []);
+      }
+      linkedResourcesByProjectId.get(prRow.projectId).push(prRow);
+    }
+
+    const projectEvidenceRows =
+      projectIds.length > 0
+        ? await this._db
+            .select({
+              id: evidenceItems.id,
+              tenantId: evidenceItems.tenantId,
+              candidateId: evidenceItems.candidateId,
+              resourceId: evidenceItems.resourceId,
+              projectId: evidenceItems.projectId,
+              skillId: evidenceItems.skillId,
+              evidenceType: evidenceItems.evidenceType,
+              sourceProvider: evidenceItems.sourceProvider,
+              sourceLocation: evidenceItems.sourceLocation,
+              excerpt: evidenceItems.excerpt,
+              confidenceScore: evidenceItems.confidenceScore,
+              metadata: evidenceItems.metadata,
+              detectedAt: evidenceItems.detectedAt,
+              skillSlug: skills.slug,
+              skillName: skills.name,
+            })
+            .from(evidenceItems)
+            .leftJoin(skills, eq(evidenceItems.skillId, skills.id))
+            .where(
+              and(
+                eq(evidenceItems.tenantId, tenantId),
+                eq(evidenceItems.candidateId, candidateId),
+                inArray(evidenceItems.projectId, projectIds)
+              )
+            )
+            .orderBy(
+              desc(evidenceItems.confidenceScore),
+              desc(evidenceItems.detectedAt),
+              asc(evidenceItems.id)
+            )
+        : [];
+    const evidenceByProjectId = new Map();
+    for (const evRow of projectEvidenceRows) {
+      if (!evidenceByProjectId.has(evRow.projectId)) {
+        evidenceByProjectId.set(evRow.projectId, []);
+      }
+      evidenceByProjectId.get(evRow.projectId).push(evRow);
+    }
+
     const projectList = [];
     for (const proj of rawProjects) {
-      // Find linked resources count
-      const linkedRes = await this._db
-        .select()
-        .from(projectResources)
-        .where(
-          and(eq(projectResources.tenantId, tenantId), eq(projectResources.projectId, proj.id))
-        );
-
-      // Find project evidence items
-      const projEvidenceRows = await this._db
-        .select({
-          id: evidenceItems.id,
-          tenantId: evidenceItems.tenantId,
-          candidateId: evidenceItems.candidateId,
-          resourceId: evidenceItems.resourceId,
-          projectId: evidenceItems.projectId,
-          skillId: evidenceItems.skillId,
-          evidenceType: evidenceItems.evidenceType,
-          sourceProvider: evidenceItems.sourceProvider,
-          sourceLocation: evidenceItems.sourceLocation,
-          excerpt: evidenceItems.excerpt,
-          confidenceScore: evidenceItems.confidenceScore,
-          metadata: evidenceItems.metadata,
-          detectedAt: evidenceItems.detectedAt,
-          skillSlug: skills.slug,
-          skillName: skills.name,
-        })
-        .from(evidenceItems)
-        .leftJoin(skills, eq(evidenceItems.skillId, skills.id))
-        .where(
-          and(
-            eq(evidenceItems.tenantId, tenantId),
-            eq(evidenceItems.candidateId, candidateId),
-            eq(evidenceItems.projectId, proj.id)
-          )
-        )
-        .orderBy(desc(evidenceItems.confidenceScore), desc(evidenceItems.detectedAt));
+      const linkedRes = linkedResourcesByProjectId.get(proj.id) || [];
+      const projEvidenceRows = evidenceByProjectId.get(proj.id) || [];
 
       projectList.push({
         id: proj.id,
@@ -1285,16 +1320,25 @@ export class CandidateProfileService {
   /**
    * Retrieves a comprehensive Career Profile view with preferences, portfolio links, verified skills summary, and qualifications.
    *
+   * When the caller has already loaded the raw CandidateProfileView (e.g. MCP handlers that
+   * need both views), pass { profileView } to reuse that single data load and avoid executing
+   * the full profile assembly twice. When omitted, the view is loaded fresh (unchanged behavior).
+   *
    * @param {object} context - Trusted context with tenantId
    * @param {string} candidateId - Candidate UUID
+   * @param {object} [options={}]
+   * @param {object} [options.profileView] - Optional pre-loaded CandidateProfileView (from getProfile)
    * @returns {Promise<object>} Validated CandidateCareerProfileView
    */
-  async getCareerProfile(context, candidateId) {
+  async getCareerProfile(context, candidateId, options = {}) {
     this._validateContext(context);
     if (!candidateId) throw new ValidationError('candidateId is required');
 
     const tenantId = context.tenantId;
-    const profileView = await this.getProfile(context, candidateId);
+    const profileView =
+      options && options.profileView
+        ? options.profileView
+        : await this.getProfile(context, candidateId);
     const candidate = profileView.candidate;
 
     // 1. Resolve Resume Data (from profileMetadata or dynamic fallback from latest parsed resume)

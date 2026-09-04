@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AI (31 tasks) COMPLETE; P14-005W and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
-| **Project State** | **ACTIVE / IN PROGRESS — EVIDENCE SELECTION & PROTOCOL BOUNDARIES HARDENED** | P14-005AI successfully resolved all five remaining defects from the second live ChatGPT MCP validation of `analyze_job_fit`: (1) UI helper packages (@heroicons/*, @radix-ui/*, lucide-react) strictly eliminated from top project supporting evidence, (2) Passive manifest evidence capped (max 2) with source code prioritized, (3) Protocol-specific guard in PEER IMPLEMENTS preventing Fastify from falsely matching SOAP via http-services, (4) Node.js experience requirement tightened to runtime frameworks (Fastify/Express) with accurate explanation and BUILT_ON relationship, and (5) isUserClaim confirmed as internal state fully represented via candidateProvenance and provenanceTrustClass. 26/26 dedicated unit tests passing, all 184 analyze-job-fit regression tests passing, 1,880/1,880 full repository tests passing (100%), 0 ESLint errors, 0 exposed secrets. |
-| **Total Tasks** | **119 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **113 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AI (31 tasks) |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AJ (32 tasks) COMPLETE; P14-005W and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
+| **Project State** | **ACTIVE / IN PROGRESS — PROFILE SINGLE-LOAD & TEST FIXTURE ISOLATION COMPLETE** | P14-005AJ eliminated N+1 queries in profile assembly via batched project resources and evidence fetching, implemented single-load profile reuse in getCareerProfile and MCP tools, introduced in-process TTL reference cache for SkillCatalogService, and established dedicated disposable E2E test fixtures preventing mutable tests from altering the stable MCP candidate. 1,889+ tests passing, 0 ESLint errors, 0 exposed secrets. |
+| **Total Tasks** | **120 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **114 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AJ (32 tasks) |
 | **In Progress Tasks** | **2 Tasks** | P14-005W (MCP Candidate Profile Contract Fix) and P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation) — both Local Implementation Verified, Live ChatGPT MCP Verification Required |
 | **Blocked Tasks** | **1 Task** | P14-005AB — blocked on a live ChatGPT MCP `analyze_job_fit` call returning the actual analysis payload |
-| **Overall Task Completion** | **95.76% (113 / 118 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **98.24% (16.70 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **96.61% (114 / 118 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **98.53% (16.75 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 30 | 29 | 1 | **IN_PROGRESS** | **96.7%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 31 | 30 | 1 | **IN_PROGRESS** | **96.8%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -4416,6 +4416,54 @@ Following forensic analysis of the second live ChatGPT MCP `analyze_job_fit` res
   - Node.js Experience: `matchStatus: PARTIAL`, `candidateSkills: ["Fastify"]`, `relationshipType: BUILT_ON`, explanation: `"PARTIAL: Candidate demonstrates practical application development using Fastify (a Node.js framework) through verified repository implementations..."`.
   - Direct Node.js requirement: `matchStatus: PARTIAL`, `candidateSkills: ["Node.js"]`, `candidateProvenance: CLAIMED`, `provenanceTrustClass: LOW_TRUST`.
   - Status sum invariant: `27/27` requirements accounted for (`matchedCount: 4, partialCount: 3, missingCount: 19, unknownCount: 1`).
+
+---
+
+### P14-005AJ Profile Pipeline Single-Load, Reference Data Caching, and E2E Test Fixture Isolation
+
+#### 1. Description & Context
+Architecturally optimized the candidate profile pipeline, reference catalog data access, and test fixture isolation:
+1. **Profile Pipeline Single-Load & N+1 Query Elimination**:
+   - In `src/services/candidate-profile.service.js`, refactored `CandidateProfileService.getProfile` to batch project-linked resources and project evidence queries across all candidate projects into two single `inArray(projectId, projectIds)` queries instead of running 2 queries per project (eliminating N+1 database round-trips). Preserved exact row ordering semantics `(confidenceScore DESC, detectedAt DESC, id ASC)`.
+   - Extended `CandidateProfileService.getCareerProfile(context, candidateId, options)` to accept an optional pre-loaded `{ profileView }` parameter. When provided, the view is reused directly without re-invoking `getProfile`.
+   - Updated `handleGetCandidateProfile` in `src/mcp/tools/career-read-tools.js` to fetch `profileView` once and pass `{ profileView }` into `getCareerProfile`, ensuring exactly one profile data load per MCP call.
+2. **Skill Catalog Reference Data In-Process Cache**:
+   - In `src/services/skill-catalog.service.js`, implemented an in-process TTL cache (`referenceCacheTtlMs: 60000`) for static, tenant-agnostic catalog tables (`activeSkills`, `categories`).
+   - Short-circuited unfiltered catalog searches (`searchSkills` with default pagination and no text/category filters) directly through the in-memory active-skills snapshot.
+   - Preserved real database execution for filtered queries and added cache invalidation on catalog mutations (`seedCatalog`). Added test isolation option `disableReferenceCache: true`.
+3. **E2E/Acceptance Test Isolation & Stable MCP Candidate Protection**:
+   - Created `tests/helpers/e2e-fixture.js` defining a dedicated, disposable test tenant/user/candidate (`career-hub-e2e-fixture`, `e2e-fixture@careerhub.test`) for mutable E2E and acceptance tests.
+   - Enforced `assertNotProtectedCandidate(candidateId)` guard to prevent any test or mutation script from modifying the stable read-only MCP candidate (`10a2b51b-09bf-4090-8040-1f60ebeb89c9`).
+   - Added dev-only E2E authentication override (`?e2e=1`) in `src/routes/auth.routes.js` to authenticate as the fixture user during automated tests without polluting production login logic.
+   - Migrated mutable test suites (`tests/acceptance/02-add-additional-skills.test.js`, `tests/acceptance/full-acceptance.test.js`, `tests/integration/taxonomy-boundary-pipeline.test.js`) to target the dedicated fixture candidate with clean `after()` skill teardown.
+   - Removed obsolete scratch file `tests/acceptance/recovery-forensics.mjs` and added utility script `scripts/restore-mcp-fixture-candidate.js`.
+
+#### 2. Files Modified & Created
+- `src/services/candidate-profile.service.js`
+- `src/services/skill-catalog.service.js`
+- `src/mcp/tools/career-read-tools.js`
+- `src/routes/auth.routes.js`
+- `tests/helpers/e2e-fixture.js` (NEW)
+- `tests/integration/profile-single-load-invariant.test.js` (NEW)
+- `tests/unit/mcp-profile-single-load.test.js` (NEW)
+- `tests/unit/skill-catalog-cache.test.js` (NEW)
+- `tests/acceptance/02-add-additional-skills.test.js`
+- `tests/acceptance/full-acceptance.test.js`
+- `tests/integration/taxonomy-boundary-pipeline.test.js`
+- `tests/unit/candidate-career-profile.test.js`
+- `scripts/restore-mcp-fixture-candidate.js` (NEW)
+
+#### 3. Verification & Evidence
+- **Single-Load Invariant Integration**: `node --test tests/integration/profile-single-load-invariant.test.js` $\rightarrow$ **3/3 PASS** (batched project queries verified, zero extra queries on reused profileView, MCP handler single load verified).
+- **MCP Single-Load Unit**: `node --test tests/unit/mcp-profile-single-load.test.js` $\rightarrow$ **2/2 PASS** (calls getProfile exactly once, output invariant).
+- **Catalog Cache Unit**: `node --test tests/unit/skill-catalog-cache.test.js` $\rightarrow$ **4/4 PASS** (cache hits, filter bypass, TTL, disabled cache isolation).
+- **Candidate Career Profile Unit**: `node --test tests/unit/candidate-career-profile.test.js` $\rightarrow$ **41/41 PASS**.
+- **Taxonomy Boundary Integration**: `node --test tests/integration/taxonomy-boundary-pipeline.test.js` $\rightarrow$ **9/9 PASS**.
+- **Acceptance Suites (Isolated Fixture)**:
+  - `node --test tests/acceptance/02-add-additional-skills.test.js` $\rightarrow$ **8/8 PASS**.
+  - `node --test tests/acceptance/full-acceptance.test.js` $\rightarrow$ **6/6 PASS**.
+- **ESLint**: `npx eslint` across all modified and created files $\rightarrow$ **0 errors, 0 warnings**.
+- **Secrets Audit**: `npm run scan:secrets` $\rightarrow$ **PASS** (0 secrets detected).
 
 ---
 

@@ -35,6 +35,11 @@ import {
 import { GetCandidateProfileOutputSchema } from '../../src/domain/mcp/career-read-tools.schemas.js';
 import { renderProfilePage } from '../../src/views/profile.page.js';
 import { NotFoundError } from '../../src/errors/index.js';
+import {
+  projectResources,
+  candidateSkills,
+  evidenceItems,
+} from '../../src/db/schema.js';
 
 describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit Tests', () => {
   const tenantA = 'a0000000-0000-4000-a000-000000000001';
@@ -110,57 +115,94 @@ describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit
   };
 
   // Mock DB factory
+  // Table-aware stub emulating the real query shapes consumed by
+  // CandidateProfileService.getProfile (batched project evidence + resources)
+  // while preserving the legacy per-table row shapes the assertions rely on.
   function createMockDb(customCandidate = mockCandidateRecord, skillsList = [], projectsList = []) {
+    const evidenceRowsForProject = (p) =>
+      (p.evidence || []).map((e) => ({
+        id: e.id || 'ev-1',
+        tenantId: tenantA,
+        candidateId: candidateIdA,
+        projectId: p.id || null,
+        skillId: e.skillId || null,
+        evidenceType: e.evidenceType || 'PACKAGE_MANIFEST_DEPENDENCY',
+        sourceLocation: e.sourceLocation || { filePath: 'package.json' },
+        excerpt: e.excerpt || null,
+        confidenceScore: typeof e.confidenceScore === 'number' ? e.confidenceScore : 1.0,
+        detectedAt: new Date().toISOString(),
+        skillSlug: e.skillSlug || null,
+        skillName: e.skillName || null,
+        metadata: e.metadata || {},
+      }));
+    const allEvidenceRows = projectsList.flatMap((p) => evidenceRowsForProject(p));
+    const projectResourceRows = projectsList.map((p) => ({
+      id: `pr-${p.id}`,
+      tenantId: tenantA,
+      candidateId: candidateIdA,
+      projectId: p.id,
+    }));
+
     const makeChain = (val) => {
       const p = Promise.resolve(val);
       p.where = () => makeChain(val);
       p.orderBy = () => makeChain(val);
       p.limit = () => makeChain(val);
       p.innerJoin = () => makeChain(skillsList);
-      p.leftJoin = () =>
-        makeChain(
-          projectsList
-            .flatMap((p) => p.evidence || [])
-            .map((e) => ({
-              id: e.id || 'ev-1',
-              evidenceType: e.evidenceType || 'PACKAGE_MANIFEST_DEPENDENCY',
-              confidenceScore: 1.0,
-              detectedAt: new Date().toISOString(),
-            }))
-        );
       return p;
+    };
+
+    const genericChain = () => {
+      const chain = makeChain([customCandidate]);
+      chain.where = () => {
+        const wChain = makeChain([customCandidate]);
+        wChain.orderBy = () => {
+          const oChain = makeChain(projectsList);
+          oChain.limit = () => makeChain([customCandidate]);
+          return oChain;
+        };
+        return wChain;
+      };
+      chain.innerJoin = () => ({
+        where: () => makeChain(skillsList),
+        orderBy: () => makeChain(skillsList),
+      });
+      return chain;
     };
 
     return {
       select: () => ({
-        from: () => {
-          const chain = makeChain([customCandidate]);
-          chain.where = () => {
-            const wChain = makeChain([customCandidate]);
-            wChain.orderBy = () => {
-              const oChain = makeChain(projectsList);
-              oChain.limit = () => makeChain([customCandidate]);
-              return oChain;
-            };
-            return wChain;
-          };
-          chain.innerJoin = () => ({
-            where: () => makeChain(skillsList),
-          });
-          chain.leftJoin = () => ({
-            where: () =>
-              makeChain(
-                projectsList
-                  .flatMap((p) => p.evidence || [])
-                  .map((e) => ({
-                    id: e.id || 'ev-1',
-                    evidenceType: e.evidenceType || 'PACKAGE_MANIFEST_DEPENDENCY',
-                    confidenceScore: 1.0,
-                    detectedAt: new Date().toISOString(),
-                  }))
-              ),
-          });
-          return chain;
+        from: (table) => {
+          // Linked-resource rows must carry projectId for the batched count query.
+          if (table === projectResources) {
+            const chain = makeChain(projectResourceRows);
+            chain.where = () => makeChain(projectResourceRows);
+            return chain;
+          }
+          // Evidence items: project-evidence lookups run via leftJoin(skills) and must
+          // carry their owning projectId so the batched grouping preserves per-project
+          // evidence. Candidate-level all-evidence reads keep the plain candidate row.
+          if (table === evidenceItems) {
+            const chain = makeChain([customCandidate]);
+            chain.where = () => makeChain([customCandidate]);
+            chain.leftJoin = () => ({
+              where: () => makeChain(allEvidenceRows),
+              orderBy: () => makeChain(allEvidenceRows),
+            });
+            return chain;
+          }
+          if (table === candidateSkills) {
+            const chain = makeChain(skillsList);
+            chain.innerJoin = () => ({
+              where: () => makeChain(skillsList),
+              orderBy: () => makeChain(skillsList),
+            });
+            return chain;
+          }
+          // candidates / candidateIdentities / resources / projects / resumes /
+          // resumeSections — preserved legacy chain behavior (where → candidate row,
+          // where().orderBy() → projects list used by the projects query).
+          return genericChain();
         },
       }),
       update: () => ({

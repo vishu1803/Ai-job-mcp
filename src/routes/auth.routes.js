@@ -409,6 +409,25 @@ export default async function authRoutes(app, opts = {}) {
         .from(users)
         .where(eq(users.displayName, 'Vishwanath Nishad'))
         .limit(1);
+
+      // Dev-only E2E override (?e2e=1): authenticate as the dedicated, disposable
+      // E2E fixture user so mutable browser/HTTP tests never touch the stable MCP
+      // acceptance candidate. Fails loudly when the fixture user is missing instead
+      // of falling back to the real development candidate.
+      if (req.query?.e2e === '1') {
+        const e2eEmail = process.env.E2E_TEST_USER_EMAIL || 'e2e-fixture@careerhub.test';
+        [user] = await database
+          .select()
+          .from(users)
+          .where(eq(users.email, e2eEmail))
+          .limit(1);
+        if (!user) {
+          return reply
+            .status(404)
+            .send({ error: 'E2E fixture user not found. Run tests/helpers/e2e-fixture.js (ensureE2eFixture) first.' });
+        }
+      }
+
       if (!user) {
         [user] = await database.select().from(users).limit(1);
       }

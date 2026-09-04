@@ -12,7 +12,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { db, closeDatabase } from '../../src/db/index.js';
-import { sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import {
   SkillTaxonomyEngine,
   clearObservedTermsCache,
@@ -20,6 +20,14 @@ import {
 import { TaxonomyMapper } from '../../src/extractors/github/taxonomy/taxonomy-mapper.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import { EvidenceMatchingService } from '../../src/services/evidence-matching.service.js';
+import { CandidateAdditionalSkillsService } from '../../src/services/candidate-additional-skills.service.js';
+import { skills, candidateSkills } from '../../src/db/schema.js';
+import {
+  ensureE2eFixture,
+  ensureFixtureEvidenceSkills,
+  cleanupFixtureCandidateSkills,
+  assertNotProtectedCandidate,
+} from '../helpers/e2e-fixture.js';
 
 describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', () => {
   let testContext;
@@ -27,30 +35,46 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
   let candidateProfileService;
 
   before(async () => {
-    // Retrieve first active candidate with skills and tenant
-    const candidateRes = await db.execute(sql`
-      SELECT c.id as candidate_id, c.tenant_id, u.id as user_id, u.role
-      FROM candidates c
-      JOIN users u ON c.user_id = u.id
-      JOIN candidate_skills cs ON cs.candidate_id = c.id
-      LIMIT 1
-    `);
-
-
-    assert.ok(candidateRes.rows.length > 0, 'Must have at least one test candidate in database');
-    const c = candidateRes.rows[0];
-    testCandidateId = c.candidate_id;
-
+    // Scope this suite to the dedicated disposable E2E fixture candidate so its
+    // assertions never depend on (or encode) shared development-DB residue.
+    const fixture = await ensureE2eFixture(db);
+    assertNotProtectedCandidate(fixture.candidateId);
+    testCandidateId = fixture.candidateId;
     testContext = {
-      tenantId: c.tenant_id,
-      userId: c.user_id,
-      roles: [c.role || 'CANDIDATE'],
+      tenantId: fixture.tenantId,
+      userId: fixture.userId,
+      roles: ['OWNER'],
     };
 
     candidateProfileService = new CandidateProfileService({ db });
+
+    // Seed controlled evidence-backed skills (TypeScript/React + Docker/Redis) so
+    // profile-aggregation assertions are deterministic.
+    await ensureFixtureEvidenceSkills(db, fixture);
+    await ensureEvidenceSkill(db, fixture, {
+      slug: 'docker', name: 'Docker', category: 'CLOUD_DEVOPS', provenance: 'VERIFIED',
+    });
+    await ensureEvidenceSkill(db, fixture, {
+      slug: 'redis', name: 'Redis', category: 'DATABASE', provenance: 'CORROBORATED',
+    });
+
+    // Add candidate-declared skills (distinct from the evidence-seeded Docker/Redis)
+    // to prove cleanup pipelines preserve declared skills.
+    const service = new CandidateAdditionalSkillsService(db);
+    for (const slug of ['nginx', 'kafka']) {
+      const [cat] = (await db.execute(sql`SELECT id FROM skill_catalog WHERE slug = ${slug}`)).rows;
+      if (cat) {
+        await service.addAdditionalSkill(
+          { tenantId: fixture.tenantId },
+          fixture.candidateId,
+          { catalogSkillId: cat.id, proficiency: 'PROFICIENT' }
+        );
+      }
+    }
   });
 
   after(async () => {
+    await cleanupFixtureCandidateSkills(db, testCandidateId);
     await closeDatabase();
   });
 
@@ -187,18 +211,70 @@ describe('Taxonomy Boundary Pipeline & Historical Cleanup Integration Tests', ()
       );
     });
 
-    it('verifies CANDIDATE_DECLARED additional skills remain 100% intact', async () => {
+    it('verifies CANDIDATE_DECLARED additional skills remain 100% intact (fixture-scoped)', async () => {
+      // Scoped to the dedicated fixture candidate: cleanup/skill pipelines must never
+      // delete or downgrade candidate-declared skills. The stable MCP acceptance
+      // candidate is never part of this assertion (it carries no declared skills).
       const declared = await db.execute(sql`
         SELECT s.slug, cs.provenance_status, cs.source
         FROM candidate_skills cs
         JOIN skills s ON cs.skill_id = s.id
-        WHERE cs.source = 'CANDIDATE_DECLARED'
+        WHERE cs.candidate_id = ${testCandidateId} AND cs.source = 'CANDIDATE_DECLARED'
       `);
 
-      assert.ok(declared.rows.length >= 2, 'Should have at least 2 user-declared additional skills');
+      assert.ok(declared.rows.length >= 2, 'Fixture should have at least 2 user-declared skills');
       const declaredSlugs = declared.rows.map(r => r.slug);
-      assert.ok(declaredSlugs.includes('docker'), 'User-declared Docker must remain');
-      assert.ok(declaredSlugs.includes('redis'), 'User-declared Redis must remain');
+      assert.ok(declaredSlugs.includes('nginx'), 'User-declared NGINX must remain');
+      assert.ok(declaredSlugs.includes('kafka'), 'User-declared Kafka must remain');
+      for (const r of declared.rows) {
+        assert.ok(
+          ['SELF_DECLARED', 'LEARNING'].includes(r.provenance_status),
+          `Declared skill must stay SELF_DECLARED/LEARNING, got ${r.provenance_status}`
+        );
+      }
     });
   });
 });
+
+/**
+ * Seeds a controlled evidence-backed candidate_skills row for the fixture.
+ */
+async function ensureEvidenceSkill(database, fixture, { slug, name, category, provenance }) {
+  const [skillRow] = await database
+    .select({ id: skills.id, category: skills.category })
+    .from(skills)
+    .where(eq(skills.slug, slug))
+    .limit(1);
+  const skillId =
+    skillRow?.id ||
+    (
+      await database
+        .insert(skills)
+        .values({ slug, name, category, aliases: [] })
+        .onConflictDoNothing()
+        .returning({ id: skills.id })
+    )[0]?.id;
+  if (!skillId) throw new Error(`Cannot seed evidence skill ${slug}`);
+  const [existing] = await database
+    .select({ id: candidateSkills.id })
+    .from(candidateSkills)
+    .where(
+      and(
+        eq(candidateSkills.candidateId, fixture.candidateId),
+        eq(candidateSkills.skillId, skillId)
+      )
+    )
+    .limit(1);
+  if (!existing) {
+    await database.insert(candidateSkills).values({
+      tenantId: fixture.tenantId,
+      candidateId: fixture.candidateId,
+      skillId,
+      category: skillRow?.category || category,
+      provenanceStatus: provenance,
+      source: 'GITHUB',
+      confidenceScore: 0.9,
+      evidenceCount: 3,
+    });
+  }
+}

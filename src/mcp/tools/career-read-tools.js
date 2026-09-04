@@ -227,10 +227,12 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
   const args = GetCandidateProfileInputSchema.parse(rawArgs || {});
 
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
+  // Single profile data load: the raw view is fetched once and reused by getCareerProfile
+  // (via { profileView }) so getProfile is never executed twice for one request.
   const profileView = await profileService.getProfile(context, candidateId);
   const careerProfile =
     typeof profileService.getCareerProfile === 'function'
-      ? await profileService.getCareerProfile(context, candidateId)
+      ? await profileService.getCareerProfile(context, candidateId, { profileView })
       : null;
 
   // 1. Resolve job preferences & eligibility
