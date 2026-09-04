@@ -74,27 +74,27 @@ export function renderApplicationsPage({
     switch (status) {
       case 'OFFER_RECEIVED':
       case 'OFFER_ACCEPTED':
-        return '<span class="badge badge-verified">🎉 OFFER</span>';
+        return '<span class="badge badge-verified">OFFER</span>';
       case 'INTERVIEWING':
-        return '<span class="badge badge-indigo">⚡ INTERVIEWING</span>';
+        return '<span class="badge badge-indigo">INTERVIEWING</span>';
       case 'SCREENING':
       case 'APPLIED':
-        return '<span class="badge badge-cyan">📩 APPLIED</span>';
+        return '<span class="badge badge-cyan">APPLIED</span>';
       case 'SAVED':
-        return '<span class="badge" style="background:rgba(148,163,184,0.15); color:#94A3B8; border:1px solid rgba(148,163,184,0.3);">📌 SAVED</span>';
+        return '<span class="badge badge-neutral">SAVED</span>';
       case 'REJECTED':
       case 'WITHDRAWN':
-        return '<span class="badge badge-missing">✕ ARCHIVED</span>';
+        return '<span class="badge badge-missing">ARCHIVED</span>';
       default:
         return `<span class="badge badge-indigo">${escapeHtml(status)}</span>`;
     }
   };
 
   const content = `
-    <div class="container">
+    <div class="container" style="max-width:1100px; margin:0 auto 60px;">
       <!-- Back Navigation -->
       <a href="/dashboard" class="back-nav-link">
-        <span aria-hidden="true">←</span> Back to Dashboard
+        <span aria-hidden="true">&larr;</span> Back to Dashboard
       </a>
 
       <!-- Breadcrumb -->
@@ -105,27 +105,27 @@ export function renderApplicationsPage({
       </div>
 
       <!-- Architecture Pipeline Banner -->
-      <div class="pipeline-banner">
+      <div class="pipeline-banner" style="margin-bottom:28px;">
         <div class="pipeline-header">
-          <span class="pipeline-title">Application Pipeline & Tracking</span>
-          <span style="font-size:0.75rem; color:var(--text-dim);">Multi-Stage Career Pipeline</span>
+          <span class="pipeline-title">APPLICATION LIFECYCLE</span>
+          <span style="font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono);">Multi-Stage Career Pipeline</span>
         </div>
         <div class="pipeline-steps">
-          <div class="pipeline-step"><span>📌</span> Saved Leads</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>📩</span> Applied</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active"><span>⚡</span> Interviewing</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🎉</span> Offer</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>📋</span> Artifacts</div>
+          <div class="pipeline-step">Saved Leads</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-step">Applied</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-step active">Interviewing</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-step">Offer</div>
+          <span class="pipeline-arrow">&rarr;</span>
+          <div class="pipeline-step">Artifacts</div>
         </div>
       </div>
 
       <!-- Flash & Error Messages -->
-      ${flashMessage ? `<div class="alert alert-success">${escapeHtml(flashMessage)}</div>` : ''}
-      ${errorMessage ? `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>` : ''}
+      ${flashMessage ? `<div class="alert alert-success" style="margin-bottom:24px;">${escapeHtml(flashMessage)}</div>` : ''}
+      ${errorMessage ? `<div class="alert alert-error" style="margin-bottom:24px;">${escapeHtml(errorMessage)}</div>` : ''}
 
       <!-- Page Header -->
       <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
@@ -134,17 +134,17 @@ export function renderApplicationsPage({
             <span class="badge badge-indigo">PIPELINE TRACKING</span>
             <span class="badge badge-verified">MCP SYNCHRONIZED</span>
           </div>
-          <h1 style="font-size:1.8rem; font-weight:800; letter-spacing:-0.02em; margin:0 0 6px 0;">
+          <h1 style="font-size:1.85rem; font-weight:800; letter-spacing:-0.02em; margin:0 0 6px 0;">
             Job Applications Tracker
           </h1>
-          <p style="color:var(--text-muted); font-size:0.9rem; margin:0; max-width:650px;">
+          <p style="color:var(--text-muted); font-size:0.95rem; margin:0; max-width:650px;">
             Manage and track your active career pipeline across companies, interview rounds, tailored artifacts, and compensation offers.
           </p>
         </div>
 
         <div style="display:flex; gap:10px; align-items:center;">
           <a href="/apps/radar" class="btn btn-secondary btn-sm">
-            📡 Launch Job Fit Radar
+            Launch Job Fit Radar &rarr;
           </a>
           <button type="button" class="btn btn-primary btn-sm" onclick="openCreateModal()">
             + Track Application
@@ -153,26 +153,26 @@ export function renderApplicationsPage({
       </div>
 
       <!-- Quick Metrics Strip -->
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:24px;">
-        <div class="stat-card">
-          <span style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Total Pipeline</span>
-          <div style="font-size:1.5rem; font-weight:800; color:var(--text-main);">${counts.ALL}</div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:24px;">
+        <div class="stat-card" style="padding:16px;">
+          <span class="stat-label" style="font-size:0.75rem;">Total Pipeline</span>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--text-main);">${counts.ALL}</div>
         </div>
-        <div class="stat-card">
-          <span style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Saved & Leads</span>
-          <div style="font-size:1.5rem; font-weight:800; color:var(--text-muted);">${counts.SAVED}</div>
+        <div class="stat-card" style="padding:16px;">
+          <span class="stat-label" style="font-size:0.75rem;">Saved &amp; Leads</span>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--text-muted);">${counts.SAVED}</div>
         </div>
-        <div class="stat-card">
-          <span style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">In Screening</span>
-          <div style="font-size:1.5rem; font-weight:800; color:var(--accent-cyan);">${counts.APPLIED}</div>
+        <div class="stat-card" style="padding:16px;">
+          <span class="stat-label" style="font-size:0.75rem;">In Screening</span>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-cyan);">${counts.APPLIED}</div>
         </div>
-        <div class="stat-card">
-          <span style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Interviewing Loops</span>
-          <div style="font-size:1.5rem; font-weight:800; color:var(--accent-indigo);">${counts.INTERVIEWING}</div>
+        <div class="stat-card" style="padding:16px;">
+          <span class="stat-label" style="font-size:0.75rem;">Interviewing</span>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-indigo);">${counts.INTERVIEWING}</div>
         </div>
-        <div class="stat-card">
-          <span style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Offers Received</span>
-          <div style="font-size:1.5rem; font-weight:800; color:var(--accent-emerald);">${counts.OFFER}</div>
+        <div class="stat-card" style="padding:16px;">
+          <span class="stat-label" style="font-size:0.75rem;">Offers</span>
+          <div class="stat-val" style="font-size:1.5rem; font-family:var(--font-mono); color:var(--accent-emerald);">${counts.OFFER}</div>
         </div>
       </div>
 
@@ -203,8 +203,8 @@ export function renderApplicationsPage({
         filteredApps.length === 0
           ? `
         <div class="card empty-state" style="padding:48px 24px; text-align:center;">
-          <div class="empty-state-icon">📋</div>
-          <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:6px;">No Applications in this View</h3>
+          <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6; margin-bottom:8px;">∅</div>
+          <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:6px; color:var(--text-main);">No Applications in this View</h3>
           <p style="color:var(--text-muted); font-size:0.875rem; max-width:480px; margin:0 auto 20px;">
             ${
               applications.length === 0
@@ -218,16 +218,16 @@ export function renderApplicationsPage({
         </div>
       `
           : `
-        <div class="table-responsive card" style="padding:0; overflow:hidden;">
+        <div class="table-responsive card" style="padding:0; overflow:hidden; margin-bottom:28px;">
           <table class="data-table" style="width:100%;">
             <thead>
               <tr>
-                <th>Company & Role</th>
-                <th>Status Stage</th>
+                <th>Company &amp; Role</th>
+                <th style="width:140px;">Status Stage</th>
                 <th>Location / Mode</th>
-                <th>Salary Target</th>
-                <th>Created / Updated</th>
-                <th style="text-align:right;">Actions</th>
+                <th style="width:150px;">Salary Target</th>
+                <th style="width:150px;">Updated</th>
+                <th style="text-align:right; width:130px;">Stage Action</th>
               </tr>
             </thead>
             <tbody>
@@ -235,28 +235,28 @@ export function renderApplicationsPage({
                 .map(
                   (app) => `
                 <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
-                  <td style="padding:16px 18px;">
-                    <div style="font-weight:700; font-size:0.95rem; color:var(--text-main);">${escapeHtml(app.companyName)}</div>
-                    <div style="font-size:0.825rem; color:var(--text-muted); margin-top:2px;">
+                  <td style="padding:14px 18px;">
+                    <div style="font-weight:700; font-size:0.9rem; color:var(--text-main);">${escapeHtml(app.companyName)}</div>
+                    <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
                       ${escapeHtml(app.jobTitle || 'Role Not Specified')}
-                      ${app.jobUrl ? ` &bull; <a href="${escapeHtml(app.jobUrl)}" target="_blank" rel="noopener" style="font-size:0.75rem;">Link ↗</a>` : ''}
+                      ${app.jobUrl ? ` &bull; <a href="${escapeHtml(app.jobUrl)}" target="_blank" rel="noopener" style="font-size:0.75rem; color:var(--accent-indigo); text-decoration:none;">Posting &nearr;</a>` : ''}
                     </div>
                   </td>
-                  <td style="padding:16px 18px;">
+                  <td style="padding:14px 18px;">
                     ${getStatusBadge(app.status)}
                   </td>
-                  <td style="padding:16px 18px; font-size:0.85rem; color:var(--text-muted);">
+                  <td style="padding:14px 18px; font-size:0.825rem; color:var(--text-muted);">
                     ${escapeHtml(app.location || 'Remote / Unspecified')}
                   </td>
-                  <td style="padding:16px 18px; font-size:0.85rem; color:var(--accent-emerald); font-weight:600;">
+                  <td style="padding:14px 18px; font-size:0.825rem; color:var(--accent-emerald); font-weight:600; font-family:var(--font-mono);">
                     ${escapeHtml(app.salaryRange || '—')}
                   </td>
-                  <td style="padding:16px 18px; font-size:0.8rem; color:var(--text-dim);">
+                  <td style="padding:14px 18px; font-size:0.8rem; color:var(--text-dim); font-family:var(--font-mono);">
                     ${formatDate(app.updatedAt || app.createdAt)}
                   </td>
-                  <td style="padding:16px 18px; text-align:right;">
+                  <td style="padding:14px 18px; text-align:right;">
                     <form action="/applications/${app.id}/status" method="POST" style="display:inline-flex; gap:6px;">
-                      <select name="status" onchange="this.form.submit()" style="background:rgba(15,23,42,0.8); border:1px solid var(--border-subtle); color:var(--text-muted); font-size:0.75rem; border-radius:4px; padding:4px 6px;">
+                      <select name="status" onchange="this.form.submit()" style="background:#0B0F19; border:1px solid var(--border-subtle); color:var(--text-muted); font-size:0.75rem; border-radius:4px; padding:4px 6px;">
                         <option value="SAVED" ${app.status === 'SAVED' ? 'selected' : ''}>Saved</option>
                         <option value="APPLIED" ${app.status === 'APPLIED' ? 'selected' : ''}>Applied</option>
                         <option value="SCREENING" ${app.status === 'SCREENING' ? 'selected' : ''}>Screening</option>
@@ -279,27 +279,27 @@ export function renderApplicationsPage({
 
       <!-- Modal: Track New Job Application -->
       <div id="createAppModal" style="display:none; position:fixed; inset:0; z-index:999; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px;">
-        <div class="card" style="width:100%; max-width:540px; padding:28px; background:#111827; border:1px solid var(--border-highlight); box-shadow:0 20px 40px rgba(0,0,0,0.8);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-            <h2 style="font-size:1.25rem; font-weight:700; color:var(--text-main); margin:0;">Track New Application</h2>
-            <button type="button" onclick="closeCreateModal()" style="background:none; border:none; color:var(--text-dim); font-size:1.4rem; cursor:pointer;">&times;</button>
+        <div class="card" style="width:100%; max-width:540px; padding:28px; background:#111827; border:1px solid var(--border-highlight); box-shadow:0 20px 40px rgba(0,0,0,0.8); border-radius:var(--radius-md);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
+            <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">Track New Application</h2>
+            <button type="button" onclick="closeCreateModal()" style="background:none; border:none; color:var(--text-dim); font-size:1.3rem; cursor:pointer; padding:0 4px;" aria-label="Close">&times;</button>
           </div>
 
           <form action="/applications" method="POST">
-            <div class="form-group">
-              <label class="form-label">Company Name *</label>
-              <input type="text" name="companyName" class="form-control" required placeholder="e.g. Anthropic, OpenAI, Stripe">
+            <div class="form-group" style="margin-bottom:16px;">
+              <label class="form-label" style="font-weight:600; font-size:0.85rem;">Company Name *</label>
+              <input type="text" name="companyName" class="form-control" required placeholder="e.g. Anthropic, OpenAI, Stripe" style="font-size:0.875rem;">
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Job Title *</label>
-              <input type="text" name="jobTitle" class="form-control" required placeholder="e.g. Senior Backend Engineer">
+            <div class="form-group" style="margin-bottom:16px;">
+              <label class="form-label" style="font-weight:600; font-size:0.85rem;">Job Title *</label>
+              <input type="text" name="jobTitle" class="form-control" required placeholder="e.g. Senior Backend Engineer" style="font-size:0.875rem;">
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px;">
               <div class="form-group">
-                <label class="form-label">Status Stage</label>
-                <select name="status" class="form-select">
+                <label class="form-label" style="font-weight:600; font-size:0.85rem;">Status Stage</label>
+                <select name="status" class="form-select" style="font-size:0.85rem;">
                   <option value="SAVED">Saved / Lead</option>
                   <option value="APPLIED" selected>Applied</option>
                   <option value="SCREENING">Screening</option>
@@ -309,22 +309,22 @@ export function renderApplicationsPage({
               </div>
 
               <div class="form-group">
-                <label class="form-label">Salary Range</label>
-                <input type="text" name="salaryRange" class="form-control" placeholder="e.g. $180k - $220k">
+                <label class="form-label" style="font-weight:600; font-size:0.85rem;">Salary Range</label>
+                <input type="text" name="salaryRange" class="form-control" placeholder="e.g. $180k - $220k" style="font-size:0.85rem;">
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Job Posting URL</label>
-              <input type="url" name="jobUrl" class="form-control" placeholder="https://careers...">
+            <div class="form-group" style="margin-bottom:16px;">
+              <label class="form-label" style="font-weight:600; font-size:0.85rem;">Job Posting URL</label>
+              <input type="url" name="jobUrl" class="form-control" placeholder="https://careers..." style="font-size:0.85rem;">
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Location / Mode</label>
-              <input type="text" name="location" class="form-control" placeholder="e.g. Remote, San Francisco, New York">
+            <div class="form-group" style="margin-bottom:20px;">
+              <label class="form-label" style="font-weight:600; font-size:0.85rem;">Location / Mode</label>
+              <input type="text" name="location" class="form-control" placeholder="e.g. Remote, San Francisco, New York" style="font-size:0.85rem;">
             </div>
 
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:24px;">
+            <div style="display:flex; justify-content:flex-end; gap:10px; padding-top:12px; border-top:1px solid var(--border-subtle);">
               <button type="button" onclick="closeCreateModal()" class="btn btn-secondary btn-sm">Cancel</button>
               <button type="submit" class="btn btn-primary btn-sm">Save Application</button>
             </div>

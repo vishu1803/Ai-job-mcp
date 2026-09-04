@@ -59,12 +59,12 @@ export function renderOnboardingPage({
       <div style="margin-bottom:28px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
           <div>
-            <span class="badge badge-indigo" style="margin-bottom:6px;">ONBOARDING WORKSPACE</span>
-            <h1 style="font-size:1.85rem; font-weight:800; letter-spacing:-0.02em;">Candidate Setup Wizard</h1>
+            <span class="badge badge-indigo" style="margin-bottom:8px;">ONBOARDING WORKSPACE</span>
+            <h1 style="font-size:1.85rem; font-weight:800; letter-spacing:-0.02em; margin:4px 0 8px 0;">Candidate Setup Wizard</h1>
           </div>
-          <span style="font-size:0.85rem; color:var(--text-dim);">Workspace: <strong>${escapeHtml(tenant.name || tenant.slug)}</strong></span>
+          <span style="font-size:0.85rem; color:var(--text-dim);">Workspace: <strong style="color:var(--text-main);">${escapeHtml(tenant.name || tenant.slug)}</strong></span>
         </div>
-        <p style="color:var(--text-muted); font-size:0.95rem; margin-top:6px;">
+        <p style="color:var(--text-muted); font-size:0.95rem; margin:0;">
           Configure your candidate profile, connect your GitHub repositories, and index verified code evidence.
         </p>
       </div>
@@ -75,25 +75,25 @@ export function renderOnboardingPage({
           <div class="step-badge ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}">${step > 1 ? '✓' : '1'}</div>
           <span class="step-title ${step === 1 ? 'active' : ''}">1. Profile</span>
         </div>
-        <div style="flex:1; height:2px; background:var(--border-subtle); margin: 0 4px; margin-bottom: 22px;"></div>
+        <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
           <div class="step-badge ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}">${step > 2 ? '✓' : '2'}</div>
           <span class="step-title ${step === 2 ? 'active' : ''}">2. GitHub App</span>
         </div>
-        <div style="flex:1; height:2px; background:var(--border-subtle); margin: 0 4px; margin-bottom: 22px;"></div>
+        <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
           <div class="step-badge ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}">${step > 3 ? '✓' : '3'}</div>
           <span class="step-title ${step === 3 ? 'active' : ''}">3. Select Repos</span>
         </div>
-        <div style="flex:1; height:2px; background:var(--border-subtle); margin: 0 4px; margin-bottom: 22px;"></div>
+        <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
           <div class="step-badge ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}">${step > 4 ? '✓' : '4'}</div>
           <span class="step-title ${step === 4 ? 'active' : ''}">4. AST Ingestion</span>
         </div>
-        <div style="flex:1; height:2px; background:var(--border-subtle); margin: 0 4px; margin-bottom: 22px;"></div>
+        <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
           <div class="step-badge ${step === 5 ? 'active' : ''}">${step === 5 ? '✓' : '5'}</div>
@@ -105,7 +105,7 @@ export function renderOnboardingPage({
       ${
         error
           ? `
-        <div style="background:rgba(244,63,94,0.12); border:1px solid rgba(244,63,94,0.3); border-radius:var(--radius-md); padding:14px 18px; margin-bottom:24px; color:#FECDD3; font-size:0.9rem;">
+        <div class="alert alert-error" style="margin-bottom:24px;">
           <strong>Error:</strong> ${escapeHtml(error)}
         </div>
       `
@@ -114,7 +114,7 @@ export function renderOnboardingPage({
       ${
         success
           ? `
-        <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-md); padding:14px 18px; margin-bottom:24px; color:#A7F3D0; font-size:0.9rem;">
+        <div class="alert alert-success" style="margin-bottom:24px;">
           <strong>Success:</strong> ${escapeHtml(success)}
         </div>
       `
@@ -194,9 +194,9 @@ function renderStep1Profile({ user, candidate }) {
   return `
     <div>
       <div style="margin-bottom:24px;">
-        <span class="badge badge-indigo" style="margin-bottom:6px;">STEP 1 OF 5</span>
-        <h2 style="font-size:1.4rem; font-weight:700;">Candidate Identity & Target Specialization</h2>
-        <p style="font-size:0.875rem; color:var(--text-muted); margin-top:4px;">
+        <span class="badge badge-indigo" style="margin-bottom:8px;">STEP 1 OF 5</span>
+        <h2 style="font-size:1.35rem; font-weight:700; color:var(--text-main); margin:0;">Candidate Identity &amp; Target Specialization</h2>
+        <p style="font-size:0.875rem; color:var(--text-muted); margin-top:4px; margin-bottom:0;">
           Set up your primary professional persona. This information forms the canonical headline for AI career analysis.
         </p>
       </div>
@@ -232,13 +232,13 @@ function renderStep1Profile({ user, candidate }) {
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="summary">Professional Bio & Narrative Summary</label>
+          <label class="form-label" for="summary">Professional Bio &amp; Narrative Summary</label>
           <textarea id="summary" name="summary" class="form-textarea" rows="4" placeholder="Describe your technical journey, leadership style, and key engineering accomplishments...">${escapeHtml(summary)}</textarea>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border-subtle); margin-top:28px;">
           <a href="/dashboard" class="btn btn-secondary">Skip to Dashboard</a>
-          <button type="submit" class="btn btn-primary">Save & Continue to GitHub Setup →</button>
+          <button type="submit" class="btn btn-primary">Save &amp; Continue to GitHub Setup →</button>
         </div>
       </form>
     </div>
@@ -252,9 +252,9 @@ function renderStep2GitHub({ connection, isGitHubConnected }) {
   return `
     <div>
       <div style="margin-bottom:24px;">
-        <span class="badge badge-indigo" style="margin-bottom:6px;">STEP 2 OF 5</span>
-        <h2 style="font-size:1.4rem; font-weight:700;">Connect GitHub Codebases</h2>
-        <p style="font-size:0.875rem; color:var(--text-muted); margin-top:4px;">
+        <span class="badge badge-indigo" style="margin-bottom:8px;">STEP 2 OF 5</span>
+        <h2 style="font-size:1.35rem; font-weight:700; color:var(--text-main); margin:0;">Connect GitHub Codebases</h2>
+        <p style="font-size:0.875rem; color:var(--text-muted); margin-top:4px; margin-bottom:0;">
           Career Hub uses GitHub App authentication with <strong>least-privilege read-only permissions</strong> (<code>contents:read</code>, <code>metadata:read</code>).
         </p>
       </div>
@@ -263,22 +263,22 @@ function renderStep2GitHub({ connection, isGitHubConnected }) {
       <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:24px; margin-bottom:28px;">
         <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
           <div style="display:flex; align-items:center; gap:16px;">
-            <div style="width:48px; height:48px; border-radius:12px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center;">
+            <div style="width:48px; height:48px; border-radius:var(--radius-md); background:var(--bg-surface-elevated, #1F2937); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; color:var(--text-main);">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
             </div>
             <div>
               <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <h3 style="font-size:1.1rem; font-weight:700;">GitHub App Connector</h3>
+                <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-main); margin:0;">GitHub App Connector</h3>
                 ${
                   isGitHubConnected
-                    ? '<span class="badge badge-verified">ACTIVE & LINKED</span>'
+                    ? '<span class="badge badge-verified">ACTIVE &amp; LINKED</span>'
                     : '<span class="badge badge-amber">NOT CONNECTED</span>'
                 }
               </div>
-              <p style="font-size:0.85rem; color:var(--text-muted);">
+              <p style="font-size:0.85rem; color:var(--text-muted); margin:4px 0 0 0;">
                 ${
                   isGitHubConnected
-                    ? `Connected Account: <strong>${escapeHtml(connection.externalAccountName || connection.displayName)}</strong> (Installation ID: <code>${escapeHtml(connection.installationId || 'linked')}</code>)`
+                    ? `Connected Account: <strong style="color:var(--text-main);">${escapeHtml(connection.externalAccountName || connection.displayName)}</strong> (Installation ID: <code style="font-size:0.8rem; color:var(--accent-indigo);">${escapeHtml(connection.installationId || 'linked')}</code>)`
                     : 'Install the official AI Careers Hub GitHub App on your account or organization.'
                 }
               </p>
@@ -295,9 +295,12 @@ function renderStep2GitHub({ connection, isGitHubConnected }) {
       </div>
 
       <!-- Security Guarantee Box -->
-      <div style="background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.2); border-radius:var(--radius-md); padding:18px; margin-bottom:28px;">
-        <h4 style="font-size:0.9rem; font-weight:700; color:var(--accent-indigo); margin-bottom:6px;">Security & Least-Privilege Architecture:</h4>
-        <ul style="font-size:0.85rem; color:var(--text-muted); padding-left:20px; line-height:1.7;">
+      <div style="background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:20px; margin-bottom:28px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span class="badge badge-indigo" style="font-size:0.7rem;">LEAST PRIVILEGE</span>
+          <h4 style="font-size:0.875rem; font-weight:700; color:var(--text-main); margin:0;">Security &amp; Sandboxed Analysis Architecture:</h4>
+        </div>
+        <ul style="font-size:0.85rem; color:var(--text-muted); padding-left:20px; line-height:1.7; margin:0;">
           <li>We only request <strong>read access</strong> to repositories you explicitly grant.</li>
           <li>Code is analyzed locally in-memory for syntax tree extraction and evidence rollup.</li>
           <li>Raw repository source code and installation credentials are never exposed to LLM context or third parties.</li>
@@ -349,33 +352,33 @@ function renderStep3Repositories({
   return `
     <div>
       <div style="margin-bottom:24px;">
-        <span class="badge badge-indigo" style="margin-bottom:6px;">STEP 3 OF 5</span>
-        <h2 style="font-size:1.4rem; font-weight:700;">Select Repositories for Career Portfolio</h2>
-        <p style="font-size:0.875rem; color:var(--text-muted); margin-top:4px;">
+        <span class="badge badge-indigo" style="margin-bottom:8px;">STEP 3 OF 5</span>
+        <h2 style="font-size:1.35rem; font-weight:700; color:var(--text-main); margin:0;">Select Repositories for Career Portfolio</h2>
+        <p style="font-size:0.875rem; color:var(--text-muted); margin-top:4px; margin-bottom:0;">
           Choose which repositories Career Hub should index for project creation, syntax tree evidence extraction, and skill rollups.
         </p>
       </div>
 
       <!-- Summary Metrics Bar -->
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:20px;">
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
-          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Discovered</div>
+        <div class="stat-card" style="padding:12px 14px; text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Discovered</div>
           <div style="font-size:1.3rem; font-weight:800; color:var(--text-main); margin-top:2px;" id="statTotal">${totalCount}</div>
         </div>
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
-          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Public</div>
+        <div class="stat-card" style="padding:12px 14px; text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Public</div>
           <div style="font-size:1.3rem; font-weight:800; color:#38BDF8; margin-top:2px;">${publicCount}</div>
         </div>
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
-          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Private</div>
+        <div class="stat-card" style="padding:12px 14px; text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Private</div>
           <div style="font-size:1.3rem; font-weight:800; color:#FBBF24; margin-top:2px;">${privateCount}</div>
         </div>
-        <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
-          <div style="font-size:0.75rem; color:#A7F3D0; text-transform:uppercase; font-weight:600;">Indexed</div>
+        <div class="stat-card" style="padding:12px 14px; text-align:center; border-color:rgba(16,185,129,0.25);">
+          <div style="font-size:0.75rem; color:#A7F3D0; text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Indexed</div>
           <div style="font-size:1.3rem; font-weight:800; color:#34D399; margin-top:2px;">${indexedCount}</div>
         </div>
-        <div style="background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25); border-radius:var(--radius-md); padding:12px 14px; text-align:center;">
-          <div style="font-size:0.75rem; color:#C7D2FE; text-transform:uppercase; font-weight:600;">Available</div>
+        <div class="stat-card" style="padding:12px 14px; text-align:center; border-color:rgba(99,102,241,0.25);">
+          <div style="font-size:0.75rem; color:#C7D2FE; text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Available</div>
           <div style="font-size:1.3rem; font-weight:800; color:#818CF8; margin-top:2px;">${availableCount}</div>
         </div>
       </div>
@@ -393,9 +396,8 @@ function renderStep3Repositories({
                   id="repoSearchInput"
                   placeholder="Search repositories by name, owner, or description..."
                   class="form-control"
-                  style="padding-left:36px; font-size:0.875rem;"
+                  style="padding-left:14px; font-size:0.875rem;"
                 />
-                <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:0.9rem; color:var(--text-dim); pointer-events:none;">🔍</span>
               </div>
               <div style="display:flex; gap:6px; align-items:center;">
                 <button type="button" id="selectAllAvailableBtn" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:6px 10px;">
@@ -409,7 +411,7 @@ function renderStep3Repositories({
 
             <!-- Filter Tabs -->
             <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-              <button type="button" class="filter-pill active" data-filter="all" style="background:rgba(99,102,241,0.2); border:1px solid rgba(99,102,241,0.4); color:#C7D2FE; padding:4px 10px; border-radius:14px; font-size:0.75rem; font-weight:600; cursor:pointer;">
+              <button type="button" class="filter-pill active" data-filter="all" style="background:rgba(99,102,241,0.15); border:1px solid rgba(99,102,241,0.3); color:#C7D2FE; padding:4px 10px; border-radius:14px; font-size:0.75rem; font-weight:600; cursor:pointer;">
                 All (${totalCount})
               </button>
               <button type="button" class="filter-pill" data-filter="available" style="background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-muted); padding:4px 10px; border-radius:14px; font-size:0.75rem; font-weight:600; cursor:pointer;">
@@ -430,13 +432,13 @@ function renderStep3Repositories({
           <!-- Selection Live Counter -->
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:0.8rem; color:var(--text-muted);">
             <span>
-              Selected for Ingestion: <strong id="selectedCounter" style="color:var(--text-main);">${indexedCount}</strong> of <span id="visibleCount">${totalCount}</span> visible
+              Selected for Ingestion: <strong id="selectedCounter" style="color:var(--text-main); font-family:var(--font-mono);">${indexedCount}</strong> of <span id="visibleCount" style="font-family:var(--font-mono);">${totalCount}</span> visible
             </span>
             <span id="filterLabel" style="color:var(--text-dim);">Showing all ${totalCount} repositories</span>
           </div>
 
           <!-- Repositories List Container -->
-          <div id="repoListContainer" style="display:flex; flex-direction:column; gap:10px; margin-bottom:28px; max-height:480px; overflow-y:auto; padding-right:4px;">
+          <div id="repoListContainer" style="display:flex; flex-direction:column; gap:8px; margin-bottom:28px; max-height:480px; overflow-y:auto; padding-right:4px;">
             ${reposToDisplay
               .map((repo) => {
                 const repoKey = repo.externalResourceId || repo.id || repo.name;
@@ -454,7 +456,7 @@ function renderStep3Repositories({
                 data-desc="${escapeHtml(desc.toLowerCase())}"
                 data-visibility="${isPrivate ? 'private' : 'public'}"
                 data-status="${isSelected ? 'indexed' : 'available'}"
-                style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:rgba(11,15,25,0.5); border:1px solid ${isSelected ? 'rgba(99,102,241,0.4)' : 'var(--border-subtle)'}; border-radius:var(--radius-md); transition:all 0.15s ease;"
+                style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:#111827; border:1px solid ${isSelected ? 'rgba(99,102,241,0.35)' : 'var(--border-subtle)'}; border-radius:var(--radius-md); transition:all 0.15s ease;"
               >
                 <div style="display:flex; align-items:flex-start; gap:14px; flex:1; min-width:0;">
                   <input
@@ -464,15 +466,15 @@ function renderStep3Repositories({
                     value="${escapeHtml(String(repoKey))}"
                     ${isSelected ? 'checked' : ''}
                     class="repo-checkbox"
-                    style="width:18px; height:18px; accent-color:var(--accent-indigo); cursor:pointer; margin-top:2px; flex-shrink:0;"
+                    style="width:18px; height:18px; accent-color:var(--accent-indigo); cursor:pointer; margin-top:3px; flex-shrink:0;"
                   />
                   <div style="min-width:0; flex:1;">
-                    <label for="repo_${escapeHtml(String(repoKey))}" style="font-size:0.95rem; font-weight:700; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <label for="repo_${escapeHtml(String(repoKey))}" style="font-size:0.9rem; font-weight:700; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0;">
                       <span>${escapeHtml(repo.name || repo.displayName)}</span>
-                      <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; font-family:var(--font-mono, monospace);">${escapeHtml(fullName)}</span>
-                      ${isPrivate ? '<span class="badge badge-amber" style="font-size:0.65rem; padding:2px 6px;">🔒 PRIVATE</span>' : '<span class="badge badge-cyan" style="font-size:0.65rem; padding:2px 6px;">🌐 PUBLIC</span>'}
+                      <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; font-family:var(--font-mono);">${escapeHtml(fullName)}</span>
+                      ${isPrivate ? '<span class="badge badge-amber" style="font-size:0.65rem;">🔒 PRIVATE</span>' : '<span class="badge badge-cyan" style="font-size:0.65rem;">🌐 PUBLIC</span>'}
                     </label>
-                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%;">
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin:3px 0 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%; line-height:1.4;">
                       ${escapeHtml(desc)}
                     </p>
                   </div>
@@ -480,8 +482,8 @@ function renderStep3Repositories({
                 <div style="flex-shrink:0; margin-left:12px;">
                   ${
                     isSelected
-                      ? '<span class="badge badge-verified" style="font-size:0.75rem; padding:4px 8px;">✓ INDEXED</span>'
-                      : '<span class="badge badge-indigo" style="font-size:0.75rem; padding:4px 8px;">AVAILABLE</span>'
+                      ? '<span class="badge badge-verified" style="font-size:0.72rem;">✓ INDEXED</span>'
+                      : '<span class="badge badge-indigo" style="font-size:0.72rem;">AVAILABLE</span>'
                   }
                 </div>
               </div>
@@ -558,8 +560,8 @@ function renderStep3Repositories({
                     p.style.color = 'var(--text-muted)';
                   });
                   this.classList.add('active');
-                  this.style.background = 'rgba(99,102,241,0.2)';
-                  this.style.borderColor = 'rgba(99,102,241,0.4)';
+                  this.style.background = 'rgba(99,102,241,0.15)';
+                  this.style.borderColor = 'rgba(99,102,241,0.3)';
                   this.style.color = '#C7D2FE';
 
                   currentFilter = this.getAttribute('data-filter') || 'all';
@@ -599,8 +601,8 @@ function renderStep3Repositories({
         `
             : `
           <div style="text-align:center; padding:40px 20px; background:rgba(255,255,255,0.02); border:1px dashed var(--border-subtle); border-radius:var(--radius-md); margin-bottom:28px;">
-            <div style="font-size:2rem; margin-bottom:12px;">📦</div>
-            <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:6px;">No Repositories Discovered Yet</h3>
+            <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6; margin-bottom:8px;">∅</div>
+            <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:6px; color:var(--text-main);">No Repositories Discovered Yet</h3>
             <p style="font-size:0.875rem; color:var(--text-muted); max-width:460px; margin:0 auto 20px;">
               ${
                 isGitHubConnected
@@ -619,7 +621,7 @@ function renderStep3Repositories({
 
         <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border-subtle);">
           <a href="/onboarding?step=2" class="btn btn-secondary">← Back to GitHub</a>
-          <button type="submit" class="btn btn-primary">Save Selection & Run Ingestion →</button>
+          <button type="submit" class="btn btn-primary">Save Selection &amp; Run Ingestion →</button>
         </div>
       </form>
     </div>
@@ -681,46 +683,46 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
       </style>
 
       <div style="margin-bottom:24px;">
-        <span class="badge badge-indigo" style="margin-bottom:6px;">STEP 4 OF 5</span>
-        <h2 style="font-size:1.4rem; font-weight:700;">Execute AST Ingestion & Evidence Extraction</h2>
-        <p style="font-size:0.875rem; color:var(--text-muted); margin-top:4px;">
+        <span class="badge badge-indigo" style="margin-bottom:8px;">STEP 4 OF 5</span>
+        <h2 style="font-size:1.4rem; font-weight:700; margin:0 0 6px 0;">Execute AST Ingestion &amp; Evidence Extraction</h2>
+        <p style="font-size:0.875rem; color:var(--text-muted); margin:0;">
           Analyze dependency manifests, syntax import trees, commit history, and technical architecture to generate evidence-backed projects and skills.
         </p>
       </div>
 
       <!-- Main Ingestion Panel -->
-      <div id="ingestionMainPanel" style="background:rgba(255,255,255,0.02); border:1px solid ${isLiveRunning ? 'rgba(59,130,246,0.35)' : isCompleted ? 'rgba(16,185,129,0.35)' : isPartialFailure ? 'rgba(245,158,11,0.35)' : isFailed ? 'rgba(239,68,68,0.35)' : 'var(--border-subtle)'}; border-radius:var(--radius-md); padding:24px; margin-bottom:28px; transition:all 0.3s ease;">
+      <div id="ingestionMainPanel" style="background:#111827; border:1px solid ${isLiveRunning ? 'rgba(59,130,246,0.35)' : isCompleted ? 'rgba(16,185,129,0.35)' : isPartialFailure ? 'rgba(245,158,11,0.35)' : isFailed ? 'rgba(239,68,68,0.35)' : 'var(--border-subtle)'}; border-radius:var(--radius-md); padding:24px; margin-bottom:28px; transition:border-color 0.2s ease;">
 
         <!-- Ingestion Target Scope Summary -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; border-bottom:1px solid var(--border-subtle); padding-bottom:16px;">
           <div>
-            <h3 style="font-size:1rem; font-weight:700; margin:0 0 4px;">Target Repositories</h3>
+            <h3 style="font-size:0.95rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">Target Repositories</h3>
             <p style="font-size:0.825rem; color:var(--text-muted); margin:0;" id="scopeSubtitle">
               <strong>${totalCount}</strong> repository ${totalCount === 1 ? 'source' : 'sources'} queued for deep AST syntax extraction:
             </p>
           </div>
           <div>
-            <span class="badge ${isLiveRunning ? 'badge-cyan pulse-subtle' : isCompleted ? 'badge-success' : isPartialFailure ? 'badge-warning' : isFailed ? 'badge-danger' : 'badge-indigo'}" id="overallStatusBadge" style="font-size:0.85rem; font-weight:700; padding:6px 14px;">
+            <span class="badge ${isLiveRunning ? 'badge-cyan pulse-subtle' : isCompleted ? 'badge-success' : isPartialFailure ? 'badge-warning' : isFailed ? 'badge-danger' : 'badge-indigo'}" id="overallStatusBadge" style="font-size:0.8rem; font-weight:700; padding:4px 12px; letter-spacing:0.04em;">
               ${isLiveRunning ? 'RUNNING' : isCompleted ? 'COMPLETED' : isPartialFailure ? 'PARTIAL FAILURE' : isFailed ? 'FAILED' : 'QUEUED'}
             </span>
           </div>
         </div>
 
         <!-- Progress Counter Bar -->
-        <div id="progressStatusBar" style="display:${isLiveRunning || isCompleted || isPartialFailure ? 'flex' : 'none'}; justify-content:space-between; align-items:center; margin-bottom:16px; background:rgba(255,255,255,0.03); padding:10px 16px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);" role="status" aria-live="polite">
+        <div id="progressStatusBar" style="display:${isLiveRunning || isCompleted || isPartialFailure ? 'flex' : 'none'}; justify-content:space-between; align-items:center; margin-bottom:16px; background:#0B0F19; padding:10px 16px; border-radius:var(--radius-sm); border:1px solid var(--border-subtle);" role="status" aria-live="polite">
           <div style="display:flex; align-items:center; gap:10px;">
-            ${isLiveRunning ? '<span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>' : ''}
-            <span style="font-size:0.875rem; font-weight:600; color:var(--text-main);" id="currentPhaseText">
+            ${isLiveRunning ? '<span class="inline-spinner animate-spin" style="width:14px; height:14px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>' : ''}
+            <span style="font-size:0.85rem; font-weight:600; color:var(--text-main);" id="currentPhaseText">
               ${escapeHtml(ingestionRun?.currentPhase || (isCompleted ? 'Ingestion complete' : 'Ready to start'))}
             </span>
           </div>
-          <span style="font-size:0.85rem; font-weight:700; color:var(--accent-indigo);" id="progressFractionText">
+          <span style="font-size:0.825rem; font-weight:600; color:var(--accent-indigo); font-family:var(--font-mono);" id="progressFractionText">
             ${completedCount} / ${totalCount} Repositories Complete
           </span>
         </div>
 
         <!-- Repository Status Item Cards -->
-        <div id="repoProgressList" style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+        <div id="repoProgressList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
           ${repoList
             .map((repo) => {
               const repoState = repo.state || (isCompleted ? 'COMPLETED' : 'QUEUED');
@@ -728,30 +730,30 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
               const isRepoCompleted = repoState === 'COMPLETED';
               const isRepoFailed = repoState === 'FAILED';
 
-              let iconHtml = '<span style="color:var(--text-dim); font-size:1.1rem;">○</span>';
+              let iconHtml = '<span style="color:var(--text-dim); font-size:0.95rem;">○</span>';
               let badgeClass = 'badge-neutral';
               if (isRepoCompleted) {
                 iconHtml =
-                  '<span style="color:#34D399; font-weight:bold; font-size:1.1rem;">✓</span>';
+                  '<span style="color:#10B981; font-weight:bold; font-size:0.95rem;">✓</span>';
                 badgeClass = 'badge-success';
               } else if (isRepoRunning) {
                 iconHtml =
-                  '<span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>';
+                  '<span class="inline-spinner animate-spin" style="width:14px; height:14px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>';
                 badgeClass = 'badge-cyan';
               } else if (isRepoFailed) {
                 iconHtml =
-                  '<span style="color:#EF4444; font-weight:bold; font-size:1.1rem;">✕</span>';
+                  '<span style="color:#EF4444; font-weight:bold; font-size:0.95rem;">✕</span>';
                 badgeClass = 'badge-danger';
               }
 
               return `
-                <div class="repo-card-row" id="repo_row_${escapeHtml(String(repo.id))}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding:12px 16px; background:rgba(255,255,255,0.02); border:1px solid ${isRepoRunning ? 'rgba(59,130,246,0.4)' : isRepoCompleted ? 'rgba(16,185,129,0.3)' : isRepoFailed ? 'rgba(239,68,68,0.3)' : 'var(--border-subtle)'}; border-radius:var(--radius-sm); transition:border-color 0.2s ease;">
+                <div class="repo-card-row" id="repo_row_${escapeHtml(String(repo.id))}" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding:12px 16px; background:#0B0F19; border:1px solid ${isRepoRunning ? 'rgba(59,130,246,0.4)' : isRepoCompleted ? 'rgba(16,185,129,0.3)' : isRepoFailed ? 'rgba(239,68,68,0.3)' : 'var(--border-subtle)'}; border-radius:var(--radius-sm); transition:border-color 0.2s ease;">
                   <div style="display:flex; align-items:center; gap:12px;">
                     <div id="repo_icon_${escapeHtml(String(repo.id))}" style="display:flex; align-items:center; justify-content:center; width:20px;">
                       ${iconHtml}
                     </div>
                     <div>
-                      <span style="font-weight:600; font-size:0.92rem; color:var(--text-main);">${escapeHtml(repo.name || repo.fullName)}</span>
+                      <span style="font-weight:600; font-size:0.9rem; color:var(--text-main); font-family:var(--font-mono);">${escapeHtml(repo.name || repo.fullName)}</span>
                       <div id="repo_phase_${escapeHtml(String(repo.id))}" style="font-size:0.775rem; color:var(--text-muted); margin-top:2px;">
                         ${escapeHtml(repo.phase || repoState)}
                       </div>
@@ -769,53 +771,53 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
         </div>
 
         <!-- Completion Stats Card (Rendered if completed) -->
-        <div id="completionStatsCard" style="display:${isCompleted && currentSummary ? 'block' : 'none'}; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-md); padding:20px; margin-top:20px;">
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
-            <span style="font-size:1.2rem;">✨</span>
-            <h4 style="font-size:1.05rem; font-weight:700; color:#34D399; margin:0;">Ingestion Pipeline Completed Successfully</h4>
+        <div id="completionStatsCard" style="display:${isCompleted && currentSummary ? 'block' : 'none'}; background:#0B0F19; border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-md); padding:20px; margin-top:20px;">
+          <div style="margin-bottom:14px;">
+            <span class="badge badge-success" style="margin-bottom:6px;">PIPELINE COMPLETE</span>
+            <h4 style="font-size:1rem; font-weight:700; color:var(--text-main); margin:0;">Ingestion Pipeline Completed Successfully</h4>
           </div>
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px;">
-            <div class="stat-card" style="padding:14px;">
-              <div class="stat-val" id="statReposVal" style="font-size:1.4rem; color:#34D399;">${currentSummary?.repositoriesProcessed || completedCount}</div>
-              <div class="stat-label" style="font-size:0.75rem;">Repos Processed</div>
+            <div class="stat-card" style="padding:14px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-sm);">
+              <div class="stat-val" id="statReposVal" style="font-size:1.4rem; color:#10B981; font-weight:700; font-family:var(--font-mono);">${currentSummary?.repositoriesProcessed || completedCount}</div>
+              <div class="stat-label" style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">Repos Processed</div>
             </div>
-            <div class="stat-card" style="padding:14px;">
-              <div class="stat-val" id="statProjectsVal" style="font-size:1.4rem; color:var(--accent-indigo);">${(currentSummary?.projectsCreated || 0) + (currentSummary?.projectsUpdated || 0)}</div>
-              <div class="stat-label" style="font-size:0.75rem;">Projects Indexed</div>
+            <div class="stat-card" style="padding:14px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-sm);">
+              <div class="stat-val" id="statProjectsVal" style="font-size:1.4rem; color:var(--accent-indigo); font-weight:700; font-family:var(--font-mono);">${(currentSummary?.projectsCreated || 0) + (currentSummary?.projectsUpdated || 0)}</div>
+              <div class="stat-label" style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">Projects Indexed</div>
             </div>
-            <div class="stat-card" style="padding:14px;">
-              <div class="stat-val" id="statEvidenceVal" style="font-size:1.4rem; color:var(--accent-cyan);">${currentSummary?.evidenceCreated || currentSummary?.evidenceLinked || 0}</div>
-              <div class="stat-label" style="font-size:0.75rem;">Evidence Items</div>
+            <div class="stat-card" style="padding:14px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-sm);">
+              <div class="stat-val" id="statEvidenceVal" style="font-size:1.4rem; color:var(--accent-cyan); font-weight:700; font-family:var(--font-mono);">${currentSummary?.evidenceCreated || currentSummary?.evidenceLinked || 0}</div>
+              <div class="stat-label" style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">Evidence Items</div>
             </div>
-            <div class="stat-card" style="padding:14px;">
-              <div class="stat-val" id="statSkillsVal" style="font-size:1.4rem; color:var(--accent-amber);">${currentSummary?.verifiedSkillsAdded || (currentSummary?.verifiedSkills ? currentSummary.verifiedSkills.length : 0)}</div>
-              <div class="stat-label" style="font-size:0.75rem;">Verified Skills</div>
+            <div class="stat-card" style="padding:14px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-sm);">
+              <div class="stat-val" id="statSkillsVal" style="font-size:1.4rem; color:#F59E0B; font-weight:700; font-family:var(--font-mono);">${currentSummary?.verifiedSkillsAdded || (currentSummary?.verifiedSkills ? currentSummary.verifiedSkills.length : 0)}</div>
+              <div class="stat-label" style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">Verified Skills</div>
             </div>
           </div>
         </div>
 
         <!-- Partial Failure Alert (Rendered if partial failure) -->
-        <div id="partialFailureAlert" style="display:${isPartialFailure ? 'block' : 'none'}; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:var(--radius-md); padding:16px; margin-top:20px;">
+        <div id="partialFailureAlert" style="display:${isPartialFailure ? 'block' : 'none'}; background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.25); border-radius:var(--radius-md); padding:16px; margin-top:20px;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:1.1rem;">⚠️</span>
-            <h4 style="font-size:0.95rem; font-weight:700; color:#FBBF24; margin:0;" id="partialFailureTitle">
+            <span class="badge badge-warning">PARTIAL FAILURE</span>
+            <h4 style="font-size:0.9rem; font-weight:700; color:var(--text-main); margin:0;" id="partialFailureTitle">
               ${completedCount} of ${totalCount} repositories completed, ${failedCount} failed
             </h4>
           </div>
-          <p style="font-size:0.825rem; color:var(--text-muted); margin:6px 0 0 28px;">
+          <p style="font-size:0.825rem; color:var(--text-muted); margin:6px 0 0 0;">
             Successful repositories are indexed and evidence is saved. You can retry the failed repositories or continue with partial results.
           </p>
         </div>
 
         <!-- Fatal Failure Alert (Rendered if failed) -->
-        <div id="fatalFailureAlert" style="display:${isFailed ? 'block' : 'none'}; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-md); padding:16px; margin-top:20px;">
+        <div id="fatalFailureAlert" style="display:${isFailed ? 'block' : 'none'}; background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.25); border-radius:var(--radius-md); padding:16px; margin-top:20px;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:1.1rem;">❌</span>
-            <h4 style="font-size:0.95rem; font-weight:700; color:#F87171; margin:0;">
+            <span class="badge badge-danger">FAILED</span>
+            <h4 style="font-size:0.9rem; font-weight:700; color:var(--text-main); margin:0;">
               Ingestion Pipeline Encountered an Error
             </h4>
           </div>
-          <p style="font-size:0.825rem; color:var(--text-muted); margin:6px 0 0 28px;" id="fatalFailureMsg">
+          <p style="font-size:0.825rem; color:var(--text-muted); margin:6px 0 0 0;" id="fatalFailureMsg">
             ${escapeHtml(ingestionRun?.error || 'Failed to complete repository ingestion. Please check connection and retry.')}
           </p>
         </div>
@@ -824,7 +826,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
       <!-- Action Navigation Footer -->
       <div id="step4ActionFooter" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding-top:20px; border-top:1px solid var(--border-subtle);">
         <a href="/onboarding?step=3" id="backToReposBtn" class="btn btn-secondary ${isLiveRunning ? 'disabled' : ''}" style="${isLiveRunning ? 'opacity:0.4; pointer-events:none; cursor:not-allowed;' : ''}" ${isLiveRunning ? 'aria-disabled="true" tabindex="-1"' : ''}>
-          ← Back to Repositories
+          &larr; Back to Repositories
         </a>
 
         <div id="actionButtonGroup" style="display:flex; align-items:center; gap:10px;">
@@ -832,7 +834,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
             isLiveRunning
               ? `
             <button type="button" id="runningIndicatorBtn" class="btn btn-primary disabled" disabled style="opacity:0.65; cursor:not-allowed; display:inline-flex; align-items:center; gap:8px;">
-              <span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; display:inline-block;"></span>
+              <span class="inline-spinner animate-spin" style="width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; display:inline-block;"></span>
               <span>Ingestion Running...</span>
             </button>
           `
@@ -846,7 +848,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
                   ? `
             <form action="/onboarding/ingestion/retry" method="POST" style="margin:0; display:inline;">
               <button type="submit" id="retryFailedBtn" class="btn btn-secondary">
-                🔄 Retry Failed
+                Retry Failed
               </button>
             </form>
             <a href="/onboarding?step=5" id="continueAnywayBtn" class="btn btn-primary" style="padding:10px 22px;">
@@ -855,10 +857,10 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
           `
                   : `
             <a href="/onboarding?step=5" id="skipIngestionBtn" class="btn btn-secondary">
-              Skip Ingestion & Complete →
+              Skip Ingestion &amp; Complete →
             </a>
-            <button type="button" id="startIngestionBtn" class="btn btn-primary" style="padding:12px 24px; font-size:1rem;">
-              ⚡ Run Repository Ingestion Pipeline
+            <button type="button" id="startIngestionBtn" class="btn btn-primary" style="padding:10px 22px;">
+              Run Ingestion Pipeline →
             </button>
           `
           }
@@ -901,7 +903,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
                 statusBar.style.display = 'flex';
               }
               if (actionGroup) {
-                actionGroup.innerHTML = '<button type="button" class="btn btn-primary disabled" disabled style="opacity:0.65; cursor:not-allowed; display:inline-flex; align-items:center; gap:8px;"><span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; display:inline-block;"></span><span>Ingestion Running...</span></button>';
+                actionGroup.innerHTML = '<button type="button" class="btn btn-primary disabled" disabled style="opacity:0.65; cursor:not-allowed; display:inline-flex; align-items:center; gap:8px;"><span class="inline-spinner animate-spin" style="width:14px; height:14px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; display:inline-block;"></span><span>Ingestion Running...</span></button>';
               }
             }
           }
@@ -936,15 +938,15 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
                   badge.innerText = repo.state;
                   if (repo.state === 'COMPLETED') {
                     badge.className = 'badge badge-success';
-                    if (icon) icon.innerHTML = '<span style="color:#34D399; font-weight:bold; font-size:1.1rem;">✓</span>';
+                    if (icon) icon.innerHTML = '<span style="color:#10B981; font-weight:bold; font-size:0.95rem;">✓</span>';
                     if (row) row.style.borderColor = 'rgba(16,185,129,0.3)';
                   } else if (repo.state === 'RUNNING') {
                     badge.className = 'badge badge-cyan';
-                    if (icon) icon.innerHTML = '<span class="inline-spinner animate-spin" style="width:16px; height:16px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>';
+                    if (icon) icon.innerHTML = '<span class="inline-spinner animate-spin" style="width:14px; height:14px; border:2px solid rgba(59,130,246,0.25); border-top-color:#3B82F6; border-radius:50%; display:inline-block;"></span>';
                     if (row) row.style.borderColor = 'rgba(59,130,246,0.4)';
                   } else if (repo.state === 'FAILED') {
                     badge.className = 'badge badge-danger';
-                    if (icon) icon.innerHTML = '<span style="color:#EF4444; font-weight:bold; font-size:1.1rem;">✕</span>';
+                    if (icon) icon.innerHTML = '<span style="color:#EF4444; font-weight:bold; font-size:0.95rem;">✕</span>';
                     if (row) row.style.borderColor = 'rgba(239,68,68,0.3)';
                   }
                 }
@@ -1004,7 +1006,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
               var partialAlert = document.getElementById('partialFailureAlert');
               if (partialAlert) partialAlert.style.display = 'block';
               if (actionGroup) {
-                actionGroup.innerHTML = '<form action="/onboarding/ingestion/retry" method="POST" style="margin:0; display:inline;"><button type="submit" class="btn btn-secondary">🔄 Retry Failed</button></form><a href="/onboarding?step=5" class="btn btn-primary" style="padding:10px 22px;">Continue to Summary →</a>';
+                actionGroup.innerHTML = '<form action="/onboarding/ingestion/retry" method="POST" style="margin:0; display:inline;"><button type="submit" id="retryFailedBtn" class="btn btn-secondary">Retry Failed</button></form><a href="/onboarding?step=5" id="continueAnywayBtn" class="btn btn-primary" style="padding:10px 22px;">Continue to Summary &rarr;</a>';
               }
             } else if (data.state === 'FAILED') {
               setRunningState(false);
@@ -1027,7 +1029,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
                 if (fatalMsg && data.error) fatalMsg.innerText = data.error;
               }
               if (actionGroup) {
-                actionGroup.innerHTML = '<form action="/onboarding/ingestion/retry" method="POST" style="margin:0; display:inline;"><button type="submit" class="btn btn-secondary">🔄 Retry Ingestion</button></form>';
+                actionGroup.innerHTML = '<form action="/onboarding/ingestion/retry" method="POST" style="margin:0; display:inline;"><button type="submit" id="retryFailedBtn" class="btn btn-secondary">Retry Ingestion</button></form>';
               }
             }
           }
@@ -1109,46 +1111,47 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
 function renderStep5Complete({ candidate, selectedRepos, user = null }) {
   return `
     <div style="text-align:center; padding:20px 0;">
-      <div style="width:64px; height:64px; border-radius:50%; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); color:#34D399; display:flex; align-items:center; justify-content:center; font-size:2rem; margin:0 auto 20px;">
+      <div style="width:52px; height:52px; border-radius:50%; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#10B981; display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:700; margin:0 auto 20px;">
         ✓
       </div>
-      <h2 style="font-size:1.75rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px;">
-        Onboarding Completed!
+      <h2 style="font-size:1.6rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px;">
+        Onboarding Completed
       </h2>
-      <p style="font-size:1rem; color:var(--text-muted); max-width:520px; margin:0 auto 32px;">
+      <p style="font-size:0.95rem; color:var(--text-muted); max-width:520px; margin:0 auto 32px;">
         Your candidate profile is active, repositories are linked, and evidence citations are indexed for AI career intelligence.
       </p>
 
-      <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:24px; max-width:560px; margin:0 auto 36px; text-align:left;">
-        <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">Active Workspace Profile:</h3>
-        <div style="display:flex; flex-direction:column; gap:10px; font-size:0.875rem;">
-          <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.04); padding-bottom:8px;">
+      <div style="background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:24px; max-width:560px; margin:0 auto 36px; text-align:left;">
+        <h3 style="font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin-bottom:16px;">Active Workspace Profile</h3>
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:0.875rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
             <span style="color:var(--text-muted);">Candidate Persona:</span>
-            <strong>${escapeHtml(user.displayName || candidate?.displayName || 'Active Candidate')}</strong>
+            <strong style="color:var(--text-main); font-weight:600;">${escapeHtml(user?.displayName || candidate?.displayName || 'Active Candidate')}</strong>
           </div>
-          <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.04); padding-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
             <span style="color:var(--text-muted);">Headline:</span>
-            <span>${escapeHtml(candidate?.headline || 'Configured')}</span>
+            <span style="color:var(--text-main);">${escapeHtml(candidate?.headline || 'Configured')}</span>
           </div>
-          <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.04); padding-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
             <span style="color:var(--text-muted);">Connected Repositories:</span>
-            <span>${selectedRepos.length} Repositories</span>
+            <span style="color:var(--text-main); font-family:var(--font-mono);">${selectedRepos.length} Repositories</span>
           </div>
-          <div style="display:flex; justify-content:space-between;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="color:var(--text-muted);">MCP Endpoint:</span>
-            <code>POST /mcp</code>
+            <code style="background:#0B0F19; padding:2px 8px; border-radius:4px; border:1px solid var(--border-subtle); color:var(--accent-cyan); font-family:var(--font-mono); font-size:0.825rem;">POST /mcp</code>
           </div>
         </div>
       </div>
 
-      <div style="display:flex; justify-content:center; gap:16px;">
-        <a href="/dashboard" class="btn btn-primary" style="padding:12px 28px; font-size:1rem;">
-          Launch Candidate Workspace →
+      <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:14px;">
+        <a href="/dashboard" class="btn btn-primary" style="padding:10px 24px;">
+          Launch Candidate Workspace &rarr;
         </a>
-        <a href="/connect" class="btn btn-secondary" style="padding:12px 20px;">
-          Connect Claude / ChatGPT / Gemini
+        <a href="/connect" class="btn btn-secondary" style="padding:10px 20px;">
+          Connect AI Clients
         </a>
       </div>
     </div>
   `;
 }
+

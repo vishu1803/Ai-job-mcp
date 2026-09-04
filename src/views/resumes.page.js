@@ -89,28 +89,28 @@ export function renderResumesPage({
       <!-- Architecture Pipeline Banner -->
       <div class="pipeline-banner">
         <div class="pipeline-header">
-          <span class="pipeline-title">Resume & Career Document Ingestion Pipeline</span>
+          <span class="pipeline-title">Resume &amp; Career Document Ingestion Pipeline</span>
           <span style="font-size:0.75rem; color:var(--text-dim);">AES-256-GCM Encrypted Storage</span>
         </div>
         <div class="pipeline-steps">
-          <div class="pipeline-step active"><span>📄</span> Source Resume (PDF/DOCX/TXT)</div>
+          <div class="pipeline-step active">Source Resume (PDF/DOCX/TXT)</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🛡️</span> Sandboxed Parser</div>
+          <div class="pipeline-step">Sandboxed Parser</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>📑</span> Structured Sections</div>
+          <div class="pipeline-step">Structured Sections</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>📝</span> Self-Reported Claims [CLAIMED]</div>
+          <div class="pipeline-step">Self-Reported Claims [CLAIMED]</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>★</span> Base Resume & AI Profile</div>
+          <div class="pipeline-step">Base Resume &amp; AI Profile</div>
         </div>
       </div>
 
       <!-- Header -->
       <div class="page-header">
         <div>
-          <span class="badge badge-indigo" style="margin-bottom:6px;">RESUME MANAGEMENT</span>
-          <h1>Source Resumes & Career Documents</h1>
-          <p>
+          <span class="badge badge-indigo" style="margin-bottom:8px;">RESUME MANAGEMENT</span>
+          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Source Resumes &amp; Career Documents</h1>
+          <p style="color:var(--text-muted); margin:0; font-size:0.875rem;">
             Upload your source resume (PDF, DOCX, TXT) to establish your baseline narrative. Documents are stored with AES-256-GCM encryption and parsed with strict truth separation.
           </p>
         </div>
@@ -128,11 +128,11 @@ export function renderResumesPage({
               <span class="badge badge-indigo" style="font-size:0.7rem;">CANDIDATE</span>
             </div>
             <div class="context-banner-sub">
-              ${escapeHtml(candidateHeadline)} • ${escapeHtml(candidateEmail)}
+              ${escapeHtml(candidateHeadline)} &bull; ${escapeHtml(candidateEmail)}
             </div>
           </div>
         </div>
-        <div style="font-size:0.8rem; color:#64748B;">
+        <div style="font-size:0.8rem; color:var(--text-dim); font-family:var(--font-mono);">
           ${resumesList.length} ${resumesList.length === 1 ? 'version' : 'versions'} indexed
         </div>
       </div>
@@ -141,12 +141,12 @@ export function renderResumesPage({
       ${errorMessage ? `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>` : ''}
 
       <!-- Truth in AI Alert -->
-      <div class="alert alert-info" style="margin-bottom:2rem;">
-        <div style="display:flex; gap:0.75rem; align-items:flex-start;">
-          <span style="font-size:1.25rem;">⚖️</span>
+      <div class="card" style="margin-bottom:2rem; padding:20px; background:#111827; border:1px solid var(--border-subtle);">
+        <div style="display:flex; gap:12px; align-items:flex-start;">
+          <span class="badge badge-indigo" style="font-size:0.7rem; flex-shrink:0; margin-top:2px;">TRUTH BOUNDARY</span>
           <div>
-            <strong style="color:#60a5fa; font-size:0.95rem;">Evidence vs. Self-Reported Claim Separation</strong>
-            <p style="color:#94a3b8; font-size:0.875rem; margin-top:0.25rem; line-height:1.5;">
+            <strong style="color:var(--text-main); font-size:0.925rem;">Evidence vs. Self-Reported Claim Separation</strong>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin:6px 0 0 0; line-height:1.5;">
               Uploaded resume statements, skills, and dates are treated as <strong>candidate-provided claims</strong> and are tagged with the explicit <span class="badge badge-claimed" style="font-size:0.7rem;">CLAIMED [Unverified User Claim]</span> truth classification. They are <em>never</em> automatically marked as repository-verified without authentic code evidence.
             </p>
           </div>
@@ -154,47 +154,56 @@ export function renderResumesPage({
       </div>
 
       <!-- Upload Zone -->
-      <div class="card" style="margin-bottom:2.5rem;">
+      <div class="card" style="margin-bottom:2.5rem; padding:28px;">
         <div class="section-header" style="margin-bottom:12px;">
-          <h2>Upload Source Resume Version</h2>
+          <div>
+            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Upload Source Resume Version</h2>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0 0; line-height:1.5;">
+              Supported formats: <strong>PDF (.pdf)</strong>, <strong>Microsoft Word (.docx)</strong>, <strong>Plain Text (.txt, .md)</strong>. Maximum file size: <strong>10 MB</strong>.
+            </p>
+          </div>
         </div>
-        <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:1.5rem; line-height:1.5;">
-          Supported formats: <strong>PDF (.pdf)</strong>, <strong>Microsoft Word (.docx)</strong>, <strong>Plain Text (.txt, .md)</strong>. Maximum file size: <strong>10 MB</strong>.
-        </p>
 
-        <form action="/resumes/upload" method="POST" enctype="multipart/form-data">
-          <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
+        <div id="resumeDropzone" style="border:1px dashed rgba(255,255,255,0.18); background:rgba(0,0,0,0.15); border-radius:var(--radius-md); padding:24px; margin-top:16px;">
+          <form action="/resumes/upload" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
 
-          <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
-            <div style="flex:1; min-width:280px;">
-              <input type="file" name="resumeFile" id="resumeFileInput" accept=".pdf,.docx,.txt,.md" required class="form-control">
+            <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+              <div style="flex:1; min-width:280px;">
+                <input type="file" name="resumeFile" id="resumeFileInput" accept=".pdf,.docx,.txt,.md" required class="form-control" style="background:#0B0F19;">
+              </div>
+              <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.5rem;">
+                Upload &amp; Parse Resume
+              </button>
             </div>
-            <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.5rem;">
-              Upload & Parse Resume
-            </button>
-          </div>
 
-          <div style="margin-top:0.75rem; display:flex; gap:1.5rem; flex-wrap:wrap; color:var(--text-dim); font-size:0.75rem;">
-            <span>🔒 AES-256-GCM Encrypted</span>
-            <span>🛡️ Sandboxed AST Extraction</span>
-            <span>🔑 Secret Scrubber Protected</span>
-          </div>
-        </form>
+            <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.04); display:flex; gap:1.25rem; flex-wrap:wrap; color:var(--text-dim); font-size:0.75rem;">
+              <span>AES-256-GCM Encrypted</span>
+              <span>&bull;</span>
+              <span>Sandboxed AST Extraction</span>
+              <span>&bull;</span>
+              <span>Secret Scrubber Protected</span>
+            </div>
+          </form>
+        </div>
       </div>
 
       <!-- Resumes Version History -->
       <div>
-        <div class="section-header" style="margin-bottom:1rem;">
-          <h2>Resume Version History</h2>
-          <span class="section-count">${resumesList.length} ${resumesList.length === 1 ? 'version' : 'versions'}</span>
+        <div class="section-header" style="margin-bottom:16px;">
+          <div>
+            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Resume Version History</h2>
+            <p style="font-size:0.85rem; color:var(--text-dim); margin-top:2px; margin-bottom:0;">Chronological record of candidate resume snapshots and parsing states.</p>
+          </div>
+          <span class="badge badge-cyan" style="font-size:0.75rem;">${resumesList.length} ${resumesList.length === 1 ? 'version' : 'versions'}</span>
         </div>
 
         ${
           resumesList.length === 0
             ? `
           <div class="empty-state">
-            <div class="empty-state-icon">📄</div>
-            <h3>No Source Resumes Uploaded Yet</h3>
+            <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
+            <h3 style="margin-top:8px;">No Source Resumes Uploaded Yet</h3>
             <p>
               Upload your existing resume (PDF, DOCX, TXT) above to seed your baseline candidate narrative, extract structured claims, and establish your active Base Resume for <strong>${escapeHtml(candidateName)}</strong>.
             </p>
@@ -205,13 +214,13 @@ export function renderResumesPage({
             <table class="data-table">
               <thead>
                 <tr>
-                  <th style="width: 100px;">Version</th>
+                  <th style="width: 90px;">Version</th>
                   <th>Original Filename</th>
-                  <th>Size</th>
-                  <th>Content Hash (SHA-256)</th>
-                  <th>Lifecycle State</th>
-                  <th>Uploaded</th>
-                  <th style="text-align: right;">Actions</th>
+                  <th style="width: 90px;">Size</th>
+                  <th style="width: 170px;">SHA-256 Digest</th>
+                  <th style="width: 170px;">Lifecycle State</th>
+                  <th style="width: 120px;">Uploaded</th>
+                  <th style="text-align: right; width: 180px;">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -220,38 +229,38 @@ export function renderResumesPage({
                     (r) => `
                   <tr>
                     <td>
-                      <span style="font-weight: 600; color: #38bdf8; font-family: monospace; font-size: 0.95rem;">
+                      <span style="font-weight: 700; color: var(--accent-indigo); font-family: var(--font-mono); font-size: 0.875rem;">
                         v${r.version}
                       </span>
                     </td>
                     <td>
-                      <div style="font-weight: 500; color: #f1f5f9;">${escapeHtml(r.fileName)}</div>
-                      <div style="font-size: 0.75rem; color: #64748b;">${escapeHtml(r.mimeType)}</div>
+                      <div style="font-weight: 600; color: var(--text-main); font-size: 0.875rem;">${escapeHtml(r.fileName)}</div>
+                      <div style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono); margin-top:2px;">${escapeHtml(r.mimeType)}</div>
                     </td>
-                    <td style="color: #94a3b8; font-size: 0.875rem;">${formatBytes(r.fileSizeBytes)}</td>
+                    <td style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">${formatBytes(r.fileSizeBytes)}</td>
                     <td>
-                      <code style="font-size: 0.75rem; background: rgba(15, 23, 42, 0.6); padding: 0.2rem 0.4rem; border-radius: 4px; color: #cbd5e1;" title="${escapeHtml(r.contentHash)}">
+                      <code style="font-size: 0.75rem; color: var(--text-muted);" title="${escapeHtml(r.contentHash)}">
                         ${escapeHtml(r.contentHash.slice(0, 12))}...
                       </code>
                     </td>
                     <td>
                       ${renderResumeStatusBadge(r.lifecycleState, r.isBaseResume)}
                     </td>
-                    <td style="color: #94a3b8; font-size: 0.85rem;">
+                    <td style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">
                       ${new Date(r.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                     </td>
                     <td style="text-align: right;">
                       <div style="display: inline-flex; gap: 0.5rem; align-items: center;">
-                        <a href="/resumes/${escapeHtml(r.id)}" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+                        <a href="/resumes/${escapeHtml(r.id)}" class="btn btn-secondary btn-sm" style="font-size: 0.78rem;">
                           Review Claims
                         </a>
-                        <a href="/resumes/${escapeHtml(r.id)}/download" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem;" title="Download Decrypted Source">
-                          ⬇
+                        <a href="/resumes/${escapeHtml(r.id)}/download" class="btn btn-secondary btn-sm" style="font-size: 0.78rem;" title="Download Decrypted Source">
+                          Download
                         </a>
                         <form action="/resumes/${escapeHtml(r.id)}/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this resume version and its encrypted storage?');" style="display: inline;">
                           <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
-                          <button type="submit" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.8rem; color: #f87171;" title="Delete Version">
-                            🗑
+                          <button type="submit" class="btn btn-secondary btn-sm" style="font-size: 0.78rem; color: #f87171;" title="Delete Version">
+                            Delete
                           </button>
                         </form>
                       </div>
@@ -337,34 +346,34 @@ export function renderResumeDetailPage({
       <!-- Architecture Pipeline Banner -->
       <div class="pipeline-banner">
         <div class="pipeline-header">
-          <span class="pipeline-title">Resume & Career Document Ingestion Pipeline</span>
+          <span class="pipeline-title">Resume &amp; Career Document Ingestion Pipeline</span>
           <span style="font-size:0.75rem; color:var(--text-dim);">Sandboxed AST Text Extraction</span>
         </div>
         <div class="pipeline-steps">
-          <div class="pipeline-step"><span>📄</span> Source: ${escapeHtml(resume.fileName)}</div>
+          <div class="pipeline-step">Source: ${escapeHtml(resume.fileName)}</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🛡️</span> Multi-Format Parser</div>
+          <div class="pipeline-step">Multi-Format Parser</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active"><span>📑</span> ${sections.length} Parsed Sections</div>
+          <div class="pipeline-step active">${sections.length} Parsed Sections</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active"><span>📝</span> ${claims.length} Extracted Claims [CLAIMED]</div>
+          <div class="pipeline-step active">${claims.length} Extracted Claims [CLAIMED]</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>★</span> Base Resume Narrative</div>
+          <div class="pipeline-step">Base Resume Narrative</div>
         </div>
       </div>
 
       <!-- Header -->
       <div class="page-header">
         <div>
-          <h1 style="font-size:1.75rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+          <h1 style="font-size:1.75rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin:4px 0 8px 0; font-weight:800; letter-spacing:-0.02em;">
             <span>${escapeHtml(resume.fileName)}</span>
-            <span style="font-size:0.9rem; font-weight:400;">(v${resume.version})</span>
+            <span style="font-size:0.9rem; font-weight:400; color:var(--text-muted);">(v${resume.version})</span>
             ${renderResumeStatusBadge(resume.lifecycleState, resume.isBaseResume)}
           </h1>
         </div>
 
         <a href="/resumes/${escapeHtml(resume.id)}/download" class="btn btn-secondary btn-sm">
-          ⬇ Download Decrypted Source
+          Download Decrypted Source
         </a>
       </div>
 
@@ -375,23 +384,23 @@ export function renderResumeDetailPage({
       <div class="card" style="margin-bottom:2rem; padding:1.25rem;">
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:1rem;">
           <div>
-            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">File Size</div>
-            <div style="font-size:1rem; font-weight:600; color:var(--text-main); margin-top:4px;">${formatBytes(resume.fileSizeBytes)}</div>
+            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">File Size</div>
+            <div style="font-size:1rem; font-weight:600; color:var(--text-main); font-family:var(--font-mono); margin-top:4px;">${formatBytes(resume.fileSizeBytes)}</div>
           </div>
           <div>
-            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">MIME Format</div>
-            <div style="font-size:1rem; font-weight:600; color:var(--text-main); margin-top:4px;">${escapeHtml(resume.mimeType)}</div>
+            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">MIME Format</div>
+            <div style="font-size:1rem; font-weight:600; color:var(--text-main); font-family:var(--font-mono); margin-top:4px;">${escapeHtml(resume.mimeType)}</div>
           </div>
           <div>
-            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">Parsed Sections</div>
+            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Parsed Sections</div>
             <div style="font-size:1rem; font-weight:600; color:var(--text-main); margin-top:4px;">${sections.length} sections</div>
           </div>
           <div>
-            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">Extracted Claims</div>
+            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Extracted Claims</div>
             <div style="font-size:1rem; font-weight:600; color:var(--text-main); margin-top:4px;">${claims.length} assertions</div>
           </div>
           <div>
-            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">SHA-256 Hash</div>
+            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">SHA-256 Hash</div>
             <div style="font-size:0.8rem; font-family:var(--font-mono); color:var(--accent-cyan); margin-top:4px;" title="${escapeHtml(resume.contentHash)}">
               ${escapeHtml(resume.contentHash.slice(0, 16))}...
             </div>
@@ -400,23 +409,25 @@ export function renderResumeDetailPage({
       </div>
 
       <!-- Review & Promotion Form -->
-      <div class="card" style="margin-bottom:2rem;">
+      <div class="card" style="margin-bottom:2rem; padding:28px;">
         <div class="section-header" style="margin-bottom:12px;">
-          <h2>Review & Promote Candidate Claims</h2>
+          <div>
+            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Review &amp; Promote Candidate Claims</h2>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin:4px 0 0 0; line-height:1.5;">
+              Approve parsed claims to integrate them into your candidate profile. Approved skills will be marked with the <span class="badge badge-claimed">CLAIMED</span> truth classification and can serve as your active Base Resume narrative.
+            </p>
+          </div>
         </div>
-        <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:1.5rem; line-height:1.5;">
-          Approve parsed claims to integrate them into your candidate profile. Approved skills will be marked with the <span class="badge badge-claimed">CLAIMED</span> truth classification and can serve as your active Base Resume narrative.
-        </p>
 
         <form action="/resumes/${escapeHtml(resume.id)}/approve" method="POST">
           <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
 
-          <div style="margin-bottom: 1.5rem;">
-            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; color: #f8fafc; font-weight: 500;">
-              <input type="checkbox" name="promoteToBase" value="true" ${resume.isBaseResume ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: #38bdf8;">
+          <div style="margin-bottom: 1.5rem; padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; color: var(--text-main); font-weight: 600; font-size: 0.9rem;">
+              <input type="checkbox" name="promoteToBase" value="true" ${resume.isBaseResume ? 'checked' : ''} style="width: 18px; height: 18px; accent-color: var(--accent-indigo); cursor:pointer;">
               <span>Set this resume version as my active <strong>Base Resume</strong></span>
             </label>
-            <div style="color: #64748b; font-size: 0.8rem; margin-left: 2rem; margin-top: 0.25rem;">
+            <div style="color: var(--text-dim); font-size: 0.8rem; margin-left: 2rem; margin-top: 0.25rem;">
               Your Base Resume serves as the foundational source narrative for ATS job tailoring.
             </div>
           </div>
@@ -436,15 +447,15 @@ export function renderResumeDetailPage({
             skillClaims.length > 0
               ? `
             <div style="margin-bottom: 1.5rem;">
-              <label class="form-label" style="margin-bottom: 0.75rem; display: block;">
+              <label class="form-label" style="margin-bottom: 0.75rem; display: block; font-weight:600;">
                 Extracted Skills from Resume (${skillClaims.length} found)
               </label>
-              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; max-height: 200px; overflow-y: auto; padding: 0.75rem; background: rgba(15, 23, 42, 0.6); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.1);">
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; max-height: 200px; overflow-y: auto; padding: 0.75rem; background: rgba(0, 0, 0, 0.2); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
                 ${skillClaims
                   .map(
                     (sc) => `
-                  <label style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(30, 41, 59, 0.8); padding: 0.35rem 0.7rem; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.2); cursor: pointer; font-size: 0.85rem; color: #f1f5f9;">
-                    <input type="checkbox" name="approvedSkillClaims" value="${escapeHtml(sc.statement)}" checked style="accent-color: #38bdf8;">
+                  <label style="display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(255, 255, 255, 0.04); padding: 0.35rem 0.7rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); cursor: pointer; font-size: 0.825rem; color: var(--text-main);">
+                    <input type="checkbox" name="approvedSkillClaims" value="${escapeHtml(sc.statement)}" checked style="accent-color: var(--accent-indigo); cursor:pointer;">
                     <span>${escapeHtml(sc.statement)}</span>
                   </label>
                 `
@@ -457,7 +468,7 @@ export function renderResumeDetailPage({
           }
 
           <button type="submit" class="btn btn-primary" style="padding: 0.75rem 1.75rem;">
-            <span>✓ Save & Confirm Claims</span>
+            <span>Save &amp; Confirm Claims</span>
           </button>
         </form>
       </div>
@@ -465,8 +476,11 @@ export function renderResumeDetailPage({
       <!-- Parsed Sections Breakdown -->
       <div style="margin-bottom:2.5rem;">
         <div class="section-header" style="margin-bottom:1rem;">
-          <h2>Parsed Resume Sections</h2>
-          <span class="section-count">${sections.length} ${sections.length === 1 ? 'section' : 'sections'}</span>
+          <div>
+            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Parsed Resume Sections</h2>
+            <p style="font-size:0.85rem; color:var(--text-dim); margin-top:2px; margin-bottom:0;">Structured document blocks parsed from source file.</p>
+          </div>
+          <span class="badge badge-cyan" style="font-size:0.75rem;">${sections.length} ${sections.length === 1 ? 'section' : 'sections'}</span>
         </div>
 
         <div style="display:flex; flex-direction:column; gap:1rem;">
@@ -475,8 +489,8 @@ export function renderResumeDetailPage({
               (sec) => `
             <div class="card" style="padding:20px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; padding-bottom:0.5rem; border-bottom:1px solid var(--border-subtle);">
-                <h3 style="font-size:1rem; font-weight:600; color:var(--accent-cyan); text-transform:uppercase; letter-spacing:0.03em;">${escapeHtml(sec.sectionType)}</h3>
-                <span style="color:var(--text-dim); font-size:0.75rem;">Order #${sec.orderIndex}</span>
+                <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); text-transform:uppercase; letter-spacing:0.04em; margin:0;">${escapeHtml(sec.sectionType)}</h3>
+                <span style="color:var(--text-dim); font-size:0.75rem; font-family:var(--font-mono);">Order #${sec.orderIndex}</span>
               </div>
               ${
                 sec.structuredData?.skills && Array.isArray(sec.structuredData.skills)
@@ -485,7 +499,7 @@ export function renderResumeDetailPage({
                   ${sec.structuredData.skills
                     .map(
                       (sk) =>
-                        `<span class="tag" style="background:rgba(99,102,241,0.15); color:#C7D2FE; border-color:rgba(99,102,241,0.3);">${escapeHtml(sk)}</span>`
+                        `<span class="tag" style="background:rgba(99,102,241,0.12); color:var(--text-main); border-color:rgba(99,102,241,0.25); font-size:0.75rem;">${escapeHtml(sk)}</span>`
                     )
                     .join(' ')}
                 </div>
@@ -497,10 +511,10 @@ export function renderResumeDetailPage({
                 sec.structuredData?.linkedin ||
                 sec.structuredData?.email
                   ? `
-                <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:10px; font-size:0.825rem;">
-                  ${sec.structuredData.github ? `<span>📦 <a href="${escapeHtml(sec.structuredData.github)}" target="_blank" rel="noopener" style="color:var(--accent-cyan);">${escapeHtml(sec.structuredData.github)}</a></span>` : ''}
-                  ${sec.structuredData.linkedin ? `<span>💼 <a href="${escapeHtml(sec.structuredData.linkedin)}" target="_blank" rel="noopener" style="color:var(--accent-indigo);">${escapeHtml(sec.structuredData.linkedin)}</a></span>` : ''}
-                  ${sec.structuredData.email ? `<span>✉️ ${escapeHtml(sec.structuredData.email)}</span>` : ''}
+                <div style="display:flex; flex-wrap:wrap; gap:14px; margin-bottom:10px; font-size:0.8rem; font-family:var(--font-mono);">
+                  ${sec.structuredData.github ? `<span><span style="color:var(--text-dim);">github:</span> <a href="${escapeHtml(sec.structuredData.github)}" target="_blank" rel="noopener" style="color:var(--accent-indigo); text-decoration:none;">${escapeHtml(sec.structuredData.github)}</a></span>` : ''}
+                  ${sec.structuredData.linkedin ? `<span><span style="color:var(--text-dim);">linkedin:</span> <a href="${escapeHtml(sec.structuredData.linkedin)}" target="_blank" rel="noopener" style="color:var(--accent-indigo); text-decoration:none;">${escapeHtml(sec.structuredData.linkedin)}</a></span>` : ''}
+                  ${sec.structuredData.email ? `<span><span style="color:var(--text-dim);">email:</span> ${escapeHtml(sec.structuredData.email)}</span>` : ''}
                 </div>
               `
                   : ''
@@ -517,8 +531,8 @@ export function renderResumeDetailPage({
       <div class="card" style="padding:24px; margin-top:24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1rem; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
           <div>
-            <h2 style="font-size:1.2rem; font-weight:600; color:var(--text-main); margin:0; display:flex; align-items:center; gap:8px;">
-              <span>📋</span> Extracted Self-Reported Claims
+            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0; display:flex; align-items:center; gap:8px;">
+              <span>Extracted Self-Reported Claims</span>
               <span class="badge badge-claimed" style="font-size:0.75rem;">${claims.length} ${claims.length === 1 ? 'claim' : 'claims'}</span>
             </h2>
             <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">
@@ -575,7 +589,7 @@ export function renderResumeDetailPage({
                 <th style="width:130px;">Claim Type</th>
                 <th>Statement</th>
                 <th style="width:240px;">Context / Origin</th>
-                <th style="width:160px;">Truth Classification</th>
+                <th style="width:180px;">Truth Classification</th>
               </tr>
             </thead>
             <tbody>
@@ -586,40 +600,30 @@ export function renderResumeDetailPage({
                     .trim();
 
                   const meta = c.metadata || {};
-                  const typeIcons = {
-                    SKILL: '🛠️',
-                    PROJECT: '📦',
-                    EXPERIENCE: '💼',
-                    EDUCATION: '🎓',
-                    CERTIFICATION: '📜',
-                    CONTACT: '📞',
-                    SUMMARY: '📝',
-                  };
-                  const icon = typeIcons[c.claimType] || '📌';
 
                   // Scope badge styling
                   let scopeBadge = '';
                   if (meta.scope) {
                     const scopeColors = {
                       HYBRID:
-                        'background:rgba(99,102,241,0.15); color:#a5b4fc; border:1px solid rgba(99,102,241,0.3);',
+                        'background:rgba(99,102,241,0.12); color:#a5b4fc; border:1px solid rgba(99,102,241,0.25);',
                       GLOBAL:
-                        'background:rgba(56,189,248,0.15); color:#7dd3fc; border:1px solid rgba(56,189,248,0.3);',
+                        'background:rgba(56,189,248,0.12); color:#7dd3fc; border:1px solid rgba(56,189,248,0.25);',
                       PROJECT_SCOPED:
-                        'background:rgba(245,158,11,0.15); color:#fcd34d; border:1px solid rgba(245,158,11,0.3);',
+                        'background:rgba(245,158,11,0.12); color:#fcd34d; border:1px solid rgba(245,158,11,0.25);',
                       EXPERIENCE_SCOPED:
-                        'background:rgba(16,185,129,0.15); color:#6ee7b7; border:1px solid rgba(16,185,129,0.3);',
+                        'background:rgba(16,185,129,0.12); color:#6ee7b7; border:1px solid rgba(16,185,129,0.25);',
                     };
                     const style =
                       scopeColors[meta.scope] ||
-                      'background:rgba(255,255,255,0.08); color:var(--text-muted);';
+                      'background:rgba(255,255,255,0.06); color:var(--text-muted);';
                     scopeBadge = `<span style="font-size:0.68rem; padding:2px 6px; border-radius:4px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; ${style}">${escapeHtml(meta.scope)}</span>`;
                   }
 
                   // Occurrence badge
                   let occurrenceBadge = '';
                   if (meta.occurrenceCount && meta.occurrenceCount > 1) {
-                    occurrenceBadge = `<span style="font-size:0.68rem; background:rgba(255,255,255,0.08); border:1px solid var(--border-subtle); color:var(--text-main); padding:2px 6px; border-radius:4px; font-weight:600;">⚡ ${meta.occurrenceCount} mentions</span>`;
+                    occurrenceBadge = `<span style="font-size:0.68rem; background:rgba(255,255,255,0.06); border:1px solid var(--border-subtle); color:var(--text-main); padding:2px 6px; border-radius:4px; font-weight:600; font-family:var(--font-mono);">${meta.occurrenceCount} mentions</span>`;
                   }
 
                   // Linked technologies tags (for projects or experience)
@@ -634,8 +638,8 @@ export function renderResumeDetailPage({
                   return `
                 <tr class="claim-row" data-type="${escapeHtml(c.claimType)}">
                   <td>
-                    <span class="tag" style="font-weight:600; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.03em; display:inline-flex; align-items:center; gap:4px;">
-                      <span>${icon}</span> ${escapeHtml(c.claimType)}
+                    <span class="tag" style="font-weight:600; font-size:0.725rem; text-transform:uppercase; letter-spacing:0.04em; display:inline-block;">
+                      ${escapeHtml(c.claimType)}
                     </span>
                   </td>
                   <td style="color:var(--text-main); font-size:0.875rem; font-weight:500; line-height:1.5;">
@@ -650,8 +654,8 @@ export function renderResumeDetailPage({
                     ${escapeHtml(cleanContext)}
                   </td>
                   <td>
-                    <span class="badge badge-claimed" style="font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">
-                      <span>📝</span> CLAIMED [Unverified User Claim]
+                    <span class="badge badge-claimed" style="font-size:0.72rem;">
+                      CLAIMED [Unverified User Claim]
                     </span>
                   </td>
                 </tr>

@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AK (33 tasks) COMPLETE; P14-005W and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
-| **Project State** | **ACTIVE / IN PROGRESS — UI REDESIGN PHASE 1 COMPLETE** | P14-005AK implemented Phase 1 UI-only redesign across layout.js and dashboard.page.js according to DESIGN.md. Preserved 100% of JavaScript, logic, routes, IDs, and dynamic expressions. 1,920/1,920 unit tests passing, 0 ESLint errors, 0 secrets exposed. |
-| **Total Tasks** | **121 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **115 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AK (33 tasks) |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AR (39 tasks) COMPLETE; P14-005W and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
+| **Project State** | **ACTIVE / IN PROGRESS — UI REDESIGN BATCH 7 COMPLETE (ALL 7 BATCHES COMPLETE)** | P14-005AR implemented Batch 7 UI redesign across settings.page.js and final global polish according to DESIGN.md. Preserved 100% of functional contracts, routes, forms, CSRF logic, inputs, IDs, session management, and GDPR Article 17 account erasure actions. 1,920/1,920 unit tests passing, 0 ESLint errors, 0 secrets exposed. |
+| **Total Tasks** | **125 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **121 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AR (39 tasks) |
 | **In Progress Tasks** | **2 Tasks** | P14-005W (MCP Candidate Profile Contract Fix) and P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation) — both Local Implementation Verified, Live ChatGPT MCP Verification Required |
 | **Blocked Tasks** | **1 Task** | P14-005AB — blocked on a live ChatGPT MCP `analyze_job_fit` call returning the actual analysis payload |
-| **Overall Task Completion** | **96.64% (115 / 119 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **98.53% (16.75 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **98.37% (121 / 123 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **99.12% (16.85 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 32 | 31 | 1 | **IN_PROGRESS** | **96.9%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 36 | 35 | 1 | **IN_PROGRESS** | **97.2%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -4504,6 +4504,333 @@ Executed Phase 1 of the application-wide visual polish strictly adhering to `DES
   - Desktop Viewport (1280×800): `desktop_dashboard_1788500647132.png` $\rightarrow$ **PASS** (Crisp typography, balanced card contrast, sticky blur navbar, accurate truth badges, verified metrics).
   - Mobile Viewport (375×812): `mobile_dashboard_1788500679833.png` $\rightarrow$ **PASS** (Responsive wrap, 2-column checklist grid, vertical stat card flow, no horizontal overflow).
 - **Git Status Isolation**: Confirmed only approved presentation files and the project ledger were touched.
+
+---
+
+### P14-005AL UI Redesign Batch 1: Core Layout CSS Polish, Standardized Controls, & Responsive Breakpoints
+
+#### 1. Description & Context
+Implemented Batch 1 of the 7-batch UI redesign adhering strictly to `DESIGN.md` and user approval scope:
+1. **Scope Boundary**: Modified ONLY CSS in `src/views/layout.js`. Zero HTML structural changes, zero JavaScript changes (lines 1523–1618 script block 100% untouched), zero route/backend/form attribute changes.
+2. **Neon Gradients & Glowing Shadows Removal**:
+   - Replaced gradient on `.brand-icon` with dark elevated surface (`var(--bg-surface-elevated)`), subtle border (`rgba(255, 255, 255, 0.12)`), and crisp font (`color: var(--text-main); font-weight: 700; border-radius: var(--radius-sm)`).
+   - Replaced gradient on `.user-avatar-badge` with elevated surface and border (`rgba(255, 255, 255, 0.14)`).
+   - Replaced gradient and glowing shadow on `.context-banner-avatar` with elevated surface, subtle border, and `box-shadow: none`.
+3. **Form Controls & Focus Rings Standardized**:
+   - `.form-control`, `.form-select`, `.form-textarea`: standardized `padding: 9px 13px; font-size: 0.875rem; line-height: 1.4; background: #0B0F19; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: var(--radius-md)`.
+   - Focus ring: `border-color: #6366F1; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25); outline: none`.
+   - Added disabled and placeholder states.
+4. **Data-Table Polish**:
+   - `.data-table th`: uppercase 12px (`0.75rem`), letter-spacing `0.05em`, `padding: 10px 16px`, subtle bottom border.
+   - `.data-table td`: `padding: 12px 16px; font-size: 0.875rem`.
+   - Row states: smooth hover transition (`background: rgba(255, 255, 255, 0.025)`), `.selected` row highlight.
+5. **Details / Summary Disclosure Styling**:
+   - Clean disclosure panels with subtle borders, hover brightness, and focus-visible indicators without changing markup.
+6. **Mobile Pipeline Banner Arrow Wrapping**:
+   - Added `@media (max-width: 768px)` rule hiding `.pipeline-arrow` to prevent dangling arrows when step chips wrap.
+7. **Mobile Drawer Link Spacing & Touch Targets**:
+   - Enhanced `.nav-mobile-menu a` and `.logout-form-btn` with `min-height: 44px; padding: 10px 14px; border-radius: var(--radius-sm)` meeting touch guidelines.
+8. **Tablet 2-Column Grid Stacking**:
+   - Added `@media (max-width: 900px) { .grid-2col { grid-template-columns: 1fr !important; } }`.
+
+#### 2. Files Modified
+- `src/views/layout.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Git Diff Inspection**: `git diff -- src/views/layout.js` $\rightarrow$ **PASS** (100% of diff contained in `<style>` block; zero markup or script modifications).
+- **ESLint**: `npx eslint src/views/layout.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+- **Unit Tests**: Full unit test suite $\rightarrow$ **1,920/1,920 PASS (0 failures)**.
+- **Secrets Scanner**: `npm run scan:secrets` $\rightarrow$ **PASS (0 secrets detected)**.
+- **Live Visual Inspection (Browser Subagent)**:
+  - Desktop Viewport (1280×800): Verified brand avatar, table styling, and `<details>` panel expansion at `/skills` and `/docs/mcp`.
+  - Mobile Viewport (375×812): Verified compact header, drawer menu touch targets (44px min-height), and pipeline step wrap without orphaned arrows.
+
+---
+
+### P14-005AM UI Redesign Batch 2: Public Entry and Account Screens (login.page.js, landing.page.js, settings.page.js)
+
+#### 1. Description & Context
+Implemented Batch 2 of the 7-batch UI redesign adhering strictly to `DESIGN.md` and user constraints:
+1. **Scope Boundary**: Modified ONLY `src/views/login.page.js`, `src/views/landing.page.js`, and `src/views/settings.page.js`. Zero route changes, zero backend logic changes, zero form action/method changes, zero ID/CSRF changes, and zero changes to `layout.js`.
+2. **Login Screen (`src/views/login.page.js`)**:
+   - Tightened container to a focused 440px max-width card centered on the screen (`max-width: 440px; margin: 48px auto; padding: 0 16px;`).
+   - Replaced brand mark with clean elevated surface icon (`40px`, `border-radius: var(--radius-sm)`, `var(--bg-surface-elevated)`, `1px solid rgba(255,255,255,0.14)`).
+   - Preserved `#devLoginBtn` and GitHub OAuth URL (`authUrl`) with exact functional hooks and attributes.
+   - Refined legal copy linking to `/terms` and `/privacy`.
+   - Replaced colorful emojis with clean, professional SVG security icons (Least Privilege, Zero Plaintext Storage, OAuth PKCE, Data Sovereignty).
+3. **Public Landing Page (`src/views/landing.page.js`)**:
+   - Removed clipped gradient on hero title in favor of solid high-contrast typography (`color: var(--text-main); font-weight: 800;`).
+   - Replaced 3px top borders on evidence state cards with canonical `.card` styling and semantic status badges (`VERIFIED`, `INFERRED`, `CLAIMED`, `UNKNOWN`).
+   - Standardized 6 platform capability cards with clean icon boxes (`width: 36px; height: 36px; border-radius: var(--radius-sm)`).
+   - Preserved all conditional user CTAs (`/dashboard` vs `/login`), MCP protocol documentation links, and GitHub OAuth buttons.
+4. **Account Settings Screen (`src/views/settings.page.js`)**:
+   - Formatted container to 720px max-width with calm slate surface hierarchy.
+   - Profile Information card displayed in a responsive grid (`repeat(auto-fit, minmax(200px, 1fr))`) with clear uppercase labels and status badge (`● ACTIVE`).
+   - Preserved active session form (`<form action="/auth/logout" method="POST">`).
+   - Preserved connected integration links (`/sources`, `/connect`).
+   - GDPR Article 17 Data Sovereignty card styled with calm amber warning alert and red delete button, strictly preserving `<form action="/account" method="POST">`, `<input type="hidden" name="_method" value="DELETE">`, and exact JavaScript confirmation prompt.
+
+#### 2. Files Modified
+- `src/views/login.page.js`
+- `src/views/landing.page.js`
+- `src/views/settings.page.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Git Diff Inspection**: `git diff -- src/views/login.page.js src/views/landing.page.js src/views/settings.page.js` $\rightarrow$ **PASS** (100% of diff contained in presentation markup and inline styles; zero backend, form, route, or event handler modifications).
+- **ESLint**: `npx eslint src/views/login.page.js src/views/landing.page.js src/views/settings.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+- **Unit Tests**:
+  - `tests/unit/overview-root-route.test.js` $\rightarrow$ **7/7 PASS**.
+  - `tests/unit/web-routes-phase2.test.js` $\rightarrow$ **5/5 PASS**.
+  - `tests/unit/oauth-routes-redirect.test.js` $\rightarrow$ **7/7 PASS**.
+  - Overall Unit Suite $\rightarrow$ **1,920/1,920 PASS**.
+- **Secrets Scanner**: `npm run scan:secrets` $\rightarrow$ **PASS (0 secrets detected)**.
+- **Live Visual Inspection (Browser Subagent)**:
+  - Desktop Viewport (1280×800): Verified `/login` (440px card, SVG security list), `/` (clean hero, canonical truth model cards), and `/settings` (responsive grid, sign out, GDPR deletion card). Screenshots saved: `login_desktop_1788510020215.png`, `landing_desktop_1788510074122.png`, `settings_desktop_1788510136885.png`.
+  - Mobile Viewport (375×812): Verified mobile `/login` (zero overflow, full-width touch targets) and `/settings` (clean vertical stacking). Screenshots saved: `login_mobile_1788510238033.png`, `settings_mobile_1788510206825.png`.
+
+---
+
+### P14-005AN UI Redesign Batch 3: Core Evidence and Portfolio Screens (projects.page.js, skills.page.js, skill-detail.page.js)
+
+#### 1. Description & Context
+Implemented Batch 3 of the 7-batch UI redesign adhering strictly to `DESIGN.md`, Linear/Ashby/GitHub design principles, and user approval constraints:
+1. **Scope Boundary**: Modified ONLY presentation markup and styling in `src/views/projects.page.js`, `src/views/skills.page.js`, and `src/views/skill-detail.page.js`. Zero route changes, zero backend logic changes, zero form action/method changes, zero ID/CSRF changes, zero query parameter changes (`?tab=active`, `?tab=archived`), zero script handler changes (`openRemoveProjectModal`, `closeRemoveProjectModal`, `scrollToEvidenceExplorer`, `toggleAllExplorerCategories`), zero changes to `layout.js`.
+2. **Projects Screen (`src/views/projects.page.js`)**:
+   - Clean slate card surface hierarchy (`#111827`, subtle border `rgba(255,255,255,0.08)`).
+   - Removed pipeline banner emojis (`📦`, `🔍`, `💼`, `📎`, `🤖`) in favor of crisp typography.
+   - Replaced ad-hoc inline alert styles with canonical `.alert .alert-error` and `.alert .alert-success`.
+   - Standardized filter tabs (`/projects?tab=active`, `/projects?tab=archived`) with subtle borders and badge pill counts.
+   - Formatted repository identifiers in monospace (`repo: <code>slug</code>`).
+   - Standardized Safe Removal Confirmation Modal dialog with calm slate styling, preserving `#removeProjectModal`, `#modalProjectName`, `#removeProjectForm`, and all JavaScript functions.
+   - In `renderProjectDetail`: refined header card, metadata strip (Role, Evidence Citations, Provenance Model), and structured `.data-table` with confidence bar, commit SHA badges, and monospace source location paths.
+3. **Skills & Evidence Overview (`src/views/skills.page.js`)**:
+   - Replaced 4-tier truth model stat card thick left borders (`border-left: 4px solid ...`) with canonical `.stat-card` styling.
+   - Cleaned up `renderSourceInfo`: removed emoji noise (`ℹ️`, `📦`, `📎`, `📄`, `📝`, `🔍`) in favor of monospace paths, repository links, and subtle semantic badges.
+   - Refined primary career competencies category groupings and skill cards.
+   - Cleaned up Inferred Skills section and Technology Explorer accordion panels (`details.explorer-category-accordion`), strictly preserving `.explorer-category-accordion` class, toggle behaviour, `#evidence-explorer` anchor, and `toggleAllExplorerCategories` script.
+4. **Skill Detail Screen (`src/views/skill-detail.page.js`)**:
+   - Refined single skill header card with 5-tier truth badges (`VERIFIED`, `CORROBORATED`, `CLAIMED [Unverified User Claim]`, `INFERRED`, `UNKNOWN`).
+   - Standardized confidence and citation count `.stat-card` displays.
+   - In Supporting Citations: removed `border-left: 4px solid var(--accent-indigo)`, formatted commit SHA pills (`commit <sha>`), code excerpts in dark code blocks (`#0B0F19`) with `JetBrains Mono`.
+   - Reframed Zero-Hallucination Gate note as a calm Slate 800 card with subtle emerald integrity guarantee badge.
+
+#### 2. Files Modified
+- `src/views/projects.page.js`
+- `src/views/skills.page.js`
+- `src/views/skill-detail.page.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Git Diff Inspection**: `git diff -- src/views/projects.page.js src/views/skills.page.js src/views/skill-detail.page.js` $\rightarrow$ **PASS** (Zero changes to `href`, `action`, `method`, `id`, `name`, `value`, `data-*`, query parameters, or JavaScript / template expressions).
+- **ESLint**: `npx eslint src/views/projects.page.js src/views/skills.page.js src/views/skill-detail.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+- **Pre-Batch Unit Test Suite**: `node --max-old-space-size=4096 --test --test-concurrency=1 tests/unit/**/*.test.js` $\rightarrow$ **PASS (1,920/1,920 PASS across 489 suites, 0 failures)**.
+- **Post-Batch Unit Test Suite**: `node --max-old-space-size=4096 --test --test-concurrency=1 tests/unit/**/*.test.js` $\rightarrow$ **PASS (1,920/1,920 PASS across 489 suites, 0 failures)**.
+- **Secrets Scanner**: `npm run scan:secrets` $\rightarrow$ **PASS (0 secrets detected)**.
+- **Live Visual Inspection (Browser Subagent)**:
+  - Desktop Viewport (1280×800): Verified `/projects`, `/skills`, and `/skills/:slug`. Screenshots saved: `projects_desktop_1788511009505.png`, `skills_desktop_1788511038988.png`, `skill_detail_desktop_1788511095978.png`.
+  - Mobile Viewport (375×812): Verified mobile `/projects` and `/skills` (zero horizontal overflow, responsive badge wrapping). Screenshots saved: `projects_mobile_1788511013692.png`, `skills_mobile_1788511048921.png`.
+
+---
+
+### P14-005AO UI Redesign Batch 4: Sources, Documents, and Onboarding Screens (sources.page.js, resumes.page.js, onboarding.page.js)
+
+#### 1. Description & Context
+Implemented Batch 4 of the 7-batch UI redesign adhering strictly to `DESIGN.md`, Linear/Ashby/GitHub design principles, and user approval constraints:
+1. **Scope Boundary**: Modified ONLY presentation markup and styling in `src/views/sources.page.js`, `src/views/resumes.page.js`, and `src/views/onboarding.page.js`. Zero route changes, zero backend logic changes, zero form action/method changes, zero ID/CSRF changes, zero query parameter changes (`?step=1..5`, `?tab=*`), zero script handler changes (`#resumeDropzone`, `#claimSearchInput`, `#claimFilterTabs`, real-time repository search/filter in Step 3, AST polling controller in Step 4), zero changes to `layout.js`.
+2. **Sources Screen (`src/views/sources.page.js`)**:
+   - Clean slate card surface hierarchy (`#111827`, subtle border `rgba(255,255,255,0.08)`).
+   - Removed decorative pipeline banner emojis (`🔗`, `📦`, `🛡️`, `⚡`, `🤖`) in favor of crisp typography.
+   - Refined GitHub App connector card with calm slate surface, elevated SVG icon box (`#1F2937`), and clean status badge.
+   - Preserved `<form action="/sources/disconnect" method="POST">`, `<input type="hidden" name="connectionId">`, and confirmation handler.
+   - Refined connected repository `.data-table` with monospace resource tags and semantic badges.
+   - Polished empty state (`∅`) and Roadmap (Phase 15) connector cards.
+3. **Resumes & Documents Screen (`src/views/resumes.page.js`)**:
+   - Refined index pipeline banner, header, and candidate context banner.
+   - Reframed Truth in AI alert into a calm Slate 800 informational card with `TRUTH BOUNDARY` badge.
+   - Refined `#resumeDropzone` area with subtle dashed border (`1px dashed rgba(255,255,255,0.18)`), clean helper copy, and security indicators without emojis.
+   - Preserved upload form (`action="/resumes/upload"`), delete form (`action="/resumes/:id/delete"`), CSRF inputs, and file input attributes.
+   - In `renderResumeDetailPage`: refined pipeline banner, 5 stat cards in metadata bar, review & promote form, parsed sections breakdown, and claims ledger table.
+   - Preserved `#claimSearchInput`, `#claimFilterTabs`, `.claim-tab-btn`, `#claimsTable`, `.claim-row`, `data-type`, and full inline filtering script.
+4. **Onboarding Wizard Screen (`src/views/onboarding.page.js`)**:
+   - Refined Stepper navigation bar with crisp step badges and subtle divider lines.
+   - Step 1 (Profile): Standardized form card, input fields, and character counters.
+   - Step 2 (GitHub App): Clean connection card, permission scopes breakdown, and credential security card.
+   - Step 3 (Repository Selection): Standardized metric summary bar, instant search input, filter pills, repository selection card rows with monospace full names, public/private badges, and selection checkbox handlers.
+   - Step 4 (AST Ingestion Pipeline): Clean `#ingestionMainPanel`, progress counter bar (`#progressStatusBar`), repository status item cards (`.repo-card-row`), completion stats card (`#completionStatsCard`), failure alerts, and action footer. Strictly preserved `#step4Root`, `#ingestionMainPanel`, `#scopeSubtitle`, `#overallStatusBadge`, `#progressStatusBar`, `#currentPhaseText`, `#progressFractionText`, `#repoProgressList`, `#completionStatsCard`, `#statReposVal`, `#statProjectsVal`, `#statEvidenceVal`, `#statSkillsVal`, `#partialFailureAlert`, `#fatalFailureAlert`, `#step4ActionFooter`, and complete client-side AST polling state controller script.
+   - Step 5 (Completion): Clean completion badge, profile summary card, and CTA buttons to `/dashboard` and `/connect`.
+
+#### 2. Files Modified
+- `src/views/sources.page.js`
+- `src/views/resumes.page.js`
+- `src/views/onboarding.page.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Git Diff Inspection**: `git diff -- src/views/sources.page.js src/views/resumes.page.js src/views/onboarding.page.js` $\rightarrow$ **PASS** (100% of diff contained in presentation markup and inline styles; zero backend, form, route, or event handler modifications).
+- **ESLint**: `npx eslint src/views/sources.page.js src/views/resumes.page.js src/views/onboarding.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+- **Unit Tests**:
+  - `tests/unit/onboarding-repository-selection.test.js` $\rightarrow$ **9/9 PASS**.
+  - `tests/unit/step-1f-ast-ingestion-ux.test.js` $\rightarrow$ **10/10 PASS**.
+  - Complete Unit Suite: `node --max-old-space-size=4096 --test --test-concurrency=1 tests/unit/**/*.test.js` $\rightarrow$ **PASS (1,920/1,920 PASS across 489 suites, 0 failures)**.
+- **Secrets Scanner**: `npm run scan:secrets` $\rightarrow$ **PASS (0 secrets detected)**.
+
+---
+
+### P14-005AP UI Redesign Batch 5: Career Intelligence and Protocols (radar.page.js, applications.page.js, connect.page.js, mcp-docs.page.js)
+
+#### 1. Description & Context
+Implemented Batch 5 of the 7-batch UI redesign adhering strictly to `DESIGN.md`, Linear/Ashby/GitHub design principles, and user approval constraints:
+1. **Scope Boundary**: Modified ONLY presentation markup and styling in `src/views/radar.page.js`, `src/views/applications.page.js`, `src/views/connect.page.js`, and `src/views/mcp-docs.page.js`. Zero route changes, zero backend logic changes, zero form action/method changes, zero ID/CSRF changes, zero query parameter changes, zero script handler changes, zero changes to `layout.js`, zero modification to `TOOLS_CATALOG`, `RESOURCES_CATALOG`, or `PROMPTS_CATALOG` export schemas.
+2. **Radar & Job Fit Screen (`src/views/radar.page.js`)**:
+   - Clean slate surface hierarchy (`#111827`, `#0B0F19`, subtle borders `rgba(255,255,255,0.08)`).
+   - Removed decorative emojis (`🎯`, `📊`, `⚡`, `🔍`, `💡`, `📌`) while strictly preserving exact tested string literals (`Job Fit Radar`, `← Back to Dashboard`, `← New Analysis`, `How It Works`, `Paste Job Description`, `Evidence Matching`, `Radar Analysis`, `Job Fit Analysis Result`, `Analyze Another Job`, `Start New Analysis`).
+   - Standardized 6-axis SVG radar chart, ATS score circular gauge, requirement match pills, and gap remediation cards.
+3. **Job Applications Tracker (`src/views/applications.page.js`)**:
+   - Refined pipeline banner with clean step indicators and typography.
+   - Refined 5 metric stat cards (`TOTAL PIPELINE`, `SAVED & LEADS`, `IN SCREENING`, `INTERVIEWING`, `OFFERS`).
+   - Clean `.data-table` with monospace salary, location tags, and text-only status badges (removed `🎉`, `⚡`, `📩`, `📌`).
+   - Strictly preserved inline stage update form (`/applications/${app.id}/status`), `#createAppModal`, `openCreateModal()`, `closeCreateModal()`, and all modal form input fields.
+4. **AI Connection Center (`src/views/connect.page.js`)**:
+   - Clean provider cards with discrete monograms (`CL`, `GPT`, `GEM`) and slate elevated backgrounds.
+   - Standardized universal endpoint card (`#mcpEndpointInput`, `#copyEndpointBtn`) and one-time secret token banner (`#rawTokenInput`, `#copyTokenBtn`).
+   - Clean Personal Token generator form (`#tokenNameInput`, `#expirySelect`, scope checkboxes) and active tokens table with revocation form.
+   - Standardized Two-Phase Write Safety kernel architecture card with 4 step cards.
+   - Strictly preserved all routes, forms, CSRF tokens, `copyToClipboard()`, and `refreshAiStatus()`.
+5. **MCP Developer Documentation (`src/views/mcp-docs.page.js`)**:
+   - Kept all 26 tools, 8 resources, and 4 prompts data arrays 100% untouched.
+   - Refined Hero Header, protocol quick reference card, and navigation jump links (removed `⚡`, `📦`, `💬`, `🔑`, `🛡️`, `🟣`, `🗺️`).
+   - Cleaned `#toolSearchInput`, `#categoryFilterContainer` buttons, `.tool-card` containers, parameters table, and JSON-RPC pre blocks.
+   - Standardized Inverse Authority State Machine diagram, client setup guides (`#claude`, `#chatgpt`, `#gemini`), and SEP-1865 MCP Apps architecture.
+   - Strictly preserved `filterCategory(cat, btn)` and `filterTools()`.
+
+#### 2. Files Modified
+- `src/views/radar.page.js`
+- `src/views/applications.page.js`
+- `src/views/connect.page.js`
+- `src/views/mcp-docs.page.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Functional Diff Audit**: `git diff --stat src/views/radar.page.js src/views/applications.page.js src/views/connect.page.js src/views/mcp-docs.page.js` $\rightarrow$ **PASS** (Zero modifications to backend logic, APIs, forms, actions, methods, IDs, CSRF tokens, query parameters, or catalog exports).
+- **ESLint**: `npx eslint src/views/radar.page.js src/views/applications.page.js src/views/connect.page.js src/views/mcp-docs.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+- **Targeted Unit Tests**:
+  - `tests/unit/radar-page.test.js` $\rightarrow$ **20/20 PASS**.
+  - `tests/unit/mcp-registry-contract.test.js` $\rightarrow$ **9/9 PASS**.
+  - `tests/unit/web-routes-phase2.test.js` $\rightarrow$ **5/5 PASS**.
+  - `tests/integration/web-application-routes.test.js` $\rightarrow$ **20/20 PASS**.
+- **Complete Test Suite**: `node --max-old-space-size=4096 --test --test-concurrency=1 tests/unit/**/*.test.js` $\rightarrow$ **PASS (1,920/1,920 PASS across 489 suites, 0 failures)**.
+- **Secrets Scanner**: `npm run scan:secrets` $\rightarrow$ **PASS (0 secrets detected)**.
+- **Live Visual Inspection (Browser Subagent)**:
+  - `/docs/mcp`: Desktop (1280×800) and Mobile (375×667) screenshots verified. `#toolSearchInput` filtering and `#categoryFilterContainer` buttons verified functional.
+  - `/apps/radar`: Desktop and Mobile screenshots verified. Form layout, validation hints, and card hierarchy verified.
+  - `/applications`: Desktop and Mobile screenshots verified. Pipeline banner, stat cards, and status badges verified.
+  - `/connect`: Desktop and Mobile screenshots verified. Remote MCP endpoint, provider cards, and token generator verified.
+  - Recording saved: `batch5_visual_inspect_1788518239251.webp`. Screenshots saved: `mcp_docs_hero_desktop_1788518339403.png`, `mcp_docs_mobile_1788518432795.png`, `radar_desktop_1788518519634.png`, `radar_mobile_1788518527737.png`, `applications_desktop_1788518559993.png`, `applications_mobile_1788518569508.png`, `connect_desktop_1788518594891.png`, `connect_mobile_1788518607774.png`.
+
+---
+
+### P14-005AQ UI Redesign Batch 6: Candidate Identity & Profile (profile.page.js)
+
+#### 1. Description & Context
+Implemented Batch 6 of the 7-batch UI redesign adhering strictly to `DESIGN.md`, Linear/Ashby/GitHub design principles, and user approval constraints:
+1. **Scope Boundary**: Modified ONLY presentation markup and styling in `src/views/profile.page.js`. Zero route changes, zero backend logic changes, zero form action/method changes, zero ID/CSRF changes, zero query parameter changes, zero script handler changes, zero changes to `layout.js`, and strict preservation of all client-side state models, catalog search filters, and AJAX/autosave controllers.
+2. **Profile Snapshot Header & Candidate Identity Area**:
+   - Clean slate surface hierarchy (`#111827`, `#0B0F19`, subtle borders `rgba(255,255,255,0.08)`).
+   - Crisp monogram avatar (`#1F2937` with subtle indigo border), status badges (`STATUS: FRESHER`, `100% Populated`, `Job Matching: ✓ Ready`).
+   - Standardized completion progress bar with subtle track and `#6366F1` fill.
+   - Quick section status pills (1 through 5) with checkmarks (`✓`) and hover states.
+   - Restrained MCP data flow banner.
+3. **Professional Identity & Standing (Section 1)**:
+   - Form inputs (`#displayName`, `#headline`, `#currentRole`, `#careerStatus`, `#location`, `#summary`) styled with calm slate backgrounds, sharp focus rings, and crisp labels.
+   - Current Active Employment card (`#currentEmploymentDisplay`, `#currentEmploymentText`) with clean edit trigger and location suggestion chips.
+4. **Work Experience & Education (Sections 2 & 3)**:
+   - Multi-record timeline cards with provenance badges (`✓ User Provided`, `✓ Verified`, `○ Claimed`), clean date ranges, bullet lists, and button actions (`Edit`, `Delete`, `+ Add Experience`, `+ Add Education`).
+   - Derived Tenure Metrics box (`#dispTotalExp`, `#dispProfExp`, `#dispSeExp`, `#dispSeniority`) with clean uppercase labels and bold statistics.
+5. **Credentials, Languages, & Links (Section 4)**:
+   - Multi-record cards for Certifications, Languages, and Portfolio Links with clean `+ Add` triggers and inline delete actions.
+6. **Career Skills & Additional Skills (Sections 5 & 5B)**:
+   - Evidence-Controlled banner and source summary indicators (GitHub Verified, Corroborated, Resume Claimed).
+   - Categorized skills grid with clean tags and provenance status (`✓ Verified`, `✓ Corroborated`, `○ Claimed`).
+   - Additional Libraries & Tools (`technologySignals`) with supporting evidence counts.
+   - Section 5B: Self-Declared additional skills with `#additionalSkillsContainer` and `+ Add Skill` trigger.
+7. **Skill Catalog Modal (`#skillCatalogModal`)**:
+   - Translucent backdrop overlay, clean header, scrollable body (`#catalogModalBody`), live search input (`#catalogSearchInput`), category filter pills (`#catalogCategoriesList`), available skills list (`#catalogSkillsList`), configuration form (`#addSkillForm`, `#selectedSkillName`, `#selectedSkillCategoryBadge`, `#btnStatusSelfDeclared`, `#btnStatusLearning`), proficiency tier selector (`#selectedProficiencyTier`), usage context, and notes.
+   - Strictly preserved 100% local client-side state operation without extra network calls.
+8. **Job Search Preferences (Section 7)**:
+   - Multi-select chips containers (`#targetRolesContainer`, `#preferredLocationsContainer`) with inline remove `×` controls and quick suggestions.
+   - Preferences grid with remote preference, compensation floor & currency, availability timeline, and relocation willingness.
+9. **Save Bar & Action Hierarchy**:
+   - Top and bottom `Save Profile` submit buttons.
+   - Sticky floating save bar (`#stickySaveBar`) with unsaved changes indicator, `Discard` button, and `Save All Changes` button.
+   - Strictly preserved AJAX PATCH (`/api/profile`) autosave and submission pipeline.
+
+#### 2. Files Modified
+- `src/views/profile.page.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Functional Diff Audit**: `git diff --stat src/views/profile.page.js` $\rightarrow$ **PASS** (100% of diff contained in presentation markup and styling; zero functional selector, form, ID, route, or event handler modifications).
+- **ESLint**: `npx eslint src/views/profile.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+- **Targeted Unit Tests**:
+  - `tests/unit/profile-architecture.test.js` $\rightarrow$ **6/6 PASS** (DTO, batched save, local state, button safety, evidence protection, no page reload).
+  - `tests/unit/profile-save-ajax-regression.test.js` $\rightarrow$ **18/18 PASS** (Minimal response, DB mutation persistence, evidence-locked invariants, authorization enforcement, tenant isolation, response shape).
+  - `tests/unit/candidate-career-profile.test.js` $\rightarrow$ **40/40 PASS** (Profile retrieval, preferences, verification semantics, HTML rendering parity).
+  - `tests/unit/career-profile-ux-refinement.test.js` $\rightarrow$ **16/16 PASS**.
+- **Complete Test Suite**: `node --max-old-space-size=4096 --test --test-concurrency=1 tests/unit/**/*.test.js` $\rightarrow$ **PASS (1,920/1,920 PASS across 489 suites, 0 failures)**.
+- **Secrets Scanner**: `npm run scan:secrets` $\rightarrow$ **PASS (0 secrets detected)**.
+- **Live Visual Inspection (Browser Subagent)**:
+  - `/profile`: Desktop (1280×800) and Mobile (375×667) screenshots verified.
+  - Header & Readiness Bar, Form layout, Multi-record timeline cards, Skills categories, Skill Catalog modal, and Job Search Preferences verified.
+  - Mobile responsive stacking and single-column flex layout verified with zero horizontal overflow or clipping.
+  - Recording saved: `batch6_profile_inspect_1788519377138.webp`. Screenshots saved: `desktop_profile_header_1788519444679.png`, `desktop_skill_catalog_modal_1788519577612.png`, `desktop_job_preferences_1788519641675.png`, `mobile_profile_header_1788519662880.png`, `mobile_section7_preferences_1788519741750.png`.
+
+---
+
+### P14-005AR UI Redesign Batch 7: Settings & Final Global Polish (settings.page.js)
+
+#### 1. Description & Context
+Implemented Batch 7 of the 7-batch UI redesign adhering strictly to `DESIGN.md`, Linear/Ashby/GitHub design principles, and user constraints:
+1. **Scope Boundary**: Modified ONLY presentation markup and styling in `src/views/settings.page.js`. Zero route changes, zero backend logic changes, zero form action/method changes, zero ID/CSRF changes, zero query parameter changes, zero script handler changes, and strict preservation of active session termination (`/auth/logout`) and GDPR Article 17 account hard-deletion (`/account`).
+2. **Page Header & Identity Area**:
+   - Clean slate surface hierarchy (`#111827`, `#0B0F19`, subtle borders `rgba(255,255,255,0.08)`).
+   - Breadcrumb navigation (`Overview / Settings`) and `← Back to Dashboard` backlink.
+   - `WORKSPACE SETTINGS` restrained pill badge with calm typography.
+   - Candidate Identity hero strip featuring monogram slate avatar (`#1F2937`), display name, canonical email, and `TIER: ${tenant.tier}` badge.
+3. **Section 1: Candidate Identity & Workspace**:
+   - Key/value metadata grid (`Display Name`, `Canonical Email`, `Tenant Workspace`, `Account Status`).
+   - Active status indicator (`● ACTIVE`) in calm emerald.
+   - Quick-action link to full candidate profile (`Edit Full Profile →`).
+4. **Section 2: Security & Active Browser Session**:
+   - Session metadata card explaining partitioned HTTP-only cookies and cryptographic tenant boundary isolation.
+   - Preserved exact sign-out form (`action="/auth/logout" method="POST"`) and secondary button hierarchy.
+5. **Section 3: Connected Integrations & AI Clients**:
+   - 3-column responsive card grid covering **Code Sources** (`/sources`), **AI Connect Center** (`/connect`), and **Developer MCP Docs** (`/docs/mcp`).
+6. **Section 4: Data Portability & Inspection**:
+   - 3-column responsive card grid covering **Resumes & Documents** (`/resumes`), **Verified Skills Graph** (`/skills`), and **Self-Service Data Deletion Guide** (`/data-deletion`).
+7. **Section 5: Data Sovereignty & GDPR Article 17 Hard Deletion**:
+   - Calm danger zone card (`border: 1px solid rgba(239,68,68,0.25); background: rgba(239,68,68,0.02)`).
+   - `GDPR ARTICLE 17` badge and title.
+   - High-contrast warning alert explaining irreversible cascade across all 18+ database tables.
+   - Bulleted list of data permanently purged during hard erasure.
+   - Preserved exact deletion form, method override (`<input type="hidden" name="_method" value="DELETE">`), confirmation handler (`onsubmit="return confirm(...);"`), and red action button.
+
+#### 2. Files Modified
+- `src/views/settings.page.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Functional Diff Audit**: `git diff --stat src/views/settings.page.js` $\rightarrow$ **PASS** (100% of diff contained in presentation markup and styling; zero functional selector, form, ID, route, or event handler modifications).
+- **ESLint**: `npx eslint src/views/settings.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+- **Targeted Integration Tests**: `node --test tests/integration/web-application-routes.test.js` $\rightarrow$ **20/20 PASS** (Settings route, session parity, navigation IA, and token endpoints verified).
+- **Complete Test Suite**: `node --max-old-space-size=4096 --test --test-concurrency=1 tests/unit/**/*.test.js` $\rightarrow$ **PASS (1,920/1,920 PASS across 489 suites, 0 failures)**.
+- **Secrets Scanner**: `npm run scan:secrets` $\rightarrow$ **PASS (0 secrets detected)**.
+- **Live Visual Inspection (Browser Subagent)**:
+  - `/settings`: Desktop (1280×800) and Mobile (375×667) screenshots verified.
+  - Monogram avatar, candidate identity metadata, active session controls, connected integration cards, data portability links, and GDPR Article 17 erasure card verified.
+  - Mobile responsive stacking and single-column flex layout verified with zero horizontal overflow or clipping.
+  - Recording saved: `batch7_settings_inspect_-62135596800000.webp`. Screenshots saved: `settings_desktop_1788520671973.png`, `settings_mobile_1788520685100.png`.
 
 ---
 

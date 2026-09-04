@@ -1367,13 +1367,14 @@ function renderClassificationBadge(classification) {
     case 'Tracking':
       return `<span class="badge badge-amber">Tracking</span>`;
     case 'Workflow':
-      return `<span class="badge badge-emerald" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">Workflow</span>`;
+      return `<span class="badge badge-emerald" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25);">Workflow</span>`;
     case 'Profile':
-      return `<span class="badge badge-purple" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Profile</span>`;
+      return `<span class="badge badge-purple" style="background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.25);">Profile</span>`;
     default:
       return `<span class="badge">${escapeHtml(classification)}</span>`;
   }
 }
+
 /**
  * Renders the public MCP documentation page HTML.
  *
@@ -1386,78 +1387,79 @@ export function renderMcpDocsPage({ user = null } = {}) {
     <div class="container" style="max-width: 1080px; margin: 20px auto 80px;">
       <!-- Hero Header -->
       <div style="margin-bottom: 2.5rem;">
-        <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 9999px; padding: 4px 14px; margin-bottom: 1rem;">
-          <span style="font-size: 0.75rem; font-weight: 600; color: #818cf8; text-transform: uppercase; letter-spacing: 0.05em;">
-            Model Context Protocol Specification 2026-07-28
+        <div style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 1rem;">
+          <span class="badge badge-indigo" style="font-size: 0.75rem; letter-spacing: 0.04em;">
+            PROTOCOL SPECIFICATION 2026-07-28
           </span>
+          <span class="badge badge-verified">STREAMABLE HTTP</span>
         </div>
-        <h1 style="font-size: 2.25rem; font-weight: 800; color: #f8fafc; letter-spacing: -0.02em; margin-bottom: 0.75rem;">
+        <h1 style="font-size: 2.25rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em; margin-bottom: 0.75rem;">
           Universal MCP Server Documentation
         </h1>
-        <p style="color: #94a3b8; font-size: 1.05rem; line-height: 1.6; max-width: 800px;">
+        <p style="color: var(--text-dim); font-size: 1.05rem; line-height: 1.6; max-width: 800px;">
           AI Careers Hub exposes a standards-compliant remote Model Context Protocol (MCP) server over Streamable HTTP transport, empowering Anthropic Claude, OpenAI ChatGPT, and Google Gemini with verified candidate career intelligence.
         </p>
       </div>
 
       <!-- Quick Reference Specs Box -->
-      <div class="card" style="margin-bottom: 3rem; background: var(--bg-surface-elevated);">
-        <h3 style="font-size: 1.1rem; font-weight: 700; color: #f8fafc; margin-bottom: 1.25rem;">Universal Protocol Endpoints</h3>
+      <div class="card" style="margin-bottom: 2.5rem; background: var(--bg-surface-elevated);">
+        <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 1.25rem;">Universal Protocol Endpoints</h3>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; font-size: 0.875rem;">
           <div>
-            <span style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 600;">Streamable MCP Endpoint</span>
-            <div style="margin-top: 4px;"><code>POST /mcp</code> (JSON-RPC 2.0)</div>
+            <span style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.04em;">Streamable MCP Endpoint</span>
+            <div style="margin-top: 4px;"><code>POST /mcp</code> <span style="color:var(--text-muted); font-size:0.8rem;">(JSON-RPC 2.0)</span></div>
           </div>
           <div>
-            <span style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 600;">Transport Protocol</span>
+            <span style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.04em;">Transport Protocol</span>
             <div style="margin-top: 4px;"><span class="badge badge-indigo">Streamable HTTP / SSE</span></div>
           </div>
           <div>
-            <span style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 600;">OAuth 2.1 Server Metadata</span>
+            <span style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.04em;">OAuth 2.1 Server Metadata</span>
             <div style="margin-top: 4px;"><code>/.well-known/oauth-authorization-server</code></div>
           </div>
           <div>
-            <span style="color: #64748b; font-size: 0.75rem; text-transform: uppercase; font-weight: 600;">RFC 9728 Protected Resource</span>
+            <span style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 600; letter-spacing: 0.04em;">RFC 9728 Protected Resource</span>
             <div style="margin-top: 4px;"><code>/.well-known/oauth-protected-resource</code></div>
           </div>
         </div>
 
         <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-          <div style="font-size: 0.85rem; color: #94a3b8;">
-            Active Registry: <strong style="color: #f8fafc;">${TOOLS_CATALOG.length} Tools</strong> (6 Domains) • <strong style="color: #f8fafc;">${RESOURCES_CATALOG.length} Resources</strong> • <strong style="color: #f8fafc;">${PROMPTS_CATALOG.length} Prompts</strong>
+          <div style="font-size: 0.85rem; color: var(--text-dim);">
+            Active Registry: <strong style="color: var(--text-main);">${TOOLS_CATALOG.length} Tools</strong> (6 Domains) • <strong style="color: var(--text-main);">${RESOURCES_CATALOG.length} Resources</strong> • <strong style="color: var(--text-main);">${PROMPTS_CATALOG.length} Prompts</strong>
           </div>
           <a href="/connect" class="btn btn-primary btn-sm">
-            <span>Open AI Connection Center →</span>
+            Open AI Connection Center →
           </a>
         </div>
       </div>
 
       <!-- Navigation Jump Links -->
-      <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2.5rem;">
-        <a href="#tools" class="btn btn-secondary btn-sm">⚡ ${TOOLS_CATALOG.length}-Tool Catalog</a>
-        <a href="#resources" class="btn btn-secondary btn-sm">📦 ${RESOURCES_CATALOG.length} Resources</a>
-        <a href="#prompts" class="btn btn-secondary btn-sm">💬 ${PROMPTS_CATALOG.length} Prompts</a>
-        <a href="#auth" class="btn btn-secondary btn-sm">🔑 Authentication & Scopes</a>
-        <a href="#write-safety" class="btn btn-secondary btn-sm">🛡️ Two-Phase Write Safety</a>
-        <a href="#clients" class="btn btn-secondary btn-sm">🟣 Claude & ChatGPT Setup</a>
-        <a href="#roadmap" class="btn btn-secondary btn-sm">🗺️ Roadmap & Standards</a>
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2.5rem;">
+        <a href="#tools" class="btn btn-secondary btn-sm">${TOOLS_CATALOG.length}-Tool Catalog</a>
+        <a href="#resources" class="btn btn-secondary btn-sm">${RESOURCES_CATALOG.length} Resources</a>
+        <a href="#prompts" class="btn btn-secondary btn-sm">${PROMPTS_CATALOG.length} Prompts</a>
+        <a href="#auth" class="btn btn-secondary btn-sm">Authentication & Scopes</a>
+        <a href="#write-safety" class="btn btn-secondary btn-sm">Two-Phase Write Safety</a>
+        <a href="#clients" class="btn btn-secondary btn-sm">AI Client Setup</a>
+        <a href="#roadmap" class="btn btn-secondary btn-sm">Roadmap & Boundaries</a>
       </div>
 
       <!-- Section 1: Complete 26-Tool Catalog -->
       <section id="tools" style="margin-bottom: 3.5rem;">
         <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
           <div>
-            <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem;">
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">
               1. Complete MCP Tool Catalog (${TOOLS_CATALOG.length} Tools)
             </h2>
-            <p style="color: #94a3b8; font-size: 0.9rem;">
+            <p style="color: var(--text-dim); font-size: 0.9rem;">
               Filter by category or search tool names and capabilities. All tools enforce multi-tenant default-deny isolation.
             </p>
           </div>
 
           <!-- Real-Time Tool Search Filter -->
           <div style="min-width: 260px;">
-            <input type="text" id="toolSearchInput" onkeyup="filterTools()" placeholder="🔍 Filter tools (e.g. search_jobs, resume, pr, fit)..." class="form-control" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">
+            <input type="text" id="toolSearchInput" onkeyup="filterTools()" placeholder="Filter tools (e.g. search_jobs, resume, pr, fit)..." class="form-control" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">
           </div>
         </div>
 
@@ -1476,39 +1478,39 @@ export function renderMcpDocsPage({ user = null } = {}) {
         <div style="display: flex; flex-direction: column; gap: 1rem;" id="toolsList">
           ${TOOLS_CATALOG.map(
             (t) => `
-            <div class="card tool-card" data-category="${escapeHtml(t.category)}" data-name="${escapeHtml(t.name)}" data-purpose="${escapeHtml(t.purpose)}" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem;">
+            <div class="card tool-card" data-category="${escapeHtml(t.category)}" data-name="${escapeHtml(t.name)}" data-purpose="${escapeHtml(t.purpose)}" style="background: var(--bg-surface-elevated); padding: 1.25rem;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                  <code style="font-size: 1rem; font-weight: 600; color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                  <code style="font-size: 0.95rem; font-weight: 600; color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">
                     ${escapeHtml(t.name)}
                   </code>
                   ${renderClassificationBadge(t.classification)}
-                  <span class="badge" style="background: rgba(255, 255, 255, 0.05); color: #94a3b8; font-size: 0.7rem;">${escapeHtml(t.category)}</span>
+                  <span class="badge" style="background: rgba(255, 255, 255, 0.05); color: var(--text-dim); font-size: 0.7rem;">${escapeHtml(t.category)}</span>
                 </div>
 
                 <div style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.8rem;">
-                  <span style="color: #64748b;">Scope:</span>
+                  <span style="color: var(--text-muted);">Scope:</span>
                   <code>${escapeHtml(t.scope)}</code>
-                  <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; font-size: 0.7rem;">Role >= ${escapeHtml(t.role)}</span>
+                  <span class="badge badge-indigo" style="font-size: 0.7rem;">Role >= ${escapeHtml(t.role)}</span>
                 </div>
               </div>
 
-              <p style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1rem;">
+              <p style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.5; margin-bottom: 1rem;">
                 ${escapeHtml(t.purpose)}
               </p>
 
               <!-- Parameters Table & Example Accordion -->
-              <details style="background: rgba(0, 0, 0, 0.25); border-radius: 6px; padding: 0.75rem; border: 1px solid var(--border-subtle); font-size: 0.825rem;">
+              <details style="background: var(--bg-surface); border-radius: 6px; padding: 0.75rem; border: 1px solid var(--border-subtle); font-size: 0.825rem;">
                 <summary style="cursor: pointer; color: #818cf8; font-weight: 500;">
                   Parameters (${t.parameters.length}) & JSON-RPC Payload Example
                 </summary>
 
                 <div style="margin-top: 0.75rem;">
-                  <h5 style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem;">Input Parameters</h5>
+                  <h5 style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem;">Input Parameters</h5>
                   <div class="table-responsive" style="margin-bottom: 0.75rem;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
                       <thead>
-                        <tr style="border-bottom: 1px solid var(--border-subtle); color: #64748b;">
+                        <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-muted);">
                           <th style="padding: 6px 8px; text-align: left;">Parameter</th>
                           <th style="padding: 6px 8px; text-align: left;">Type</th>
                           <th style="padding: 6px 8px; text-align: left;">Required</th>
@@ -1521,9 +1523,9 @@ export function renderMcpDocsPage({ user = null } = {}) {
                             (p) => `
                           <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
                             <td style="padding: 6px 8px;"><code>${escapeHtml(p.name)}</code></td>
-                            <td style="padding: 6px 8px; color: #38bdf8;">${escapeHtml(p.type)}</td>
-                            <td style="padding: 6px 8px;">${p.required ? '<span style="color:#f87171; font-weight:600;">Yes</span>' : '<span style="color:#64748b;">Optional</span>'}</td>
-                            <td style="padding: 6px 8px; color: #cbd5e1;">${escapeHtml(p.description)}</td>
+                            <td style="padding: 6px 8px; color: #38bdf8; font-family: var(--font-mono);">${escapeHtml(p.type)}</td>
+                            <td style="padding: 6px 8px;">${p.required ? '<span style="color:#f87171; font-weight:600;">Yes</span>' : '<span style="color:var(--text-muted);">Optional</span>'}</td>
+                            <td style="padding: 6px 8px; color: var(--text-dim);">${escapeHtml(p.description)}</td>
                           </tr>
                         `
                           )
@@ -1532,11 +1534,11 @@ export function renderMcpDocsPage({ user = null } = {}) {
                     </table>
                   </div>
 
-                  <h5 style="color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem;">JSON-RPC Invocation Example</h5>
-                  <pre style="background: rgba(15, 23, 42, 0.9); padding: 0.75rem; border-radius: 6px; font-size: 0.75rem; overflow-x: auto; color: #a5f3fc; border: 1px solid var(--border-subtle);">${escapeHtml(JSON.stringify(t.exampleRpc, null, 2))}</pre>
+                  <h5 style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem;">JSON-RPC Invocation Example</h5>
+                  <pre style="background: #0B0F19; padding: 0.75rem; border-radius: 6px; font-size: 0.75rem; overflow-x: auto; color: #a5f3fc; border: 1px solid var(--border-subtle);">${escapeHtml(JSON.stringify(t.exampleRpc, null, 2))}</pre>
 
-                  <div style="margin-top: 0.5rem; font-size: 0.775rem; color: #94a3b8;">
-                    <strong>Safety & Integrity:</strong> ${escapeHtml(t.safetyNotes)}
+                  <div style="margin-top: 0.5rem; font-size: 0.775rem; color: var(--text-dim);">
+                    <strong style="color:var(--text-main);">Safety & Integrity:</strong> ${escapeHtml(t.safetyNotes)}
                   </div>
                 </div>
               </details>
@@ -1549,10 +1551,10 @@ export function renderMcpDocsPage({ user = null } = {}) {
       <!-- Section 2: Complete MCP Resources & Resource Templates -->
       <section id="resources" style="margin-bottom: 3.5rem;">
         <div style="margin-bottom: 1.25rem;">
-          <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">
             2. Canonical MCP Resources & Resource Templates (${RESOURCES_CATALOG.length} Resources)
           </h2>
-          <p style="color: #94a3b8; font-size: 0.9rem;">
+          <p style="color: var(--text-dim); font-size: 0.9rem;">
             Read-only semantic resource URIs and parameterized templates exposing structured candidate intelligence, verified AST evidence, and the Job Fit Radar MCP App UI.
           </p>
         </div>
@@ -1560,36 +1562,36 @@ export function renderMcpDocsPage({ user = null } = {}) {
         <div style="display: flex; flex-direction: column; gap: 1rem;">
           ${RESOURCES_CATALOG.map(
             (r) => `
-            <div class="card" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem;">
+            <div class="card" style="background: var(--bg-surface-elevated); padding: 1.25rem;">
               <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                  <code style="font-size: 0.95rem; font-weight: 600; color: #34d399; background: rgba(52, 211, 153, 0.1); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.25);">
+                  <code style="font-size: 0.95rem; font-weight: 600; color: #34d399; background: rgba(52, 211, 153, 0.08); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.2);">
                     ${escapeHtml(r.uri)}
                   </code>
                   ${r.isMcpApp ? '<span class="badge badge-indigo">MCP App UI</span>' : '<span class="badge badge-cyan">Resource</span>'}
-                  ${r.isTemplate ? '<span class="badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Template</span>' : ''}
+                  ${r.isTemplate ? '<span class="badge badge-purple">Template</span>' : ''}
                 </div>
 
                 <div style="display: flex; gap: 0.5rem; align-items: center; font-size: 0.8rem;">
-                  <span style="color: #64748b;">MIME:</span>
-                  <code style="color: #e2e8f0; font-size: 0.75rem;">${escapeHtml(r.mimeType)}</code>
-                  <span style="color: #64748b;">Scope:</span>
+                  <span style="color: var(--text-muted);">MIME:</span>
+                  <code style="color: var(--text-dim); font-size: 0.75rem;">${escapeHtml(r.mimeType)}</code>
+                  <span style="color: var(--text-muted);">Scope:</span>
                   <code>${escapeHtml(r.scope)}</code>
                 </div>
               </div>
 
-              <div style="font-weight: 600; color: #f8fafc; font-size: 0.95rem; margin-bottom: 0.25rem;">
+              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem; margin-bottom: 0.25rem;">
                 ${escapeHtml(r.name)}
               </div>
-              <p style="color: #cbd5e1; font-size: 0.875rem; line-height: 1.5; margin-bottom: 0.75rem;">
+              <p style="color: var(--text-dim); font-size: 0.875rem; line-height: 1.5; margin-bottom: 0.75rem;">
                 ${escapeHtml(r.purpose)}
               </p>
 
-              <div style="background: rgba(0, 0, 0, 0.25); border-radius: 6px; padding: 0.6rem 0.85rem; border: 1px solid var(--border-subtle); font-size: 0.8rem; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="background: var(--bg-surface); border-radius: 6px; padding: 0.6rem 0.85rem; border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                 <div>
-                  <strong>Read Example:</strong> <code style="color: #38bdf8;">resources/read(uri="${escapeHtml(r.exampleUri)}")</code>
+                  <strong style="color:var(--text-main);">Read Example:</strong> <code style="color: #38bdf8;">resources/read(uri="${escapeHtml(r.exampleUri)}")</code>
                 </div>
-                <div style="font-size: 0.75rem; color: #94a3b8;">
+                <div style="font-size: 0.75rem; color: var(--text-muted);">
                   <strong>Safety:</strong> ${escapeHtml(r.safetyNotes)}
                 </div>
               </div>
@@ -1602,10 +1604,10 @@ export function renderMcpDocsPage({ user = null } = {}) {
       <!-- Section 3: Reusable MCP Prompts -->
       <section id="prompts" style="margin-bottom: 3.5rem;">
         <div style="margin-bottom: 1.25rem;">
-          <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">
             3. Structured Reusable MCP Prompts (${PROMPTS_CATALOG.length} Prompts)
           </h2>
-          <p style="color: #94a3b8; font-size: 0.9rem;">
+          <p style="color: var(--text-dim); font-size: 0.9rem;">
             Pre-engineered prompts guiding AI assistants through authentic resume audits, gap analysis, application preparation, and targeted job discovery.
           </p>
         </div>
@@ -1613,38 +1615,37 @@ export function renderMcpDocsPage({ user = null } = {}) {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
           ${PROMPTS_CATALOG.map(
             (p) => `
-            <div class="card" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
+            <div class="card" style="background: var(--bg-surface-elevated); padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between;">
               <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                  <code style="font-size: 0.95rem; font-weight: 600; color: #818cf8; background: rgba(99, 102, 241, 0.1); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(99, 102, 241, 0.25);">
+                  <code style="font-size: 0.95rem; font-weight: 600; color: #818cf8; background: rgba(99, 102, 241, 0.08); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(99, 102, 241, 0.2);">
                     ${escapeHtml(p.name)}
                   </code>
-                  <span class="badge" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; font-size: 0.7rem;">${escapeHtml(p.scope)}</span>
+                  <span class="badge badge-indigo" style="font-size: 0.7rem;">${escapeHtml(p.scope)}</span>
                 </div>
 
-                <p style="color: #cbd5e1; font-size: 0.875rem; line-height: 1.5; margin-bottom: 1rem;">
+                <p style="color: var(--text-dim); font-size: 0.875rem; line-height: 1.5; margin-bottom: 1rem;">
                   ${escapeHtml(p.description)}
                 </p>
 
                 <div style="margin-bottom: 1rem;">
-                  <div style="font-size: 0.75rem; text-transform: uppercase; color: #64748b; font-weight: 600; margin-bottom: 0.4rem;">Arguments</div>
+                  <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 0.04em; margin-bottom: 0.4rem;">Arguments</div>
                   ${
                     p.arguments.length === 0
-                      ? '<span style="color:#64748b; font-size:0.8rem;">No arguments required</span>'
+                      ? '<span style="color:var(--text-muted); font-size:0.8rem;">No arguments required</span>'
                       : p.arguments
                           .map(
                             (a) => `
-                    <div style="font-size: 0.8rem; margin-bottom: 4px; color: #cbd5e1;">
-                      <code>${escapeHtml(a.name)}</code> <span style="color:#38bdf8;">(${escapeHtml(a.type)})</span>${a.required ? ' <span style="color:#f87171;">*required</span>' : ''} — <span style="color:#94a3b8;">${escapeHtml(a.description)}</span>
+                    <div style="font-size: 0.8rem; margin-bottom: 4px; color: var(--text-dim);">
+                      <code>${escapeHtml(a.name)}</code> <span style="color:#38bdf8; font-family:var(--font-mono);">(${escapeHtml(a.type)})</span>${a.required ? ' <span style="color:#f87171;">*required</span>' : ''} — <span style="color:var(--text-muted);">${escapeHtml(a.description)}</span>
                     </div>
                   `
                           )
-                          .join('')
-                  }
+                          .join('')}
                 </div>
               </div>
 
-              <div style="background: rgba(0, 0, 0, 0.25); border-radius: 6px; padding: 0.5rem 0.75rem; border: 1px solid var(--border-subtle); font-size: 0.775rem; color: #a5f3fc; font-family: var(--font-mono);">
+              <div style="background: #0B0F19; border-radius: 6px; padding: 0.5rem 0.75rem; border: 1px solid var(--border-subtle); font-size: 0.775rem; color: #a5f3fc; font-family: var(--font-mono);">
                 ${escapeHtml(p.exampleUsage)}
               </div>
             </div>
@@ -1655,63 +1656,69 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
       <!-- Section 4: Authentication & Scopes -->
       <section id="auth" style="margin-bottom: 3.5rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">
           4. Authentication, OAuth 2.1 & Scopes
         </h2>
-        <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+        <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Career Hub supports two official authentication mechanisms. All MCP endpoints require an <code>Authorization: Bearer &lt;token&gt;</code> header.
         </p>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
           <!-- OAuth 2.1 PKCE Card -->
-          <div class="card">
-            <h3 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; margin-bottom: 0.5rem;">
-              OAuth 2.1 Authorization Code + PKCE
-            </h3>
-            <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
+          <div class="card" style="background: var(--bg-surface-elevated);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.5rem;">
+              <span class="badge badge-indigo">STANDARD</span>
+              <h3 style="font-size: 1.05rem; font-weight: 600; color: #818cf8; margin:0;">
+                OAuth 2.1 Code + PKCE
+              </h3>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 1rem;">
               Primary method for Anthropic Claude and OpenAI ChatGPT. Clients discover authorization server metadata and perform secure user-interactive login with PKCE S256 challenge.
             </p>
-            <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border-subtle);">
+            <div style="background: var(--bg-surface); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border-subtle);">
               <div><code>GET /.well-known/oauth-authorization-server</code></div>
               <div style="margin-top: 4px;"><code>GET /.well-known/oauth-protected-resource</code></div>
             </div>
           </div>
 
           <!-- Personal API Token Card -->
-          <div class="card">
-            <h3 style="font-size: 1.1rem; font-weight: 600; color: #22d3ee; margin-bottom: 0.5rem;">
-              Personal MCP API Tokens
-            </h3>
-            <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
+          <div class="card" style="background: var(--bg-surface-elevated);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.5rem;">
+              <span class="badge badge-cyan">BEARER</span>
+              <h3 style="font-size: 1.05rem; font-weight: 600; color: #22d3ee; margin:0;">
+                Personal MCP API Tokens
+              </h3>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 1rem;">
               For Google Gemini agents, IDE extensions, and CLI tools. Generated from the Connection Center with role scope ceiling enforcement and stored as SHA-256 hashes.
             </p>
-            <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border-subtle);">
+            <div style="background: var(--bg-surface); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; border: 1px solid var(--border-subtle);">
               <div>Format: <code>mcp_live_&lt;32-byte-hex&gt;</code></div>
-              <div style="margin-top: 4px;">Quota: Maximum 10 active tokens per candidate</div>
+              <div style="margin-top: 4px; color:var(--text-muted);">Quota: Maximum 10 active tokens per candidate</div>
             </div>
           </div>
         </div>
 
         <!-- Scopes Table -->
         <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 1.5rem;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem; text-align: left;">
+          <table class="data-table">
             <thead>
-              <tr style="background: rgba(255, 255, 255, 0.02); border-bottom: 1px solid var(--border-subtle); color: #64748b;">
-                <th style="padding: 10px 16px;">Scope Identifier</th>
-                <th style="padding: 10px 16px;">Role Required</th>
-                <th style="padding: 10px 16px;">Permitted Operations</th>
+              <tr>
+                <th>Scope Identifier</th>
+                <th>Role Required</th>
+                <th>Permitted Operations</th>
               </tr>
             </thead>
             <tbody>
-              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-                <td style="padding: 10px 16px;"><code>career:read</code></td>
-                <td style="padding: 10px 16px;"><span class="badge" style="background: rgba(255, 255, 255, 0.05); color: #94a3b8;">READONLY</span></td>
-                <td style="padding: 10px 16px; color: #cbd5e1;">Inspect candidate profile, AST-verified skills, evidence items, job fit scores, portfolio rankings, resources, prompts, and active application lists.</td>
+              <tr>
+                <td><code>career:read</code></td>
+                <td><span class="badge" style="background: rgba(255, 255, 255, 0.05); color: var(--text-dim);">READONLY</span></td>
+                <td style="color: var(--text-dim);">Inspect candidate profile, AST-verified skills, evidence items, job fit scores, portfolio rankings, resources, prompts, and active application lists.</td>
               </tr>
               <tr>
-                <td style="padding: 10px 16px;"><code>career:write</code></td>
-                <td style="padding: 10px 16px;"><span class="badge badge-indigo">MEMBER</span></td>
-                <td style="padding: 10px 16px; color: #cbd5e1;">Synthesize tailored resumes, draft cover letters, track job applications, update pipeline stages, update preferences, propose diff improvements, and confirm GitHub Draft PRs.</td>
+                <td><code>career:write</code></td>
+                <td><span class="badge badge-indigo">MEMBER</span></td>
+                <td style="color: var(--text-dim);">Synthesize tailored resumes, draft cover letters, track job applications, update pipeline stages, update preferences, propose diff improvements, and confirm GitHub Draft PRs.</td>
               </tr>
             </tbody>
           </table>
@@ -1720,15 +1727,15 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
       <!-- Section 5: Two-Phase Write Safety -->
       <section id="write-safety" style="margin-bottom: 3.5rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">
           5. Two-Phase Write Safety State Machine
         </h2>
-        <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+        <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           To guarantee zero unauthorized code modifications, Career Hub strictly implements an <strong>Inverse Authority State Machine</strong>:
         </p>
 
-        <div class="card" style="border-left: 4px solid #10b981; background: rgba(16, 185, 129, 0.03);">
-          <div style="font-family: var(--font-mono); font-size: 0.85rem; color: #6ee7b7; background: rgba(15, 23, 42, 0.8); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-subtle); line-height: 1.8; margin-bottom: 1.25rem;">
+        <div class="card" style="border-left: 4px solid var(--accent-emerald); background: rgba(16, 185, 129, 0.03);">
+          <div style="font-family: var(--font-mono); font-size: 0.825rem; color: #6ee7b7; background: #0B0F19; padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-subtle); line-height: 1.8; margin-bottom: 1.25rem; overflow-x: auto;">
             [1. AI Proposes Improvement]  --> calls: propose_project_improvement<br>
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
             &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;v<br>
@@ -1747,52 +1754,58 @@ export function renderMcpDocsPage({ user = null } = {}) {
             [6. GitHub Draft PR Opened]   --> Creates branch: feat/career-hub-* & opens Draft Pull Request
           </div>
 
-          <div style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6;">
-            <strong>Absolute Write Boundary:</strong> AI hosts possess zero raw Git credentials and zero authority to execute direct commits, create arbitrary branches, or bypass approval tickets.
+          <div style="font-size: 0.875rem; color: var(--text-dim); line-height: 1.6;">
+            <strong style="color:var(--text-main);">Absolute Write Boundary:</strong> AI hosts possess zero raw Git credentials and zero authority to execute direct commits, create arbitrary branches, or bypass approval tickets.
           </div>
         </div>
       </section>
 
       <!-- Section 6: AI Client Setup Guides -->
       <section id="clients" style="margin-bottom: 3.5rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">
           6. AI Client Setup & Configuration
         </h2>
-        <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+        <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Step-by-step guides for connecting Claude, ChatGPT, and Gemini.
         </p>
 
-        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
           <!-- Claude Setup Guide -->
-          <div class="card" id="claude">
-            <h3 style="font-size: 1.15rem; font-weight: 600; color: #818cf8; margin-bottom: 0.75rem;">
-              Anthropic Claude Setup (Claude.ai & Claude Desktop)
-            </h3>
-            <div style="font-size: 0.875rem; color: #cbd5e1; line-height: 1.6;">
+          <div class="card" id="claude" style="background: var(--bg-surface-elevated);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
+              <span class="badge badge-indigo">CLAUDE</span>
+              <h3 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; margin:0;">
+                Anthropic Claude Setup (Claude.ai & Claude Desktop)
+              </h3>
+            </div>
+            <div style="font-size: 0.875rem; color: var(--text-dim); line-height: 1.6;">
               <p style="margin-bottom: 0.75rem;">
-                <strong>Option A: Claude Desktop Configuration</strong> (<code>claude_desktop_config.json</code>):
+                <strong style="color:var(--text-main);">Option A: Claude Desktop Configuration</strong> (<code>claude_desktop_config.json</code>):
               </p>
-              <pre style="background: rgba(15, 23, 42, 0.9); padding: 0.85rem; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; color: #a5f3fc; border: 1px solid var(--border-subtle); margin-bottom: 1rem;">{
+              <pre style="background: #0B0F19; padding: 0.85rem; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; color: #a5f3fc; border: 1px solid var(--border-subtle); margin-bottom: 1rem;">{
   "mcpServers": {
     "antigravity-career-hub": {
       "url": "http://localhost:3000/mcp"
     }
   }
 }</pre>
-              <p>
-                <strong>Option B: Claude.ai (Web SaaS)</strong>: Open Settings -> Connectors -> Add Custom Connector. Enter your public HTTPS URL (e.g. via Cloudflare Tunnel) and complete OAuth 2.1 login.
+              <p style="margin:0;">
+                <strong style="color:var(--text-main);">Option B: Claude.ai (Web SaaS)</strong>: Open Settings → Connectors → Add Custom Connector. Enter your public HTTPS URL (e.g. via Cloudflare Tunnel) and complete OAuth 2.1 login.
               </p>
             </div>
           </div>
 
           <!-- ChatGPT Setup Guide -->
-          <div class="card" id="chatgpt">
-            <h3 style="font-size: 1.15rem; font-weight: 600; color: #34d399; margin-bottom: 0.75rem;">
-              OpenAI ChatGPT Setup (Custom GPTs & Actions)
-            </h3>
-            <div style="font-size: 0.875rem; color: #cbd5e1; line-height: 1.6;">
-              <ol style="margin-left: 1.2rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                <li>Open <strong>ChatGPT Explore GPTs</strong> -> Create/Edit Custom GPT -> Configure Tab.</li>
+          <div class="card" id="chatgpt" style="background: var(--bg-surface-elevated);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
+              <span class="badge badge-emerald">CHATGPT</span>
+              <h3 style="font-size: 1.1rem; font-weight: 600; color: #34d399; margin:0;">
+                OpenAI ChatGPT Setup (Custom GPTs & Actions)
+              </h3>
+            </div>
+            <div style="font-size: 0.875rem; color: var(--text-dim); line-height: 1.6;">
+              <ol style="margin-left: 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; padding: 0;">
+                <li>Open <strong>ChatGPT Explore GPTs</strong> → Create/Edit Custom GPT → Configure Tab.</li>
                 <li>Add Action pointing to your remote MCP server URL.</li>
                 <li>Set Authentication Type to <strong>OAuth</strong> with Client ID <code>chatgpt-web</code>.</li>
                 <li>Callback URL: <code>https://chatgpt.com/api/mcp/oauth_callback</code>.</li>
@@ -1801,15 +1814,18 @@ export function renderMcpDocsPage({ user = null } = {}) {
           </div>
 
           <!-- Gemini Setup Guide -->
-          <div class="card" id="gemini">
-            <h3 style="font-size: 1.15rem; font-weight: 600; color: #22d3ee; margin-bottom: 0.75rem;">
-              Google Gemini & IDE Setup
-            </h3>
-            <div style="font-size: 0.875rem; color: #cbd5e1; line-height: 1.6;">
+          <div class="card" id="gemini" style="background: var(--bg-surface-elevated);">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.75rem;">
+              <span class="badge badge-cyan">GEMINI</span>
+              <h3 style="font-size: 1.1rem; font-weight: 600; color: #22d3ee; margin:0;">
+                Google Gemini & IDE Setup
+              </h3>
+            </div>
+            <div style="font-size: 0.875rem; color: var(--text-dim); line-height: 1.6;">
               <p style="margin-bottom: 0.5rem;">
                 Generate a Personal MCP API Token in the <a href="/connect" style="color:#22d3ee;">Connection Center</a> and pass it via standard Bearer authorization header:
               </p>
-              <pre style="background: rgba(15, 23, 42, 0.9); padding: 0.85rem; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; color: #a5f3fc; border: 1px solid var(--border-subtle);">curl -X POST http://localhost:3000/mcp \
+              <pre style="background: #0B0F19; padding: 0.85rem; border-radius: 6px; font-size: 0.8rem; overflow-x: auto; color: #a5f3fc; border: 1px solid var(--border-subtle); margin:0;">curl -X POST http://localhost:3000/mcp \
   -H "Authorization: Bearer mcp_live_4a8b..." \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"list_verified_skills","arguments":{}}}'</pre>
@@ -1820,24 +1836,24 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
       <!-- Section 7: Official MCP Registry & MCP Apps Architecture -->
       <section id="registry-and-apps" style="margin-bottom: 3.5rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">
           7. Official MCP Registry Metadata & MCP Apps (SEP-1865)
         </h2>
-        <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+        <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Standards-compliant metadata for decentralized discovery on <code>registry.modelcontextprotocol.io</code> and interactive sandboxed UI extensions.
         </p>
 
         <!-- Subsection 7.1: MCP Registry Metadata -->
-        <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card" style="margin-bottom: 1.5rem; background: var(--bg-surface-elevated);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">7.1 Official Registry Manifest (<code>server.json</code>)</h3>
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--text-main); margin:0;">7.1 Official Registry Manifest (<code>server.json</code>)</h3>
             <span class="badge badge-claimed">PLANNED / NOT PUBLISHED</span>
           </div>
-          <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem;">
+          <p style="font-size: 0.875rem; color: var(--text-dim); line-height: 1.6; margin-bottom: 1rem;">
             Conforms strictly to the official MCP Registry schema (<code>https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json</code>). Public submission is explicitly <strong>BLOCKED UNTIL PUBLIC STAGING</strong> (PLANNED / NOT PUBLISHED) because the official registry requires a permanent, publicly reachable HTTPS endpoint.
           </p>
 
-          <pre style="background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 1rem; color: #38bdf8; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; margin-bottom: 1rem;">{
+          <pre style="background: #0B0F19; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1rem; color: #38bdf8; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; margin-bottom: 1rem;">{
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "ai.careerhub/mcp-server",
   "title": "AI Careers Hub",
@@ -1878,18 +1894,18 @@ export function renderMcpDocsPage({ user = null } = {}) {
         </div>
 
         <!-- Subsection 7.2: MCP Apps UI Extension -->
-        <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card" style="margin-bottom: 1.5rem; background: var(--bg-surface-elevated);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-            <h3 style="font-size: 1.125rem; font-weight: 600; color: #f8fafc;">7.2 MCP Apps UI Extension (<code>io.modelcontextprotocol/ui</code>)</h3>
+            <h3 style="font-size: 1.125rem; font-weight: 600; color: var(--text-main); margin:0;">7.2 MCP Apps UI Extension (<code>io.modelcontextprotocol/ui</code>)</h3>
             <span class="badge badge-verified">PLANNED / NOT IMPLEMENTED (MVP DEMO AVAILABLE)</span>
           </div>
-          <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1rem;">
+          <p style="font-size: 0.875rem; color: var(--text-dim); line-height: 1.6; margin-bottom: 1rem;">
             Implements <strong>SEP-1865</strong> (Model Context Protocol Apps). The Career Hub server exposes interactive UI widgets rendered in sandboxed iframes. <em>Host support must be verified per client.</em>
           </p>
 
-          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-            <h4 style="font-size: 0.9rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem;">Job Fit Radar MVP (<code>ui://career-hub/job-fit-radar/v1</code>)</h4>
-            <ul style="color: #94a3b8; font-size: 0.85rem; line-height: 1.6; padding-left: 1.25rem;">
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+            <h4 style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">Job Fit Radar MVP (<code>ui://career-hub/job-fit-radar/v1</code>)</h4>
+            <ul style="color: var(--text-dim); font-size: 0.85rem; line-height: 1.6; padding-left: 1.25rem; margin:0;">
               <li><strong>Linked Tool</strong>: <code>analyze_job_fit</code> (via <code>_meta.ui.resourceUri</code>).</li>
               <li><strong>MIME Profile</strong>: <code>text/html;profile=mcp-app</code>.</li>
               <li><strong>Security Sandbox</strong>: Zero write access, strict CSP (<code>connect-src 'none'</code>), zero external CDN/font dependencies, strict HTML entity escaping.</li>
@@ -1898,9 +1914,9 @@ export function renderMcpDocsPage({ user = null } = {}) {
             </ul>
           </div>
 
-          <h4 style="font-size: 0.9rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.75rem;">Host Compatibility Matrix (With Evidence Levels)</h4>
-          <div style="overflow-x: auto;">
-            <table class="table" style="font-size: 0.825rem;">
+          <h4 style="font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.75rem;">Host Compatibility Matrix (With Evidence Levels)</h4>
+          <div class="table-responsive">
+            <table class="data-table" style="font-size: 0.825rem;">
               <thead>
                 <tr>
                   <th>AI Host</th>
@@ -1917,32 +1933,32 @@ export function renderMcpDocsPage({ user = null } = {}) {
                   <td><span class="badge badge-verified">VERIFIED HERMETICALLY</span></td>
                   <td><span class="badge badge-verified">VERIFIED HERMETICALLY (PKCE)</span></td>
                   <td><span class="badge badge-claimed">OFFICIAL DOCUMENTATION SUPPORT</span></td>
-                  <td>Requires public HTTPS tunnel (Cloudflare/staging)</td>
-                  <td>Standard text/markdown tool output</td>
+                  <td style="color:var(--text-dim);">Requires public HTTPS tunnel (Cloudflare/staging)</td>
+                  <td style="color:var(--text-dim);">Standard text/markdown tool output</td>
                 </tr>
                 <tr>
                   <td><strong>Claude Desktop</strong></td>
                   <td><span class="badge badge-verified">VERIFIED LIVE</span></td>
                   <td><span class="badge badge-verified">VERIFIED HERMETICALLY (PKCE)</span></td>
                   <td><span class="badge badge-claimed">OFFICIAL DOCUMENTATION SUPPORT</span></td>
-                  <td>Direct streamable HTTP support</td>
-                  <td>Standard text/markdown tool output</td>
+                  <td style="color:var(--text-dim);">Direct streamable HTTP support</td>
+                  <td style="color:var(--text-dim);">Standard text/markdown tool output</td>
                 </tr>
                 <tr>
                   <td><strong>ChatGPT</strong></td>
                   <td><span class="badge badge-verified">VERIFIED HERMETICALLY</span></td>
                   <td><span class="badge badge-verified">VERIFIED HERMETICALLY (RFC 9728)</span></td>
                   <td><span class="badge badge-claimed">OFFICIAL DOCUMENTATION SUPPORT</span></td>
-                  <td>Requires Plus/Pro developer mode and public HTTPS callback URL</td>
-                  <td>Structured JSON / markdown output</td>
+                  <td style="color:var(--text-dim);">Requires Plus/Pro developer mode and public HTTPS callback URL</td>
+                  <td style="color:var(--text-dim);">Structured JSON / markdown output</td>
                 </tr>
                 <tr>
                   <td><strong>Google Gemini</strong></td>
                   <td><span class="badge badge-verified">VERIFIED LIVE</span></td>
                   <td><span class="badge badge-rejected">UNSUPPORTED</span></td>
                   <td><span class="badge badge-rejected">UNSUPPORTED / CLI ONLY</span></td>
-                  <td>Consumer Web UI lacks custom MCP Apps iframe sandbox; uses Personal Token</td>
-                  <td>Standard CLI/SDK JSON-RPC tool result</td>
+                  <td style="color:var(--text-dim);">Consumer Web UI lacks custom MCP Apps iframe sandbox; uses Personal Token</td>
+                  <td style="color:var(--text-dim);">Standard CLI/SDK JSON-RPC tool result</td>
                 </tr>
               </tbody>
             </table>
@@ -1952,40 +1968,40 @@ export function renderMcpDocsPage({ user = null } = {}) {
 
       <!-- Section 8: Roadmap & Architectural Standards -->
       <section id="roadmap" style="margin-bottom: 3.5rem;">
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">
           8. Roadmap & Architectural Boundaries
         </h2>
-        <p style="color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+        <p style="color: var(--text-dim); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
           Explicit distinction between currently implemented features and future planned capabilities.
         </p>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
-          <div class="card" style="border-left: 3px solid #6366f1;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;">
+          <div class="card" style="border-left: 3px solid #6366f1; background: var(--bg-surface-elevated);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <h4 style="font-size: 1rem; font-weight: 600; color: #f8fafc;">Remote MCP Server & Tools</h4>
+              <h4 style="font-size: 1rem; font-weight: 600; color: var(--text-main); margin:0;">Remote MCP Server & Tools</h4>
               <span class="badge badge-verified">AVAILABLE</span>
             </div>
-            <p style="font-size: 0.825rem; color: #94a3b8; line-height: 1.5;">
+            <p style="font-size: 0.825rem; color: var(--text-dim); line-height: 1.5; margin:0;">
               All 26 registered tools across 6 domains, 8 resources, 4 prompts, Streamable HTTP JSON-RPC 2.0 protocol, and OAuth 2.1 RFC 8414 / RFC 9728 discovery are fully operational.
             </p>
           </div>
 
-          <div class="card" style="border-left: 3px solid #10b981;">
+          <div class="card" style="border-left: 3px solid #10b981; background: var(--bg-surface-elevated);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <h4 style="font-size: 1rem; font-weight: 600; color: #f8fafc;">MCP Apps UI Extension (MVP)</h4>
+              <h4 style="font-size: 1rem; font-weight: 600; color: var(--text-main); margin:0;">MCP Apps UI Extension (MVP)</h4>
               <span class="badge badge-verified">AVAILABLE</span>
             </div>
-            <p style="font-size: 0.825rem; color: #94a3b8; line-height: 1.5;">
+            <p style="font-size: 0.825rem; color: var(--text-dim); line-height: 1.5; margin:0;">
               Sandboxed <code>ui://career-hub/job-fit-radar/v1</code> visual radar chart and ATS scoring widget for <code>analyze_job_fit</code> (SEP-1865).
             </p>
           </div>
 
-          <div class="card" style="border-left: 3px solid #f59e0b; opacity: 0.85;">
+          <div class="card" style="border-left: 3px solid #f59e0b; background: var(--bg-surface-elevated);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <h4 style="font-size: 1rem; font-weight: 600; color: #f8fafc;">Official MCP Registry Listing</h4>
+              <h4 style="font-size: 1rem; font-weight: 600; color: var(--text-main); margin:0;">Official MCP Registry Listing</h4>
               <span class="badge badge-claimed">BLOCKED UNTIL PUBLIC STAGING</span>
             </div>
-            <p style="font-size: 0.825rem; color: #94a3b8; line-height: 1.5;">
+            <p style="font-size: 0.825rem; color: var(--text-dim); line-height: 1.5; margin:0;">
               Manifest verified with official schema; publication blocked until permanent HTTPS domain (Phase 14).
             </p>
           </div>

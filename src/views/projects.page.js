@@ -71,19 +71,19 @@ function renderProjectsList({ projects, currentTab, error, success }) {
       <!-- Architecture Pipeline Banner -->
       <div class="pipeline-banner">
         <div class="pipeline-header">
-          <span class="pipeline-title">Project & Portfolio Knowledge Pipeline</span>
+          <span class="pipeline-title">Project &amp; Portfolio Knowledge Pipeline</span>
           <span style="font-size:0.75rem; color:var(--text-dim);">Deterministic AST Extraction</span>
         </div>
         <div class="pipeline-steps">
-          <div class="pipeline-step"><span>📦</span> Repository Resources</div>
+          <div class="pipeline-step">Repository Resources</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🔍</span> Code Trees & Manifests</div>
+          <div class="pipeline-step">Code Trees &amp; Manifests</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active"><span>💼</span> Verified Projects</div>
+          <div class="pipeline-step active">Verified Projects</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>📎</span> AST Evidence Citations</div>
+          <div class="pipeline-step">AST Evidence Citations</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🤖</span> AI Context Integration</div>
+          <div class="pipeline-step">AI Context Integration</div>
         </div>
       </div>
 
@@ -91,7 +91,7 @@ function renderProjectsList({ projects, currentTab, error, success }) {
       ${
         error
           ? `
-        <div style="background:rgba(244,63,94,0.12); border:1px solid rgba(244,63,94,0.3); border-radius:var(--radius-md); padding:14px 18px; margin-bottom:24px; color:#FECDD3; font-size:0.9rem;">
+        <div class="alert alert-error" style="margin-bottom:24px;">
           <strong>Error:</strong> ${escapeHtml(error)}
         </div>
       `
@@ -100,7 +100,7 @@ function renderProjectsList({ projects, currentTab, error, success }) {
       ${
         success
           ? `
-        <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-md); padding:14px 18px; margin-bottom:24px; color:#A7F3D0; font-size:0.9rem;">
+        <div class="alert alert-success" style="margin-bottom:24px;">
           <strong>Success:</strong> ${escapeHtml(success)}
         </div>
       `
@@ -109,9 +109,9 @@ function renderProjectsList({ projects, currentTab, error, success }) {
 
       <div class="page-header">
         <div>
-          <span class="badge badge-indigo" style="margin-bottom:6px;">PORTFOLIO & EVIDENCE</span>
-          <h1>Projects & Code Evidence</h1>
-          <p>
+          <span class="badge badge-indigo" style="margin-bottom:8px;">PORTFOLIO &amp; EVIDENCE</span>
+          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Projects &amp; Code Evidence</h1>
+          <p style="color:var(--text-muted); margin:0; font-size:0.875rem;">
             Evidence-grounded project records constructed from your connected repository AST syntax trees.
           </p>
         </div>
@@ -124,17 +124,17 @@ function renderProjectsList({ projects, currentTab, error, success }) {
       </div>
 
       <!-- Filter Tabs -->
-      <div style="display:flex; gap:10px; margin-bottom:24px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
+      <div style="display:flex; gap:8px; margin-bottom:24px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
         <a
           href="/projects?tab=active"
-          style="padding:6px 14px; border-radius:var(--radius-sm); font-size:0.875rem; font-weight:600; text-decoration:none; display:flex; align-items:center; gap:6px; background:${currentTab !== 'archived' ? 'rgba(99,102,241,0.15)' : 'transparent'}; color:${currentTab !== 'archived' ? '#C7D2FE' : 'var(--text-muted)'}; border:1px solid ${currentTab !== 'archived' ? 'rgba(99,102,241,0.3)' : 'transparent'};"
+          style="padding:6px 14px; border-radius:var(--radius-sm); font-size:0.875rem; font-weight:600; text-decoration:none; display:flex; align-items:center; gap:8px; background:${currentTab !== 'archived' ? 'rgba(99,102,241,0.12)' : 'transparent'}; color:${currentTab !== 'archived' ? 'var(--text-main)' : 'var(--text-muted)'}; border:1px solid ${currentTab !== 'archived' ? 'rgba(99,102,241,0.25)' : 'transparent'}; transition:all 0.15s ease;"
         >
           <span>Active Portfolio Projects</span>
           <span class="badge ${currentTab !== 'archived' ? 'badge-indigo' : ''}" style="font-size:0.7rem;">${activeProjects.length}</span>
         </a>
         <a
           href="/projects?tab=archived"
-          style="padding:6px 14px; border-radius:var(--radius-sm); font-size:0.875rem; font-weight:600; text-decoration:none; display:flex; align-items:center; gap:6px; background:${currentTab === 'archived' ? 'rgba(251,191,36,0.15)' : 'transparent'}; color:${currentTab === 'archived' ? '#FDE68A' : 'var(--text-muted)'}; border:1px solid ${currentTab === 'archived' ? 'rgba(251,191,36,0.3)' : 'transparent'};"
+          style="padding:6px 14px; border-radius:var(--radius-sm); font-size:0.875rem; font-weight:600; text-decoration:none; display:flex; align-items:center; gap:8px; background:${currentTab === 'archived' ? 'rgba(251,191,36,0.1)' : 'transparent'}; color:${currentTab === 'archived' ? '#FDE68A' : 'var(--text-muted)'}; border:1px solid ${currentTab === 'archived' ? 'rgba(251,191,36,0.25)' : 'transparent'}; transition:all 0.15s ease;"
         >
           <span>Archived / Hidden</span>
           <span class="badge ${currentTab === 'archived' ? 'badge-amber' : ''}" style="font-size:0.7rem;">${archivedProjects.length}</span>
@@ -145,8 +145,8 @@ function renderProjectsList({ projects, currentTab, error, success }) {
         displayedProjects.length === 0
           ? `
         <div class="empty-state">
-          <div class="empty-state-icon">${currentTab === 'archived' ? '📦' : '📁'}</div>
-          <h3>${currentTab === 'archived' ? 'No Archived Projects' : 'No Active Projects Ingested Yet'}</h3>
+          <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
+          <h3 style="margin-top:8px;">${currentTab === 'archived' ? 'No Archived Projects' : 'No Active Projects Ingested Yet'}</h3>
           <p>
             ${
               currentTab === 'archived'
@@ -167,22 +167,22 @@ function renderProjectsList({ projects, currentTab, error, success }) {
             .map((p) => {
               const archived = isProjectArchived(p);
               return `
-            <div class="card" style="display:flex; flex-direction:column; justify-content:space-between; ${archived ? 'opacity:0.85; border-color:rgba(251,191,36,0.3);' : ''}">
+            <div class="card" style="display:flex; flex-direction:column; justify-content:space-between; ${archived ? 'opacity:0.85; border-color:rgba(251,191,36,0.25);' : ''}">
               <div>
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-                  <h3 style="font-size:1.1rem; font-weight:700; color:var(--text-main);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:8px;">
+                  <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-main); margin:0;">
                     ${escapeHtml(p.name)}
                   </h3>
                   ${
                     archived
-                      ? '<span class="badge badge-amber">ARCHIVED</span>'
-                      : '<span class="badge badge-cyan">AST INDEXED</span>'
+                      ? '<span class="badge badge-amber" style="font-size:0.68rem;">ARCHIVED</span>'
+                      : '<span class="badge badge-cyan" style="font-size:0.68rem;">AST INDEXED</span>'
                   }
                 </div>
 
                 ${
                   p.headline
-                    ? `<p style="font-size:0.875rem; font-weight:600; color:var(--accent-indigo); margin-bottom:8px;">${escapeHtml(p.headline)}</p>`
+                    ? `<p style="font-size:0.85rem; font-weight:600; color:var(--accent-indigo); margin-bottom:8px;">${escapeHtml(p.headline)}</p>`
                     : ''
                 }
 
@@ -193,16 +193,16 @@ function renderProjectsList({ projects, currentTab, error, success }) {
 
               <div>
                 <div style="display:flex; justify-content:space-between; align-items:center; padding-top:14px; border-top:1px solid var(--border-subtle); font-size:0.8rem; color:var(--text-dim); flex-wrap:wrap; gap:8px;">
-                  <span>Repo: <code>${escapeHtml(p.slug || p.name)}</code></span>
+                  <span style="font-family:var(--font-mono); font-size:0.75rem;">repo: <code style="color:var(--text-main);">${escapeHtml(p.slug || p.name)}</code></span>
                   <div style="display:flex; gap:6px; align-items:center;">
-                    <a href="/projects/${escapeHtml(p.id)}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 8px;">
+                    <a href="/projects/${escapeHtml(p.id)}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 10px;">
                       Inspect Evidence →
                     </a>
                     ${
                       archived
                         ? `
                       <form action="/projects/${escapeHtml(p.id)}/restore" method="POST" style="display:inline;">
-                        <button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 8px; color:#34D399; border-color:rgba(52,211,153,0.3);">
+                        <button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 10px; color:var(--accent-emerald); border-color:rgba(16,185,129,0.3);">
                           Restore
                         </button>
                       </form>
@@ -212,7 +212,7 @@ function renderProjectsList({ projects, currentTab, error, success }) {
                         type="button"
                         onclick="openRemoveProjectModal('${escapeHtml(p.id)}', '${escapeHtml(p.name)}')"
                         class="btn btn-secondary btn-sm"
-                        style="font-size:0.75rem; padding:4px 8px; color:#F87171; border-color:rgba(248,113,113,0.3);"
+                        style="font-size:0.75rem; padding:4px 10px; color:var(--accent-rose); border-color:rgba(244,63,94,0.3);"
                       >
                         Remove
                       </button>
@@ -231,15 +231,15 @@ function renderProjectsList({ projects, currentTab, error, success }) {
 
       <!-- Safe Removal Confirmation Modal -->
       <div id="removeProjectModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center;">
-        <div style="background:#0F172A; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); max-width:480px; width:90%; padding:28px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div style="background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); max-width:480px; width:90%; padding:28px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
-            <span style="font-size:1.4rem;">⚠️</span>
-            <h3 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Remove project from Career Portfolio?</h3>
+            <span class="badge badge-amber" style="font-size:0.75rem;">CONFIRMATION</span>
+            <h3 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">Remove project from Career Portfolio?</h3>
           </div>
 
-          <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px; margin-bottom:16px;">
-            <div style="font-size:0.8rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Project</div>
-            <div style="font-size:1.1rem; font-weight:700; color:#E0E7FF; margin-top:2px;" id="modalProjectName">Project Name</div>
+          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px; margin-bottom:16px;">
+            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Project</div>
+            <div style="font-size:1rem; font-weight:700; color:#E0E7FF; margin-top:3px;" id="modalProjectName">Project Name</div>
           </div>
 
           <p style="font-size:0.875rem; color:var(--text-muted); line-height:1.6; margin-bottom:24px;">
@@ -307,7 +307,7 @@ function renderProjectDetail({ selectedProject, error, success }) {
       ${
         error
           ? `
-        <div style="background:rgba(244,63,94,0.12); border:1px solid rgba(244,63,94,0.3); border-radius:var(--radius-md); padding:14px 18px; margin-bottom:24px; color:#FECDD3; font-size:0.9rem;">
+        <div class="alert alert-error" style="margin-bottom:24px;">
           <strong>Error:</strong> ${escapeHtml(error)}
         </div>
       `
@@ -316,7 +316,7 @@ function renderProjectDetail({ selectedProject, error, success }) {
       ${
         success
           ? `
-        <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:var(--radius-md); padding:14px 18px; margin-bottom:24px; color:#A7F3D0; font-size:0.9rem;">
+        <div class="alert alert-success" style="margin-bottom:24px;">
           <strong>Success:</strong> ${escapeHtml(success)}
         </div>
       `
@@ -324,33 +324,33 @@ function renderProjectDetail({ selectedProject, error, success }) {
       }
 
       <!-- Project Header Card -->
-      <div class="card" style="padding:32px; margin-bottom:28px;">
+      <div class="card" style="padding:28px 32px; margin-bottom:28px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
           <div>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
-              <h1 style="font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">
+              <h1 style="font-size:1.75rem; font-weight:800; letter-spacing:-0.02em; margin:0;">
                 ${escapeHtml(selectedProject.name)}
               </h1>
               ${
                 archived
-                  ? '<span class="badge badge-amber">ARCHIVED / HIDDEN</span>'
-                  : '<span class="badge badge-verified">VERIFIED EVIDENCE</span>'
+                  ? '<span class="badge badge-amber" style="font-size:0.75rem;">ARCHIVED / HIDDEN</span>'
+                  : '<span class="badge badge-verified" style="font-size:0.75rem;">VERIFIED EVIDENCE</span>'
               }
             </div>
             ${
               selectedProject.headline
-                ? `<p style="font-size:1rem; font-weight:600; color:var(--accent-indigo); margin-bottom:8px;">${escapeHtml(selectedProject.headline)}</p>`
+                ? `<p style="font-size:0.95rem; font-weight:600; color:var(--accent-indigo); margin-top:6px; margin-bottom:8px;">${escapeHtml(selectedProject.headline)}</p>`
                 : ''
             }
           </div>
 
           <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <span class="badge badge-cyan" style="font-size:0.8rem;"><code>${escapeHtml(selectedProject.slug || selectedProject.name)}</code></span>
+            <span class="badge badge-cyan" style="font-size:0.75rem; font-family:var(--font-mono);"><code>${escapeHtml(selectedProject.slug || selectedProject.name)}</code></span>
             ${
               archived
                 ? `
               <form action="/projects/${escapeHtml(selectedProject.id)}/restore" method="POST" style="display:inline;">
-                <button type="submit" class="btn btn-secondary btn-sm" style="color:#34D399; border-color:rgba(52,211,153,0.3);">
+                <button type="submit" class="btn btn-secondary btn-sm" style="color:var(--accent-emerald); border-color:rgba(16,185,129,0.3);">
                   Restore to Career Portfolio
                 </button>
               </form>
@@ -360,7 +360,7 @@ function renderProjectDetail({ selectedProject, error, success }) {
                 type="button"
                 onclick="openRemoveProjectModal('${escapeHtml(selectedProject.id)}', '${escapeHtml(selectedProject.name)}')"
                 class="btn btn-secondary btn-sm"
-                style="color:#F87171; border-color:rgba(248,113,113,0.3);"
+                style="color:var(--accent-rose); border-color:rgba(244,63,94,0.3);"
               >
                 Remove from Career Portfolio
               </button>
@@ -369,21 +369,21 @@ function renderProjectDetail({ selectedProject, error, success }) {
           </div>
         </div>
 
-        <p style="font-size:0.95rem; color:var(--text-main); line-height:1.7; margin-bottom:24px;">
+        <p style="font-size:0.925rem; color:var(--text-muted); line-height:1.7; margin-bottom:24px;">
           ${escapeHtml(selectedProject.summary || 'Repository project generated from codebase analysis.')}
         </p>
 
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; padding-top:20px; border-top:1px solid var(--border-subtle); font-size:0.85rem;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; padding-top:20px; border-top:1px solid var(--border-subtle); font-size:0.85rem;">
           <div>
-            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Role / Contribution</span>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Role / Contribution</span>
             <strong style="color:var(--text-main); display:block; margin-top:4px;">${escapeHtml(selectedProject.role || 'Author / Core Contributor')}</strong>
           </div>
           <div>
-            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Evidence Citations</span>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Evidence Citations</span>
             <strong style="color:var(--accent-cyan); display:block; margin-top:4px;">${evidenceList.length} items</strong>
           </div>
           <div>
-            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Provenance Model</span>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Provenance Model</span>
             <strong style="color:var(--accent-emerald); display:block; margin-top:4px;">Deterministic AST Proof</strong>
           </div>
         </div>
@@ -391,10 +391,10 @@ function renderProjectDetail({ selectedProject, error, success }) {
 
       <!-- Evidence Citations Table -->
       <div class="card" style="padding:28px;">
-        <div class="section-header">
+        <div class="section-header" style="margin-bottom:20px;">
           <div>
-            <h2>Code Evidence & AST Citations</h2>
-            <p style="font-size:0.8rem; color:var(--text-dim); margin-top:2px;">
+            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Code Evidence &amp; AST Citations</h2>
+            <p style="font-size:0.8rem; color:var(--text-dim); margin-top:4px; margin-bottom:0;">
               Individual proof nodes extracted from dependencies, commit history, and source architecture.
             </p>
           </div>
@@ -413,10 +413,10 @@ function renderProjectDetail({ selectedProject, error, success }) {
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Evidence Type</th>
+                  <th style="width:140px;">Evidence Type</th>
                   <th>Source Location</th>
                   <th>Linked Skill</th>
-                  <th>Confidence</th>
+                  <th style="width:120px;">Confidence</th>
                 </tr>
               </thead>
               <tbody>
@@ -436,21 +436,21 @@ function renderProjectDetail({ selectedProject, error, success }) {
                     return `
                     <tr>
                       <td>
-                        <span class="badge ${e.evidenceType === 'AST_SYNTAX' ? 'badge-verified' : e.evidenceType === 'DEPENDENCY' ? 'badge-cyan' : 'badge-inferred'}" style="font-size:0.7rem;">
+                        <span class="badge ${e.evidenceType === 'AST_SYNTAX' ? 'badge-verified' : e.evidenceType === 'DEPENDENCY' ? 'badge-cyan' : 'badge-inferred'}" style="font-size:0.68rem;">
                           ${escapeHtml(e.evidenceType || 'UNKNOWN')}
                         </span>
                       </td>
                       <td>
-                        <code style="font-size:0.8rem; color:#E0E7FF;">${escapeHtml(locStr)}</code>
-                        ${e.commitSha ? `<div style="font-size:0.7rem; color:var(--text-dim); margin-top:2px;">SHA: ${escapeHtml(e.commitSha.slice(0, 8))}</div>` : ''}
+                        <code style="font-size:0.8rem; color:var(--text-main);">${escapeHtml(locStr)}</code>
+                        ${e.commitSha ? `<div style="font-size:0.7rem; color:var(--text-dim); font-family:var(--font-mono); margin-top:3px;">sha: ${escapeHtml(e.commitSha.slice(0, 8))}</div>` : ''}
                       </td>
-                      <td style="font-size:0.875rem;">${escapeHtml(skillName)}</td>
+                      <td style="font-size:0.875rem; font-weight:500;">${escapeHtml(skillName)}</td>
                       <td>
-                        <div style="display:flex; align-items:center; gap:6px;">
-                          <div style="width:60px; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                          <div style="width:54px; height:5px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
                             <div style="width:${conf}%; height:100%; background:${conf >= 80 ? 'var(--accent-emerald)' : conf >= 50 ? 'var(--accent-amber)' : 'var(--accent-rose)'}; border-radius:3px;"></div>
                           </div>
-                          <span style="font-size:0.8rem; color:var(--text-muted);">${conf}%</span>
+                          <span style="font-size:0.78rem; color:var(--text-muted); font-family:var(--font-mono);">${conf}%</span>
                         </div>
                       </td>
                     </tr>
@@ -466,15 +466,15 @@ function renderProjectDetail({ selectedProject, error, success }) {
 
       <!-- Safe Removal Confirmation Modal -->
       <div id="removeProjectModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center;">
-        <div style="background:#0F172A; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); max-width:480px; width:90%; padding:28px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div style="background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); max-width:480px; width:90%; padding:28px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
-            <span style="font-size:1.4rem;">⚠️</span>
-            <h3 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Remove project from Career Portfolio?</h3>
+            <span class="badge badge-amber" style="font-size:0.75rem;">CONFIRMATION</span>
+            <h3 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">Remove project from Career Portfolio?</h3>
           </div>
 
-          <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px; margin-bottom:16px;">
-            <div style="font-size:0.8rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Project</div>
-            <div style="font-size:1.1rem; font-weight:700; color:#E0E7FF; margin-top:2px;" id="modalProjectName">${escapeHtml(selectedProject.name)}</div>
+          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:14px; margin-bottom:16px;">
+            <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Project</div>
+            <div style="font-size:1rem; font-weight:700; color:#E0E7FF; margin-top:3px;" id="modalProjectName">${escapeHtml(selectedProject.name)}</div>
           </div>
 
           <p style="font-size:0.875rem; color:var(--text-muted); line-height:1.6; margin-bottom:24px;">

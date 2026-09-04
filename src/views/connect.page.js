@@ -36,14 +36,14 @@ function formatDate(date) {
  */
 function renderScopeBadges(scopes) {
   if (!Array.isArray(scopes) || scopes.length === 0) {
-    return `<span class="badge" style="background:rgba(255,255,255,0.06); color:#94a3b8;">career:read</span>`;
+    return `<span class="badge" style="background:rgba(255,255,255,0.06); color:#94a3b8; font-size:0.75rem;">career:read</span>`;
   }
   return scopes
     .map((s) => {
       if (s === 'career:write') {
         return `<span class="badge badge-indigo" style="font-size:0.75rem;">career:write</span>`;
       }
-      return `<span class="badge" style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); font-size:0.75rem;">career:read</span>`;
+      return `<span class="badge" style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); font-size:0.75rem;">career:read</span>`;
     })
     .join(' ');
 }
@@ -109,16 +109,16 @@ export function renderConnectPage({
   const renderStatusBadge = (status) => {
     switch (status) {
       case 'CONNECTED':
-        return `<span class="badge" style="background:rgba(34,197,94,0.15); color:#4ade80; border:1px solid rgba(34,197,94,0.3); font-weight:600;">● CONNECTED</span>`;
+        return `<span class="badge" style="background:rgba(34,197,94,0.12); color:#4ade80; border:1px solid rgba(34,197,94,0.25); font-weight:600;">CONNECTED</span>`;
       case 'REFRESHABLE':
-        return `<span class="badge" style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); font-weight:600;">🔄 REFRESHABLE</span>`;
+        return `<span class="badge" style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); font-weight:600;">REFRESHABLE</span>`;
       case 'REVOKED':
-        return `<span class="badge" style="background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3); font-weight:600;">⚠️ REVOKED</span>`;
+        return `<span class="badge" style="background:rgba(239,68,68,0.12); color:#f87171; border:1px solid rgba(239,68,68,0.25); font-weight:600;">REVOKED</span>`;
       case 'TOKEN_EXPIRED':
-        return `<span class="badge" style="background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); font-weight:600;">⏳ EXPIRED</span>`;
+        return `<span class="badge" style="background:rgba(245,158,11,0.12); color:#fbbf24; border:1px solid rgba(245,158,11,0.25); font-weight:600;">EXPIRED</span>`;
       case 'NOT_CONNECTED':
       default:
-        return `<span class="badge" style="background:rgba(148,163,184,0.12); color:#94a3b8; border:1px solid rgba(148,163,184,0.25); font-weight:500;">○ NOT CONNECTED</span>`;
+        return `<span class="badge" style="background:rgba(148,163,184,0.1); color:#94a3b8; border:1px solid rgba(148,163,184,0.2); font-weight:500;">NOT CONNECTED</span>`;
     }
   };
 
@@ -140,25 +140,25 @@ export function renderConnectPage({
       <div class="pipeline-banner">
         <div class="pipeline-header">
           <span class="pipeline-title">Model Context Protocol (MCP) Remote Architecture</span>
-          <span style="font-size:0.75rem; color:var(--text-dim);">JSON-RPC 2.0 • Protocol Version 2026-07-28</span>
+          <span style="font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono);">JSON-RPC 2.0 • Protocol 2026-07-28</span>
         </div>
         <div class="pipeline-steps">
-          <div class="pipeline-step"><span>📦</span> Verified Knowledge Graph</div>
+          <div class="pipeline-step">Verified Knowledge Graph</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🔑</span> Auth (OAuth 2.1 PKCE / Bearer Token)</div>
+          <div class="pipeline-step">OAuth 2.1 PKCE / Bearer Token</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active"><span>🌐</span> Remote MCP Server (/mcp)</div>
+          <div class="pipeline-step active">Remote MCP Server (/mcp)</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🤖</span> Claude / ChatGPT / Gemini</div>
+          <div class="pipeline-step">Claude / ChatGPT / Gemini</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>⚖️</span> Two-Phase Safe Approval</div>
+          <div class="pipeline-step">Two-Phase Safe Approval</div>
         </div>
       </div>
 
       <!-- Header -->
       <div class="page-header">
         <div>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
             <span class="badge badge-indigo">AI INTEGRATION HUB</span>
             <span class="badge badge-verified">PROTOCOL 2026-07-28</span>
           </div>
@@ -181,11 +181,11 @@ export function renderConnectPage({
               <span class="badge badge-indigo" style="font-size:0.7rem;">ACTIVE WORKSPACE</span>
             </div>
             <div class="context-banner-sub">
-              ${escapeHtml(candidateEmail)} • Role: <strong style="color:#CBD5E1;">${escapeHtml(user.role || 'OWNER')}</strong>
+              ${escapeHtml(candidateEmail)} • Role: <strong style="color:var(--text-main); font-family:var(--font-mono);">${escapeHtml(user.role || 'OWNER')}</strong>
             </div>
           </div>
         </div>
-        <div style="font-size:0.8rem; color:#64748B;">
+        <div style="font-size:0.8rem; color:var(--text-muted); font-family:var(--font-mono);">
           ${mcpTokens.length} active personal ${mcpTokens.length === 1 ? 'token' : 'tokens'}
         </div>
       </div>
@@ -198,20 +198,20 @@ export function renderConnectPage({
       ${
         newRawToken
           ? `
-        <div class="alert" style="background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(34, 197, 94, 0.4); border-left: 5px solid #22c55e; padding: 1.25rem; border-radius: 8px; margin-bottom: 2rem;">
-          <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
-            <span style="font-size: 1.5rem;">🔑</span>
-            <div style="flex: 1;">
-              <strong style="color: #4ade80; font-size: 1rem;">Personal MCP API Token Generated: "${escapeHtml(newTokenName || 'Token')}"</strong>
-              <p style="color: #cbd5e1; font-size: 0.875rem; margin-top: 0.25rem; line-height: 1.5;">
-                Copy your token now. <strong>For security, it will NEVER be displayed again.</strong> If lost, you must revoke this token and generate a new one.
-              </p>
-              <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                <input type="text" readonly value="${escapeHtml(newRawToken)}" id="rawTokenInput" style="flex: 1; min-width: 320px; font-family: var(--font-mono); font-size: 0.85rem; padding: 0.6rem 0.8rem; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 6px; color: #4ade80;">
-                <button type="button" onclick="copyToClipboard('rawTokenInput', 'copyTokenBtn')" id="copyTokenBtn" class="btn btn-primary btn-sm" style="background: #16a34a; border-color: #22c55e;">
-                  <span>📋 Copy Token</span>
-                </button>
-              </div>
+        <div class="alert alert-success" style="padding: 1.25rem; margin-bottom: 2rem;">
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span class="badge badge-emerald" style="font-weight: 700;">SECRET TOKEN ISSUED</span>
+              <strong style="color: #4ade80; font-size: 0.95rem;">"${escapeHtml(newTokenName || 'Token')}"</strong>
+            </div>
+            <p style="color: var(--text-dim); font-size: 0.85rem; line-height: 1.5; margin: 0;">
+              Copy your token now. <strong>For security, it will NEVER be displayed again.</strong> If lost, you must revoke this token and generate a new one.
+            </p>
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <input type="text" readonly value="${escapeHtml(newRawToken)}" id="rawTokenInput" style="flex: 1; min-width: 300px; font-family: var(--font-mono); font-size: 0.85rem; padding: 0.6rem 0.85rem; background: var(--bg-surface-elevated); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 6px; color: #4ade80;">
+              <button type="button" onclick="copyToClipboard('rawTokenInput', 'copyTokenBtn')" id="copyTokenBtn" class="btn btn-primary btn-sm" style="background: #16a34a; border-color: #22c55e;">
+                Copy Token
+              </button>
             </div>
           </div>
         </div>
@@ -220,11 +220,11 @@ export function renderConnectPage({
       }
 
       <!-- Remote MCP Endpoint Box -->
-      <div class="card" style="margin-bottom: 2rem; background: var(--bg-surface-elevated);">
+      <div class="card" style="margin-bottom: 2rem;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
           <div>
-            <h2 style="font-size: 1.2rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.25rem;">Universal Remote MCP Endpoint</h2>
-            <p style="color: #94a3b8; font-size: 0.875rem;">
+            <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem;">Universal Remote MCP Endpoint</h2>
+            <p style="color: var(--text-dim); font-size: 0.875rem;">
               Provide this Streamable HTTP URL when adding Career Hub to Claude, ChatGPT, or custom MCP clients.
             </p>
           </div>
@@ -233,15 +233,15 @@ export function renderConnectPage({
 
         <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
           <div style="flex: 1; min-width: 280px; position: relative;">
-            <input type="text" readonly value="${escapeHtml(mcpEndpointUrl)}" id="mcpEndpointInput" style="width: 100%; font-family: var(--font-mono); font-size: 0.9rem; padding: 0.65rem 0.9rem; background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border-subtle); border-radius: 6px; color: #38bdf8;">
+            <input type="text" readonly value="${escapeHtml(mcpEndpointUrl)}" id="mcpEndpointInput" style="width: 100%; font-family: var(--font-mono); font-size: 0.9rem; padding: 0.65rem 0.9rem; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: #38bdf8;">
           </div>
           <button type="button" onclick="copyToClipboard('mcpEndpointInput', 'copyEndpointBtn')" id="copyEndpointBtn" class="btn btn-secondary btn-sm" style="padding: 0.65rem 1.25rem;">
-            <span>📋 Copy Endpoint</span>
+            Copy Endpoint
           </button>
         </div>
 
         <!-- Localhost / Cloudflare Warning -->
-        <div style="background: rgba(245, 158, 11, 0.08); border-left: 3px solid #f59e0b; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.825rem; color: #cbd5e1; line-height: 1.5;">
+        <div style="background: rgba(245, 158, 11, 0.06); border-left: 3px solid #d97706; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.825rem; color: var(--text-dim); line-height: 1.5;">
           <strong style="color: #fbbf24;">Local Development vs Cloud AI Hosts:</strong>
           Career Hub simultaneously supports local development (<code>http://localhost:3000/mcp</code>) and public Cloudflare staging (<code>https://dev.aicareershub.tech/mcp</code>). Cloud AI hosts (Claude.ai, ChatGPT Web) require the public HTTPS endpoint.
         </div>
@@ -250,55 +250,55 @@ export function renderConnectPage({
       <!-- Provider Status & Connection Cards -->
       <div style="margin-bottom: 2.5rem;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; flex-wrap:wrap; gap:0.5rem;">
-          <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin:0;">Real-Time AI Provider Status</h2>
+          <h2 style="font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin:0;">Real-Time AI Provider Status</h2>
           <button type="button" onclick="refreshAiStatus()" id="refreshStatusBtn" class="btn btn-secondary btn-sm" style="font-size:0.8rem; padding:0.4rem 0.8rem;">
-            <span>🔄 Refresh Live Status</span>
+            Refresh Live Status
           </button>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
           <!-- 1. Anthropic Claude Card -->
-          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(99, 102, 241, 0.3);">
+          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(99, 102, 241, 0.25);">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                  <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
-                    🟣
+                  <div style="width: 32px; height: 32px; border-radius: 6px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #818cf8; font-family: var(--font-mono);">
+                    CL
                   </div>
                   <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">Anthropic Claude</h3>
-                    <span style="font-size: 0.75rem; color: #94a3b8;">Claude.ai • Desktop • Code CLI</span>
+                    <h3 style="font-size: 1.05rem; font-weight: 600; color: var(--text-main);">Anthropic Claude</h3>
+                    <span style="font-size: 0.75rem; color: var(--text-dim);">Claude.ai • Desktop • Code CLI</span>
                   </div>
                 </div>
                 ${renderStatusBadge(claudeStatus.status)}
               </div>
 
-              <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
+              <p style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 1rem;">
                 Connect seamlessly via OAuth 2.1 with PKCE S256 and CIMD Hosted Metadata. Claude discovers scopes and authenticates interactively without sharing API secrets.
               </p>
 
-              <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
+              <div style="background: var(--bg-surface-elevated); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                  <span style="color:#64748b;">Auth Method:</span>
-                  <span style="color:#cbd5e1; font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(claudeStatus.authMethod)}</span>
+                  <span style="color:var(--text-muted);">Auth Method:</span>
+                  <span style="color:var(--text-main); font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(claudeStatus.authMethod)}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                  <span style="color:#64748b;">Last Connected:</span>
-                  <span style="color:#cbd5e1;">${formatDate(claudeStatus.connectedAt)}</span>
+                  <span style="color:var(--text-muted);">Last Connected:</span>
+                  <span style="color:var(--text-dim);">${formatDate(claudeStatus.connectedAt)}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="color:#64748b;">Authorized Scopes:</span>
+                  <span style="color:var(--text-muted);">Authorized Scopes:</span>
                   <div>${renderScopeBadges(claudeStatus.scopes)}</div>
                 </div>
               </div>
 
-              <details style="font-size: 0.825rem; color: #cbd5e1; margin-bottom: 1rem;">
+              <details style="font-size: 0.825rem; color: var(--text-dim); margin-bottom: 1rem;">
                 <summary style="cursor: pointer; color: #818cf8; font-weight: 500; margin-bottom: 0.5rem;">
                   Setup & Connection Guide
                 </summary>
-                <div style="padding: 0.5rem; background: rgba(15, 23, 42, 0.4); border-radius: 6px; line-height: 1.5;">
-                  <ol style="margin-left: 1.2rem;">
-                    <li>Open <strong>Claude.ai</strong> -> Settings -> Connectors, or Claude Desktop.</li>
+                <div style="padding: 0.5rem; background: var(--bg-surface-elevated); border-radius: 6px; line-height: 1.5; border: 1px solid var(--border-subtle);">
+                  <ol style="margin-left: 1.2rem; padding: 0;">
+                    <li>Open <strong>Claude.ai</strong> → Settings → Connectors, or Claude Desktop.</li>
                     <li>Add Custom MCP Server: <code>${escapeHtml(mcpEndpointUrl)}</code></li>
                     <li>Under OAuth Client: choose <strong>"Use Anthropic's hosted client metadata"</strong>.</li>
                     <li>Authorize Career Hub permissions interactively.</li>
@@ -314,14 +314,14 @@ export function renderConnectPage({
                 <form action="/connect/revoke-provider" method="POST" style="width:100%; margin:0;" onsubmit="return confirm('Revoke all active authorizations for Anthropic Claude?');">
                   <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
                   <input type="hidden" name="provider" value="claude">
-                  <button type="submit" class="btn btn-secondary btn-sm" style="width:100%; color:#f87171; border-color:rgba(239,68,68,0.3);">
-                    <span>Disconnect Claude</span>
+                  <button type="submit" class="btn btn-secondary btn-sm" style="width:100%; color:#f87171; border-color:rgba(239,68,68,0.25);">
+                    Disconnect Claude
                   </button>
                 </form>
               `
                   : `
                 <a href="/docs/mcp#claude" class="btn btn-primary btn-sm" style="width: 100%;">
-                  <span>Connect Claude →</span>
+                  Connect Claude →
                 </a>
               `
               }
@@ -329,47 +329,47 @@ export function renderConnectPage({
           </div>
 
           <!-- 2. OpenAI ChatGPT Card -->
-          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(16, 185, 129, 0.3);">
+          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(16, 185, 129, 0.25);">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                  <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
-                    🟢
+                  <div style="width: 32px; height: 32px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #34d399; font-family: var(--font-mono);">
+                    GPT
                   </div>
                   <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">OpenAI ChatGPT</h3>
-                    <span style="font-size: 0.75rem; color: #94a3b8;">ChatGPT Web • Desktop • Custom GPTs</span>
+                    <h3 style="font-size: 1.05rem; font-weight: 600; color: var(--text-main);">OpenAI ChatGPT</h3>
+                    <span style="font-size: 0.75rem; color: var(--text-dim);">ChatGPT Web • Desktop • Custom GPTs</span>
                   </div>
                 </div>
                 ${renderStatusBadge(chatgptStatus.status)}
               </div>
 
-              <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
+              <p style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 1rem;">
                 Connect Custom GPT or Developer Mode actions with RFC 9728 Protected Resource metadata and automatic OAuth 2.1 token exchange.
               </p>
 
-              <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
+              <div style="background: var(--bg-surface-elevated); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                  <span style="color:#64748b;">Auth Method:</span>
-                  <span style="color:#cbd5e1; font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(chatgptStatus.authMethod)}</span>
+                  <span style="color:var(--text-muted);">Auth Method:</span>
+                  <span style="color:var(--text-main); font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(chatgptStatus.authMethod)}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                  <span style="color:#64748b;">Last Connected:</span>
-                  <span style="color:#cbd5e1;">${formatDate(chatgptStatus.connectedAt)}</span>
+                  <span style="color:var(--text-muted);">Last Connected:</span>
+                  <span style="color:var(--text-dim);">${formatDate(chatgptStatus.connectedAt)}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="color:#64748b;">Authorized Scopes:</span>
+                  <span style="color:var(--text-muted);">Authorized Scopes:</span>
                   <div>${renderScopeBadges(chatgptStatus.scopes)}</div>
                 </div>
               </div>
 
-              <details style="font-size: 0.825rem; color: #cbd5e1; margin-bottom: 1rem;">
+              <details style="font-size: 0.825rem; color: var(--text-dim); margin-bottom: 1rem;">
                 <summary style="cursor: pointer; color: #34d399; font-weight: 500; margin-bottom: 0.5rem;">
                   Setup Instructions (Custom GPT Actions)
                 </summary>
-                <div style="padding: 0.5rem; background: rgba(15, 23, 42, 0.4); border-radius: 6px; line-height: 1.5;">
-                  <ol style="margin-left: 1.2rem;">
-                    <li>Open <strong>Explore GPTs</strong> -> Create/Edit Custom GPT.</li>
+                <div style="padding: 0.5rem; background: var(--bg-surface-elevated); border-radius: 6px; line-height: 1.5; border: 1px solid var(--border-subtle);">
+                  <ol style="margin-left: 1.2rem; padding: 0;">
+                    <li>Open <strong>Explore GPTs</strong> → Create/Edit Custom GPT.</li>
                     <li>Add Action with endpoint <code>${escapeHtml(mcpEndpointUrl)}</code>.</li>
                     <li>Set Authentication to <strong>OAuth</strong> with Client ID <code>chatgpt-web</code>.</li>
                     <li>Authorize Career Hub permissions interactively.</li>
@@ -385,14 +385,14 @@ export function renderConnectPage({
                 <form action="/connect/revoke-provider" method="POST" style="width:100%; margin:0;" onsubmit="return confirm('Revoke all active authorizations for OpenAI ChatGPT?');">
                   <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
                   <input type="hidden" name="provider" value="chatgpt">
-                  <button type="submit" class="btn btn-secondary btn-sm" style="width:100%; color:#f87171; border-color:rgba(239,68,68,0.3);">
-                    <span>Disconnect ChatGPT</span>
+                  <button type="submit" class="btn btn-secondary btn-sm" style="width:100%; color:#f87171; border-color:rgba(239,68,68,0.25);">
+                    Disconnect ChatGPT
                   </button>
                 </form>
               `
                   : `
                 <a href="/docs/mcp#chatgpt" class="btn btn-primary btn-sm" style="width: 100%;">
-                  <span>Connect ChatGPT →</span>
+                  Connect ChatGPT →
                 </a>
               `
               }
@@ -400,45 +400,46 @@ export function renderConnectPage({
           </div>
 
           <!-- 3. Google Gemini Card -->
-          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(6, 182, 212, 0.3);">
+          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(6, 182, 212, 0.25);">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                  <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(6, 182, 212, 0.2); border: 1px solid rgba(6, 182, 212, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.1rem;">
-                    🔵
+                  <div style="width: 32px; height: 32px; border-radius: 6px; background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.3); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: #22d3ee; font-family: var(--font-mono);">
+                    GEM
                   </div>
                   <div>
-                    <h3 style="font-size: 1.1rem; font-weight: 600; color: #f8fafc;">Google Gemini & AGY</h3>                     <span style="font-size: 0.75rem; color: #94a3b8;">AI Careers Hub SDK • IDE Agents • CLI</span>
+                    <h3 style="font-size: 1.05rem; font-weight: 600; color: var(--text-main);">Google Gemini</h3>
+                    <span style="font-size: 0.75rem; color: var(--text-dim);">AI Careers Hub SDK • IDE Agents • CLI</span>
                   </div>
                 </div>
                 ${renderStatusBadge(geminiStatus.status)}
               </div>
 
-              <p style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 1rem;">
+              <p style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; margin-bottom: 1rem;">
                 Integrate with Gemini-powered agent pipelines, IDE extensions, and command-line assistants using high-entropy Personal MCP API Tokens.
               </p>
 
-              <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
+              <div style="background: var(--bg-surface-elevated); padding: 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1rem; border: 1px solid var(--border-subtle);">
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                  <span style="color:#64748b;">Auth Method:</span>
-                  <span style="color:#cbd5e1; font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(geminiStatus.authMethod)}</span>
+                  <span style="color:var(--text-muted);">Auth Method:</span>
+                  <span style="color:var(--text-main); font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(geminiStatus.authMethod)}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                  <span style="color:#64748b;">Active Tokens:</span>
-                  <span style="color:#cbd5e1;">${mcpTokens.length} active</span>
+                  <span style="color:var(--text-muted);">Active Tokens:</span>
+                  <span style="color:var(--text-dim); font-family:var(--font-mono);">${mcpTokens.length} active</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="color:#64748b;">Authorized Scopes:</span>
+                  <span style="color:var(--text-muted);">Authorized Scopes:</span>
                   <div>${renderScopeBadges(geminiStatus.scopes)}</div>
                 </div>
               </div>
 
-              <details style="font-size: 0.825rem; color: #cbd5e1; margin-bottom: 1rem;">
+              <details style="font-size: 0.825rem; color: var(--text-dim); margin-bottom: 1rem;">
                 <summary style="cursor: pointer; color: #22d3ee; font-weight: 500; margin-bottom: 0.5rem;">
                   Setup Instructions (Gemini SDK & Agents)
                 </summary>
-                <div style="padding: 0.5rem; background: rgba(15, 23, 42, 0.4); border-radius: 6px; line-height: 1.5;">
-                  <ol style="margin-left: 1.2rem;">
+                <div style="padding: 0.5rem; background: var(--bg-surface-elevated); border-radius: 6px; line-height: 1.5; border: 1px solid var(--border-subtle);">
+                  <ol style="margin-left: 1.2rem; padding: 0;">
                     <li>Generate a personal token below with required scopes.</li>
                     <li>Set header: <code>Authorization: Bearer mcp_live_...</code></li>
                     <li>Send JSON-RPC payloads to <code>${escapeHtml(mcpEndpointUrl)}</code>.</li>
@@ -449,7 +450,7 @@ export function renderConnectPage({
 
             <div style="display: flex; gap: 0.5rem; align-items: center; margin-top: auto;">
               <a href="#tokenGenerationSection" class="btn btn-secondary btn-sm" style="width: 100%;">
-                <span>Manage Gemini Tokens ↓</span>
+                Manage Gemini Tokens ↓
               </a>
             </div>
           </div>
@@ -467,9 +468,8 @@ export function renderConnectPage({
           </div>
         </div>
 
-
         <!-- Token Creation Form -->
-        <form action="/connect/tokens" method="POST" style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-subtle); margin-bottom: 2rem;">
+        <form action="/connect/tokens" method="POST" style="background: var(--bg-surface-elevated); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-subtle); margin-bottom: 2rem;">
           <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
@@ -480,7 +480,7 @@ export function renderConnectPage({
 
             <div class="form-group">
               <label class="form-label" for="expirySelect" style="font-size: 0.85rem;">Expiration Period</label>
-              <select id="expirySelect" name="expiryDays" class="form-control" style="font-size: 0.875rem; background: rgba(15, 23, 42, 0.9);">
+              <select id="expirySelect" name="expiryDays" class="form-control" style="font-size: 0.875rem;">
                 <option value="30">30 Days (Recommended)</option>
                 <option value="60">60 Days</option>
                 <option value="90">90 Days</option>
@@ -492,14 +492,14 @@ export function renderConnectPage({
           <div style="margin-bottom: 1.25rem;">
             <label class="form-label" style="font-size: 0.85rem; margin-bottom: 0.5rem; display: block;">Authorized Scopes</label>
             <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
-              <label style="display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #cbd5e1; cursor: pointer;">
+              <label style="display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-dim); cursor: pointer;">
                 <input type="checkbox" name="scopes" value="career:read" checked style="accent-color: #6366f1;">
                 <span><code>career:read</code> (Inspect profile, skills, evidence, applications)</span>
               </label>
               ${
                 user.role !== 'READONLY'
                   ? `
-                <label style="display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #cbd5e1; cursor: pointer;">
+                <label style="display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-dim); cursor: pointer;">
                   <input type="checkbox" name="scopes" value="career:write" checked style="accent-color: #6366f1;">
                   <span><code>career:write</code> (Generate tailored resumes, cover letters, propose PR improvements)</span>
                 </label>
@@ -510,19 +510,19 @@ export function renderConnectPage({
           </div>
 
           <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.6rem 1.25rem;">
-            <span>✨ Generate Personal MCP Token</span>
+            Generate Personal Token
           </button>
         </form>
 
         <!-- Active Tokens List -->
         <div class="section-header" style="margin-bottom:0.75rem;">
-          <h3 style="font-size:1rem; font-weight:600;">Active Tokens (${mcpTokens.length})</h3>
+          <h3 style="font-size:1rem; font-weight:600; color:var(--text-main);">Active Tokens (${mcpTokens.length})</h3>
         </div>
         ${
           mcpTokens.length === 0
             ? `
           <div class="empty-state" style="padding:2rem;">
-            <div class="empty-state-icon">🔑</div>
+            <div class="empty-state-icon" style="font-family:var(--font-mono); font-weight:700; color:var(--text-muted);">KEY</div>
             <h3>No Personal MCP Tokens Yet</h3>
             <p>Generate a token above to connect external tools like Gemini, Cursor, or custom scripts.</p>
           </div>
@@ -547,19 +547,19 @@ export function renderConnectPage({
                     (t) => `
                   <tr>
                     <td>
-                      <div style="font-weight: 500; color: #f1f5f9;">${escapeHtml(t.name)}</div>
+                      <div style="font-weight: 500; color: var(--text-main);">${escapeHtml(t.name)}</div>
                     </td>
                     <td>
                       <code style="font-size: 0.8rem; color: #38bdf8;">${escapeHtml(t.tokenPrefix)}...</code>
                     </td>
                     <td>${renderScopeBadges(t.scopes)}</td>
-                    <td style="color: #94a3b8; font-size: 0.825rem;">${formatDate(t.createdAt)}</td>
-                    <td style="color: #94a3b8; font-size: 0.825rem;">${formatDate(t.expiresAt)}</td>
-                    <td style="color: #94a3b8; font-size: 0.825rem;">${formatDate(t.lastUsedAt)}</td>
+                    <td style="color: var(--text-muted); font-size: 0.825rem;">${formatDate(t.createdAt)}</td>
+                    <td style="color: var(--text-muted); font-size: 0.825rem;">${formatDate(t.expiresAt)}</td>
+                    <td style="color: var(--text-muted); font-size: 0.825rem;">${formatDate(t.lastUsedAt)}</td>
                     <td style="text-align: right;">
                       <form action="/connect/tokens/${escapeHtml(t.id)}/revoke" method="POST" onsubmit="return confirm('Revoke token &quot;${escapeHtml(t.name)}&quot;? Any client using it will lose access.');" style="display:inline;">
                         <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
-                        <button type="submit" class="btn btn-secondary btn-sm" style="color: #f87171; font-size: 0.75rem; padding: 0.3rem 0.6rem;">
+                        <button type="submit" class="btn btn-secondary btn-sm" style="color: #f87171; font-size: 0.75rem; padding: 0.3rem 0.6rem; border-color: rgba(239,68,68,0.25);">
                           Revoke
                         </button>
                       </form>
@@ -576,33 +576,35 @@ export function renderConnectPage({
       </div>
 
       <!-- Human-in-the-Loop Write Safety Architecture Banner -->
-      <div class="card" style="border-left: 4px solid var(--accent-emerald); background: rgba(16, 185, 129, 0.04);">
-        <h3 style="font-size: 1.05rem; font-weight: 600; color: #34d399; margin-bottom: 0.5rem;">
-          🛡️ Two-Phase Write Safety & Stopping Protocol
-        </h3>
-        <p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 0.75rem;">
+      <div class="card" style="border-left: 4px solid var(--accent-emerald); background: rgba(16, 185, 129, 0.03);">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom: 0.5rem;">
+          <span class="badge badge-emerald" style="font-weight:700;">SAFETY KERNEL</span>
+          <h3 style="font-size: 1.05rem; font-weight: 600; color: #34d399; margin: 0;">
+            Two-Phase Write Safety & Stopping Protocol
+          </h3>
+        </div>
+        <p style="font-size: 0.875rem; color: var(--text-dim); line-height: 1.6; margin-bottom: 0.75rem;">
           AI assistants are strictly prohibited from making direct modifications to your GitHub repositories or publishing unauthorized artifacts. Career Hub enforces a cryptographically signed two-phase approval protocol:
         </p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; font-size: 0.8rem; color: #cbd5e1;">
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
-            <strong style="color: #38bdf8;">1. Proposal Generation</strong>
-            <p style="color: #94a3b8; margin-top: 2px;">AI calls <code>propose_project_improvement</code>. Server generates a validated diff and signed Action Approval Ticket.</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; font-size: 0.8rem; color: var(--text-dim);">
+          <div style="background: var(--bg-surface-elevated); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
+            <strong style="color: #38bdf8; display:block; margin-bottom:2px;">1. Proposal Generation</strong>
+            <p style="color: var(--text-dim); margin: 0;">AI calls <code>propose_project_improvement</code>. Server generates a validated diff and signed Action Approval Ticket.</p>
           </div>
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
-            <strong style="color: #38bdf8;">2. Human Diff Review</strong>
-            <p style="color: #94a3b8; margin-top: 2px;">You inspect the exact file modifications in your chat interface or web workspace.</p>
+          <div style="background: var(--bg-surface-elevated); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
+            <strong style="color: #38bdf8; display:block; margin-bottom:2px;">2. Human Diff Review</strong>
+            <p style="color: var(--text-dim); margin: 0;">You inspect the exact file modifications in your chat interface or web workspace.</p>
           </div>
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
-            <strong style="color: #38bdf8;">3. Explicit Confirmation</strong>
-            <p style="color: #94a3b8; margin-top: 2px;">Only after your explicit confirmation, AI calls <code>confirm_and_create_pr</code> with your ticket ID.</p>
+          <div style="background: var(--bg-surface-elevated); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
+            <strong style="color: #38bdf8; display:block; margin-bottom:2px;">3. Explicit Confirmation</strong>
+            <p style="color: var(--text-dim); margin: 0;">Only after your explicit confirmation, AI calls <code>confirm_and_create_pr</code> with your ticket ID.</p>
           </div>
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
-            <strong style="color: #38bdf8;">4. Isolated Draft PR</strong>
-            <p style="color: #94a3b8; margin-top: 2px;">Server validates HEAD SHA, creates branch <code>feat/career-hub-*</code>, and opens a Draft Pull Request.</p>
+          <div style="background: var(--bg-surface-elevated); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-subtle);">
+            <strong style="color: #38bdf8; display:block; margin-bottom:2px;">4. Isolated Draft PR</strong>
+            <p style="color: var(--text-dim); margin: 0;">Server validates HEAD SHA, creates branch <code>feat/career-hub-*</code>, and opens a Draft Pull Request.</p>
           </div>
         </div>
       </div>
-    </div>
     </div>
 
     <!-- Interactive Copy & Status Refresh Script -->
@@ -628,7 +630,7 @@ export function renderConnectPage({
 
       async function refreshAiStatus() {
         const btn = document.getElementById('refreshStatusBtn');
-        if (btn) btn.innerHTML = '<span>⏳ Checking...</span>';
+        if (btn) btn.innerHTML = '<span>Checking...</span>';
         try {
           const res = await fetch('/api/connect/status');
           if (res.ok) {
@@ -637,7 +639,7 @@ export function renderConnectPage({
         } catch (_err) {
           window.location.reload();
         } finally {
-          if (btn) btn.innerHTML = '<span>🔄 Refresh Live Status</span>';
+          if (btn) btn.innerHTML = '<span>Refresh Live Status</span>';
         }
       }
     </script>
@@ -650,3 +652,4 @@ export function renderConnectPage({
     user,
   });
 }
+

@@ -47,37 +47,37 @@ export function renderSourcesPage({
       <!-- Architecture Pipeline Banner -->
       <div class="pipeline-banner">
         <div class="pipeline-header">
-          <span class="pipeline-title">Connected Sources & Ingestion Pipeline</span>
+          <span class="pipeline-title">Connected Sources &amp; Ingestion Pipeline</span>
           <span style="font-size:0.75rem; color:var(--text-dim);">Multi-Provider Sovereign Ingestion</span>
         </div>
         <div class="pipeline-steps">
-          <div class="pipeline-step active"><span>🔗</span> Connected Sources (GitHub App)</div>
+          <div class="pipeline-step active">Connected Sources (GitHub App)</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>📦</span> Authorized Repositories</div>
+          <div class="pipeline-step">Authorized Repositories</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🛡️</span> Zero Code Execution AST Scanner</div>
+          <div class="pipeline-step">Zero Code Execution AST Scanner</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>⚡</span> Verified Skills & Projects</div>
+          <div class="pipeline-step">Verified Skills &amp; Projects</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🤖</span> Sovereign AI MCP Interface</div>
+          <div class="pipeline-step">Sovereign AI MCP Interface</div>
         </div>
       </div>
 
       <!-- Header -->
       <div class="page-header">
         <div>
-          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-            <span class="badge badge-cyan">INTEGRATIONS & SOURCES</span>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span class="badge badge-cyan">INTEGRATIONS &amp; SOURCES</span>
             <span class="badge badge-indigo">${escapeHtml(tenant?.name || 'Workspace')}</span>
           </div>
-          <h1>Connected Sources Hub</h1>
-          <p>
+          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Connected Sources Hub</h1>
+          <p style="color:var(--text-muted); margin:0; font-size:0.875rem;">
             Manage authorized code repositories and external platforms supplying verified career evidence.
           </p>
         </div>
 
         <a href="/onboarding?step=3" class="btn btn-primary btn-sm">
-          + Select & Sync Repositories
+          + Select &amp; Sync Repositories
         </a>
       </div>
 
@@ -89,29 +89,29 @@ export function renderSourcesPage({
       <div class="card" style="padding:28px; margin-bottom:32px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px; margin-bottom:20px;">
           <div style="display:flex; gap:16px; align-items:center;">
-            <div style="width:52px; height:52px; border-radius:14px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            <div style="width:48px; height:48px; border-radius:var(--radius-md); background:var(--bg-surface-elevated, #1F2937); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--text-main);">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
             </div>
             <div>
               <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px; flex-wrap:wrap;">
-                <h2 style="font-size:1.25rem; font-weight:700;">GitHub App Connector</h2>
+                <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">GitHub App Connector</h2>
                 ${
                   isConnected
-                    ? '<span class="badge badge-verified">ACTIVE & LINKED</span>'
+                    ? '<span class="badge badge-verified">ACTIVE &amp; LINKED</span>'
                     : '<span class="badge badge-amber">DISCONNECTED</span>'
                 }
               </div>
-              <p style="font-size:0.875rem; color:var(--text-muted);">
+              <p style="font-size:0.85rem; color:var(--text-muted); margin:4px 0 0 0;">
                 ${
                   isConnected
-                    ? `Account: <strong>${escapeHtml(gitHubConnection.externalAccountName || gitHubConnection.displayName)}</strong> &bull; Installation ID: <code>${escapeHtml(gitHubConnection.installationId || 'linked')}</code>`
+                    ? `Account: <strong style="color:var(--text-main);">${escapeHtml(gitHubConnection.externalAccountName || gitHubConnection.displayName)}</strong> &bull; Installation ID: <code style="font-size:0.8rem; color:var(--accent-indigo);">${escapeHtml(gitHubConnection.installationId || 'linked')}</code>`
                     : 'Not connected. Connect GitHub to allow Career Hub to extract verified AST syntax and commit evidence.'
                 }
               </p>
             </div>
           </div>
 
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
             ${
               isConnected
                 ? `
@@ -128,17 +128,17 @@ export function renderSourcesPage({
           </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; padding-top:16px; border-top:1px solid var(--border-subtle); font-size:0.85rem;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; padding-top:18px; border-top:1px solid var(--border-subtle); font-size:0.85rem;">
           <div>
-            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Permissions</span>
-            <strong style="color:var(--text-main); display:block; margin-top:4px;">contents:read, metadata:read</strong>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Permissions</span>
+            <code style="display:block; margin-top:4px; font-size:0.8rem; color:var(--text-main);">contents:read, metadata:read</code>
           </div>
           <div>
-            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Indexed Repositories</span>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Indexed Repositories</span>
             <strong style="color:var(--text-main); display:block; margin-top:4px;">${resources.length} ${resources.length === 1 ? 'repository' : 'repositories'}</strong>
           </div>
           <div>
-            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em;">Credential Security</span>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Credential Security</span>
             <strong style="color:var(--accent-emerald); display:block; margin-top:4px;">Zero Token Exposure</strong>
           </div>
         </div>
@@ -146,26 +146,26 @@ export function renderSourcesPage({
 
       <!-- Connected Repositories Section -->
       <div class="card" style="padding:28px; margin-bottom:32px;">
-        <div class="section-header">
+        <div class="section-header" style="margin-bottom:20px;">
           <div>
-            <h2>Connected Repositories</h2>
-            <p style="font-size:0.85rem; color:var(--text-dim); margin-top:2px;">
+            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">Connected Repositories</h2>
+            <p style="font-size:0.85rem; color:var(--text-dim); margin-top:4px; margin-bottom:0;">
               Individual codebases synchronized with Career Hub for project and skill evidence.
             </p>
           </div>
-          <span class="section-count">${resources.length} Active</span>
+          <span class="badge badge-cyan" style="font-size:0.75rem;">${resources.length} Active</span>
         </div>
 
         ${
           resources.length === 0
             ? `
           <div class="empty-state">
-            <div class="empty-state-icon">📦</div>
-            <h3>No Repositories Connected</h3>
+            <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
+            <h3 style="margin-top:8px;">No Repositories Connected</h3>
             <p>
               Select showcase repositories from your GitHub installation to start extracting verified evidence.
             </p>
-            <a href="/onboarding?step=3" class="btn btn-primary btn-sm">Select Repositories →</a>
+            <a href="/onboarding?step=3" class="btn btn-primary btn-sm" style="margin-top:12px;">Select Repositories →</a>
           </div>
         `
             : `
@@ -174,10 +174,10 @@ export function renderSourcesPage({
               <thead>
                 <tr>
                   <th>Repository</th>
-                  <th>Type</th>
-                  <th>Visibility</th>
-                  <th>Status</th>
-                  <th>Last Synced</th>
+                  <th style="width:140px;">Type</th>
+                  <th style="width:110px;">Visibility</th>
+                  <th style="width:110px;">Status</th>
+                  <th style="width:180px;">Last Synced</th>
                 </tr>
               </thead>
               <tbody>
@@ -186,21 +186,21 @@ export function renderSourcesPage({
                     (res) => `
                   <tr>
                     <td>
-                      <div style="font-weight:600; color:var(--text-main);">${escapeHtml(res.name || res.displayName)}</div>
-                      <div style="font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono);">${escapeHtml(res.externalResourceId || res.name)}</div>
+                      <div style="font-weight:600; color:var(--text-main); font-size:0.875rem;">${escapeHtml(res.name || res.displayName)}</div>
+                      <div style="font-size:0.75rem; color:var(--text-dim); font-family:var(--font-mono); margin-top:2px;">${escapeHtml(res.externalResourceId || res.name)}</div>
                     </td>
-                    <td><code style="font-size:0.8rem;">${escapeHtml(res.resourceType || 'REPOSITORY')}</code></td>
+                    <td><code style="font-size:0.78rem; color:var(--text-main);">${escapeHtml(res.resourceType || 'REPOSITORY')}</code></td>
                     <td>
                       ${
                         res.isPrivate
-                          ? '<span class="badge badge-amber">PRIVATE</span>'
-                          : '<span class="badge badge-cyan">PUBLIC</span>'
+                          ? '<span class="badge badge-amber" style="font-size:0.68rem;">PRIVATE</span>'
+                          : '<span class="badge badge-cyan" style="font-size:0.68rem;">PUBLIC</span>'
                       }
                     </td>
                     <td>
-                      <span class="badge badge-verified">INDEXED</span>
+                      <span class="badge badge-verified" style="font-size:0.68rem;">INDEXED</span>
                     </td>
-                    <td style="font-size:0.8rem; color:var(--text-muted);">
+                    <td style="font-size:0.8rem; color:var(--text-muted); font-family:var(--font-mono);">
                       ${res.lastSyncedAt ? new Date(res.lastSyncedAt).toLocaleString() : 'Recently'}
                     </td>
                   </tr>
@@ -216,10 +216,10 @@ export function renderSourcesPage({
 
       <!-- Future Connectors Showcase (Phase 15) -->
       <div class="card" style="padding:28px;">
-        <div style="margin-bottom:18px;">
-          <span class="badge badge-indigo" style="margin-bottom:4px;">ROADMAP</span>
-          <h2 style="font-size:1.15rem; font-weight:700;">Upcoming Resource Connectors (Phase 15)</h2>
-          <p style="font-size:0.85rem; color:var(--text-dim); margin-top:2px;">
+        <div style="margin-bottom:20px;">
+          <span class="badge badge-indigo" style="margin-bottom:6px;">ROADMAP</span>
+          <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">Upcoming Resource Connectors (Phase 15)</h2>
+          <p style="font-size:0.85rem; color:var(--text-dim); margin-top:4px; margin-bottom:0;">
             Additional connectors designed to continuously synchronize career evidence from external platforms.
           </p>
         </div>
@@ -245,12 +245,12 @@ export function renderSourcesPage({
           ]
             .map(
               (c) => `
-            <div style="padding:16px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); opacity:0.8;">
+            <div style="padding:16px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <strong style="font-size:0.95rem;">${c.name}</strong>
+                <strong style="font-size:0.9rem; color:var(--text-main);">${c.name}</strong>
                 <span class="badge badge-indigo" style="font-size:0.65rem;">PHASE 15</span>
               </div>
-              <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.5;">
+              <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.5; margin:0;">
                 ${c.desc}
               </p>
             </div>

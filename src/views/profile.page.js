@@ -1,9 +1,9 @@
 /**
- * @file Candidate Career Profile & Job Search Preferences View (P14-004C / ARCH-056 / Refinement).
+ * @file Candidate Career Profile & Job Search Preferences View (P14-004C / ARCH-056 / Batch 6 Redesign).
  *
  * Implements the user-facing Canonical Career Profile and Intent Management page:
  * 1. Actionable Profile Completeness & Readiness status with compact visual indicators
- * 2. Professional Identity & Narrative with guided suggestions (Name, Headline, Current Role, Current Location, Summary)
+ * 2. Professional Identity & Narrative (Name, Headline, Current Role, Current Location, Summary)
  * 3. Career Status & Explicit Current Employment (Fresher, Student, Employed, etc.)
  * 4. Multi-Record Work Experience with Add/Edit/Delete, employment types, and derived tenure metrics
  * 5. Multi-Record Education with Degree Types, graduation/enrolled status, and coursework tagging
@@ -11,7 +11,7 @@
  * 7. Evidence-Locked Qualifications & Categorized Skills (Read-Only / AST & GitHub / Non-Editable)
  * 8. Evidence-Locked Highlighted Projects with AST signals and repository provenance
  * 9. Intelligent Job Search Preferences (Separate from Current Location) with suggestions and multi-select chips
- * 10. Sticky save bar with dirty-state tracking and unsaved changes confirmation
+ * 10. Sticky save bar with dirty-state tracking, AJAX autosave, and unsaved changes confirmation
  */
 
 import { renderLayout } from './layout.js';
@@ -30,6 +30,8 @@ import { escapeHtml } from '../utils/html-escaper.js';
  * @param {string} [params.csrfToken=''] CSRF anti-tamper token
  * @param {string} [params.flashMessage=''] Success flash message
  * @param {string} [params.errorMessage=''] Error flash message
+ * @param {Array<object>} [params.additionalSkills=[]] Self-declared additional skills
+ * @param {object} [params.skillCatalog={ items: [], categories: [] }] Canonical skill catalog
  * @returns {string} Full HTML document
  */
 export function renderProfilePage({
@@ -215,84 +217,109 @@ export function renderProfilePage({
     skillCatalogCategories: (skillCatalog && skillCatalog.categories) || [],
   };
 
+  const candidateInitials = (candidate?.displayName || user?.displayName || 'C')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase() || 'CP';
+
   const content = `
     <style>
-      /* Career Profile SaaS Design System */
+      /* Career Profile SaaS Design System - Ashby / Linear / GitHub Grade */
       .profile-page-container {
-        max-width: 1100px;
+        max-width: 1080px;
         margin: 0 auto;
-        padding: 1.5rem 1.25rem 6rem 1.25rem;
+        padding: 1.5rem 1rem 6rem 1rem;
       }
 
       .profile-header-card {
-        background: var(--bg-surface-elevated);
-        border: 1px solid rgba(255, 255, 255, 0.09);
-        border-radius: 12px;
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
-        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
       }
 
       .completion-bar-track {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.06);
         border-radius: 9999px;
-        height: 7px;
+        height: 6px;
         width: 100%;
         overflow: hidden;
-        margin: 0.75rem 0;
+        margin: 0.85rem 0;
       }
 
       .completion-bar-fill {
-        background: var(--accent-primary, #6366f1);
+        background: #6366F1;
         height: 100%;
         border-radius: 9999px;
-        transition: width 0.4s ease;
+        transition: width 0.35s ease;
       }
 
       .section-status-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
         gap: 0.5rem;
-        margin-top: 0.75rem;
+        margin-top: 0.85rem;
       }
 
       .section-status-pill {
         display: flex;
         align-items: center;
         gap: 0.4rem;
-        padding: 0.35rem 0.65rem;
+        padding: 0.4rem 0.65rem;
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 500;
         text-decoration: none;
-        transition: background 0.15s ease;
+        transition: all 0.15s ease;
       }
 
       .status-pill-complete {
-        background: rgba(16, 185, 129, 0.12);
+        background: rgba(16, 185, 129, 0.08);
         color: #34d399;
-        border: 1px solid rgba(16, 185, 129, 0.25);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+      }
+
+      .status-pill-complete:hover {
+        background: rgba(16, 185, 129, 0.14);
+        border-color: rgba(16, 185, 129, 0.35);
       }
 
       .status-pill-attention {
-        background: rgba(245, 158, 11, 0.12);
+        background: rgba(245, 158, 11, 0.08);
         color: #fbbf24;
-        border: 1px solid rgba(245, 158, 11, 0.25);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+      }
+
+      .status-pill-attention:hover {
+        background: rgba(245, 158, 11, 0.14);
+        border-color: rgba(245, 158, 11, 0.35);
       }
 
       .status-pill-neutral {
-        background: rgba(255, 255, 255, 0.04);
+        background: rgba(255, 255, 255, 0.03);
         color: #94a3b8;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+      }
+
+      .status-pill-neutral:hover {
+        background: rgba(255, 255, 255, 0.06);
+        color: #f8fafc;
+        border-color: rgba(255, 255, 255, 0.14);
       }
 
       .form-section-card {
-        background: var(--bg-surface-elevated);
+        background: #111827;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
+        border-radius: 8px;
         padding: 1.5rem;
         margin-bottom: 1.25rem;
         position: relative;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
 
       .section-title {
@@ -309,7 +336,7 @@ export function renderProfilePage({
         font-size: 0.8rem;
         color: #94a3b8;
         margin-bottom: 1.25rem;
-        line-height: 1.4;
+        line-height: 1.45;
       }
 
       .form-group {
@@ -318,17 +345,17 @@ export function renderProfilePage({
 
       .form-label {
         display: block;
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: #cbd5e1;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #9ca3af;
         margin-bottom: 0.35rem;
       }
 
       .form-input, .form-select, .form-textarea {
         width: 100%;
-        background: rgba(11, 15, 25, 0.8);
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 0.55rem 0.75rem;
         font-size: 0.85rem;
         color: #f8fafc;
@@ -339,7 +366,7 @@ export function renderProfilePage({
 
       .form-input:focus, .form-select:focus, .form-textarea:focus {
         border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
 
       .form-helper {
@@ -352,17 +379,22 @@ export function renderProfilePage({
         display: flex;
         flex-wrap: wrap;
         gap: 0.4rem;
-        background: rgba(11, 15, 25, 0.8);
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 0.4rem 0.6rem;
         min-height: 42px;
         align-items: center;
       }
 
+      .chips-input-box:focus-within {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+      }
+
       .chips-search-input {
         flex: 1;
-        min-width: 120px;
+        min-width: 140px;
         background: transparent;
         border: none;
         outline: none;
@@ -375,11 +407,11 @@ export function renderProfilePage({
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
-        background: rgba(99, 102, 241, 0.2);
+        background: rgba(99, 102, 241, 0.15);
         color: #e0e7ff;
-        border: 1px solid rgba(99, 102, 241, 0.4);
+        border: 1px solid rgba(99, 102, 241, 0.35);
         padding: 0.2rem 0.55rem;
-        border-radius: 6px;
+        border-radius: 5px;
         font-size: 0.78rem;
         font-weight: 500;
       }
@@ -390,10 +422,14 @@ export function renderProfilePage({
         font-weight: 700;
         font-size: 0.85rem;
         line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 2px;
       }
 
       .chip-remove-btn:hover {
-        color: #ef4444;
+        color: #f87171;
       }
 
       .suggestion-pills-row {
@@ -404,26 +440,26 @@ export function renderProfilePage({
       }
 
       .suggestion-pill {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.04);
         color: #cbd5e1;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         padding: 0.2rem 0.55rem;
-        border-radius: 14px;
+        border-radius: 4px;
         font-size: 0.72rem;
         cursor: pointer;
-        transition: background 0.15s ease, border-color 0.15s ease;
+        transition: all 0.15s ease;
       }
 
       .suggestion-pill:hover {
-        background: rgba(99, 102, 241, 0.15);
-        border-color: rgba(99, 102, 241, 0.4);
+        background: rgba(99, 102, 241, 0.12);
+        border-color: rgba(99, 102, 241, 0.35);
         color: #e0e7ff;
       }
 
       .suggestion-pill.ai-recommended {
-        border-color: rgba(99, 102, 241, 0.4);
+        border-color: rgba(99, 102, 241, 0.3);
         color: #c7d2fe;
-        background: rgba(99, 102, 241, 0.1);
+        background: rgba(99, 102, 241, 0.08);
       }
 
       /* Evidence Locked Banner & Badges */
@@ -431,26 +467,26 @@ export function renderProfilePage({
         display: inline-flex;
         align-items: center;
         gap: 0.3rem;
-        background: rgba(99, 102, 241, 0.12);
+        background: rgba(99, 102, 241, 0.1);
         color: #a5b4fc;
-        border: 1px solid rgba(99, 102, 241, 0.3);
+        border: 1px solid rgba(99, 102, 241, 0.25);
         font-size: 0.72rem;
-        font-weight: 600;
+        font-weight: 500;
         padding: 0.2rem 0.5rem;
-        border-radius: 6px;
+        border-radius: 4px;
       }
 
       .evidence-lock-banner {
-        background: rgba(99, 102, 241, 0.05);
-        border: 1px dashed rgba(99, 102, 241, 0.25);
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
+        background: rgba(11, 15, 25, 0.7);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 6px;
+        padding: 0.85rem 1rem;
         margin-bottom: 1.25rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
-        gap: 0.5rem;
+        gap: 0.6rem;
       }
 
       /* Multi-Record Card Grid */
@@ -461,16 +497,16 @@ export function renderProfilePage({
       }
 
       .record-item-card {
-        background: rgba(11, 15, 25, 0.6);
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 1rem 1.25rem;
         position: relative;
         transition: border-color 0.15s ease;
       }
 
       .record-item-card:hover {
-        border-color: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.14);
       }
 
       .record-card-header {
@@ -488,32 +524,34 @@ export function renderProfilePage({
       }
 
       .btn-icon-action {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.09);
         color: #cbd5e1;
-        padding: 0.2rem 0.5rem;
-        border-radius: 5px;
+        padding: 0.25rem 0.55rem;
+        border-radius: 4px;
         font-size: 0.72rem;
+        font-weight: 500;
         cursor: pointer;
-        transition: background 0.15s ease, color 0.15s ease;
+        transition: all 0.15s ease;
       }
 
       .btn-icon-action:hover {
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.09);
         color: #f8fafc;
+        border-color: rgba(255, 255, 255, 0.18);
       }
 
       .btn-icon-action.danger:hover {
-        background: rgba(239, 68, 68, 0.15);
-        border-color: rgba(239, 68, 68, 0.4);
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.35);
         color: #fca5a5;
       }
 
       /* Derived Metrics Box */
       .derived-metrics-box {
-        background: rgba(15, 23, 42, 0.6);
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 0.85rem 1rem;
         margin-top: 1rem;
         display: grid;
@@ -527,18 +565,18 @@ export function renderProfilePage({
       }
 
       .metric-stat-label {
-        font-size: 0.7rem;
+        font-size: 0.68rem;
         color: #94a3b8;
-        font-weight: 500;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.03em;
       }
 
       .metric-stat-value {
         font-size: 0.95rem;
         font-weight: 700;
         color: #f8fafc;
-        margin-top: 0.15rem;
+        margin-top: 0.2rem;
       }
 
       /* Sticky Save Bar */
@@ -549,15 +587,15 @@ export function renderProfilePage({
         right: 0;
         background: rgba(15, 23, 42, 0.95);
         backdrop-filter: blur(12px);
-        border-top: 1px solid rgba(99, 102, 241, 0.3);
+        border-top: 1px solid rgba(99, 102, 241, 0.25);
         padding: 0.85rem 1.5rem;
         z-index: 100;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
         transform: translateY(100%);
-        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
       .sticky-save-bar.visible {
@@ -585,11 +623,11 @@ export function renderProfilePage({
       }
 
       .modal-dialog {
-        background: #0f172a;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 12px;
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
         width: 100%;
-        max-width: 580px;
+        max-width: 560px;
         max-height: 90vh;
         overflow-y: auto;
         padding: 1.5rem;
@@ -606,7 +644,7 @@ export function renderProfilePage({
       }
 
       .modal-title {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         font-weight: 700;
         color: #f8fafc;
         margin: 0;
@@ -618,6 +656,8 @@ export function renderProfilePage({
         color: #94a3b8;
         font-size: 1.25rem;
         cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
       }
 
       .modal-close-btn:hover {
@@ -633,7 +673,7 @@ export function renderProfilePage({
         border-top: 1px solid rgba(255, 255, 255, 0.08);
       }
 
-      /* Enhanced Additional Skills Catalog Modal (SaaS Design System) */
+      /* Enhanced Additional Skills Catalog Modal */
       .modal-catalog-dialog {
         max-width: 620px;
         width: 100%;
@@ -643,9 +683,9 @@ export function renderProfilePage({
         flex-direction: column;
         overflow: hidden;
         padding: 0;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: #0f172a;
-        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: #111827;
+        border-radius: 8px;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
       }
 
@@ -655,7 +695,7 @@ export function renderProfilePage({
         align-items: center;
         padding: 1.15rem 1.4rem;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(15, 23, 42, 0.95);
+        background: #111827;
         flex-shrink: 0;
       }
 
@@ -673,7 +713,7 @@ export function renderProfilePage({
         gap: 0.6rem;
         padding: 0.9rem 1.4rem;
         border-top: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(11, 15, 25, 0.5);
+        background: #0B0F19;
         flex-shrink: 0;
       }
 
@@ -684,31 +724,21 @@ export function renderProfilePage({
 
       .catalog-search-input {
         width: 100%;
-        padding: 0.65rem 1rem 0.65rem 2.4rem;
-        background: rgba(11, 15, 25, 0.7);
+        padding: 0.6rem 0.9rem;
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 8px;
+        border-radius: 6px;
         color: #f8fafc;
-        font-size: 0.88rem;
+        font-size: 0.85rem;
         font-family: inherit;
         outline: none;
-        transition: all 0.2s ease;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        box-sizing: border-box;
       }
 
       .catalog-search-input:focus {
         border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-        background: rgba(11, 15, 25, 0.9);
-      }
-
-      .catalog-search-icon {
-        position: absolute;
-        left: 0.8rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #64748b;
-        font-size: 0.85rem;
-        pointer-events: none;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
 
       .catalog-categories-bar {
@@ -723,8 +753,8 @@ export function renderProfilePage({
         border: 1px solid rgba(255, 255, 255, 0.08);
         color: #94a3b8;
         padding: 0.25rem 0.65rem;
-        border-radius: 9999px;
-        font-size: 0.74rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.15s ease;
@@ -736,19 +766,19 @@ export function renderProfilePage({
       .catalog-cat-pill:hover {
         background: rgba(255, 255, 255, 0.08);
         color: #f8fafc;
-        border-color: rgba(255, 255, 255, 0.18);
+        border-color: rgba(255, 255, 255, 0.16);
       }
 
       .catalog-cat-pill.active {
-        background: rgba(99, 102, 241, 0.18);
-        border-color: rgba(99, 102, 241, 0.45);
+        background: rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.4);
         color: #c7d2fe;
         font-weight: 600;
       }
 
       .catalog-cat-pill .pill-count {
         font-size: 0.68rem;
-        opacity: 0.7;
+        opacity: 0.75;
       }
 
       .catalog-skills-container {
@@ -762,14 +792,13 @@ export function renderProfilePage({
         justify-content: space-between;
         align-items: center;
         padding: 0.6rem 0.9rem;
-        background: rgba(11, 15, 25, 0.45);
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 8px;
+        border-radius: 6px;
         transition: all 0.15s ease;
       }
 
       .catalog-skill-card:hover {
-        background: rgba(255, 255, 255, 0.03);
         border-color: rgba(99, 102, 241, 0.3);
       }
 
@@ -782,11 +811,11 @@ export function renderProfilePage({
       .catalog-skill-name {
         color: #f8fafc;
         font-weight: 600;
-        font-size: 0.875rem;
+        font-size: 0.85rem;
       }
 
       .catalog-skill-cat-tag {
-        font-size: 0.7rem;
+        font-size: 0.68rem;
         padding: 0.15rem 0.45rem;
         border-radius: 4px;
         background: rgba(255, 255, 255, 0.05);
@@ -796,7 +825,7 @@ export function renderProfilePage({
       .catalog-selected-card {
         background: rgba(99, 102, 241, 0.08);
         border: 1px solid rgba(99, 102, 241, 0.25);
-        border-radius: 10px;
+        border-radius: 6px;
         padding: 0.9rem 1.1rem;
         margin-bottom: 1.25rem;
         display: flex;
@@ -812,12 +841,12 @@ export function renderProfilePage({
       }
 
       .status-toggle-btn {
-        padding: 0.6rem 0.75rem;
-        background: rgba(11, 15, 25, 0.5);
+        padding: 0.55rem 0.75rem;
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
+        border-radius: 6px;
         color: #94a3b8;
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         font-weight: 500;
         cursor: pointer;
         text-align: center;
@@ -829,20 +858,19 @@ export function renderProfilePage({
         border-color: #6366f1;
         color: #f8fafc;
         font-weight: 600;
-        box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
       }
 
       /* Skills Grid Categorization */
       .skill-category-block {
-        background: rgba(11, 15, 25, 0.5);
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 0.75rem 1rem;
       }
 
       .skill-category-title {
-        font-size: 0.75rem;
-        font-weight: 700;
+        font-size: 0.72rem;
+        font-weight: 600;
         color: #a5b4fc;
         text-transform: uppercase;
         letter-spacing: 0.03em;
@@ -853,65 +881,70 @@ export function renderProfilePage({
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
-        padding: 0.25rem 0.6rem;
-        border-radius: 6px;
-        font-size: 0.78rem;
+        padding: 0.25rem 0.55rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
         font-weight: 500;
       }
 
       .badge-verified {
-        background: rgba(16, 185, 129, 0.12);
+        background: rgba(16, 185, 129, 0.1);
         color: #34d399;
-        border: 1px solid rgba(16, 185, 129, 0.3);
+        border: 1px solid rgba(16, 185, 129, 0.25);
       }
 
       .badge-claimed {
-        background: rgba(245, 158, 11, 0.12);
+        background: rgba(245, 158, 11, 0.1);
         color: #fbbf24;
-        border: 1px solid rgba(245, 158, 11, 0.3);
+        border: 1px solid rgba(245, 158, 11, 0.25);
       }
 
       .badge-user-provided {
-        background: rgba(99, 102, 241, 0.12);
+        background: rgba(99, 102, 241, 0.1);
         color: #c7d2fe;
-        border: 1px solid rgba(99, 102, 241, 0.3);
+        border: 1px solid rgba(99, 102, 241, 0.25);
       }
 
       /* Projects Grid */
       .projects-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
         gap: 0.85rem;
       }
 
       .project-card {
-        background: rgba(11, 15, 25, 0.6);
+        background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
+        border-radius: 6px;
         padding: 1rem;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        transition: border-color 0.15s ease;
+      }
+
+      .project-card:hover {
+        border-color: rgba(255, 255, 255, 0.14);
       }
 
       .project-evidence-badge {
         font-size: 0.68rem;
-        font-weight: 600;
+        font-weight: 500;
         padding: 0.15rem 0.45rem;
         border-radius: 4px;
-        background: rgba(16, 185, 129, 0.15);
+        background: rgba(16, 185, 129, 0.12);
         color: #34d399;
-        border: 1px solid rgba(16, 185, 129, 0.3);
+        border: 1px solid rgba(16, 185, 129, 0.25);
       }
 
       .project-claimed-badge {
         font-size: 0.68rem;
-        font-weight: 600;
+        font-weight: 500;
         padding: 0.15rem 0.45rem;
         border-radius: 4px;
-        background: rgba(245, 158, 11, 0.15);
+        background: rgba(245, 158, 11, 0.12);
         color: #fbbf24;
-        border: 1px solid rgba(245, 158, 11, 0.3);
+        border: 1px solid rgba(245, 158, 11, 0.25);
       }
 
       /* Modal Grid Layouts */
@@ -926,19 +959,19 @@ export function renderProfilePage({
         gap: 0.75rem;
       }
 
-      /* Responsive: Collapse grids below 480px */
-      @media (max-width: 480px) {
+      /* Responsive adjustments */
+      @media (max-width: 640px) {
         .profile-page-container {
-          padding: 1rem 0.75rem 5rem 0.75rem;
+          padding: 1rem 0.75rem 5.5rem 0.75rem;
         }
         .profile-header-card {
-          padding: 1rem;
+          padding: 1.15rem;
         }
         .form-section-card {
-          padding: 1rem;
+          padding: 1.15rem;
         }
         .modal-dialog {
-          padding: 1rem;
+          padding: 1.15rem;
           max-width: 100%;
         }
         .section-status-grid {
@@ -958,7 +991,7 @@ export function renderProfilePage({
           max-width: 100%;
           height: 90vh;
           max-height: 90vh;
-          border-radius: 10px;
+          border-radius: 8px;
         }
         .modal-catalog-header,
         .modal-catalog-body,
@@ -976,12 +1009,12 @@ export function renderProfilePage({
       <!-- Flash Alert Feedback -->
       ${
         flashMessage
-          ? `<div class="card" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; padding: 0.85rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 500;">✓ ${escapeHtml(flashMessage)}</div>`
+          ? `<div class="card" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: #34d399; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.85rem; font-weight: 500;">✓ ${escapeHtml(flashMessage)}</div>`
           : ''
       }
       ${
         errorMessage
-          ? `<div class="card" style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 0.85rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; font-size: 0.88rem; font-weight: 500;">⚠️ ${escapeHtml(errorMessage)}</div>`
+          ? `<div class="card" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: #fca5a5; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.85rem; font-weight: 500;">${escapeHtml(errorMessage)}</div>`
           : ''
       }
 
@@ -989,25 +1022,25 @@ export function renderProfilePage({
       <div class="profile-header-card">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 0.75rem;">
           <div style="display: flex; gap: 1rem; align-items: center;">
-            <div style="width: 56px; height: 56px; border-radius: 14px; background: var(--accent-primary, #6366f1); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800;">
-              ${escapeHtml((candidate?.displayName || user?.displayName || 'C').slice(0, 2).toUpperCase())}
+            <div style="width: 52px; height: 52px; border-radius: 8px; background: #1f2937; border: 1px solid rgba(99, 102, 241, 0.4); color: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 700; letter-spacing: 0.05em;">
+              ${escapeHtml(candidateInitials)}
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                <h1 style="font-size: 1.35rem; font-weight: 800; color: #f8fafc; margin: 0;">
+                <h1 style="font-size: 1.3rem; font-weight: 700; color: #f8fafc; margin: 0; line-height: 1.2;">
                   ${escapeHtml(candidate?.displayName || user?.displayName || 'Candidate Profile')}
                 </h1>
-                <span class="badge badge-verified" style="font-size: 0.72rem; text-transform: uppercase;">
+                <span class="badge badge-verified" style="font-size: 0.7rem; text-transform: uppercase;">
                   STATUS: ${escapeHtml(careerStatusVal)}
                 </span>
               </div>
-              <p style="font-size: 0.88rem; color: #94a3b8; margin: 0.2rem 0 0 0;">
+              <p style="font-size: 0.85rem; color: #94a3b8; margin: 0.25rem 0 0 0;">
                 ${escapeHtml(candidate?.headline || currentRole || 'Professional Candidate')} • <span style="color: #64748b;">${escapeHtml(userLocation || 'Location not set')}</span>
               </p>
             </div>
           </div>
 
-          <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
             <span class="badge badge-verified" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">
               Career Profile: ${profileReadiness.score}% Populated
             </span>
@@ -1040,9 +1073,8 @@ export function renderProfilePage({
         </div>
 
         <!-- MCP Data Flow Indicator -->
-        <div style="margin-top: 0.75rem; padding: 0.6rem 1rem; background: rgba(99, 102, 241, 0.06); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 8px; display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 0.85rem;">🔗</span>
-          <span style="font-size: 0.78rem; color: #a5b4fc;">This profile feeds AI career tools — MCP clients like Claude, ChatGPT & Gemini use your saved data for job matching & resume tailoring.</span>
+        <div style="margin-top: 0.85rem; padding: 0.6rem 0.9rem; background: rgba(99, 102, 241, 0.04); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 6px; display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 0.75rem; color: #a5b4fc;">This profile feeds AI career tools — MCP clients like Claude, ChatGPT & Gemini use your saved data for job matching & resume tailoring.</span>
         </div>
       </div>
 
@@ -1050,11 +1082,10 @@ export function renderProfilePage({
       ${
         targetRolesList.length === 0 || preferredLocationsList.length === 0
           ? `
-        <div class="card" style="background: var(--bg-surface-elevated); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+        <div class="card" style="background: #111827; border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
           <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <span style="font-size: 1.35rem;">✨</span>
             <div>
-              <strong style="color: #f8fafc; font-size: 0.88rem; display: block;">Suggested preferences based on your skills</strong>
+              <strong style="color: #f8fafc; font-size: 0.85rem; display: block;">Suggested preferences based on your skills</strong>
               <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.3rem;">
                 ${recommendedRoles
                   .slice(0, 3)
@@ -1068,7 +1099,7 @@ export function renderProfilePage({
               </div>
             </div>
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="applyAllAiSuggestions()" style="font-size: 0.78rem; padding: 0.35rem 0.75rem; border-color: rgba(99, 102, 241, 0.4); color: #c7d2fe;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="applyAllAiSuggestions()" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; border-color: rgba(99, 102, 241, 0.3); color: #c7d2fe;">
             Apply suggestions
           </button>
         </div>
@@ -1087,10 +1118,10 @@ export function renderProfilePage({
         <input type="hidden" id="currentEmploymentHidden" name="currentEmployment" value="" />
 
         <!-- Top-level Save Button (always visible) -->
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; padding: 0.5rem 0;">
-          <span id="dirtyIndicator" style="font-size: 0.78rem; color: #94a3b8; display: none;">● Unsaved changes</span>
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; padding: 0.25rem 0;">
+          <span id="dirtyIndicator" style="font-size: 0.78rem; color: #fbbf24; display: none;">● Unsaved changes</span>
           <span id="saveStatus" style="font-size: 0.78rem; display: none;"></span>
-          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 700;">💾 Save Profile</button>
+          <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1.25rem; font-weight: 600; font-size: 0.85rem;">Save Profile</button>
         </div>
 
         <!-- ================================================================= -->
@@ -1098,7 +1129,7 @@ export function renderProfilePage({
         <!-- ================================================================= -->
         <div id="section-identity" class="form-section-card">
           <div class="section-title">
-            <span>👤 1. Professional Identity & Standing</span>
+            <span>1. Professional Identity & Standing</span>
             <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ User Editable</span>
           </div>
           <div class="section-subtitle">
@@ -1167,11 +1198,11 @@ export function renderProfilePage({
               <label class="form-label">
                 Current Active Employment
               </label>
-              <div id="currentEmploymentDisplay" style="background: rgba(11, 15, 25, 0.75); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 0.65rem 0.85rem; font-size: 0.85rem; color: #f8fafc; min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+              <div id="currentEmploymentDisplay" style="background: #0B0F19; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 6px; padding: 0.65rem 0.85rem; font-size: 0.85rem; color: #f8fafc; min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
                 <div id="currentEmploymentText">
                   ${
                     currentEmploymentObj
-                      ? `<span>💼 <strong>${escapeHtml(currentEmploymentObj.title)}</strong> at ${escapeHtml(currentEmploymentObj.company)} <span class="badge" style="font-size: 0.68rem; margin-left: 0.3rem;">${escapeHtml(currentEmploymentObj.employmentType || 'FULL_TIME')}</span></span>`
+                      ? `<span><strong>${escapeHtml(currentEmploymentObj.title)}</strong> at ${escapeHtml(currentEmploymentObj.company)} <span class="badge" style="font-size: 0.68rem; margin-left: 0.3rem;">${escapeHtml(currentEmploymentObj.employmentType || 'FULL_TIME')}</span></span>`
                       : `<span style="color: #94a3b8;">○ Not currently employed (Job Seeking / Student / Independent)</span>`
                   }
                 </div>
@@ -1199,7 +1230,7 @@ export function renderProfilePage({
         <!-- ================================================================= -->
         <div id="section-experience" class="form-section-card">
           <div class="section-title">
-            <span>💼 2. Work Experience History</span>
+            <span>2. Work Experience History</span>
             <button type="button" class="btn btn-primary btn-sm" onclick="openAddExperienceModal()" style="font-size: 0.78rem; padding: 0.3rem 0.75rem;">
               + Add Experience
             </button>
@@ -1232,7 +1263,7 @@ export function renderProfilePage({
             </div>
           </div>
           <div style="font-size: 0.72rem; color: #64748b; margin-top: 0.4rem;">
-            ℹ️ Derived metrics are calculated automatically from your experience records and cannot be directly forged.
+            Derived metrics are calculated automatically from your experience records and cannot be directly forged.
           </div>
         </div>
 
@@ -1241,7 +1272,7 @@ export function renderProfilePage({
         <!-- ================================================================= -->
         <div id="section-education" class="form-section-card">
           <div class="section-title">
-            <span>🎓 3. Education & Degrees</span>
+            <span>3. Education & Degrees</span>
             <button type="button" class="btn btn-primary btn-sm" onclick="openAddEducationModal()" style="font-size: 0.78rem; padding: 0.3rem 0.75rem;">
               + Add Education
             </button>
@@ -1260,7 +1291,7 @@ export function renderProfilePage({
         <!-- ================================================================= -->
         <div id="section-credentials" class="form-section-card">
           <div class="section-title">
-            <span>📜 4. Certifications, Languages & Links</span>
+            <span>4. Certifications, Languages & Links</span>
           </div>
           <div class="section-subtitle">
             Professional credentials, spoken languages, and online portfolio links.
@@ -1270,7 +1301,7 @@ export function renderProfilePage({
             <!-- Certifications -->
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <h4 style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin: 0;">Certifications</h4>
+                <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Certifications</h4>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="openAddCertModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add</button>
               </div>
               <div id="certificationsListContainer" class="record-card-list">
@@ -1281,7 +1312,7 @@ export function renderProfilePage({
             <!-- Languages -->
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <h4 style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin: 0;">Languages</h4>
+                <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Languages</h4>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLangModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add</button>
               </div>
               <div id="languagesListContainer" class="record-card-list">
@@ -1293,7 +1324,7 @@ export function renderProfilePage({
           <!-- Portfolio Links -->
           <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <h4 style="font-size: 0.88rem; font-weight: 700; color: #e2e8f0; margin: 0;">🔗 Professional Portfolio & Social Links</h4>
+              <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Portfolio & Professional Links</h4>
               <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLinkModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add Link</button>
             </div>
             <div id="portfolioLinksContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
@@ -1307,7 +1338,7 @@ export function renderProfilePage({
         <!-- ================================================================= -->
         <div id="section-qualifications" class="form-section-card">
           <div class="section-title">
-            <span>🛡️ 5. Career Skills (${primarySkillsList.length + technologySignalsList.length})</span>
+            <span>5. Career Skills (${primarySkillsList.length + technologySignalsList.length})</span>
             <span class="evidence-lock-badge">🔒 Evidence-Controlled</span>
           </div>
           <div class="section-subtitle">
@@ -1316,8 +1347,8 @@ export function renderProfilePage({
 
           <div class="evidence-lock-banner">
             <div>
-              <strong style="color: #c7d2fe; font-size: 0.85rem;">Evidence-Locked Truth Model</strong>
-              <p style="color: #94a3b8; font-size: 0.78rem; margin: 0.2rem 0 0 0;">
+              <strong style="color: #c7d2fe; font-size: 0.82rem;">Evidence-Locked Truth Model</strong>
+              <p style="color: #94a3b8; font-size: 0.75rem; margin: 0.2rem 0 0 0;">
                 Skills are classified as ✓ Verified (GitHub evidence), ✓ Corroborated (both sources), or ○ Claimed (resume only).
               </p>
             </div>
@@ -1328,15 +1359,15 @@ export function renderProfilePage({
 
           <!-- Source Summary -->
           <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #34d399;">
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #34d399;">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block;"></span>
               ${primarySkillsList.filter((s) => s.githubEvidence).length + technologySignalsList.filter((s) => s.githubEvidence).length} GitHub Verified
             </div>
-            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #fbbf24;">
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #fbbf24;">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #fbbf24; display: inline-block;"></span>
               ${primarySkillsList.filter((s) => s.source === 'BOTH').length + technologySignalsList.filter((s) => s.source === 'BOTH').length} Corroborated
             </div>
-            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #a5b4fc;">
+            <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #a5b4fc;">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #a5b4fc; display: inline-block;"></span>
               ${primarySkillsList.filter((s) => !s.githubEvidence && s.source !== 'BOTH').length + technologySignalsList.filter((s) => !s.githubEvidence && s.source !== 'BOTH').length} Resume Claimed
             </div>
@@ -1378,9 +1409,9 @@ export function renderProfilePage({
           ${
             technologySignalsList.length > 0
               ? `
-            <div style="background: rgba(11, 15, 25, 0.45); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 0.85rem 1rem;">
-              <div style="font-size: 0.85rem; font-weight: 500; color: #94a3b8; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
-                <span>🔍 Additional Libraries & Tools (${technologySignalsList.length})</span>
+            <div style="background: #0B0F19; border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 6px; padding: 0.85rem 1rem;">
+              <div style="font-size: 0.82rem; font-weight: 500; color: #94a3b8; margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>Additional Libraries & Tools (${technologySignalsList.length})</span>
                 <span style="font-size: 0.72rem; color: #64748b;">Supporting technologies from code analysis</span>
               </div>
               <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
@@ -1411,17 +1442,17 @@ export function renderProfilePage({
         <!-- ================================================================= -->
         <div id="section-additional-skills" class="form-section-card">
           <div class="section-title">
-            <span>🎯 5B. Additional Skills</span>
-            <span style="font-size: 0.72rem; color: #a5b4fc; background: rgba(165, 180, 252, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 500;">YOUR DECLARATION</span>
+            <span>5B. Additional Skills</span>
+            <span style="font-size: 0.7rem; color: #a5b4fc; background: rgba(165, 180, 252, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 500;">YOUR DECLARATION</span>
           </div>
           <div class="section-subtitle">
             Add skills you know or are learning that may not be visible in your connected GitHub repositories or resume.
           </div>
 
-          <div class="evidence-lock-banner" style="background: rgba(165, 180, 252, 0.06); border-color: rgba(165, 180, 252, 0.15);">
+          <div class="evidence-lock-banner" style="background: rgba(165, 180, 252, 0.04); border-color: rgba(165, 180, 252, 0.15);">
             <div>
-              <strong style="color: #c7d2fe; font-size: 0.85rem;">Self-Declared Skills</strong>
-              <p style="color: #94a3b8; font-size: 0.78rem; margin: 0.2rem 0 0 0;">
+              <strong style="color: #c7d2fe; font-size: 0.82rem;">Self-Declared Skills</strong>
+              <p style="color: #94a3b8; font-size: 0.75rem; margin: 0.2rem 0 0 0;">
                 These are your self-declared skills. They help career tools understand your full skillset but are marked as <span style="color: #fbbf24;">SELF_DECLARED</span> until independently verified.
               </p>
             </div>
@@ -1437,14 +1468,14 @@ export function renderProfilePage({
             type="button"
             id="openAddSkillModal"
             class="btn btn-secondary"
-            style="font-size: 0.82rem; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.4rem;"
+            style="font-size: 0.82rem; padding: 0.45rem 0.9rem; display: flex; align-items: center; gap: 0.4rem;"
             onclick="openSkillCatalogModal()"
           >
-            <span style="font-size: 1rem;">+</span> Add Skill
+            <span>+ Add Skill</span>
           </button>
 
           <div style="margin-top: 0.5rem; font-size: 0.72rem; color: #64748b;">
-            🔗 These skills feed AI career tools — MCP clients use your saved data for job matching.
+            These skills feed AI career tools — MCP clients use your saved data for job matching.
           </div>
         </div>
 
@@ -1453,7 +1484,7 @@ export function renderProfilePage({
         <!-- ================================================================= -->
         <div id="section-projects" class="form-section-card">
           <div class="section-title">
-            <span>🚀 6. Highlighted Portfolio Projects</span>
+            <span>6. Highlighted Portfolio Projects</span>
             <span class="evidence-lock-badge">🔒 Evidence-Controlled</span>
           </div>
           <div class="section-subtitle">
@@ -1526,7 +1557,7 @@ export function renderProfilePage({
         <!-- ================================================================= -->
         <div id="section-preferences" class="form-section-card">
           <div class="section-title">
-            <span>🎯 7. Job Search Preferences & Criteria</span>
+            <span>7. Job Search Preferences & Criteria</span>
             <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ User Editable</span>
           </div>
           <div class="section-subtitle">
@@ -1546,7 +1577,7 @@ export function renderProfilePage({
 
             <!-- Suggestions -->
             <div style="margin-top: 0.4rem;">
-              <span style="font-size: 0.72rem; color: #a5b4fc; font-weight: 500;">✨ Quick Suggestions:</span>
+              <span style="font-size: 0.72rem; color: #a5b4fc; font-weight: 500;">Quick Suggestions:</span>
               <div class="suggestion-pills-row" id="recommendedRolesRow">
                 ${recommendedRoles.map((r) => `<span class="suggestion-pill ai-recommended" onclick="addSuggestedRole('${escapeHtml(r)}')">+ ${escapeHtml(r)}</span>`).join('')}
                 <span class="suggestion-pill" onclick="addSuggestedRole('Frontend Engineer')">+ Frontend Engineer</span>
@@ -1568,7 +1599,7 @@ export function renderProfilePage({
             <div class="form-helper">Locations where you are willing to work (Remote, Hybrid, or On-site cities).</div>
 
             <div style="margin-top: 0.4rem;">
-              <span style="font-size: 0.72rem; color: #a5b4fc; font-weight: 500;">✨ Quick Locations:</span>
+              <span style="font-size: 0.72rem; color: #a5b4fc; font-weight: 500;">Quick Locations:</span>
               <div class="suggestion-pills-row">
                 <span class="suggestion-pill" onclick="addSuggestedLocation('Remote')">+ Remote</span>
                 <span class="suggestion-pill" onclick="addSuggestedLocation('Bengaluru')">+ Bengaluru</span>
@@ -1625,13 +1656,12 @@ export function renderProfilePage({
 
         <!-- Bottom Save Button -->
         <div style="display: flex; justify-content: flex-end; padding: 1rem 0 0.5rem 0; border-top: 1px solid rgba(255,255,255,0.08);">
-          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 700;">💾 Save Profile</button>
+          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 600;">Save Profile</button>
         </div>
 
         <!-- Sticky Save Action Bar -->
         <div id="stickySaveBar" class="sticky-save-bar">
           <div style="display: flex; align-items: center; gap: 0.6rem;">
-            <span style="font-size: 1.1rem;">💾</span>
             <div>
               <strong style="color: #f8fafc; font-size: 0.88rem;">Unsaved Changes</strong>
               <div style="color: #94a3b8; font-size: 0.75rem;">You have pending profile adjustments.</div>
@@ -1639,7 +1669,7 @@ export function renderProfilePage({
           </div>
           <div style="display: flex; gap: 0.5rem;">
             <button type="button" class="btn btn-secondary btn-sm" onclick="discardChanges()">Discard</button>
-            <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.4rem 1.25rem; font-weight: 700;">Save All Changes</button>
+            <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.4rem 1.25rem; font-weight: 600;">Save All Changes</button>
           </div>
         </div>
       </form>
@@ -2080,7 +2110,6 @@ export function renderProfilePage({
           if (err.name === 'AbortError') return;
           console.error('Profile save failed:', err);
           updateSaveStatus('error');
-          // Preserve local edits on failure — user can retry
         }
       }
 
@@ -2414,7 +2443,7 @@ export function renderProfilePage({
         const textElem = document.getElementById('currentEmploymentText');
         const ce = profileState.currentEmployment;
         if (ce) {
-          textElem.innerHTML = '<span>💼 <strong>' + escapeHtml(ce.title) + '</strong> at ' + escapeHtml(ce.company) + ' <span class="badge" style="font-size:0.68rem; margin-left:0.3rem;">' + escapeHtml(ce.employmentType || 'FULL_TIME') + '</span></span>';
+          textElem.innerHTML = '<span><strong>' + escapeHtml(ce.title) + '</strong> at ' + escapeHtml(ce.company) + ' <span class="badge" style="font-size:0.68rem; margin-left:0.3rem;">' + escapeHtml(ce.employmentType || 'FULL_TIME') + '</span></span>';
         } else {
           textElem.innerHTML = '<span style="color: #94a3b8;">○ Not currently employed (Job Seeking / Student / Independent)</span>';
         }
@@ -2434,7 +2463,7 @@ export function renderProfilePage({
           const certUrl = typeof cert === 'object' && cert.credentialUrl ? cert.credentialUrl : '';
 
           return \`
-            <div style="background: rgba(11, 15, 25, 0.4); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+            <div style="background: #0B0F19; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
               <div>
                 <strong style="color: #f8fafc;">\${escapeHtml(certName)}</strong>
                 \${certIssuer ? '<div style="color: #94a3b8; font-size: 0.72rem;">' + escapeHtml(certIssuer) + '</div>' : ''}
@@ -2496,7 +2525,7 @@ export function renderProfilePage({
           const langProf = typeof lang === 'object' && lang.proficiency ? lang.proficiency : 'PROFESSIONAL';
 
           return \`
-            <div style="background: rgba(11, 15, 25, 0.4); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+            <div style="background: #0B0F19; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
               <div>
                 <strong style="color: #f8fafc;">\${escapeHtml(langName)}</strong>
                 <span class="badge" style="font-size: 0.65rem; margin-left: 0.3rem;">\${escapeHtml(langProf)}</span>
@@ -2681,33 +2710,32 @@ export function renderProfilePage({
       let selectedCatalogSkill = null;
       let _localSkillIdCounter = 10000;
 
-      /* eslint-disable no-useless-escape */
       // --- Additional Skills Rendering (local state only) ---
       function renderAdditionalSkills() {
         const container = document.getElementById('additionalSkillsContainer');
         if (!container) return;
 
         if (additionalSkillsData.length === 0) {
-          container.innerHTML = '<div style="color: #64748b; font-size: 0.82rem; font-style: italic; padding: 0.5rem 0;">No additional skills declared yet. Click "Add Skill" to get started.</div>';
+          container.innerHTML = '<div style="color: #64748b; font-size: 0.82rem; font-style: italic; padding: 0.5rem 0;">No additional skills declared yet. Click "+ Add Skill" to get started.</div>';
           return;
         }
 
         const proficiencyColors = {
-          BASIC: { bg: 'rgba(251, 191, 36, 0.1)', border: 'rgba(251, 191, 36, 0.2)', text: '#fbbf24' },
-          WORKING_KNOWLEDGE: { bg: 'rgba(96, 165, 250, 0.1)', border: 'rgba(96, 165, 250, 0.2)', text: '#60a5fa' },
-          PROFICIENT: { bg: 'rgba(52, 211, 153, 0.1)', border: 'rgba(52, 211, 153, 0.2)', text: '#34d399' },
-          ADVANCED: { bg: 'rgba(167, 139, 250, 0.1)', border: 'rgba(167, 139, 250, 0.2)', text: '#a78bfa' },
-          CURRENTLY_LEARNING: { bg: 'rgba(251, 146, 60, 0.1)', border: 'rgba(251, 146, 60, 0.2)', text: '#fb923c' },
+          BASIC: { bg: 'rgba(251, 191, 36, 0.1)', border: 'rgba(251, 191, 36, 0.25)', text: '#fbbf24' },
+          WORKING_KNOWLEDGE: { bg: 'rgba(96, 165, 250, 0.1)', border: 'rgba(96, 165, 250, 0.25)', text: '#60a5fa' },
+          PROFICIENT: { bg: 'rgba(52, 211, 153, 0.1)', border: 'rgba(52, 211, 153, 0.25)', text: '#34d399' },
+          ADVANCED: { bg: 'rgba(167, 139, 250, 0.1)', border: 'rgba(167, 139, 250, 0.25)', text: '#a78bfa' },
+          CURRENTLY_LEARNING: { bg: 'rgba(251, 146, 60, 0.1)', border: 'rgba(251, 146, 60, 0.25)', text: '#fb923c' },
         };
 
         container.innerHTML = '<div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">' +
           additionalSkillsData.map(s => {
             const pColor = proficiencyColors[s.proficiency] || proficiencyColors.WORKING_KNOWLEDGE;
-            const provLabel = s.provenanceStatus === 'LEARNING' ? '📖 Learning' : '○ Self-Declared';
-            return '<span class="skill-tag-badge" style="background: ' + pColor.bg + '; color: ' + pColor.text + '; border: 1px solid ' + pColor.border + '; font-size: 0.78rem; padding: 0.35rem 0.6rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.3rem; cursor: default;" title="Proficiency: ' + escapeHtml(s.proficiency) + ' | Status: ' + provLabel + (s.notes ? ' | ' + escapeHtml(s.notes) : '') + '">' +
+            const provLabel = s.provenanceStatus === 'LEARNING' ? 'Learning' : 'Self-Declared';
+            return '<span class="skill-tag-badge" style="background: ' + pColor.bg + '; color: ' + pColor.text + '; border: 1px solid ' + pColor.border + '; font-size: 0.75rem; padding: 0.3rem 0.55rem; border-radius: 4px; display: inline-flex; align-items: center; gap: 0.3rem; cursor: default;" title="Proficiency: ' + escapeHtml(s.proficiency) + ' | Status: ' + provLabel + (s.notes ? ' | ' + escapeHtml(s.notes) : '') + '">' +
               '<strong>' + escapeHtml(s.skillName) + '</strong> ' +
-              '<span style="font-size: 0.68rem; opacity: 0.8;">' + escapeHtml(s.proficiency.replace(/_/g, ' ')) + '</span>' +
-              '<button type="button" data-remove-id="' + escapeHtml(s.id) + '" onclick="removeAdditionalSkill(this.dataset.removeId)" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 0.8rem; padding: 0; margin-left: 0.2rem; opacity: 0.6;" title="Remove">×</button>' +
+              '<span style="font-size: 0.68rem; opacity: 0.85;">' + escapeHtml(s.proficiency.replace(/_/g, ' ')) + '</span>' +
+              '<button type="button" data-remove-id="' + escapeHtml(s.id) + '" onclick="removeAdditionalSkill(this.dataset.removeId)" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 0.8rem; padding: 0 2px; margin-left: 0.2rem; opacity: 0.7;" title="Remove">×</button>' +
             '</span>';
           }).join('') +
         '</div>';
@@ -2860,7 +2888,7 @@ export function renderProfilePage({
               '<span class="catalog-skill-cat-tag">' + catDisplay + '</span>' +
             '</div>' +
             (isAdded ?
-              '<span class="badge" style="background: rgba(255, 255, 255, 0.06); color: #94a3b8; font-size: 0.72rem; padding: 0.25rem 0.6rem; border: 1px solid rgba(255, 255, 255, 0.1);">✓ Added</span>' :
+              '<span class="badge" style="background: rgba(255, 255, 255, 0.05); color: #94a3b8; font-size: 0.72rem; padding: 0.25rem 0.6rem; border: 1px solid rgba(255, 255, 255, 0.09);">✓ Added</span>' :
               '<button type="button" class="catalog-skill-item-btn btn btn-secondary btn-sm" ' +
                 'data-skill-id="' + sid + '" ' +
                 'data-skill-name="' + sname + '" ' +
@@ -3002,7 +3030,6 @@ export function renderProfilePage({
           <div id="catalogBrowseArea">
             <!-- Search Box -->
             <div class="catalog-search-wrap">
-              <span class="catalog-search-icon">🔍</span>
               <input
                 type="text"
                 id="catalogSearchInput"
@@ -3016,7 +3043,7 @@ export function renderProfilePage({
             <!-- Categories Filter Pills -->
             <div style="margin-bottom: 0.85rem;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
-                <span style="font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Categories</span>
+                <span style="font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Categories</span>
                 <span id="catalogCategorySummary" style="font-size: 0.72rem; color: #64748b;">Showing all</span>
               </div>
               <div id="catalogCategoriesList" class="catalog-categories-bar"></div>
@@ -3024,7 +3051,7 @@ export function renderProfilePage({
 
             <!-- Skills Results List -->
             <div>
-              <div style="font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.45rem;">Available Skills</div>
+              <div style="font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.45rem;">Available Skills</div>
               <div id="catalogSkillsList" class="catalog-skills-container"></div>
             </div>
           </div>
@@ -3036,7 +3063,7 @@ export function renderProfilePage({
               <div>
                 <div style="font-size: 0.7rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Selected Skill</div>
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem;">
-                  <strong id="selectedSkillName" style="color: #f8fafc; font-size: 1.1rem;"></strong>
+                  <strong id="selectedSkillName" style="color: #f8fafc; font-size: 1.05rem;"></strong>
                   <span id="selectedSkillCategoryBadge" class="badge badge-indigo" style="font-size: 0.7rem;"></span>
                 </div>
               </div>
@@ -3101,7 +3128,7 @@ export function renderProfilePage({
               </label>
               <textarea
                 id="skillNotes"
-                class="form-control"
+                class="form-textarea"
                 placeholder="Briefly describe what you built or learned with this skill (e.g. Set up multi-container development environment with Docker Compose)..."
                 rows="2"
                 style="resize: vertical; font-size: 0.82rem; min-height: 60px;"

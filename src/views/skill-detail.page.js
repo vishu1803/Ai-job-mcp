@@ -88,14 +88,14 @@ export function renderSkillDetailPage({
       <div class="card" style="padding:28px 32px; margin-bottom:28px; background:var(--bg-surface-elevated);">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:20px;">
           <div>
-            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
               <span class="badge ${badgeClass}">${escapeHtml(badgeLabel)}</span>
               <span class="badge badge-indigo">${escapeHtml(skill.category || 'TECHNICAL_SKILL')}</span>
             </div>
-            <h1 style="font-size:1.8rem; font-weight:800; letter-spacing:-0.02em; margin:4px 0 8px 0;">
+            <h1 style="font-size:1.75rem; font-weight:800; letter-spacing:-0.02em; margin:4px 0 8px 0;">
               ${escapeHtml(skillName)}
             </h1>
-            <p style="color:var(--text-muted); font-size:0.9rem; max-width:650px; margin:0;">
+            <p style="color:var(--text-muted); font-size:0.875rem; max-width:650px; line-height:1.6; margin:0;">
               ${
                 status === 'CLAIMED'
                   ? 'Self-reported competency extracted from uploaded candidate resume. Awaiting independent repository AST verification.'
@@ -106,14 +106,14 @@ export function renderSkillDetailPage({
             </p>
           </div>
 
-          <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
             <div class="stat-card" style="padding:12px 18px; text-align:center; min-width:110px;">
-              <span style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Confidence</span>
-              <div style="font-size:1.4rem; font-weight:800; color:var(--accent-emerald);">${confidencePercent}%</div>
+              <span style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Confidence</span>
+              <div style="font-size:1.4rem; font-weight:800; color:var(--accent-emerald); margin-top:2px;">${confidencePercent}%</div>
             </div>
             <div class="stat-card" style="padding:12px 18px; text-align:center; min-width:110px;">
-              <span style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; font-weight:600;">Citations</span>
-              <div style="font-size:1.4rem; font-weight:800; color:var(--accent-cyan);">${evidence.length}</div>
+              <span style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; letter-spacing:0.04em;">Citations</span>
+              <div style="font-size:1.4rem; font-weight:800; color:var(--accent-cyan); margin-top:2px;">${evidence.length}</div>
             </div>
           </div>
         </div>
@@ -124,7 +124,7 @@ export function renderSkillDetailPage({
         <!-- Left: Supporting Citations -->
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-            <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">
+            <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">
               Audited Evidence Citations (${evidence.length})
             </h2>
           </div>
@@ -133,8 +133,8 @@ export function renderSkillDetailPage({
             evidence.length === 0
               ? `
             <div class="card empty-state" style="padding:36px 24px;">
-              <div class="empty-state-icon">📄</div>
-              <h3>No Code Citations Available</h3>
+              <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
+              <h3 style="margin-top:8px;">No Code Citations Available</h3>
               <p>This skill is recorded from narrative claims or taxonomy inference. Connect GitHub repositories to extract syntax-level code citations.</p>
               <a href="/onboarding?step=3" class="btn btn-primary btn-sm" style="margin-top:12px;">Ingest Repositories →</a>
             </div>
@@ -155,19 +155,19 @@ export function renderSkillDetailPage({
                       ? item.sourceLocation
                       : item.sourceLocation?.file || '');
                   return `
-                <div class="card" style="padding:18px 20px; border-left: 4px solid var(--accent-indigo);">
+                <div class="card" style="padding:18px 20px;">
                   <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                     <div>
-                      <span class="badge badge-cyan" style="font-size:0.7rem;">Citation #${idx + 1} &bull; ${escapeHtml(item.evidenceType || 'CODE_IMPORT')}</span>
+                      <span class="badge badge-cyan" style="font-size:0.68rem;">Citation #${idx + 1} &bull; ${escapeHtml(item.evidenceType || 'CODE_IMPORT')}</span>
                       ${
                         item.resourceName
-                          ? `<strong style="font-size:0.9rem; color:var(--text-main); margin-left:8px;">📦 ${escapeHtml(item.resourceName)}</strong>`
+                          ? `<span style="font-size:0.85rem; font-family:var(--font-mono); color:var(--text-main); margin-left:8px;">repo: <strong>${escapeHtml(item.resourceName)}</strong></span>`
                           : ''
                       }
                     </div>
                     ${
                       commitSha
-                        ? `<span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-indigo); background:rgba(99,102,241,0.1); padding:2px 6px; border-radius:4px;">commit ${escapeHtml(commitSha.slice(0, 7))}</span>`
+                        ? `<span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-indigo); background:rgba(99,102,241,0.1); padding:2px 8px; border-radius:4px;">commit ${escapeHtml(commitSha.slice(0, 7))}</span>`
                         : ''
                     }
                   </div>
@@ -176,7 +176,7 @@ export function renderSkillDetailPage({
                     filePath
                       ? `
                     <div style="font-size:0.8rem; color:var(--text-muted); font-family:var(--font-mono); margin-bottom:8px;">
-                      📄 ${escapeHtml(filePath)}
+                      <span style="color:var(--text-dim);">path:</span> ${escapeHtml(filePath)}
                     </div>
                   `
                       : ''
@@ -185,16 +185,16 @@ export function renderSkillDetailPage({
                   ${
                     item.excerpt
                       ? `
-                    <div style="background:rgba(11,15,25,0.8); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:10px 14px; font-family:var(--font-mono); font-size:0.8rem; color:#E2E8F0; overflow-x:auto; white-space:pre-wrap; line-height:1.5;">
+                    <div style="background:#0B0F19; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:10px 14px; font-family:var(--font-mono); font-size:0.8rem; color:#E2E8F0; overflow-x:auto; white-space:pre-wrap; line-height:1.5;">
                       ${escapeHtml(item.excerpt)}
                     </div>
                   `
                       : ''
                   }
 
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; font-size:0.75rem; color:var(--text-dim);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.75rem; color:var(--text-dim);">
                     <span>Observed: ${formatDate(item.createdAt || item.lastObservedAt)}</span>
-                    <span style="color:var(--accent-emerald);">Weight Score: ${(item.confidenceScore || 0.9).toFixed(2)}</span>
+                    <span style="color:var(--accent-emerald); font-family:var(--font-mono);">Weight Score: ${(item.confidenceScore || 0.9).toFixed(2)}</span>
                   </div>
                 </div>
               `;
@@ -208,20 +208,20 @@ export function renderSkillDetailPage({
         <!-- Right: Related Projects & Context -->
         <div style="display:flex; flex-direction:column; gap:20px;">
           <div class="card">
-            <h3 style="font-size:1rem; font-weight:700; margin-bottom:14px;">Demonstrated in Projects</h3>
+            <h3 style="font-size:0.95rem; font-weight:700; margin-bottom:14px; color:var(--text-main);">Demonstrated in Projects</h3>
             ${
               relatedProjects.length === 0
                 ? `
-              <p style="font-size:0.825rem; color:var(--text-dim);">No portfolio projects currently mapped to this skill.</p>
+              <p style="font-size:0.825rem; color:var(--text-dim); margin:0;">No portfolio projects currently mapped to this skill.</p>
             `
                 : `
-              <div style="display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; flex-direction:column; gap:8px;">
                 ${relatedProjects
                   .map(
                     (p) => `
-                  <a href="/projects/${p.id}" style="display:block; padding:10px 12px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); transition:all 0.15s ease;">
-                    <div style="font-weight:600; font-size:0.875rem; color:var(--text-main);">${escapeHtml(p.name)}</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">${escapeHtml(p.headline || p.summary || p.description || 'Portfolio repository')}</div>
+                  <a href="/projects/${p.id}" style="display:block; padding:10px 12px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); text-decoration:none; transition:all 0.15s ease;">
+                    <div style="font-weight:600; font-size:0.85rem; color:var(--text-main);">${escapeHtml(p.name)}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px; line-height:1.4;">${escapeHtml(p.headline || p.summary || p.description || 'Portfolio repository')}</div>
                   </a>
                 `
                   )
@@ -232,10 +232,10 @@ export function renderSkillDetailPage({
           </div>
 
           <!-- Zero Hallucination Guarantee Card -->
-          <div class="card" style="border-left:4px solid var(--accent-emerald); background:rgba(16,185,129,0.04);">
+          <div class="card" style="background:#111827; border:1px solid var(--border-subtle);">
             <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-              <span style="font-size:1.1rem;">🛡️</span>
-              <strong style="font-size:0.9rem; color:var(--accent-emerald);">Zero-Hallucination Gate</strong>
+              <span class="badge badge-verified" style="font-size:0.7rem;">INTEGRITY GUARANTEE</span>
+              <strong style="font-size:0.875rem; color:var(--text-main);">Zero-Hallucination Gate</strong>
             </div>
             <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.5; margin:0;">
               This skill datum is strictly audited before being shared with AI assistants via the Model Context Protocol. AI agents cannot invent credentials not grounded in this graph.

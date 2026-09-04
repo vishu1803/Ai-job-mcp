@@ -166,8 +166,8 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
 
     if (s.evidenceExplanation) {
       parts.push(
-        `<div style="font-size:0.72rem; color:var(--text-muted); line-height:1.4; margin-bottom:4px;">
-          ℹ️ ${escapeHtml(s.evidenceExplanation)}
+        `<div style="font-size:0.75rem; color:var(--text-muted); line-height:1.4; margin-bottom:4px;">
+          ${escapeHtml(s.evidenceExplanation)}
         </div>`
       );
     }
@@ -176,10 +176,10 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
       const repoName = escapeHtml(rawMatch.resourceDisplayName || 'Repository');
       if (rawMatch.resourceUrl) {
         parts.push(
-          `<span>📦 <a href="${escapeHtml(rawMatch.resourceUrl)}" target="_blank" rel="noopener" style="color:var(--accent-cyan); text-decoration:none; font-weight:500;">${repoName}</a></span>`
+          `<span style="font-family:var(--font-mono); font-size:0.75rem;">repo: <a href="${escapeHtml(rawMatch.resourceUrl)}" target="_blank" rel="noopener" style="color:var(--accent-cyan); text-decoration:none; font-weight:500;">${repoName}</a></span>`
         );
       } else {
-        parts.push(`<span>📦 ${repoName}</span>`);
+        parts.push(`<span style="font-family:var(--font-mono); font-size:0.75rem;">repo: ${repoName}</span>`);
       }
     }
 
@@ -200,13 +200,13 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
         DOCUMENT_CLAIM: 'Document claim',
       };
       parts.push(
-        `<span style="font-size:0.7rem; color:var(--text-dim);">📎 ${escapeHtml(evidenceTypeLabels[rawMatch.evidenceType] || rawMatch.evidenceType)}</span>`
+        `<span class="badge badge-cyan" style="font-size:0.65rem;">${escapeHtml(evidenceTypeLabels[rawMatch.evidenceType] || rawMatch.evidenceType)}</span>`
       );
     }
 
     if (rawMatch.sourceLocation) {
       parts.push(
-        `<span style="font-size:0.65rem; color:var(--text-muted); font-family:var(--font-mono);">📄 ${escapeHtml(rawMatch.sourceLocation)}</span>`
+        `<span style="font-size:0.7rem; color:var(--text-dim); font-family:var(--font-mono);">${escapeHtml(rawMatch.sourceLocation)}</span>`
       );
     }
 
@@ -214,22 +214,22 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
       const truncated =
         rawMatch.excerpt.length > 80 ? rawMatch.excerpt.slice(0, 80) + '…' : rawMatch.excerpt;
       parts.push(
-        `<span style="font-size:0.65rem; color:var(--text-dim); font-family:var(--font-mono); font-style:italic;">"${escapeHtml(truncated)}"</span>`
+        `<span style="font-size:0.7rem; color:var(--text-dim); font-family:var(--font-mono); font-style:italic;">"${escapeHtml(truncated)}"</span>`
       );
     }
 
     if (parts.length === 0) {
       if (s.truthStatus === 'CLAIMED' || s.provenanceStatus === 'CLAIMED') {
         return `<div style="font-size:0.72rem; color:var(--accent-amber); margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04);">
-          📝 Candidate self-reported claim from resume [Unverified User Claim]
+          Candidate self-reported claim from resume [Unverified User Claim]
         </div>`;
       }
       return `<div style="font-size:0.72rem; color:var(--text-dim); margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04);">
-        🔍 Provenance established via repository taxonomy analysis
+        Provenance established via repository taxonomy analysis
       </div>`;
     }
 
-    return `<div style="display:flex; flex-direction:column; gap:4px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04);">
+    return `<div style="display:flex; flex-direction:column; gap:6px; margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04);">
       ${parts.join(' ')}
     </div>`;
   }
@@ -251,35 +251,35 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
       <!-- Architecture Pipeline Banner -->
       <div class="pipeline-banner">
         <div class="pipeline-header">
-          <span class="pipeline-title">Skills & Evidence Taxonomy Pipeline</span>
+          <span class="pipeline-title">Skills &amp; Evidence Taxonomy Pipeline</span>
           <span style="font-size:0.75rem; color:var(--text-dim);">5-Tier Truth Classification</span>
         </div>
         <div class="pipeline-steps">
-          <div class="pipeline-step"><span>📦</span> Repository AST</div>
+          <div class="pipeline-step">Repository AST</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active"><span>⚡</span> Verified Skills</div>
+          <div class="pipeline-step active">Verified Skills</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🏷️</span> Truth Classification</div>
+          <div class="pipeline-step">Truth Classification</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>📎</span> Evidence Citations</div>
+          <div class="pipeline-step">Evidence Citations</div>
           <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step"><span>🤖</span> AI Context</div>
+          <div class="pipeline-step">AI Context</div>
         </div>
       </div>
 
       <!-- Header -->
       <div class="page-header" style="margin-bottom:24px;">
         <div>
-          <span class="badge badge-verified" style="margin-bottom:6px;">PROVENANCE & TAXONOMY</span>
-          <h1 style="margin:4px 0 8px 0;">Verified Skills Graph</h1>
-          <p style="color:var(--text-muted); margin:0;">
+          <span class="badge badge-verified" style="margin-bottom:8px;">PROVENANCE &amp; TAXONOMY</span>
+          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Verified Skills Graph</h1>
+          <p style="color:var(--text-muted); margin:0; font-size:0.875rem;">
             Audited technical skill graph strictly classified into Verified Career Facts, Inferences, Unverified Claims, and Technology Signals.
           </p>
         </div>
 
         <div style="display:flex; gap:10px; align-items:center;">
           <a href="#evidence-explorer" class="btn btn-secondary btn-sm" onclick="scrollToEvidenceExplorer(event)">
-            🔍 View Evidence Explorer
+            View Evidence Explorer
           </a>
           <a href="/onboarding?step=3" class="btn btn-primary btn-sm">
             + Ingest Repositories
@@ -289,42 +289,42 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
 
       <!-- Provenance Legend Cards (4-Tier Truth Model) -->
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:16px; margin-bottom:32px;">
-        <div class="stat-card" style="border-left: 4px solid var(--accent-emerald);">
+        <div class="stat-card">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="badge badge-verified" style="font-size:0.7rem;">VERIFIED CAREER SKILLS</span>
+            <span class="badge badge-verified" style="font-size:0.68rem;">VERIFIED CAREER SKILLS</span>
             <span class="stat-val" style="color:var(--accent-emerald); font-size:1.4rem;">${verifiedPrimaryCount}</span>
           </div>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; line-height:1.4;">
             Substantial implementation evidence (≥3 citations, framework bootstrap, or corroborated claim).
           </p>
         </div>
 
-        <div class="stat-card" style="border-left: 4px solid var(--accent-amber);">
+        <div class="stat-card">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="badge badge-claimed" style="font-size:0.7rem;">CLAIMED RESUME SKILLS</span>
+            <span class="badge badge-claimed" style="font-size:0.68rem;">CLAIMED RESUME SKILLS</span>
             <span class="stat-val" style="color:var(--accent-amber); font-size:1.4rem;">${claimedCount}</span>
           </div>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; line-height:1.4;">
             User-asserted narrative claims marked with explicit <code>[Unverified User Claim]</code>.
           </p>
         </div>
 
-        <div class="stat-card" style="border-left: 4px solid var(--accent-cyan);">
+        <div class="stat-card">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="badge badge-inferred" style="font-size:0.7rem;">INFERRED SKILLS</span>
+            <span class="badge badge-inferred" style="font-size:0.68rem;">INFERRED SKILLS</span>
             <span class="stat-val" style="color:var(--accent-cyan); font-size:1.4rem;">${inferredCount}</span>
           </div>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; line-height:1.4;">
             Derived logically through taxonomy hierarchy (e.g. Next.js implies React).
           </p>
         </div>
 
-        <div class="stat-card" style="border-left: 4px solid var(--accent-purple, #a855f7);">
+        <div class="stat-card">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span class="badge" style="background:rgba(168,85,247,0.15); color:var(--accent-purple, #c084fc); border:1px solid rgba(168,85,247,0.3); font-size:0.7rem;">IMPLEMENTATION SIGNALS</span>
-            <span class="stat-val" style="color:var(--accent-purple, #c084fc); font-size:1.4rem;">${verifiedSignalCount}</span>
+            <span class="badge" style="background:rgba(168,85,247,0.12); color:#C084FC; border:1px solid rgba(168,85,247,0.25); font-size:0.68rem;">IMPLEMENTATION SIGNALS</span>
+            <span class="stat-val" style="color:#C084FC; font-size:1.4rem;">${verifiedSignalCount}</span>
           </div>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px; line-height:1.4;">
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:8px; line-height:1.4;">
             Detected libraries, UI components, utilities, and dev packages from repository AST manifests.
           </p>
         </div>
@@ -334,14 +334,14 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
       <div style="margin-bottom:36px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
           <div>
-            <h2 style="font-size:1.25rem; font-weight:600; color:var(--text-main); margin:0;">
+            <h2 style="font-size:1.25rem; font-weight:700; color:var(--text-main); margin:0;">
               Primary Career Competencies
             </h2>
             <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">
               Core technical skills, languages, frameworks, databases, and platforms evaluated for professional competency.
             </p>
           </div>
-          <span class="badge badge-verified" style="font-size:0.75rem;">
+          <span class="badge badge-verified" style="font-size:0.72rem;">
             ${primarySkills.length} Total Evaluated
           </span>
         </div>
@@ -350,8 +350,8 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
           primarySkills.length === 0
             ? `
           <div class="empty-state">
-            <div class="empty-state-icon">🧬</div>
-            <h3>No Primary Skills Extracted Yet</h3>
+            <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
+            <h3 style="margin-top:8px;">No Primary Skills Extracted Yet</h3>
             <p>Connect your GitHub repositories or upload a resume to extract verified competencies.</p>
             <a href="/onboarding?step=3" class="btn btn-primary btn-sm">Start Ingestion →</a>
           </div>
@@ -362,11 +362,11 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
                   ([catTitle, catSkills]) => `
             <div class="card" style="padding:22px 24px; margin-bottom:20px;">
               <div class="section-header" style="margin-bottom:16px;">
-                <h3 style="font-size:1rem; font-weight:600; color:var(--text-main); margin:0;">${escapeHtml(catTitle)}</h3>
-                <span class="section-count" style="font-size:0.75rem;">${catSkills.length} Competenc${catSkills.length === 1 ? 'y' : 'ies'}</span>
+                <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin:0;">${escapeHtml(catTitle)}</h3>
+                <span class="section-count" style="font-size:0.72rem;">${catSkills.length} Competenc${catSkills.length === 1 ? 'y' : 'ies'}</span>
               </div>
 
-              <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:12px;">
+              <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap:14px;">
                 ${catSkills
                   .map((s) => {
                     let badgeClass = 'badge-verified';
@@ -390,10 +390,10 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
                           : 'Level 3 (Verified)';
 
                     return `
-                    <div style="padding:14px 16px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); display:flex; flex-direction:column; justify-content:space-between; gap:8px;">
+                    <div style="padding:14px 16px; background:rgba(255,255,255,0.02); border:1px solid var(--border-subtle); border-radius:var(--radius-md); display:flex; flex-direction:column; justify-content:space-between; gap:10px;">
                       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                         <div>
-                          <a href="/skills/${encodeURIComponent(s.slug || s.name)}" style="font-size:1rem; font-weight:700; color:var(--text-main); display:block; text-decoration:none;">
+                          <a href="/skills/${encodeURIComponent(s.slug || s.name)}" style="font-size:0.95rem; font-weight:700; color:var(--text-main); display:block; text-decoration:none;">
                             ${escapeHtml(s.name || s.slug)}
                           </a>
                           <span style="font-size:0.7rem; color:var(--text-dim);">${escapeHtml(levelLabel)}</span>
@@ -402,15 +402,15 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
                       </div>
 
                       <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--text-dim);">
-                        <span>Evidence: <strong>${s.evidenceCount || 0} citation${(s.evidenceCount || 0) === 1 ? '' : 's'}</strong></span>
+                        <span>Evidence: <strong style="color:var(--text-main);">${s.evidenceCount || 0} citation${(s.evidenceCount || 0) === 1 ? '' : 's'}</strong></span>
                         <span style="color:var(--accent-emerald);">Confidence: <strong>${confidencePercent}%</strong></span>
                       </div>
 
                       ${renderSourceInfo(s)}
 
-                      <div style="margin-top:4px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.04); display:flex; justify-content:flex-end;">
-                        <a href="/skills/${encodeURIComponent(s.slug || s.name)}" style="font-size:0.75rem; color:var(--accent-indigo); font-weight:600;">
-                          Inspect Citations & Evidence →
+                      <div style="margin-top:4px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.04); display:flex; justify-content:flex-end;">
+                        <a href="/skills/${encodeURIComponent(s.slug || s.name)}" style="font-size:0.75rem; color:var(--accent-indigo); font-weight:600; text-decoration:none;">
+                          Inspect Citations &amp; Evidence →
                         </a>
                       </div>
                     </div>
@@ -429,8 +429,8 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
       <div style="margin-bottom:36px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid var(--border-subtle); padding-bottom:10px;">
           <div>
-            <h2 style="font-size:1.15rem; font-weight:600; color:var(--text-main); margin:0; display:flex; align-items:center; gap:8px;">
-              <span>🔮 Inferred Skills</span>
+            <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0; display:flex; align-items:center; gap:8px;">
+              <span>Inferred Skills</span>
               <span class="badge badge-inferred" style="font-size:0.7rem;">${inferredSkills.length} Inferences</span>
             </h2>
             <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">
@@ -446,7 +446,7 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
             ${inferredSkills
               .map(
                 (s) => `
-              <div class="card" style="padding:16px; border-left:4px solid var(--accent-cyan);">
+              <div class="card" style="padding:16px;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
                   <strong style="font-size:0.95rem; color:var(--text-main);">${escapeHtml(s.name || s.slug)}</strong>
                   <span class="badge badge-inferred" style="font-size:0.65rem;">INFERRED</span>
@@ -466,7 +466,7 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
             : `
           <div class="card" style="padding:16px 20px; background:rgba(0,0,0,0.15); border:1px dashed var(--border-subtle);">
             <p style="font-size:0.825rem; color:var(--text-muted); margin:0; line-height:1.5;">
-              ✨ <strong>No speculative inferences active.</strong> All skills displayed are grounded directly in authentic repository source code or explicit candidate resume claims under the Zero-Hallucination Integrity Gate.
+              <strong style="color:var(--text-main);">No speculative inferences active.</strong> All skills displayed are grounded directly in authentic repository source code or explicit candidate resume claims under the Zero-Hallucination Integrity Gate.
             </p>
           </div>
         `
@@ -478,8 +478,8 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
         <div class="card" style="padding:22px 24px;">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
             <div>
-              <h2 style="font-size:1.15rem; font-weight:600; color:var(--text-main); margin:0; display:flex; align-items:center; gap:8px;">
-                <span>🔬 Evidence Explorer (Technology & Implementation Signals)</span>
+              <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0; display:flex; align-items:center; gap:8px;">
+                <span>Evidence Explorer (Technology &amp; Implementation Signals)</span>
                 <span class="tag" style="font-size:0.7rem;">${technologySignals.length} Total Signals</span>
               </h2>
               <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">
@@ -513,12 +513,12 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
               .map(
                 ([catTitle, catSkills]) => `
               <details class="explorer-category-accordion" style="background:rgba(0,0,0,0.18); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:12px 16px;">
-                <summary style="cursor:pointer; font-size:0.9rem; font-weight:600; color:var(--text-main); display:flex; justify-content:space-between; align-items:center; user-select:none; outline:none;">
+                <summary style="cursor:pointer; font-size:0.875rem; font-weight:600; color:var(--text-main); display:flex; justify-content:space-between; align-items:center; user-select:none; outline:none;">
                   <span style="display:flex; align-items:center; gap:8px;">
-                    <span>📂</span> ${escapeHtml(catTitle)}
-                    <span class="tag" style="font-size:0.7rem;">${catSkills.length} item${catSkills.length === 1 ? '' : 's'}</span>
+                    <span>${escapeHtml(catTitle)}</span>
+                    <span class="tag" style="font-size:0.68rem;">${catSkills.length} item${catSkills.length === 1 ? '' : 's'}</span>
                   </span>
-                  <span style="font-size:0.75rem; color:var(--accent-cyan);" class="accordion-toggle-icon">▶ View</span>
+                  <span style="font-size:0.75rem; color:var(--accent-indigo);" class="accordion-toggle-icon">View</span>
                 </summary>
 
                 <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.05); display:flex; flex-wrap:wrap; gap:8px;">
@@ -528,7 +528,7 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
                       return `
                       <span class="tag" style="font-size:0.75rem; padding:4px 10px; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); display:inline-flex; align-items:center; gap:6px;" title="${escapeHtml(s.evidenceExplanation || 'Detected in repository manifest')}">
                         <strong style="color:var(--text-main);">${escapeHtml(s.name || s.slug)}</strong>
-                        <span style="font-size:0.65rem; color:var(--text-muted);">(${count} citation${count === 1 ? '' : 's'})</span>
+                        <span style="font-size:0.65rem; color:var(--text-muted); font-family:var(--font-mono);">(${count} citation${count === 1 ? '' : 's'})</span>
                       </span>
                     `;
                     })
