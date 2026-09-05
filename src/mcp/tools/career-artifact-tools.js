@@ -21,8 +21,11 @@
 import crypto from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../../db/index.js';
-import { candidates } from '../../db/schema.js';
+import { candidates, jobApplications } from '../../db/schema.js';
 import { NotFoundError, ValidationError } from '../../errors/index.js';
+import { JobDiscoveryService } from '../../services/job-discovery.service.js';
+import { decodeHtmlEntities } from '../../services/job-board-adapters/greenhouse.adapter.js';
+import { config } from '../../config/env.js';
 import { CandidateProfileService } from '../../services/candidate-profile.service.js';
 import { JobDescriptionParser } from '../../domain/career/job-parser.js';
 import { EvidenceMatchingService } from '../../services/evidence-matching.service.js';
@@ -52,6 +55,34 @@ const DEFAULT_CACHE_CONTROL = Object.freeze({
   cacheScope: 'tenant-private',
   ttlMs: 300000, // 5 minutes
 });
+
+let defaultDiscoveryService = null;
+
+/**
+ * Returns a cached singleton of JobDiscoveryService for artifact tools to preserve in-memory job caches.
+ *
+ * @returns {JobDiscoveryService} Cached JobDiscoveryService instance
+ */
+function getDefaultDiscoveryService() {
+  if (!defaultDiscoveryService) {
+    const boards = (config.GREENHOUSE_BOARDS || '')
+      .split(',')
+      .map((b) => b.trim())
+      .filter(Boolean)
+      .map((boardToken) => ({ boardToken }));
+    const sites = (config.LEVER_SITES || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((site) => ({ site }));
+    defaultDiscoveryService = new JobDiscoveryService({
+      greenhouseBoards: boards,
+      leverSites: sites,
+      fetchTimeoutMs: config.JOB_BOARD_FETCH_TIMEOUT_MS,
+    });
+  }
+  return defaultDiscoveryService;
+}
 
 /**
  * Normalizes an evidence reference to ensure strict conformance with EvidenceRefSchema.
@@ -206,10 +237,11 @@ function buildCandidateProfileDomainObject(profileView, context) {
  *
  * @param {object} context Multi-tenant security context
  * @param {object} args Validated tool arguments
- * @param {object} dbClient Database client
+ * @param {object} [dbClient] Database client
+ * @param {object} [deps={}] Optional dependency overrides
  * @returns {Promise<object>} Canonical JobDescription object
  */
-async function resolveJobDescription(context, args, _dbClient) {
+async function resolveJobDescription(context, args, dbClient, deps = {}) {
   if (args.jobDescriptionText) {
     const classification = await JobDescriptionParser.parse(
       {
@@ -261,9 +293,157 @@ async function resolveJobDescription(context, args, _dbClient) {
   }
 
   if (args.jobId) {
-    // If jobId is provided, in Phase 7 we ensure tenant isolation
-    // (If not stored in DB, we throw NotFoundError)
-    throw new NotFoundError(`Job description not found for ID: ${args.jobId}`);
+    let discoveryJob = null;
+    let savedApp = null;
+
+    // 1. Resolve canonical job UUID with JobDiscoveryService.findJobById(args.jobId)
+    const discoveryService = deps.discoveryService || getDefaultDiscoveryService();
+
+    try {
+      discoveryJob = await discoveryService.findJobById(args.jobId);
+    } catch {
+      discoveryJob = null;
+    }
+
+    // 2. If not found, check tenant-scoped job_applications by ID
+    if (!discoveryJob && dbClient) {
+      const rows = await dbClient
+        .select({
+          id: jobApplications.id,
+          jobTitle: jobApplications.jobTitle,
+          companyName: jobApplications.companyName,
+          rawJobDescription: jobApplications.rawJobDescription,
+          parsedJobDescription: jobApplications.parsedJobDescription,
+          workplaceType: jobApplications.workplaceType,
+          location: jobApplications.location,
+        })
+        .from(jobApplications)
+        .where(
+          and(eq(jobApplications.id, args.jobId), eq(jobApplications.tenantId, context.tenantId))
+        )
+        .limit(1);
+
+      if (rows && rows.length > 0) {
+        savedApp = rows[0];
+      }
+    }
+
+    // 6. Preserve the existing NotFoundError when neither source resolves the job
+    if (!discoveryJob && !savedApp) {
+      throw new NotFoundError(`Job description not found for ID: ${args.jobId}`);
+    }
+
+    // 3. Extract description/title/company
+    const resolvedTitle =
+      args.jobTitle || (discoveryJob ? discoveryJob.title : savedApp.jobTitle) || 'Target Role';
+    const resolvedCompany =
+      args.companyName ||
+      (discoveryJob ? discoveryJob.company : savedApp.companyName) ||
+      'Target Company';
+    const resolvedLocation = discoveryJob ? discoveryJob.location : savedApp.location;
+    const resolvedWorkplaceType = discoveryJob
+      ? discoveryJob.workplaceType
+      : savedApp.workplaceType;
+
+    let textToParse;
+    if (discoveryJob) {
+      const cleanDesc = discoveryJob.description
+        ? decodeHtmlEntities(discoveryJob.description)
+        : '';
+      if (cleanDesc.trim().length >= 10) {
+        textToParse = cleanDesc;
+      } else if (Array.isArray(discoveryJob.requirements) && discoveryJob.requirements.length > 0) {
+        textToParse =
+          `${resolvedTitle} at ${resolvedCompany}\nRequirements:\n` +
+          discoveryJob.requirements.join('\n');
+      } else {
+        textToParse = `Position: ${resolvedTitle} at ${resolvedCompany}. Responsibilities and requirements for ${resolvedTitle}.`;
+      }
+    } else {
+      const rawText =
+        savedApp.rawJobDescription ||
+        savedApp.parsedJobDescription?.rawText ||
+        savedApp.parsedJobDescription?.description ||
+        '';
+      if (rawText.trim().length >= 10) {
+        textToParse = rawText;
+      } else {
+        textToParse = `Position: ${resolvedTitle} at ${resolvedCompany}. Responsibilities and requirements for ${resolvedTitle}.`;
+      }
+    }
+
+    // 4. Parse and normalize the description using the existing job-description pipeline
+    const parserPayload = {
+      rawText: textToParse,
+      title: resolvedTitle,
+      company: resolvedCompany,
+      source: 'API',
+    };
+    if (resolvedLocation) parserPayload.location = resolvedLocation;
+    if (
+      resolvedWorkplaceType &&
+      ['REMOTE', 'HYBRID', 'ON_SITE'].includes(String(resolvedWorkplaceType).toUpperCase())
+    ) {
+      parserPayload.workplaceType = String(resolvedWorkplaceType).toUpperCase();
+    }
+
+    const classification = await JobDescriptionParser.parse(parserPayload, {
+      tenantId: context.tenantId,
+      userId: context.userId,
+    });
+
+    let extractedRequirements = classification.requirements || [];
+    if (
+      extractedRequirements.length === 0 &&
+      discoveryJob &&
+      Array.isArray(discoveryJob.requirements) &&
+      discoveryJob.requirements.length > 0
+    ) {
+      extractedRequirements = discoveryJob.requirements.map((req) => ({
+        id: crypto.randomUUID(),
+        title: req,
+        extractedValue: req,
+        importance: 'REQUIRED',
+        category: 'SKILL',
+        weight: 1.0,
+      }));
+    }
+
+    const normalizedRequirements = extractedRequirements.map((r) => {
+      const title = r.title || r.extractedValue || r.rawSnippet || 'Requirement';
+      const importance = r.importance || r.priority || 'REQUIRED';
+      return {
+        id: r.id || crypto.randomUUID(),
+        tenantId: context.tenantId,
+        jobDescriptionId: classification.jobDescription.id,
+        title,
+        extractedValue: r.extractedValue || title,
+        importance,
+        priority: importance,
+        requirementType: importance,
+        isRequired: importance === 'REQUIRED',
+        weight: typeof r.weight === 'number' ? r.weight : 1.0,
+        category: r.category || 'SKILL',
+        skillSlug: r.skillSlug || null,
+        rawSnippet: r.rawSnippet || title,
+        normalizedCriteria: r.normalizedCriteria || {},
+        confidenceScore: r.confidenceScore || 0.9,
+        sourceSpan: r.sourceSpan || {
+          section: 'requirements',
+          snippet: title,
+        },
+      };
+    });
+
+    // 5. Return the same canonical job-description structure used by the existing recommendation flow
+    return {
+      id: args.jobId,
+      tenantId: context.tenantId,
+      title: resolvedTitle || classification.jobDescription.title || 'Target Role',
+      companyName: resolvedCompany || classification.jobDescription.company || 'Target Company',
+      level: classification.jobDescription.level || 'MID',
+      requirements: normalizedRequirements,
+    };
   }
 
   throw new ValidationError('Either jobDescriptionText or jobId must be provided.');
@@ -345,7 +525,7 @@ export async function handleRecommendPortfolioProjects(context, rawArgs, deps = 
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
   const profileView = await profileService.getProfile(context, candidateId);
   const candidateProfileObj = buildCandidateProfileDomainObject(profileView, context);
-  const jobDescription = await resolveJobDescription(context, args, dbClient);
+  const jobDescription = await resolveJobDescription(context, args, dbClient, deps);
 
   // 4. Delegate to Intermediate Intelligence Services
   const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
@@ -472,7 +652,7 @@ export async function handleDraftCoverLetter(context, rawArgs, deps = {}) {
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
   const profileView = await profileService.getProfile(context, candidateId);
   const candidateProfileObj = buildCandidateProfileDomainObject(profileView, context);
-  const jobDescription = await resolveJobDescription(context, args, dbClient);
+  const jobDescription = await resolveJobDescription(context, args, dbClient, deps);
 
   // 4. Intermediate Intelligence Services
   const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
@@ -612,7 +792,7 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
   const profileView = await profileService.getProfile(context, candidateId);
   const candidateProfileObj = buildCandidateProfileDomainObject(profileView, context);
-  const jobDescription = await resolveJobDescription(context, args, dbClient);
+  const jobDescription = await resolveJobDescription(context, args, dbClient, deps);
 
   // 4. Intermediate Intelligence Services
   const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(

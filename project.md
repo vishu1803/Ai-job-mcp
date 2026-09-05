@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AR (39 tasks) COMPLETE; P14-005W and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
-| **Project State** | **ACTIVE / IN PROGRESS — UI REDESIGN BATCH 7 COMPLETE (ALL 7 BATCHES COMPLETE)** | P14-005AR implemented Batch 7 UI redesign across settings.page.js and final global polish according to DESIGN.md. Preserved 100% of functional contracts, routes, forms, CSRF logic, inputs, IDs, session management, and GDPR Article 17 account erasure actions. 1,920/1,920 unit tests passing, 0 ESLint errors, 0 secrets exposed. |
-| **Total Tasks** | **125 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **121 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AR (39 tasks) |
-| **In Progress Tasks** | **2 Tasks** | P14-005W (MCP Candidate Profile Contract Fix) and P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation) — both Local Implementation Verified, Live ChatGPT MCP Verification Required |
-| **Blocked Tasks** | **1 Task** | P14-005AB — blocked on a live ChatGPT MCP `analyze_job_fit` call returning the actual analysis payload |
-| **Overall Task Completion** | **98.37% (121 / 123 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **99.12% (16.85 / 17 Phases)** | Strictly based on verified deliverables |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AU (42 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
+| **Project State** | **ACTIVE / IN PROGRESS — P14-005AU VERIFIED / READY FOR CHATGPT MCP LIVE TEST** | P14-005AU `recommend_portfolio_projects` saved-job and canonical job ID resolution implemented and verified across 1,930 unit tests and live candidate/job execution. P14-005W `get_candidate_profile` evaluated in live acceptance run (schema mismatch, marked NOT ACCEPTED). UI Redesign (Batches 1-7) 100% complete and committed. P14-005AS `list_verified_skills` provenance alignment verified. P14-005AT `inspect_project_evidence` evidentiary hierarchy verified. |
+| **Total Tasks** | **127 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **124 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AU (42 tasks) |
+| **In Progress Tasks** | **1 Task** | P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation — Local Implementation Verified, Live ChatGPT MCP Verification Required) |
+| **Blocked / Not Accepted Tasks** | **2 Tasks** | P14-005W (`get_candidate_profile` NOT ACCEPTED due to public ChatGPT schema mismatch) and P14-005AB (blocked on live ChatGPT MCP call returning actual analysis payload) |
+| **Overall Task Completion** | **99.20% (124 / 125 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **99.20% (16.86 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 36 | 35 | 1 | **IN_PROGRESS** | **97.2%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 37 | 36 | 1 | **IN_PROGRESS** | **97.3%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -3810,8 +3810,17 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
     * `npm run db:check` -> PASS (Drizzle schema in sync)
     * `npm run scan:secrets` -> PASS (0 exposed secrets detected)
     * `npm run test:db-lifecycle-check` -> PASS (61 DB integration tests audited, 0 teardown violations)
-    * `git diff --check` -> PASS (Clean whitespace)
-  * Status: **`LOCAL IMPLEMENTATION VERIFIED (BLOCKED — LIVE CHATGPT MCP VERIFICATION STILL REQUIRED)`**.
+    * Live ChatGPT MCP Baseline Execution: PASS (HTTP 200, 10,517-byte uncompressed JSON payload, 16/16 output contract fields verified).
+    * Provenance & Contamination Audit: PASS (CLAIMED / SELF_DECLARED strictly separated from HIGH_TRUST; 0 dependency / test fixture contamination).
+  * Forensic Schema Cache Audit & Root Cause Analysis (2026-09-04 / 2026-09-05):
+    * Connection Architecture Confirmed: Native Remote MCP Connector (`User-Agent: openai-mcp/1.0.0` over Streamable HTTP RFC 9728/8414 OAuth 2.1 PKCE). NOT a Custom GPT Action.
+    * Client Registration ID: `https://chatgpt.com/oauth/_BXCfXfLlfF3/client.json`.
+    * Empirical Evidence (PostgreSQL Audit Logs): `openai-mcp/1.0.0` has invoked `tools/list` exactly once in platform history: on `2026-08-31T14:13:14.674Z`.
+    * Code Evolution Timeline: The 3 missing parameters (`includeEducation`, `includeCertifications`, `includeLanguages`) were added on `2026-09-03 19:28:38 +0530` (Commit `213a513`), 3 days AFTER OpenAI cached the schema.
+    * Why Reconnecting / Starting New Chat Failed: ChatGPT chat-level "disconnect/reconnect" or re-authorizing OAuth only revokes and mints user OAuth access tokens under the existing client registration (`_BXCfXfLlfF3`). OpenAI treats the connector tool manifest as immutable per registration ID and does NOT re-fetch `tools/list` on token refresh.
+    * Server Code Status: 100% compliant, verified, and untouched. Live server dynamically generates 7-property JSON Schema on every `tools/list` call with zero caching.
+    * Required Resolution: Must delete/remove the connector registration completely from ChatGPT Settings -> Connected Apps / Developer Mode and re-add the server URL to force fresh dynamic client registration and `tools/list` discovery.
+  * Status: **`NOT ACCEPTED — PUBLIC SCHEMA MISMATCH (Live execution PASS, client input schema out of sync)`**.
 
 ---
 
@@ -3944,13 +3953,14 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-005T** | Career Profile Data Model & Truth Pipeline Implementation | P14-005S | **COMPLETE & VERIFIED** | Implemented unified career profile data model and normalization pipeline: deterministic date range normalizer (`DateRangeNormalizer`), education normalizer with coursework isolation (`EducationNormalizer`), interval-merging tenure calculator (`TenureCalculator`), semantic role/status derivation engine (`CareerStatusDerivation`), Python stdlib noise filtering (`ImportScanner`, `SkillTaxonomyEngine`), and unified `getCareerProfile` as single source of truth across Web UI (`/profile`) and MCP (`get_candidate_profile`, `get_career_profile`). 12-persona test suite passing (`tests/unit/career-profile-personas.test.js` - 12/12 PASS), 1,540/1,540 master unit tests passing (100%), Prettier clean, ESLint clean, 0 exposed secrets. |
 | **P14-005U** | Real Resume End-to-End Regression & Final Career Profile Verification | P14-005T | **COMPLETE & VERIFIED** | Executed end-to-end regression audit on real candidate resume (`Vishwanath_Nishad_Resume.pdf (1).pdf` for candidate `Vishwanath Nishad`, ID `10a2b51b-09bf-4090-8040-1f60ebeb89c9`). Verified parser date normalization (`June 2024 – September 2024` -> `startDate: 2024-06`, `endDate: 2024-09`, `isCurrent: false`), employment inference (`INTERNSHIP`), non-inflation of current role (`currentRole = "Full-Stack & Backend Developer"`, `currentEmployment = null`), tenure calculations (`totalMonths = 4`, `professionalMonths = 0`), career status derivation (`FRESHER`), education normalization (`Rajkiya Engineering College` + `Sonbhadra` + `BACHELOR` + 8 coursework items, 0 phantom institutions), zero Python stdlib / internal noise (`app`, `server`, `time`, `random`, `tasks`, `forms`, `parser`, `core`, `models`, `os`, `sys`), complete semantic parity between `get_candidate_profile` and `get_career_profile`, and profile readiness decoupling. Verified via automated regression runner (`scratch/real-resume-regression.js` - 100% PASS), 1,540/1,540 unit tests passing across 382 suites, 100% Prettier compliant, 0 ESLint errors, 0 exposed secrets, and database schema clean. |
 | **P14-005V** | Career Profile UX & Data Model Refinement — Editable Human Profile with Evidence-Locked Skills & Projects | P14-005U | **COMPLETE & VERIFIED** | Implemented interactive multi-record CRUD modals (Experience, Education, Certifications, Languages, Links), strict evidence-locking (rejects manual skill/project edits), derived-field protection, `userCustom` overrides, and MCP parity. 6/6 tests in `tests/unit/career-profile-ux-refinement.test.js`, 1,546 unit tests passing (100%), 618 integration tests passing (100%), 0 lint errors, 0 secrets. |
-| **P14-005W** | MCP Candidate Profile Contract Fix — ChatGPT External Profile Exposure | P14-005V | **LOCAL IMPLEMENTATION VERIFIED (BLOCKED: LIVE CHATGPT VERIFICATION REQUIRED)** | Fixed MCP schema/mapper defects: exposed education, certs, languages, links, bullets, technologies, repo URLs, decoupled profileReadiness from jobSearchReadiness, preserved CORROBORATED/VERIFIED/CLAIMED skills. 16/16 contract tests PASS, 1,562 unit tests PASS, 618 integration tests PASS, 0 DB leaks, 0 lint errors, zero secrets. Payload 6.2KB JSON (<15KB budget). |
+| **P14-005W** | MCP Candidate Profile Contract Fix — ChatGPT External Profile Exposure | P14-005V | **NOT ACCEPTED (MCP CONTRACT MISMATCH)** | Fixed MCP schema/mapper defects: exposed education, certs, languages, links, bullets, technologies, repo URLs, decoupled profileReadiness from jobSearchReadiness, preserved CORROBORATED/VERIFIED/CLAIMED skills. Live ChatGPT schema exposes only 4 fields (candidateId, includeExperience, includeProjects, includeSkillsSummary) while source contract expects 7 fields (+includeEducation, +includeCertifications, +includeLanguages). Baseline candidateId-only call verified, education/certifications/languages present in payload via defaults, but tool marked NOT ACCEPTED pending schema synchronization. |
 | **P14-005X** | Education Pipeline & UI Bug Fix — Fragment Consolidation & Web UI/MCP Parity | P14-005W | **COMPLETE & VERIFIED** | Overhauled `EducationNormalizer` with token classification, fragment detection, trailing punctuation cleanup, deterministic deduplication/merger of same-institution fragments, strict graduation parsing, and user-edit preservation. Repaired real DB records for candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` to 1 canonical B.Tech record with 8 coursework items. Verified via real browser audit (`/profile` renders 1 card), MCP tool parity, 5-step roundtrip test, and 12 unit tests in `tests/unit/education-pipeline-normalizer.test.js` (12/12 PASS). 1,574/1,574 master unit tests pass, Prettier clean, ESLint clean, 0 secrets. |
 | **P14-005Y** | `analyze_job_fit` Production-Grade Root Fix & Verification | P14-005X | **COMPLETE & VERIFIED** | Resolved unsafe fallback inflation on jobs with unextracted requirements. Implemented Greenhouse HTML `<li>` parsing, Lever heading extractors, real job parser fallback in `handleAnalyzeJobFit`, zero-requirement fail-closed guard (`INSUFFICIENT_DATA` band, `null` score, 0.0 component scores, warning), removed 0-coverage gift in project relevance, unified authoritative evidence counter, enforced candidate profile truth semantics (fresher internship != full-time corporate tenure), and verified real Vercel job (`70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f`) yields 6 identified requirements, 24.9 score (LOW grade, capped by 5 missing required skills), and 15 cited evidence items. 16/16 unit regression tests pass (A-P), 1,648/1,648 master unit tests pass, 100% Prettier compliant, 0 lint errors, 0 secrets. |
 | **P14-005Z** | `analyze_job_fit` Section-Aware Extraction, Grounded Evidence Linkage & Output Consistency | P14-005Y | **COMPLETE & VERIFIED** | Overhauled requirement extraction pipeline to be strictly section-aware: partitioned requirement sections (`REQUIREMENTS`, `RESPONSIBILITIES`, `EXPERIENCE`, `EDUCATION`, `ABOUT_ROLE`) from non-requirement prose (`NON_REQUIREMENT_ABOUT_COMPANY`, `NON_REQUIREMENT_EEO_LEGAL`, `NON_REQUIREMENT_COMPENSATION`), implemented `_isCompanyProse` pattern filtering, added `AMBIGUOUS_FREE_TEXT_KEYWORDS` in `extractSkillsFromLine` preventing common English words ('next', 'for', 'in') from creating spurious requirements ('Next.js') from marketing prose, expanded Greenhouse description slice limit from 2KB to 50KB, fixed project relevance requirement resolution (`req.skillSlug || req.extractedValue || req.name`) populating `topRelevantProjects.matchedRequirements`, guaranteed non-empty `supportingEvidence` for evidence-backed matches, enforced summary count agreement with `requirementMatches`, and guaranteed `keyMissingSkills` strictly excludes `PARTIAL` items. Verified with 1,684/1,684 master unit tests passing (427 suites), 0 lint errors, 0 exposed secrets, and dedicated regression test suites `tests/unit/analyze-job-fit-live-fixes.test.js` (17/17 PASS) and `tests/unit/analyze-job-fit-regression.test.js` (7/7 PASS). |
 | **P14-005AA** | `analyze_job_fit` Evidence Trust, Provenance Preservation, Normalization Quality & Score Traceability Hardening | P14-005Z | **COMPLETE & VERIFIED** | Hardened evidence trust boundary and auditability across 8 architectural vectors: (1) Enforced that dependencies inside `node_modules/`, `vendor/`, `coverage/`, `__generated__/`, and `dist/` never independently mint `VERIFIED` candidate skills (downgraded to `INFERRED`/`PARTIAL` with explicit low-trust claim labels); (2) Preserved canonical candidate provenance through exact and taxonomy matchers (never upgrading `CORROBORATED` to `VERIFIED` or `CLAIMED` to `VERIFIED`); (3) Expanded skill taxonomy with first-class security concepts (`rbac`, `abac`, `rebac`, `access-control`, `openid-connect`, `saml`, `jwt`, `zero-trust`) and blocked standalone English words ('access', 'authorization', 'control', 'security', 'management') from extracting as phantom skills; (4) Added `provenanceTrustClass` and auto-populated fallback excerpts (`rawImport`, `detectedPattern`) on auditable evidence refs; (5) Upgraded `topRelevantProjects.matchedRequirements` from opaque UUID arrays to concrete, explainable linkage objects with normalized requirement names, match statuses, and candidate skills; (6) Exposed granular `scoreBreakdown` on project rankings; (7) Added `rawScore`, `scoreCap`, `isCapped`, `criticalGapCount`, `highGapCount`, and explanation traces to `overallFit.scoreBreakdown`; (8) Formalized `DEGRADED` analysis status when match integrity or evidence citations are missing. Verified via 29/29 dedicated regression tests in `tests/unit/analyze-job-fit-evidence-trust.test.js`, 1,713/1,713 master unit tests passing (433 suites, 100%), 0 lint errors, 0 exposed secrets. |
 | **P14-005AB** | `analyze_job_fit` Skill-Gap Severity vs Evidence-Trust Canonical Separation (MCP Output Schema Validation Failure) | P14-005AA | **COMPLETE & VERIFIED** | Resolved runtime `Invalid enum value` failure on `skillGaps[17].severity = "LOW_TRUST_EVIDENCE"` by separating the conflated gap-severity and evidence-trust axes into two canonical enums (`SkillGapSeverityEnum`, `SkillGapEvidenceTrustEnum`), adding `evidenceTrust` to `SkillGapSchema` and `AnalyzeJobFitOutputSchema.prioritizedSkillGaps`, and enforcing producer-level validation in `_createSkillGap`. 15/15 dedicated regression tests in `tests/unit/analyze-job-fit-low-trust-evidence-severity.test.js`, 1,728/1,728 master unit tests passing across 438 suites, 0 lint errors, 0 exposed secrets. No unsafe cast, validation bypass, catch-and-ignore, or dropped skill gap. |
 | **P14-005AC** | `analyze_job_fit` Comprehensive Deep Pipeline Hardening across All 8 Grounded Vectors | P14-005AB | **COMPLETE & VERIFIED** | Executed deep production-grade pipeline overhaul across all 8 architectural vectors: (1) Qualitative `EXPERIENCE` requirements extracted and evaluated grounded in candidate reality (`PRACTICAL_DEVELOPMENT`, Node.js, 4 months internship with 0 corporate tenure -> `PARTIAL` with candidate-authored evidence and tenure explanation); (2) Retained all 27 concrete source requirements without lossy grouping (promoted `sso`, `scim`, `aws-cloudformation`, `json`, `xml`, `soap`, `problem-solving`, `communication` to distinct canonical skills in taxonomy; prevented `.js` extension from spuriously triggering JavaScript); (3) Real `LOCATION` (`Remote - United States`) and `ELIGIBILITY` (`United States Work Authorization`) requirements extracted and evaluated (Gorakhpur, India vs US-remote yields `MISSING` with geographical boundary explanation that remote preference does not confer cross-border authorization; unrecorded authorization yields `UNKNOWN`, zero fabrication); (4) Canonical provenance preservation (`CORROBORATED` strictly prioritized in indexer and MCP mapper over raw DB `VERIFIED` rows, never downgraded); (5) Primary evidence selection fixed at source (`isLowTrust` filters `node_modules`, `vendor`, `dist`, `__generated__`, lockfiles; candidate-authored `package.json` with confidence 0.85 selected over transitive dependency code definitions); (6) Traceable score breakdown with semantic dimensions (`experienceFit`, `educationFit`, `locationFit` with status and human-readable explanations; `atsScore: 24.9`, `isCapped: true` due to 19 missing required skills); (7) Project linkage grounded with all 8 concrete fields in `topRelevantProjects.matchedRequirements`; (8) Strict completeness gate semantics (`COMPLETE` only when requirements >= 20, experience & location present, and counts agree; otherwise `DEGRADED`). Verified via 12/12 regression tests in `tests/unit/analyze-job-fit-deep-fix.test.js`, 17/17 in `tests/unit/analyze-job-fit-live-fixes.test.js`, 13/13 in `tests/unit/analyze-job-fit-atomic-requirements.test.js`, 29/29 in `tests/unit/analyze-job-fit-evidence-trust.test.js`, 0 ESLint errors, 0 exposed secrets, and live execution on candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` and job `70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f`. |
+| **P14-005AS** | `list_verified_skills` Output Schema Provenance Alignment | P14-005AR | **COMPLETE & VERIFIED** | Fixed response-schema defect where `ListVerifiedSkillsOutputSchema` rejected valid candidate skills having `CLAIMED`, `USER_PROVIDED`, `SELF_DECLARED`, `INFERRED`, or `LEARNING` provenance with `invalid_enum_value`. Expanded `provenanceStatus` enum to accept all 7 canonical statuses (`VERIFIED`, `CORROBORATED`, `INFERRED`, `CLAIMED`, `USER_PROVIDED`, `SELF_DECLARED`, `LEARNING`). Zero candidate data mutation, zero status upgrading (CLAIMED remains CLAIMED), zero confidence inflation. 26/26 tests PASS in `tests/unit/mcp-skill-provenance-alignment.test.js`, 19/19 tests PASS in `tests/unit/mcp-career-read-tools.test.js`, 9/9 PASS in `tests/integration/mcp-career-read-tools.test.js`, 1,923/1,923 master unit tests PASS, 0 ESLint errors, 100% Prettier compliant. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---
@@ -4831,6 +4841,173 @@ Implemented Batch 7 of the 7-batch UI redesign adhering strictly to `DESIGN.md`,
   - Monogram avatar, candidate identity metadata, active session controls, connected integration cards, data portability links, and GDPR Article 17 erasure card verified.
   - Mobile responsive stacking and single-column flex layout verified with zero horizontal overflow or clipping.
   - Recording saved: `batch7_settings_inspect_-62135596800000.webp`. Screenshots saved: `settings_desktop_1788520671973.png`, `settings_mobile_1788520685100.png`.
+
+---
+
+### P14-005AS list_verified_skills Response Schema Alignment — Canonical Provenance Status Support
+
+#### 1. Problem & Root Cause Analysis
+During live ChatGPT MCP acceptance testing with candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`, calling `list_verified_skills` failed at runtime (`is_error=true`):
+```
+invalid_enum_value
+Expected 'VERIFIED' | 'CORROBORATED', received 'CLAIMED'
+at items[18].provenanceStatus, items[19].provenanceStatus
+```
+- **Root Cause**: In commit `c73c819780032fe4798a42e7dad636cebc8bb976`, `handleListVerifiedSkills` intentionally removed the SQL filter restricting outputs to `provenanceStatus = 'VERIFIED'` so that all candidate skills (corroborated, verified, claimed, user-provided, self-declared, learning) would be visible with their unvarnished truth status. However, `ListVerifiedSkillsOutputSchema` in `src/domain/mcp/career-read-tools.schemas.js` was left restricted to `z.enum(['VERIFIED', 'CORROBORATED'])`.
+- **Integrity Invariant**: Per `goal.md` and `AGENTS.md` (Evidence-based AI), unverified claims (`CLAIMED`, `USER_PROVIDED`) must NEVER be converted to `VERIFIED` or filtered out to hide errors. The output schema must accept the full spectrum of canonical provenance states without modifying candidate data or inflating confidence.
+
+#### 2. Minimal Implementation
+Updated `ListVerifiedSkillsOutputSchema` in `src/domain/mcp/career-read-tools.schemas.js`:
+```javascript
+provenanceStatus: z.enum([
+  'VERIFIED',
+  'CORROBORATED',
+  'INFERRED',
+  'CLAIMED',
+  'USER_PROVIDED',
+  'SELF_DECLARED',
+  'LEARNING',
+]),
+```
+Preserved:
+- `VERIFIED` $\rightarrow$ `VERIFIED`
+- `CORROBORATED` $\rightarrow$ `CORROBORATED`
+- `INFERRED` $\rightarrow$ `INFERRED`
+- `CLAIMED` $\rightarrow$ `CLAIMED`
+- `USER_PROVIDED` $\rightarrow$ `USER_PROVIDED`
+- `SELF_DECLARED` $\rightarrow$ `SELF_DECLARED`
+- `LEARNING` $\rightarrow$ `LEARNING`
+Zero schema changes to any other tool (`get_candidate_profile`, `analyze_job_fit`, `inspect_project_evidence`). Zero candidate data mutations in database.
+
+#### 3. Files Modified
+- `src/domain/mcp/career-read-tools.schemas.js`: Updated `ListVerifiedSkillsOutputSchema.shape.items.element.shape.provenanceStatus` enum to 7 canonical statuses.
+- `tests/unit/mcp-skill-provenance-alignment.test.js`: Updated existing unit test to assert schema accepts `CLAIMED`, all 7 canonical statuses, and rejects unrecognized enum values.
+- `tests/unit/mcp-career-read-tools.test.js`: Added test `4b. handleListVerifiedSkills preserves mixed provenance statuses (CORROBORATED, VERIFIED, CLAIMED, USER_PROVIDED)` asserting that confidence score (0.5) and evidence count (0) remain uninflated.
+- `project.md`: Updated execution tracker and task ledger.
+
+#### 4. Verification & Evidence
+- **Candidate Data Check**: Verified candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` skills in PostgreSQL remain strictly identical: 26 total (18 VERIFIED, 5 CLAIMED, 3 SELF_DECLARED). Zero database mutations.
+- **Focused Unit Tests**:
+  - `node --test tests/unit/mcp-skill-provenance-alignment.test.js` $\rightarrow$ **26/26 PASS** (100%).
+  - `node --test tests/unit/mcp-career-read-tools.test.js` $\rightarrow$ **19/19 PASS** (100%).
+- **Integration Tests**:
+  - `node --test tests/integration/mcp-career-read-tools.test.js` $\rightarrow$ **9/9 PASS** (100%).
+- **Full Unit Suite**:
+  - `npm run test:unit` $\rightarrow$ **1,923/1,923 PASS across 489 suites (0 failures)**.
+- **Lint & Format**:
+  - `npx eslint src/domain/mcp/career-read-tools.schemas.js tests/unit/mcp-career-read-tools.test.js tests/unit/mcp-skill-provenance-alignment.test.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+  - `npx prettier --check src/domain/mcp/career-read-tools.schemas.js tests/unit/mcp-career-read-tools.test.js tests/unit/mcp-skill-provenance-alignment.test.js` $\rightarrow$ **PASS (All matched files use Prettier code style!)**.
+
+---
+
+### P14-005AT inspect_project_evidence Evidentiary Hierarchy & Quality Adjustment
+
+#### 1. Problem & Root Cause Analysis
+During live ChatGPT MCP acceptance evaluation of `inspect_project_evidence`, passive package-manifest dependency entries and derived/helper package mappings were surfaced with `confidenceScore = 1.0` (e.g., `@radix-ui/react-icons`, `lucide-react`, `@tanstack/react-table`, `tailwind-merge`, `next-auth`), treating passive package declarations as equivalent to actual implementation evidence (`CODE_USAGE`, `CODE_IMPORT_USAGE`).
+- **Root Cause**: In `handleInspectProjectEvidence` (`src/mcp/tools/career-read-tools.js`), stored raw `confidenceScore` from `evidence_items` was passed directly to the MCP response and ordered without an evidence-quality hierarchy.
+- **Integrity Invariant**: Per `goal.md` and `AGENTS.md` (Evidence-based AI), package presence must never be treated as equivalent to implementation, and derived/helper packages must not outrank or equal real source code usage.
+
+#### 2. Evidentiary Hierarchy & Minimal Implementation
+Implemented `calculateAdjustedEvidenceConfidence(ev)` in `src/mcp/tools/career-read-tools.js` enforcing the intended evidence-quality hierarchy:
+- `CODE_USAGE` $\rightarrow$ `1.00`
+- `CODE_IMPORT_USAGE` $\rightarrow$ `0.95`
+- `FILE_PATTERN_MATCH` / `CONFIG_SYNTAX_DECLARATION` $\rightarrow$ `0.85`
+- `PACKAGE_MANIFEST_DEPENDENCY` (direct) $\rightarrow$ `max 0.70`
+- `PACKAGE_MANIFEST_DEPENDENCY` (derived/helper with `derivedFromPackage` or `isChildPackageEvidence`) $\rightarrow$ `max 0.45`
+- `COMMIT_CONTRIBUTION` $\rightarrow$ `0.50`
+- `DIRECTORY_STRUCTURE` $\rightarrow$ `0.40`
+- `README_SPECIFICATION` $\rightarrow$ `0.30`
+
+Key Rules Followed:
+1. **Never increase stored confidence**: Only cap/down-weight weaker evidence (`Math.min(rawScore, maxCap)`).
+2. **Preserve direct package visibility**: Direct package presence remains visible as weaker evidence (`<= 0.70`) rather than being removed.
+3. **Database-level effective confidence ordering**: Updated PostgreSQL query in `handleInspectProjectEvidence` using `sql` `CASE` expression with `::text` enum cast to order by effective confidence directly in SQL.
+4. **Deterministic in-memory fallback sort**: Added stable sort in handler to ensure implementation evidence strictly outranks passive/derived dependencies across all database adapters (Postgres and mock DBs).
+5. **Zero database mutations**: Candidate and project database records remain 100% untouched.
+6. **Zero modifications to unrelated tools**: Zero changes to `get_candidate_profile`, `list_verified_skills`, or `analyze_job_fit`.
+7. **No public schema changes**: Preserved existing `InspectProjectEvidenceOutputSchema` without adding unrequested public fields.
+
+#### 3. Files Modified
+- `src/mcp/tools/career-read-tools.js`: Added `calculateAdjustedEvidenceConfidence`, updated SQL query with `effectiveConfidenceExpr`, and mapped output `confidenceScore`.
+- `tests/unit/mcp-career-read-tools.test.js`: Added tests `6b`, `6c`, and `6d` validating hierarchy capping, implementation-before-dependency ordering, and live candidate/project helper package downgrade.
+- `project.md`: Updated execution tracker and task ledger.
+
+#### 4. Verification & Evidence
+- **Live Candidate & Project Verification**:
+  - Candidate ID: `10a2b51b-09bf-4090-8040-1f60ebeb89c9`, Project ID: `ea5137c3-2f7f-4e29-a884-28ff3c659ebf`
+  - Top 6 items returned are all `CODE_IMPORT_USAGE` at `0.95` (FastAPI, Python).
+  - Direct package manifest items (`TypeScript`, `Tailwind CSS`, `Eslint`, `React`, `Next.js`) are capped at `0.70`.
+  - Derived/helper packages (`@radix-ui/react-icons`, `lucide-react`, `tailwind-merge`, `next-auth`, `@tanstack/react-table`) are capped at `0.45` (none remain at 1.0).
+  - Actual source evidence (`CODE_IMPORT_USAGE` at `0.95`) strictly outranks package manifest evidence.
+- **Focused Unit Tests**:
+  - `node --test tests/unit/mcp-career-read-tools.test.js` $\rightarrow$ **22/22 PASS** (100%).
+- **MCP Integration Tests**:
+  - `node --test tests/integration/mcp-career-read-tools.test.js` $\rightarrow$ **9/9 PASS** (100%).
+- **Master Unit Test Suite**:
+  - `npm run test:unit` $\rightarrow$ **1,926/1,926 PASS across 489 suites (0 failures)**.
+- **Lint & Code Style**:
+  - `npx eslint src/mcp/tools/career-read-tools.js tests/unit/mcp-career-read-tools.test.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+  - `npx prettier --check src/mcp/tools/career-read-tools.js tests/unit/mcp-career-read-tools.test.js` $\rightarrow$ **PASS (All matched files use Prettier code style!)**.
+- **Secrets Audit**:
+  - `npm run scan:secrets` $\rightarrow$ **PASS (Zero exposed secrets detected)**.
+
+---
+
+### P14-005AU recommend_portfolio_projects Saved-Job & Canonical Job Resolution
+
+#### 1. Problem & Root Cause Analysis
+During live ChatGPT MCP testing of `recommend_portfolio_projects` with candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` and job ID `70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f`, the call failed with error:
+`Job description not found for ID: 70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f`.
+- **Root Cause**: In `src/mcp/tools/career-artifact-tools.js` lines 263–267, `resolveJobDescription(context, args, _dbClient)` contained an uncompleted Phase 7 placeholder stub that unconditionally threw `NotFoundError` whenever `args.jobId` was supplied.
+- **Job Identity**: The supplied ID `70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f` is a deterministic canonical job UUID generated from Greenhouse job `gh-vercel-5430088004` (Vercel Software Engineer, Backend).
+- **Dual Resolution Need**: The tool needed dual resolution: first querying `JobDiscoveryService.findJobById(args.jobId)` (handling Greenhouse/Lever/synthetic boards), then falling back to tenant-scoped `job_applications` by ID in the database, and only throwing `NotFoundError` if neither source resolves the job.
+
+#### 2. Minimal Implementation
+Updated `resolveJobDescription(context, args, dbClient, deps = {})` in `src/mcp/tools/career-artifact-tools.js`:
+1. **Preserved existing `jobDescriptionText` path**: 100% backward compatible, untouched parsing logic.
+2. **Canonical UUID resolution via `JobDiscoveryService`**:
+   - Added `getDefaultDiscoveryService()` module-level singleton helper to preserve in-memory 5-minute board cache (`this._cacheTtlMs`) across requests, avoiding repeated external network calls.
+   - Queries `discoveryService.findJobById(args.jobId)`.
+3. **Tenant-scoped fallback query on `job_applications`**:
+   - If not found in discovery, queries PostgreSQL `job_applications` table filtered strictly by `id = args.jobId` AND `tenant_id = context.tenantId` with `.limit(1)`.
+   - Preserves complete multi-tenant cryptographic isolation (returns 404 on foreign tenant job lookup).
+4. **Resilient description extraction & parsing**:
+   - Decodes HTML entities from Greenhouse description or extracts raw description from saved application.
+   - Passes normalized payload through `JobDescriptionParser.parse()` to extract atomic requirements.
+   - Maps requirements to identical canonical structure `{ id, tenantId, title, companyName, level, requirements }` expected by downstream adaptation services.
+5. **Preserved fail-closed NotFoundError**:
+   - If neither discovery nor tenant-scoped `job_applications` contains the ID, throws `NotFoundError(\`Job description not found for ID: ${args.jobId}\`)`.
+6. **Dependency injection wiring**:
+   - Updated `handleRecommendPortfolioProjects`, `handleDraftCoverLetter`, and `handleGenerateTailoredResume` to pass `deps` to `resolveJobDescription`.
+7. **Zero database mutations**: Candidate, project, and application tables remain completely untouched.
+
+#### 3. Files Modified
+- `src/mcp/tools/career-artifact-tools.js`: Added imports (`jobApplications`, `JobDiscoveryService`, `decodeHtmlEntities`, `config`), added `getDefaultDiscoveryService` singleton, implemented dual-source `args.jobId` resolution in `resolveJobDescription`, and wired `deps` in tool handlers.
+- `tests/unit/mcp-application-artifact-tools.test.js`: Imported `jobApplications`, enhanced `createMockDbClient` to support `jobApplications` queries, and added 4 new unit tests (Tests 17–20).
+- `project.md`: Updated execution ledger, task counts, and phase status.
+
+#### 4. Verification & Evidence
+- **Focused Unit Tests**:
+  - `node --test tests/unit/mcp-application-artifact-tools.test.js` $\rightarrow$ **20/20 PASS** (100%).
+  - Tests 1–16: Existing `jobDescriptionText` tests, rate limiting, and integrity gates all PASS.
+  - Test 17: `recommend_portfolio_projects` resolves job via `discoveryService` when `jobId` is provided.
+  - Test 18: `recommend_portfolio_projects` resolves job via tenant-scoped `job_applications` when `jobId` is not in discovery.
+  - Test 19: `recommend_portfolio_projects` throws `NotFoundError` when `jobId` is in neither source.
+  - Test 20: `recommend_portfolio_projects` enforces tenant isolation on saved job applications.
+- **Live Candidate & Job Verification**:
+  - Executed with candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` and job `70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f`.
+  - Output: `recommendationId: "5f171b84-743d-4581-8bf4-2c2f63a0b868"`, `jobTitle: "Software Engineer, Backend"`, featured project: `vishu1803/Ai-powered-code-review-assistant` (score: 27.51, signal: `BACKEND_DISTRIBUTED`).
+  - Drained and closed pool cleanly with zero lingering handles.
+- **Cache Performance Verification**:
+  - Cold fetch (remote ATS boards): ~11.5s.
+  - Cached fetch: 731ms (database profile query + ATS fit + portfolio recommendation).
+- **Master Unit Test Suite**:
+  - `npm run test:unit` $\rightarrow$ **1,930/1,930 PASS across 489 suites (0 failures)**.
+- **Lint & Code Style**:
+  - `npx eslint src/mcp/tools/career-artifact-tools.js tests/unit/mcp-application-artifact-tools.test.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+  - `npx prettier --check src/mcp/tools/career-artifact-tools.js tests/unit/mcp-application-artifact-tools.test.js` $\rightarrow$ **PASS (All matched files use Prettier code style!)**.
+- **Secrets Audit**:
+  - `npm run scan:secrets` $\rightarrow$ **PASS (Zero exposed secrets detected)**.
 
 ---
 

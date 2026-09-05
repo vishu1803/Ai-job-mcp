@@ -466,7 +466,7 @@ describe('Cross-Tool Provenance Consistency', () => {
     assert.equal(result.items[0].provenanceStatus, 'VERIFIED');
   });
 
-  it('list_verified_skills output schema rejects CLAIMED', () => {
+  it('list_verified_skills output schema accepts CLAIMED', () => {
     const output = {
       items: [
         {
@@ -490,6 +490,74 @@ describe('Cross-Tool Provenance Consistency', () => {
       },
     };
 
-    assert.throws(() => ListVerifiedSkillsOutputSchema.parse(output), /Invalid/);
+    const result = ListVerifiedSkillsOutputSchema.parse(output);
+    assert.equal(result.items[0].provenanceStatus, 'CLAIMED');
+  });
+
+  it('list_verified_skills output schema accepts all 7 canonical provenance statuses', () => {
+    const statuses = [
+      'VERIFIED',
+      'CORROBORATED',
+      'INFERRED',
+      'CLAIMED',
+      'USER_PROVIDED',
+      'SELF_DECLARED',
+      'LEARNING',
+    ];
+
+    for (const status of statuses) {
+      const output = {
+        items: [
+          {
+            skillId: randomUUID(),
+            slug: 'test-skill',
+            name: 'Test Skill',
+            category: 'TOOL',
+            provenanceStatus: status,
+            confidenceScore: 0.8,
+            evidenceCount: 1,
+            firstObservedAt: null,
+            lastObservedAt: null,
+          },
+        ],
+        pagination: {
+          page: 1,
+          pageSize: 20,
+          totalCount: 1,
+          totalPages: 1,
+          hasNextPage: false,
+        },
+      };
+
+      const result = ListVerifiedSkillsOutputSchema.parse(output);
+      assert.equal(result.items[0].provenanceStatus, status);
+    }
+  });
+
+  it('list_verified_skills output schema rejects unrecognized provenance status', () => {
+    const output = {
+      items: [
+        {
+          skillId: randomUUID(),
+          slug: 'django',
+          name: 'Django',
+          category: 'FRAMEWORK',
+          provenanceStatus: 'UNRECOGNIZED_PROVENANCE',
+          confidenceScore: 0.5,
+          evidenceCount: 0,
+          firstObservedAt: null,
+          lastObservedAt: null,
+        },
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        totalCount: 1,
+        totalPages: 1,
+        hasNextPage: false,
+      },
+    };
+
+    assert.throws(() => ListVerifiedSkillsOutputSchema.parse(output), /Invalid enum value/);
   });
 });

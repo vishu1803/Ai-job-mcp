@@ -48,6 +48,7 @@ import {
   handleInspectProjectEvidence,
   handleAnalyzeJobFit,
   registerCareerReadTools,
+  calculateAdjustedEvidenceConfidence,
 } from '../../src/mcp/tools/career-read-tools.js';
 import { assertToolPermission } from '../../src/security/mcp-auth.js';
 import { NotFoundError, AuthorizationError } from '../../src/errors/index.js';
@@ -298,6 +299,124 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
     assert.strictEqual(result.pagination.hasNextPage, false);
   });
 
+  it('4b. handleListVerifiedSkills preserves mixed provenance statuses (CORROBORATED, VERIFIED, CLAIMED, USER_PROVIDED)', async () => {
+    const mixedDb = {
+      select: (fields) => {
+        if (fields?.total) {
+          return {
+            from: () => ({
+              where: () => [{ total: 4 }],
+            }),
+          };
+        }
+        return {
+          from: () => ({
+            where: () => ({
+              limit: () => [
+                {
+                  id: candidateIdA,
+                  profileMetadata: {
+                    resumeData: { skills: ['React', 'Django'] },
+                  },
+                },
+              ],
+            }),
+            innerJoin: () => ({
+              where: () => ({
+                orderBy: () => ({
+                  offset: () => ({
+                    limit: () => [
+                      {
+                        cs: {
+                          skillId: 'e0000000-0000-4000-a000-000000000001',
+                          category: 'FRAMEWORK',
+                          provenanceStatus: 'VERIFIED',
+                          confidenceScore: 0.95,
+                          evidenceCount: 8,
+                          firstObservedAt: new Date(),
+                          lastObservedAt: new Date(),
+                          primaryEvidenceId: null,
+                          metadata: {},
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                      {
+                        cs: {
+                          skillId: 'e0000000-0000-4000-a000-000000000002',
+                          category: 'LANGUAGES',
+                          provenanceStatus: 'VERIFIED',
+                          confidenceScore: 0.9,
+                          evidenceCount: 4,
+                          firstObservedAt: new Date(),
+                          lastObservedAt: new Date(),
+                          primaryEvidenceId: null,
+                          metadata: {},
+                        },
+                        skillSlug: 'rust',
+                        skillName: 'Rust',
+                      },
+                      {
+                        cs: {
+                          skillId: 'e0000000-0000-4000-a000-000000000003',
+                          category: 'FRAMEWORK',
+                          provenanceStatus: 'CLAIMED',
+                          confidenceScore: 0.5,
+                          evidenceCount: 0,
+                          firstObservedAt: null,
+                          lastObservedAt: null,
+                          primaryEvidenceId: null,
+                          metadata: { source: 'RESUME_UPLOAD' },
+                        },
+                        skillSlug: 'django',
+                        skillName: 'Django',
+                      },
+                      {
+                        cs: {
+                          skillId: 'e0000000-0000-4000-a000-000000000004',
+                          category: 'CLOUD',
+                          provenanceStatus: 'SELF_DECLARED',
+                          confidenceScore: 0.4,
+                          evidenceCount: 0,
+                          firstObservedAt: null,
+                          lastObservedAt: null,
+                          primaryEvidenceId: null,
+                          metadata: { source: 'CANDIDATE_DECLARED', isUserClaim: true },
+                        },
+                        skillSlug: 'aws',
+                        skillName: 'AWS',
+                      },
+                    ],
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+      },
+    };
+
+    const result = await handleListVerifiedSkills(
+      mockContext,
+      { candidateId: candidateIdA },
+      { db: mixedDb }
+    );
+
+    assert.ok(ListVerifiedSkillsOutputSchema.safeParse(result).success);
+    assert.strictEqual(result.items.length, 4);
+    assert.strictEqual(result.items[0].slug, 'react');
+    assert.strictEqual(result.items[0].provenanceStatus, 'CORROBORATED');
+    assert.strictEqual(result.items[1].slug, 'rust');
+    assert.strictEqual(result.items[1].provenanceStatus, 'VERIFIED');
+    assert.strictEqual(result.items[2].slug, 'django');
+    assert.strictEqual(result.items[2].provenanceStatus, 'CLAIMED');
+    assert.strictEqual(result.items[2].confidenceScore, 0.5);
+    assert.strictEqual(result.items[2].evidenceCount, 0);
+    assert.strictEqual(result.items[3].slug, 'aws');
+    assert.strictEqual(result.items[3].provenanceStatus, 'USER_PROVIDED');
+    assert.strictEqual(result.pagination.totalCount, 4);
+  });
+
   // ===========================================================================
   // 5. Pagination Bounds
   // ===========================================================================
@@ -408,6 +527,419 @@ describe('MCP Career Read Tools Unit Tests (P7-004)', () => {
     assert.ok(!excerpt.includes('super_secret_pw'));
     assert.ok(excerpt.includes('[REDACTED_SECRET]'));
     assert.ok(excerpt.length <= MAX_EVIDENCE_EXCERPT_CHARS);
+  });
+
+  // ===========================================================================
+  // 6b. Evidence Quality Hierarchy & Bounded Manifest Confidence
+  // ===========================================================================
+  it('6b. calculateAdjustedEvidenceConfidence enforces evidentiary hierarchy and caps weaker evidence', () => {
+    // 1. CODE_USAGE -> max 1.00
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({ evidenceType: 'CODE_USAGE', confidenceScore: 1.0 }),
+      1.0
+    );
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({ evidenceType: 'CODE_USAGE', confidenceScore: 0.8 }),
+      0.8
+    );
+
+    // 2. CODE_IMPORT_USAGE -> max 0.95
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'CODE_IMPORT_USAGE',
+        confidenceScore: 1.0,
+      }),
+      0.95
+    );
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'CODE_IMPORT_USAGE',
+        confidenceScore: 0.85,
+      }),
+      0.85
+    );
+
+    // 3. FILE_PATTERN_MATCH & CONFIG_SYNTAX_DECLARATION -> max 0.85
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'FILE_PATTERN_MATCH',
+        confidenceScore: 1.0,
+      }),
+      0.85
+    );
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'CONFIG_SYNTAX_DECLARATION',
+        confidenceScore: 1.0,
+      }),
+      0.85
+    );
+
+    // 4. Direct PACKAGE_MANIFEST_DEPENDENCY -> max 0.70
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        confidenceScore: 1.0,
+      }),
+      0.7
+    );
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        confidenceScore: 0.75,
+      }),
+      0.7
+    );
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        confidenceScore: 0.6,
+      }),
+      0.6
+    );
+
+    // 5. Derived/helper PACKAGE_MANIFEST_DEPENDENCY -> max 0.45
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        confidenceScore: 1.0,
+        metadata: { derivedFromPackage: 'react-icons' },
+      }),
+      0.45
+    );
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        confidenceScore: 0.85,
+        metadata: { isChildPackageEvidence: true },
+      }),
+      0.45
+    );
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+        confidenceScore: 0.35,
+        metadata: { derivedFromPackage: 'tailwind-merge' },
+      }),
+      0.35
+    );
+
+    // 6. COMMIT_CONTRIBUTION -> max 0.50
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'COMMIT_CONTRIBUTION',
+        confidenceScore: 1.0,
+      }),
+      0.5
+    );
+
+    // 7. DIRECTORY_STRUCTURE -> max 0.40
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'DIRECTORY_STRUCTURE',
+        confidenceScore: 1.0,
+      }),
+      0.4
+    );
+
+    // 8. README_SPECIFICATION -> max 0.30
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'README_SPECIFICATION',
+        confidenceScore: 1.0,
+      }),
+      0.3
+    );
+    assert.strictEqual(
+      calculateAdjustedEvidenceConfidence({
+        evidenceType: 'README_SPECIFICATION',
+        confidenceScore: 0.6,
+      }),
+      0.3
+    );
+  });
+
+  it('6c. handleInspectProjectEvidence puts implementation evidence before passive/derived dependencies', async () => {
+    const mixedDb = {
+      select: (fields) => {
+        if (fields?.total) {
+          return {
+            from: () => ({
+              leftJoin: () => ({
+                where: () => [{ total: 4 }],
+              }),
+            }),
+          };
+        }
+        return {
+          from: () => ({
+            where: () => ({
+              limit: () => [
+                {
+                  id: projectIdA,
+                  name: 'Evidence Ordering Project',
+                  slug: 'evidence-ordering-project',
+                },
+              ],
+            }),
+            innerJoin: () => ({
+              where: () => [],
+            }),
+            leftJoin: () => ({
+              where: () => ({
+                orderBy: () => ({
+                  offset: () => ({
+                    limit: () => [
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000001',
+                          evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                          confidenceScore: 1.0,
+                          metadata: { derivedFromPackage: 'react-icons' },
+                          excerpt: '"@radix-ui/react-icons": "^1.3.0"',
+                          sourceLocation: { filePath: 'package.json' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000002',
+                          evidenceType: 'CODE_IMPORT_USAGE',
+                          confidenceScore: 1.0,
+                          metadata: {},
+                          excerpt: "import React from 'react';",
+                          sourceLocation: { filePath: 'src/App.tsx' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000003',
+                          evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                          confidenceScore: 1.0,
+                          metadata: {},
+                          excerpt: '"react": "18.2.0"',
+                          sourceLocation: { filePath: 'package.json' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000004',
+                          evidenceType: 'README_SPECIFICATION',
+                          confidenceScore: 0.6,
+                          metadata: {},
+                          excerpt: 'Built with React and Tailwind',
+                          sourceLocation: { filePath: 'README.md' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                    ],
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+      },
+    };
+
+    const result = await handleInspectProjectEvidence(
+      mockContext,
+      { projectId: projectIdA },
+      { db: mixedDb }
+    );
+
+    assert.ok(InspectProjectEvidenceOutputSchema.safeParse(result).success);
+    assert.strictEqual(result.evidenceItems.length, 4);
+
+    // 1. CODE_IMPORT_USAGE is first (conf: 0.95)
+    assert.strictEqual(result.evidenceItems[0].evidenceType, 'CODE_IMPORT_USAGE');
+    assert.strictEqual(result.evidenceItems[0].confidenceScore, 0.95);
+
+    // 2. Direct PACKAGE_MANIFEST_DEPENDENCY is second (conf: 0.70)
+    assert.strictEqual(result.evidenceItems[1].evidenceType, 'PACKAGE_MANIFEST_DEPENDENCY');
+    assert.strictEqual(result.evidenceItems[1].confidenceScore, 0.7);
+
+    // 3. Derived PACKAGE_MANIFEST_DEPENDENCY is third (conf: 0.45)
+    assert.strictEqual(result.evidenceItems[2].evidenceType, 'PACKAGE_MANIFEST_DEPENDENCY');
+    assert.strictEqual(result.evidenceItems[2].confidenceScore, 0.45);
+    assert.notStrictEqual(result.evidenceItems[2].confidenceScore, 1.0);
+
+    // 4. README_SPECIFICATION is fourth (conf: 0.30)
+    assert.strictEqual(result.evidenceItems[3].evidenceType, 'README_SPECIFICATION');
+    assert.strictEqual(result.evidenceItems[3].confidenceScore, 0.3);
+  });
+
+  it('6d. inspect_project_evidence accurately downgrades derived helper packages (@radix-ui/react-icons, lucide-react, tailwind-merge, next-auth, @tanstack/react-table)', async () => {
+    const liveCandidateId = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
+    const liveProjectId = 'ea5137c3-2f7f-4e29-a884-28ff3c659ebf';
+
+    const testDb = {
+      select: (fields) => {
+        if (fields?.total) {
+          return {
+            from: () => ({
+              leftJoin: () => ({
+                where: () => [{ total: 7 }],
+              }),
+            }),
+          };
+        }
+        return {
+          from: () => ({
+            where: () => ({
+              limit: () => [
+                {
+                  id: liveProjectId,
+                  candidateId: liveCandidateId,
+                  name: 'Ai-powered-code-review-assistant',
+                  slug: 'ai-powered-code-review-assistant',
+                },
+              ],
+            }),
+            innerJoin: () => ({
+              where: () => [],
+            }),
+            leftJoin: () => ({
+              where: () => ({
+                orderBy: () => ({
+                  offset: () => ({
+                    limit: () => [
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000010',
+                          evidenceType: 'CODE_IMPORT_USAGE',
+                          confidenceScore: 1.0,
+                          metadata: { rawImport: 'fastapi' },
+                          excerpt: 'from fastapi import FastAPI',
+                          sourceLocation: { filePath: 'backend/app/main.py' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'fastapi',
+                        skillName: 'FastAPI',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000011',
+                          evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                          confidenceScore: 1.0,
+                          metadata: { versionConstraint: '18.2.0' },
+                          excerpt: '"react": "18.2.0"',
+                          sourceLocation: { filePath: 'frontend/package.json' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000012',
+                          evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                          confidenceScore: 1.0,
+                          metadata: { derivedFromPackage: 'react-icons' },
+                          excerpt: '"@radix-ui/react-icons": "^1.3.0"',
+                          sourceLocation: { filePath: 'frontend/package.json' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000013',
+                          evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                          confidenceScore: 1.0,
+                          metadata: { derivedFromPackage: 'lucide-react' },
+                          excerpt: '"lucide-react": "^0.294.0"',
+                          sourceLocation: { filePath: 'frontend/package.json' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000014',
+                          evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                          confidenceScore: 1.0,
+                          metadata: { derivedFromPackage: 'tailwind-merge' },
+                          excerpt: '"tailwind-merge": "^2.0.0"',
+                          sourceLocation: { filePath: 'frontend/package.json' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'tailwindcss',
+                        skillName: 'Tailwind CSS',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000015',
+                          evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                          confidenceScore: 1.0,
+                          metadata: { derivedFromPackage: 'next-auth' },
+                          excerpt: '"next-auth": "^4.24.5"',
+                          sourceLocation: { filePath: 'frontend/package.json' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'next-js',
+                        skillName: 'Next.js',
+                      },
+                      {
+                        ev: {
+                          id: 'e0000000-0000-4000-a000-000000000016',
+                          evidenceType: 'PACKAGE_MANIFEST_DEPENDENCY',
+                          confidenceScore: 1.0,
+                          metadata: { derivedFromPackage: 'react-table' },
+                          excerpt: '"@tanstack/react-table": "^8.10.7"',
+                          sourceLocation: { filePath: 'frontend/package.json' },
+                          detectedAt: new Date('2026-08-01T00:00:00Z'),
+                        },
+                        skillSlug: 'react',
+                        skillName: 'React',
+                      },
+                    ],
+                  }),
+                }),
+              }),
+            }),
+          }),
+        };
+      },
+    };
+
+    const result = await handleInspectProjectEvidence(
+      mockContext,
+      { projectId: liveProjectId, candidateId: liveCandidateId },
+      { db: testDb }
+    );
+
+    assert.ok(InspectProjectEvidenceOutputSchema.safeParse(result).success);
+    assert.strictEqual(result.evidenceItems.length, 7);
+
+    // 1. Code import outranks package manifest
+    assert.strictEqual(result.evidenceItems[0].evidenceType, 'CODE_IMPORT_USAGE');
+    assert.strictEqual(result.evidenceItems[0].confidenceScore, 0.95);
+
+    // 2. Direct package manifest is capped at 0.70
+    assert.strictEqual(result.evidenceItems[1].evidenceType, 'PACKAGE_MANIFEST_DEPENDENCY');
+    assert.strictEqual(result.evidenceItems[1].confidenceScore, 0.7);
+
+    // 3. All derived packages are capped at 0.45 and cannot be 1.0
+    const derivedItems = result.evidenceItems.slice(2);
+    assert.strictEqual(derivedItems.length, 5);
+    for (const item of derivedItems) {
+      assert.strictEqual(item.evidenceType, 'PACKAGE_MANIFEST_DEPENDENCY');
+      assert.strictEqual(item.confidenceScore, 0.45);
+      assert.notStrictEqual(item.confidenceScore, 1.0);
+    }
   });
 
   // ===========================================================================

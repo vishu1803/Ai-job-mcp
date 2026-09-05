@@ -32,6 +32,7 @@ import {
 import { createCareerMcpServer } from '../../src/mcp/server.js';
 import { ValidationError, NotFoundError } from '../../src/errors/index.js';
 import { McpRateLimiter } from '../../src/security/mcp-rate-limiter.js';
+import { jobApplications } from '../../src/db/schema.js';
 
 describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
   const tenantId = crypto.randomUUID();
@@ -195,18 +196,26 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
     };
   }
 
-  function createMockDbClient() {
+  function createMockDbClient(options = {}) {
     return {
       select: () => ({
-        from: () => ({
+        from: (table) => ({
           where: (_condition) => ({
-            limit: () => [
-              {
-                id: candidateId,
-                tenantId,
-                userId,
-              },
-            ],
+            limit: () => {
+              if (table === jobApplications && options.jobAppRows !== undefined) {
+                return options.jobAppRows;
+              }
+              if (options.candidateRows !== undefined) {
+                return options.candidateRows;
+              }
+              return [
+                {
+                  id: candidateId,
+                  tenantId,
+                  userId,
+                },
+              ];
+            },
           }),
         }),
       }),
@@ -724,6 +733,163 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
         });
       },
       (err) => err.name === 'ZodError'
+    );
+  });
+
+  it('17. recommend_portfolio_projects resolves job via discoveryService when jobId is provided', async () => {
+    const mockProfileService = {
+      getProfile: async () => createMockCandidateProfileView(),
+    };
+    const testJobId = crypto.randomUUID();
+    const mockDiscoveryService = {
+      findJobById: async (id) => {
+        if (id === testJobId) {
+          return {
+            id: testJobId,
+            title: 'Staff Backend Architect',
+            company: 'Vercel',
+            description:
+              'We are seeking a Staff Backend Architect proficient in Node.js, TypeScript, and distributed systems.',
+            requirements: ['Node.js', 'TypeScript', 'Distributed Systems'],
+            skills: ['node.js', 'typescript'],
+            workplaceType: 'REMOTE',
+          };
+        }
+        return null;
+      },
+    };
+
+    const result = await handleRecommendPortfolioProjects(
+      mockContextMember,
+      {
+        candidateId,
+        jobId: testJobId,
+      },
+      {
+        db: createMockDbClient(),
+        candidateProfileService: mockProfileService,
+        discoveryService: mockDiscoveryService,
+      }
+    );
+
+    assert.ok(result.recommendationId);
+    assert.strictEqual(result.candidateId, candidateId);
+    assert.strictEqual(result.jobTitle, 'Staff Backend Architect');
+    assert.ok(Array.isArray(result.featuredProjects));
+    assert.ok(result.featuredProjects.length >= 1);
+  });
+
+  it('18. recommend_portfolio_projects resolves job via tenant-scoped job_applications when jobId is not in discovery', async () => {
+    const mockProfileService = {
+      getProfile: async () => createMockCandidateProfileView(),
+    };
+    const savedJobId = crypto.randomUUID();
+    const mockDiscoveryService = {
+      findJobById: async () => null,
+    };
+    const mockDb = createMockDbClient({
+      jobAppRows: [
+        {
+          id: savedJobId,
+          jobTitle: 'Principal Cloud Platform Engineer',
+          companyName: 'Acme Cloud',
+          rawJobDescription:
+            'Seeking Principal Cloud Platform Engineer with deep PostgreSQL and distributed systems expertise.',
+          parsedJobDescription: null,
+          workplaceType: 'REMOTE',
+          location: 'San Francisco, CA',
+        },
+      ],
+    });
+
+    const result = await handleRecommendPortfolioProjects(
+      mockContextMember,
+      {
+        candidateId,
+        jobId: savedJobId,
+      },
+      {
+        db: mockDb,
+        candidateProfileService: mockProfileService,
+        discoveryService: mockDiscoveryService,
+      }
+    );
+
+    assert.ok(result.recommendationId);
+    assert.strictEqual(result.candidateId, candidateId);
+    assert.strictEqual(result.jobTitle, 'Principal Cloud Platform Engineer');
+    assert.ok(Array.isArray(result.featuredProjects));
+    assert.ok(result.featuredProjects.length >= 1);
+  });
+
+  it('19. recommend_portfolio_projects throws NotFoundError when jobId is in neither discovery nor job_applications', async () => {
+    const mockProfileService = {
+      getProfile: async () => createMockCandidateProfileView(),
+    };
+    const nonExistentJobId = crypto.randomUUID();
+    const mockDiscoveryService = {
+      findJobById: async () => null,
+    };
+    const mockDb = createMockDbClient({
+      jobAppRows: [],
+    });
+
+    await assert.rejects(
+      async () => {
+        await handleRecommendPortfolioProjects(
+          mockContextMember,
+          {
+            candidateId,
+            jobId: nonExistentJobId,
+          },
+          {
+            db: mockDb,
+            candidateProfileService: mockProfileService,
+            discoveryService: mockDiscoveryService,
+          }
+        );
+      },
+      (err) => {
+        assert.ok(err instanceof NotFoundError);
+        assert.strictEqual(err.message, `Job description not found for ID: ${nonExistentJobId}`);
+        return true;
+      }
+    );
+  });
+
+  it('20. recommend_portfolio_projects enforces tenant isolation on saved job applications', async () => {
+    const mockProfileService = {
+      getProfile: async () => createMockCandidateProfileView(),
+    };
+    const otherTenantJobId = crypto.randomUUID();
+    const mockDiscoveryService = {
+      findJobById: async () => null,
+    };
+    // Cross-tenant lookup returns empty array because query filters by context.tenantId
+    const mockDb = createMockDbClient({
+      jobAppRows: [],
+    });
+
+    await assert.rejects(
+      async () => {
+        await handleRecommendPortfolioProjects(
+          mockContextMember,
+          {
+            candidateId,
+            jobId: otherTenantJobId,
+          },
+          {
+            db: mockDb,
+            candidateProfileService: mockProfileService,
+            discoveryService: mockDiscoveryService,
+          }
+        );
+      },
+      (err) => {
+        assert.ok(err instanceof NotFoundError);
+        assert.strictEqual(err.message, `Job description not found for ID: ${otherTenantJobId}`);
+        return true;
+      }
     );
   });
 });

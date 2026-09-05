@@ -822,6 +822,66 @@ export async function handleListVerifiedSkills(context, rawArgs, deps = {}) {
 }
 
 // =============================================================================
+/**
+ * Calculates the adjusted evidentiary confidence for an evidence item
+ * adhering to the evidence-quality hierarchy:
+ * 1. CODE_USAGE → max 1.00
+ * 2. CODE_IMPORT_USAGE → max 0.95
+ * 3. FILE_PATTERN_MATCH / CONFIG_SYNTAX_DECLARATION → max 0.85
+ * 4. PACKAGE_MANIFEST_DEPENDENCY:
+ *    - if metadata.derivedFromPackage exists → max 0.45
+ *    - otherwise → max 0.70
+ * 5. COMMIT_CONTRIBUTION → max 0.50
+ * 6. DIRECTORY_STRUCTURE → max 0.40
+ * 7. README_SPECIFICATION → max 0.30
+ *
+ * @param {object} ev - Raw evidenceItem record
+ * @returns {number} Bounded, adjusted confidence score
+ */
+export function calculateAdjustedEvidenceConfidence(ev) {
+  const rawScore = typeof ev.confidenceScore === 'number' ? ev.confidenceScore : 0.0;
+  const evType = ev.evidenceType;
+  const metadata = ev.metadata || {};
+
+  let maxCap = 1.0;
+
+  switch (evType) {
+    case 'CODE_USAGE':
+      maxCap = 1.0;
+      break;
+    case 'CODE_IMPORT_USAGE':
+      maxCap = 0.95;
+      break;
+    case 'FILE_PATTERN_MATCH':
+    case 'CONFIG_SYNTAX_DECLARATION':
+      maxCap = 0.85;
+      break;
+    case 'PACKAGE_MANIFEST_DEPENDENCY':
+      if (metadata.derivedFromPackage || metadata.isChildPackageEvidence) {
+        maxCap = 0.45;
+      } else {
+        maxCap = 0.7;
+      }
+      break;
+    case 'COMMIT_CONTRIBUTION':
+      maxCap = 0.5;
+      break;
+    case 'DIRECTORY_STRUCTURE':
+      maxCap = 0.4;
+      break;
+    case 'README_SPECIFICATION':
+      maxCap = 0.3;
+      break;
+    default:
+      maxCap = 0.5;
+      break;
+  }
+
+  // Do not increase any stored confidence. Only cap/down-weight weaker evidence.
+  return Number(Math.min(rawScore, maxCap).toFixed(2));
+}
+
+// =============================================================================
 // Tool 3: inspect_project_evidence
 // =============================================================================
 
@@ -900,7 +960,19 @@ export async function handleInspectProjectEvidence(context, rawArgs, deps = {}) 
   const totalPages = Math.max(1, Math.ceil(totalCount / args.pageSize));
   const offset = (args.page - 1) * args.pageSize;
 
-  // 5. Fetch paginated evidence with stable sort
+  // 5. Fetch paginated evidence with effective confidence ordering
+  const effectiveConfidenceExpr = sql`CASE
+    WHEN ${evidenceItems.evidenceType}::text = 'CODE_USAGE' THEN LEAST(${evidenceItems.confidenceScore}, 1.00)
+    WHEN ${evidenceItems.evidenceType}::text = 'CODE_IMPORT_USAGE' THEN LEAST(${evidenceItems.confidenceScore}, 0.95)
+    WHEN ${evidenceItems.evidenceType}::text IN ('FILE_PATTERN_MATCH', 'CONFIG_SYNTAX_DECLARATION') THEN LEAST(${evidenceItems.confidenceScore}, 0.85)
+    WHEN ${evidenceItems.evidenceType}::text = 'PACKAGE_MANIFEST_DEPENDENCY' AND (${evidenceItems.metadata}->>'derivedFromPackage' IS NOT NULL OR (${evidenceItems.metadata}->>'isChildPackageEvidence')::boolean = true) THEN LEAST(${evidenceItems.confidenceScore}, 0.45)
+    WHEN ${evidenceItems.evidenceType}::text = 'PACKAGE_MANIFEST_DEPENDENCY' THEN LEAST(${evidenceItems.confidenceScore}, 0.70)
+    WHEN ${evidenceItems.evidenceType}::text = 'COMMIT_CONTRIBUTION' THEN LEAST(${evidenceItems.confidenceScore}, 0.50)
+    WHEN ${evidenceItems.evidenceType}::text = 'DIRECTORY_STRUCTURE' THEN LEAST(${evidenceItems.confidenceScore}, 0.40)
+    WHEN ${evidenceItems.evidenceType}::text = 'README_SPECIFICATION' THEN LEAST(${evidenceItems.confidenceScore}, 0.30)
+    ELSE LEAST(${evidenceItems.confidenceScore}, 0.50)
+  END`;
+
   const evidenceRows = await dbClient
     .select({
       ev: evidenceItems,
@@ -910,15 +982,11 @@ export async function handleInspectProjectEvidence(context, rawArgs, deps = {}) 
     .from(evidenceItems)
     .leftJoin(skills, eq(evidenceItems.skillId, skills.id))
     .where(and(...conditions))
-    .orderBy(
-      desc(evidenceItems.confidenceScore),
-      desc(evidenceItems.detectedAt),
-      asc(evidenceItems.id)
-    )
+    .orderBy(desc(effectiveConfidenceExpr), desc(evidenceItems.detectedAt), asc(evidenceItems.id))
     .offset(offset)
     .limit(args.pageSize);
 
-  // 6. Map evidence items with secret scrubbing and excerpt bounding
+  // 6. Map evidence items with secret scrubbing, excerpt bounding, and quality-adjusted confidence
   const items = evidenceRows.map(({ ev, skillSlug, skillName }) => {
     const loc = ev.sourceLocation || {};
     let lineRangeStr = null;
@@ -936,13 +1004,14 @@ export async function handleInspectProjectEvidence(context, rawArgs, deps = {}) 
     }
 
     const sanitized = SecretScrubber.sanitizeExcerpt(ev.excerpt || '', MAX_EVIDENCE_EXCERPT_CHARS);
+    const adjustedConfidence = calculateAdjustedEvidenceConfidence(ev);
 
     return {
       evidenceId: ev.id,
       skillSlug: skillSlug || null,
       skillName: skillName || null,
       evidenceType: ev.evidenceType,
-      confidenceScore: typeof ev.confidenceScore === 'number' ? ev.confidenceScore : 0.0,
+      confidenceScore: adjustedConfidence,
       sourceLocation: {
         filePath: loc.filePath || ev.filePath || null,
         commitSha: loc.commitSha || ev.commitSha || null,
@@ -952,6 +1021,14 @@ export async function handleInspectProjectEvidence(context, rawArgs, deps = {}) 
       detectedAt: ev.detectedAt ? new Date(ev.detectedAt).toISOString() : new Date().toISOString(),
     };
   });
+
+  // Ensure stable sort order (highest confidence first) across all DB implementations
+  items.sort(
+    (a, b) =>
+      b.confidenceScore - a.confidenceScore ||
+      new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime() ||
+      a.evidenceId.localeCompare(b.evidenceId)
+  );
 
   const output = {
     project: {
@@ -1388,9 +1465,10 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
         // Task 6: Traceable project relevance score breakdown
         scoreBreakdown: p.scoreBreakdown || null,
         summary: p.summary || null,
-        supportingEvidence: (Array.isArray(p.supportingEvidence) ? p.supportingEvidence : []).filter(
-          isSkillWorthyEvidence
-        ),
+        supportingEvidence: (Array.isArray(p.supportingEvidence)
+          ? p.supportingEvidence
+          : []
+        ).filter(isSkillWorthyEvidence),
       };
     });
 
