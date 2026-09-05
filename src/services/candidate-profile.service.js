@@ -42,6 +42,7 @@ import { DateRangeNormalizer } from '../utils/date-range-normalizer.js';
 import { EducationNormalizer } from '../utils/education-normalizer.js';
 import { TenureCalculator } from '../utils/tenure-calculator.js';
 import { CareerStatusDerivation } from '../utils/career-status-derivation.js';
+import { resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 
 export class CandidateProfileService {
   /**
@@ -114,6 +115,29 @@ export class CandidateProfileService {
   }
 
   /**
+   * Fetches the linked user email for a candidate, if present.
+   *
+   * @param {string} tenantId - Workspace tenant UUID.
+   * @param {string} userId - User UUID.
+   * @returns {Promise<string|null>} User email or null.
+   * @private
+   */
+  async _fetchUserEmail(tenantId, userId) {
+    if (!userId) return null;
+    try {
+      const [userRow] = await this._db
+        .select({ email: users.email })
+        .from(users)
+        .where(and(eq(users.id, userId), eq(users.tenantId, tenantId)))
+        .limit(1);
+      return userRow?.email || null;
+    } catch (err) {
+      logger.debug({ err, tenantId, userId }, 'Linked user email lookup failed or skipped');
+      return null;
+    }
+  }
+
+  /**
    * Retrieves a full candidate profile view aggregating identities, resources, projects,
    * verified skills, and manual user claims without sensitive credentials.
    *
@@ -138,6 +162,11 @@ export class CandidateProfileService {
     if (!candidate) {
       throw new NotFoundError(`Candidate not found: ${candidateId}`);
     }
+
+    const userEmail = await this._fetchUserEmail(tenantId, candidate.userId);
+    const resolvedCanonicalEmail = resolveCandidateEmail(candidate, userEmail, {
+      allowNullable: true,
+    });
 
     // 2. Fetch Candidate Identities (without credentials)
     const rawIdentities = await this._db
@@ -301,9 +330,7 @@ export class CandidateProfileService {
     const allEvidenceRows = await this._db
       .select()
       .from(evidenceItems)
-      .where(
-        and(eq(evidenceItems.tenantId, tenantId), eq(evidenceItems.candidateId, candidateId))
-      );
+      .where(and(eq(evidenceItems.tenantId, tenantId), eq(evidenceItems.candidateId, candidateId)));
 
     const evidenceBySkillId = new Map();
     for (const row of allEvidenceRows) {
@@ -329,7 +356,10 @@ export class CandidateProfileService {
 
       let primaryEvidenceRef = null;
       if (primaryEvidenceRow) {
-        primaryEvidenceRef = EvidenceRefMapper.toEvidenceRef(primaryEvidenceRow, cs.provenanceStatus);
+        primaryEvidenceRef = EvidenceRefMapper.toEvidenceRef(
+          primaryEvidenceRow,
+          cs.provenanceStatus
+        );
       }
 
       const evidenceRefs = skillEvidenceRows.map((row) =>
@@ -375,12 +405,13 @@ export class CandidateProfileService {
         displayName: candidate.displayName,
         headline: candidate.headline,
         summary: candidate.summary,
-        canonicalEmail: candidate.canonicalEmail,
+        canonicalEmail: resolvedCanonicalEmail,
         status: candidate.status,
         profileMetadata: candidate.profileMetadata || { userCustom: {}, systemInferred: {} },
         createdAt: candidate.createdAt ? new Date(candidate.createdAt).toISOString() : null,
         updatedAt: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : null,
       },
+      userEmail: userEmail || null,
       identities,
       resources: resourceList,
       projects: projectList,
@@ -1409,7 +1440,22 @@ export class CandidateProfileService {
       resumeData?.identity?.location ||
       null;
 
-    const canonicalEmail = candidate.canonicalEmail || resumeData?.identity?.email || null;
+    const resolvedUserEmail =
+      profileView.userEmail ||
+      (candidate.userId ? await this._fetchUserEmail(tenantId, candidate.userId) : null);
+
+    const canonicalEmail = resolveCandidateEmail(
+      {
+        ...candidate,
+        canonicalEmail: candidate.canonicalEmail,
+        profileMetadata: {
+          ...(candidate.profileMetadata || {}),
+          resumeData,
+        },
+      },
+      resolvedUserEmail,
+      { allowNullable: true }
+    );
 
     // 4. Portfolio Links Deduplication
     const portfolioLinksMap = new Map();

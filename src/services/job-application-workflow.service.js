@@ -13,7 +13,7 @@
 import crypto from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
-import { candidates, jobApplications, candidateSkills, skills } from '../db/schema.js';
+import { candidates, users, jobApplications, candidateSkills, skills } from '../db/schema.js';
 import { ResumeTailoringService } from './resume-tailoring.service.js';
 import { CoverLetterDraftingService } from './cover-letter-drafting.service.js';
 import { PortfolioRecommendationService } from './portfolio-recommendation.service.js';
@@ -68,6 +68,10 @@ export function signApplicationTicket(ticketData, secretKey = 'career-hub-approv
   return crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
 }
 
+import { isSyntheticEmail, resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
+
+export { isSyntheticEmail, resolveCandidateEmail };
+
 export class JobApplicationWorkflowService {
   /**
    * @param {object} [options={}]
@@ -112,16 +116,24 @@ export class JobApplicationWorkflowService {
       );
     }
 
-    // 1. Fetch Candidate Profile
-    const [cand] = await this.db
-      .select()
+    // 1. Fetch Candidate Profile and Linked User
+    const [candRow] = await this.db
+      .select({
+        candidate: candidates,
+        userEmail: users.email,
+      })
       .from(candidates)
+      .leftJoin(users, eq(candidates.userId, users.id))
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)))
       .limit(1);
 
-    if (!cand) {
+    if (!candRow || (!candRow.candidate && !candRow.id)) {
       throw new NotFoundError(`Candidate not found: ${candidateId}`, 'CANDIDATE_NOT_FOUND');
     }
+
+    const cand = candRow.candidate || candRow;
+    const userEmail = candRow.userEmail || null;
+    const candidateEmail = resolveCandidateEmail(cand, userEmail);
 
     // 2. Fetch candidate skills & verified evidence
     const candidateSkillsList = await this.db
@@ -168,7 +180,7 @@ export class JobApplicationWorkflowService {
       );
       tailoredResumeResult = {
         title: `${cand.displayName || 'Candidate'} - Tailored for ${jobPosting.company}`,
-        markdownContent: `# ${cand.displayName || 'Candidate'}\n\n**Email:** ${cand.canonicalEmail || ''}\n\n## Target Role: ${jobPosting.title} at ${jobPosting.company}\n\n### Summary\nExperienced software engineer with verified expertise in ${verifiedSkills
+        markdownContent: `# ${cand.displayName || 'Candidate'}\n\n**Email:** ${candidateEmail}\n\n## Target Role: ${jobPosting.title} at ${jobPosting.company}\n\n### Summary\nExperienced software engineer with verified expertise in ${verifiedSkills
           .map((s) => s.name)
           .slice(0, 5)
           .join(', ')}.`,
@@ -218,7 +230,7 @@ export class JobApplicationWorkflowService {
     const preparedPackage = {
       candidateId,
       candidateName: cand.displayName || 'Candidate',
-      candidateEmail: cand.canonicalEmail || 'candidate@example.com',
+      candidateEmail,
       candidatePhone: cand.phone || undefined,
       targetJob: jobPosting,
       tailoredResume: {
