@@ -9,13 +9,13 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-006 (48 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
-| **Project State** | **ACTIVE / IN PROGRESS — P14-006 PORTFOLIO/PROFILE REDESIGN VERIFIED** | P14-006 Candidate Portfolio/Profile page redesign 100% complete across all 10 canonical sections, desktop & mobile viewports verified via CDP. P14-005AZ `submit_job_application` truthful submission semantics enforced. P14-005AY `get_application_submission_status` method mismatch resolved. |
-| **Total Tasks** | **132 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **130 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-006 (48 tasks) |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-006A (49 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
+| **Project State** | **ACTIVE / IN PROGRESS — P14-006A SECTION-LEVEL SAVE UX VERIFIED** | P14-006A Candidate Portfolio/Profile section-level save UX 100% verified across all 10 canonical sections, desktop & mobile viewports verified via CDP with 8 screenshot artifacts. Global save bar removed. P14-005AZ truthful application submission enforced. |
+| **Total Tasks** | **133 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **131 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-006A (49 tasks) |
 | **In Progress Tasks** | **1 Task** | P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation — Local Implementation Verified, Live ChatGPT MCP Verification Required) |
 | **Blocked / Not Accepted Tasks** | **2 Tasks** | P14-005W (`get_candidate_profile` NOT ACCEPTED due to public ChatGPT schema mismatch) and P14-005AB (blocked on live ChatGPT MCP call returning actual analysis payload) |
-| **Overall Task Completion** | **99.24% (130 / 131 Tasks)** | Strict calculation, zero inflation |
+| **Overall Task Completion** | **99.24% (131 / 132 Tasks)** | Strict calculation, zero inflation |
 | **Weighted Phase Completion** | **99.24% (16.89 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
@@ -5386,6 +5386,64 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 - **Code Quality & Security**:
   - `npx eslint src/views/profile.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
   - `npx prettier --check src/views/profile.page.js` $\rightarrow$ **PASS (100% compliant)**.
+  - `npm run scan:secrets` $\rightarrow$ **PASS (Zero exposed secrets detected)**.
+
+---
+
+### P14-006A: Candidate Portfolio/Profile Section-Level Save UX & Canonical Preference Ownership
+
+**Status:** COMPLETE & VERIFIED  
+**Component:** Candidate Profile Web Interface (`/profile`), Section-Level Persistence, Partial Mutation API  
+**Date Completed:** 2026-09-05  
+
+#### 1. Objectives & Architectural Boundaries Delivered
+1. **Zero Global Save Mechanism**: Completely removed the top "Save Workspace" button, bottom "Save Workspace" button, floating sticky save bar (`#stickySaveBar`), global dirty indicator (`#dirtyIndicator`), global save status (`#saveStatus`), and 800ms debounce autosave timer.
+2. **Independent Section-Level Save UX**:
+   - **Clean State**: Zero save/discard controls or dirty badges visible across all 10 canonical sections.
+   - **Dirty State**: Only the modified section displays a localized action bar containing `● Unsaved changes`, `[Discard]`, and `[Save changes]` buttons, alongside header dirty status.
+   - **Saving State**: Save button disables with inline spinner (`Saving...`) and prevents duplicate in-flight requests using `AbortController`.
+   - **Saved State**: Subtle `✓ Saved` feedback renders in the section header and auto-fades after 2.2s; controls hide and baseline updates.
+   - **Discard State**: Seamlessly restores all inputs in that section to the `lastSavedState` baseline without page reload, hides controls, and clears section dirty state.
+3. **Multiple Dirty Section Independence**: Multiple sections (e.g. Summary and Contact) can be modified simultaneously. Saving or discarding one section does NOT clear, overwrite, or corrupt the dirty state of any other section.
+4. **Strict Canonical Preference Ownership**:
+   - **Application Readiness (Section 4)**: Canonical editable owner of `workAuthorization` and `visaSponsorshipRequired`. Working model (`remotePreference`, `availabilityDate`, `relocationPreference`) is presented as a READ-ONLY summary in Subcard B with direct anchor link to Section 10.
+   - **Job Search Intent (Section 10)**: Canonical editable owner of `targetRoles`, `preferredLocations`, `remotePreference`, `relocationPreference`, `salaryFloor`, `salaryCurrency`, and `availabilityDate`.
+   - Live synchronization: Editing or discarding Section 10 preferences instantly updates Subcard B summary in Section 4 in real-time.
+   - Partial persistence: `web.routes.js` conditionally maps only explicitly passed properties so saving Section 4 never overwrites Section 10 preferences with default fallbacks.
+5. **Direct Modal CRUD Persistence**: Experience, Education, Certifications, Languages, Links, and Additional Skills retain modal workflows and persist immediately via `persistModalCollection`, displaying subtle section header feedback (`✓ Saved`) without redundant section dirty bars.
+6. **Authoritative Contact Integration**: Added `#contactPhoneInput` to Contact channels, persisting to `currentMeta.phone` and `updatedCustom.phone` without schema migrations; authoritative primary email remains strictly read-only.
+
+#### 2. Files Modified
+- `src/views/profile.page.js` — Section action bars, localized header statuses, client-side dirty controller, baseline capture/restore, live Subcard B sync, modal collection persistence.
+- `src/services/candidate-profile.service.js` — Added support for `rawInput.phone !== undefined` to write to metadata and custom profile fields.
+- `src/routes/web.routes.js` — Forwarded `phone` from contact/identity sections and eliminated fallback overwrites in preferences mapping.
+- `src/security/oauth-state.js` — Added `/profile` to `isValidReturnTo` allowlist for seamless dev-login redirects.
+- `scratch/verify_section_save.mjs` — Comprehensive 7-point Chrome CDP browser automation test script.
+
+#### 3. Verification & Evidence
+- **Automated Chrome CDP Verification (`scratch/verify_section_save.mjs`)**:
+  - **1. Clean State Audit**: `PASS` (Global sticky bar, global dirty indicator, global save status confirmed absent; all 4 section action bars and header statuses evaluated to `display: 'none'`).
+  - **2. Dirty State Isolation**: `PASS` (Editing Summary headline triggered only `#actions-summary` and `#header-status-summary` to `flex` with `● Unsaved changes`; Contact, Readiness, and Preferences remained `display: 'none'`).
+  - **3. Multiple Dirty Sections**: `PASS` (Editing Contact phone put both Summary and Contact into independent dirty states without leaking into Readiness or Preferences).
+  - **4. Independent Section Save**: `PASS` (Saving Contact displayed `✓ Saved`, closed `#actions-contact`, updated phone baseline, while Summary remained dirty with `● Unsaved changes` and visible controls).
+  - **5. Independent Discard**: `PASS` (Discarding Summary restored headline to saved baseline and hid `#actions-summary`).
+  - **6. Preferences & Subcard B Live Sync**: `PASS` (Changing remote preference to `HYBRID` and availability date to `2026-10-01` in Section 10 instantly synchronized Subcard B in Section 4; saving Section 10 displayed `✓ Saved` feedback without touching Section 4).
+  - **7. Mobile Viewport Responsive Audit (390x844)**: `PASS` (`scrollWidth: 390, clientWidth: 390, hasHorizontalOverflow: false`; verified zero horizontal overflow in both clean and dirty states).
+  - **Visual Artifacts Captured**:
+    - `section_save_clean_desktop.png` (Desktop 1280px clean baseline)
+    - `section_save_dirty_summary.png` (Isolated Section 2 dirty action bar)
+    - `section_save_two_dirty.png` (Multiple independent dirty action bars)
+    - `section_save_contact_saved_summary_dirty.png` (Contact saved with confirmation while Summary remains dirty)
+    - `section_save_after_discard_clean.png` (Summary discarded and baseline restored)
+    - `section_save_dirty_preferences.png` (Section 10 dirty action bar and live Subcard B sync)
+    - `section_save_mobile_clean.png` (Mobile 390px clean viewport)
+    - `section_save_mobile_dirty.png` (Mobile 390px responsive dirty action bar)
+- **Unit & Integration Regression Suites**:
+  - `node --test tests/unit/candidate-career-profile.test.js tests/unit/profile-save-ajax-regression.test.js tests/unit/profile-architecture.test.js tests/unit/career-profile-ux-refinement.test.js` $\rightarrow$ **80/80 PASS** (100%).
+  - `node --test tests/integration/career-profile-and-compliance.test.js tests/integration/profile-single-load-invariant.test.js` $\rightarrow$ **9/9 PASS** (100%).
+- **Code Quality & Security**:
+  - `npx eslint src/views/profile.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+  - `npx prettier --check src/views/profile.page.js` $\rightarrow$ **PASS (100% formatted)**.
   - `npm run scan:secrets` $\rightarrow$ **PASS (Zero exposed secrets detected)**.
 
 ---

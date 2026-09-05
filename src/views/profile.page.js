@@ -736,27 +736,73 @@ export function renderProfilePage({
         margin-top: 0.2rem;
       }
 
-      /* Sticky Save Bar */
-      .sticky-save-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: rgba(15, 23, 42, 0.95);
-        backdrop-filter: blur(12px);
-        border-top: 1px solid rgba(99, 102, 241, 0.25);
-        padding: 0.85rem 1.5rem;
-        z-index: 100;
+      /* Section-Level Save Action Bar */
+      .section-action-bar {
+        margin-top: 1.25rem;
+        padding: 0.75rem 1rem;
+        background: #0B0F19;
+        border: 1px solid rgba(251, 191, 36, 0.35);
+        border-radius: 8px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
-        transform: translateY(100%);
-        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        gap: 0.75rem;
+        animation: fadeInBar 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
 
-      .sticky-save-bar.visible {
-        transform: translateY(0);
+      @keyframes fadeInBar {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .section-action-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .section-dirty-indicator {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #fbbf24;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .section-save-status {
+        font-size: 0.78rem;
+        font-weight: 500;
+      }
+
+      .section-action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .section-header-status {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #34d399;
+        margin-left: 0.5rem;
+        transition: opacity 0.3s ease;
+      }
+
+      .spinner-sm {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        vertical-align: middle;
+        margin-right: 4px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
 
       /* Modal Dialog Styles */
@@ -1247,19 +1293,13 @@ export function renderProfilePage({
         <input type="hidden" id="portfolioLinksHidden" name="portfolioLinks" value="" />
         <input type="hidden" id="currentEmploymentHidden" name="currentEmployment" value="" />
 
-        <!-- Top-level Save Button (always visible) -->
-        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; padding: 0.25rem 0;">
-          <span id="dirtyIndicator" style="font-size: 0.78rem; color: #fbbf24; display: none;">● Unsaved changes</span>
-          <span id="saveStatus" style="font-size: 0.78rem; display: none;"></span>
-          <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1.25rem; font-weight: 600; font-size: 0.85rem;">Save Workspace</button>
-        </div>
-
         <!-- ================================================================= -->
         <!-- SECTION 2: PROFESSIONAL SUMMARY & NARRATIVE                       -->
         <!-- ================================================================= -->
         <div id="section-summary" class="form-section-card">
           <div class="section-title">
             <span>2. Professional Summary & Narrative</span>
+            <span class="section-header-status" id="header-status-summary" style="display: none;"></span>
             <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ User Editable</span>
           </div>
           <div class="section-subtitle">
@@ -1271,7 +1311,7 @@ export function renderProfilePage({
               <label class="form-label" for="displayName">
                 Display Name <span style="color: #ef4444;">*</span>
               </label>
-              <input type="text" id="displayName" name="displayName" value="${escapeHtml(candidate?.displayName || user?.displayName || '')}" required class="form-input" placeholder="e.g. Alex Mercer" oninput="markFormDirty()" />
+              <input type="text" id="displayName" name="displayName" value="${escapeHtml(candidate?.displayName || user?.displayName || '')}" required class="form-input" placeholder="e.g. Alex Mercer" oninput="checkSectionDirty('summary')" />
               <div class="form-helper">Your preferred full name for applications and profile views.</div>
             </div>
 
@@ -1279,7 +1319,7 @@ export function renderProfilePage({
               <label class="form-label" for="headline">
                 Professional Headline
               </label>
-              <input type="text" id="headline" name="headline" value="${escapeHtml(candidate?.headline || '')}" placeholder="e.g. Backend Engineer specializing in distributed systems" class="form-input" oninput="markFormDirty()" />
+              <input type="text" id="headline" name="headline" value="${escapeHtml(candidate?.headline || '')}" placeholder="e.g. Backend Engineer specializing in distributed systems" class="form-input" oninput="checkSectionDirty('summary')" />
               <div class="form-helper">Concise one-line summary of your technical focus.</div>
             </div>
 
@@ -1287,7 +1327,7 @@ export function renderProfilePage({
               <label class="form-label" for="currentRole">
                 Professional Role / Persona
               </label>
-              <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" placeholder="e.g. Full-Stack & Backend Developer" class="form-input" oninput="markFormDirty()" />
+              <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" placeholder="e.g. Full-Stack & Backend Developer" class="form-input" oninput="checkSectionDirty('summary')" />
               <div class="form-helper">Active role persona (does not require active employment).</div>
             </div>
 
@@ -1295,7 +1335,7 @@ export function renderProfilePage({
               <label class="form-label" for="careerStatus">
                 Career Standing <span style="color: #6366f1; font-size: 0.7rem;">(Detected & Selectable)</span>
               </label>
-              <select id="careerStatus" name="careerStatus" class="form-select" onchange="handleCareerStatusChange(); markFormDirty();">
+              <select id="careerStatus" name="careerStatus" class="form-select" onchange="handleCareerStatusChange(); checkSectionDirty('summary');">
                 <option value="FRESHER" ${careerStatusVal === 'FRESHER' ? 'selected' : ''}>Fresher (Recent/Upcoming Graduate)</option>
                 <option value="STUDENT" ${careerStatusVal === 'STUDENT' ? 'selected' : ''}>Student (Currently Enrolled)</option>
                 <option value="EMPLOYED" ${careerStatusVal === 'EMPLOYED' ? 'selected' : ''}>Employed (Currently Working)</option>
@@ -1311,15 +1351,15 @@ export function renderProfilePage({
               <label class="form-label" for="location">
                 Current Location (Residence)
               </label>
-              <input type="text" id="location" name="location" value="${escapeHtml(userLocation)}" placeholder="e.g. Gorakhpur, India" class="form-input" oninput="markFormDirty()" />
+              <input type="text" id="location" name="location" value="${escapeHtml(userLocation)}" placeholder="e.g. Gorakhpur, India" class="form-input" oninput="checkSectionDirty('summary')" />
               <div class="form-helper">Where you currently live (Separate from preferred search locations).</div>
               <div class="suggestion-pills-row">
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Bengaluru, India'; markFormDirty();">Bengaluru</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Hyderabad, India'; markFormDirty();">Hyderabad</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Pune, India'; markFormDirty();">Pune</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Delhi NCR, India'; markFormDirty();">Delhi NCR</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Gorakhpur, India'; markFormDirty();">Gorakhpur</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Remote'; markFormDirty();">Remote</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Bengaluru, India'; checkSectionDirty('summary');">Bengaluru</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Hyderabad, India'; checkSectionDirty('summary');">Hyderabad</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Pune, India'; checkSectionDirty('summary');">Pune</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Delhi NCR, India'; checkSectionDirty('summary');">Delhi NCR</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Gorakhpur, India'; checkSectionDirty('summary');">Gorakhpur</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Remote'; checkSectionDirty('summary');">Remote</span>
               </div>
             </div>
 
@@ -1350,8 +1390,20 @@ export function renderProfilePage({
             <label class="form-label" for="summary">
               Executive Summary Narrative
             </label>
-            <textarea id="summary" name="summary" rows="3" placeholder="Write a concise professional introduction..." class="form-textarea" style="resize: vertical;" oninput="markFormDirty()">${escapeHtml(summaryText)}</textarea>
+            <textarea id="summary" name="summary" rows="3" placeholder="Write a concise professional introduction..." class="form-textarea" style="resize: vertical;" oninput="checkSectionDirty('summary')">${escapeHtml(summaryText)}</textarea>
             <div class="form-helper">Foundational summary used for AI resume tailoring and MCP profile summaries.</div>
+          </div>
+
+          <!-- Section 2 Local Save/Discard Action Bar -->
+          <div class="section-action-bar" id="actions-summary" style="display: none;">
+            <div class="section-action-info">
+              <span class="section-dirty-indicator">● Unsaved changes</span>
+              <span class="section-save-status" id="status-summary"></span>
+            </div>
+            <div class="section-action-buttons">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="discardSection('summary')">Discard</button>
+              <button type="button" class="btn btn-primary btn-sm btn-save-section" id="btn-save-summary" onclick="saveSectionAjax('summary')">Save changes</button>
+            </div>
           </div>
         </div>
 
@@ -1361,6 +1413,7 @@ export function renderProfilePage({
         <div id="section-contact" class="form-section-card">
           <div class="section-title">
             <span>3. Contact & Professional Links</span>
+            <span class="section-header-status" id="header-status-contact" style="display: none;"></span>
             <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ Application Essential</span>
           </div>
           <div class="section-subtitle">
@@ -1384,16 +1437,23 @@ export function renderProfilePage({
             <div class="contact-channel-card">
               <div class="channel-header">
                 <span class="channel-label">Phone Number</span>
-                ${
-                  candidatePhone
-                    ? `<span class="readiness-pill ready">✓ Ready</span>`
-                    : `<span class="readiness-pill missing">⚠ Missing</span>`
-                }
+                <span id="phoneReadinessPill" class="readiness-pill ${candidatePhone ? 'ready' : 'missing'}">
+                  ${candidatePhone ? '✓ Ready' : '⚠ Missing'}
+                </span>
               </div>
-              <div class="channel-value">
-                ${candidatePhone ? escapeHtml(candidatePhone) : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Not configured</span>'}
+              <div style="margin-top: 0.25rem;">
+                <input
+                  type="tel"
+                  id="contactPhoneInput"
+                  name="contactPhone"
+                  value="${escapeHtml(candidatePhone)}"
+                  placeholder="e.g. +1 555-0199 or 7905087928"
+                  class="form-input"
+                  style="font-size: 0.85rem; padding: 0.35rem 0.6rem;"
+                  oninput="checkSectionDirty('contact'); updateContactReadinessPills();"
+                />
               </div>
-              <div class="channel-note">Direct recruiter reachout phone extracted from resume.</div>
+              <div class="channel-note">Direct recruiter reachout phone used in job applications.</div>
             </div>
 
             <!-- Residence Location -->
@@ -1409,25 +1469,28 @@ export function renderProfilePage({
               <div class="channel-value">
                 ${userLocation ? escapeHtml(userLocation) : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Location not set</span>'}
               </div>
-              <div class="channel-note">Current residence for tax jurisdiction & eligibility.</div>
+              <div class="channel-note">Current residence for tax eligibility (configured in Section 2).</div>
             </div>
 
             <!-- LinkedIn Profile -->
             <div class="contact-channel-card">
               <div class="channel-header">
                 <span class="channel-label">LinkedIn Profile</span>
-                ${
-                  linkedInLink
-                    ? `<span class="readiness-pill ready">✓ Ready</span>`
-                    : `<span class="readiness-pill missing">⚠ Missing</span>`
-                }
+                <span id="linkedinReadinessPill" class="readiness-pill ${linkedInLink ? 'ready' : 'missing'}">
+                  ${linkedInLink ? '✓ Ready' : '⚠ Missing'}
+                </span>
               </div>
-              <div class="channel-value">
-                ${
-                  linkedInLink
-                    ? `<a href="${escapeHtml(linkedInLink.url)}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: none;">${escapeHtml(linkedInLink.url.replace(/^https?:\/\/(www\.)?/, ''))} ↗</a>`
-                    : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Not linked</span>'
-                }
+              <div style="margin-top: 0.25rem;">
+                <input
+                  type="url"
+                  id="contactLinkedinInput"
+                  name="contactLinkedin"
+                  value="${escapeHtml(linkedInLink ? linkedInLink.url : '')}"
+                  placeholder="https://linkedin.com/in/username"
+                  class="form-input"
+                  style="font-size: 0.85rem; padding: 0.35rem 0.6rem;"
+                  oninput="checkSectionDirty('contact'); updateContactReadinessPills();"
+                />
               </div>
               <div class="channel-note">Professional career identity and network.</div>
             </div>
@@ -1436,18 +1499,21 @@ export function renderProfilePage({
             <div class="contact-channel-card">
               <div class="channel-header">
                 <span class="channel-label">GitHub Profile</span>
-                ${
-                  gitHubLink
-                    ? `<span class="readiness-pill ready">✓ Ready</span>`
-                    : `<span class="readiness-pill missing">⚠ Missing</span>`
-                }
+                <span id="githubReadinessPill" class="readiness-pill ${gitHubLink ? 'ready' : 'missing'}">
+                  ${gitHubLink ? '✓ Ready' : '⚠ Missing'}
+                </span>
               </div>
-              <div class="channel-value">
-                ${
-                  gitHubLink
-                    ? `<a href="${escapeHtml(gitHubLink.url)}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: none;">${escapeHtml(gitHubLink.url.replace(/^https?:\/\/(www\.)?/, ''))} ↗</a>`
-                    : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Not linked</span>'
-                }
+              <div style="margin-top: 0.25rem;">
+                <input
+                  type="url"
+                  id="contactGithubInput"
+                  name="contactGithub"
+                  value="${escapeHtml(gitHubLink ? gitHubLink.url : '')}"
+                  placeholder="https://github.com/username"
+                  class="form-input"
+                  style="font-size: 0.85rem; padding: 0.35rem 0.6rem;"
+                  oninput="checkSectionDirty('contact'); updateContactReadinessPills();"
+                />
               </div>
               <div class="channel-note">Source code provenance and verified commits.</div>
             </div>
@@ -1456,20 +1522,35 @@ export function renderProfilePage({
             <div class="contact-channel-card">
               <div class="channel-header">
                 <span class="channel-label">Portfolio Website</span>
-                ${
-                  portfolioSiteLink
-                    ? `<span class="readiness-pill ready">✓ Ready</span>`
-                    : `<span class="readiness-pill optional">○ Optional</span>`
-                }
+                <span id="portfolioReadinessPill" class="readiness-pill ${portfolioSiteLink ? 'ready' : 'optional'}">
+                  ${portfolioSiteLink ? '✓ Ready' : '○ Optional'}
+                </span>
               </div>
-              <div class="channel-value">
-                ${
-                  portfolioSiteLink
-                    ? `<a href="${escapeHtml(portfolioSiteLink.url)}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: none;">${escapeHtml(portfolioSiteLink.url.replace(/^https?:\/\/(www\.)?/, ''))} ↗</a>`
-                    : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Optional / Not set</span>'
-                }
+              <div style="margin-top: 0.25rem;">
+                <input
+                  type="url"
+                  id="contactPortfolioInput"
+                  name="contactPortfolio"
+                  value="${escapeHtml(portfolioSiteLink ? portfolioSiteLink.url : '')}"
+                  placeholder="https://yourportfolio.dev"
+                  class="form-input"
+                  style="font-size: 0.85rem; padding: 0.35rem 0.6rem;"
+                  oninput="checkSectionDirty('contact'); updateContactReadinessPills();"
+                />
               </div>
               <div class="channel-note">Personal engineering website or showcase link.</div>
+            </div>
+          </div>
+
+          <!-- Section 3 Local Save/Discard Action Bar -->
+          <div class="section-action-bar" id="actions-contact" style="display: none;">
+            <div class="section-action-info">
+              <span class="section-dirty-indicator">● Unsaved changes</span>
+              <span class="section-save-status" id="status-contact"></span>
+            </div>
+            <div class="section-action-buttons">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="discardSection('contact')">Discard</button>
+              <button type="button" class="btn btn-primary btn-sm btn-save-section" id="btn-save-contact" onclick="saveSectionAjax('contact')">Save changes</button>
             </div>
           </div>
         </div>
@@ -1480,6 +1561,7 @@ export function renderProfilePage({
         <div id="section-readiness" class="form-section-card">
           <div class="section-title">
             <span>4. Application Readiness & Compliance</span>
+            <span class="section-header-status" id="header-status-readiness" style="display: none;"></span>
             <span class="evidence-lock-badge" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border-color: rgba(16, 185, 129, 0.25);">⚡ ATS Handoff Kit</span>
           </div>
           <div class="section-subtitle">
@@ -1487,25 +1569,18 @@ export function renderProfilePage({
           </div>
 
           <div class="readiness-grid">
-            <!-- Subcard A: Legal Work Authorization & Sponsorship -->
+            <!-- Subcard A: Legal Work Authorization & Sponsorship (Canonical Editable Owner) -->
             <div class="readiness-subcard">
               <div class="readiness-subcard-title">
                 <span>Work Authorization & Sponsorship</span>
-                ${
-                  workAuthList.length > 0 && jobPrefs.visaSponsorshipRequired != null
-                    ? `<span class="readiness-pill ready">✓ Ready</span>`
-                    : `<span class="readiness-pill needs-confirmation">⚠ Needs confirmation</span>`
-                }
+                <span id="workAuthReadinessPill" class="readiness-pill ${workAuthList.length > 0 ? 'ready' : 'needs-confirmation'}">
+                  ${workAuthList.length > 0 ? '✓ Ready' : '⚠ Needs confirmation'}
+                </span>
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="workAuthInput">
                   <span>Work Authorization Status</span>
-                  ${
-                    workAuthList.length > 0
-                      ? `<span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Configured</span>`
-                      : `<span class="readiness-pill needs-confirmation" style="font-size: 0.65rem;">⚠ Needs confirmation</span>`
-                  }
                 </label>
                 <input
                   type="text"
@@ -1514,9 +1589,9 @@ export function renderProfilePage({
                   value="${escapeHtml(workAuthList.join(', '))}"
                   placeholder="e.g. Authorized to work in India / US Citizen / OPT"
                   class="form-input"
-                  oninput="markFormDirty()"
+                  oninput="checkSectionDirty('readiness'); updateWorkAuthReadinessPill();"
                 />
-                <div class="form-helper">Legal right to work in your targeted job countries.</div>
+                <div class="form-helper">Legal right to work in your targeted job countries (comma-separated).</div>
               </div>
 
               <div class="form-group">
@@ -1524,7 +1599,7 @@ export function renderProfilePage({
                   <span>Visa Sponsorship Requirement</span>
                   <span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Declared</span>
                 </label>
-                <select id="visaSponsorshipRequired" name="visaSponsorshipRequired" class="form-select" onchange="markFormDirty()">
+                <select id="visaSponsorshipRequired" name="visaSponsorshipRequired" class="form-select" onchange="checkSectionDirty('readiness')">
                   <option value="false" ${jobPrefs.visaSponsorshipRequired === false ? 'selected' : ''}>No — I do not require sponsorship to work</option>
                   <option value="true" ${jobPrefs.visaSponsorshipRequired === true ? 'selected' : ''}>Yes — I will require employer visa sponsorship</option>
                 </select>
@@ -1532,62 +1607,29 @@ export function renderProfilePage({
               </div>
             </div>
 
-            <!-- Subcard B: Working Model & Availability -->
+            <!-- Subcard B: Working Model & Availability Summary (Read-Only Summary / Synchronized) -->
             <div class="readiness-subcard">
               <div class="readiness-subcard-title">
-                <span>Working Model & Availability</span>
-                ${
-                  availability
-                    ? `<span class="readiness-pill ready">✓ Ready</span>`
-                    : `<span class="readiness-pill missing">⚠ Missing Availability</span>`
-                }
+                <span>Working Model & Availability Summary</span>
+                <span class="readiness-pill ready">✓ Synced with Intent</span>
+              </div>
+              <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.75rem;">
+                Canonical preferences configured in <a href="#section-search-intent" style="color: #818cf8; text-decoration: none;">Section 10 (Job Search Intent) &darr;</a>
               </div>
 
-              <div class="form-group">
-                <label class="form-label" for="remotePreference">
-                  <span>Remote Work Model</span>
-                  <span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Ready</span>
-                </label>
-                <select id="remotePreference" name="remotePreference" class="form-select" onchange="markFormDirty()">
-                  <option value="REMOTE_ONLY" ${remotePref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
-                  <option value="REMOTE_FIRST" ${remotePref === 'REMOTE_FIRST' ? 'selected' : ''}>Remote First</option>
-                  <option value="HYBRID" ${remotePref === 'HYBRID' ? 'selected' : ''}>Hybrid (Office + Remote)</option>
-                  <option value="ON_SITE" ${remotePref === 'ON_SITE' ? 'selected' : ''}>On-Site Only</option>
-                  <option value="FLEXIBLE" ${remotePref === 'FLEXIBLE' ? 'selected' : ''}>Flexible (Any Arrangement)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="relocationPreference">
-                  <span>Relocation Willingness</span>
-                  <span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Ready</span>
-                </label>
-                <select id="relocationPreference" name="relocationPreference" class="form-select" onchange="markFormDirty()">
-                  <option value="REMOTE_ONLY" ${relocationPref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only (No Relocation)</option>
-                  <option value="WILLING_TO_RELOCATE" ${relocationPref === 'WILLING_TO_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
-                  <option value="NOT_WILLING" ${relocationPref === 'NOT_WILLING' ? 'selected' : ''}>Not Willing to Relocate</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="availabilityDate">
-                  <span>Notice Period / Availability</span>
-                  ${
-                    availability
-                      ? `<span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Ready</span>`
-                      : `<span class="readiness-pill missing" style="font-size: 0.65rem;">⚠ Missing</span>`
-                  }
-                </label>
-                <input
-                  type="text"
-                  id="availabilityDate"
-                  name="availabilityDate"
-                  value="${escapeHtml(availability)}"
-                  placeholder="e.g. Immediately / 2 Weeks Notice"
-                  class="form-input"
-                  oninput="markFormDirty()"
-                />
-                <div class="form-helper">Earliest date you can commence employment if hired.</div>
+              <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.82rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.65rem; background: #0B0F19; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;">
+                  <span style="color: #94a3b8;">Remote Model:</span>
+                  <strong id="summaryRemoteModel" style="color: #f8fafc;">${escapeHtml(remotePref)}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.65rem; background: #0B0F19; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;">
+                  <span style="color: #94a3b8;">Notice / Availability:</span>
+                  <strong id="summaryAvailability" style="color: #f8fafc;">${escapeHtml(availability || 'Immediately')}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.45rem 0.65rem; background: #0B0F19; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px;">
+                  <span style="color: #94a3b8;">Relocation Willingness:</span>
+                  <strong id="summaryRelocation" style="color: #f8fafc;">${escapeHtml(relocationPref)}</strong>
+                </div>
               </div>
             </div>
 
@@ -1605,21 +1647,21 @@ export function renderProfilePage({
                 <div class="qa-bank-item">
                   <div class="qa-question">
                     <span>What is your notice period / earliest start timeline?</span>
-                    <span class="readiness-pill ${availability ? 'ready' : 'needs-confirmation'}">
+                    <span id="qaPillAvailability" class="readiness-pill ${availability ? 'ready' : 'needs-confirmation'}">
                       ${availability ? '✓ User Confirmed' : '○ Inferred'}
                     </span>
                   </div>
-                  <div class="qa-answer">${escapeHtml(availability || 'Immediately available upon offer')}</div>
+                  <div id="qaAnswerAvailability" class="qa-answer">${escapeHtml(availability || 'Immediately available upon offer')}</div>
                 </div>
 
                 <div class="qa-bank-item">
                   <div class="qa-question">
                     <span>Are you legally authorized to work in the country of this job?</span>
-                    <span class="readiness-pill ${workAuthList.length > 0 ? 'ready' : 'needs-confirmation'}">
+                    <span id="qaPillWorkAuth" class="readiness-pill ${workAuthList.length > 0 ? 'ready' : 'needs-confirmation'}">
                       ${workAuthList.length > 0 ? '✓ User Confirmed' : '○ Inferred from Residence'}
                     </span>
                   </div>
-                  <div class="qa-answer">
+                  <div id="qaAnswerWorkAuth" class="qa-answer">
                     ${escapeHtml(workAuthList.length > 0 ? workAuthList.join(', ') : `Authorized to work in ${userLocation || 'country of residence'}`)}
                   </div>
                 </div>
@@ -1627,9 +1669,9 @@ export function renderProfilePage({
                 <div class="qa-bank-item">
                   <div class="qa-question">
                     <span>Will you now or in the future require visa sponsorship?</span>
-                    <span class="readiness-pill ready">✓ User Confirmed</span>
+                    <span id="qaPillSponsorship" class="readiness-pill ready">✓ User Confirmed</span>
                   </div>
-                  <div class="qa-answer">
+                  <div id="qaAnswerSponsorship" class="qa-answer">
                     ${jobPrefs.visaSponsorshipRequired ? 'Yes, I require employer visa sponsorship' : 'No, I do not require sponsorship'}
                   </div>
                 </div>
@@ -1659,6 +1701,18 @@ export function renderProfilePage({
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Section 4 Local Save/Discard Action Bar -->
+          <div class="section-action-bar" id="actions-readiness" style="display: none;">
+            <div class="section-action-info">
+              <span class="section-dirty-indicator">● Unsaved changes</span>
+              <span class="section-save-status" id="status-readiness"></span>
+            </div>
+            <div class="section-action-buttons">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="discardSection('readiness')">Discard</button>
+              <button type="button" class="btn btn-primary btn-sm btn-save-section" id="btn-save-readiness" onclick="saveSectionAjax('readiness')">Save changes</button>
             </div>
           </div>
         </div>
@@ -1992,10 +2046,11 @@ export function renderProfilePage({
         <div id="section-search-intent" class="form-section-card">
           <div class="section-title">
             <span>10. Job Search Intent & Matching Criteria</span>
+            <span class="section-header-status" id="header-status-preferences" style="display: none;"></span>
             <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ User Editable</span>
           </div>
           <div class="section-subtitle">
-            Configure target titles, preferred job discovery locations, and compensation threshold for automated matching.
+            Configure target titles, preferred job discovery locations, working model, and compensation threshold for automated matching.
           </div>
 
           <!-- Target Roles -->
@@ -2045,12 +2100,57 @@ export function renderProfilePage({
             </div>
           </div>
 
+          <!-- Working Model & Relocation Preferences (Canonical Editable Owner) -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            <div class="form-group">
+              <label class="form-label" for="remotePreference">
+                Remote Work Model
+              </label>
+              <select id="remotePreference" name="remotePreference" class="form-select" onchange="checkSectionDirty('preferences')">
+                <option value="REMOTE_ONLY" ${remotePref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
+                <option value="REMOTE_FIRST" ${remotePref === 'REMOTE_FIRST' ? 'selected' : ''}>Remote First</option>
+                <option value="HYBRID" ${remotePref === 'HYBRID' ? 'selected' : ''}>Hybrid (Office + Remote)</option>
+                <option value="ON_SITE" ${remotePref === 'ON_SITE' ? 'selected' : ''}>On-Site Only</option>
+                <option value="FLEXIBLE" ${remotePref === 'FLEXIBLE' ? 'selected' : ''}>Flexible (Any Arrangement)</option>
+              </select>
+              <div class="form-helper">Your preferred working flexibility arrangement.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="availabilityDate">
+                Notice Period / Earliest Start
+              </label>
+              <input
+                type="text"
+                id="availabilityDate"
+                name="availabilityDate"
+                value="${escapeHtml(availability)}"
+                placeholder="e.g. Immediately / 2 Weeks Notice"
+                class="form-input"
+                oninput="checkSectionDirty('preferences')"
+              />
+              <div class="form-helper">Earliest start date or required notice period timeline.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="relocationPreference">
+                Relocation Willingness
+              </label>
+              <select id="relocationPreference" name="relocationPreference" class="form-select" onchange="checkSectionDirty('preferences')">
+                <option value="REMOTE_ONLY" ${relocationPref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only (No Relocation)</option>
+                <option value="WILLING_TO_RELOCATE" ${relocationPref === 'WILLING_TO_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
+                <option value="NOT_WILLING" ${relocationPref === 'NOT_WILLING' ? 'selected' : ''}>Not Willing to Relocate</option>
+              </select>
+              <div class="form-helper">Whether you are open to relocating for on-site roles.</div>
+            </div>
+          </div>
+
           <!-- Compensation Floor -->
           <div class="form-group" style="margin-top: 1rem;">
             <label class="form-label">Compensation Floor (Annual Minimum)</label>
             <div style="display: flex; gap: 0.5rem; max-width: 420px;">
-              <input type="number" id="salaryFloor" name="salaryFloor" value="${escapeHtml(String(salaryFloor))}" placeholder="e.g. 800000" class="form-input" style="flex: 2;" oninput="markFormDirty()" />
-              <select id="salaryCurrency" name="salaryCurrency" class="form-select" style="flex: 1;" onchange="markFormDirty()">
+              <input type="number" id="salaryFloor" name="salaryFloor" value="${escapeHtml(String(salaryFloor))}" placeholder="e.g. 800000" class="form-input" style="flex: 2;" oninput="checkSectionDirty('preferences')" />
+              <select id="salaryCurrency" name="salaryCurrency" class="form-select" style="flex: 1;" onchange="checkSectionDirty('preferences')">
                 <option value="INR" ${salaryCurrency === 'INR' ? 'selected' : ''}>INR (₹)</option>
                 <option value="USD" ${salaryCurrency === 'USD' ? 'selected' : ''}>USD ($)</option>
                 <option value="EUR" ${salaryCurrency === 'EUR' ? 'selected' : ''}>EUR (€)</option>
@@ -2060,24 +2160,17 @@ export function renderProfilePage({
             </div>
             <div class="form-helper">Minimum acceptable compensation threshold for job radar matching.</div>
           </div>
-        </div>
 
-        <!-- Bottom Save Button -->
-        <div style="display: flex; justify-content: flex-end; padding: 1rem 0 0.5rem 0; border-top: 1px solid rgba(255,255,255,0.08);">
-          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 600;">Save Workspace</button>
-        </div>
-
-        <!-- Sticky Save Action Bar -->
-        <div id="stickySaveBar" class="sticky-save-bar">
-          <div style="display: flex; align-items: center; gap: 0.6rem;">
-            <div>
-              <strong style="color: #f8fafc; font-size: 0.88rem;">Unsaved Changes</strong>
-              <div style="color: #94a3b8; font-size: 0.75rem;">You have pending profile and application readiness adjustments.</div>
+          <!-- Section 10 Local Save/Discard Action Bar -->
+          <div class="section-action-bar" id="actions-preferences" style="display: none;">
+            <div class="section-action-info">
+              <span class="section-dirty-indicator">● Unsaved changes</span>
+              <span class="section-save-status" id="status-preferences"></span>
             </div>
-          </div>
-          <div style="display: flex; gap: 0.5rem;">
-            <button type="button" class="btn btn-secondary btn-sm" onclick="discardChanges()">Discard</button>
-            <button type="submit" class="btn btn-primary btn-sm" style="padding: 0.4rem 1.25rem; font-weight: 600;">Save All Changes</button>
+            <div class="section-action-buttons">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="discardSection('preferences')">Discard</button>
+              <button type="button" class="btn btn-primary btn-sm btn-save-section" id="btn-save-preferences" onclick="saveSectionAjax('preferences')">Save changes</button>
+            </div>
           </div>
         </div>
       </form>
@@ -2506,118 +2599,326 @@ export function renderProfilePage({
 
       window.__INITIAL_PROFILE__ = ${JSON.stringify(initialProfileState)};
       let profileState = JSON.parse(JSON.stringify(window.__INITIAL_PROFILE__));
-      let lastSavedState = JSON.parse(JSON.stringify(window.__INITIAL_PROFILE__));
-      let isFormDirty = false;
-      let currentVersion = null;
-      let saveAbortController = null;
 
-      function markFormDirty() {
-        isFormDirty = true;
-        document.getElementById('stickySaveBar').classList.add('visible');
-        const dirtyEl = document.getElementById('dirtyIndicator');
-        if (dirtyEl) dirtyEl.style.display = 'inline';
+      // Independent dirty tracking and baseline state per section
+      const sectionDirtyStates = {
+        summary: false,
+        contact: false,
+        readiness: false,
+        preferences: false,
+      };
+
+      const lastSavedState = {
+        summary: {},
+        contact: {},
+        readiness: {},
+        preferences: {},
+      };
+
+      const sectionSaveControllers = {};
+
+      function captureSectionState(sectionId) {
+        if (sectionId === 'summary') {
+          return {
+            displayName: (document.getElementById('displayName')?.value || '').trim(),
+            headline: (document.getElementById('headline')?.value || '').trim(),
+            currentRole: (document.getElementById('currentRole')?.value || '').trim(),
+            careerStatus: document.getElementById('careerStatus')?.value || 'FRESHER',
+            location: (document.getElementById('location')?.value || '').trim(),
+            summary: (document.getElementById('summary')?.value || '').trim(),
+            currentEmployment: profileState.currentEmployment ? JSON.parse(JSON.stringify(profileState.currentEmployment)) : null,
+          };
+        }
+        if (sectionId === 'contact') {
+          return {
+            phone: (document.getElementById('contactPhoneInput')?.value || '').trim(),
+            linkedin: (document.getElementById('contactLinkedinInput')?.value || '').trim(),
+            github: (document.getElementById('contactGithubInput')?.value || '').trim(),
+            portfolio: (document.getElementById('contactPortfolioInput')?.value || '').trim(),
+          };
+        }
+        if (sectionId === 'readiness') {
+          return {
+            workAuthorization: (document.getElementById('workAuthInput')?.value || '').trim(),
+            visaSponsorshipRequired: document.getElementById('visaSponsorshipRequired')?.value || 'false',
+          };
+        }
+        if (sectionId === 'preferences') {
+          return {
+            targetRoles: (document.getElementById('targetRolesHidden')?.value || '').trim(),
+            preferredLocations: (document.getElementById('preferredLocationsHidden')?.value || '').trim(),
+            remotePreference: document.getElementById('remotePreference')?.value || 'FLEXIBLE',
+            salaryFloor: (document.getElementById('salaryFloor')?.value || '').trim(),
+            salaryCurrency: document.getElementById('salaryCurrency')?.value || 'USD',
+            availabilityDate: (document.getElementById('availabilityDate')?.value || '').trim(),
+            relocationPreference: document.getElementById('relocationPreference')?.value || 'REMOTE_ONLY',
+          };
+        }
+        return {};
       }
 
-      function discardChanges() {
-        if (confirm('Discard all unsaved profile modifications and reload?')) {
-          profileState = JSON.parse(JSON.stringify(lastSavedState));
-          isFormDirty = false;
-          document.getElementById('stickySaveBar').classList.remove('visible');
-          const dirtyEl = document.getElementById('dirtyIndicator');
-          if (dirtyEl) dirtyEl.style.display = 'none';
-          renderAllSections();
+      function initSectionStates() {
+        ['summary', 'contact', 'readiness', 'preferences'].forEach(sec => {
+          lastSavedState[sec] = captureSectionState(sec);
+          sectionDirtyStates[sec] = false;
+          updateSectionUI(sec);
+        });
+      }
+
+      function checkSectionDirty(sectionId) {
+        const current = captureSectionState(sectionId);
+        const baseline = lastSavedState[sectionId] || {};
+        let isDirty = false;
+
+        if (sectionId === 'summary') {
+          isDirty =
+            current.displayName !== baseline.displayName ||
+            current.headline !== baseline.headline ||
+            current.currentRole !== baseline.currentRole ||
+            current.careerStatus !== baseline.careerStatus ||
+            current.location !== baseline.location ||
+            current.summary !== baseline.summary ||
+            JSON.stringify(current.currentEmployment) !== JSON.stringify(baseline.currentEmployment);
+        } else if (sectionId === 'contact') {
+          isDirty =
+            current.phone !== baseline.phone ||
+            current.linkedin !== baseline.linkedin ||
+            current.github !== baseline.github ||
+            current.portfolio !== baseline.portfolio;
+        } else if (sectionId === 'readiness') {
+          isDirty =
+            current.workAuthorization !== baseline.workAuthorization ||
+            current.visaSponsorshipRequired !== baseline.visaSponsorshipRequired;
+        } else if (sectionId === 'preferences') {
+          isDirty =
+            current.targetRoles !== baseline.targetRoles ||
+            current.preferredLocations !== baseline.preferredLocations ||
+            current.remotePreference !== baseline.remotePreference ||
+            current.salaryFloor !== baseline.salaryFloor ||
+            current.salaryCurrency !== baseline.salaryCurrency ||
+            current.availabilityDate !== baseline.availabilityDate ||
+            current.relocationPreference !== baseline.relocationPreference;
+        }
+
+        sectionDirtyStates[sectionId] = isDirty;
+        updateSectionUI(sectionId);
+        if (sectionId === 'preferences') {
+          syncReadinessWorkingModelSummary();
+        }
+        return isDirty;
+      }
+
+      function updateSectionUI(sectionId) {
+        const isDirty = Boolean(sectionDirtyStates[sectionId]);
+        const bar = document.getElementById('actions-' + sectionId);
+        if (bar) {
+          bar.style.display = isDirty ? 'flex' : 'none';
         }
       }
 
-      function renderAllSections() {
-        renderExperiences();
-        renderEducation();
-        renderCertifications();
-        renderLanguages();
-        renderLinks();
-        renderAdditionalSkills();
-      }
+      function discardSection(sectionId) {
+        const baseline = lastSavedState[sectionId];
+        if (!baseline) return;
 
-      window.addEventListener('beforeunload', function(e) {
-        if (isFormDirty) {
-          e.preventDefault();
-          e.returnValue = '';
+        if (sectionId === 'summary') {
+          document.getElementById('displayName').value = baseline.displayName || '';
+          document.getElementById('headline').value = baseline.headline || '';
+          document.getElementById('currentRole').value = baseline.currentRole || '';
+          document.getElementById('careerStatus').value = baseline.careerStatus || 'FRESHER';
+          document.getElementById('location').value = baseline.location || '';
+          document.getElementById('summary').value = baseline.summary || '';
+          profileState.currentEmployment = baseline.currentEmployment ? JSON.parse(JSON.stringify(baseline.currentEmployment)) : null;
+          updateCurrentEmploymentDisplay();
+        } else if (sectionId === 'contact') {
+          document.getElementById('contactPhoneInput').value = baseline.phone || '';
+          document.getElementById('contactLinkedinInput').value = baseline.linkedin || '';
+          document.getElementById('contactGithubInput').value = baseline.github || '';
+          document.getElementById('contactPortfolioInput').value = baseline.portfolio || '';
+          updateContactReadinessPills();
+        } else if (sectionId === 'readiness') {
+          document.getElementById('workAuthInput').value = baseline.workAuthorization || '';
+          document.getElementById('visaSponsorshipRequired').value = baseline.visaSponsorshipRequired || 'false';
+          updateWorkAuthReadinessPill();
+        } else if (sectionId === 'preferences') {
+          document.getElementById('targetRolesHidden').value = baseline.targetRoles || '';
+          document.getElementById('preferredLocationsHidden').value = baseline.preferredLocations || '';
+          document.getElementById('remotePreference').value = baseline.remotePreference || 'FLEXIBLE';
+          document.getElementById('salaryFloor').value = baseline.salaryFloor || '';
+          document.getElementById('salaryCurrency').value = baseline.salaryCurrency || 'USD';
+          document.getElementById('availabilityDate').value = baseline.availabilityDate || '';
+          document.getElementById('relocationPreference').value = baseline.relocationPreference || 'REMOTE_ONLY';
+          if (rolesController && rolesController.renderChips) rolesController.renderChips();
+          if (locationsController && locationsController.renderChips) locationsController.renderChips();
+          syncReadinessWorkingModelSummary();
         }
-      });
 
-      function updateSaveStatus(status) {
-        const el = document.getElementById('saveStatus');
-        if (!el) return;
-        if (status === 'saving') {
-          el.textContent = 'Saving...';
-          el.style.color = '#fbbf24';
-          el.style.display = 'inline';
-        } else if (status === 'saved') {
-          el.textContent = '\u2713 Saved';
-          el.style.color = '#34d399';
-          el.style.display = 'inline';
-          setTimeout(() => { el.style.display = 'none'; }, 2500);
-        } else if (status === 'error') {
-          el.textContent = '\u26A0 Save failed';
-          el.style.color = '#ef4444';
-          el.style.display = 'inline';
-        } else {
-          el.style.display = 'none';
+        sectionDirtyStates[sectionId] = false;
+        updateSectionUI(sectionId);
+      }
+
+      function buildContactPortfolioLinks() {
+        const linkedinUrl = (document.getElementById('contactLinkedinInput')?.value || '').trim();
+        const githubUrl = (document.getElementById('contactGithubInput')?.value || '').trim();
+        const portfolioUrl = (document.getElementById('contactPortfolioInput')?.value || '').trim();
+
+        // Preserve custom portfolio links that are not linkedin, github, or primary portfolio
+        const remaining = (profileState.portfolioLinks || []).filter(l => {
+          const lbl = (l.label || '').toUpperCase();
+          const url = (l.url || '').toLowerCase();
+          if (lbl === 'LINKEDIN' || url.includes('linkedin.com')) return false;
+          if (lbl === 'GITHUB' || url.includes('github.com')) return false;
+          if (lbl === 'PORTFOLIO' || lbl === 'WEBSITE') return false;
+          return true;
+        });
+
+        if (linkedinUrl) remaining.push({ label: 'LINKEDIN', url: linkedinUrl });
+        if (githubUrl) remaining.push({ label: 'GITHUB', url: githubUrl });
+        if (portfolioUrl) remaining.push({ label: 'PORTFOLIO', url: portfolioUrl });
+
+        return remaining;
+      }
+
+      function syncReadinessWorkingModelSummary() {
+        const remoteVal = document.getElementById('remotePreference')?.value || 'FLEXIBLE';
+        const availVal = (document.getElementById('availabilityDate')?.value || '').trim() || 'Immediately';
+        const relocVal = document.getElementById('relocationPreference')?.value || 'REMOTE_ONLY';
+
+        const remoteEl = document.getElementById('summaryRemoteModel');
+        const availEl = document.getElementById('summaryAvailability');
+        const relocEl = document.getElementById('summaryRelocation');
+        if (remoteEl) remoteEl.textContent = remoteVal;
+        if (availEl) availEl.textContent = availVal;
+        if (relocEl) relocEl.textContent = relocVal;
+
+        const qaAvailEl = document.getElementById('qaAnswerAvailability');
+        if (qaAvailEl) qaAvailEl.textContent = availVal;
+      }
+
+      function updateContactReadinessPills() {
+        const phone = (document.getElementById('contactPhoneInput')?.value || '').trim();
+        const linkedin = (document.getElementById('contactLinkedinInput')?.value || '').trim();
+        const github = (document.getElementById('contactGithubInput')?.value || '').trim();
+        const portfolio = (document.getElementById('contactPortfolioInput')?.value || '').trim();
+
+        const phonePill = document.getElementById('phoneReadinessPill');
+        if (phonePill) {
+          phonePill.className = 'readiness-pill ' + (phone ? 'ready' : 'missing');
+          phonePill.textContent = phone ? '✓ Ready' : '⚠ Missing';
+        }
+
+        const linkedinPill = document.getElementById('linkedinReadinessPill');
+        if (linkedinPill) {
+          linkedinPill.className = 'readiness-pill ' + (linkedin ? 'ready' : 'missing');
+          linkedinPill.textContent = linkedin ? '✓ Ready' : '⚠ Missing';
+        }
+
+        const githubPill = document.getElementById('githubReadinessPill');
+        if (githubPill) {
+          githubPill.className = 'readiness-pill ' + (github ? 'ready' : 'missing');
+          githubPill.textContent = github ? '✓ Ready' : '⚠ Missing';
+        }
+
+        const portfolioPill = document.getElementById('portfolioReadinessPill');
+        if (portfolioPill) {
+          portfolioPill.className = 'readiness-pill ' + (portfolio ? 'ready' : 'optional');
+          portfolioPill.textContent = portfolio ? '✓ Ready' : '○ Optional';
         }
       }
 
-      function buildSavePayload() {
-        return {
-          sections: {
-            identity: {
-              displayName: document.getElementById('displayName').value,
-              headline: document.getElementById('headline').value,
-              summary: document.getElementById('summary').value,
-              currentRole: document.getElementById('currentRole').value,
-              location: document.getElementById('location').value,
-              careerStatus: document.getElementById('careerStatus').value,
-            },
-            currentEmployment: profileState.currentEmployment,
-            experience: profileState.experiences || [],
-            education: profileState.education || [],
-            certifications: profileState.certifications || [],
-            languages: profileState.languages || [],
-            portfolioLinks: profileState.portfolioLinks || [],
-            preferences: {
-              targetRoles: (document.getElementById('targetRolesHidden').value || '').split(',').map(s => s.trim()).filter(Boolean),
-              preferredLocations: (document.getElementById('preferredLocationsHidden').value || '').split(',').map(s => s.trim()).filter(Boolean),
-              remotePreference: document.getElementById('remotePreference').value,
-              salaryFloor: document.getElementById('salaryFloor').value || null,
-              salaryCurrency: document.getElementById('salaryCurrency').value,
-              availabilityDate: document.getElementById('availabilityDate').value,
-              relocationPreference: document.getElementById('relocationPreference').value,
-              workAuthorization: document.getElementById('workAuthInput') ? document.getElementById('workAuthInput').value.split(',').map(s => s.trim()).filter(Boolean) : (profileState.preferences?.workAuthorization || []),
-              visaSponsorshipRequired: document.getElementById('visaSponsorshipRequired') ? document.getElementById('visaSponsorshipRequired').value === 'true' : (profileState.preferences?.visaSponsorshipRequired ?? false),
-            },
-            additionalSkills: additionalSkillsData.map((s, idx) => {
-              if (!s.catalogSkillId) {
-                throw new Error('Additional skill at position ' + (idx + 1) + ' (' + (s.skillName || 'Unknown') + ') is missing required catalogSkillId');
-              }
-              return {
-                catalogSkillId: s.catalogSkillId,
-                proficiency: s.proficiency || 'WORKING_KNOWLEDGE',
-                usageContext: s.usageContext || null,
-                notes: s.notes || null,
-              };
-            }),
-          },
-        };
+      function updateWorkAuthReadinessPill() {
+        const auth = (document.getElementById('workAuthInput')?.value || '').trim();
+        const pill = document.getElementById('workAuthReadinessPill');
+        if (pill) {
+          pill.className = 'readiness-pill ' + (auth ? 'ready' : 'needs-confirmation');
+          pill.textContent = auth ? '✓ Ready' : '⚠ Needs confirmation';
+        }
+        const qaAuth = document.getElementById('qaAnswerWorkAuth');
+        if (qaAuth) {
+          qaAuth.textContent = auth || 'Authorized to work in country of residence';
+        }
+        const visaVal = document.getElementById('visaSponsorshipRequired')?.value === 'true';
+        const qaSpons = document.getElementById('qaAnswerSponsorship');
+        if (qaSpons) {
+          qaSpons.textContent = visaVal ? 'Yes, I require employer visa sponsorship' : 'No, I do not require sponsorship';
+        }
       }
 
-      async function saveProfileAjax() {
-        if (saveAbortController) saveAbortController.abort();
-        saveAbortController = new AbortController();
+      function showSavedFeedback(sectionId) {
+        const headerStatusEl = document.getElementById('header-status-' + sectionId);
+        if (headerStatusEl) {
+          headerStatusEl.textContent = '✓ Saved';
+          headerStatusEl.style.display = 'inline';
+          headerStatusEl.style.color = '#34d399';
+          headerStatusEl.style.opacity = '1';
+          setTimeout(() => {
+            headerStatusEl.style.opacity = '0';
+            setTimeout(() => {
+              headerStatusEl.style.display = 'none';
+            }, 300);
+          }, 2200);
+        }
+      }
 
-        updateSaveStatus('saving');
-        const csrfToken = document.querySelector('input[name="_csrf"]').value;
+      async function saveSectionAjax(sectionId) {
+        if (sectionSaveControllers[sectionId]) {
+          sectionSaveControllers[sectionId].abort();
+        }
+        sectionSaveControllers[sectionId] = new AbortController();
+
+        const saveBtn = document.getElementById('btn-save-' + sectionId);
+        const statusEl = document.getElementById('status-' + sectionId);
+
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.innerHTML = '<span class="spinner-sm"></span> Saving...';
+        }
+        if (statusEl) statusEl.textContent = '';
+
+        const csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
+        const payload = { sections: {} };
+
+        if (sectionId === 'summary') {
+          payload.sections.identity = {
+            displayName: document.getElementById('displayName').value.trim(),
+            headline: document.getElementById('headline').value.trim(),
+            summary: document.getElementById('summary').value.trim(),
+            currentRole: document.getElementById('currentRole').value.trim(),
+            location: document.getElementById('location').value.trim(),
+            careerStatus: document.getElementById('careerStatus').value,
+          };
+          payload.sections.currentEmployment = profileState.currentEmployment;
+        } else if (sectionId === 'contact') {
+          payload.sections.contact = {
+            phone: (document.getElementById('contactPhoneInput')?.value || '').trim(),
+          };
+          payload.sections.portfolioLinks = buildContactPortfolioLinks();
+        } else if (sectionId === 'readiness') {
+          payload.sections.preferences = {
+            workAuthorization: (document.getElementById('workAuthInput')?.value || '')
+              .split(',')
+              .map(s => s.trim())
+              .filter(Boolean),
+            visaSponsorshipRequired: document.getElementById('visaSponsorshipRequired')?.value === 'true',
+          };
+        } else if (sectionId === 'preferences') {
+          payload.sections.preferences = {
+            targetRoles: (document.getElementById('targetRolesHidden')?.value || '')
+              .split(',')
+              .map(s => s.trim())
+              .filter(Boolean),
+            preferredLocations: (document.getElementById('preferredLocationsHidden')?.value || '')
+              .split(',')
+              .map(s => s.trim())
+              .filter(Boolean),
+            remotePreference: document.getElementById('remotePreference')?.value,
+            salaryFloor: document.getElementById('salaryFloor')?.value ? Number(document.getElementById('salaryFloor').value) : null,
+            salaryCurrency: document.getElementById('salaryCurrency')?.value,
+            availabilityDate: (document.getElementById('availabilityDate')?.value || '').trim(),
+            relocationPreference: document.getElementById('relocationPreference')?.value,
+          };
+        }
 
         try {
-          const payload = buildSavePayload();
           const response = await fetch('/api/profile', {
             method: 'PATCH',
             headers: {
@@ -2626,7 +2927,7 @@ export function renderProfilePage({
               'X-CSRF-Token': csrfToken,
             },
             body: JSON.stringify(payload),
-            signal: saveAbortController.signal,
+            signal: sectionSaveControllers[sectionId].signal,
           });
 
           if (!response.ok) {
@@ -2640,43 +2941,90 @@ export function renderProfilePage({
 
           const result = await response.json();
           if (result.ok) {
-            // Sync local state with saved state
-            profileState.additionalSkills = JSON.parse(JSON.stringify(additionalSkillsData));
-            lastSavedState = JSON.parse(JSON.stringify(profileState));
-            currentVersion = result.updatedAt;
-            isFormDirty = false;
-            document.getElementById('stickySaveBar').classList.remove('visible');
-            const dirtyEl = document.getElementById('dirtyIndicator');
-            if (dirtyEl) dirtyEl.style.display = 'none';
-            updateSaveStatus('saved');
+            // Update baseline snapshot for this section only
+            lastSavedState[sectionId] = captureSectionState(sectionId);
+            sectionDirtyStates[sectionId] = false;
+
+            // Reflect cross-section summary values
+            if (sectionId === 'preferences') {
+              syncReadinessWorkingModelSummary();
+            } else if (sectionId === 'contact') {
+              profileState.portfolioLinks = buildContactPortfolioLinks();
+              renderLinks();
+            } else if (sectionId === 'readiness') {
+              updateWorkAuthReadinessPill();
+            }
+
+            // Hide save controls for this section
+            updateSectionUI(sectionId);
+
+            // Show brief saved feedback
+            showSavedFeedback(sectionId);
           } else {
             throw new Error('Server reported failure');
           }
         } catch (err) {
           if (err.name === 'AbortError') return;
-          console.error('Profile save failed:', err);
-          updateSaveStatus('error');
+          console.error('Section save failed (' + sectionId + '):', err);
+          if (statusEl) {
+            statusEl.textContent = '⚠️ Save failed';
+            statusEl.style.color = '#ef4444';
+          }
+        } finally {
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Save changes';
+          }
         }
       }
 
-      // Debounce timer for autosave
-      let autosaveTimer = null;
-      function scheduleAutosave() {
-        clearTimeout(autosaveTimer);
-        autosaveTimer = setTimeout(saveProfileAjax, 800);
+      // Persist modal-based CRUD immediately without section dirty bars
+      async function persistModalCollection(sectionKey, data, headerStatusId) {
+        const csrfToken = document.querySelector('input[name="_csrf"]')?.value || '';
+        const payload = { sections: { [sectionKey]: data } };
+        try {
+          const res = await fetch('/api/profile', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-Token': csrfToken,
+            },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            showSavedFeedback(headerStatusId);
+          }
+        } catch (err) {
+          console.error('Modal collection save error (' + sectionKey + '):', err);
+        }
       }
 
-      // Override markFormDirty to also schedule autosave
-      const _originalMarkFormDirty = markFormDirty;
-      markFormDirty = function() {
-        _originalMarkFormDirty();
-        scheduleAutosave();
-      };
+      function formatAdditionalSkillsForPayload() {
+        return additionalSkillsData.map((s, idx) => {
+          if (!s.catalogSkillId) {
+            throw new Error('Additional skill at position ' + (idx + 1) + ' (' + (s.skillName || 'Unknown') + ') is missing required catalogSkillId');
+          }
+          return {
+            catalogSkillId: s.catalogSkillId,
+            proficiency: s.proficiency || 'WORKING_KNOWLEDGE',
+            usageContext: s.usageContext || null,
+            notes: s.notes || null,
+          };
+        });
+      }
 
-      // Synchronize hidden state fields and save via AJAX
+      // Intercept form submission so native form submit never happens
       document.getElementById('careerProfileForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        saveProfileAjax();
+      });
+
+      window.addEventListener('beforeunload', function(e) {
+        const hasUnsaved = Object.values(sectionDirtyStates).some(Boolean);
+        if (hasUnsaved) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
       });
 
       function syncHiddenFields() {
@@ -2770,7 +3118,7 @@ export function renderProfilePage({
         document.getElementById('experienceModal').classList.remove('open');
       }
 
-      function saveExperienceModal(e) {
+      async function saveExperienceModal(e) {
         e.preventDefault();
         const idx = parseInt(document.getElementById('expEditIndex').value, 10);
         const bulletsText = document.getElementById('expBullets').value;
@@ -2796,14 +3144,14 @@ export function renderProfilePage({
 
         renderExperiences();
         closeExperienceModal();
-        markFormDirty();
+        await persistModalCollection('experience', profileState.experiences, 'experience');
       }
 
-      function deleteExperience(idx) {
+      async function deleteExperience(idx) {
         if (confirm('Are you sure you want to remove this experience record?')) {
           profileState.experiences.splice(idx, 1);
           renderExperiences();
-          markFormDirty();
+          await persistModalCollection('experience', profileState.experiences, 'experience');
         }
       }
 
@@ -2892,7 +3240,7 @@ export function renderProfilePage({
         document.getElementById('educationModal').classList.remove('open');
       }
 
-      function saveEducationModal(e) {
+      async function saveEducationModal(e) {
         e.preventDefault();
         const idx = parseInt(document.getElementById('eduEditIndex').value, 10);
         const cwText = document.getElementById('eduCoursework').value;
@@ -2920,14 +3268,14 @@ export function renderProfilePage({
 
         renderEducation();
         closeEducationModal();
-        markFormDirty();
+        await persistModalCollection('education', profileState.education, 'education');
       }
 
-      function deleteEducation(idx) {
+      async function deleteEducation(idx) {
         if (confirm('Are you sure you want to delete this education record?')) {
           profileState.education.splice(idx, 1);
           renderEducation();
-          markFormDirty();
+          await persistModalCollection('education', profileState.education, 'education');
         }
       }
 
@@ -2982,7 +3330,7 @@ export function renderProfilePage({
 
         updateCurrentEmploymentDisplay();
         closeCurrentEmploymentModal();
-        markFormDirty();
+        checkSectionDirty('summary');
       }
 
       function updateCurrentEmploymentDisplay() {
@@ -3036,7 +3384,7 @@ export function renderProfilePage({
         document.getElementById('certModal').classList.remove('open');
       }
 
-      function saveCertModal(e) {
+      async function saveCertModal(e) {
         e.preventDefault();
         const record = {
           name: document.getElementById('certName').value.trim(),
@@ -3049,13 +3397,13 @@ export function renderProfilePage({
         profileState.certifications.push(record);
         renderCertifications();
         closeCertModal();
-        markFormDirty();
+        await persistModalCollection('certifications', profileState.certifications, 'credentials');
       }
 
-      function deleteCert(idx) {
+      async function deleteCert(idx) {
         profileState.certifications.splice(idx, 1);
         renderCertifications();
-        markFormDirty();
+        await persistModalCollection('certifications', profileState.certifications, 'credentials');
       }
 
       // --- LANGUAGES CRUD ---
@@ -3092,7 +3440,7 @@ export function renderProfilePage({
         document.getElementById('langModal').classList.remove('open');
       }
 
-      function saveLangModal(e) {
+      async function saveLangModal(e) {
         e.preventDefault();
         const record = {
           language: document.getElementById('langName').value.trim(),
@@ -3102,13 +3450,13 @@ export function renderProfilePage({
         profileState.languages.push(record);
         renderLanguages();
         closeLangModal();
-        markFormDirty();
+        await persistModalCollection('languages', profileState.languages, 'credentials');
       }
 
-      function deleteLang(idx) {
+      async function deleteLang(idx) {
         profileState.languages.splice(idx, 1);
         renderLanguages();
-        markFormDirty();
+        await persistModalCollection('languages', profileState.languages, 'credentials');
       }
 
       // --- PORTFOLIO LINKS CRUD ---
@@ -3140,7 +3488,7 @@ export function renderProfilePage({
         document.getElementById('linkModal').classList.remove('open');
       }
 
-      function saveLinkModal(e) {
+      async function saveLinkModal(e) {
         e.preventDefault();
         const url = document.getElementById('linkUrl').value.trim();
         let label = document.getElementById('linkPlatform').value.trim().toUpperCase();
@@ -3154,13 +3502,13 @@ export function renderProfilePage({
         profileState.portfolioLinks.push({ label, url });
         renderLinks();
         closeLinkModal();
-        markFormDirty();
+        await persistModalCollection('portfolioLinks', profileState.portfolioLinks, 'contact');
       }
 
-      function deleteLink(idx) {
+      async function deleteLink(idx) {
         profileState.portfolioLinks.splice(idx, 1);
         renderLinks();
-        markFormDirty();
+        await persistModalCollection('portfolioLinks', profileState.portfolioLinks, 'contact');
       }
 
       // --- CHIPS INPUT CONTROLLER (TARGET ROLES & LOCATIONS) ---
@@ -3194,7 +3542,7 @@ export function renderProfilePage({
             current.push(val);
             hidden.value = current.join(',');
             renderChips();
-            markFormDirty();
+            checkSectionDirty('preferences');
           }
           input.value = '';
         }
@@ -3204,7 +3552,7 @@ export function renderProfilePage({
           const filtered = current.filter(v => v !== val);
           hidden.value = filtered.join(',');
           renderChips();
-          markFormDirty();
+          checkSectionDirty('preferences');
         }
 
         input.addEventListener('keydown', function(e) {
@@ -3220,7 +3568,7 @@ export function renderProfilePage({
         });
 
         renderChips();
-        return { addValue, removeValue };
+        return { addValue, removeValue, renderChips };
       }
 
       const rolesController = initChipsInput('targetRolesContainer', 'targetRolesInput', 'targetRolesHidden');
@@ -3287,11 +3635,11 @@ export function renderProfilePage({
         '</div>';
       }
 
-      function removeAdditionalSkill(skillId) {
+      async function removeAdditionalSkill(skillId) {
         if (!confirm('Remove this skill from your additional skills?')) return;
         additionalSkillsData = additionalSkillsData.filter(s => s.id !== skillId);
         renderAdditionalSkills();
-        markFormDirty();
+        await persistModalCollection('additionalSkills', formatAdditionalSkillsForPayload(), 'skills');
       }
 
       // --- Skill Catalog Modal — ENTIRELY CLIENT-SIDE ---
@@ -3521,14 +3869,14 @@ export function renderProfilePage({
         }
       }
 
-      function confirmAddSkill() {
+      async function confirmAddSkill() {
         if (!selectedCatalogSkill) return;
         const proficiency = document.getElementById('skillProficiency').value;
         const usageContext = document.getElementById('skillUsageContext').value || null;
         const notes = document.getElementById('skillNotes').value || null;
         const isLearning = proficiency === 'CURRENTLY_LEARNING';
 
-        // Add to local state — NO network call
+        // Add to local state and persist collection
         const newSkill = {
           id: 'local-' + (++_localSkillIdCounter),
           catalogSkillId: selectedCatalogSkill.id,
@@ -3544,7 +3892,7 @@ export function renderProfilePage({
         additionalSkillsData.push(newSkill);
         renderAdditionalSkills();
         closeSkillCatalogModal();
-        markFormDirty();
+        await persistModalCollection('additionalSkills', formatAdditionalSkillsForPayload(), 'skills');
       }
 
       // Initial page initialization
@@ -3554,6 +3902,7 @@ export function renderProfilePage({
       renderLanguages();
       renderLinks();
       renderAdditionalSkills();
+      initSectionStates();
     </script>
   `;
 

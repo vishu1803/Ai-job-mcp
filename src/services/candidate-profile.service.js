@@ -1138,6 +1138,11 @@ export class CandidateProfileService {
       updatedCustom.location = loc;
       currentMeta.location = loc;
     }
+    if (rawInput.phone !== undefined) {
+      const ph = rawInput.phone ? String(rawInput.phone).trim().slice(0, 50) : null;
+      updatedCustom.phone = ph;
+      currentMeta.phone = ph;
+    }
 
     // 2. Career Status & Current Employment
     if (rawInput.careerStatus !== undefined) {

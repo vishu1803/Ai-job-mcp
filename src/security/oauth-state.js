@@ -55,12 +55,33 @@ export function isValidReturnTo(returnTo) {
       return false;
     }
     const pathname = parsed.pathname;
-    // Must begin with /oauth/authorize or /dashboard
-    if (
-      pathname !== '/oauth/authorize' &&
-      !pathname.startsWith('/oauth/authorize/') &&
-      pathname !== '/dashboard'
-    ) {
+    const isAllowed =
+      pathname === '/oauth/authorize' ||
+      pathname.startsWith('/oauth/authorize/') ||
+      pathname === '/dashboard' ||
+      pathname.startsWith('/dashboard/') ||
+      pathname === '/profile' ||
+      pathname.startsWith('/profile/') ||
+      pathname === '/skills' ||
+      pathname.startsWith('/skills/') ||
+      pathname === '/projects' ||
+      pathname.startsWith('/projects/') ||
+      pathname === '/sources' ||
+      pathname.startsWith('/sources/') ||
+      pathname === '/connect' ||
+      pathname.startsWith('/connect/') ||
+      pathname === '/settings' ||
+      pathname.startsWith('/settings/') ||
+      pathname === '/resumes' ||
+      pathname.startsWith('/resumes/') ||
+      pathname === '/applications' ||
+      pathname.startsWith('/applications/') ||
+      pathname === '/onboarding' ||
+      pathname.startsWith('/onboarding/') ||
+      pathname === '/apps/radar' ||
+      pathname.startsWith('/apps/radar/');
+
+    if (!isAllowed) {
       return false;
     }
     return true;

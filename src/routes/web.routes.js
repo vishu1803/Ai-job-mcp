@@ -2519,14 +2519,17 @@ export default async function webRoutes(app, opts = {}) {
     const sectionUpdates = {};
 
     if (sections.identity) {
-      Object.assign(sectionUpdates, {
-        displayName: sections.identity.displayName,
-        headline: sections.identity.headline,
-        summary: sections.identity.summary,
-        currentRole: sections.identity.currentRole,
-        location: sections.identity.location,
-        careerStatus: sections.identity.careerStatus,
-      });
+      if (sections.identity.displayName !== undefined) sectionUpdates.displayName = sections.identity.displayName;
+      if (sections.identity.headline !== undefined) sectionUpdates.headline = sections.identity.headline;
+      if (sections.identity.summary !== undefined) sectionUpdates.summary = sections.identity.summary;
+      if (sections.identity.currentRole !== undefined) sectionUpdates.currentRole = sections.identity.currentRole;
+      if (sections.identity.location !== undefined) sectionUpdates.location = sections.identity.location;
+      if (sections.identity.careerStatus !== undefined) sectionUpdates.careerStatus = sections.identity.careerStatus;
+      if (sections.identity.phone !== undefined) sectionUpdates.phone = sections.identity.phone;
+    }
+
+    if (sections.contact) {
+      if (sections.contact.phone !== undefined) sectionUpdates.phone = sections.contact.phone;
     }
 
     if (sections.currentEmployment !== undefined) {
@@ -2555,22 +2558,22 @@ export default async function webRoutes(app, opts = {}) {
 
     if (sections.preferences) {
       const prefs = sections.preferences;
-      sectionUpdates.jobPreferences = {
-        targetRoles: prefs.targetRoles || [],
-        preferredLocations: prefs.preferredLocations || [],
-        remotePreference: prefs.remotePreference || 'FLEXIBLE',
-        employmentTypes: prefs.employmentTypes || ['FULL_TIME'],
-        salaryFloor: prefs.salaryFloor != null ? Number(prefs.salaryFloor) : null,
-        salaryCurrency: prefs.salaryCurrency || 'USD',
-        preferredTechStack: prefs.preferredTechStack || [],
-        industries: prefs.industries || [],
-        companiesToPrioritize: prefs.companiesToPrioritize || [],
-        companiesToAvoid: prefs.companiesToAvoid || [],
-        workAuthorization: prefs.workAuthorization || [],
-        visaSponsorshipRequired: prefs.visaSponsorshipRequired || false,
-        availabilityDate: prefs.availabilityDate || null,
-        relocationPreference: prefs.relocationPreference || 'REMOTE_ONLY',
-      };
+      const jobPrefs = {};
+      if (prefs.targetRoles !== undefined) jobPrefs.targetRoles = prefs.targetRoles;
+      if (prefs.preferredLocations !== undefined) jobPrefs.preferredLocations = prefs.preferredLocations;
+      if (prefs.remotePreference !== undefined) jobPrefs.remotePreference = prefs.remotePreference;
+      if (prefs.employmentTypes !== undefined) jobPrefs.employmentTypes = prefs.employmentTypes;
+      if (prefs.salaryFloor !== undefined) jobPrefs.salaryFloor = prefs.salaryFloor != null ? Number(prefs.salaryFloor) : null;
+      if (prefs.salaryCurrency !== undefined) jobPrefs.salaryCurrency = prefs.salaryCurrency;
+      if (prefs.preferredTechStack !== undefined) jobPrefs.preferredTechStack = prefs.preferredTechStack;
+      if (prefs.industries !== undefined) jobPrefs.industries = prefs.industries;
+      if (prefs.companiesToPrioritize !== undefined) jobPrefs.companiesToPrioritize = prefs.companiesToPrioritize;
+      if (prefs.companiesToAvoid !== undefined) jobPrefs.companiesToAvoid = prefs.companiesToAvoid;
+      if (prefs.workAuthorization !== undefined) jobPrefs.workAuthorization = prefs.workAuthorization;
+      if (prefs.visaSponsorshipRequired !== undefined) jobPrefs.visaSponsorshipRequired = prefs.visaSponsorshipRequired;
+      if (prefs.availabilityDate !== undefined) jobPrefs.availabilityDate = prefs.availabilityDate;
+      if (prefs.relocationPreference !== undefined) jobPrefs.relocationPreference = prefs.relocationPreference;
+      sectionUpdates.jobPreferences = jobPrefs;
     }
 
     // Handle additional skills separately via domain service
