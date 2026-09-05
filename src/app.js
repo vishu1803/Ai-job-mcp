@@ -205,6 +205,13 @@ export function buildApp(opts = {}) {
   app.register(mcpRoutes, {
     prefix: '/mcp',
     mcpServer: opts.mcpServer,
+    mcpToolDeps: opts.mcpToolDeps || {
+      database: opts.db || opts.database,
+      db: opts.db || opts.database,
+      jobDiscoveryService: opts.jobDiscoveryService,
+      jobApplicationWorkflowService: opts.jobApplicationWorkflowService,
+      applicationTrackingService: opts.applicationTrackingService,
+    },
     db: opts.db,
     rateLimiter: opts.rateLimiter,
     concurrencySemaphore: opts.concurrencySemaphore,

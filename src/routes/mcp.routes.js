@@ -155,7 +155,10 @@ function validateHeaderRouting(req) {
  */
 export async function mcpRoutes(fastify, opts = {}) {
   const db = opts.db || fastify.db;
-  const mcpServer = opts.mcpServer || createCareerMcpServer({ deps: { db } });
+  const toolDeps = opts.mcpToolDeps || { db, database: db };
+  if (!toolDeps.db && db) toolDeps.db = db;
+  if (!toolDeps.database && db) toolDeps.database = db;
+  const mcpServer = opts.mcpServer || createCareerMcpServer({ deps: toolDeps });
   const rateLimiter = opts.rateLimiter || defaultMcpRateLimiter;
   const concurrencySemaphore = opts.concurrencySemaphore || defaultConcurrencySemaphore;
   const dbPoolGuard = opts.dbPoolGuard || null;

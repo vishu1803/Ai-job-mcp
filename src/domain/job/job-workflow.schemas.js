@@ -79,7 +79,13 @@ export const GetJobPostingInputSchema = z.object({
 // 2. Truth Labels & Application Package Schemas
 // -----------------------------------------------------------------------------
 
-export const TruthCategoryEnum = z.enum(['VERIFIED', 'CLAIMED', 'USER_PROVIDED', 'INFERRED']);
+export const TruthCategoryEnum = z.enum([
+  'VERIFIED',
+  'CORROBORATED',
+  'CLAIMED',
+  'USER_PROVIDED',
+  'INFERRED',
+]);
 
 export const ApplicationSkillItemSchema = z.object({
   name: z.string(),

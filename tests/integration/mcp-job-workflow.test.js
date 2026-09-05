@@ -352,6 +352,7 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
   // 6. request_application_approval tool
   // ---------------------------------------------------------------------------
   let approvalTicket;
+  let submittedApplicationId;
   it('6. request_application_approval creates a 15-min cryptographic approval ticket bound to package hash', async () => {
     const res = await callMcpTool('request_application_approval', {
       jobId: retrievedJob.id,
@@ -389,7 +390,7 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
     assert.match(errMsg, /altered|mismatch/i);
   });
 
-  it('7b. submit_job_application successfully submits with valid approval ticket and tracks application', async () => {
+  it('7b. submit_job_application on Greenhouse without real integration returns HANDOFF_READY with no fake reference', async () => {
     const res = await callMcpTool('submit_job_application', {
       approvalTicketId: approvalTicket.ticketId,
       packageHash: preparedApplicationPackage.packageHash,
@@ -402,9 +403,14 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
     assert.strictEqual(body.error, undefined);
 
     const submission = JSON.parse(body.result.content[0].text);
-    assert.strictEqual(submission.status, 'SUBMITTED');
-    assert.ok(submission.externalReference);
+    assert.strictEqual(submission.status, 'HANDOFF_READY');
+    assert.strictEqual(submission.externalReference, undefined);
+    assert.strictEqual(submission.destinationUrl, retrievedJob.applicationUrl);
+    assert.strictEqual(submission.portalType, 'GREENHOUSE');
+    assert.ok(submission.manualHandoffKit);
+    assert.strictEqual(submission.manualHandoffKit.directPortalUrl, retrievedJob.applicationUrl);
     assert.ok(submission.applicationId);
+    submittedApplicationId = submission.applicationId;
   });
 
   it('7c. submit_job_application rejects single-use ticket replay', async () => {
@@ -468,6 +474,87 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
     assert.ok(result.manualHandoffKit);
     assert.ok(result.manualHandoffKit.resumeMarkdown);
     assert.ok(result.manualHandoffKit.checklist.length > 0);
+  });
+
+  it('7e. get_application_submission_status retrieves tracked application submission details by applicationId', async () => {
+    const res = await callMcpTool('get_application_submission_status', {
+      applicationId: submittedApplicationId,
+    });
+
+    assert.strictEqual(res.statusCode, 200);
+    const body = JSON.parse(res.payload);
+    assert.strictEqual(body.error, undefined);
+
+    const statusObj = JSON.parse(body.result.content[0].text);
+    assert.strictEqual(statusObj.status, 'HANDOFF_READY');
+    assert.strictEqual(statusObj.trackingStatus, 'SAVED');
+    assert.strictEqual(statusObj.applicationId, submittedApplicationId);
+    assert.strictEqual(statusObj.companyName, 'Stripe');
+    assert.strictEqual(statusObj.packageHash, preparedApplicationPackage.packageHash);
+    assert.strictEqual(statusObj.externalReference, null);
+    assert.strictEqual(statusObj.appliedAt, null);
+  });
+
+  it('7f. submit_job_application returns SUBMITTED when a real external adapter is configured', async () => {
+    const realAdapter = {
+      canSubmit: (url) => url.includes('partner-ats.com'),
+      submit: async ({ _destinationUrl, applicationPackage }) => ({
+        status: 'SUBMITTED',
+        externalReference: 'EXT-LIVE-REF-7788',
+        portalType: 'GREENHOUSE_API',
+        message: `Successfully transmitted to ${applicationPackage.targetJob.company} via verified Greenhouse API.`,
+      }),
+    };
+    workflowService.submissionAdapters.push(realAdapter);
+
+    const liveJob = {
+      ...retrievedJob,
+      id: crypto.randomUUID(),
+      company: 'LivePartner',
+      title: 'Senior Distributed Engineer',
+      applicationUrl: 'https://partner-ats.com/jobs/7788',
+    };
+
+    const livePkg = await workflowService.prepareJobApplication({
+      tenantId: tenantA.id,
+      candidateId: candidateA.id,
+      jobPosting: liveJob,
+    });
+
+    const liveTicket = await workflowService.requestApplicationApproval({
+      tenantId: tenantA.id,
+      userId: userA.id,
+      candidateId: candidateA.id,
+      clientId: 'claude-web',
+      jobId: liveJob.id,
+      destinationUrl: liveJob.applicationUrl,
+      packageHash: livePkg.packageHash,
+    });
+
+    const res = await callMcpTool('submit_job_application', {
+      approvalTicketId: liveTicket.ticketId,
+      packageHash: livePkg.packageHash,
+      destinationUrl: liveJob.applicationUrl,
+      applicationPackage: livePkg,
+    });
+
+    assert.strictEqual(res.statusCode, 200);
+    const body = JSON.parse(res.payload);
+    assert.strictEqual(body.error, undefined);
+
+    const result = JSON.parse(body.result.content[0].text);
+    assert.strictEqual(result.status, 'SUBMITTED');
+    assert.strictEqual(result.externalReference, 'EXT-LIVE-REF-7788');
+    assert.strictEqual(result.portalType, 'GREENHOUSE_API');
+
+    const statusRes = await callMcpTool('get_application_submission_status', {
+      applicationId: result.applicationId,
+    });
+    const statusObj = JSON.parse(JSON.parse(statusRes.payload).result.content[0].text);
+    assert.strictEqual(statusObj.status, 'SUBMITTED');
+    assert.strictEqual(statusObj.trackingStatus, 'APPLIED');
+    assert.strictEqual(statusObj.externalReference, 'EXT-LIVE-REF-7788');
+    assert.ok(statusObj.appliedAt);
   });
 
   // ---------------------------------------------------------------------------

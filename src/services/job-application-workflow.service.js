@@ -72,6 +72,22 @@ import { isSyntheticEmail, resolveCandidateEmail } from '../utils/candidate-emai
 
 export { isSyntheticEmail, resolveCandidateEmail };
 
+/**
+ * Detects the ATS/portal provider from destination URL.
+ *
+ * @param {string} url Destination job URL
+ * @returns {string} Normalized portal type
+ */
+export function detectPortalType(url) {
+  const u = (url || '').toLowerCase();
+  if (u.includes('greenhouse.io') || u.includes('boards.greenhouse.io')) return 'GREENHOUSE';
+  if (u.includes('lever.co')) return 'LEVER';
+  if (u.includes('myworkdayjobs.com') || u.includes('workday.com')) return 'WORKDAY';
+  if (u.includes('taleo.net')) return 'TALEO';
+  if (u.includes('icims.com')) return 'ICIMS';
+  return 'EXTERNAL_PORTAL';
+}
+
 export class JobApplicationWorkflowService {
   /**
    * @param {object} [options={}]
@@ -80,6 +96,7 @@ export class JobApplicationWorkflowService {
    * @param {CoverLetterDraftingService} [options.coverLetterDraftingService]
    * @param {PortfolioRecommendationService} [options.portfolioRecommendationService]
    * @param {ApplicationTrackingService} [options.applicationTrackingService]
+   * @param {Array<object>|Map<string, object>} [options.submissionAdapters] Real external ATS submission adapters
    * @param {import('./mcp-audit.service.js').McpAuditService} [options.mcpAuditService]
    * @param {import('pino').Logger} [options.logger=defaultLogger]
    */
@@ -94,6 +111,11 @@ export class JobApplicationWorkflowService {
       new PortfolioRecommendationService({ database: this.db });
     this.applicationTrackingService =
       options.applicationTrackingService || new ApplicationTrackingService({ database: this.db });
+    this.submissionAdapters = Array.isArray(options.submissionAdapters)
+      ? options.submissionAdapters
+      : options.submissionAdapters instanceof Map
+        ? Array.from(options.submissionAdapters.values())
+        : [];
     this.mcpAuditService = options.mcpAuditService || null;
     this.logger = options.logger || defaultLogger;
   }
@@ -149,19 +171,22 @@ export class JobApplicationWorkflowService {
       );
 
     const verifiedSkills = candidateSkillsList
-      .filter((s) => s.provenanceStatus === 'VERIFIED')
+      .filter((s) => s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED')
       .map((s) => ({
         name: s.skillName,
-        truthCategory: 'VERIFIED',
+        truthCategory: s.provenanceStatus === 'CORROBORATED' ? 'CORROBORATED' : 'VERIFIED',
         evidenceId: s.evidenceId || undefined,
-        notes: 'Supported by authenticated repository code inspection',
+        notes:
+          s.provenanceStatus === 'CORROBORATED'
+            ? 'Corroborated by authenticated repository code inspection and resume claim'
+            : 'Supported by authenticated repository code inspection',
       }));
 
     const claimedSkills = candidateSkillsList
-      .filter((s) => s.provenanceStatus !== 'VERIFIED')
+      .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
       .map((s) => ({
         name: s.skillName,
-        truthCategory: 'CLAIMED',
+        truthCategory: s.provenanceStatus === 'SELF_DECLARED' ? 'USER_PROVIDED' : 'CLAIMED',
         notes: 'Self-reported in candidate resume / profile',
       }));
 
@@ -383,10 +408,10 @@ export class JobApplicationWorkflowService {
 ---
 
 ## 1. Verified Evidence & Skills
-${pkg.verifiedSkills.map((s) => `- ✅ **${s.name}** *(VERIFIED)* — ${s.notes || ''}`).join('\n') || '- None'}
+${pkg.verifiedSkills.map((s) => `- ✅ **${s.name}** *(${s.truthCategory || 'VERIFIED'})* — ${s.notes || ''}`).join('\n') || '- None'}
 
 ## 2. Claimed Profile Skills
-${pkg.claimedSkills.map((s) => `- 📋 **${s.name}** *(CLAIMED)* — ${s.notes || ''}`).join('\n') || '- None'}
+${pkg.claimedSkills.map((s) => `- 📋 **${s.name}** *(${s.truthCategory || 'CLAIMED'})* — ${s.notes || ''}`).join('\n') || '- None'}
 
 ---
 
@@ -570,11 +595,100 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     ticket.consumedAt = new Date().toISOString();
     APPROVAL_TICKETS_STORE.set(approvalTicketId, ticket);
 
-    // Evaluate Portal Submission Capability
-    const urlLower = destinationUrl.toLowerCase();
-    const isSupportedApiPortal =
-      urlLower.includes('greenhouse.io') || urlLower.includes('lever.co');
+    const portalType = detectPortalType(destinationUrl);
 
+    // 6. Check for Real External Submission Adapter
+    const activeAdapter = this.submissionAdapters.find((adapter) => {
+      if (typeof adapter?.canSubmit === 'function') {
+        return adapter.canSubmit(destinationUrl);
+      }
+      return false;
+    });
+
+    if (activeAdapter) {
+      // Real External Integration Execution
+      let adapterResult;
+      try {
+        adapterResult = await activeAdapter.submit({
+          destinationUrl,
+          applicationPackage,
+          tenantId,
+          userId,
+          candidateId,
+          packageHash,
+        });
+      } catch (err) {
+        if (this.mcpAuditService) {
+          await this.mcpAuditService.logEvent({
+            tenantId,
+            userId,
+            eventType: 'application.submission_failed',
+            resourceType: 'job_application',
+            resourceId: 'external-submission-failed',
+            clientIp: '127.0.0.1',
+            metadata: { destinationUrl, error: err.message, packageHash },
+          });
+        }
+        throw err;
+      }
+
+      let trackedApp;
+      try {
+        trackedApp = await this.applicationTrackingService.createApplication(
+          { tenantId, userId, role: 'MEMBER' },
+          candidateId,
+          {
+            companyName: applicationPackage.targetJob.company,
+            jobTitle: applicationPackage.targetJob.title,
+            jobUrl: destinationUrl,
+            source: 'COMPANY_CAREERS',
+            status: 'APPLIED',
+            appliedAt: new Date(),
+            notes: `Application submitted via verified external integration. Package Hash: ${packageHash}`,
+            metadata: {
+              destinationUrl,
+              externalReference: adapterResult.externalReference,
+              externalSubmissionState: 'SUBMITTED',
+              packageHash,
+            },
+          }
+        );
+      } catch {
+        // Ignore tracking duplicate errors
+      }
+
+      if (this.mcpAuditService) {
+        await this.mcpAuditService.logEvent({
+          tenantId,
+          userId,
+          eventType: 'application.submitted',
+          resourceType: 'job_application',
+          resourceId: trackedApp?.id || adapterResult.externalReference,
+          clientIp: '127.0.0.1',
+          metadata: {
+            destinationUrl,
+            externalReference: adapterResult.externalReference,
+            packageHash,
+            status: 'SUBMITTED',
+          },
+        });
+      }
+
+      return SubmissionResultSchema.parse({
+        status: 'SUBMITTED',
+        applicationId: trackedApp?.id,
+        externalReference: adapterResult.externalReference,
+        destinationUrl,
+        portalType: adapterResult.portalType || portalType,
+        message:
+          adapterResult.message ||
+          `Job application successfully submitted to ${applicationPackage.targetJob.company} via verified integration.`,
+        submittedAt: new Date().toISOString(),
+      });
+    }
+
+    // 7. Truthful Manual Handoff for Portals Without Direct Automated API Transmission
+    // Zero fake submissions, zero simulated SUB-* references, zero fabricated external IDs.
     let trackedApp;
     try {
       trackedApp = await this.applicationTrackingService.createApplication(
@@ -585,76 +699,52 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
           jobTitle: applicationPackage.targetJob.title,
           jobUrl: destinationUrl,
           source: 'COMPANY_CAREERS',
-          status: isSupportedApiPortal ? 'APPLIED' : 'SAVED',
-          notes: `Application prepared via Career Hub. Package Hash: ${packageHash}`,
+          status: 'SAVED',
+          notes: `Application prepared via Career Hub (Manual Handoff Ready). Package Hash: ${packageHash}`,
+          metadata: {
+            destinationUrl,
+            externalSubmissionState: 'HANDOFF_READY',
+            packageHash,
+          },
         }
       );
     } catch {
       // Ignore tracking duplicate errors
     }
 
-    if (!isSupportedApiPortal) {
-      // Graceful Manual Handoff for Unsupported Portals (Workday, Taleo, custom career sites)
-      const handoffKit = {
-        resumeMarkdown: applicationPackage.tailoredResume.markdownContent,
-        coverLetterMarkdown: applicationPackage.coverLetter.markdownContent,
-        suggestedAnswers: applicationPackage.answers || {},
-        directPortalUrl: destinationUrl,
-        checklist: [
-          'Open direct employer portal in browser.',
-          'Paste tailored resume and cover letter.',
-          'Review pre-filled candidate responses.',
-          'Submit directly to employer ATS.',
-        ],
-      };
-
-      if (this.mcpAuditService) {
-        await this.mcpAuditService.logEvent({
-          tenantId,
-          userId,
-          eventType: 'application.submission_attempted',
-          resourceType: 'job_application',
-          resourceId: trackedApp?.id || 'manual-handoff',
-          clientIp: '127.0.0.1',
-          metadata: { destinationUrl, status: 'HANDOFF_READY', packageHash },
-        });
-      }
-
-      return SubmissionResultSchema.parse({
-        status: 'HANDOFF_READY',
-        applicationId: trackedApp?.id,
-        destinationUrl,
-        portalType: 'UNSUPPORTED_DIRECT_API',
-        message:
-          'External portal does not support automated API submission. Career Hub has prepared your complete submission kit for instant manual handoff.',
-        submittedAt: new Date().toISOString(),
-        manualHandoffKit: handoffKit,
-      });
-    }
-
-    // Supported API Submission Simulation (Greenhouse / Lever)
-    const submissionRef = `SUB-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    const handoffKit = {
+      resumeMarkdown: applicationPackage.tailoredResume.markdownContent,
+      coverLetterMarkdown: applicationPackage.coverLetter.markdownContent,
+      suggestedAnswers: applicationPackage.answers || {},
+      directPortalUrl: destinationUrl,
+      checklist: [
+        'Open direct employer portal in browser.',
+        'Paste tailored resume and cover letter.',
+        'Review pre-filled candidate responses.',
+        'Submit directly to employer ATS.',
+      ],
+    };
 
     if (this.mcpAuditService) {
       await this.mcpAuditService.logEvent({
         tenantId,
         userId,
-        eventType: 'application.submitted',
+        eventType: 'application.submission_attempted',
         resourceType: 'job_application',
-        resourceId: trackedApp?.id || submissionRef,
+        resourceId: trackedApp?.id || 'manual-handoff',
         clientIp: '127.0.0.1',
-        metadata: { destinationUrl, externalReference: submissionRef, packageHash },
+        metadata: { destinationUrl, status: 'HANDOFF_READY', packageHash },
       });
     }
 
     return SubmissionResultSchema.parse({
-      status: 'SUBMITTED',
+      status: 'HANDOFF_READY',
       applicationId: trackedApp?.id,
-      externalReference: submissionRef,
       destinationUrl,
-      portalType: urlLower.includes('greenhouse.io') ? 'GREENHOUSE' : 'LEVER',
-      message: `Job application successfully submitted to ${applicationPackage.targetJob.company} via verified integration.`,
+      portalType,
+      message: `Direct automated API submission is not configured for ${portalType}. Career Hub has prepared your complete submission kit for instant manual handoff at the official employer portal.`,
       submittedAt: new Date().toISOString(),
+      manualHandoffKit: handoffKit,
     });
   }
 }

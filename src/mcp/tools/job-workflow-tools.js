@@ -253,9 +253,41 @@ export function registerJobWorkflowTools(
         JOB_WORKFLOW_TOOL_DEFINITIONS.get_application_submission_status
       );
 
-      const appRecord = await trackingService.getApplication(context, params.applicationId);
+      const details = await trackingService.getApplicationDetails(context, params.applicationId);
+      const app = details.application;
 
-      return appRecord;
+      const submissionStatus =
+        app.metadata?.externalSubmissionStatus ||
+        app.metadata?.externalSubmissionState ||
+        (app.status === 'APPLIED'
+          ? 'SUBMITTED'
+          : app.status === 'SAVED'
+            ? 'HANDOFF_READY'
+            : app.status);
+      const externalReference =
+        app.metadata?.externalReference ||
+        app.metadata?.submissionRef ||
+        app.notes?.match(/External Reference:\s*([^\s\n]+)/)?.[1] ||
+        null;
+      const packageHash = app.notes?.match(/Package Hash: ([a-f0-9]{64})/)?.[1] || null;
+
+      return {
+        applicationId: app.id,
+        candidateId: app.candidateId,
+        companyName: app.companyName,
+        jobTitle: app.jobTitle,
+        jobUrl: app.jobUrl,
+        status: submissionStatus,
+        trackingStatus: app.status,
+        externalReference,
+        packageHash,
+        appliedAt: app.appliedAt ? new Date(app.appliedAt).toISOString() : null,
+        notes: app.notes || null,
+        stages: details.stages || [],
+        tailoredDocuments: details.tailoredDocuments || [],
+        createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : null,
+        updatedAt: app.updatedAt ? new Date(app.updatedAt).toISOString() : null,
+      };
     }
   );
 }
