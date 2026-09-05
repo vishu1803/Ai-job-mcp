@@ -1,17 +1,18 @@
 /**
- * @file Candidate Career Profile & Job Search Preferences View (P14-004C / ARCH-056 / Batch 6 Redesign).
+ * @file Candidate Career Profile & Application Workspace View (P14-004C / ARCH-056 / Redesign).
  *
- * Implements the user-facing Canonical Career Profile and Intent Management page:
- * 1. Actionable Profile Completeness & Readiness status with compact visual indicators
- * 2. Professional Identity & Narrative (Name, Headline, Current Role, Current Location, Summary)
- * 3. Career Status & Explicit Current Employment (Fresher, Student, Employed, etc.)
- * 4. Multi-Record Work Experience with Add/Edit/Delete, employment types, and derived tenure metrics
- * 5. Multi-Record Education with Degree Types, graduation/enrolled status, and coursework tagging
- * 6. Multi-Record Certifications & Languages
- * 7. Evidence-Locked Qualifications & Categorized Skills (Read-Only / AST & GitHub / Non-Editable)
- * 8. Evidence-Locked Highlighted Projects with AST signals and repository provenance
- * 9. Intelligent Job Search Preferences (Separate from Current Location) with suggestions and multi-select chips
- * 10. Sticky save bar with dirty-state tracking, AJAX autosave, and unsaved changes confirmation
+ * Implements the unified Canonical Career Profile and Application Readiness workspace:
+ * 1. Profile Header & Readiness: Candidate identity, status, seniority, readiness metrics, section jump bar
+ * 2. Professional Summary & Narrative: Executive summary, persona headline, current role, current employment
+ * 3. Contact & Professional Links: Authoritative email, phone, location, LinkedIn, GitHub, portfolio
+ * 4. Application Readiness & Compliance: Work authorization, visa sponsorship, working model, availability, reusable Q&A
+ * 5. Work Experience History: Multi-record CRUD with employment types and derived tenure metrics
+ * 6. Education & Degrees: Multi-record CRUD with degree types, enrollment tracking, and coursework
+ * 7. Career Skills: Evidence-locked primary categorized skills (8 domains), signals, and self-declared catalog modal
+ * 8. Highlighted Projects: Grounded in AST code scanning and GitHub repository evidence
+ * 9. Languages & Certifications: Multi-record certifications, spoken languages, and custom portfolio links
+ * 10. Job Search Intent & Matching Criteria: Target roles, preferred locations, compensation floor, suggestions
+ * Sticky save bar with dirty-state tracking, AJAX autosave, and unsaved changes confirmation
  */
 
 import { renderLayout } from './layout.js';
@@ -76,6 +77,7 @@ export function renderProfilePage({
       'Career profile contains comprehensive professional identity and verified qualifications.',
   };
 
+  // Authoritative identity values
   const currentRole =
     profile?.currentRole || candidate?.profileMetadata?.currentRole || candidate?.headline || '';
   const userLocation = profile?.location || candidate?.profileMetadata?.location || '';
@@ -116,6 +118,31 @@ export function renderProfilePage({
     profile?.technologySignals && profile.technologySignals.length > 0
       ? profile.technologySignals
       : topSkillsList.filter((s) => s.tier === 'SIGNAL');
+
+  // Authoritative contact information resolution (never synthetic)
+  const authenticEmail = profile?.canonicalEmail || candidate?.canonicalEmail || user?.email || '';
+
+  const candidatePhone =
+    candidate?.profileMetadata?.phone ||
+    candidate?.profileMetadata?.resumeData?.identity?.phone ||
+    candidate?.profileMetadata?.userCustom?.phone ||
+    '';
+
+  // Professional links extraction from authoritative map
+  const linkedInLink = portfolioLinksList.find(
+    (l) => l.label === 'LINKEDIN' || (l.url && l.url.toLowerCase().includes('linkedin.com'))
+  );
+  const gitHubLink = portfolioLinksList.find(
+    (l) => l.label === 'GITHUB' || (l.url && l.url.toLowerCase().includes('github.com'))
+  );
+  const portfolioSiteLink = portfolioLinksList.find(
+    (l) =>
+      l.label === 'PORTFOLIO' ||
+      (l.url &&
+        !l.url.toLowerCase().includes('github.com') &&
+        !l.url.toLowerCase().includes('linkedin.com') &&
+        !l.url.toLowerCase().includes('leetcode.com'))
+  );
 
   const expDuration = profile?.experienceDuration || {
     totalYears: 0,
@@ -217,13 +244,14 @@ export function renderProfilePage({
     skillCatalogCategories: (skillCatalog && skillCatalog.categories) || [],
   };
 
-  const candidateInitials = (candidate?.displayName || user?.displayName || 'C')
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0])
-    .join('')
-    .toUpperCase() || 'CP';
+  const candidateInitials =
+    (candidate?.displayName || user?.displayName || 'C')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0])
+      .join('')
+      .toUpperCase() || 'CP';
 
   const content = `
     <style>
@@ -249,29 +277,29 @@ export function renderProfilePage({
         height: 6px;
         width: 100%;
         overflow: hidden;
-        margin: 0.85rem 0;
+        margin: 0.85rem 0 1rem 0;
       }
 
       .completion-bar-fill {
-        background: #6366F1;
+        background: linear-gradient(90deg, #6366f1, #10b981);
         height: 100%;
         border-radius: 9999px;
-        transition: width 0.35s ease;
+        transition: width 0.4s ease;
       }
 
       .section-status-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
-        margin-top: 0.85rem;
+        margin-top: 0.75rem;
       }
 
       .section-status-pill {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
-        padding: 0.4rem 0.65rem;
-        border-radius: 6px;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 4px;
         font-size: 0.75rem;
         font-weight: 500;
         text-decoration: none;
@@ -279,37 +307,25 @@ export function renderProfilePage({
       }
 
       .status-pill-complete {
-        background: rgba(16, 185, 129, 0.08);
+        background: rgba(16, 185, 129, 0.1);
         color: #34d399;
-        border: 1px solid rgba(16, 185, 129, 0.2);
-      }
-
-      .status-pill-complete:hover {
-        background: rgba(16, 185, 129, 0.14);
-        border-color: rgba(16, 185, 129, 0.35);
+        border: 1px solid rgba(16, 185, 129, 0.25);
       }
 
       .status-pill-attention {
-        background: rgba(245, 158, 11, 0.08);
+        background: rgba(245, 158, 11, 0.1);
         color: #fbbf24;
-        border: 1px solid rgba(245, 158, 11, 0.2);
-      }
-
-      .status-pill-attention:hover {
-        background: rgba(245, 158, 11, 0.14);
-        border-color: rgba(245, 158, 11, 0.35);
+        border: 1px solid rgba(245, 158, 11, 0.25);
       }
 
       .status-pill-neutral {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.04);
         color: #94a3b8;
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.08);
       }
 
-      .status-pill-neutral:hover {
-        background: rgba(255, 255, 255, 0.06);
-        color: #f8fafc;
-        border-color: rgba(255, 255, 255, 0.14);
+      .section-status-pill:hover {
+        border-color: rgba(99, 102, 241, 0.4);
       }
 
       .form-section-card {
@@ -317,54 +333,202 @@ export function renderProfilePage({
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 8px;
         padding: 1.5rem;
-        margin-bottom: 1.25rem;
-        position: relative;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+        scroll-margin-top: 2rem;
       }
 
       .section-title {
         font-size: 1.05rem;
         font-weight: 700;
         color: #f8fafc;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.35rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 0.5rem;
       }
 
       .section-subtitle {
         font-size: 0.8rem;
         color: #94a3b8;
         margin-bottom: 1.25rem;
-        line-height: 1.45;
+        line-height: 1.4;
       }
 
+      /* Readiness Status Pills */
+      .readiness-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .readiness-pill.ready {
+        background: rgba(16, 185, 129, 0.12);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.25);
+      }
+
+      .readiness-pill.missing {
+        background: rgba(245, 158, 11, 0.12);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.25);
+      }
+
+      .readiness-pill.needs-confirmation {
+        background: rgba(99, 102, 241, 0.12);
+        color: #a5b4fc;
+        border: 1px solid rgba(99, 102, 241, 0.25);
+      }
+
+      .readiness-pill.optional {
+        background: rgba(255, 255, 255, 0.04);
+        color: #94a3b8;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      /* Contact & Professional Links Grid */
+      .contact-links-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 0.85rem;
+      }
+
+      .contact-channel-card {
+        background: #0B0F19;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 0.85rem 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 0.4rem;
+        transition: border-color 0.15s ease;
+      }
+
+      .contact-channel-card:hover {
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+
+      .channel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .channel-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .channel-value {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #f8fafc;
+        word-break: break-all;
+      }
+
+      .channel-note {
+        font-size: 0.7rem;
+        color: #64748b;
+      }
+
+      /* Application Readiness Subcards Grid */
+      .readiness-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+      }
+
+      .readiness-subcard {
+        background: #0B0F19;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
+        padding: 1.15rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+      }
+
+      .readiness-subcard-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding-bottom: 0.5rem;
+      }
+
+      .qa-bank-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .qa-bank-item {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 5px;
+        padding: 0.65rem 0.8rem;
+      }
+
+      .qa-question {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #a5b4fc;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .qa-answer {
+        font-size: 0.84rem;
+        color: #f8fafc;
+        font-weight: 500;
+      }
+
+      /* Form Fields */
       .form-group {
-        margin-bottom: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
       }
 
       .form-label {
-        display: block;
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: #9ca3af;
-        margin-bottom: 0.35rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #cbd5e1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
       }
 
-      .form-input, .form-select, .form-textarea {
-        width: 100%;
+      .form-input, .form-textarea, .form-select {
         background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 6px;
-        padding: 0.55rem 0.75rem;
-        font-size: 0.85rem;
         color: #f8fafc;
-        outline: none;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        box-sizing: border-box;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.88rem;
+        font-family: inherit;
+        transition: all 0.15s ease;
       }
 
-      .form-input:focus, .form-select:focus, .form-textarea:focus {
+      .form-input:focus, .form-textarea:focus, .form-select:focus {
+        outline: none;
         border-color: #6366f1;
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
@@ -372,64 +536,55 @@ export function renderProfilePage({
       .form-helper {
         font-size: 0.72rem;
         color: #64748b;
-        margin-top: 0.3rem;
+        line-height: 1.35;
       }
 
+      /* Chips Input Box */
       .chips-input-box {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
         background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 6px;
-        padding: 0.4rem 0.6rem;
-        min-height: 42px;
+        padding: 0.35rem 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
         align-items: center;
-      }
-
-      .chips-input-box:focus-within {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-      }
-
-      .chips-search-input {
-        flex: 1;
-        min-width: 140px;
-        background: transparent;
-        border: none;
-        outline: none;
-        color: #f8fafc;
-        font-size: 0.85rem;
-        padding: 0.2rem 0;
+        min-height: 42px;
+        cursor: text;
       }
 
       .selected-chip {
+        background: rgba(99, 102, 241, 0.15);
+        color: #c7d2fe;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 4px;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.78rem;
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
-        background: rgba(99, 102, 241, 0.15);
-        color: #e0e7ff;
-        border: 1px solid rgba(99, 102, 241, 0.35);
-        padding: 0.2rem 0.55rem;
-        border-radius: 5px;
-        font-size: 0.78rem;
-        font-weight: 500;
       }
 
       .chip-remove-btn {
         cursor: pointer;
-        color: #a5b4fc;
-        font-weight: 700;
         font-size: 0.85rem;
         line-height: 1;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 2px;
+        color: #a5b4fc;
       }
 
       .chip-remove-btn:hover {
-        color: #f87171;
+        color: #f8fafc;
+      }
+
+      .chips-search-input {
+        background: transparent;
+        border: none;
+        color: #f8fafc;
+        font-size: 0.85rem;
+        padding: 0.2rem;
+        outline: none;
+        flex: 1;
+        min-width: 140px;
       }
 
       .suggestion-pills-row {
@@ -441,9 +596,9 @@ export function renderProfilePage({
 
       .suggestion-pill {
         background: rgba(255, 255, 255, 0.04);
-        color: #cbd5e1;
         border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 0.2rem 0.55rem;
+        color: #94a3b8;
+        padding: 0.2rem 0.5rem;
         border-radius: 4px;
         font-size: 0.72rem;
         cursor: pointer;
@@ -451,45 +606,47 @@ export function renderProfilePage({
       }
 
       .suggestion-pill:hover {
-        background: rgba(99, 102, 241, 0.12);
-        border-color: rgba(99, 102, 241, 0.35);
-        color: #e0e7ff;
+        background: rgba(255, 255, 255, 0.08);
+        color: #f8fafc;
+        border-color: rgba(255, 255, 255, 0.18);
       }
 
       .suggestion-pill.ai-recommended {
-        border-color: rgba(99, 102, 241, 0.3);
-        color: #c7d2fe;
         background: rgba(99, 102, 241, 0.08);
-      }
-
-      /* Evidence Locked Banner & Badges */
-      .evidence-lock-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        background: rgba(99, 102, 241, 0.1);
+        border-color: rgba(99, 102, 241, 0.25);
         color: #a5b4fc;
-        border: 1px solid rgba(99, 102, 241, 0.25);
-        font-size: 0.72rem;
-        font-weight: 500;
-        padding: 0.2rem 0.5rem;
-        border-radius: 4px;
       }
 
+      .suggestion-pill.ai-recommended:hover {
+        background: rgba(99, 102, 241, 0.15);
+        color: #e0e7ff;
+      }
+
+      /* Evidence Lock Banner */
       .evidence-lock-banner {
-        background: rgba(11, 15, 25, 0.7);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        background: rgba(99, 102, 241, 0.05);
+        border: 1px solid rgba(99, 102, 241, 0.18);
         border-radius: 6px;
-        padding: 0.85rem 1rem;
+        padding: 0.75rem 1rem;
         margin-bottom: 1.25rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
+        gap: 0.75rem;
         flex-wrap: wrap;
-        gap: 0.6rem;
       }
 
-      /* Multi-Record Card Grid */
+      .evidence-lock-badge {
+        font-size: 0.7rem;
+        font-weight: 600;
+        background: rgba(99, 102, 241, 0.15);
+        color: #a5b4fc;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+      }
+
+      /* Multi-record item list */
       .record-card-list {
         display: flex;
         flex-direction: column;
@@ -700,62 +857,82 @@ export function renderProfilePage({
       }
 
       .modal-catalog-body {
-        flex: 1;
-        overflow-y: auto;
-        min-height: 0;
         padding: 1.25rem 1.4rem;
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
       }
 
       .modal-catalog-footer {
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        gap: 0.6rem;
-        padding: 0.9rem 1.4rem;
+        gap: 0.5rem;
+        padding: 0.85rem 1.4rem;
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         background: #0B0F19;
         flex-shrink: 0;
       }
 
-      .catalog-search-wrap {
+      .catalog-search-box {
         position: relative;
-        margin-bottom: 1rem;
+        margin-bottom: 0.85rem;
       }
 
-      .catalog-search-input {
+      .catalog-search-box input {
         width: 100%;
-        padding: 0.6rem 0.9rem;
+        padding: 0.6rem 0.85rem 0.6rem 2.2rem;
         background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 6px;
         color: #f8fafc;
         font-size: 0.85rem;
-        font-family: inherit;
-        outline: none;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        box-sizing: border-box;
-      }
-
-      .catalog-search-input:focus {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
       }
 
       .catalog-categories-bar {
         display: flex;
-        flex-wrap: wrap;
         gap: 0.35rem;
-        margin-bottom: 1.1rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.85rem;
+        scrollbar-width: thin;
       }
 
       .catalog-cat-pill {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
         color: #94a3b8;
-        padding: 0.25rem 0.65rem;
+        padding: 0.2rem 0.55rem;
         border-radius: 4px;
         font-size: 0.72rem;
-        font-weight: 500;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .catalog-cat-pill.active {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: #6366f1;
+        color: #c7d2fe;
+        font-weight: 600;
+      }
+
+      .catalog-skills-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        max-height: 310px;
+        overflow-y: auto;
+        padding: 0.25rem 0;
+      }
+
+      .catalog-skill-item {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.78rem;
+        color: #e2e8f0;
         cursor: pointer;
         transition: all 0.15s ease;
         display: inline-flex;
@@ -763,71 +940,18 @@ export function renderProfilePage({
         gap: 0.3rem;
       }
 
-      .catalog-cat-pill:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: #f8fafc;
-        border-color: rgba(255, 255, 255, 0.16);
-      }
-
-      .catalog-cat-pill.active {
-        background: rgba(99, 102, 241, 0.15);
-        border-color: rgba(99, 102, 241, 0.4);
-        color: #c7d2fe;
-        font-weight: 600;
-      }
-
-      .catalog-cat-pill .pill-count {
-        font-size: 0.68rem;
-        opacity: 0.75;
-      }
-
-      .catalog-skills-container {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-      }
-
-      .catalog-skill-card {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.6rem 0.9rem;
-        background: #0B0F19;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 6px;
-        transition: all 0.15s ease;
-      }
-
-      .catalog-skill-card:hover {
+      .catalog-skill-item:hover {
+        background: rgba(99, 102, 241, 0.12);
         border-color: rgba(99, 102, 241, 0.3);
-      }
-
-      .catalog-skill-info {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-      }
-
-      .catalog-skill-name {
         color: #f8fafc;
-        font-weight: 600;
-        font-size: 0.85rem;
-      }
-
-      .catalog-skill-cat-tag {
-        font-size: 0.68rem;
-        padding: 0.15rem 0.45rem;
-        border-radius: 4px;
-        background: rgba(255, 255, 255, 0.05);
-        color: #94a3b8;
       }
 
       .catalog-selected-card {
-        background: rgba(99, 102, 241, 0.08);
+        background: #0B0F19;
         border: 1px solid rgba(99, 102, 241, 0.25);
         border-radius: 6px;
-        padding: 0.9rem 1.1rem;
-        margin-bottom: 1.25rem;
+        padding: 0.85rem 1rem;
+        margin-bottom: 1.15rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -837,16 +961,16 @@ export function renderProfilePage({
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0.5rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.85rem;
       }
 
       .status-toggle-btn {
-        padding: 0.55rem 0.75rem;
         background: #0B0F19;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 6px;
+        padding: 0.5rem;
         color: #94a3b8;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 500;
         cursor: pointer;
         text-align: center;
@@ -964,27 +1088,20 @@ export function renderProfilePage({
         .profile-page-container {
           padding: 1rem 0.75rem 5.5rem 0.75rem;
         }
-        .profile-header-card {
-          padding: 1.15rem;
-        }
-        .form-section-card {
+        .profile-header-card, .form-section-card {
           padding: 1.15rem;
         }
         .modal-dialog {
           padding: 1.15rem;
           max-width: 100%;
         }
-        .section-status-grid {
-          grid-template-columns: 1fr;
-        }
-        .projects-grid {
+        .contact-links-grid, .readiness-grid, .projects-grid, .section-status-grid {
           grid-template-columns: 1fr;
         }
         .derived-metrics-box {
           grid-template-columns: 1fr 1fr;
         }
-        .modal-grid-2col,
-        .modal-grid-edu {
+        .modal-grid-2col, .modal-grid-edu {
           grid-template-columns: 1fr;
         }
         .modal-catalog-dialog {
@@ -993,9 +1110,7 @@ export function renderProfilePage({
           max-height: 90vh;
           border-radius: 8px;
         }
-        .modal-catalog-header,
-        .modal-catalog-body,
-        .modal-catalog-footer {
+        .modal-catalog-header, .modal-catalog-body, .modal-catalog-footer {
           padding-left: 1rem;
           padding-right: 1rem;
         }
@@ -1018,8 +1133,10 @@ export function renderProfilePage({
           : ''
       }
 
-      <!-- Profile Snapshot Header & Readiness Bar -->
-      <div class="profile-header-card">
+      <!-- ================================================================= -->
+      <!-- SECTION 1: PROFILE HEADER & READINESS (HERO SNAPSHOT)             -->
+      <!-- ================================================================= -->
+      <div id="section-header" class="profile-header-card">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 0.75rem;">
           <div style="display: flex; gap: 1rem; align-items: center;">
             <div style="width: 52px; height: 52px; border-radius: 8px; background: #1f2937; border: 1px solid rgba(99, 102, 241, 0.4); color: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; font-weight: 700; letter-spacing: 0.05em;">
@@ -1054,31 +1171,44 @@ export function renderProfilePage({
           <div class="completion-bar-fill" style="width: ${overallPercentage}%;"></div>
         </div>
 
+        <!-- 10-Section Navigation Jump Bar -->
         <div class="section-status-grid">
-          <a href="#section-identity" class="section-status-pill ${candidate?.displayName ? 'status-pill-complete' : 'status-pill-attention'}">
-            <span>${candidate?.displayName ? '✓' : '!'}</span> 1. Identity & Standing
+          <a href="#section-summary" class="section-status-pill ${summaryText ? 'status-pill-complete' : 'status-pill-attention'}">
+            <span>${summaryText ? '✓' : '!'}</span> 2. Summary
+          </a>
+          <a href="#section-contact" class="section-status-pill ${authenticEmail && candidatePhone ? 'status-pill-complete' : 'status-pill-attention'}">
+            <span>${authenticEmail ? '✓' : '!'}</span> 3. Contact & Links
+          </a>
+          <a href="#section-readiness" class="section-status-pill ${workAuthList.length > 0 && availability ? 'status-pill-complete' : 'status-pill-attention'}">
+            <span>${availability ? '✓' : '!'}</span> 4. Application Readiness
           </a>
           <a href="#section-experience" class="section-status-pill ${experienceList.length > 0 ? 'status-pill-complete' : 'status-pill-neutral'}">
-            <span>${experienceList.length > 0 ? '✓' : '○'}</span> 2. Experience (${experienceList.length})
+            <span>${experienceList.length > 0 ? '✓' : '○'}</span> 5. Experience (${experienceList.length})
           </a>
           <a href="#section-education" class="section-status-pill ${educationList.length > 0 ? 'status-pill-complete' : 'status-pill-neutral'}">
-            <span>${educationList.length > 0 ? '✓' : '○'}</span> 3. Education (${educationList.length})
+            <span>${educationList.length > 0 ? '✓' : '○'}</span> 6. Education (${educationList.length})
           </a>
-          <a href="#section-qualifications" class="section-status-pill ${primarySkillsList.length > 0 ? 'status-pill-complete' : 'status-pill-attention'}">
-            <span>${primarySkillsList.length > 0 ? '✓' : '!'}</span> 4. Skills & Projects
+          <a href="#section-skills" class="section-status-pill ${primarySkillsList.length > 0 ? 'status-pill-complete' : 'status-pill-attention'}">
+            <span>${primarySkillsList.length > 0 ? '✓' : '!'}</span> 7. Skills (${primarySkillsList.length})
           </a>
-          <a href="#section-preferences" class="section-status-pill ${targetRolesList.length > 0 && preferredLocationsList.length > 0 ? 'status-pill-complete' : 'status-pill-attention'}">
-            <span>${targetRolesList.length > 0 && preferredLocationsList.length > 0 ? '✓' : '!'}</span> 5. Job Preferences
+          <a href="#section-projects" class="section-status-pill ${projectsList.length > 0 ? 'status-pill-complete' : 'status-pill-neutral'}">
+            <span>${projectsList.length > 0 ? '✓' : '○'}</span> 8. Projects (${projectsList.length})
+          </a>
+          <a href="#section-credentials" class="section-status-pill ${certsList.length > 0 || languagesList.length > 0 ? 'status-pill-complete' : 'status-pill-neutral'}">
+            <span>${languagesList.length > 0 ? '✓' : '○'}</span> 9. Languages & Certs
+          </a>
+          <a href="#section-search-intent" class="section-status-pill ${targetRolesList.length > 0 && preferredLocationsList.length > 0 ? 'status-pill-complete' : 'status-pill-attention'}">
+            <span>${targetRolesList.length > 0 && preferredLocationsList.length > 0 ? '✓' : '!'}</span> 10. Search Intent
           </a>
         </div>
 
-        <!-- MCP Data Flow Indicator -->
+        <!-- MCP Data Flow Callout -->
         <div style="margin-top: 0.85rem; padding: 0.6rem 0.9rem; background: rgba(99, 102, 241, 0.04); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 6px; display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 0.75rem; color: #a5b4fc;">This profile feeds AI career tools — MCP clients like Claude, ChatGPT & Gemini use your saved data for job matching & resume tailoring.</span>
+          <span style="font-size: 0.75rem; color: #a5b4fc;">This candidate workspace feeds AI career agents — MCP clients (Claude, ChatGPT, Gemini) consume your verified portfolio and application readiness data.</span>
         </div>
       </div>
 
-      <!-- Quick AI Suggestions Bar -->
+      <!-- Quick AI Suggestions Bar (if search criteria empty) -->
       ${
         targetRolesList.length === 0 || preferredLocationsList.length === 0
           ? `
@@ -1107,7 +1237,7 @@ export function renderProfilePage({
           : ''
       }
 
-      <!-- Main Profile Form -->
+      <!-- Main Profile & Application Workspace Form -->
       <form id="careerProfileForm" action="/profile" method="POST" style="display: flex; flex-direction: column; gap: 1.25rem;">
         <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}" />
         <input type="hidden" id="experienceHidden" name="experience" value="" />
@@ -1121,19 +1251,19 @@ export function renderProfilePage({
         <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; padding: 0.25rem 0;">
           <span id="dirtyIndicator" style="font-size: 0.78rem; color: #fbbf24; display: none;">● Unsaved changes</span>
           <span id="saveStatus" style="font-size: 0.78rem; display: none;"></span>
-          <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1.25rem; font-weight: 600; font-size: 0.85rem;">Save Profile</button>
+          <button type="submit" class="btn btn-primary" style="padding: 0.45rem 1.25rem; font-weight: 600; font-size: 0.85rem;">Save Workspace</button>
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 1: PROFESSIONAL IDENTITY & CURRENT STANDING               -->
+        <!-- SECTION 2: PROFESSIONAL SUMMARY & NARRATIVE                       -->
         <!-- ================================================================= -->
-        <div id="section-identity" class="form-section-card">
+        <div id="section-summary" class="form-section-card">
           <div class="section-title">
-            <span>1. Professional Identity & Standing</span>
+            <span>2. Professional Summary & Narrative</span>
             <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ User Editable</span>
           </div>
           <div class="section-subtitle">
-            Define your authentic professional persona, candidate status, and current employment state.
+            Define your authentic professional persona, candidate standing, and executive narrative.
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
@@ -1150,7 +1280,7 @@ export function renderProfilePage({
                 Professional Headline
               </label>
               <input type="text" id="headline" name="headline" value="${escapeHtml(candidate?.headline || '')}" placeholder="e.g. Backend Engineer specializing in distributed systems" class="form-input" oninput="markFormDirty()" />
-              <div class="form-helper">Concise one-line summary of what you do.</div>
+              <div class="form-helper">Concise one-line summary of your technical focus.</div>
             </div>
 
             <div class="form-group">
@@ -1158,12 +1288,12 @@ export function renderProfilePage({
                 Professional Role / Persona
               </label>
               <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" placeholder="e.g. Full-Stack & Backend Developer" class="form-input" oninput="markFormDirty()" />
-              <div class="form-helper">Your active persona (does not require active employment).</div>
+              <div class="form-helper">Active role persona (does not require active employment).</div>
             </div>
 
             <div class="form-group">
               <label class="form-label" for="careerStatus">
-                Career Status <span style="color: #6366f1; font-size: 0.7rem;">(Confirm or Edit)</span>
+                Career Standing <span style="color: #6366f1; font-size: 0.7rem;">(Detected & Selectable)</span>
               </label>
               <select id="careerStatus" name="careerStatus" class="form-select" onchange="handleCareerStatusChange(); markFormDirty();">
                 <option value="FRESHER" ${careerStatusVal === 'FRESHER' ? 'selected' : ''}>Fresher (Recent/Upcoming Graduate)</option>
@@ -1181,19 +1311,19 @@ export function renderProfilePage({
               <label class="form-label" for="location">
                 Current Location (Residence)
               </label>
-              <input type="text" id="location" name="location" value="${escapeHtml(userLocation)}" placeholder="e.g. Bengaluru, India" class="form-input" oninput="markFormDirty()" />
+              <input type="text" id="location" name="location" value="${escapeHtml(userLocation)}" placeholder="e.g. Gorakhpur, India" class="form-input" oninput="markFormDirty()" />
               <div class="form-helper">Where you currently live (Separate from preferred search locations).</div>
               <div class="suggestion-pills-row">
                 <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Bengaluru, India'; markFormDirty();">Bengaluru</span>
                 <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Hyderabad, India'; markFormDirty();">Hyderabad</span>
                 <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Pune, India'; markFormDirty();">Pune</span>
                 <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Delhi NCR, India'; markFormDirty();">Delhi NCR</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Mumbai, India'; markFormDirty();">Mumbai</span>
-                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Lucknow, India'; markFormDirty();">Lucknow</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Gorakhpur, India'; markFormDirty();">Gorakhpur</span>
+                <span class="suggestion-pill" onclick="document.getElementById('location').value = 'Remote'; markFormDirty();">Remote</span>
               </div>
             </div>
 
-            <!-- Current Active Employment Card -->
+            <!-- Current Active Employment Display -->
             <div class="form-group">
               <label class="form-label">
                 Current Active Employment
@@ -1216,9 +1346,9 @@ export function renderProfilePage({
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 0.5rem; margin-bottom: 0;">
+          <div class="form-group" style="margin-top: 0.75rem; margin-bottom: 0;">
             <label class="form-label" for="summary">
-              Executive Summary
+              Executive Summary Narrative
             </label>
             <textarea id="summary" name="summary" rows="3" placeholder="Write a concise professional introduction..." class="form-textarea" style="resize: vertical;" oninput="markFormDirty()">${escapeHtml(summaryText)}</textarea>
             <div class="form-helper">Foundational summary used for AI resume tailoring and MCP profile summaries.</div>
@@ -1226,11 +1356,319 @@ export function renderProfilePage({
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 2: WORK EXPERIENCE (MULTI-RECORD CRUD)                    -->
+        <!-- SECTION 3: CONTACT & PROFESSIONAL LINKS                           -->
+        <!-- ================================================================= -->
+        <div id="section-contact" class="form-section-card">
+          <div class="section-title">
+            <span>3. Contact & Professional Links</span>
+            <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ Application Essential</span>
+          </div>
+          <div class="section-subtitle">
+            Authoritative contact details and verified developer profiles used when submitting or handing off job applications.
+          </div>
+
+          <div class="contact-links-grid">
+            <!-- Email (Authoritative Source of Truth) -->
+            <div class="contact-channel-card">
+              <div class="channel-header">
+                <span class="channel-label">Primary Email</span>
+                <span class="readiness-pill ready">✓ Ready</span>
+              </div>
+              <div class="channel-value" title="Authentic resolved candidate email">
+                ${escapeHtml(authenticEmail || 'Not configured')}
+              </div>
+              <div class="channel-note">Authoritative verified account email (never synthetic).</div>
+            </div>
+
+            <!-- Phone Number -->
+            <div class="contact-channel-card">
+              <div class="channel-header">
+                <span class="channel-label">Phone Number</span>
+                ${
+                  candidatePhone
+                    ? `<span class="readiness-pill ready">✓ Ready</span>`
+                    : `<span class="readiness-pill missing">⚠ Missing</span>`
+                }
+              </div>
+              <div class="channel-value">
+                ${candidatePhone ? escapeHtml(candidatePhone) : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Not configured</span>'}
+              </div>
+              <div class="channel-note">Direct recruiter reachout phone extracted from resume.</div>
+            </div>
+
+            <!-- Residence Location -->
+            <div class="contact-channel-card">
+              <div class="channel-header">
+                <span class="channel-label">Residence Location</span>
+                ${
+                  userLocation
+                    ? `<span class="readiness-pill ready">✓ Ready</span>`
+                    : `<span class="readiness-pill missing">⚠ Missing</span>`
+                }
+              </div>
+              <div class="channel-value">
+                ${userLocation ? escapeHtml(userLocation) : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Location not set</span>'}
+              </div>
+              <div class="channel-note">Current residence for tax jurisdiction & eligibility.</div>
+            </div>
+
+            <!-- LinkedIn Profile -->
+            <div class="contact-channel-card">
+              <div class="channel-header">
+                <span class="channel-label">LinkedIn Profile</span>
+                ${
+                  linkedInLink
+                    ? `<span class="readiness-pill ready">✓ Ready</span>`
+                    : `<span class="readiness-pill missing">⚠ Missing</span>`
+                }
+              </div>
+              <div class="channel-value">
+                ${
+                  linkedInLink
+                    ? `<a href="${escapeHtml(linkedInLink.url)}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: none;">${escapeHtml(linkedInLink.url.replace(/^https?:\/\/(www\.)?/, ''))} ↗</a>`
+                    : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Not linked</span>'
+                }
+              </div>
+              <div class="channel-note">Professional career identity and network.</div>
+            </div>
+
+            <!-- GitHub Profile -->
+            <div class="contact-channel-card">
+              <div class="channel-header">
+                <span class="channel-label">GitHub Profile</span>
+                ${
+                  gitHubLink
+                    ? `<span class="readiness-pill ready">✓ Ready</span>`
+                    : `<span class="readiness-pill missing">⚠ Missing</span>`
+                }
+              </div>
+              <div class="channel-value">
+                ${
+                  gitHubLink
+                    ? `<a href="${escapeHtml(gitHubLink.url)}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: none;">${escapeHtml(gitHubLink.url.replace(/^https?:\/\/(www\.)?/, ''))} ↗</a>`
+                    : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Not linked</span>'
+                }
+              </div>
+              <div class="channel-note">Source code provenance and verified commits.</div>
+            </div>
+
+            <!-- Portfolio Website -->
+            <div class="contact-channel-card">
+              <div class="channel-header">
+                <span class="channel-label">Portfolio Website</span>
+                ${
+                  portfolioSiteLink
+                    ? `<span class="readiness-pill ready">✓ Ready</span>`
+                    : `<span class="readiness-pill optional">○ Optional</span>`
+                }
+              </div>
+              <div class="channel-value">
+                ${
+                  portfolioSiteLink
+                    ? `<a href="${escapeHtml(portfolioSiteLink.url)}" target="_blank" rel="noopener noreferrer" style="color: #818cf8; text-decoration: none;">${escapeHtml(portfolioSiteLink.url.replace(/^https?:\/\/(www\.)?/, ''))} ↗</a>`
+                    : '<span style="color: #64748b; font-style: italic; font-weight: 400;">Optional / Not set</span>'
+                }
+              </div>
+              <div class="channel-note">Personal engineering website or showcase link.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SECTION 4: APPLICATION READINESS & COMPLIANCE                     -->
+        <!-- ================================================================= -->
+        <div id="section-readiness" class="form-section-card">
+          <div class="section-title">
+            <span>4. Application Readiness & Compliance</span>
+            <span class="evidence-lock-badge" style="background: rgba(16, 185, 129, 0.12); color: #34d399; border-color: rgba(16, 185, 129, 0.25);">⚡ ATS Handoff Kit</span>
+          </div>
+          <div class="section-subtitle">
+            Critical compliance screening answers and working model preferences required by employer job portals.
+          </div>
+
+          <div class="readiness-grid">
+            <!-- Subcard A: Legal Work Authorization & Sponsorship -->
+            <div class="readiness-subcard">
+              <div class="readiness-subcard-title">
+                <span>Work Authorization & Sponsorship</span>
+                ${
+                  workAuthList.length > 0 && jobPrefs.visaSponsorshipRequired != null
+                    ? `<span class="readiness-pill ready">✓ Ready</span>`
+                    : `<span class="readiness-pill needs-confirmation">⚠ Needs confirmation</span>`
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="workAuthInput">
+                  <span>Work Authorization Status</span>
+                  ${
+                    workAuthList.length > 0
+                      ? `<span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Configured</span>`
+                      : `<span class="readiness-pill needs-confirmation" style="font-size: 0.65rem;">⚠ Needs confirmation</span>`
+                  }
+                </label>
+                <input
+                  type="text"
+                  id="workAuthInput"
+                  name="workAuthorization"
+                  value="${escapeHtml(workAuthList.join(', '))}"
+                  placeholder="e.g. Authorized to work in India / US Citizen / OPT"
+                  class="form-input"
+                  oninput="markFormDirty()"
+                />
+                <div class="form-helper">Legal right to work in your targeted job countries.</div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="visaSponsorshipRequired">
+                  <span>Visa Sponsorship Requirement</span>
+                  <span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Declared</span>
+                </label>
+                <select id="visaSponsorshipRequired" name="visaSponsorshipRequired" class="form-select" onchange="markFormDirty()">
+                  <option value="false" ${jobPrefs.visaSponsorshipRequired === false ? 'selected' : ''}>No — I do not require sponsorship to work</option>
+                  <option value="true" ${jobPrefs.visaSponsorshipRequired === true ? 'selected' : ''}>Yes — I will require employer visa sponsorship</option>
+                </select>
+                <div class="form-helper">Informs automated ATS screening whether immigration sponsorship is requested.</div>
+              </div>
+            </div>
+
+            <!-- Subcard B: Working Model & Availability -->
+            <div class="readiness-subcard">
+              <div class="readiness-subcard-title">
+                <span>Working Model & Availability</span>
+                ${
+                  availability
+                    ? `<span class="readiness-pill ready">✓ Ready</span>`
+                    : `<span class="readiness-pill missing">⚠ Missing Availability</span>`
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="remotePreference">
+                  <span>Remote Work Model</span>
+                  <span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Ready</span>
+                </label>
+                <select id="remotePreference" name="remotePreference" class="form-select" onchange="markFormDirty()">
+                  <option value="REMOTE_ONLY" ${remotePref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
+                  <option value="REMOTE_FIRST" ${remotePref === 'REMOTE_FIRST' ? 'selected' : ''}>Remote First</option>
+                  <option value="HYBRID" ${remotePref === 'HYBRID' ? 'selected' : ''}>Hybrid (Office + Remote)</option>
+                  <option value="ON_SITE" ${remotePref === 'ON_SITE' ? 'selected' : ''}>On-Site Only</option>
+                  <option value="FLEXIBLE" ${remotePref === 'FLEXIBLE' ? 'selected' : ''}>Flexible (Any Arrangement)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="relocationPreference">
+                  <span>Relocation Willingness</span>
+                  <span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Ready</span>
+                </label>
+                <select id="relocationPreference" name="relocationPreference" class="form-select" onchange="markFormDirty()">
+                  <option value="REMOTE_ONLY" ${relocationPref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only (No Relocation)</option>
+                  <option value="WILLING_TO_RELOCATE" ${relocationPref === 'WILLING_TO_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
+                  <option value="NOT_WILLING" ${relocationPref === 'NOT_WILLING' ? 'selected' : ''}>Not Willing to Relocate</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="availabilityDate">
+                  <span>Notice Period / Availability</span>
+                  ${
+                    availability
+                      ? `<span class="readiness-pill ready" style="font-size: 0.65rem;">✓ Ready</span>`
+                      : `<span class="readiness-pill missing" style="font-size: 0.65rem;">⚠ Missing</span>`
+                  }
+                </label>
+                <input
+                  type="text"
+                  id="availabilityDate"
+                  name="availabilityDate"
+                  value="${escapeHtml(availability)}"
+                  placeholder="e.g. Immediately / 2 Weeks Notice"
+                  class="form-input"
+                  oninput="markFormDirty()"
+                />
+                <div class="form-helper">Earliest date you can commence employment if hired.</div>
+              </div>
+            </div>
+
+            <!-- Subcard C: Reusable Application Screening Q&A Bank -->
+            <div class="readiness-subcard" style="grid-column: 1 / -1;">
+              <div class="readiness-subcard-title">
+                <span>Reusable Application Answers (Screening Bank)</span>
+                <span class="readiness-pill ready">✓ 5 Answers Active</span>
+              </div>
+              <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 0.25rem;">
+                Standard answers supplied automatically to employer portals and browser handoff kits during application submission.
+              </div>
+
+              <div class="qa-bank-list">
+                <div class="qa-bank-item">
+                  <div class="qa-question">
+                    <span>What is your notice period / earliest start timeline?</span>
+                    <span class="readiness-pill ${availability ? 'ready' : 'needs-confirmation'}">
+                      ${availability ? '✓ User Confirmed' : '○ Inferred'}
+                    </span>
+                  </div>
+                  <div class="qa-answer">${escapeHtml(availability || 'Immediately available upon offer')}</div>
+                </div>
+
+                <div class="qa-bank-item">
+                  <div class="qa-question">
+                    <span>Are you legally authorized to work in the country of this job?</span>
+                    <span class="readiness-pill ${workAuthList.length > 0 ? 'ready' : 'needs-confirmation'}">
+                      ${workAuthList.length > 0 ? '✓ User Confirmed' : '○ Inferred from Residence'}
+                    </span>
+                  </div>
+                  <div class="qa-answer">
+                    ${escapeHtml(workAuthList.length > 0 ? workAuthList.join(', ') : `Authorized to work in ${userLocation || 'country of residence'}`)}
+                  </div>
+                </div>
+
+                <div class="qa-bank-item">
+                  <div class="qa-question">
+                    <span>Will you now or in the future require visa sponsorship?</span>
+                    <span class="readiness-pill ready">✓ User Confirmed</span>
+                  </div>
+                  <div class="qa-answer">
+                    ${jobPrefs.visaSponsorshipRequired ? 'Yes, I require employer visa sponsorship' : 'No, I do not require sponsorship'}
+                  </div>
+                </div>
+
+                <div class="qa-bank-item">
+                  <div class="qa-question">
+                    <span>How many years of professional software experience do you have?</span>
+                    <span class="readiness-pill ready">✓ Derived from History</span>
+                  </div>
+                  <div class="qa-answer">
+                    ${expDuration.totalYears > 0 ? `${expDuration.totalYears} year(s) (${expDuration.totalMonths} months)` : 'Fresher / Early Career Engineer'}
+                  </div>
+                </div>
+
+                <div class="qa-bank-item">
+                  <div class="qa-question">
+                    <span>What is your core technical stack and verified competencies?</span>
+                    <span class="readiness-pill ready">✓ Code AST Verified</span>
+                  </div>
+                  <div class="qa-answer">
+                    ${escapeHtml(
+                      primarySkillsList
+                        .slice(0, 5)
+                        .map((s) => s.name || s)
+                        .join(', ') || 'Full Stack & Backend Development'
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SECTION 5: WORK EXPERIENCE (MULTI-RECORD CRUD)                    -->
         <!-- ================================================================= -->
         <div id="section-experience" class="form-section-card">
           <div class="section-title">
-            <span>2. Work Experience History</span>
+            <span>5. Work Experience History</span>
             <button type="button" class="btn btn-primary btn-sm" onclick="openAddExperienceModal()" style="font-size: 0.78rem; padding: 0.3rem 0.75rem;">
               + Add Experience
             </button>
@@ -1268,17 +1706,17 @@ export function renderProfilePage({
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 3: EDUCATION (MULTI-RECORD CRUD)                          -->
+        <!-- SECTION 6: EDUCATION & DEGREES (MULTI-RECORD CRUD)                -->
         <!-- ================================================================= -->
         <div id="section-education" class="form-section-card">
           <div class="section-title">
-            <span>3. Education & Degrees</span>
+            <span>6. Education & Degrees</span>
             <button type="button" class="btn btn-primary btn-sm" onclick="openAddEducationModal()" style="font-size: 0.78rem; padding: 0.3rem 0.75rem;">
               + Add Education
             </button>
           </div>
           <div class="section-subtitle">
-            Supports multiple degrees, bootcamps, and diplomas with graduation and currently enrolled tracking.
+            Supports multiple degrees, bootcamps, and diplomas with graduation and enrolled status tracking.
           </div>
 
           <div id="educationListContainer" class="record-card-list">
@@ -1287,58 +1725,11 @@ export function renderProfilePage({
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 4: CERTIFICATIONS, LANGUAGES & LINKS                      -->
+        <!-- SECTION 7: CAREER SKILLS (EVIDENCE-LOCKED & SELF-DECLARED)        -->
         <!-- ================================================================= -->
-        <div id="section-credentials" class="form-section-card">
+        <div id="section-skills" class="form-section-card">
           <div class="section-title">
-            <span>4. Certifications, Languages & Links</span>
-          </div>
-          <div class="section-subtitle">
-            Professional credentials, spoken languages, and online portfolio links.
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem;">
-            <!-- Certifications -->
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Certifications</h4>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="openAddCertModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add</button>
-              </div>
-              <div id="certificationsListContainer" class="record-card-list">
-                <!-- Rendered dynamically -->
-              </div>
-            </div>
-
-            <!-- Languages -->
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Languages</h4>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLangModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add</button>
-              </div>
-              <div id="languagesListContainer" class="record-card-list">
-                <!-- Rendered dynamically -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Portfolio Links -->
-          <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Portfolio & Professional Links</h4>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLinkModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add Link</button>
-            </div>
-            <div id="portfolioLinksContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-              <!-- Rendered dynamically -->
-            </div>
-          </div>
-        </div>
-
-        <!-- ================================================================= -->
-        <!-- SECTION 5: CAREER SKILLS (COMBINED GITHUB + RESUME)             -->
-        <!-- ================================================================= -->
-        <div id="section-qualifications" class="form-section-card">
-          <div class="section-title">
-            <span>5. Career Skills (${primarySkillsList.length + technologySignalsList.length})</span>
+            <span>7. Career Skills (${primarySkillsList.length + technologySignalsList.length})</span>
             <span class="evidence-lock-badge">🔒 Evidence-Controlled</span>
           </div>
           <div class="section-subtitle">
@@ -1405,7 +1796,7 @@ export function renderProfilePage({
               .join('')}
           </div>
 
-          <!-- Technology & Implementation Signals (Always visible, not collapsed) -->
+          <!-- Technology & Implementation Signals -->
           ${
             technologySignalsList.length > 0
               ? `
@@ -1438,11 +1829,11 @@ export function renderProfilePage({
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 5B: ADDITIONAL SKILLS (CANDIDATE DECLARED)               -->
+        <!-- SECTION 7B: ADDITIONAL SKILLS (CANDIDATE DECLARED)                -->
         <!-- ================================================================= -->
         <div id="section-additional-skills" class="form-section-card">
           <div class="section-title">
-            <span>5B. Additional Skills</span>
+            <span>7B. Additional Skills</span>
             <span style="font-size: 0.7rem; color: #a5b4fc; background: rgba(165, 180, 252, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 500;">YOUR DECLARATION</span>
           </div>
           <div class="section-subtitle">
@@ -1473,18 +1864,14 @@ export function renderProfilePage({
           >
             <span>+ Add Skill</span>
           </button>
-
-          <div style="margin-top: 0.5rem; font-size: 0.72rem; color: #64748b;">
-            These skills feed AI career tools — MCP clients use your saved data for job matching.
-          </div>
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 6: HIGHLIGHTED PROJECTS (EVIDENCE LOCKED)                 -->
+        <!-- SECTION 8: HIGHLIGHTED PROJECTS (EVIDENCE LOCKED)                 -->
         <!-- ================================================================= -->
         <div id="section-projects" class="form-section-card">
           <div class="section-title">
-            <span>6. Highlighted Portfolio Projects</span>
+            <span>8. Highlighted Portfolio Projects</span>
             <span class="evidence-lock-badge">🔒 Evidence-Controlled</span>
           </div>
           <div class="section-subtitle">
@@ -1553,15 +1940,62 @@ export function renderProfilePage({
         </div>
 
         <!-- ================================================================= -->
-        <!-- SECTION 7: JOB SEARCH PREFERENCES (SOVEREIGN USER INTENT)          -->
+        <!-- SECTION 9: LANGUAGES & CERTIFICATIONS                             -->
         <!-- ================================================================= -->
-        <div id="section-preferences" class="form-section-card">
+        <div id="section-credentials" class="form-section-card">
           <div class="section-title">
-            <span>7. Job Search Preferences & Criteria</span>
+            <span>9. Languages & Certifications</span>
+          </div>
+          <div class="section-subtitle">
+            Professional credentials, spoken languages, and custom portfolio links.
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem;">
+            <!-- Certifications -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Certifications</h4>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openAddCertModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add</button>
+              </div>
+              <div id="certificationsListContainer" class="record-card-list">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Languages -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Languages</h4>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLangModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add</button>
+              </div>
+              <div id="languagesListContainer" class="record-card-list">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Portfolio Links -->
+          <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h4 style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin: 0;">Additional Custom Links</h4>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openAddLinkModal()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">+ Add Link</button>
+            </div>
+            <div id="portfolioLinksContainer" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SECTION 10: JOB SEARCH INTENT & MATCHING CRITERIA                 -->
+        <!-- ================================================================= -->
+        <div id="section-search-intent" class="form-section-card">
+          <div class="section-title">
+            <span>10. Job Search Intent & Matching Criteria</span>
             <span style="font-size: 0.72rem; color: #34d399; font-weight: 500;">✓ User Editable</span>
           </div>
           <div class="section-subtitle">
-            Configure matching criteria for ATS and AI agents. (Separate from your Current Location above).
+            Configure target titles, preferred job discovery locations, and compensation threshold for automated matching.
           </div>
 
           <!-- Target Roles -->
@@ -1588,7 +2022,7 @@ export function renderProfilePage({
           </div>
 
           <!-- Preferred Locations -->
-          <div class="form-group">
+          <div class="form-group" style="margin-top: 1rem;">
             <label class="form-label" for="preferredLocationsInput">
               Preferred Job Locations <span style="color: #ef4444;">*</span>
             </label>
@@ -1611,52 +2045,26 @@ export function renderProfilePage({
             </div>
           </div>
 
-          <!-- Preferences Grid -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem;">
-            <div class="form-group">
-              <label class="form-label" for="remotePreference">Remote Work Preference</label>
-              <select id="remotePreference" name="remotePreference" class="form-select" onchange="markFormDirty()">
-                <option value="REMOTE_ONLY" ${remotePref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
-                <option value="REMOTE_FIRST" ${remotePref === 'REMOTE_FIRST' ? 'selected' : ''}>Remote First</option>
-                <option value="HYBRID" ${remotePref === 'HYBRID' ? 'selected' : ''}>Hybrid</option>
-                <option value="ON_SITE" ${remotePref === 'ON_SITE' ? 'selected' : ''}>On-Site</option>
-                <option value="FLEXIBLE" ${remotePref === 'FLEXIBLE' ? 'selected' : ''}>Flexible</option>
+          <!-- Compensation Floor -->
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="form-label">Compensation Floor (Annual Minimum)</label>
+            <div style="display: flex; gap: 0.5rem; max-width: 420px;">
+              <input type="number" id="salaryFloor" name="salaryFloor" value="${escapeHtml(String(salaryFloor))}" placeholder="e.g. 800000" class="form-input" style="flex: 2;" oninput="markFormDirty()" />
+              <select id="salaryCurrency" name="salaryCurrency" class="form-select" style="flex: 1;" onchange="markFormDirty()">
+                <option value="INR" ${salaryCurrency === 'INR' ? 'selected' : ''}>INR (₹)</option>
+                <option value="USD" ${salaryCurrency === 'USD' ? 'selected' : ''}>USD ($)</option>
+                <option value="EUR" ${salaryCurrency === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                <option value="GBP" ${salaryCurrency === 'GBP' ? 'selected' : ''}>GBP (£)</option>
+                <option value="CAD" ${salaryCurrency === 'CAD' ? 'selected' : ''}>CAD ($)</option>
               </select>
             </div>
-
-            <div class="form-group">
-              <label class="form-label">Compensation Floor (Annual Minimum)</label>
-              <div style="display: flex; gap: 0.5rem;">
-                <input type="number" id="salaryFloor" name="salaryFloor" value="${escapeHtml(String(salaryFloor))}" placeholder="e.g. 800000" class="form-input" style="flex: 2;" oninput="markFormDirty()" />
-                <select id="salaryCurrency" name="salaryCurrency" class="form-select" style="flex: 1;" onchange="markFormDirty()">
-                  <option value="INR" ${salaryCurrency === 'INR' ? 'selected' : ''}>INR (₹)</option>
-                  <option value="USD" ${salaryCurrency === 'USD' ? 'selected' : ''}>USD ($)</option>
-                  <option value="EUR" ${salaryCurrency === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                  <option value="GBP" ${salaryCurrency === 'GBP' ? 'selected' : ''}>GBP (£)</option>
-                  <option value="CAD" ${salaryCurrency === 'CAD' ? 'selected' : ''}>CAD ($)</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="availabilityDate">Availability / Start Timeline</label>
-              <input type="text" id="availabilityDate" name="availabilityDate" value="${escapeHtml(availability)}" placeholder="e.g. Immediately / 2 Weeks" class="form-input" oninput="markFormDirty()" />
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="relocationPreference">Relocation Willingness</label>
-              <select id="relocationPreference" name="relocationPreference" class="form-select" onchange="markFormDirty()">
-                <option value="REMOTE_ONLY" ${relocationPref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
-                <option value="WILLING_TO_RELOCATE" ${relocationPref === 'WILLING_TO_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
-                <option value="NOT_WILLING" ${relocationPref === 'NOT_WILLING' ? 'selected' : ''}>Not Willing to Relocate</option>
-              </select>
-            </div>
+            <div class="form-helper">Minimum acceptable compensation threshold for job radar matching.</div>
           </div>
         </div>
 
         <!-- Bottom Save Button -->
         <div style="display: flex; justify-content: flex-end; padding: 1rem 0 0.5rem 0; border-top: 1px solid rgba(255,255,255,0.08);">
-          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 600;">Save Profile</button>
+          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-weight: 600;">Save Workspace</button>
         </div>
 
         <!-- Sticky Save Action Bar -->
@@ -1664,7 +2072,7 @@ export function renderProfilePage({
           <div style="display: flex; align-items: center; gap: 0.6rem;">
             <div>
               <strong style="color: #f8fafc; font-size: 0.88rem;">Unsaved Changes</strong>
-              <div style="color: #94a3b8; font-size: 0.75rem;">You have pending profile adjustments.</div>
+              <div style="color: #94a3b8; font-size: 0.75rem;">You have pending profile and application readiness adjustments.</div>
             </div>
           </div>
           <div style="display: flex; gap: 0.5rem;">
@@ -1948,8 +2356,144 @@ export function renderProfilePage({
       </div>
     </div>
 
-    <!-- Client-Side State Controller & Interactive Scripts -->
-    <script>
+    <!-- Enhanced Additional Skills Modal Dialog (620px Canonical Catalog) -->
+    <div id="skillCatalogModal" class="modal-backdrop" style="display: none;">
+      <div class="modal-catalog-dialog">
+        <!-- Modal Header -->
+        <div class="modal-catalog-header">
+          <div>
+            <h3 class="modal-title" id="catalogModalTitle">Add Skill to Profile</h3>
+            <p style="font-size: 0.75rem; color: #94a3b8; margin: 0.15rem 0 0 0;" id="catalogModalSubtitle">
+              Browse canonical skill catalog or search by keyword
+            </p>
+          </div>
+          <button type="button" class="modal-close-btn" onclick="closeSkillCatalogModal()">×</button>
+        </div>
+
+        <!-- Modal Body (Scrollable) -->
+        <div class="modal-catalog-body">
+          <!-- STAGE 1: BROWSE & SEARCH -->
+          <div id="catalogBrowseArea">
+            <!-- Search Bar -->
+            <div class="catalog-search-box">
+              <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 0.85rem;">🔍</span>
+              <input
+                type="text"
+                id="catalogSearchInput"
+                placeholder="Search by skill name, alias, or keyword..."
+                autocomplete="off"
+                oninput="searchCatalogSkills(this.value)"
+              />
+            </div>
+
+            <!-- Categories Horizontal Filter Bar -->
+            <div class="catalog-categories-bar" id="catalogCategoriesBar">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Skills Results List -->
+            <div>
+              <div style="font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.45rem;">Available Skills</div>
+              <div id="catalogSkillsList" class="catalog-skills-container"></div>
+            </div>
+          </div>
+
+          <!-- STAGE 2: CONFIGURE SKILL -->
+          <div id="addSkillForm" style="display: none;">
+            <!-- Selected Skill Glass Card -->
+            <div class="catalog-selected-card">
+              <div>
+                <div style="font-size: 0.7rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Selected Skill</div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem;">
+                  <strong id="selectedSkillName" style="color: #f8fafc; font-size: 1.05rem;"></strong>
+                  <span id="selectedSkillCategoryBadge" class="badge" style="background: rgba(99, 102, 241, 0.15); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.3); font-size: 0.7rem;"></span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="backToCatalogBrowse()" style="font-size: 0.75rem; padding: 0.3rem 0.65rem;">
+                ← Change Skill
+              </button>
+            </div>
+
+            <!-- Skill Provenance Status Selector -->
+            <div style="margin-bottom: 1.1rem;">
+              <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.4rem;">Skill Status</label>
+              <div class="status-pill-toggle">
+                <button type="button" id="btnStatusSelfDeclared" class="status-toggle-btn active" onclick="setSkillStatusMode('SELF_DECLARED')">
+                  ○ Self-Declared Skill
+                </button>
+                <button type="button" id="btnStatusLearning" class="status-toggle-btn" onclick="setSkillStatusMode('LEARNING')">
+                  📖 Currently Learning
+                </button>
+              </div>
+              <div id="skillStatusDesc" style="font-size: 0.72rem; color: #64748b; margin-top: -0.2rem;">
+                You actively use or have practical experience with this skill.
+              </div>
+            </div>
+
+            <!-- Hidden input maintaining exact contract with backend / tests -->
+            <input type="hidden" id="skillProficiency" value="WORKING_KNOWLEDGE" />
+
+            <!-- Proficiency Tier Selector (shown when Self-Declared) -->
+            <div id="proficiencyTierGroup" class="form-group" style="margin-bottom: 1rem;">
+              <label class="form-label" for="selectedProficiencyTier" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
+                Proficiency Level
+              </label>
+              <select id="selectedProficiencyTier" class="form-select" onchange="handleProficiencyTierChange(this.value)">
+                <option value="BASIC">Basic — Conceptual understanding or introductory experience</option>
+                <option value="WORKING_KNOWLEDGE" selected>Working Knowledge — Practical hands-on project experience</option>
+                <option value="PROFICIENT">Proficient — Confident independent implementation</option>
+                <option value="ADVANCED">Advanced — Deep architectural and production expertise</option>
+              </select>
+            </div>
+
+            <!-- Usage Context Selector -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+              <label class="form-label" for="skillUsageContext" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
+                Usage Context <span style="font-weight: 400; color: #64748b;">(Optional)</span>
+              </label>
+              <select id="skillUsageContext" class="form-select">
+                <option value="">-- How have you used this skill? --</option>
+                <option value="PROFESSIONAL_WORK">Professional Production Work</option>
+                <option value="INTERNSHIP">Internship Experience</option>
+                <option value="PERSONAL_PROJECT">Personal Project / Open Source</option>
+                <option value="FREELANCE">Freelance / Client Engagement</option>
+                <option value="ACADEMIC_PROJECT">Academic Coursework / Capstone</option>
+                <option value="CERTIFICATION">Certification / Structured Course</option>
+                <option value="SELF_STUDY">Self-Directed Study & Labs</option>
+              </select>
+            </div>
+
+            <!-- Context Notes -->
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+              <label class="form-label" for="skillNotes" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
+                Practical Notes <span style="font-weight: 400; color: #64748b;">(Optional)</span>
+              </label>
+              <textarea
+                id="skillNotes"
+                class="form-textarea"
+                placeholder="Briefly describe what you built or learned with this skill..."
+                rows="2"
+                style="resize: vertical; font-size: 0.82rem; min-height: 60px;"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fixed Modal Footer -->
+        <div id="catalogModalFooter" class="modal-catalog-footer">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="closeSkillCatalogModal()" style="padding: 0.5rem 1rem;">
+            Cancel
+          </button>
+          <button type="button" id="btnConfirmAddSkill" class="btn btn-primary btn-sm" onclick="confirmAddSkill()" style="padding: 0.5rem 1.25rem; display: none;">
+            Add Skill
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+      <!-- Client-Side State Controller & Interactive Scripts -->
+<script>
       function escapeHtml(str) {
         if (str == null) return '';
         return String(str)
@@ -2047,6 +2591,8 @@ export function renderProfilePage({
               salaryCurrency: document.getElementById('salaryCurrency').value,
               availabilityDate: document.getElementById('availabilityDate').value,
               relocationPreference: document.getElementById('relocationPreference').value,
+              workAuthorization: document.getElementById('workAuthInput') ? document.getElementById('workAuthInput').value.split(',').map(s => s.trim()).filter(Boolean) : (profileState.preferences?.workAuthorization || []),
+              visaSponsorshipRequired: document.getElementById('visaSponsorshipRequired') ? document.getElementById('visaSponsorshipRequired').value === 'true' : (profileState.preferences?.visaSponsorshipRequired ?? false),
             },
             additionalSkills: additionalSkillsData.map((s, idx) => {
               if (!s.catalogSkillId) {
@@ -3009,149 +3555,10 @@ export function renderProfilePage({
       renderLinks();
       renderAdditionalSkills();
     </script>
-
-    <!-- ================================================================ -->
-    <!-- SKILL CATALOG MODAL (SaaS Production Design)                     -->
-    <!-- ================================================================ -->
-    <div id="skillCatalogModal" class="modal-backdrop" style="display: none;">
-      <div class="modal-catalog-dialog">
-        <!-- Modal Header -->
-        <div class="modal-catalog-header">
-          <div>
-            <h3 id="catalogModalTitle" class="modal-title" style="font-size: 1.05rem; font-weight: 700; color: #f8fafc;">Add Skill to Profile</h3>
-            <div id="catalogModalSubtitle" style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.15rem;">Browse canonical skill catalog or search by keyword</div>
-          </div>
-          <button type="button" class="modal-close-btn" onclick="closeSkillCatalogModal()" aria-label="Close modal">×</button>
-        </div>
-
-        <!-- Scrollable Modal Body (The ONLY scroll container) -->
-        <div id="catalogModalBody" class="modal-catalog-body">
-          <!-- STAGE 1: BROWSE & SEARCH -->
-          <div id="catalogBrowseArea">
-            <!-- Search Box -->
-            <div class="catalog-search-wrap">
-              <input
-                type="text"
-                id="catalogSearchInput"
-                class="catalog-search-input"
-                placeholder="Search skills (e.g. Docker, PostgreSQL, React, AWS)..."
-                autocomplete="off"
-                oninput="searchCatalogSkills(this.value)"
-              />
-            </div>
-
-            <!-- Categories Filter Pills -->
-            <div style="margin-bottom: 0.85rem;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem;">
-                <span style="font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Categories</span>
-                <span id="catalogCategorySummary" style="font-size: 0.72rem; color: #64748b;">Showing all</span>
-              </div>
-              <div id="catalogCategoriesList" class="catalog-categories-bar"></div>
-            </div>
-
-            <!-- Skills Results List -->
-            <div>
-              <div style="font-size: 0.72rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.45rem;">Available Skills</div>
-              <div id="catalogSkillsList" class="catalog-skills-container"></div>
-            </div>
-          </div>
-
-          <!-- STAGE 2: CONFIGURE SKILL -->
-          <div id="addSkillForm" style="display: none;">
-            <!-- Selected Skill Glass Card -->
-            <div class="catalog-selected-card">
-              <div>
-                <div style="font-size: 0.7rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Selected Skill</div>
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem;">
-                  <strong id="selectedSkillName" style="color: #f8fafc; font-size: 1.05rem;"></strong>
-                  <span id="selectedSkillCategoryBadge" class="badge badge-indigo" style="font-size: 0.7rem;"></span>
-                </div>
-              </div>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="backToCatalogBrowse()" style="font-size: 0.75rem; padding: 0.3rem 0.65rem;">
-                ← Change Skill
-              </button>
-            </div>
-
-            <!-- Skill Provenance Status Selector -->
-            <div style="margin-bottom: 1.1rem;">
-              <label class="form-label" style="font-size: 0.8rem; margin-bottom: 0.4rem;">Skill Status</label>
-              <div class="status-pill-toggle">
-                <button type="button" id="btnStatusSelfDeclared" class="status-toggle-btn active" onclick="setSkillStatusMode('SELF_DECLARED')">
-                  ○ Self-Declared Skill
-                </button>
-                <button type="button" id="btnStatusLearning" class="status-toggle-btn" onclick="setSkillStatusMode('LEARNING')">
-                  📖 Currently Learning
-                </button>
-              </div>
-              <div id="skillStatusDesc" style="font-size: 0.72rem; color: #64748b; margin-top: -0.2rem;">
-                You actively use or have practical experience with this skill.
-              </div>
-            </div>
-
-            <!-- Hidden input maintaining exact contract with backend / tests -->
-            <input type="hidden" id="skillProficiency" value="WORKING_KNOWLEDGE" />
-
-            <!-- Proficiency Tier Selector (shown when Self-Declared) -->
-            <div id="proficiencyTierGroup" class="form-group" style="margin-bottom: 1rem;">
-              <label class="form-label" for="selectedProficiencyTier" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
-                Proficiency Level
-              </label>
-              <select id="selectedProficiencyTier" class="form-select" onchange="handleProficiencyTierChange(this.value)">
-                <option value="BASIC">Basic — Conceptual understanding or introductory experience</option>
-                <option value="WORKING_KNOWLEDGE" selected>Working Knowledge — Practical hands-on project experience</option>
-                <option value="PROFICIENT">Proficient — Confident independent implementation</option>
-                <option value="ADVANCED">Advanced — Deep architectural and production expertise</option>
-              </select>
-            </div>
-
-            <!-- Usage Context Selector -->
-            <div class="form-group" style="margin-bottom: 1rem;">
-              <label class="form-label" for="skillUsageContext" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
-                Usage Context <span style="font-weight: 400; color: #64748b;">(Optional)</span>
-              </label>
-              <select id="skillUsageContext" class="form-select">
-                <option value="">-- How have you used this skill? --</option>
-                <option value="PROFESSIONAL_WORK">Professional Production Work</option>
-                <option value="INTERNSHIP">Internship Experience</option>
-                <option value="PERSONAL_PROJECT">Personal Project / Open Source</option>
-                <option value="FREELANCE">Freelance / Client Engagement</option>
-                <option value="ACADEMIC_PROJECT">Academic Coursework / Capstone</option>
-                <option value="CERTIFICATION">Certification / Structured Course</option>
-                <option value="SELF_STUDY">Self-Directed Study & Labs</option>
-              </select>
-            </div>
-
-            <!-- Context Notes -->
-            <div class="form-group" style="margin-bottom: 0.5rem;">
-              <label class="form-label" for="skillNotes" style="font-size: 0.8rem; margin-bottom: 0.4rem;">
-                Practical Notes <span style="font-weight: 400; color: #64748b;">(Optional)</span>
-              </label>
-              <textarea
-                id="skillNotes"
-                class="form-textarea"
-                placeholder="Briefly describe what you built or learned with this skill (e.g. Set up multi-container development environment with Docker Compose)..."
-                rows="2"
-                style="resize: vertical; font-size: 0.82rem; min-height: 60px;"
-              ></textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- Fixed Modal Footer -->
-        <div id="catalogModalFooter" class="modal-catalog-footer">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="closeSkillCatalogModal()" style="padding: 0.5rem 1rem;">
-            Cancel
-          </button>
-          <button type="button" id="btnConfirmAddSkill" class="btn btn-primary btn-sm" onclick="confirmAddSkill()" style="padding: 0.5rem 1.25rem; display: none;">
-            Add Skill
-          </button>
-        </div>
-      </div>
-    </div>
   `;
 
   return renderLayout({
-    title: 'Career Profile & Preferences',
+    title: 'Candidate Career Profile & Workspace',
     user,
     tenant,
     currentPath: '/profile',

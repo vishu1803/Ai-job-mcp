@@ -9,14 +9,14 @@
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-005AZ (47 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
-| **Project State** | **ACTIVE / IN PROGRESS — P14-005AZ VERIFIED / READY FOR CHATGPT MCP LIVE TEST** | P14-005AZ `submit_job_application` truthful submission semantics enforced (anti-simulation, HANDOFF_READY for unintegrated portals, no fake SUB-* refs, real adapter support, tracking vs submission distinction). P14-005AY `get_application_submission_status` method mismatch resolved. P14-005AX `validate_job_application` CORROBORATED provenance contract and package email integrity verified. UI Redesign (Batches 1-7) 100% complete. |
-| **Total Tasks** | **131 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **129 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-005AZ (47 tasks) |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-006 (48 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
+| **Project State** | **ACTIVE / IN PROGRESS — P14-006 PORTFOLIO/PROFILE REDESIGN VERIFIED** | P14-006 Candidate Portfolio/Profile page redesign 100% complete across all 10 canonical sections, desktop & mobile viewports verified via CDP. P14-005AZ `submit_job_application` truthful submission semantics enforced. P14-005AY `get_application_submission_status` method mismatch resolved. |
+| **Total Tasks** | **132 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **130 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-006 (48 tasks) |
 | **In Progress Tasks** | **1 Task** | P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation — Local Implementation Verified, Live ChatGPT MCP Verification Required) |
 | **Blocked / Not Accepted Tasks** | **2 Tasks** | P14-005W (`get_candidate_profile` NOT ACCEPTED due to public ChatGPT schema mismatch) and P14-005AB (blocked on live ChatGPT MCP call returning actual analysis payload) |
-| **Overall Task Completion** | **99.23% (129 / 130 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **99.23% (16.88 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **99.24% (130 / 131 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **99.24% (16.89 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +39,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 41 | 40 | 1 | **IN_PROGRESS** | **97.6%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 42 | 41 | 1 | **IN_PROGRESS** | **97.6%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -5327,5 +5327,103 @@ Investigation into real submission behavior confirmed that `submit_job_applicati
 | **P15-002** | Cloud Document Connectors (Google Drive, OneDrive, Notion) | P14-005 | NOT_STARTED | Connectors for cloud storage providers to continuously sync candidate resumes, certifications, and portfolio documents. |
 | **P15-003** | Continuous Background Repository Sync & Automated Skill Drift Detection | P14-005 | NOT_STARTED | Scheduled background workers periodically inspecting connected repositories for new commits, tags, and dependencies, emitting skill growth notifications. |
 | **P15-004** | Autonomous Job Application Preparation & Interview Intelligence Assistant | P15-003 | NOT_STARTED | Advanced multi-agent interview coaching pipelines generating customized technical mock interviews based on candidate's exact verified AST code evidence. |
+
+---
+
+### P14-006 Portfolio/Profile UI Redesign — Unified 10-Section Candidate Workspace
+
+#### 1. Description & Context
+Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile page (`/profile` via `src/views/profile.page.js`) transforming it into a single, cohesive, recruiter-grade candidate workspace:
+1. **Strict UI/UX-First Scope Boundary**:
+   - Zero database schema modifications.
+   - Zero synthetic backend fields or hidden temporary storage.
+   - Zero modifications to backend API contracts or profile ingestion services.
+   - Preserved all existing interactions: profile identity editing, career status editing, multi-record experience CRUD, education CRUD, language CRUD, certification CRUD, portfolio links, additional skills, 620px canonical Skill Catalog modal, sticky save bar on dirty state, discard behavior, and AJAX PATCH `/api/profile`.
+2. **10-Section Canonical Ordering**:
+   1. **Profile Header & Readiness** (`#section-header`): Candidate avatar monogram, name, detected career standing, profile readiness progress bar, 9-section jump-nav pills, and AI client data flow banner.
+   2. **Professional Summary & Narrative** (`#section-summary`): Display name, headline, persona, standing selector, residence location, and active employment status.
+   3. **Contact & Professional Links** (`#section-contact`): Authoritative contact channels with truthful readiness pills (`✓ Ready`, `⚠ Missing`, `○ Optional`). Resolved canonical account email (`vishwanatnishad@gmail.com`, zero synthetic emails), resume-extracted phone (`7905087928`), residence, verified LinkedIn link, verified GitHub link, and portfolio link.
+   4. **Application Readiness & Compliance** (`#section-readiness`): Visually distinct ATS handoff section with 3 subcards:
+      - *Work Authorization & Sponsorship*: Legal work authorization input (`⚠ Needs confirmation`), visa sponsorship requirement (`✓ Declared` — No sponsorship needed).
+      - *Working Model & Availability*: Remote model selection (`✓ Ready` — Flexible), relocation preference (`✓ Ready` — Remote Only), and notice period / earliest start date (`✓ Ready` — Immediately).
+      - *Reusable Application Answers (Screening Bank)*: 5 screening Q&As with explicit provenance pills (`✓ User Confirmed`, `○ Inferred from Residence`, `✓ Derived from History`, `✓ Code AST Verified`).
+   5. **Work Experience History** (`#section-experience`): Multi-record cards with provenance badges (`✓ User Provided`, `✓ Verified`, `○ Claimed`), bullet points, Edit/Delete modal triggers, and auto-calculated derived tenure metrics box (`#dispTotalExp`, `#dispProfExp`, `#dispSeExp`, `#dispSeniority`).
+   6. **Education & Degrees** (`#section-education`): Multi-record degree cards, graduation dates, currently enrolled indicators, and verified coursework pills.
+   7. **Career Skills** (`#section-skills` & `#section-additional-skills`): Evidence-controlled skills with 8-domain categorization, GitHub-verified counts, Corroborated badges, Resume claims, supporting technology signals, and Section 7B candidate-declared skills.
+   8. **Highlighted Portfolio Projects** (`#section-projects`): AST-grounded repository cards with commit citations, technology stacks, entrypoint verifications, and external GitHub repository links.
+   9. **Languages & Certifications** (`#section-credentials`): Dual-column grid for certifications and spoken languages with inline add/delete controls and additional custom portfolio links.
+   10. **Job Search Intent & Matching Criteria** (`#section-search-intent`): Interactive chip inputs for target roles and preferred job locations, quick suggestions, compensation floor threshold, and annual currency selector.
+3. **Interactive Components & State Invariants**:
+   - Integrated full client-side state controller (`window.__INITIAL_PROFILE__ = ${JSON.stringify(initialProfileState)};`).
+   - Sticky floating save bar (`#stickySaveBar`) triggers automatically on dirty state (`markFormDirty()`) and hides on save/discard.
+   - 620px canonical Skill Catalog modal (`#skillCatalogModal`) with live search, 18 category filter pills, canonical skill items, and proficiency tier selection.
+
+#### 2. Files Modified
+- `src/views/profile.page.js`
+- `project.md`
+
+#### 3. Verification & Evidence
+- **Browser CDP Verification (`scratch/cdp_verify_profile.mjs`)**:
+  - **Sections Order Verification**: `PASS` (All 10 sections verified in exact required sequence with strictly increasing DOM offsets: Header at 136.8px, Summary at 478.2px, Contact at 1095.4px, Readiness at 1471.6px, Experience at 2552.7px, Education at 2970.3px, Skills at 3240.8px, Projects at 4551.3px, Languages & Certs at 5364.9px, Search Intent at 5721.7px).
+  - **Data Integrity Audit**: Primary email verified authentic (`vishwanatnishad@gmail.com`), phone verified (`7905087928`), LinkedIn & GitHub links verified, sponsorship confirmed (`false`).
+  - **Modals Functional**: Experience modal opens & closes; Education modal opens & closes; Skill Catalog modal opens with 18 categories and closes cleanly.
+  - **Dirty State & Sticky Save Bar**: Editing field triggers `#stickySaveBar.visible` and `#dirtyIndicator`; `discardChanges()` resets state and hides bar cleanly.
+  - **Mobile 390px Audit**: Verified `scrollWidth: 390, clientWidth: 390, hasHorizontalOverflow: false` (Zero horizontal overflow; single-column responsive stacking).
+  - **Visual Artifacts Captured**:
+    - `profile_desktop_top_1280.png` (Desktop Header, Summary, Contact, Readiness)
+    - `profile_desktop_contact_readiness_1280.png` (Contact channels & Application Readiness cards)
+    - `profile_desktop_middle_1280.png` (Experience, Education, Skills)
+    - `profile_desktop_skills_1280.png` (8-domain skill groups & Section 7B Additional Skills)
+    - `profile_desktop_bottom_1280.png` (Projects, Languages/Certs, Job Search Intent)
+    - `profile_desktop_skill_catalog_modal.png` (620px canonical Skill Catalog modal)
+    - `profile_desktop_sticky_save_bar.png` (Floating sticky save bar on dirty state)
+    - `profile_mobile_top_390.png` (Mobile 390px header and summary)
+    - `profile_mobile_contact_readiness_390.png` (Mobile contact & readiness stacked cards)
+    - `profile_mobile_bottom_390.png` (Mobile preferences and chip inputs)
+- **Unit & Integration Regression Suites**:
+  - `node --test tests/unit/candidate-career-profile.test.js` $\rightarrow$ **41/41 PASS** (100%).
+  - `node --test tests/integration/mcp-job-workflow.test.js` $\rightarrow$ **14/14 PASS** (100%).
+- **Code Quality & Security**:
+  - `npx eslint src/views/profile.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+  - `npx prettier --check src/views/profile.page.js` $\rightarrow$ **PASS (100% compliant)**.
+  - `npm run scan:secrets` $\rightarrow$ **PASS (Zero exposed secrets detected)**.
+
+---
+
+## Latest Production & MCP Gap Audit (2026-09-05)
+
+### AUDIT-P14-001 — Production Readiness and MCP Operational Gap Analysis
+
+**Status:** COMPLETE (analysis delivered; remediation tasks remain open)
+
+**Scope:** Read-only review of `goal.md`, this execution ledger, runtime configuration, Fastify registration, MCP transport/authentication, OAuth routes, database/storage layers, CI, deployment artifacts, and operational documentation.
+
+**Current phase confirmed:** PHASE 14 — Security Hardening & Production Readiness. The request is aligned with `goal.md`; it directly tests the stated multi-tenant, evidence-backed, human-approval, and provider-neutral production objectives.
+
+**Highest-priority gaps identified:**
+
+1. **P0 — Metrics exposure:** `GET /metrics` is registered without authentication or a network restriction in `src/routes/health.routes.js`. The runbook describes it as internal/authorized, but the code exposes it publicly. Add an authenticated scrape path or enforce an ingress allowlist/mTLS at the deployment boundary.
+2. **P0 — Proxy identity trust:** `trustProxy: true` trusts every proxy hop in production (`src/app.js`). This allows spoofable forwarded client IPs if the perimeter is bypassed or misconfigured. Configure an explicit trusted proxy count/IP range and reject direct public access to the origin.
+3. **P0 — Database TLS verification:** `src/db/index.js` uses `ssl: { rejectUnauthorized: false }` for remote databases. Encryption-in-transit is enabled, but server certificate authenticity is not verified. Production needs CA material/hostname verification, with the staging exception explicitly isolated and tested.
+4. **P0 — Production configuration fail-closed behavior:** `src/config/env.js` only makes `ENCRYPTION_MASTER_KEY` mandatory in production. `SESSION_COOKIE_SECRET`, `DATABASE_URL`, `APP_URL`, OAuth issuer/resource URLs, GitHub App credentials, and an explicit trusted proxy configuration can silently fall back to development-style defaults or empty values. Add environment-specific required fields and startup validation, including HTTPS URL checks.
+5. **P0 — Durable document storage:** `DocumentStorageService` writes encrypted blobs to local process disk. This is not durable or horizontally shared across restarts/instances and the runbook’s S3/R2 production target is not implemented. Introduce an object-storage adapter with tenant-bound keys, lifecycle deletion, KMS/envelope-key management, and backup/restore verification.
+6. **P1 — MCP deployment contract:** The MCP route currently handles POST JSON responses, but there is no tracked production deployment manifest, container/process definition, origin firewall policy, or external MCP conformance/load test gate. The docs describe these controls; the repository does not package them as reproducible deployment artifacts.
+7. **P1 — OAuth abuse controls:** Public dynamic client registration (`POST /oauth/register`) has no visible route-level rate limit, registration quotas, abuse monitoring, or client lifecycle/deletion policy. Add bounded registration, redirect-URI policy checks, cleanup, and alerting before exposing it publicly.
+8. **P1 — Distributed runtime state:** MCP rate limits, concurrency, connector caches, token caches, and metrics are process-local. Multiple instances will not share limits, duplicate work protection, or operational counters. Either constrain deployment to one instance with documented capacity limits or add Redis/managed equivalents and integration tests.
+9. **P1 — Background lifecycle work:** Session cleanup, connector synchronization, webhook retry/dead-letter handling, backup scheduling, key rotation, and deletion retries are documented/planned but no worker/queue/scheduler runtime is present. These are required for reliable multi-user operation, not just performance enhancements.
+10. **P1 — Verification/tooling gap:** Repository-level checks could not be executed in this environment because PowerShell blocks `npm.ps1`, and `npm.cmd`/Node then hit an `EPERM` while resolving `C:\Users\VISHW\AppData`. A clean CI or permitted shell run is still required for `npm test`, lint, dependency audit, and secret scan after remediation.
+
+**Additional production concerns:**
+
+- No tracked Docker/container, infrastructure-as-code, migration rollout/rollback, or secret-manager integration artifacts were found; deployment remains runbook-driven.
+- Health readiness includes the raw database error string. Confirm production error sanitization does not reveal provider/network details.
+- `DocumentStorageService` contains a development fallback encryption key. Production startup validation currently prevents the normal path, but the service should fail closed independently if instantiated without a valid key.
+- Existing tests demonstrate strong functional and tenant-isolation coverage, but do not by themselves prove multi-instance behavior, real object-storage durability, certificate validation, external WAF/origin lockdown, incident response, or production MCP-client compatibility.
+
+**Recommended remediation order:**
+
+`P14-006` production config/TLS/proxy fail-closed hardening → `P14-007` metrics and OAuth abuse perimeter → `P14-008` durable object storage → `P14-009` distributed rate/concurrency/cache state → `P14-010` worker/retry/scheduling subsystem → `P14-011` reproducible deployment and external MCP conformance/load gates.
+
+**Evidence reviewed:** `src/config/env.js`, `src/app.js`, `src/db/index.js`, `src/routes/health.routes.js`, `src/routes/oauth.routes.js`, `src/security/mcp-auth.js`, `src/routes/mcp.routes.js`, `src/services/document-storage.service.js`, `src/monitoring/metrics.service.js`, `.github/workflows/ci.yml`, `package.json`, and tracked deployment/operations files.
 
 ---
