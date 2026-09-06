@@ -1246,6 +1246,25 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
           applicationPackage,
           { source: 'SUBMIT_JOB_APPLICATION' }
         );
+
+        await this.db
+          .update(jobApplications)
+          .set({
+            status: 'APPLIED',
+            appliedAt: new Date(),
+            updatedAt: new Date(),
+            metadata: {
+              ...(trackedApp.metadata || {}),
+              destinationUrl,
+              externalReference: adapterResult.externalReference,
+              externalSubmissionState: 'SUBMITTED',
+              externalSubmissionStatus: 'SUBMITTED',
+              packageHash,
+            },
+          })
+          .where(
+            and(eq(jobApplications.id, trackedApp.id), eq(jobApplications.tenantId, tenantId))
+          );
       } catch (err) {
         // Tracking failures must not fail the external submission itself
         this.logger.warn(

@@ -61,10 +61,12 @@ describe('Job Application Submission Truth Regression Suite (P14-005AZ)', () => 
       tier: 'PRO',
     });
 
+    const candEmail = `truth-candidate-${Date.now()}@example.test`;
+
     await db.insert(users).values({
       id: userId,
       tenantId,
-      email: `truth-candidate-${Date.now()}@example.test`,
+      email: candEmail,
       displayName: 'Truth Seeker',
       role: 'MEMBER',
       status: 'ACTIVE',
@@ -75,7 +77,7 @@ describe('Job Application Submission Truth Regression Suite (P14-005AZ)', () => 
       tenantId,
       userId,
       displayName: 'Truth Seeker',
-      canonicalEmail: `truth-candidate-${Date.now()}@example.test`,
+      canonicalEmail: candEmail,
     });
 
     workflowService = new JobApplicationWorkflowService({ database: db });

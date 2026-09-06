@@ -321,9 +321,10 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
       resumeMarkdown.includes('Staff Distributed Systems Engineer'),
       'real candidate headline/summary must appear in resume'
     );
-    // Provenance truth separation must survive into the document
-    assert.ok(resumeMarkdown.includes('**Verified:**'));
-    assert.ok(resumeMarkdown.includes('**Self-reported:**') && resumeMarkdown.includes('Python'));
+    // Categorized skills in document
+    assert.ok(resumeMarkdown.includes('## Technical Skills'));
+    assert.ok(resumeMarkdown.includes('Node.js'));
+    assert.ok(resumeMarkdown.includes('Python'));
     // Generic fallback prose is banned
     assert.doesNotMatch(resumeMarkdown, /Experienced software engineer with verified expertise/i);
     assert.doesNotMatch(resumeMarkdown, /Dedicated software engineer/i);

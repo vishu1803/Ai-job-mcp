@@ -114,7 +114,40 @@ export function renderHandoffPage({
   ).length;
 
   const content = `
-    <div class="container" style="max-width:1120px; margin:0 auto 60px; padding:0 16px;">
+    <style>
+      .handoff-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 24px;
+      }
+      .handoff-card {
+        padding: 24px 28px;
+        background: #111827;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+      }
+      @media (max-width: 860px) {
+        .handoff-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 640px) {
+        .handoff-card {
+          padding: 16px;
+        }
+        .matrix-row {
+          flex-direction: column;
+          align-items: flex-start !important;
+        }
+        .matrix-row > div:last-child {
+          width: 100%;
+          justify-content: space-between;
+        }
+      }
+    </style>
+
+    <div class="container" style="max-width:1100px; margin:0 auto; padding:24px 16px 64px;">
       <!-- Navigation & Breadcrumbs & Package Controls -->
       <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin:24px 0 20px;">
         <a href="/applications" class="back-nav-link" style="display:inline-flex; align-items:center; gap:6px; color:var(--text-muted); text-decoration:none; font-size:0.875rem; transition:color 0.15s ease;">
@@ -217,10 +250,10 @@ export function renderHandoffPage({
       </div>
 
       <!-- SECTION 1: DOCUMENT READINESS (Resume & Cover Letter Artifacts) -->
-      <div id="document-readiness-card" class="card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
+      <div id="document-readiness-card" class="card handoff-card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
           <div>
-            <div style="display:flex; align-items:center; gap:10px;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px;">
               <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">Document Readiness</h2>
               <span class="badge" style="background:${documentsReady ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)'}; color:${documentsReady ? '#10B981' : '#EF4444'}; border:1px solid ${documentsReady ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}; font-weight:700; font-size:0.75rem; padding:3px 8px;">
                 ${documentsReady ? '● READY' : '○ BLOCKED'}
@@ -232,14 +265,14 @@ export function renderHandoffPage({
           </div>
           ${
             resumeQa.score !== undefined
-              ? `<span class="badge" style="background:rgba(16, 185, 129, 0.1); color:#10B981; border:1px solid rgba(16, 185, 129, 0.25); font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:4px;">
-                  <span class="quality-pill-score">${escapeHtml(String(resumeQa.score))}/100</span> &bull; <span class="quality-pill-label">Quality Audit</span>
+              ? `<span class="badge" style="background:rgba(16, 185, 129, 0.1); color:#10B981; border:1px solid rgba(16, 185, 129, 0.25); font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:4px; max-width:100%; box-sizing:border-box;">
+                  <span class="quality-pill-score">${escapeHtml(String(resumeQa.score))}/100</span> &bull; <span class="quality-pill-label">Resume Quality Audit</span>
                  </span>`
               : ''
           }
         </div>
 
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap:20px;">
           <!-- Artifact Card 1: Tailored Resume -->
           <div class="card artifact-card" style="padding:20px 22px; background:#0B0F19; border:1px solid rgba(255,255,255,0.06); border-radius:6px; display:flex; flex-direction:column; justify-content:space-between;">
             <div>
@@ -260,7 +293,7 @@ export function renderHandoffPage({
               <!-- Resume Quality Breakdown -->
               <div style="background:#05070D; border:1px solid rgba(255,255,255,0.04); border-radius:6px; padding:12px; margin-bottom:16px;">
                 <div style="font-size:0.72rem; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
-                  Pre-Exposure QA Breakdown
+                  Resume Quality Audit Breakdown
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; font-size:0.8rem; text-align:center;">
                   <div style="background:rgba(255,255,255,0.02); padding:6px 4px; border-radius:4px;">
@@ -335,12 +368,12 @@ export function renderHandoffPage({
         </div>
       </div>
 
-      <!-- SECTION 2: SCREENING PROFILE COMPLETENESS -->
+      <!-- SECTION 2: APPLICATION READINESS MATRIX -->
       <div id="screening-readiness-card" class="card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
           <div>
             <div style="display:flex; align-items:center; gap:10px;">
-              <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">Screening Profile Completeness</h2>
+              <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">Application Readiness Matrix</h2>
               <span class="badge" style="background:${profileComplete ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)'}; color:${profileComplete ? '#10B981' : '#F59E0B'}; border:1px solid ${profileComplete ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'}; font-weight:700; font-size:0.75rem; padding:3px 8px;">
                 ${profileComplete ? '● COMPLETE' : '○ INCOMPLETE'}
               </span>

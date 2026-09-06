@@ -114,8 +114,10 @@ describe('LatexDocumentGenerator Service', () => {
     assert.ok(result.texContent.includes('Vishwanath Nishad'));
     assert.ok(result.texContent.includes('vishwanatnishad@gmail.com'));
     assert.ok(result.texContent.includes('+1-555-0199'));
-    assert.ok(result.texContent.includes('Vercel'));
+    // Target company must NOT appear as a "Tailored for: [Company]" badge on clean resume
+    assert.ok(!result.texContent.includes('Tailored for:'));
     assert.ok(result.texContent.includes('Staff Software Engineer - Infrastructure'));
+    assert.equal(result.targetCompany, 'Vercel');
     assert.equal(result.candidateEmail, 'vishwanatnishad@gmail.com');
   });
 

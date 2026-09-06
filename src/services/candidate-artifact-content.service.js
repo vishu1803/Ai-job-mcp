@@ -633,7 +633,7 @@ export class CandidateArtifactContentService {
    * @param {object} [jobPosting] Target job posting (defaults to candidateData.jobPosting)
    * @returns {Array<object>} Ranked projects with .selectedProjects and .selectionAudit attached
    */
-  rankProjectsForJob(candidateData, jobPosting = candidateData?.jobPosting) {
+  rankProjectsForJob(candidateData, jobPosting = candidateData?.jobPosting, options = {}) {
     const targetPosting = jobPosting || candidateData?.jobPosting || {};
     const jobTitle = (targetPosting.title || '').toLowerCase();
     const jobDesc =
@@ -836,7 +836,7 @@ export class CandidateArtifactContentService {
       );
 
     const selected = [];
-    const maxToSelect = 2;
+    const maxToSelect = options?.maxProjects || 2;
 
     for (let i = 0; i < activeCandidates.length; i++) {
       const candidate = activeCandidates[i];
@@ -1227,11 +1227,67 @@ export class CandidateArtifactContentService {
       }
     }
 
+    const CANONICAL_ALIAS_MAP = {
+      prisma: 'Prisma ORM',
+      'prisma orm': 'Prisma ORM',
+      postgres: 'PostgreSQL',
+      postgresql: 'PostgreSQL',
+      'postgresql (sql)': 'PostgreSQL',
+      node: 'Node.js',
+      'node.js': 'Node.js',
+      express: 'Express.js',
+      'express.js': 'Express.js',
+      react: 'React',
+      'react.js': 'React',
+      drizzle: 'Drizzle ORM',
+      'drizzle orm': 'Drizzle ORM',
+      'rest api': 'RESTful APIs',
+      'rest apis': 'RESTful APIs',
+      'rest api design': 'RESTful APIs',
+      fastapi: 'FastAPI',
+      fastify: 'Fastify',
+      'next.js': 'Next.js',
+      nextjs: 'Next.js',
+      nestjs: 'NestJS',
+      'c/c++': 'C/C++',
+      'c++': 'C/C++',
+      c: 'C',
+      'model context protocol': 'Model Context Protocol (MCP)',
+      mcp: 'Model Context Protocol (MCP)',
+    };
+
     const categorizedSkills = {};
     for (const [cat, list] of Object.entries(categoryGroups)) {
       list.sort((a, b) => b.score - a.score || b.evidenceCount - a.evidenceCount);
       if (list.length > 0) {
-        categorizedSkills[cat] = list.map((s) => s.name);
+        // Deduplicate skill aliases (e.g. "Prisma" vs "Prisma ORM" -> keep canonical form)
+        const deduped = [];
+        const seenTokens = new Set();
+        for (const s of list) {
+          const rawLower = String(s.name || '')
+            .trim()
+            .toLowerCase();
+          const canonicalName = CANONICAL_ALIAS_MAP[rawLower] || s.name;
+          const token = normalizeSkillToken(canonicalName);
+          if (seenTokens.has(token)) continue;
+          // Check if a longer variant already covers this token
+          const isSubset = [...seenTokens].some(
+            (existing) => existing.includes(token) || token.includes(existing)
+          );
+          if (isSubset) continue;
+          seenTokens.add(token);
+          deduped.push(canonicalName);
+        }
+        // If Git and GitHub Actions are present in Cloud & DevOps, remove redundant standalone GitHub
+        if (cat === 'Cloud, DevOps & Systems') {
+          const hasGit = deduped.some((name) => name.toLowerCase() === 'git');
+          const hasActions = deduped.some((name) => /actions/i.test(name));
+          if (hasGit && hasActions) {
+            const ghIdx = deduped.findIndex((name) => name.toLowerCase() === 'github');
+            if (ghIdx >= 0) deduped.splice(ghIdx, 1);
+          }
+        }
+        categorizedSkills[cat] = deduped;
       }
     }
 
@@ -1248,26 +1304,53 @@ export class CandidateArtifactContentService {
   buildTailoredResumeMarkdown(candidateData, jobPosting) {
     const { displayName } = candidateData;
     const targetRole = jobPosting.title;
-    const targetCompany = jobPosting.company;
+    const _targetCompany = jobPosting.company;
 
     const lines = [];
     const renderedSections = [];
 
     const pushSection = (name) => renderedSections.push(name);
 
-    // ---- Header -------------------------------------------------------------
+    // ---- Header (4-tier: Name, Headline, Contact, Profile Links) ------------
     lines.push(`# ${displayName}`);
     lines.push('');
-    const headerParts = [];
-    if (candidateData.email) headerParts.push(`**Email:** ${candidateData.email}`);
-    if (candidateData.phone) headerParts.push(`**Phone:** ${candidateData.phone}`);
-    if (candidateData.location) headerParts.push(`**Location:** ${candidateData.location}`);
-    if (candidateData.githubUsername) {
-      headerParts.push(`**GitHub:** https://github.com/${candidateData.githubUsername}`);
+
+    // Tier 2: Professional headline (if available) or target role
+    const headline = candidateData.headline || targetRole;
+    if (headline) {
+      lines.push(`### ${headline}`);
+      lines.push('');
     }
-    lines.push(headerParts.join(' · '));
-    if (targetRole || targetCompany) {
-      lines.push(`*Tailored for: ${[targetRole, targetCompany].filter(Boolean).join(' at ')}*`);
+
+    // Tier 3: Contact information
+    const contactParts = [];
+    if (candidateData.phone) contactParts.push(`**Phone:** ${candidateData.phone}`);
+    if (candidateData.location) contactParts.push(`**Location:** ${candidateData.location}`);
+    if (candidateData.email) contactParts.push(`**Email:** ${candidateData.email}`);
+    if (contactParts.length > 0) {
+      lines.push(contactParts.join(' · '));
+    }
+
+    // Tier 4: Profile links (LinkedIn, GitHub, Portfolio, LeetCode)
+    const profileLinkParts = [];
+    const portfolioLinksList = candidateData.portfolioLinks || [];
+    const linkedInLink = portfolioLinksList.find((l) =>
+      /linkedin/i.test(l.label || l.platform || '')
+    );
+    if (linkedInLink?.url) profileLinkParts.push(`[LinkedIn](${linkedInLink.url})`);
+    if (candidateData.githubUsername) {
+      profileLinkParts.push(`[GitHub](https://github.com/${candidateData.githubUsername})`);
+    }
+    const portfolioLink = portfolioLinksList.find((l) =>
+      /portfolio/i.test(l.label || l.platform || '')
+    );
+    if (portfolioLink?.url) profileLinkParts.push(`[Portfolio](${portfolioLink.url})`);
+    const leetcodeLink = portfolioLinksList.find((l) =>
+      /leetcode/i.test(l.label || l.platform || '')
+    );
+    if (leetcodeLink?.url) profileLinkParts.push(`[LeetCode](${leetcodeLink.url})`);
+    if (profileLinkParts.length > 0) {
+      lines.push(profileLinkParts.join(' · '));
     }
     lines.push('');
 
@@ -1330,7 +1413,14 @@ export class CandidateArtifactContentService {
         const bullets = Array.isArray(project.bullets) ? project.bullets : [];
         if (bullets.length > 0) {
           for (const bullet of bullets) {
-            lines.push(`- ${String(bullet).trim()}`);
+            const bStr = String(bullet).trim();
+            if (
+              bStr.length > 0 &&
+              !/^(source code|project link|repository|repo|url):\s*https?:\/\//i.test(bStr) &&
+              !/^https?:\/\//i.test(bStr)
+            ) {
+              lines.push(`- ${bStr}`);
+            }
           }
           lines.push('');
         } else if (project.summary) {
@@ -1416,11 +1506,12 @@ export class CandidateArtifactContentService {
     const markdownContent = lines.join('\n');
     const contentHash = crypto.createHash('sha256').update(markdownContent, 'utf8').digest('hex');
 
-    // Fit score calculation
+    // Fit score calculation (fallback jobKeywords from jobPosting if candidateData lacks them)
     const allSelectedSkills = Object.values(categorizedSkills).flat();
     const allSkillTokens = allSelectedSkills.map(normalizeSkillToken);
+    const jobKeywords = candidateData.jobKeywords || extractJobKeywords(jobPosting);
     const matchedSkills = allSkillTokens.filter((token) =>
-      [...candidateData.jobKeywords].some(
+      [...jobKeywords].some(
         (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
       )
     );
@@ -1633,11 +1724,11 @@ export class CandidateArtifactContentService {
       );
     }
 
-    const resume = this.buildTailoredResumeMarkdown(candidateData, jobPosting);
-    const coverLetter = this.buildCoverLetterMarkdown(candidateData, jobPosting);
-
     if (candidateEmail) candidateData.email = candidateEmail;
     if (candidatePhone) candidateData.phone = candidateData.phone || candidatePhone;
+
+    const resume = this.buildTailoredResumeMarkdown(candidateData, jobPosting);
+    const coverLetter = this.buildCoverLetterMarkdown(candidateData, jobPosting);
 
     const evidence = {
       resumeSections: resume.sections,

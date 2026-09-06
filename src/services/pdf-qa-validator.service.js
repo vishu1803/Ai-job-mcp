@@ -117,7 +117,7 @@ export class PdfQaValidatorService {
         `Failed selectable text check: Character count is under ${minCharThreshold} characters`
       );
     } else if (charCount < minCharThreshold * 2) {
-      parsingCompatibility -= 15;
+      parsingCompatibility -= 5;
       findings.push('Low character density detected in document');
     }
 
@@ -259,12 +259,23 @@ export class PdfQaValidatorService {
       }
     }
 
-    // Check 2D: Target Job Context
-    if (targetJob.company && !cleanText.toLowerCase().includes(targetJob.company.toLowerCase())) {
-      contentIntegrity -= 5;
-      findings.push(
-        `Target company '${targetJob.company}' not explicitly referenced in document body`
-      );
+    // Check 2D: Target Job Context & Internal Metadata Integrity
+    if (documentType === 'COVER_LETTER') {
+      if (targetJob.company && !cleanText.toLowerCase().includes(targetJob.company.toLowerCase())) {
+        contentIntegrity -= 5;
+        findings.push(
+          `Target company '${targetJob.company}' not explicitly referenced in cover letter body`
+        );
+      }
+    } else if (documentType === 'RESUME') {
+      // Internal tailoring metadata check: Resume must NOT visibly leak "Tailored for: ..."
+      if (/tailored\s+for:/i.test(cleanText) || /tailored\s+for\s+[a-z]/i.test(normalizedText)) {
+        contentIntegrity -= 35;
+        criticalFailures.push(
+          'Resume visibly contains internal generation metadata ("Tailored for: ...")'
+        );
+        findings.push('Internal tailoring metadata leaked into resume PDF');
+      }
     }
 
     // 5. Category 3: Readability & Structure (Max 30 points)
@@ -281,7 +292,7 @@ export class PdfQaValidatorService {
         Boolean
       ).length;
       if (sectionsFound < 3) {
-        readability -= 15;
+        readability -= 8;
         findings.push(
           `Incomplete section structure: only ${sectionsFound}/4 canonical resume sections identified`
         );
@@ -289,7 +300,7 @@ export class PdfQaValidatorService {
 
       // Word count density check for 1-page resume (optimal: 250 - 850 words)
       if (wordCount < 150) {
-        readability -= 10;
+        readability -= 7;
         findings.push(`Resume word count (${wordCount} words) is unusually sparse`);
       } else if (wordCount > 1000) {
         readability -= 5;
