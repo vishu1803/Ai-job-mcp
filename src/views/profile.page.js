@@ -123,9 +123,9 @@ export function renderProfilePage({
   const authenticEmail = profile?.canonicalEmail || candidate?.canonicalEmail || user?.email || '';
 
   const candidatePhone =
+    candidate?.profileMetadata?.userCustom?.phone ||
     candidate?.profileMetadata?.phone ||
     candidate?.profileMetadata?.resumeData?.identity?.phone ||
-    candidate?.profileMetadata?.userCustom?.phone ||
     '';
 
   // Professional links extraction from authoritative map

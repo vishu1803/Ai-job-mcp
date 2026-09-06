@@ -5,6 +5,99 @@
 
 ---
 
+### P14-011: Canonical Application Readiness Single-Value Resolution, Deterministic Source Precedence, and Explicit Conflict Detection
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
+**Date:** 2026-09-06
+
+**Context & Objective:**
+Following manual acceptance audit of target application `b7591a4c-6735-4668-a3be-d55a48693d5b`, an audit finding identified a data-contract concern where alternative/hedged values ("A / B" or "A OR B") were referenced for canonical readiness fields (Phone, Work Authorization, Visa Sponsorship, Earliest Start Date). Enforced a strict single authoritative source contract:
+1. Each readiness field must resolve to exactly ONE value.
+2. No UI output may show "A / B" or "A OR B" alternatives.
+3. Canonical source precedence must be explicit, deterministic, and documented:
+   `APPLICATION_ANSWERS` > `PROFILE_CAREER_PREFERENCES` / `PROFILE_USER_CUSTOM` > `VERIFIED_IDENTITIES` > `RESUME_CLAIM`.
+4. Stored profile data is read-only and never silently rewritten.
+5. If two sources provide conflicting data, return `status: 'NEEDS_CONFIRMATION'`, `hasConflict: true`, and explicit notes detailing the conflict rather than choosing silently.
+6. The same resolved values appear consistently across `/profile`, `/applications/:id/handoff`, and application preparation workflows.
+7. Candidate GitHub profile URL strictly remains `https://github.com/vishu1803`; project repositories never satisfy the candidate-level GitHub field.
+
+**Key Changes Implemented:**
+1. **Canonical Application Readiness Service (`src/services/application-readiness.service.js`):**
+   - Implemented strict single-value resolution and deterministic source tagging for all 8 readiness fields.
+   - Added explicit conflict detection logic:
+     - Phone: compares normalized digits; flags conflicts between application answers and stored profile.
+     - Work Authorization: normalizes and compares jurisdictions; flags conflicts.
+     - Visa Sponsorship: normalizes booleans/strings; flags conflicts between application answer and profile preference.
+     - Earliest Start Date: compares application availability and profile preference; flags conflicts.
+     - Email & GitHub: detects mismatches between application packages/links and canonical identities.
+   - When a conflict occurs: returns single value from highest precedence source, sets `status: 'NEEDS_CONFIRMATION'`, `hasConflict: true`, and emits explicit audit notes explaining both conflicting values.
+2. **Profile View Precedence Alignment (`src/views/profile.page.js`):**
+   - Aligned `candidatePhone` resolution in `renderProfilePage` to prioritize `userCustom.phone` over parsed resume claims (`userCustom.phone` > `phone` > `resumeData.identity.phone`).
+3. **Automated Regression Test Suite (`tests/unit/application-readiness.test.js`):**
+   - Added 5 new regression tests (Tests 5–9) covering:
+     - Test 5: Phone number conflict flagging with `NEEDS_CONFIRMATION` and single resolved value.
+     - Test 6: Visa sponsorship conflict flagging with `NEEDS_CONFIRMATION` and single resolved value.
+     - Test 7: Earliest start date conflict flagging with `NEEDS_CONFIRMATION` and single resolved value.
+     - Test 8: Work authorization jurisdiction conflict flagging with `NEEDS_CONFIRMATION`.
+     - Test 9: Real Vishwanath candidate DB profile verification ensuring all 8 fields resolve to single values with zero "A / B" alternatives.
+
+**Authoritative Field Resolution for Candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`:**
+- **Candidate Email:** `vishwanatnishad@gmail.com` (Source: `PROFILE_CANONICAL`, Status: `READY`)
+- **Contact Phone:** `7905087928` (Source: `PROFILE_USER_CUSTOM`, Status: `READY`)
+- **Work Authorization:** `Authorize to work in India` (Source: `PROFILE_CAREER_PREFERENCES`, Status: `NEEDS_CONFIRMATION`)
+- **Visa Sponsorship:** `Sponsorship Required` (Source: `PROFILE_CAREER_PREFERENCES`, Status: `NEEDS_CONFIRMATION`)
+- **LinkedIn Profile:** `https://linkedin.com/in/vishwanath-nishad` (Source: `PROFILE_PORTFOLIO_LINKS`, Status: `READY`)
+- **Candidate GitHub:** `https://github.com/vishu1803` (Source: `GITHUB_APP_IDENTITY`, Status: `READY`)
+- **Code / Portfolio:** `https://my-portfolio-kappa-beige-71.vercel.app/` (Source: `PROFILE_PORTFOLIO_LINKS`, Status: `READY`)
+- **Earliest Start Date:** `2026-10-01` (Source: `PROFILE_CAREER_PREFERENCES`, Status: `READY`)
+
+**Verification:**
+- `tests/unit/application-readiness.test.js`: **9/9 PASS**.
+- Full Readiness/Handoff Suite (`tests/unit/application-*.test.js`): **26/26 PASS**.
+- Live session inspection on target application `b7591a4c-6735-4668-a3be-d55a48693d5b`: **200 OK, 100% data contract adherence**.
+- Prettier: **PASS** across all modified files.
+- Secrets Scan (`scripts/scan-secrets.js`): **PASS (0 exposed secrets)**.
+
+---
+
+### P14-010: Manual UI Acceptance Audit of Handoff Kit (Target Application b7591a4c-6735-4668-a3be-d55a48693d5b)
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
+**Date:** 2026-09-06
+
+**Context & Objective:**
+Perform a rigorous manual UI acceptance audit of the Handoff Kit for candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` on target application `b7591a4c-6735-4668-a3be-d55a48693d5b` (Vercel Software Engineer, Backend) across 8 criteria:
+1. Application Readiness Matrix (canonical profile data, email, phone, work auth, visa, LinkedIn, code/portfolio, start date, profile-level GitHub link discrimination).
+2. Document Readiness vs. Screening Profile Completeness separation (independent visual cards, zero false implication of auto-submission).
+3. Package Version History (version, CURRENT/ARCHIVED status, package hash, timestamp, document readiness, single CURRENT invariant).
+4. Actions / UI (CURRENT package: View/Download Resume & Cover Letter, Regenerate, Archive; ARCHIVED packages: view snapshot, restore, safe delete policy).
+5. Regenerate UX (modal with Both, Resume, Cover Letter options, reason presets, explicit notice that old version is archived rather than overwritten).
+6. Visual Quality (no duplicate sections, mobile responsiveness, zero horizontal overflow, confirmation on destructive actions).
+7. Data Consistency (parity between `/applications/:id/handoff` and canonical profile `/profile`).
+8. Mobile / UI Quality.
+
+**Concrete UI Defect Discovered & Resolved:**
+- *Defect:* In `src/routes/web.routes.js`, line 3043 expected `evaluateApplicationReadiness` to return `{ readiness, readinessSemantics }`, but `evaluateApplicationReadiness` in `src/services/application-handoff.service.js` only accepted `{ candidateProfile, applicationPackage, answers, jobPosting }` (ignoring `candidate`) and returned a bare `items` array. This caused `handoffKit.readiness` to evaluate to `undefined` on live routes, rendering "0 Verified / Present, 0 Missing" in the UI.
+- *Resolution:*
+  1. Updated `ApplicationHandoffService.evaluateApplicationReadiness` to accept `candidate = null`, forward it to `ApplicationReadinessService`, and assign `items.readiness = items` and `items.readinessSemantics = semantics` to preserve backward compatibility across all call styles.
+  2. Updated `src/routes/web.routes.js` with fallback: `handoffKit.readiness = evalResult.readiness || evalResult`.
+  3. Added descriptive DOM test IDs (`#document-readiness-card`, `#screening-readiness-card`, `#package-history-card`, `#package-history-table`) in `src/views/handoff.page.js`.
+
+**Verification:**
+- Authenticated UI session test (`acceptance-test-handoff-ui.mjs` against live Fastify server and real DB records):
+  - Application Readiness Matrix: **PASS** (all 8 screening fields populated with canonical candidate values; canonical GitHub profile `https://github.com/vishu1803` correctly bound and discriminated from repository URLs).
+  - Document Readiness: **PASS** (separate visual cards; `DOCUMENTS_READY` vs `SCREENING_PROFILE COMPLETE`; clear manual submission notice).
+  - Package History: **PASS** (version `v2` marked `CURRENT`, historical ledger table renders with hashes, timestamps, and actions; exactly 1 CURRENT invariant preserved).
+  - Current Package Identification: **PASS** (prominent green badge, live artifact links).
+  - Actions / UI: **PASS** (modal previews, direct download links, regeneration modal trigger, confirmation dialog on archive/delete).
+  - Regenerate UX: **PASS** (`#regenerateModal` with `BOTH`, `RESUME`, `COVER_LETTER`, reason presets, explicit archival warning).
+  - Visual Quality & Mobile: **PASS** (responsive CSS grid, zero horizontal overflow, clean Ashby/Linear design aesthetics).
+  - Data Consistency: **PASS** (1:1 match with `/profile` data).
+- Regression Suite: `node --test tests/unit/application-handoff.test.js tests/unit/application-readiness.test.js tests/unit/application-package-lifecycle.test.js tests/unit/application-regeneration.test.js` (**21/21 PASS**).
+- Code Style & Formatting: `npx prettier --check src/services/application-handoff.service.js src/routes/web.routes.js src/views/handoff.page.js` (**PASS**).
+
+---
+
 ### P14-009: Handoff Kit Canonical Readiness Resolution, Multi-Version Package Lifecycle Controls, and In-Kit Multi-Scope Regeneration
 
 **Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  

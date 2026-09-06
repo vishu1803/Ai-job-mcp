@@ -60,17 +60,21 @@ export class ApplicationHandoffService {
    * @returns {Array<object>} Evaluated readiness checklist items
    */
   evaluateApplicationReadiness({
-    candidateProfile,
-    applicationPackage,
+    candidateProfile = null,
+    candidate = null,
+    applicationPackage = null,
     answers = null,
     jobPosting = null,
   }) {
-    const { items } = this.readinessService.evaluateReadiness({
+    const { items, semantics } = this.readinessService.evaluateReadiness({
       candidateProfile,
+      candidate,
       applicationPackage,
       answers: answers || applicationPackage?.answers,
       jobPosting: jobPosting || applicationPackage?.targetJob,
     });
+    items.readiness = items;
+    items.readinessSemantics = semantics;
     return items;
   }
 

@@ -174,8 +174,199 @@ describe('ApplicationReadinessService', () => {
 
     const visa = items.find((i) => i.field === 'visaSponsorship');
     assert.equal(visa.value, 'No sponsorship needed for this role');
+    assert.equal(visa.status, 'NEEDS_CONFIRMATION');
+    assert.equal(visa.hasConflict, true);
 
     const workAuth = items.find((i) => i.field === 'workAuthorization');
     assert.equal(workAuth.value, 'Authorized via CPT/OPT');
+    assert.equal(workAuth.status, 'NEEDS_CONFIRMATION');
+    assert.equal(workAuth.hasConflict, false);
+  });
+
+  it('5. flags conflicting phone numbers with NEEDS_CONFIRMATION and single resolved value', () => {
+    const candidateWithPhone = {
+      displayName: 'Vishwanath',
+      canonicalEmail: 'vishwanatnishad@gmail.com',
+      profileMetadata: {
+        userCustom: { phone: '7905087928' },
+      },
+      identities: [],
+    };
+
+    // Conflicting phone in application answers
+    const { items } = service.evaluateReadiness({
+      candidateProfile: candidateWithPhone,
+      answers: { phone: '+91 9876543210' },
+    });
+
+    const phone = items.find((i) => i.field === 'phone');
+    assert.equal(phone.value, '+91 9876543210');
+    assert.equal(phone.status, 'NEEDS_CONFIRMATION');
+    assert.equal(phone.hasConflict, true);
+    assert.equal(phone.source, 'APPLICATION_ANSWERS');
+    assert.ok(phone.notes.includes('Conflict detected'));
+    assert.ok(phone.notes.includes('7905087928'));
+  });
+
+  it('6. flags conflicting visa sponsorship with NEEDS_CONFIRMATION and single resolved value', () => {
+    const candidateWithSponsorship = {
+      displayName: 'Vishwanath',
+      canonicalEmail: 'vishwanatnishad@gmail.com',
+      profileMetadata: {
+        careerPreferences: { visaSponsorshipRequired: true },
+      },
+      identities: [],
+    };
+
+    // Conflicting answer: user says "No sponsorship needed"
+    const { items } = service.evaluateReadiness({
+      candidateProfile: candidateWithSponsorship,
+      answers: { visaSponsorship: 'No sponsorship needed' },
+    });
+
+    const visa = items.find((i) => i.field === 'visaSponsorship');
+    assert.equal(visa.value, 'No sponsorship needed');
+    assert.equal(visa.status, 'NEEDS_CONFIRMATION');
+    assert.equal(visa.hasConflict, true);
+    assert.equal(visa.source, 'APPLICATION_ANSWERS');
+    assert.ok(visa.notes.includes('Conflict detected'));
+    assert.ok(visa.notes.includes('Sponsorship Required'));
+  });
+
+  it('7. flags conflicting earliest start dates with NEEDS_CONFIRMATION and single resolved value', () => {
+    const candidateWithAvailability = {
+      displayName: 'Vishwanath',
+      canonicalEmail: 'vishwanatnishad@gmail.com',
+      profileMetadata: {
+        careerPreferences: { availabilityDate: '2026-10-01' },
+      },
+      identities: [],
+    };
+
+    // Conflicting answer: "Immediate (within 2 weeks)"
+    const { items } = service.evaluateReadiness({
+      candidateProfile: candidateWithAvailability,
+      answers: { availability: 'Immediate (within 2 weeks)' },
+    });
+
+    const avail = items.find((i) => i.field === 'availability');
+    assert.equal(avail.value, 'Immediate (within 2 weeks)');
+    assert.equal(avail.status, 'NEEDS_CONFIRMATION');
+    assert.equal(avail.hasConflict, true);
+    assert.equal(avail.source, 'APPLICATION_ANSWERS');
+    assert.ok(avail.notes.includes('Conflict detected'));
+    assert.ok(avail.notes.includes('2026-10-01'));
+  });
+
+  it('8. flags conflicting work authorization jurisdictions with NEEDS_CONFIRMATION', () => {
+    const candidateWithWorkAuth = {
+      displayName: 'Vishwanath',
+      canonicalEmail: 'vishwanatnishad@gmail.com',
+      profileMetadata: {
+        careerPreferences: { workAuthorization: ['Authorize to work in India'] },
+      },
+      identities: [],
+    };
+
+    // Conflicting answer: "US Citizen / Green Card"
+    const { items } = service.evaluateReadiness({
+      candidateProfile: candidateWithWorkAuth,
+      answers: { workAuthorization: 'US Citizen / Green Card' },
+    });
+
+    const workAuth = items.find((i) => i.field === 'workAuthorization');
+    assert.equal(workAuth.value, 'US Citizen / Green Card');
+    assert.equal(workAuth.status, 'NEEDS_CONFIRMATION');
+    assert.equal(workAuth.hasConflict, true);
+    assert.equal(workAuth.source, 'APPLICATION_ANSWERS');
+    assert.ok(workAuth.notes.includes('Conflict detected'));
+    assert.ok(workAuth.notes.includes('Authorize to work in India'));
+  });
+
+  it('9. resolves authentic stored candidate profile to deterministic single values with explicit sources and zero "A / B" alternatives', () => {
+    // Exact schema of Vishwanath Nishad's canonical stored DB profile
+    const storedVishwanathProfile = {
+      displayName: 'Vishwanath Nishad',
+      canonicalEmail: 'vishwanatnishad@gmail.com',
+      profileMetadata: {
+        userCustom: {
+          phone: '7905087928',
+          portfolioLinks: [
+            { url: 'https://leetcode.com/u/vishwanatnishad', label: 'LEETCODE' },
+            { url: 'https://linkedin.com/in/vishwanath-nishad', label: 'LINKEDIN' },
+            { url: 'https://github.com/vishu1803', label: 'GITHUB' },
+            { url: 'https://my-portfolio-kappa-beige-71.vercel.app/', label: 'PORTFOLIO' },
+          ],
+        },
+        careerPreferences: {
+          workAuthorization: ['Authorize to work in India'],
+          visaSponsorshipRequired: true,
+          availabilityDate: '2026-10-01',
+        },
+      },
+      identities: [
+        {
+          provider: 'GITHUB_APP',
+          externalUsername: 'vishu1803',
+          verified: true,
+        },
+      ],
+    };
+
+    const { items } = service.evaluateReadiness({
+      candidateProfile: storedVishwanathProfile,
+      answers: {},
+    });
+
+    for (const item of items) {
+      assert.ok(item.value !== undefined, `Field ${item.field} must have a defined value`);
+      if (item.value !== null) {
+        assert.ok(
+          !item.value.includes(' / ') && !item.value.includes(' OR '),
+          `Field ${item.field} must resolve to exactly ONE value without alternatives: "${item.value}"`
+        );
+      }
+      assert.ok(item.source, `Field ${item.field} must specify its resolution source`);
+    }
+
+    const email = items.find((i) => i.field === 'email');
+    assert.equal(email.value, 'vishwanatnishad@gmail.com');
+    assert.equal(email.source, 'PROFILE_CANONICAL');
+    assert.equal(email.status, 'READY');
+
+    const phone = items.find((i) => i.field === 'phone');
+    assert.equal(phone.value, '7905087928');
+    assert.equal(phone.source, 'PROFILE_USER_CUSTOM');
+    assert.equal(phone.status, 'READY');
+
+    const workAuth = items.find((i) => i.field === 'workAuthorization');
+    assert.equal(workAuth.value, 'Authorize to work in India');
+    assert.equal(workAuth.source, 'PROFILE_CAREER_PREFERENCES');
+    assert.equal(workAuth.status, 'NEEDS_CONFIRMATION');
+
+    const visa = items.find((i) => i.field === 'visaSponsorship');
+    assert.equal(visa.value, 'Sponsorship Required');
+    assert.equal(visa.source, 'PROFILE_CAREER_PREFERENCES');
+    assert.equal(visa.status, 'NEEDS_CONFIRMATION');
+
+    const linkedin = items.find((i) => i.field === 'linkedin');
+    assert.equal(linkedin.value, 'https://linkedin.com/in/vishwanath-nishad');
+    assert.equal(linkedin.source, 'PROFILE_PORTFOLIO_LINKS');
+    assert.equal(linkedin.status, 'READY');
+
+    const github = items.find((i) => i.field === 'github');
+    assert.equal(github.value, 'https://github.com/vishu1803');
+    assert.equal(github.source, 'GITHUB_APP_IDENTITY');
+    assert.equal(github.status, 'READY');
+
+    const portfolio = items.find((i) => i.field === 'portfolio');
+    assert.equal(portfolio.value, 'https://my-portfolio-kappa-beige-71.vercel.app/');
+    assert.equal(portfolio.source, 'PROFILE_PORTFOLIO_LINKS');
+    assert.equal(portfolio.status, 'READY');
+
+    const avail = items.find((i) => i.field === 'availability');
+    assert.equal(avail.value, '2026-10-01');
+    assert.equal(avail.source, 'PROFILE_CAREER_PREFERENCES');
+    assert.equal(avail.status, 'READY');
   });
 });

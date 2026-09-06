@@ -217,7 +217,7 @@ export function renderHandoffPage({
       </div>
 
       <!-- SECTION 1: DOCUMENT READINESS (Resume & Cover Letter Artifacts) -->
-      <div class="card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+      <div id="document-readiness-card" class="card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
           <div>
             <div style="display:flex; align-items:center; gap:10px;">
@@ -336,7 +336,7 @@ export function renderHandoffPage({
       </div>
 
       <!-- SECTION 2: SCREENING PROFILE COMPLETENESS -->
-      <div class="card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+      <div id="screening-readiness-card" class="card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
           <div>
             <div style="display:flex; align-items:center; gap:10px;">
@@ -411,7 +411,7 @@ export function renderHandoffPage({
       </div>
 
       <!-- SECTION 3: PACKAGE VERSION HISTORY -->
-      <div class="card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
+      <div id="package-history-card" class="card" style="margin-bottom:24px; padding:24px 28px; background:#111827; border:1px solid var(--border-subtle); border-radius:var(--radius-md);">
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
           <div>
             <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0;">
@@ -430,7 +430,7 @@ export function renderHandoffPage({
           packageHistory.length === 0
             ? `<div style="text-align:center; padding:24px; color:var(--text-dim); font-size:0.85rem;">No historical packages recorded yet.</div>`
             : `<div style="overflow-x:auto;">
-                 <table style="width:100%; border-collapse:collapse; font-size:0.825rem; text-align:left;">
+                 <table id="package-history-table" style="width:100%; border-collapse:collapse; font-size:0.825rem; text-align:left;">
                    <thead>
                      <tr style="border-bottom:1px solid rgba(255,255,255,0.08); color:var(--text-dim);">
                        <th style="padding:10px 12px; font-weight:600;">Version</th>

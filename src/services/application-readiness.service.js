@@ -7,19 +7,51 @@
  * 3. Application preparation workflows
  *
  * Invariants Enforced:
- * 1. Zero Synthetic Data: Evaluates authentic database records only (userCustom, careerPreferences,
- *    identities, and explicit candidate application answers). Missing values are flagged as MISSING.
- * 2. Strict Link Discrimination: Candidate profile-level GitHub link (https://github.com/username) is
+ * 1. Single Value Resolution: Each readiness field resolves to exactly ONE value. No alternative "A / B" output.
+ * 2. Deterministic Precedence: Explicit precedence hierarchy:
+ *    APPLICATION_ANSWERS > PROFILE_CAREER_PREFERENCES > PROFILE_USER_CUSTOM > VERIFIED_IDENTITIES > RESUME_CLAIM.
+ * 3. Explicit Conflict Detection: When two sources provide conflicting data, the resolver returns
+ *    status: 'NEEDS_CONFIRMATION', hasConflict: true, and notes explaining the conflict.
+ * 4. Zero Synthetic Data: Evaluates authentic database records only. Stored profile data is never silently rewritten.
+ * 5. Strict Link Discrimination: Candidate profile-level GitHub link (https://github.com/username) is
  *    strictly separated from technical project repository URLs. Project URLs NEVER satisfy the profile GitHub link.
- * 3. Standardized Status Taxonomy: Every evaluated field is strictly one of:
- *    - PRESENT: Field is documented and verified in profile records.
- *    - NEEDS_CONFIRMATION: Field is present but requires jurisdiction/employer confirmation (e.g. Work Auth, Visa).
+ * 6. Standardized Status Taxonomy: Every evaluated field is strictly one of:
+ *    - READY: Field is verified, unambiguous, and documented.
+ *    - NEEDS_CONFIRMATION: Field is present but requires confirmation (e.g. Work Auth, Visa, or conflicting sources).
  *    - MISSING: Field has not been provided by the candidate.
- * 4. Distinct Readiness Semantics: Explicitly separates DOCUMENT READINESS (compiled, QA-passed artifacts)
+ * 7. Distinct Readiness Semantics: Explicitly separates DOCUMENT READINESS (compiled, QA-passed artifacts)
  *    from SCREENING PROFILE COMPLETENESS.
  */
 
 import { logger } from '../utils/logger.js';
+
+function normalizeDigits(str) {
+  if (!str) return '';
+  return String(str).replace(/\D/g, '');
+}
+
+function normalizeAuth(str) {
+  if (!str) return '';
+  return String(str)
+    .toLowerCase()
+    .replace(/authorized/g, 'authorize')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function parseSponsorshipBool(val) {
+  if (val === true || val === false) return val;
+  if (typeof val === 'string') {
+    const s = val.toLowerCase().trim();
+    if (/^(true|yes|y|required|sponsorship required|will require|require)/i.test(s)) return true;
+    if (
+      /^(false|no|n|not required|no sponsorship|no sponsorship needed|no sponsorship required|none)/i.test(
+        s
+      )
+    )
+      return false;
+  }
+  return null;
+}
 
 export class ApplicationReadinessService {
   /**
@@ -51,7 +83,11 @@ export class ApplicationReadinessService {
     const cand = candidateProfile?.candidate || directCandidate || candidateProfile || {};
     const metadata = cand.profileMetadata || candidateProfile?.profileMetadata || {};
     const userCustom = metadata.userCustom || {};
-    const careerPreferences = metadata.careerPreferences || metadata.jobPreferences || {};
+    const careerPreferences =
+      candidateProfile?.jobPreferences ||
+      metadata.careerPreferences ||
+      metadata.jobPreferences ||
+      {};
     const combinedAnswers = {
       ...(applicationPackage?.answers || {}),
       ...(answers || {}),
@@ -75,208 +111,397 @@ export class ApplicationReadinessService {
     const items = [];
 
     // -------------------------------------------------------------------------
-    // 1. Candidate Email (PRESENT | MISSING)
+    // 1. Candidate Email (READY | NEEDS_CONFIRMATION | MISSING)
+    // Precedence: APPLICATION_PACKAGE > PROFILE_CANONICAL > USER_ACCOUNT
     // -------------------------------------------------------------------------
-    const email =
-      applicationPackage?.candidateEmail ||
-      cand.canonicalEmail ||
-      candidateProfile?.userEmail ||
-      candidateProfile?.canonicalEmail ||
-      candidateProfile?.primaryEmail ||
-      cand.email ||
+    const pkgEmail = applicationPackage?.candidateEmail?.trim() || null;
+    const profileEmail =
+      cand.canonicalEmail?.trim() ||
+      candidateProfile?.canonicalEmail?.trim() ||
+      candidateProfile?.primaryEmail?.trim() ||
       null;
+    const accountEmail = cand.email?.trim() || candidateProfile?.userEmail?.trim() || null;
 
+    const emailCandidate = pkgEmail || profileEmail || accountEmail;
     const hasValidEmail =
-      Boolean(email) &&
-      typeof email === 'string' &&
-      email.includes('@') &&
-      !email.toLowerCase().includes('example.com');
+      Boolean(emailCandidate) &&
+      typeof emailCandidate === 'string' &&
+      emailCandidate.includes('@') &&
+      !emailCandidate.toLowerCase().includes('example.com');
+
+    let emailConflict = false;
+    if (pkgEmail && profileEmail && pkgEmail.toLowerCase() !== profileEmail.toLowerCase()) {
+      emailConflict = true;
+    }
+
+    const emailStatus = !hasValidEmail ? 'MISSING' : emailConflict ? 'NEEDS_CONFIRMATION' : 'READY';
 
     items.push({
       field: 'email',
       label: 'Candidate Email',
-      value: hasValidEmail ? email.trim() : null,
-      status: hasValidEmail ? 'READY' : 'MISSING',
+      value: hasValidEmail ? emailCandidate : null,
+      status: emailStatus,
       presence: hasValidEmail ? 'PRESENT' : 'MISSING',
-      notes: hasValidEmail
-        ? 'Authoritative primary account email verified'
-        : 'Valid candidate email required in Profile',
+      source: pkgEmail
+        ? 'APPLICATION_PACKAGE'
+        : profileEmail
+          ? 'PROFILE_CANONICAL'
+          : accountEmail
+            ? 'USER_ACCOUNT'
+            : 'NONE',
+      hasConflict: emailConflict,
+      notes: !hasValidEmail
+        ? 'Valid candidate email required in Profile'
+        : emailConflict
+          ? `Conflict detected: Application package email ("${pkgEmail}") differs from canonical profile email ("${profileEmail}"). Candidate confirmation required.`
+          : 'Authoritative primary account email verified',
       profileSection: 'contact',
       profileAnchor: '/profile#section-contact',
     });
 
     // -------------------------------------------------------------------------
-    // 2. Contact Phone (PRESENT | MISSING)
+    // 2. Contact Phone (READY | NEEDS_CONFIRMATION | MISSING)
+    // Precedence: APPLICATION_ANSWERS > PROFILE_USER_CUSTOM > CANDIDATE_RECORD > RESUME_CLAIM
     // -------------------------------------------------------------------------
-    const rawPhone =
-      applicationPackage?.candidatePhone ||
-      candidateProfile?.candidatePhone ||
-      userCustom.phone ||
-      cand.phone ||
-      metadata.phone ||
-      metadata.contact?.phone ||
-      metadata.identity?.phone ||
+    const appPhone =
+      (typeof combinedAnswers.phone === 'string' && combinedAnswers.phone.trim()) ||
+      (typeof applicationPackage?.candidatePhone === 'string' &&
+        applicationPackage.candidatePhone.trim()) ||
       null;
 
-    const hasPhone =
-      Boolean(rawPhone) && typeof rawPhone === 'string' && rawPhone.trim().length > 0;
+    const profileUserPhone =
+      (typeof userCustom.phone === 'string' && userCustom.phone.trim()) || null;
+
+    const recordPhone =
+      (typeof cand.phone === 'string' && cand.phone.trim()) ||
+      (typeof metadata.phone === 'string' && metadata.phone.trim()) ||
+      (typeof metadata.contact?.phone === 'string' && metadata.contact.phone.trim()) ||
+      null;
+
+    const resumePhone =
+      (typeof metadata.resumeData?.identity?.phone === 'string' &&
+        metadata.resumeData.identity.phone.trim()) ||
+      (typeof metadata.identity?.phone === 'string' && metadata.identity.phone.trim()) ||
+      null;
+
+    const effectiveProfilePhone = profileUserPhone || recordPhone || resumePhone;
+    const phoneCandidate = appPhone || effectiveProfilePhone;
+
+    let phoneConflict = false;
+    if (appPhone && effectiveProfilePhone) {
+      const d1 = normalizeDigits(appPhone);
+      const d2 = normalizeDigits(effectiveProfilePhone);
+      if (d1 && d2 && d1 !== d2) {
+        phoneConflict = true;
+      }
+    } else if (profileUserPhone && resumePhone) {
+      const d1 = normalizeDigits(profileUserPhone);
+      const d2 = normalizeDigits(resumePhone);
+      if (d1 && d2 && d1 !== d2) {
+        phoneConflict = true;
+      }
+    }
+
+    const hasPhone = Boolean(phoneCandidate) && phoneCandidate.length > 0;
+    const phoneStatus = !hasPhone ? 'MISSING' : phoneConflict ? 'NEEDS_CONFIRMATION' : 'READY';
 
     items.push({
       field: 'phone',
       label: 'Contact Phone',
-      value: hasPhone ? rawPhone.trim() : null,
-      status: hasPhone ? 'READY' : 'MISSING',
+      value: hasPhone ? phoneCandidate : null,
+      status: phoneStatus,
       presence: hasPhone ? 'PRESENT' : 'MISSING',
-      notes: hasPhone
-        ? 'Candidate phone number registered'
-        : 'Phone number not yet provided in Profile',
+      source: appPhone
+        ? 'APPLICATION_ANSWERS'
+        : profileUserPhone
+          ? 'PROFILE_USER_CUSTOM'
+          : recordPhone
+            ? 'CANDIDATE_RECORD'
+            : resumePhone
+              ? 'RESUME_CLAIM'
+              : 'NONE',
+      hasConflict: phoneConflict,
+      notes: !hasPhone
+        ? 'Phone number not yet provided in Profile'
+        : phoneConflict
+          ? `Conflict detected: Application answers specify "${appPhone}" while Profile contains "${effectiveProfilePhone}". Candidate confirmation required.`
+          : 'Candidate phone number registered in Profile',
       profileSection: 'contact',
       profileAnchor: '/profile#section-contact',
     });
 
     // -------------------------------------------------------------------------
     // 3. Work Authorization (NEEDS_CONFIRMATION | MISSING)
+    // Precedence: APPLICATION_ANSWERS > PROFILE_CAREER_PREFERENCES > PROFILE_USER_CUSTOM > RESUME_CLAIM
     // -------------------------------------------------------------------------
-    let rawWorkAuth = combinedAnswers.workAuthorization || null;
-    if (!rawWorkAuth && careerPreferences.workAuthorization) {
-      rawWorkAuth = Array.isArray(careerPreferences.workAuthorization)
+    const appWorkAuth =
+      typeof combinedAnswers.workAuthorization === 'string' &&
+      combinedAnswers.workAuthorization.trim().length > 0
+        ? combinedAnswers.workAuthorization.trim()
+        : null;
+
+    let prefWorkAuth = null;
+    if (careerPreferences.workAuthorization) {
+      prefWorkAuth = Array.isArray(careerPreferences.workAuthorization)
         ? careerPreferences.workAuthorization.join(', ')
-        : careerPreferences.workAuthorization;
-    }
-    if (!rawWorkAuth && userCustom.workAuthorization) {
-      rawWorkAuth = userCustom.workAuthorization;
-    }
-    if (!rawWorkAuth && metadata.readiness?.workAuthorization) {
-      rawWorkAuth = metadata.readiness.workAuthorization;
-    }
-    if (!rawWorkAuth && metadata.identity?.workAuthorization) {
-      rawWorkAuth = metadata.identity.workAuthorization;
+        : String(careerPreferences.workAuthorization);
+      prefWorkAuth = prefWorkAuth.trim();
     }
 
-    const hasWorkAuth =
-      Boolean(rawWorkAuth) && typeof rawWorkAuth === 'string' && rawWorkAuth.trim().length > 0;
+    const userCustomWorkAuth =
+      typeof userCustom.workAuthorization === 'string' &&
+      userCustom.workAuthorization.trim().length > 0
+        ? userCustom.workAuthorization.trim()
+        : null;
+
+    const metadataWorkAuth =
+      (typeof metadata.readiness?.workAuthorization === 'string' &&
+        metadata.readiness.workAuthorization.trim()) ||
+      (typeof metadata.identity?.workAuthorization === 'string' &&
+        metadata.identity.workAuthorization.trim()) ||
+      null;
+
+    const effectivePrefWorkAuth = prefWorkAuth || userCustomWorkAuth || metadataWorkAuth;
+    const workAuthCandidate = appWorkAuth || effectivePrefWorkAuth;
+
+    let workAuthConflict = false;
+    if (appWorkAuth && effectivePrefWorkAuth) {
+      if (normalizeAuth(appWorkAuth) !== normalizeAuth(effectivePrefWorkAuth)) {
+        workAuthConflict = true;
+      }
+    }
+
+    const hasWorkAuth = Boolean(workAuthCandidate) && workAuthCandidate.length > 0;
+    const workAuthStatus = !hasWorkAuth ? 'MISSING' : 'NEEDS_CONFIRMATION';
 
     items.push({
       field: 'workAuthorization',
       label: 'Work Authorization',
-      value: hasWorkAuth ? rawWorkAuth.trim() : null,
-      status: hasWorkAuth ? 'NEEDS_CONFIRMATION' : 'MISSING',
+      value: hasWorkAuth ? workAuthCandidate : null,
+      status: workAuthStatus,
       presence: hasWorkAuth ? 'PRESENT' : 'MISSING',
-      notes: hasWorkAuth
-        ? 'Requires candidate confirmation for target job jurisdiction'
-        : 'Work authorization status not yet documented in Profile or Answers',
+      source: appWorkAuth
+        ? 'APPLICATION_ANSWERS'
+        : prefWorkAuth
+          ? 'PROFILE_CAREER_PREFERENCES'
+          : userCustomWorkAuth
+            ? 'PROFILE_USER_CUSTOM'
+            : metadataWorkAuth
+              ? 'RESUME_CLAIM'
+              : 'NONE',
+      hasConflict: workAuthConflict,
+      notes: !hasWorkAuth
+        ? 'Work authorization status not yet documented in Profile or Answers'
+        : workAuthConflict
+          ? `Conflict detected: Application answer ("${appWorkAuth}") differs from Profile preference ("${effectivePrefWorkAuth}"). Candidate confirmation required.`
+          : 'Requires candidate confirmation for target job jurisdiction',
       profileSection: 'readiness',
       profileAnchor: '/profile#section-readiness',
     });
 
     // -------------------------------------------------------------------------
     // 4. Visa Sponsorship (NEEDS_CONFIRMATION | MISSING)
+    // Precedence: APPLICATION_ANSWERS > PROFILE_CAREER_PREFERENCES > PROFILE_USER_CUSTOM > RESUME_CLAIM
     // -------------------------------------------------------------------------
-    let rawSponsorship = combinedAnswers.visaSponsorship ?? combinedAnswers.visaSponsorshipRequired;
-    if (rawSponsorship === undefined || rawSponsorship === null) {
-      rawSponsorship =
-        careerPreferences.visaSponsorshipRequired ??
-        userCustom.visaSponsorshipRequired ??
-        metadata.readiness?.visaSponsorshipRequired ??
-        metadata.identity?.visaSponsorshipRequired;
+    const rawAppSponsorship =
+      combinedAnswers.visaSponsorship ?? combinedAnswers.visaSponsorshipRequired;
+    const rawPrefSponsorship =
+      careerPreferences.visaSponsorshipRequired ??
+      userCustom.visaSponsorshipRequired ??
+      metadata.readiness?.visaSponsorshipRequired ??
+      metadata.identity?.visaSponsorshipRequired;
+
+    const appBool =
+      rawAppSponsorship !== undefined && rawAppSponsorship !== null
+        ? parseSponsorshipBool(rawAppSponsorship)
+        : null;
+
+    const prefBool =
+      rawPrefSponsorship !== undefined && rawPrefSponsorship !== null
+        ? parseSponsorshipBool(rawPrefSponsorship)
+        : null;
+
+    let visaConflict = false;
+    if (appBool !== null && prefBool !== null && appBool !== prefBool) {
+      visaConflict = true;
     }
 
-    let sponsorshipValue = null;
-    if (typeof rawSponsorship === 'boolean') {
-      sponsorshipValue = rawSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed';
-    } else if (rawSponsorship !== undefined && rawSponsorship !== null) {
-      const strVal = String(rawSponsorship).trim();
-      if (strVal.length > 0) sponsorshipValue = strVal;
+    let resolvedVisaString = null;
+    let visaSource = 'NONE';
+
+    if (rawAppSponsorship !== undefined && rawAppSponsorship !== null) {
+      visaSource = 'APPLICATION_ANSWERS';
+      if (typeof rawAppSponsorship === 'boolean') {
+        resolvedVisaString = rawAppSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed';
+      } else {
+        resolvedVisaString = String(rawAppSponsorship).trim();
+      }
+    } else if (rawPrefSponsorship !== undefined && rawPrefSponsorship !== null) {
+      visaSource =
+        careerPreferences.visaSponsorshipRequired !== undefined
+          ? 'PROFILE_CAREER_PREFERENCES'
+          : userCustom.visaSponsorshipRequired !== undefined
+            ? 'PROFILE_USER_CUSTOM'
+            : 'RESUME_CLAIM';
+      if (typeof rawPrefSponsorship === 'boolean') {
+        resolvedVisaString = rawPrefSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed';
+      } else {
+        resolvedVisaString = String(rawPrefSponsorship).trim();
+      }
     }
+
+    const hasVisa = Boolean(resolvedVisaString) && resolvedVisaString.length > 0;
+    const visaStatus = !hasVisa ? 'MISSING' : 'NEEDS_CONFIRMATION';
 
     items.push({
       field: 'visaSponsorship',
       label: 'Visa Sponsorship',
-      value: sponsorshipValue,
-      status: sponsorshipValue !== null ? 'NEEDS_CONFIRMATION' : 'MISSING',
-      presence: sponsorshipValue !== null ? 'PRESENT' : 'MISSING',
-      notes:
-        sponsorshipValue !== null
-          ? 'Confirm sponsorship requirements with target employer'
-          : 'Visa sponsorship preference not set in Profile',
+      value: hasVisa ? resolvedVisaString : null,
+      status: visaStatus,
+      presence: hasVisa ? 'PRESENT' : 'MISSING',
+      source: visaSource,
+      hasConflict: visaConflict,
+      notes: !hasVisa
+        ? 'Visa sponsorship preference not set in Profile'
+        : visaConflict
+          ? `Conflict detected: Application answer specifies "${resolvedVisaString}" while Profile declares "${prefBool ? 'Sponsorship Required' : 'No Sponsorship Needed'}". Candidate confirmation required.`
+          : 'Confirm sponsorship requirements with target employer',
       profileSection: 'readiness',
       profileAnchor: '/profile#section-readiness',
     });
 
     // -------------------------------------------------------------------------
-    // 5. LinkedIn Profile (READY | MISSING)
+    // 5. LinkedIn Profile (READY | NEEDS_CONFIRMATION | MISSING)
+    // Precedence: PROFILE_PORTFOLIO_LINKS > LINKEDIN_IDENTITY
     // -------------------------------------------------------------------------
     const linkedInEntry = portfolioLinks.find(
       (l) =>
         String(l.label || l.platform || '').toUpperCase() === 'LINKEDIN' ||
         (l.url && /linkedin\.com/i.test(l.url))
     );
-    const linkedInUrl = linkedInEntry?.url || null;
-    const hasLinkedIn = Boolean(linkedInUrl) && /^https?:\/\//i.test(linkedInUrl);
+    const linkedInIdentity = identities.find(
+      (id) =>
+        (id.provider === 'LINKEDIN' || id.provider === 'LINKEDIN_OAUTH') &&
+        Boolean(id.profileUrl || id.externalUsername)
+    );
+
+    const portfolioLinkedIn = linkedInEntry?.url?.trim() || null;
+    const identityLinkedIn =
+      linkedInIdentity?.profileUrl?.trim() ||
+      (linkedInIdentity?.externalUsername
+        ? `https://linkedin.com/in/${linkedInIdentity.externalUsername}`
+        : null);
+
+    let linkedinConflict = false;
+    if (
+      portfolioLinkedIn &&
+      identityLinkedIn &&
+      portfolioLinkedIn.toLowerCase() !== identityLinkedIn.toLowerCase()
+    ) {
+      linkedinConflict = true;
+    }
+
+    const resolvedLinkedIn = portfolioLinkedIn || identityLinkedIn;
+    const hasLinkedIn = Boolean(resolvedLinkedIn) && /^https?:\/\//i.test(resolvedLinkedIn);
+    const linkedinStatus = !hasLinkedIn
+      ? 'MISSING'
+      : linkedinConflict
+        ? 'NEEDS_CONFIRMATION'
+        : 'READY';
 
     items.push({
       field: 'linkedin',
       label: 'LinkedIn Profile',
-      value: hasLinkedIn ? linkedInUrl.trim() : null,
-      status: hasLinkedIn ? 'READY' : 'MISSING',
+      value: hasLinkedIn ? resolvedLinkedIn : null,
+      status: linkedinStatus,
       presence: hasLinkedIn ? 'PRESENT' : 'MISSING',
-      notes: hasLinkedIn
-        ? 'Connected professional LinkedIn profile link'
-        : 'LinkedIn profile link not added to links collection',
+      source: portfolioLinkedIn
+        ? 'PROFILE_PORTFOLIO_LINKS'
+        : identityLinkedIn
+          ? 'LINKEDIN_IDENTITY'
+          : 'NONE',
+      hasConflict: linkedinConflict,
+      notes: !hasLinkedIn
+        ? 'LinkedIn profile link not added to links collection'
+        : linkedinConflict
+          ? 'Conflict detected between connected LinkedIn identity and profile link. Candidate confirmation required.'
+          : 'Connected professional LinkedIn profile link',
       profileSection: 'links',
       profileAnchor: '/profile#section-links',
     });
 
     // -------------------------------------------------------------------------
-    // 6. Candidate GitHub (Profile-level only — strictly excludes project repos)
+    // 6. Candidate GitHub (READY | NEEDS_CONFIRMATION | MISSING)
+    // Profile-level only — strictly excludes project repos
+    // Precedence: GITHUB_APP_IDENTITY > PROFILE_PORTFOLIO_LINKS > CANDIDATE_RECORD
     // -------------------------------------------------------------------------
-    let profileGithubUrl = null;
-
-    // Check connected GitHub identity
+    let identityGithubUrl = null;
     const ghIdentity = identities.find(
       (id) =>
         (id.provider === 'GITHUB_APP' || id.provider === 'GITHUB') && Boolean(id.externalUsername)
     );
     if (ghIdentity?.externalUsername) {
-      profileGithubUrl = `https://github.com/${ghIdentity.externalUsername}`;
+      identityGithubUrl = `https://github.com/${ghIdentity.externalUsername}`;
     }
 
-    // Check portfolio links collection (match profile link: https://github.com/username)
-    if (!profileGithubUrl) {
-      const ghLink = portfolioLinks.find(
-        (l) =>
-          String(l.label || l.platform || '').toUpperCase() === 'GITHUB' ||
-          (l.url && /^https?:\/\/github\.com\/[a-zA-Z0-9_-]+\/?$/i.test(l.url))
-      );
-      if (ghLink?.url) {
-        // Enforce link discrimination: project repos (e.g. github.com/user/repo) must NOT satisfy candidate GitHub
-        const isProjectRepo = /^https?:\/\/github\.com\/[^/]+\/[^/]+/i.test(ghLink.url);
-        if (!isProjectRepo) {
-          profileGithubUrl = ghLink.url;
-        }
+    let linkGithubUrl = null;
+    const ghLink = portfolioLinks.find(
+      (l) =>
+        String(l.label || l.platform || '').toUpperCase() === 'GITHUB' ||
+        (l.url && /^https?:\/\/github\.com\/[a-zA-Z0-9_-]+\/?$/i.test(l.url))
+    );
+    if (ghLink?.url) {
+      const isProjectRepo = /^https?:\/\/github\.com\/[^/]+\/[^/]+/i.test(ghLink.url);
+      if (!isProjectRepo) {
+        linkGithubUrl = ghLink.url.trim();
       }
     }
 
-    // Check explicit candidate username
-    if (!profileGithubUrl) {
-      const explicitUser =
-        candidateProfile?.githubUsername || cand.githubUsername || metadata.githubUsername;
-      if (explicitUser && typeof explicitUser === 'string') {
-        profileGithubUrl = `https://github.com/${explicitUser.replace(/^https?:\/\/github\.com\//i, '').replace(/\/.*$/, '')}`;
+    let candGithubUrl = null;
+    const explicitUser =
+      candidateProfile?.githubUsername || cand.githubUsername || metadata.githubUsername;
+    if (explicitUser && typeof explicitUser === 'string') {
+      const cleaned = explicitUser
+        .replace(/^https?:\/\/github\.com\//i, '')
+        .replace(/\/.*$/, '')
+        .trim();
+      if (cleaned.length > 0) {
+        candGithubUrl = `https://github.com/${cleaned}`;
       }
     }
 
-    const hasProfileGithub = Boolean(profileGithubUrl);
+    let githubConflict = false;
+    if (identityGithubUrl && linkGithubUrl) {
+      const u1 = identityGithubUrl.toLowerCase().replace(/\/+$/, '');
+      const u2 = linkGithubUrl.toLowerCase().replace(/\/+$/, '');
+      if (u1 !== u2) {
+        githubConflict = true;
+      }
+    }
+
+    const resolvedGithub = identityGithubUrl || linkGithubUrl || candGithubUrl;
+    const hasGithub = Boolean(resolvedGithub);
+    const githubStatus = !hasGithub ? 'MISSING' : githubConflict ? 'NEEDS_CONFIRMATION' : 'READY';
 
     items.push({
       field: 'github',
       label: 'Candidate GitHub',
-      value: hasProfileGithub ? profileGithubUrl.trim() : null,
-      status: hasProfileGithub ? 'READY' : 'MISSING',
-      presence: hasProfileGithub ? 'PRESENT' : 'MISSING',
-      notes: hasProfileGithub
-        ? 'Verified candidate profile-level GitHub link'
-        : 'GitHub profile URL not linked in Profile',
+      value: hasGithub ? resolvedGithub : null,
+      status: githubStatus,
+      presence: hasGithub ? 'PRESENT' : 'MISSING',
+      source: identityGithubUrl
+        ? 'GITHUB_APP_IDENTITY'
+        : linkGithubUrl
+          ? 'PROFILE_PORTFOLIO_LINKS'
+          : candGithubUrl
+            ? 'CANDIDATE_RECORD'
+            : 'NONE',
+      hasConflict: githubConflict,
+      notes: !hasGithub
+        ? 'GitHub profile URL not linked in Profile'
+        : githubConflict
+          ? 'Conflict detected between verified GitHub identity and profile link. Candidate confirmation required.'
+          : 'Verified candidate profile-level GitHub link',
       profileSection: 'links',
       profileAnchor: '/profile#section-links',
     });
@@ -292,15 +517,17 @@ export class ApplicationReadinessService {
           !/linkedin\.com/i.test(l.url) &&
           !/leetcode\.com/i.test(l.url))
     );
-    const portfolioUrl = portfolioSite?.url || null;
+    const portfolioUrl = portfolioSite?.url?.trim() || null;
     const hasPortfolio = Boolean(portfolioUrl) && /^https?:\/\//i.test(portfolioUrl);
 
     items.push({
       field: 'portfolio',
       label: 'Code / Portfolio',
-      value: hasPortfolio ? portfolioUrl.trim() : null,
+      value: hasPortfolio ? portfolioUrl : null,
       status: hasPortfolio ? 'READY' : 'MISSING',
       presence: hasPortfolio ? 'PRESENT' : 'MISSING',
+      source: hasPortfolio ? 'PROFILE_PORTFOLIO_LINKS' : 'NONE',
+      hasConflict: false,
       notes: hasPortfolio
         ? 'Personal portfolio website linked'
         : 'Portfolio website not specified in Profile',
@@ -309,31 +536,52 @@ export class ApplicationReadinessService {
     });
 
     // -------------------------------------------------------------------------
-    // 8. Earliest Availability / Notice Period (READY | MISSING)
+    // 8. Earliest Availability / Notice Period (READY | NEEDS_CONFIRMATION | MISSING)
+    // Precedence: APPLICATION_ANSWERS > PROFILE_CAREER_PREFERENCES > PROFILE_USER_CUSTOM
     // -------------------------------------------------------------------------
-    const rawAvailability =
-      combinedAnswers.availability ||
-      combinedAnswers.availabilityDate ||
-      careerPreferences.availabilityDate ||
-      userCustom.availability ||
-      userCustom.availabilityDate ||
-      metadata.jobPreferences?.availabilityDate ||
+    const appAvail =
+      (typeof combinedAnswers.availability === 'string' && combinedAnswers.availability.trim()) ||
+      (typeof combinedAnswers.availabilityDate === 'string' &&
+        combinedAnswers.availabilityDate.trim()) ||
       null;
 
-    const hasAvailability =
-      Boolean(rawAvailability) &&
-      typeof rawAvailability === 'string' &&
-      rawAvailability.trim().length > 0;
+    const prefAvail =
+      (typeof careerPreferences.availabilityDate === 'string' &&
+        careerPreferences.availabilityDate.trim()) ||
+      (typeof userCustom.availability === 'string' && userCustom.availability.trim()) ||
+      (typeof userCustom.availabilityDate === 'string' && userCustom.availabilityDate.trim()) ||
+      (typeof metadata.jobPreferences?.availabilityDate === 'string' &&
+        metadata.jobPreferences.availabilityDate.trim()) ||
+      null;
+
+    let availConflict = false;
+    if (appAvail && prefAvail && appAvail.toLowerCase() !== prefAvail.toLowerCase()) {
+      availConflict = true;
+    }
+
+    const resolvedAvail = appAvail || prefAvail;
+    const hasAvail = Boolean(resolvedAvail) && resolvedAvail.length > 0;
+    const availStatus = !hasAvail ? 'MISSING' : availConflict ? 'NEEDS_CONFIRMATION' : 'READY';
 
     items.push({
       field: 'availability',
       label: 'Earliest Start Date',
-      value: hasAvailability ? rawAvailability.trim() : null,
-      status: hasAvailability ? 'READY' : 'MISSING',
-      presence: hasAvailability ? 'PRESENT' : 'MISSING',
-      notes: hasAvailability
-        ? 'Candidate start date recorded in Job Search Intent'
-        : 'Availability date not specified in Job Search Intent',
+      value: hasAvail ? resolvedAvail : null,
+      status: availStatus,
+      presence: hasAvail ? 'PRESENT' : 'MISSING',
+      source: appAvail
+        ? 'APPLICATION_ANSWERS'
+        : careerPreferences.availabilityDate
+          ? 'PROFILE_CAREER_PREFERENCES'
+          : prefAvail
+            ? 'PROFILE_USER_CUSTOM'
+            : 'NONE',
+      hasConflict: availConflict,
+      notes: !hasAvail
+        ? 'Availability date not specified in Job Search Intent'
+        : availConflict
+          ? `Conflict detected: Application answer specifies "${appAvail}" while Profile preference specifies "${prefAvail}". Candidate confirmation required.`
+          : 'Candidate start date recorded in Job Search Intent',
       profileSection: 'preferences',
       profileAnchor: '/profile#section-preferences',
     });
@@ -375,6 +623,9 @@ export class ApplicationReadinessService {
           : 'All applicant screening fields verified and complete.'
         : `Screening profile is incomplete (missing: ${missingProfileFields.join(', ')}). HANDOFF_READY does not imply these fields are complete.`,
     };
+
+    items.readiness = items;
+    items.readinessSemantics = semantics;
 
     return { items, semantics };
   }

@@ -3040,8 +3040,9 @@ export default async function webRoutes(app, opts = {}) {
         answers: targetPackage?.answers || application.metadata?.answers || {},
       });
       if (handoffKit) {
-        handoffKit.readiness = evalResult.readiness;
-        handoffKit.readinessSemantics = evalResult.readinessSemantics;
+        handoffKit.readiness = evalResult.readiness || evalResult;
+        handoffKit.readinessSemantics =
+          evalResult.readinessSemantics || (evalResult && evalResult.readinessSemantics) || null;
       }
     } catch (evalErr) {
       req.log.warn({ err: evalErr.message }, 'Failed to refresh canonical readiness evaluation');
