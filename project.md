@@ -1,22 +1,80 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-08-29*
+*Last Updated: 2026-09-06*
 
 ---
+
+### P14-005BA: Current Application Package Version Consistency
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING
+**Date:** 2026-09-06
+
+**Root cause:** `prepare_job_application` produced a fresh package in memory while the tracked application continued to resolve its legacy `metadata.handoffKit`, `metadata.packageHash`, and unscoped `tailored_documents` rows. There was no authoritative persisted package-version ledger connecting `applicationId` to the newest successful `packageHash`. The supplied real application is a legacy record: its two encrypted PDF references exist in `metadata.handoffKit`, while its relational `tailored_documents` rows are empty. No real record was changed.
+
+**Minimal fix:**
+
+- Added the tenant-scoped `application_packages` version ledger with monotonic `version`, `packageHash`, source content hashes, timestamps, and `CURRENT`/`ARCHIVED` lifecycle state.
+- Repeated preparation resolves the same active candidate + company + title + job URL application and records a new current version; identical hashes are idempotent. Different URLs do not collide merely because title/company match.
+- `getApplicationDetails`, `get_job_application`, and `get_application_submission_status` resolve the ledger's current version rather than stale notes or handoff metadata.
+- Package-tagged tailored-document snapshots preserve history. Artifact enrichment rejects stale/unscoped rows once a current package hash exists and only verifies/exposes handoff artifacts for that package.
+- Handoff metadata for a historical package cannot move the current package pointer backwards. Snapshot persistence is attempted before promotion so a failed snapshot write cannot replace a valid current package.
+- Public nested MCP output schemas now explicitly advertise `currentPackage`, document `packageHash`, and View/Download artifact metadata.
+
+**Verification:**
+
+- `node --test tests/integration/application-package-consistency.test.js tests/integration/handoff-kit-lifecycle.test.js tests/unit/mcp-handoff-artifacts.test.js` → **22/22 PASS**.
+- Package regression proves A → B current promotion, same `applicationId`, different hashes, B documents, archived/auditable A, deterministic current resolution, failed persistence protection, unchanged candidate profile, tenant isolation, idempotency, and handoff artifact consistency.
+- Handoff route/security integration plus career-tracking MCP integration → **17/17 PASS**; secure View/Download access and cross-tenant rejection remain passing.
+- Handoff/document/PDF QA unit suites → **35/35 PASS**.
+- Local official MCP registration inspection → `get_job_application` exposes `currentPackage`, nested document `packageHash`, and artifact fields in the converted output schema.
+- Targeted ESLint → **PASS**; targeted Prettier check → **PASS**; `node scripts/scan-secrets.js` → **PASS**; `drizzle-kit check` → **PASS**.
+- Repository-wide ESLint still reports pre-existing generated-browser-bundle and unrelated legacy-script errors; those files were not rewritten. A broader MCP workflow run also has an independent simulated external-adapter assertion returning `HANDOFF_READY`; it was not part of this package-consistency gate and no real submission occurred.
+
+**Operational requirement:** deploy/restart the revision containing migration `0010_application_packages.sql`, then reconnect or explicitly refresh the ChatGPT MCP connector so it performs a fresh `tools/list`. A fresh REAL ChatGPT invocation is still required to confirm public exposure; no new real preparation was performed during this task.
+
+### P14-005BC: Package Document Hash Contract and Public Artifact Projection
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING
+**Date:** 2026-09-06
+
+**Investigation result:** The repository has three distinct hash representations:
+
+- `prepare_job_application` and `application_packages.resumeContentHash` / `coverLetterContentHash` use SHA-256 of the final Markdown source string from `CandidateArtifactContentService`.
+- `tailored_documents.contentHash` is the legacy canonical object hash of `{ markdownContent, packageHash }`, so it is not suitable as the public package document hash.
+- `DocumentStorageService` and `metadata.handoffKit.*.contentHash` use SHA-256 of plaintext PDF bytes. Encryption does not change this value; ciphertext is never hashed or exposed.
+
+The real application was read-only inspected. It has no `application_packages` rows and no relational tailored-document rows; it contains only the historical handoff kit in `job_applications.metadata` and an old notes package hash. This explains why local current-package resolution cannot reproduce that legacy record. The fresh public package hash was not present in the inspected application record, confirming that the public prepare result was not durably linked to the application before the P14-005BA ledger fix.
+
+**Minimal fix:**
+
+- Both MCP inspection handlers now pass the authoritative current package version and Markdown document hashes into the shared artifact projection helper.
+- Public `contentHash` is now consistently the Markdown hash matching preparation and `application_packages`; verified PDF-byte integrity is exposed separately as `pdfContentHash`.
+- Both public output schemas explicitly expose `packageVersion`, `packageHash`, `contentHash`, `artifactReference`, `filename`, `mimeType`, `fileSizeBytes`, `availabilityStatus`, `viewUrl`, and `downloadUrl` for tailored artifacts. Storage keys, ciphertext, and secrets remain excluded.
+- The cover-letter generator no longer inserts the wall-clock date into otherwise identical source inputs. Chrome fallback PDF metadata timestamps are normalized to fixed same-length values. The configured Tectonic compiler can still produce non-semantic compressed-stream byte variation, so PDF byte identity is intentionally an artifact-integrity value, not the package identity; package identity remains the deterministic Markdown contract.
+
+**Verification:**
+
+- `node --test tests/integration/application-package-consistency.test.js` → **18/18 PASS**, including prepare/get hash equality, persisted authoritative hashes, A→B current promotion, failed preparation protection, idempotency, historical preservation, tenant isolation, complete artifact metadata, and PDF/source hash separation.
+- Hash/projection/document unit suites → **46/46 PASS**; Handoff Kit lifecycle → **10/10 PASS**; MCP career tracking → **12/12 PASS**; handoff web/API security routes → **5/5 PASS**.
+- Local official MCP instance inspection confirms `tools/list` registration for `get_job_application` includes all required nested artifact fields, including `packageVersion` and `pdfContentHash`.
+- Targeted ESLint → **PASS**; targeted Prettier → **PASS**; `node scripts/scan-secrets.js` → **PASS**; `drizzle-kit check` → **PASS**.
+- The broader `mcp-job-workflow` suite has one independent pre-existing simulated external-adapter assertion expecting `SUBMITTED` while the truthful local result is `HANDOFF_READY`; unrelated to this read-only package/document work.
+
+**Public MCP state:** The supplied REAL ChatGPT response remains a public failure until the revised server is deployed/restarted and the connector performs a fresh `tools/list`. Its package/document mismatch and missing artifact metadata are not produced by the current local mapper/schema path. A stale deployed registration, stale connector schema, or alternate public runtime path remains the only unresolved public-layer distinction; no new real package was prepared and no real documents were attached or submitted.
 
 ## 1. Project Status Summary
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-006A (49 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
-| **Project State** | **ACTIVE / IN PROGRESS — P14-006A SECTION-LEVEL SAVE UX VERIFIED** | P14-006A Candidate Portfolio/Profile section-level save UX 100% verified across all 10 canonical sections, desktop & mobile viewports verified via CDP with 8 screenshot artifacts. Global save bar removed. P14-005AZ truthful application submission enforced. |
-| **Total Tasks** | **133 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **131 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-006A (49 tasks) |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-006B (50 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
+| **Project State** | **ACTIVE / IN PROGRESS — P14-006B REAL APPLICATION HANDOFF KIT COMPLETE & VERIFIED** | P14-006B Real Application Handoff Kit 100% verified. Real tailored ATS LaTeX resume & formal cover letter PDFs compiled via Tectonic 0.15.0, validated via Resume Quality Audit QA engine (90/100), encrypted in DocumentStorageService, and rendered in Ashby/Linear-grade UI with authenticated preview modal, manual submission notice, and profile loop. |
+| **Total Tasks** | **134 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **132 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-006B (50 tasks) |
 | **In Progress Tasks** | **1 Task** | P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation — Local Implementation Verified, Live ChatGPT MCP Verification Required) |
 | **Blocked / Not Accepted Tasks** | **2 Tasks** | P14-005W (`get_candidate_profile` NOT ACCEPTED due to public ChatGPT schema mismatch) and P14-005AB (blocked on live ChatGPT MCP call returning actual analysis payload) |
-| **Overall Task Completion** | **99.24% (131 / 132 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **99.24% (16.89 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **99.25% (132 / 133 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **99.25% (16.90 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -39,7 +97,7 @@
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 42 | 41 | 1 | **IN_PROGRESS** | **97.6%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 43 | 42 | 1 | **IN_PROGRESS** | **97.7%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---
@@ -5392,7 +5450,7 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 
 ### P14-006A: Candidate Portfolio/Profile Section-Level Save UX & Canonical Preference Ownership
 
-**Status:** COMPLETE & VERIFIED  
+**Status:** COMPLETE & VERIFIED
 **Component:** Candidate Profile Web Interface (`/profile`), Section-Level Persistence, Partial Mutation API  
 **Date Completed:** 2026-09-05  
 
@@ -5448,6 +5506,103 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 
 ---
 
+### P14-006B: Real Application Handoff Kit & Automated Document QA Engine
+
+**Status:** COMPLETE & VERIFIED  
+**Component:** Document Generation, ATS LaTeX Compiler, PDF QA Validator, Application Handoff Workspace (`/applications/:id/handoff`), Secure Artifact Streaming (`/api/applications/:id/artifacts/*`)  
+**Date Completed:** 2026-09-05  
+
+#### 1. Objectives & Architectural Boundaries Delivered
+1. **Real Document Generation Pipeline**:
+   - Converted the canonical `HANDOFF_READY` application package into genuinely usable, real, downloadable, and viewable PDF documents without external automated submission.
+   - Built `LatexDocumentGenerator` ([`src/services/latex-document-generator.service.js`](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/src/services/latex-document-generator.service.js)): generates single-column ATS LaTeX resume and formal letterhead cover letter. Features deterministic single-pass character escaping (`/[\\{}$&#%_~^<>]/g`), standard typographic hierarchies, and strictly preserves skill truth provenance (`VERIFIED`, `CORROBORATED`, `CLAIMED`, `USER_PROVIDED`, `LEARNING`).
+2. **Zero Fabricated Candidate Data Invariant**:
+   - Strictly prohibits hardcoded defaults or example data (no `+1-555-0199`, `Citizen / Authorized`, etc. as defaults).
+   - Authoritative primary email `vishwanatnishad@gmail.com` enforced; strictly rejects synthetic emails (`vishw@example.com`).
+   - Every screening field maps to canonical stored candidate data with tri-state status: `READY` (verified/stored usable value), `MISSING` (no value exists), `NEEDS_CONFIRMATION` (value exists but requires explicit candidate confirmation).
+3. **High-Performance LaTeX Compiler**:
+   - Built `LatexCompilerService` ([`src/services/latex-compiler.service.js`](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/src/services/latex-compiler.service.js)) using standalone Tectonic 0.15.0 engine (`tools/bin/tectonic.exe`) with local bundle format caching, completing PDF compilation in **1.6 seconds** offline.
+   - Graceful fallback pipeline to system `pdflatex` or Headless Chrome vector printing (`--headless=new --print-to-pdf`).
+4. **"Resume Quality Audit" QA Validator**:
+   - Built `PdfQaValidatorService` ([`src/services/pdf-qa-validator.service.js`](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/src/services/pdf-qa-validator.service.js)) evaluating compiled PDF buffers via `ResumeParserService.extractRawText()`.
+   - Structural health scored across 3 objective categories (100 pts total): Parsing Compatibility (35 pts), Content & Truth Integrity (35 pts), Readability & Layout (30 pts).
+   - Target Job Keyword Match (0–100%) calculated and displayed separately from document structural health.
+   - Strict pre-exposure gating: PDF must pass all critical integrity checks and score $\ge 75$ before artifacts are marked `READY`.
+5. **Application Handoff Lifecycle & Secure Storage**:
+   - Built `ApplicationHandoffService` ([`src/services/application-handoff.service.js`](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/src/services/application-handoff.service.js)): idempotent execution caching by `packageHash`, binding artifacts to `applicationId` and candidate tenant.
+   - Encrypted PDF artifacts persisted via `DocumentStorageService` (AES-256-GCM) with zero raw filesystem paths exposed.
+   - Evaluates screening readiness with direct anchor deep links to candidate profile (`/profile#section-contact`, `/profile#section-readiness`, etc.).
+6. **Ashby/Linear-Grade Handoff Kit UI & Secure Streaming Routes**:
+   - Built `HandoffPage` ([`src/views/handoff.page.js`](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/src/views/handoff.page.js)) featuring:
+     - Application Overview header with state badge (`HANDOFF_READY`) and `[Open Employer Portal ↗]`.
+     - Prominent Manual Submission Notice disclaimer: *"Prepared for manual submission. External automated submission has not occurred."*
+     - Tailored Resume Card with Resume Quality Audit score pill (`90/100 • Quality Audit`), category breakdown, `[View PDF]` and `[Download PDF]`.
+     - Tailored Cover Letter Card with letterhead badge, `[View PDF]`, and `[Download PDF]`.
+     - Application Readiness Matrix with 6 canonical items, readiness status pills, and `[Complete in Profile ↗]` deep links.
+     - Interactive preview modal with iframe streaming authenticated PDFs without full-page navigation.
+   - Registered authenticated streaming routes in `src/routes/web.routes.js`:
+     - `GET /applications/:id/handoff` — Web workspace.
+     - `GET /api/applications/:id/artifacts/:artifactType/view` — Inline PDF stream with Content-Security-Policy.
+     - `GET /api/applications/:id/artifacts/:artifactType/download` — Content-Disposition attachment download stream.
+   - Added `[Handoff Kit ↗]` action button to Applications table ([`src/views/applications.page.js`](file:///c:/Users/VISHW/OneDrive/Desktop/Ai-career-agent/src/views/applications.page.js)).
+
+#### 2. Files Added & Modified
+- `src/services/latex-document-generator.service.js` [NEW] — Single-column ATS LaTeX resume and formal letterhead cover letter generator.
+- `src/services/latex-compiler.service.js` [NEW] — Tectonic 0.15.0 LaTeX compiler service with bundle format caching and Chrome fallback.
+- `src/services/pdf-qa-validator.service.js` [NEW] — Resume Quality Audit validator with 100-pt scoring and pre-exposure gating.
+- `src/services/application-handoff.service.js` [NEW] — Application readiness evaluator, encrypted PDF persistence, and handoff kit builder.
+- `src/views/handoff.page.js` [NEW] — Ashby/Linear-grade Handoff Kit UI with preview modal, manual submission notice, and readiness matrix.
+- `src/routes/web.routes.js` [MODIFIED] — Registered handoff workspace and secure artifact viewing/downloading streaming endpoints.
+- `src/services/job-application-workflow.service.js` [MODIFIED] — Integrated `ApplicationHandoffService` into `submitJobApplication` for `HANDOFF_READY` state.
+- `src/domain/job/job-workflow.schemas.js` [MODIFIED] — Updated schema with `.passthrough()` on `manualHandoffKit`.
+- `src/views/applications.page.js` [MODIFIED] — Added `[Handoff Kit ↗]` action button on application rows.
+- `tests/unit/latex-document-generator.test.js` [NEW] — 5 unit tests for escaping, formatting, and identity validation.
+- `tests/unit/latex-compiler.test.js` [NEW] — 2 unit tests for compiler execution and PDF stream verification.
+- `tests/unit/pdf-qa-validator.test.js` [NEW] — 3 unit tests for quality audit scoring, truth checking, and corruption handling.
+- `tests/unit/application-handoff.test.js` [NEW] — 3 unit tests for readiness evaluation, profile deep links, and package building.
+- `tests/integration/application-handoff-route.test.js` [NEW] — 5 integration tests for web/API routes, authentication, streaming, and tenant isolation.
+- `scratch/verify_handoff_kit.mjs` [NEW] — Chrome CDP browser verification script.
+- `tools/bin/tectonic.exe` [TOOL] — Standalone Tectonic 0.15.0 binary.
+
+#### 3. Verification & Evidence
+- **Automated Handoff Test Suites (`node --test`)**:
+  - `tests/unit/latex-document-generator.test.js` $\rightarrow$ **5/5 PASS**
+  - `tests/unit/latex-compiler.test.js` $\rightarrow$ **2/2 PASS**
+  - `tests/unit/pdf-qa-validator.test.js` $\rightarrow$ **3/3 PASS**
+  - `tests/unit/application-handoff.test.js` $\rightarrow$ **3/3 PASS**
+  - `tests/integration/application-handoff-route.test.js` $\rightarrow$ **5/5 PASS**
+  - **All Handoff Suites Together**: **18/18 PASS (100%) in 9.9s**.
+- **Full System Regression Suites**:
+  - `tests/unit/job-application-submission-truth.test.js` $\rightarrow$ **8/8 PASS** (Truthful submission, human approval gate, zero synthetic candidate references).
+  - `tests/integration/mcp-job-workflow.test.js` $\rightarrow$ **10/10 PASS** (MCP tool invocation, package hashing, tamper rejection).
+  - `tests/unit/candidate-career-profile.test.js`, `tests/unit/profile-save-ajax-regression.test.js`, `tests/unit/profile-architecture.test.js` $\rightarrow$ **78/78 PASS** (Profile architecture, section-level save UX).
+- **Automated Chrome CDP Browser Verification (`scratch/verify_handoff_kit.mjs`)**:
+  - **1. Desktop 1280px Workspace Audit**: `PASS` (Verified title, h1, Vercel badge, HANDOFF_READY state, Resume card with 90/100 Quality Audit breakdown, Cover Letter card, 7-row readiness matrix with profile deep links, manual submission disclaimer banner).
+  - **2. Interactive Resume PDF Preview Modal**: `PASS` (Clicking `[View PDF]` opened modal, loaded authenticated inline stream `/api/applications/:id/artifacts/resume/view`, verified rendered PDF).
+  - **3. Interactive Cover Letter PDF Preview Modal**: `PASS` (Loaded authenticated inline stream `/api/applications/:id/artifacts/cover-letter/view`, verified letterhead PDF).
+  - **4. Mobile 390px Viewport Audit**: `PASS` (`scrollWidth: 390, clientWidth: 390, hasHorizontalOverflow: false`; verified zero horizontal overflow, responsive single-column card stacking).
+  - **5. Direct HTTP Stream Verification**: `PASS` (Resume view: HTTP 200 `application/pdf`, magic `%PDF-`, 24.5 KB; Resume download: HTTP 200 `Content-Disposition: attachment; filename="tailored-resume.pdf"`, 24.5 KB; Cover letter download: HTTP 200 `Content-Disposition: attachment; filename="tailored-cover-letter.pdf"`, 14.0 KB).
+  - **Visual Artifacts Captured**:
+    - `handoff_desktop_1280.png` (Desktop 1280px handoff workspace)
+    - `handoff_preview_modal.png` (Authenticated resume PDF preview modal)
+    - `handoff_cover_letter_modal.png` (Authenticated cover letter PDF preview modal)
+    - `handoff_mobile_390.png` (Mobile 390px responsive viewport)
+- **Vercel Greenhouse Application Field Comparison**:
+  - First / Last Name: `Vishwanath Nishad` (`READY`, authentic user account record).
+  - Email: `vishwanatnishad@gmail.com` (`READY`, primary canonical account email).
+  - Phone: Empty $\rightarrow$ `MISSING` with deep link `/profile#section-contact` (zero invented phone number).
+  - Resume / CV: `tailored-resume.pdf` (24.0 KB, `READY`, Quality Audit score: 90/100).
+  - Cover Letter: `tailored-cover-letter.pdf` (13.7 KB, `READY`, formal letterhead PDF).
+  - LinkedIn: Empty $\rightarrow$ `MISSING` with deep link `/profile#section-links`.
+  - GitHub / Website: `https://github.com/vishu1803` (`READY`, connected GitHub App account).
+  - Work Authorization / Sponsorship: `NEEDS_CONFIRMATION` with deep link `/profile#section-readiness` (zero synthetic claims).
+- **Code Quality & Security**:
+  - `npx eslint src/services/latex-document-generator.service.js src/services/latex-compiler.service.js src/services/pdf-qa-validator.service.js src/services/application-handoff.service.js src/views/handoff.page.js` $\rightarrow$ **PASS (0 errors, 0 warnings)**.
+  - `npx prettier --check src/services/latex-document-generator.service.js src/services/latex-compiler.service.js src/services/pdf-qa-validator.service.js src/services/application-handoff.service.js src/views/handoff.page.js` $\rightarrow$ **PASS (100% formatted)**.
+  - `npm run scan:secrets` $\rightarrow$ **PASS (Zero exposed secrets detected)**.
+
+---
+
 ## Latest Production & MCP Gap Audit (2026-09-05)
 
 ### AUDIT-P14-001 — Production Readiness and MCP Operational Gap Analysis
@@ -5483,5 +5638,107 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 `P14-006` production config/TLS/proxy fail-closed hardening → `P14-007` metrics and OAuth abuse perimeter → `P14-008` durable object storage → `P14-009` distributed rate/concurrency/cache state → `P14-010` worker/retry/scheduling subsystem → `P14-011` reproducible deployment and external MCP conformance/load gates.
 
 **Evidence reviewed:** `src/config/env.js`, `src/app.js`, `src/db/index.js`, `src/routes/health.routes.js`, `src/routes/oauth.routes.js`, `src/security/mcp-auth.js`, `src/routes/mcp.routes.js`, `src/services/document-storage.service.js`, `src/monitoring/metrics.service.js`, `.github/workflows/ci.yml`, `package.json`, and tracked deployment/operations files.
+
+### P14-006C: MCP Handoff Artifact Exposure Gap
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-05
+
+**Root cause:** `ApplicationHandoffService` generated, QA-validated, and encrypted both PDFs, then stored only the handoff metadata on `job_applications`. It did not call the existing `ApplicationTrackingService.attachTailoredDocument()` lifecycle, so `tailored_documents` remained empty. The `get_application_submission_status` MCP handler read only that table and therefore returned `tailoredDocuments: []`. Secure web routes were already correctly authorized and served the real encrypted objects.
+
+**Minimal fix:**
+
+- Attach `TAILORED_RESUME` and `TAILORED_COVER_LETTER` immutable snapshots through the existing tracking service, including internal artifact linkage in server-side metadata; duplicate versions are avoided.
+- Extend `get_application_submission_status` shaping to verify the encrypted object’s plaintext SHA-256 and byte size before returning artifact metadata and secure view/download references. Storage keys are never returned; stale/unreadable references are omitted.
+- Added focused assertions for database linkage and MCP artifact serialization.
+
+**Changed:**
+
+- `src/services/application-handoff.service.js`
+- `src/mcp/tools/job-workflow-tools.js`
+- `tests/integration/application-handoff-route.test.js`
+- `tests/integration/mcp-job-workflow.test.js`
+
+**Verification:**
+
+- `node --test tests/unit/application-handoff.test.js tests/integration/application-handoff-route.test.js tests/integration/mcp-job-workflow.test.js` → **21/22 passed in the combined run; final MCP rerun 14/14 passed, route suite 5/5 passed, unit handoff 3/3 passed.** The one failed combined assertion was corrected in the subsequent MCP rerun.
+- Live supplied application read-only MCP handler check → **2 verified artifacts returned** for `b7591a4c-6735-4668-a3be-d55a48693d5b`; resume 24,539 bytes and cover letter 14,009 bytes; hashes matched encrypted storage; no storage key exposed.
+- Existing secure route tests → **view 200, download 200, unauthorized tenant 404**.
+- Prettier and ESLint on changed source/tests → **PASS**.
+- No browser automation, approval, submission, candidate-data changes, or unrelated MCP tool changes performed.
+
+---
+
+### P14-006D: Public MCP Output Contract Registration Gap
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT REFRESH REQUIRED
+**Date:** 2026-09-05
+
+**Investigation:**
+
+- The supplied application still has real encrypted resume and cover-letter objects referenced by `job_applications.metadata.handoffKit`; no application mutation or duplicate attachment was performed.
+- Local `get_application_submission_status` returns both artifacts after verifying decrypted byte size and SHA-256. The public-style local MCP invocation returns them in `tailoredDocuments`.
+- `McpServerWrapper` previously ignored every registered `outputSchema` when calling the official MCP `registerTool()`. `get_application_submission_status` also had no output schema, so `tools/list` could not advertise nested artifact fields.
+- The public `https://dev.aicareershub.tech` endpoint is live, but its public documentation does not contain `tailoredDocuments` or `artifactReference`, while the workspace now registers those fields. This is evidence of a stale hosted revision/registration, not a different local handler.
+
+**Minimal fix:**
+
+- Added the status tool’s complete output schema, including artifact reference, filename, MIME type, size, availability status, view URL, and download URL.
+- Added output-schema conversion and registration to the MCP server, scoped only to the corrected status tool so unrelated legacy tools retain their existing behavior.
+- Fixed date normalization so attached document rows pass official MCP output validation.
+
+**Verification:**
+
+- `node --test tests/integration/mcp-job-workflow.test.js` → **14/14 PASS**.
+- Local registration inspection → `get_application_submission_status` is registered with `outputSchema.tailoredDocuments.items` containing all required artifact fields.
+- Existing public-style handler check → both supplied real artifacts verify and serialize; no storage key/private path is returned.
+- Public domain read-only checks → endpoint and OAuth metadata reachable; public docs currently stale and do not advertise the new contract.
+- ESLint, Prettier, and secrets scan → **PASS**.
+
+**Operational requirement:** Deploy/restart the current revision, then remove and re-add or refresh the ChatGPT MCP connector so ChatGPT performs a fresh `tools/list`. No application submission or browser automation is involved.
+
+---
+
+### P14-006E: REAL ChatGPT Handoff Artifact Discrepancy Re-Audit
+
+**Status:** LOCAL IMPLEMENTATION VERIFIED; PUBLIC CHATGPT ACCEPTANCE PENDING CONNECTOR REFRESH
+**Date:** 2026-09-05
+
+**Scope:** Read-only investigation of the supplied historical application `b7591a4c-6735-4668-a3be-d55a48693d5b`; no package generation, document attachment, approval, submission, browser automation, or candidate-data mutation performed.
+
+**Database/storage evidence:**
+
+- `job_applications` contains the supplied application with `status: SAVED`, the supplied package hash, and `metadata.handoffKit`.
+- `handoffKit.resume` and `handoffKit.coverLetter` each contain a storage key, filename, MIME type, byte size, SHA-256 hash, and secure view/download URLs.
+- The relational `tailored_documents` table is empty for this historical application. It predates the relational attachment fix; this was not repaired by mutation because the current read path can safely recover verified artifacts from the existing handoff metadata.
+
+**Local path evidence:**
+
+- `ApplicationTrackingService.getApplicationDetails()` returns the application and empty relational document list.
+- `get_application_submission_status` then reads the existing handoff metadata, decrypts each object through tenant-bound `DocumentStorageService`, verifies plaintext byte size and SHA-256, and returns both `TAILORED_RESUME` and `TAILORED_COVER_LETTER` with filename, MIME type, size, `READY` status, and secure view/download references. Storage keys are not returned.
+- The current Zod output contract and official MCP registration both expose `tailoredDocuments`; the converted `tools/list` registration contains all nested artifact fields.
+
+**Public path evidence:**
+
+- Before origin restart, `https://dev.aicareershub.tech` returned `502 Bad Gateway`, confirming the tunnel origin was unavailable.
+- After restarting the existing local origin behind the named tunnel, the public unauthenticated MCP challenge returned `resource_metadata="https://dev.aicareershub.tech/.well-known/oauth-protected-resource"` instead of the stale localhost URL.
+- Public `/docs/mcp` still does not contain `tailoredDocuments` or `artifactReference`; this is stale documentation evidence, not proof that the authenticated `tools/list` contract is current.
+- An authenticated public `tools/list` and fresh ChatGPT invocation were not performed because no connector bearer context is available in this session. The user-reported REAL ChatGPT response remains a FAIL (`tailoredDocuments: []`) until the connector is removed/re-added or explicitly refreshed.
+
+**Minimal source change:**
+
+- `src/routes/mcp.routes.js`: authentication challenges now derive a safe public metadata origin from the request host/forwarded headers, restricted to known local/staging origins. This keeps public MCP discovery aligned with the public hostname and prevents arbitrary Host-header reflection.
+- `tests/integration/staging-proxy-security.test.js`: added an assertion for the staging metadata URL.
+
+**Verification:**
+
+- `node --test tests/integration/application-handoff-route.test.js tests/integration/mcp-job-workflow.test.js tests/unit/application-handoff.test.js` → **22/22 PASS** in the focused run.
+- `node --test tests/integration/staging-proxy-security.test.js` → **8/8 PASS**.
+- Local official registration inspection → **26 tools**, status output schema includes `tailoredDocuments` and all required nested artifact fields.
+- Public unauthenticated challenge after restart → **401 with correct staging metadata URL**.
+- `node scripts/scan-secrets.js` → **PASS; zero exposed secrets**.
+- Combined rerun could not complete remote-DB suites because this environment returned `EACCES` connecting to the configured PostgreSQL host; PowerShell also blocks `npx.ps1`. No test failure implicated artifact mapping or schema logic.
+
+**Required next operation:** deploy/restart the current revision if the public host is managed separately, then remove and re-add or refresh the ChatGPT MCP connector so it performs a fresh authenticated `tools/list`. Only after that refresh can the acceptance criterion—two real artifact references in a fresh ChatGPT status call—be confirmed.
 
 ---

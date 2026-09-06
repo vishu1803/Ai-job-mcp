@@ -20,9 +20,11 @@ import { NotFoundError } from '../../errors/index.js';
 import { JobDiscoveryService } from '../../services/job-discovery.service.js';
 import { JobApplicationWorkflowService } from '../../services/job-application-workflow.service.js';
 import { ApplicationTrackingService } from '../../services/application-tracking.service.js';
+import { DocumentStorageService } from '../../services/document-storage.service.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import { assertToolPermission } from '../../security/mcp-auth.js';
 import { JOB_WORKFLOW_TOOL_DEFINITIONS } from '../../domain/mcp/job-workflow-tools.schemas.js';
+import { getVerifiedHandoffDocuments } from './handoff-artifacts.js';
 
 /**
  * Resolves target candidate ID for the authenticated request.
@@ -68,8 +70,10 @@ export function registerJobWorkflowTools(
     jobDiscoveryService = null,
     jobApplicationWorkflowService = null,
     applicationTrackingService = null,
+    documentStorageService = null,
   } = {}
 ) {
+  const artifactStorage = documentStorageService || new DocumentStorageService();
   const discoveryService =
     jobDiscoveryService ||
     new JobDiscoveryService({
@@ -255,6 +259,17 @@ export function registerJobWorkflowTools(
 
       const details = await trackingService.getApplicationDetails(context, params.applicationId);
       const app = details.application;
+      const tailoredDocuments = await getVerifiedHandoffDocuments(
+        app,
+        details.tailoredDocuments || [],
+        artifactStorage,
+        {
+          currentPackageHash: details.currentPackage?.packageHash || null,
+          packageVersion: details.currentPackage?.version || null,
+          resumeContentHash: details.currentPackage?.resumeContentHash || null,
+          coverLetterContentHash: details.currentPackage?.coverLetterContentHash || null,
+        }
+      );
 
       const submissionStatus =
         app.metadata?.externalSubmissionStatus ||
@@ -269,7 +284,13 @@ export function registerJobWorkflowTools(
         app.metadata?.submissionRef ||
         app.notes?.match(/External Reference:\s*([^\s\n]+)/)?.[1] ||
         null;
-      const packageHash = app.notes?.match(/Package Hash: ([a-f0-9]{64})/)?.[1] || null;
+      // Authoritative package hash: the CURRENT package version wins; legacy
+      // surfaces (notes scan) are fallbacks only.
+      const packageHash =
+        details.currentPackage?.packageHash ||
+        app.metadata?.currentPackageHash ||
+        app.notes?.match(/Package Hash: ([a-f0-9]{64})/)?.[1] ||
+        null;
 
       return {
         applicationId: app.id,
@@ -284,7 +305,7 @@ export function registerJobWorkflowTools(
         appliedAt: app.appliedAt ? new Date(app.appliedAt).toISOString() : null,
         notes: app.notes || null,
         stages: details.stages || [],
-        tailoredDocuments: details.tailoredDocuments || [],
+        tailoredDocuments,
         createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : null,
         updatedAt: app.updatedAt ? new Date(app.updatedAt).toISOString() : null,
       };

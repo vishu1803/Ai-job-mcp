@@ -21,6 +21,7 @@
  * Strict Invariant: POST /mcp remains purely JSON-RPC and is NEVER touched by web routes.
  */
 
+import crypto from 'node:crypto';
 import { eq, and, or, desc } from 'drizzle-orm';
 import { validateSession, getSessionCookieOptions } from '../security/session.service.js';
 import { db as defaultDb } from '../db/index.js';
@@ -40,6 +41,9 @@ import { config } from '../config/env.js';
 import { CandidateRepositoryIngestionService } from '../services/candidate-repository-ingestion.service.js';
 import { connectionService as defaultConnectionService } from '../services/connection.service.js';
 import { connectorRegistry } from '../connectors/registry/connector-registry.js';
+import { ApplicationHandoffService } from '../services/application-handoff.service.js';
+import { CandidateArtifactContentService } from '../services/candidate-artifact-content.service.js';
+import { DocumentStorageService } from '../services/document-storage.service.js';
 import { renderLandingPage } from '../views/landing.page.js';
 import { renderLoginPage } from '../views/login.page.js';
 import { renderDashboardPage } from '../views/dashboard.page.js';
@@ -48,6 +52,7 @@ import { renderProjectsPage } from '../views/projects.page.js';
 import { renderSkillsPage } from '../views/skills.page.js';
 import { renderSkillDetailPage } from '../views/skill-detail.page.js';
 import { renderApplicationsPage } from '../views/applications.page.js';
+import { renderHandoffPage } from '../views/handoff.page.js';
 import { renderSourcesPage } from '../views/sources.page.js';
 import { renderResumesPage, renderResumeDetailPage } from '../views/resumes.page.js';
 import { renderConnectPage } from '../views/connect.page.js';
@@ -153,6 +158,12 @@ export default async function webRoutes(app, opts = {}) {
   const connectionService = opts.connectionService || defaultConnectionService;
   const resumeService = opts.resumeService || defaultSourceResumeIngestionService;
   const tokenService = opts.tokenService || defaultMcpApiTokenService;
+  const applicationHandoffService =
+    opts.applicationHandoffService || new ApplicationHandoffService();
+  const applicationHandoffContentService =
+    opts.candidateArtifactContentService ||
+    new CandidateArtifactContentService({ database: opts.database });
+  const documentStorageService = opts.documentStorageService || new DocumentStorageService();
 
   // Helper to load complete authenticated overview data
   async function loadDashboardData(sessionContext, dbInstance) {
@@ -2232,11 +2243,15 @@ export default async function webRoutes(app, opts = {}) {
     let skillCatalog = { items: [], categories: [] };
     try {
       additionalSkills = await additionalSkillsService.listAdditionalSkills(context, candidate.id);
-    } catch { /* additional skills load skipped */ }
+    } catch {
+      /* additional skills load skipped */
+    }
     try {
       skillCatalog = await skillCatalogService.searchSkills({ query: '', pageSize: 500 });
       skillCatalog.categories = await skillCatalogService.getCategories();
-    } catch { /* skill catalog load skipped */ }
+    } catch {
+      /* skill catalog load skipped */
+    }
 
     const html = renderProfilePage({
       user: sessionContext.user,
@@ -2426,7 +2441,10 @@ export default async function webRoutes(app, opts = {}) {
     try {
       additionalSkills = await additionalSkillsService.listAdditionalSkills(context, candidate.id);
     } catch (err) {
-      logger.debug({ err, candidateId: candidate.id }, 'Additional skills load skipped during bootstrap');
+      logger.debug(
+        { err, candidateId: candidate.id },
+        'Additional skills load skipped during bootstrap'
+      );
     }
 
     // Get full skill catalog for client-side search
@@ -2484,7 +2502,9 @@ export default async function webRoutes(app, opts = {}) {
         categories: skillCatalog.categories || [],
       },
       meta: {
-        updatedAt: candidate.updatedAt ? new Date(candidate.updatedAt).toISOString() : new Date().toISOString(),
+        updatedAt: candidate.updatedAt
+          ? new Date(candidate.updatedAt).toISOString()
+          : new Date().toISOString(),
       },
     };
 
@@ -2519,12 +2539,18 @@ export default async function webRoutes(app, opts = {}) {
     const sectionUpdates = {};
 
     if (sections.identity) {
-      if (sections.identity.displayName !== undefined) sectionUpdates.displayName = sections.identity.displayName;
-      if (sections.identity.headline !== undefined) sectionUpdates.headline = sections.identity.headline;
-      if (sections.identity.summary !== undefined) sectionUpdates.summary = sections.identity.summary;
-      if (sections.identity.currentRole !== undefined) sectionUpdates.currentRole = sections.identity.currentRole;
-      if (sections.identity.location !== undefined) sectionUpdates.location = sections.identity.location;
-      if (sections.identity.careerStatus !== undefined) sectionUpdates.careerStatus = sections.identity.careerStatus;
+      if (sections.identity.displayName !== undefined)
+        sectionUpdates.displayName = sections.identity.displayName;
+      if (sections.identity.headline !== undefined)
+        sectionUpdates.headline = sections.identity.headline;
+      if (sections.identity.summary !== undefined)
+        sectionUpdates.summary = sections.identity.summary;
+      if (sections.identity.currentRole !== undefined)
+        sectionUpdates.currentRole = sections.identity.currentRole;
+      if (sections.identity.location !== undefined)
+        sectionUpdates.location = sections.identity.location;
+      if (sections.identity.careerStatus !== undefined)
+        sectionUpdates.careerStatus = sections.identity.careerStatus;
       if (sections.identity.phone !== undefined) sectionUpdates.phone = sections.identity.phone;
     }
 
@@ -2560,19 +2586,26 @@ export default async function webRoutes(app, opts = {}) {
       const prefs = sections.preferences;
       const jobPrefs = {};
       if (prefs.targetRoles !== undefined) jobPrefs.targetRoles = prefs.targetRoles;
-      if (prefs.preferredLocations !== undefined) jobPrefs.preferredLocations = prefs.preferredLocations;
+      if (prefs.preferredLocations !== undefined)
+        jobPrefs.preferredLocations = prefs.preferredLocations;
       if (prefs.remotePreference !== undefined) jobPrefs.remotePreference = prefs.remotePreference;
       if (prefs.employmentTypes !== undefined) jobPrefs.employmentTypes = prefs.employmentTypes;
-      if (prefs.salaryFloor !== undefined) jobPrefs.salaryFloor = prefs.salaryFloor != null ? Number(prefs.salaryFloor) : null;
+      if (prefs.salaryFloor !== undefined)
+        jobPrefs.salaryFloor = prefs.salaryFloor != null ? Number(prefs.salaryFloor) : null;
       if (prefs.salaryCurrency !== undefined) jobPrefs.salaryCurrency = prefs.salaryCurrency;
-      if (prefs.preferredTechStack !== undefined) jobPrefs.preferredTechStack = prefs.preferredTechStack;
+      if (prefs.preferredTechStack !== undefined)
+        jobPrefs.preferredTechStack = prefs.preferredTechStack;
       if (prefs.industries !== undefined) jobPrefs.industries = prefs.industries;
-      if (prefs.companiesToPrioritize !== undefined) jobPrefs.companiesToPrioritize = prefs.companiesToPrioritize;
+      if (prefs.companiesToPrioritize !== undefined)
+        jobPrefs.companiesToPrioritize = prefs.companiesToPrioritize;
       if (prefs.companiesToAvoid !== undefined) jobPrefs.companiesToAvoid = prefs.companiesToAvoid;
-      if (prefs.workAuthorization !== undefined) jobPrefs.workAuthorization = prefs.workAuthorization;
-      if (prefs.visaSponsorshipRequired !== undefined) jobPrefs.visaSponsorshipRequired = prefs.visaSponsorshipRequired;
+      if (prefs.workAuthorization !== undefined)
+        jobPrefs.workAuthorization = prefs.workAuthorization;
+      if (prefs.visaSponsorshipRequired !== undefined)
+        jobPrefs.visaSponsorshipRequired = prefs.visaSponsorshipRequired;
       if (prefs.availabilityDate !== undefined) jobPrefs.availabilityDate = prefs.availabilityDate;
-      if (prefs.relocationPreference !== undefined) jobPrefs.relocationPreference = prefs.relocationPreference;
+      if (prefs.relocationPreference !== undefined)
+        jobPrefs.relocationPreference = prefs.relocationPreference;
       sectionUpdates.jobPreferences = jobPrefs;
     }
 
@@ -2607,7 +2640,9 @@ export default async function webRoutes(app, opts = {}) {
     return reply.status(200).send({
       ok: true,
       saved: true,
-      updatedAt: updatedProfile.updatedAt ? new Date(updatedProfile.updatedAt).toISOString() : new Date().toISOString(),
+      updatedAt: updatedProfile.updatedAt
+        ? new Date(updatedProfile.updatedAt).toISOString()
+        : new Date().toISOString(),
       displayName: updatedProfile.displayName,
       candidateId: updatedProfile.candidateId,
       additionalSkills: additionalSkillsResult,
@@ -2707,6 +2742,317 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     return reply.redirect('/applications?success=Application+status+updated');
+  });
+
+  // -------------------------------------------------------------------------
+  // 22b. GET /applications/:id/handoff — Application Handoff Kit Workspace
+  // -------------------------------------------------------------------------
+  app.get('/applications/:id/handoff', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect(`/login?returnTo=/applications/${req.params.id}/handoff`);
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const appId = req.params.id;
+
+    const [application] = await database
+      .select()
+      .from(jobApplications)
+      .where(
+        and(
+          eq(jobApplications.id, appId),
+          eq(jobApplications.tenantId, tenant.id),
+          eq(jobApplications.candidateId, candidate.id)
+        )
+      );
+
+    if (!application) {
+      return reply.code(404).send('Application not found or unauthorized');
+    }
+
+    let handoffKit = application.metadata?.handoffKit;
+
+    // If handoffKit is not yet built, build it now.
+    // Document content is generated from REAL canonical candidate data via
+    // CandidateArtifactContentService — the previous inline placeholder content
+    // ("Dedicated software engineer with verified technical skills…",
+    // "verified achievements in software engineering and systems design") is
+    // removed. Generation fails closed instead of fabricating content.
+    if (!handoffKit) {
+      const contentService =
+        applicationHandoffContentService || new CandidateArtifactContentService({ database });
+      let documentContent;
+      try {
+        documentContent = await contentService.generateApplicationDocuments({
+          tenantId: tenant.id,
+          userId: user.id,
+          candidateId: candidate.id,
+          jobPosting: {
+            id: application.id,
+            source: 'COMPANY_CAREERS',
+            company: application.companyName,
+            title: application.jobTitle,
+            location: application.location || 'Remote',
+            description: application.metadata?.jobDescription || application.jobTitle,
+            responsibilities: [],
+            requirements: [],
+            skills: [],
+            applicationUrl:
+              application.jobUrl ||
+              application.metadata?.destinationUrl ||
+              'https://boards.greenhouse.io',
+            retrievedAt: new Date().toISOString(),
+          },
+          candidateEmail: candidate.canonicalEmail || user.email,
+          candidatePhone:
+            candidate.profileMetadata?.contact?.phone ||
+            candidate.profileMetadata?.identity?.phone ||
+            candidate.profileMetadata?.userCustom?.phone ||
+            undefined,
+        });
+      } catch (contentErr) {
+        req.log.warn(
+          { error: contentErr.message },
+          'Real document content generation failed for handoff kit'
+        );
+        return reply
+          .code(500)
+          .send(
+            'Cannot generate handoff documents: candidate profile data is incomplete or unavailable. ' +
+              'Complete the candidate profile before generating application documents.'
+          );
+      }
+
+      const canonicalPkg = {
+        candidateId: candidate.id,
+        candidateName: candidate.displayName || user.displayName,
+        candidateEmail: candidate.canonicalEmail || user.email,
+        candidatePhone:
+          candidate.profileMetadata?.contact?.phone ||
+          candidate.profileMetadata?.identity?.phone ||
+          candidate.profileMetadata?.userCustom?.phone ||
+          '',
+        targetJob: {
+          id: application.id,
+          title: application.jobTitle,
+          company: application.companyName,
+          location: application.location || 'Remote',
+          applicationUrl:
+            application.jobUrl ||
+            application.metadata?.destinationUrl ||
+            'https://boards.greenhouse.io',
+          retrievedAt: new Date().toISOString(),
+        },
+        tailoredResume: {
+          title: documentContent.resume.title,
+          markdownContent: documentContent.resume.markdownContent,
+          contentHash: documentContent.resume.contentHash,
+          fitScore: documentContent.resume.fitScore,
+        },
+        coverLetter: {
+          title: documentContent.coverLetter.title,
+          markdownContent: documentContent.coverLetter.markdownContent,
+          contentHash: documentContent.coverLetter.contentHash,
+        },
+        verifiedSkills: [],
+        claimedSkills: [],
+        portfolioLinks: candidate.profileMetadata?.contact?.links || [],
+        answers: {},
+        packageHash:
+          application.metadata?.currentPackageHash ||
+          application.metadata?.packageHash ||
+          crypto.createHash('sha256').update(`${appId}-package`).digest('hex'),
+        preparedAt: new Date().toISOString(),
+      };
+
+      try {
+        handoffKit = await applicationHandoffService.buildApplicationHandoffKit({
+          tenantId: tenant.id,
+          userId: user.id,
+          candidateId: candidate.id,
+          applicationPackage: canonicalPkg,
+          applicationId: application.id,
+          destinationUrl: application.jobUrl || application.metadata?.destinationUrl,
+        });
+        await database
+          .update(jobApplications)
+          .set({
+            metadata: {
+              ...(application.metadata || {}),
+              handoffKit,
+            },
+            updatedAt: new Date(),
+          })
+          .where(eq(jobApplications.id, application.id));
+      } catch (buildErr) {
+        req.log.warn({ error: buildErr.message }, 'Failed to generate initial handoff kit');
+        return reply.code(500).send('Error generating application handoff kit');
+      }
+    }
+
+    const html = renderHandoffPage({
+      user,
+      tenant,
+      application,
+      handoffKit,
+      flashMessage: req.query.success || '',
+      errorMessage: req.query.error || '',
+    });
+
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // -------------------------------------------------------------------------
+  // 22b-1. GET /api/applications/:id/artifacts/:artifactType/view (Authenticated inline stream)
+  // -------------------------------------------------------------------------
+  app.get('/api/applications/:id/artifacts/:artifactType/view', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.code(401).send({ error: 'Unauthorized' });
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const { id: appId, artifactType } = req.params;
+
+    const [application] = await database
+      .select()
+      .from(jobApplications)
+      .where(
+        and(
+          eq(jobApplications.id, appId),
+          eq(jobApplications.tenantId, tenant.id),
+          eq(jobApplications.candidateId, candidate.id)
+        )
+      );
+
+    if (!application) {
+      return reply.code(404).send({ error: 'Application not found or unauthorized' });
+    }
+
+    const handoffKit = application.metadata?.handoffKit;
+    if (!handoffKit) {
+      return reply.code(404).send({ error: 'No generated handoff kit found for this application' });
+    }
+
+    let storageKey = null;
+    let filename = 'document.pdf';
+    let mimeType = 'application/pdf';
+
+    if (artifactType === 'resume') {
+      storageKey = handoffKit.resume?.storageKey;
+      filename = handoffKit.resume?.filename || 'tailored-resume.pdf';
+    } else if (artifactType === 'cover-letter') {
+      storageKey = handoffKit.coverLetter?.storageKey;
+      filename = handoffKit.coverLetter?.filename || 'tailored-cover-letter.pdf';
+    } else if (artifactType === 'resume-tex') {
+      storageKey = handoffKit.resume?.texStorageKey;
+      filename = 'tailored-resume.tex';
+      mimeType = 'text/plain; charset=utf-8';
+    } else {
+      return reply.code(400).send({ error: 'Invalid artifact type' });
+    }
+
+    if (!storageKey) {
+      return reply.code(404).send({ error: 'Artifact storage key not found' });
+    }
+
+    try {
+      const buffer = await documentStorageService.getDecryptedDocument({
+        tenantId: tenant.id,
+        storageKey,
+      });
+
+      return reply
+        .type(mimeType)
+        .header('Content-Disposition', `inline; filename="${filename}"`)
+        .header(
+          'Content-Security-Policy',
+          "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self';"
+        )
+        .header('X-Content-Type-Options', 'nosniff')
+        .send(buffer);
+    } catch (err) {
+      req.log.error({ error: err.message }, 'Failed to retrieve decrypted document artifact');
+      return reply.code(500).send({ error: 'Failed to stream document' });
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // 22b-2. GET /api/applications/:id/artifacts/:artifactType/download (Secure download)
+  // -------------------------------------------------------------------------
+  app.get('/api/applications/:id/artifacts/:artifactType/download', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.code(401).send({ error: 'Unauthorized' });
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const { id: appId, artifactType } = req.params;
+
+    const [application] = await database
+      .select()
+      .from(jobApplications)
+      .where(
+        and(
+          eq(jobApplications.id, appId),
+          eq(jobApplications.tenantId, tenant.id),
+          eq(jobApplications.candidateId, candidate.id)
+        )
+      );
+
+    if (!application) {
+      return reply.code(404).send({ error: 'Application not found or unauthorized' });
+    }
+
+    const handoffKit = application.metadata?.handoffKit;
+    if (!handoffKit) {
+      return reply.code(404).send({ error: 'No generated handoff kit found for this application' });
+    }
+
+    let storageKey = null;
+    let filename = 'document.pdf';
+    let mimeType = 'application/pdf';
+
+    if (artifactType === 'resume') {
+      storageKey = handoffKit.resume?.storageKey;
+      filename = handoffKit.resume?.filename || 'tailored-resume.pdf';
+    } else if (artifactType === 'cover-letter') {
+      storageKey = handoffKit.coverLetter?.storageKey;
+      filename = handoffKit.coverLetter?.filename || 'tailored-cover-letter.pdf';
+    } else if (artifactType === 'resume-tex') {
+      storageKey = handoffKit.resume?.texStorageKey;
+      filename = 'tailored-resume.tex';
+      mimeType = 'text/plain; charset=utf-8';
+    } else {
+      return reply.code(400).send({ error: 'Invalid artifact type' });
+    }
+
+    if (!storageKey) {
+      return reply.code(404).send({ error: 'Artifact storage key not found' });
+    }
+
+    try {
+      const buffer = await documentStorageService.getDecryptedDocument({
+        tenantId: tenant.id,
+        storageKey,
+      });
+
+      return reply
+        .type(mimeType)
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .header('X-Content-Type-Options', 'nosniff')
+        .send(buffer);
+    } catch (err) {
+      req.log.error(
+        { error: err.message },
+        'Failed to retrieve decrypted document artifact for download'
+      );
+      return reply.code(500).send({ error: 'Failed to download document' });
+    }
   });
 
   // -------------------------------------------------------------------------

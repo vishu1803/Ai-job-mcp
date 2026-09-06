@@ -83,3 +83,10 @@ roadmap.md
 # Document Storage & Upload Blobs
 storage/
 !storage/.gitkeep
+
+
+
+# External Tools & Binaries
+tools/bin/*.exe
+tools/bin/*.zip
+

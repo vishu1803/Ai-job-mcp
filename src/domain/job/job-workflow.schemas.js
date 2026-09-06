@@ -127,6 +127,11 @@ export const ApplicationPackageSchema = z.object({
   answers: z.record(z.string(), z.string()).default({}),
   packageHash: z.string(), // SHA-256 of canonical JSON package
   preparedAt: z.string(),
+  // Application linkage populated by prepare_job_application persistence
+  // (P14-005BA). Optional so packages prepared without persistence (or echoed
+  // back through validate/submit) remain valid.
+  applicationId: z.string().uuid().optional(),
+  packageVersion: z.number().int().positive().optional(),
 });
 
 // -----------------------------------------------------------------------------
@@ -232,5 +237,6 @@ export const SubmissionResultSchema = z.object({
       directPortalUrl: z.string(),
       checklist: z.array(z.string()),
     })
+    .passthrough()
     .optional(),
 });

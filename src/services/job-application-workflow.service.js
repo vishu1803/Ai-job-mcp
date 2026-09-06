@@ -14,10 +14,9 @@ import crypto from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { candidates, users, jobApplications, candidateSkills, skills } from '../db/schema.js';
-import { ResumeTailoringService } from './resume-tailoring.service.js';
-import { CoverLetterDraftingService } from './cover-letter-drafting.service.js';
-import { PortfolioRecommendationService } from './portfolio-recommendation.service.js';
+import { CandidateArtifactContentService } from './candidate-artifact-content.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
+import { ApplicationHandoffService } from './application-handoff.service.js';
 import {
   ApplicationPackageSchema,
   ApplicationValidationResultSchema,
@@ -31,6 +30,88 @@ import {
   ConflictError,
 } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
+
+/**
+ * Best-effort package persistence for prepare_job_application (P14-005BA).
+ *
+ * Persists the freshly prepared package as the authoritative CURRENT version
+ * for the application resolved for the candidate + job target. Failures are
+ * logged and swallowed so preparation itself never fails due to persistence:
+ * the package is still returned to the caller with its packageHash intact.
+ * A failed persistence attempt therefore never replaces a previously valid
+ * package (the previous CURRENT version simply remains).
+ *
+ * @param {JobApplicationWorkflowService} service
+ * @param {object} params
+ * @param {string} params.tenantId
+ * @param {string} params.userId
+ * @param {string} params.candidateId
+ * @param {object} params.preparedPackage Validated ApplicationPackage
+ * @param {import('pino').Logger} params.logger
+ * @returns {Promise<object|null>} Persisted CURRENT package row, or null
+ */
+async function persistPreparedPackage({
+  service,
+  tenantId,
+  userId,
+  candidateId,
+  preparedPackage,
+  logger,
+}) {
+  try {
+    const context = { tenantId, userId, role: 'MEMBER' };
+    const application = await service.applicationTrackingService.resolveOrCreateApplication(
+      context,
+      candidateId,
+      {
+        company: preparedPackage.targetJob.company,
+        title: preparedPackage.targetJob.title,
+        jobUrl: preparedPackage.targetJob.applicationUrl || null,
+        source: 'COMPANY_CAREERS',
+        packageHash: preparedPackage.packageHash,
+      }
+    );
+
+    // Keep get_job_application.tailoredDocuments consistent with the CURRENT
+    // package even before any handoff kit exists: attach idempotent, hash-
+    // tagged document snapshots for this package version (P14-005BA).
+    // This happens before the package ledger promotion. If snapshot
+    // persistence fails, the existing CURRENT package remains untouched.
+    await service.applicationTrackingService.attachPackageDocumentSnapshots(
+      context,
+      application.id,
+      preparedPackage
+    );
+
+    const current = await service.applicationTrackingService.recordApplicationPackage(
+      context,
+      application.id,
+      preparedPackage,
+      { source: 'PREPARE_JOB_APPLICATION' }
+    );
+
+    logger.info(
+      {
+        tenantId,
+        applicationId: application.id,
+        packageHash: current.packageHash,
+        packageVersion: current.version,
+      },
+      'Prepared application package persisted as CURRENT version'
+    );
+    return { applicationId: application.id, ...current };
+  } catch (err) {
+    logger.warn(
+      {
+        error: err.message,
+        packageHash: preparedPackage.packageHash,
+        candidateId,
+      },
+      'Best-effort package persistence failed; preparation result returned unpersisted'
+    );
+    return null;
+  }
+}
 
 // In-memory single-use approval tickets registry (state machine)
 const APPROVAL_TICKETS_STORE = new Map();
@@ -92,9 +173,7 @@ export class JobApplicationWorkflowService {
   /**
    * @param {object} [options={}]
    * @param {import('drizzle-orm/node-postgres').NodePgDatabase} [options.database=defaultDb]
-   * @param {ResumeTailoringService} [options.resumeTailoringService]
-   * @param {CoverLetterDraftingService} [options.coverLetterDraftingService]
-   * @param {PortfolioRecommendationService} [options.portfolioRecommendationService]
+   * @param {CandidateArtifactContentService} [options.candidateArtifactContentService]
    * @param {ApplicationTrackingService} [options.applicationTrackingService]
    * @param {Array<object>|Map<string, object>} [options.submissionAdapters] Real external ATS submission adapters
    * @param {import('./mcp-audit.service.js').McpAuditService} [options.mcpAuditService]
@@ -102,15 +181,13 @@ export class JobApplicationWorkflowService {
    */
   constructor(options = {}) {
     this.db = options.database || defaultDb;
-    this.resumeTailoringService =
-      options.resumeTailoringService || new ResumeTailoringService({ database: this.db });
-    this.coverLetterDraftingService =
-      options.coverLetterDraftingService || new CoverLetterDraftingService({ database: this.db });
-    this.portfolioRecommendationService =
-      options.portfolioRecommendationService ||
-      new PortfolioRecommendationService({ database: this.db });
+    this.candidateArtifactContentService =
+      options.candidateArtifactContentService ||
+      new CandidateArtifactContentService({ database: this.db });
     this.applicationTrackingService =
       options.applicationTrackingService || new ApplicationTrackingService({ database: this.db });
+    this.applicationHandoffService =
+      options.applicationHandoffService || new ApplicationHandoffService();
     this.submissionAdapters = Array.isArray(options.submissionAdapters)
       ? options.submissionAdapters
       : options.submissionAdapters instanceof Map
@@ -190,65 +267,51 @@ export class JobApplicationWorkflowService {
         notes: 'Self-reported in candidate resume / profile',
       }));
 
-    // 3. Generate Tailored Resume (with ATS fit analysis)
-    let tailoredResumeResult;
-    try {
-      tailoredResumeResult = await this.resumeTailoringService.tailorResume({
+    // 3-5. Generate real document content from canonical candidate data.
+    // Fail-closed: if real data cannot support documents, the operation fails
+    // rather than silently degrading to placeholder templates.
+    const documentContent = await this.candidateArtifactContentService.generateApplicationDocuments(
+      {
         tenantId,
+        userId: cand.userId,
         candidateId,
-        targetJob: jobPosting,
-      });
-    } catch (err) {
-      this.logger.warn(
-        { error: err.message },
-        'Tailored resume generation fallback to basic template'
-      );
-      tailoredResumeResult = {
-        title: `${cand.displayName || 'Candidate'} - Tailored for ${jobPosting.company}`,
-        markdownContent: `# ${cand.displayName || 'Candidate'}\n\n**Email:** ${candidateEmail}\n\n## Target Role: ${jobPosting.title} at ${jobPosting.company}\n\n### Summary\nExperienced software engineer with verified expertise in ${verifiedSkills
-          .map((s) => s.name)
-          .slice(0, 5)
-          .join(', ')}.`,
-        contentHash: crypto.randomBytes(16).toString('hex'),
-        fitScore: 85,
-      };
-    }
+        jobPosting,
+        candidateEmail,
+        candidatePhone: cand.phone || undefined,
+      }
+    );
 
-    // 4. Draft Cover Letter
-    let coverLetterResult;
-    try {
-      coverLetterResult = await this.coverLetterDraftingService.draftCoverLetter({
-        tenantId,
-        candidateId,
-        targetJob: jobPosting,
-      });
-    } catch (err) {
-      this.logger.warn(
-        { error: err.message },
-        'Cover letter generation fallback to standard template'
-      );
-      coverLetterResult = {
-        title: `Cover Letter - ${jobPosting.company}`,
-        markdownContent: `Dear Hiring Team at ${jobPosting.company},\n\nI am writing to express my strong enthusiasm for the ${jobPosting.title} role. With verified technical achievements in distributed systems and software development, I am confident in delivering immediate value to your team.\n\nSincerely,\n${cand.displayName || 'Candidate'}`,
-        contentHash: crypto.randomBytes(16).toString('hex'),
-      };
-    }
+    const tailoredResumeResult = documentContent.resume;
+    const coverLetterResult = documentContent.coverLetter;
 
-    // 5. Recommended Portfolio Projects
-    let portfolioLinks = [];
-    try {
-      const recs = await this.portfolioRecommendationService.recommendProjects({
-        tenantId,
-        candidateId,
-        targetJob: jobPosting,
-      });
-      portfolioLinks = (recs.recommendations || []).map((r) => ({
-        projectName: r.projectName || r.name,
-        repositoryUrl: r.repositoryUrl || undefined,
-        highlights: r.highlights || [r.headline || 'Production project'],
-      }));
-    } catch {
-      portfolioLinks = [];
+    // Real stored projects (ranked by job relevance) as portfolio evidence
+    const portfolioLinks = documentContent.evidence.projectNamesUsed.map((projectName) => {
+      const stored = documentContent.projectUrlByName?.[projectName];
+      return {
+        projectName,
+        repositoryUrl: stored || undefined,
+        highlights: ['Evidence-backed project referenced in tailored documents'],
+      };
+    });
+
+    // Final content audit: real-data tokens present, generic placeholders absent
+    const contentAudit = CandidateArtifactContentService.auditDocumentContent(
+      tailoredResumeResult.markdownContent + '\n' + coverLetterResult.markdownContent,
+      {
+        requiredTokens: [cand.displayName, candidateEmail].filter(Boolean),
+        forbiddenTokens: [
+          /Dedicated software engineer with verified technical skills/i,
+          /Software Development Experience Verified/i,
+          /Independent \/ Open Source Engineering/i,
+          /Academic \/ Technical Foundation/i,
+          /Accredited Institution/i,
+        ],
+      }
+    );
+    if (!contentAudit.passed) {
+      throw new ValidationError(
+        `Application document content audit failed: ${contentAudit.violations.join('; ')}`
+      );
     }
 
     // 6. Build Unhashed Package
@@ -284,7 +347,26 @@ export class JobApplicationWorkflowService {
     // 7. Compute Deterministic Package Hash
     preparedPackage.packageHash = computeApplicationPackageHash(preparedPackage);
 
-    return ApplicationPackageSchema.parse(preparedPackage);
+    const validatedPackage = ApplicationPackageSchema.parse(preparedPackage);
+
+    // 8. Persist as the authoritative CURRENT package version (P14-005BA).
+    // Best-effort: persistence failures never fail preparation, but a
+    // successful persist guarantees the invariant
+    // prepare().packageHash === get_job_application().currentPackage.packageHash.
+    const persisted = await persistPreparedPackage({
+      service: this,
+      tenantId,
+      userId: cand.userId,
+      candidateId,
+      preparedPackage: validatedPackage,
+      logger: this.logger,
+    });
+
+    return {
+      ...validatedPackage,
+      applicationId: persisted?.applicationId ?? undefined,
+      packageVersion: persisted?.version ?? undefined,
+    };
   }
 
   /**
@@ -634,7 +716,7 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
 
       let trackedApp;
       try {
-        trackedApp = await this.applicationTrackingService.createApplication(
+        trackedApp = await this.applicationTrackingService.resolveOrCreateApplication(
           { tenantId, userId, role: 'MEMBER' },
           candidateId,
           {
@@ -642,9 +724,7 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
             jobTitle: applicationPackage.targetJob.title,
             jobUrl: destinationUrl,
             source: 'COMPANY_CAREERS',
-            status: 'APPLIED',
-            appliedAt: new Date(),
-            notes: `Application submitted via verified external integration. Package Hash: ${packageHash}`,
+            packageHash,
             metadata: {
               destinationUrl,
               externalReference: adapterResult.externalReference,
@@ -653,8 +733,19 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
             },
           }
         );
-      } catch {
-        // Ignore tracking duplicate errors
+
+        await this.applicationTrackingService.recordApplicationPackage(
+          { tenantId, userId, role: 'MEMBER' },
+          trackedApp.id,
+          applicationPackage,
+          { source: 'SUBMIT_JOB_APPLICATION' }
+        );
+      } catch (err) {
+        // Tracking failures must not fail the external submission itself
+        this.logger.warn(
+          { error: err.message },
+          'Failed to resolve/track application for external submission'
+        );
       }
 
       if (this.mcpAuditService) {
@@ -691,7 +782,7 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     // Zero fake submissions, zero simulated SUB-* references, zero fabricated external IDs.
     let trackedApp;
     try {
-      trackedApp = await this.applicationTrackingService.createApplication(
+      trackedApp = await this.applicationTrackingService.resolveOrCreateApplication(
         { tenantId, userId, role: 'MEMBER' },
         candidateId,
         {
@@ -699,8 +790,7 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
           jobTitle: applicationPackage.targetJob.title,
           jobUrl: destinationUrl,
           source: 'COMPANY_CAREERS',
-          status: 'SAVED',
-          notes: `Application prepared via Career Hub (Manual Handoff Ready). Package Hash: ${packageHash}`,
+          packageHash,
           metadata: {
             destinationUrl,
             externalSubmissionState: 'HANDOFF_READY',
@@ -708,8 +798,52 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
           },
         }
       );
-    } catch {
-      // Ignore tracking duplicate errors
+
+      await this.applicationTrackingService.recordApplicationPackage(
+        { tenantId, userId, role: 'MEMBER' },
+        trackedApp.id,
+        applicationPackage,
+        { source: 'SUBMIT_JOB_APPLICATION' }
+      );
+    } catch (err) {
+      this.logger.warn(
+        { error: err.message },
+        'Failed to resolve/track application for manual handoff'
+      );
+    }
+
+    let realHandoffKit = null;
+    try {
+      realHandoffKit = await this.applicationHandoffService.buildApplicationHandoffKit({
+        tenantId,
+        userId,
+        candidateId,
+        applicationPackage,
+        applicationId: trackedApp?.id,
+        destinationUrl,
+      });
+
+      // Persist the kit atomically onto the application (P14-005BA). The kit's
+      // packageHash must match the application's authoritative CURRENT package.
+      if (trackedApp?.id && realHandoffKit) {
+        try {
+          await this.applicationTrackingService.setApplicationHandoffKit(
+            { tenantId, userId, role: 'MEMBER' },
+            trackedApp.id,
+            realHandoffKit
+          );
+        } catch (updateErr) {
+          this.logger.warn(
+            { error: updateErr.message },
+            'Failed to persist handoffKit onto tracked application'
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        { error: err.message },
+        'Real document handoff kit generation failed, falling back to basic payload'
+      );
     }
 
     const handoffKit = {
@@ -719,10 +853,22 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
       directPortalUrl: destinationUrl,
       checklist: [
         'Open direct employer portal in browser.',
-        'Paste tailored resume and cover letter.',
-        'Review pre-filled candidate responses.',
+        'Review candidate readiness items.',
+        'Download and review tailored ATS resume and cover letter.',
         'Submit directly to employer ATS.',
       ],
+      ...(realHandoffKit
+        ? {
+            artifacts: {
+              resume: realHandoffKit.resume,
+              coverLetter: realHandoffKit.coverLetter,
+            },
+            readiness: realHandoffKit.readiness,
+            applicationId: realHandoffKit.applicationId,
+            packageHash: realHandoffKit.packageHash,
+            submissionNotice: realHandoffKit.submissionNotice,
+          }
+        : {}),
     };
 
     if (this.mcpAuditService) {

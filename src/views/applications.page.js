@@ -227,7 +227,7 @@ export function renderApplicationsPage({
                 <th>Location / Mode</th>
                 <th style="width:150px;">Salary Target</th>
                 <th style="width:150px;">Updated</th>
-                <th style="text-align:right; width:130px;">Stage Action</th>
+                <th style="text-align:right; width:220px;">Handoff &amp; Stage</th>
               </tr>
             </thead>
             <tbody>
@@ -255,17 +255,22 @@ export function renderApplicationsPage({
                     ${formatDate(app.updatedAt || app.createdAt)}
                   </td>
                   <td style="padding:14px 18px; text-align:right;">
-                    <form action="/applications/${app.id}/status" method="POST" style="display:inline-flex; gap:6px;">
-                      <select name="status" onchange="this.form.submit()" style="background:#0B0F19; border:1px solid var(--border-subtle); color:var(--text-muted); font-size:0.75rem; border-radius:4px; padding:4px 6px;">
-                        <option value="SAVED" ${app.status === 'SAVED' ? 'selected' : ''}>Saved</option>
-                        <option value="APPLIED" ${app.status === 'APPLIED' ? 'selected' : ''}>Applied</option>
-                        <option value="SCREENING" ${app.status === 'SCREENING' ? 'selected' : ''}>Screening</option>
-                        <option value="INTERVIEWING" ${app.status === 'INTERVIEWING' ? 'selected' : ''}>Interviewing</option>
-                        <option value="OFFER_RECEIVED" ${app.status === 'OFFER_RECEIVED' ? 'selected' : ''}>Offer</option>
-                        <option value="REJECTED" ${app.status === 'REJECTED' ? 'selected' : ''}>Rejected</option>
-                        <option value="ARCHIVED" ${app.status === 'ARCHIVED' ? 'selected' : ''}>Archived</option>
-                      </select>
-                    </form>
+                    <div style="display:inline-flex; align-items:center; gap:8px; justify-content:flex-end;">
+                      <a href="/applications/${app.id}/handoff" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 8px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; color:var(--accent-indigo); border-color:rgba(99,102,241,0.3);" title="Open Real Application Handoff Kit">
+                        Handoff Kit &nearr;
+                      </a>
+                      <form action="/applications/${app.id}/status" method="POST" style="display:inline-flex; gap:6px;">
+                        <select name="status" onchange="this.form.submit()" style="background:#0B0F19; border:1px solid var(--border-subtle); color:var(--text-muted); font-size:0.75rem; border-radius:4px; padding:4px 6px;">
+                          <option value="SAVED" ${app.status === 'SAVED' ? 'selected' : ''}>Saved</option>
+                          <option value="APPLIED" ${app.status === 'APPLIED' ? 'selected' : ''}>Applied</option>
+                          <option value="SCREENING" ${app.status === 'SCREENING' ? 'selected' : ''}>Screening</option>
+                          <option value="INTERVIEWING" ${app.status === 'INTERVIEWING' ? 'selected' : ''}>Interviewing</option>
+                          <option value="OFFER_RECEIVED" ${app.status === 'OFFER_RECEIVED' ? 'selected' : ''}>Offer</option>
+                          <option value="REJECTED" ${app.status === 'REJECTED' ? 'selected' : ''}>Rejected</option>
+                          <option value="ARCHIVED" ${app.status === 'ARCHIVED' ? 'selected' : ''}>Archived</option>
+                        </select>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               `

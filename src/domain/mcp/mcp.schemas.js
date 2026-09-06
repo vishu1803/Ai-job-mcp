@@ -199,6 +199,7 @@ export const McpToolDefinitionSchema = z
     description: z.string().min(1).max(1000),
     inputSchema: z.any(),
     outputSchema: z.any().optional(),
+    exposeOutputSchema: z.boolean().optional(),
     requiredRole: McpRoleEnum.default('READONLY'),
     requiredScopes: z.array(z.string()).default(['career:read']),
     annotations: z.record(z.any()).optional(),

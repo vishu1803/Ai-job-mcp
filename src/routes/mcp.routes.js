@@ -57,6 +57,37 @@ function tokenKey(token) {
   return crypto.createHash('sha256').update(token).digest('hex').slice(0, 16);
 }
 
+const ALLOWED_MCP_METADATA_ORIGINS = new Set([
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://dev.aicareershub.tech',
+]);
+
+/**
+ * Resolves the public origin used in RFC 9728 authentication challenges.
+ * Only known local/staging origins are accepted; arbitrary Host headers are
+ * never reflected into discovery URLs.
+ *
+ * @param {import('fastify').FastifyRequest} req
+ * @returns {string}
+ */
+function getMcpMetadataOrigin(req) {
+  const forwardedHost = req.headers['x-forwarded-host'];
+  const forwardedProto = req.headers['x-forwarded-proto'];
+  const host =
+    typeof forwardedHost === 'string' ? forwardedHost.split(',')[0].trim() : req.headers.host;
+  const proto =
+    typeof forwardedProto === 'string'
+      ? forwardedProto.split(',')[0].trim()
+      : req.socket?.encrypted
+        ? 'https'
+        : 'http';
+  const candidate = `${proto}://${host}`;
+  return ALLOWED_MCP_METADATA_ORIGINS.has(candidate)
+    ? candidate
+    : config.OAUTH_ISSUER_URL || config.APP_URL || 'http://localhost:3000';
+}
+
 /**
  * Checks for prototype pollution attempts and excessive nesting depth in JSON payloads.
  *
@@ -676,7 +707,7 @@ export async function mcpRoutes(fastify, opts = {}) {
         }
 
         if (statusCode === 401) {
-          const issuer = config.OAUTH_ISSUER_URL || config.APP_URL || 'http://localhost:3000';
+          const issuer = getMcpMetadataOrigin(req);
           reply.header(
             'www-authenticate',
             `Bearer realm="mcp", resource_metadata="${issuer}/.well-known/oauth-protected-resource"`

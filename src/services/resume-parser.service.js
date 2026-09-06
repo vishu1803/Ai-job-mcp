@@ -295,10 +295,13 @@ export class ResumeParserService {
     const elements = [];
 
     for (const streamStr of streams) {
+      const cleanStream = streamStr
+        .replace(/([a-zA-Z0-9_]+)\[/g, (_, g) => g + ' [')
+        .replace(/\]([a-zA-Z0-9_]+)/g, (_, g) => '] ' + g);
       const tokens = [];
       const tokenRegex = /\((?:[^()\\]|\\.)*\)|<[0-9a-fA-F\s]+>|\[[\s\S]*?\]|(?:\S+)/g;
       let tm;
-      while ((tm = tokenRegex.exec(streamStr)) !== null) {
+      while ((tm = tokenRegex.exec(cleanStream)) !== null) {
         tokens.push(tm[0]);
       }
 

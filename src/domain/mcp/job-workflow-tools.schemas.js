@@ -105,5 +105,58 @@ export const JOB_WORKFLOW_TOOL_DEFINITIONS = {
     inputSchema: z.object({
       applicationId: z.string().uuid(),
     }),
+    outputSchema: z
+      .object({
+        applicationId: z.string().uuid(),
+        candidateId: z.string().uuid(),
+        companyName: z.string(),
+        jobTitle: z.string(),
+        jobUrl: z.string().nullable().optional(),
+        status: z.string(),
+        trackingStatus: z.string(),
+        externalReference: z.string().nullable().optional(),
+        packageHash: z.string().length(64).nullable().optional(),
+        appliedAt: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+        stages: z.array(z.record(z.unknown())),
+        tailoredDocuments: z.array(
+          z
+            .object({
+              id: z.string().uuid().nullable().optional(),
+              applicationId: z.string().uuid(),
+              candidateId: z.string().uuid(),
+              documentType: z.enum([
+                'TAILORED_RESUME',
+                'TAILORED_COVER_LETTER',
+                'PORTFOLIO_RECOMMENDATION',
+                'CUSTOM_NOTE',
+              ]),
+              version: z.number().int().positive(),
+              packageVersion: z.number().int().positive().nullable().optional(),
+              title: z.string(),
+              contentHash: z.string().length(64),
+              packageHash: z.string().length(64).nullable().optional(),
+              citationRefsCount: z.number().int().nonnegative(),
+              integrityScore: z.number().nullable().optional(),
+              atsFitScore: z.number().nullable().optional(),
+              createdAt: z.string(),
+              artifactReference: z.string().optional(),
+              filename: z.string().optional(),
+              mimeType: z.string().optional(),
+              fileSizeBytes: z.number().int().positive().optional(),
+              availabilityStatus: z.enum(['READY', 'BLOCKED']).optional(),
+              viewUrl: z.string().optional(),
+              downloadUrl: z.string().optional(),
+              // PDF byte hash for artifact integrity; contentHash is the
+              // authoritative Markdown hash from the current package.
+              pdfContentHash: z.string().length(64).optional(),
+            })
+            .passthrough()
+        ),
+        createdAt: z.string().nullable().optional(),
+        updatedAt: z.string().nullable().optional(),
+      })
+      .passthrough(),
+    exposeOutputSchema: true,
   },
 };

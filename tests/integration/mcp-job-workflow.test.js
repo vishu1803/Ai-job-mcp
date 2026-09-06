@@ -308,6 +308,43 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
     const claimed = preparedApplicationPackage.claimedSkills;
     assert.ok(verified.some((s) => s.name === 'Node.js' && s.truthCategory === 'VERIFIED'));
     assert.ok(claimed.some((s) => s.name === 'Python' && s.truthCategory === 'CLAIMED'));
+
+    // P14-006 regression: documents must be generated from REAL candidate data.
+    // The historical broken pipeline silently fell back to generic placeholder
+    // templates whenever the tailoring service call failed.
+    const resumeMarkdown = preparedApplicationPackage.tailoredResume.markdownContent;
+    const coverLetterMarkdown = preparedApplicationPackage.coverLetter.markdownContent;
+
+    assert.ok(resumeMarkdown.includes('Devon Vance'), 'real candidate name must appear in resume');
+    assert.ok(resumeMarkdown.includes('Node.js'), 'real verified skill must appear in resume');
+    assert.ok(
+      resumeMarkdown.includes('Staff Distributed Systems Engineer'),
+      'real candidate headline/summary must appear in resume'
+    );
+    // Provenance truth separation must survive into the document
+    assert.ok(resumeMarkdown.includes('**Verified:**'));
+    assert.ok(resumeMarkdown.includes('**Self-reported:**') && resumeMarkdown.includes('Python'));
+    // Generic fallback prose is banned
+    assert.doesNotMatch(resumeMarkdown, /Experienced software engineer with verified expertise/i);
+    assert.doesNotMatch(resumeMarkdown, /Dedicated software engineer/i);
+
+    assert.ok(
+      coverLetterMarkdown.includes('Dear Hiring Team at Stripe'),
+      'cover letter must address the real target company'
+    );
+    assert.ok(
+      coverLetterMarkdown.includes('Devon Vance'),
+      'cover letter must carry the real candidate identity'
+    );
+    assert.ok(
+      coverLetterMarkdown.includes('Node.js'),
+      'cover letter must cite real verified candidate evidence'
+    );
+    assert.doesNotMatch(
+      coverLetterMarkdown,
+      /verified technical achievements in distributed systems/i
+    );
+    assert.doesNotMatch(coverLetterMarkdown, /delivering immediate value/i);
   });
 
   // ---------------------------------------------------------------------------
@@ -493,6 +530,71 @@ describe('MCP Job Workflow & AI Connection Status Integration Tests (P14-004B)',
     assert.strictEqual(statusObj.packageHash, preparedApplicationPackage.packageHash);
     assert.strictEqual(statusObj.externalReference, null);
     assert.strictEqual(statusObj.appliedAt, null);
+    assert.deepEqual(statusObj.tailoredDocuments.map((doc) => doc.documentType).sort(), [
+      'TAILORED_COVER_LETTER',
+      'TAILORED_RESUME',
+    ]);
+    for (const document of statusObj.tailoredDocuments) {
+      assert.ok(document.artifactReference);
+      assert.ok(document.filename.endsWith('.pdf'));
+      assert.strictEqual(document.mimeType, 'application/pdf');
+      assert.ok(document.fileSizeBytes > 0);
+      assert.strictEqual(document.availabilityStatus, 'READY');
+      assert.ok(
+        document.viewUrl.includes(`/api/applications/${submittedApplicationId}/artifacts/`)
+      );
+      assert.ok(
+        document.downloadUrl.includes(`/api/applications/${submittedApplicationId}/artifacts/`)
+      );
+      assert.equal(document.storageKey, undefined);
+    }
+  });
+
+  it('7e-2. get_job_application exposes the same verified handoff artifacts (ChatGPT inspection path)', async () => {
+    // Regression: real ChatGPT MCP session inspected the application through
+    // get_job_application (career tracking) instead of
+    // get_application_submission_status (job workflow) and received
+    // tailoredDocuments: [] even though encrypted artifacts existed in
+    // metadata.handoffKit. Both inspection tools must expose the artifacts.
+    const res = await callMcpTool('get_job_application', {
+      applicationId: submittedApplicationId,
+      includeFullJd: false,
+    });
+
+    assert.strictEqual(res.statusCode, 200);
+    const body = JSON.parse(res.payload);
+    assert.strictEqual(body.error, undefined);
+
+    const structured = body.result?.structuredContent;
+    assert.ok(structured, 'structuredContent must be present for tool clients');
+    assert.ok(Array.isArray(structured.tailoredDocuments));
+    assert.deepEqual(structured.tailoredDocuments.map((doc) => doc.documentType).sort(), [
+      'TAILORED_COVER_LETTER',
+      'TAILORED_RESUME',
+    ]);
+    for (const document of structured.tailoredDocuments) {
+      assert.ok(document.artifactReference, 'artifactReference must be exposed');
+      assert.ok(document.filename.endsWith('.pdf'));
+      assert.strictEqual(document.mimeType, 'application/pdf');
+      assert.ok(document.fileSizeBytes > 0);
+      assert.strictEqual(document.availabilityStatus, 'READY');
+      assert.ok(
+        document.viewUrl.includes(`/api/applications/${submittedApplicationId}/artifacts/`)
+      );
+      assert.ok(
+        document.downloadUrl.includes(`/api/applications/${submittedApplicationId}/artifacts/`)
+      );
+      assert.equal(document.storageKey, undefined, 'storageKey must never be exposed');
+    }
+
+    // The text content must mirror the same artifact data for text-only clients.
+    const textResult = JSON.parse(body.result.content[0].text);
+    assert.ok(Array.isArray(textResult.tailoredDocuments));
+    assert.strictEqual(textResult.tailoredDocuments.length, 2);
+    for (const document of textResult.tailoredDocuments) {
+      assert.ok(document.viewUrl, 'text payload must include View reference');
+      assert.ok(document.downloadUrl, 'text payload must include Download reference');
+    }
   });
 
   it('7f. submit_job_application returns SUBMITTED when a real external adapter is configured', async () => {

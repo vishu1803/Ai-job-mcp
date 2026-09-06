@@ -1,7 +1,7 @@
 /**
  * @file Schema Definitions for MCP Application Tracking Tools (Phase 12 / P12-003 / ARCH-044)
  *
- * Implements strict Zod validation contracts for the 7 job application tracking MCP tools:
+ * Implements strict Zod validation contracts for the 10 job application tracking MCP tools:
  * 1. track_job_application (career:write / MEMBER)
  * 2. update_application_status (career:write / MEMBER)
  * 3. add_application_stage (career:write / MEMBER)
@@ -9,6 +9,9 @@
  * 5. attach_application_document (career:write / MEMBER)
  * 6. get_job_application (career:read / READONLY)
  * 7. list_active_applications (career:read / READONLY)
+ * 8. list_handoff_kits (career:read / READONLY) — Handoff Kit lifecycle (P14-006)
+ * 9. archive_handoff_kit (career:write / MEMBER) — Handoff Kit lifecycle (P14-006)
+ * 10. delete_handoff_kit (career:write / MEMBER) — Handoff Kit lifecycle (P14-006)
  *
  * Enforces output budget constraints, advisory annotations, and safe response envelopes.
  */
@@ -468,6 +471,22 @@ export const GetJobApplicationInputSchema = z
   .strict();
 
 export const GetJobApplicationOutputSchema = z.object({
+  // Authoritative CURRENT package version (P14-005BA). Null for applications
+  // prepared before package versioning existed.
+  currentPackage: z
+    .object({
+      packageHash: z.string().length(64),
+      packageVersion: z.number().int().positive(),
+      isLatest: z.literal(true),
+      resumeContentHash: z.string().nullable().optional(),
+      coverLetterContentHash: z.string().nullable().optional(),
+      fitScore: z.number().nullable().optional(),
+      lifecycleState: z.enum(['CURRENT', 'ARCHIVED']),
+      preparedAt: z.string(),
+      createdAt: z.string(),
+    })
+    .nullable()
+    .optional(),
   application: z.object({
     id: z.string().uuid(),
     candidateId: z.string().uuid(),
@@ -502,17 +521,32 @@ export const GetJobApplicationOutputSchema = z.object({
     })
   ),
   tailoredDocuments: z.array(
-    z.object({
-      id: z.string().uuid(),
-      documentType: TailoredDocumentTypeEnum,
-      version: z.number().int().positive(),
-      title: z.string(),
-      contentHash: z.string().length(64),
-      citationRefsCount: z.number().int().nonnegative(),
-      integrityScore: z.number().nullable().optional(),
-      atsFitScore: z.number().nullable().optional(),
-      createdAt: z.string(),
-    })
+    z
+      .object({
+        id: z.string().uuid().nullable().optional(),
+        documentType: TailoredDocumentTypeEnum,
+        version: z.number().int().positive(),
+        packageVersion: z.number().int().positive().nullable().optional(),
+        title: z.string(),
+        contentHash: z.string().length(64),
+        packageHash: z.string().length(64).nullable().optional(),
+        citationRefsCount: z.number().int().nonnegative(),
+        integrityScore: z.number().nullable().optional(),
+        atsFitScore: z.number().nullable().optional(),
+        createdAt: z.string(),
+        // Encrypted handoff-kit PDF artifact references (verified before exposure).
+        artifactReference: z.string().optional(),
+        filename: z.string().optional(),
+        mimeType: z.string().optional(),
+        fileSizeBytes: z.number().int().positive().optional(),
+        availabilityStatus: z.enum(['READY', 'BLOCKED']).optional(),
+        viewUrl: z.string().optional(),
+        downloadUrl: z.string().optional(),
+        // P14-005BC: PDF byte hash for artifact integrity verification (separate from contentHash).
+        // contentHash is the authoritative Markdown hash matching prepare_job_application output.
+        pdfContentHash: z.string().length(64).optional(),
+      })
+      .passthrough()
   ),
   _meta: z.record(z.unknown()).optional(),
 });
@@ -576,6 +610,76 @@ export const ListActiveApplicationsOutputSchema = z.object({
 // Master Tool Definitions Registry
 // =============================================================================
 
+// =============================================================================
+// 8-10. Handoff Kit Lifecycle Schemas (P14-006)
+// =============================================================================
+
+export const ListHandoffKitsInputSchema = z
+  .object({
+    candidateId: z
+      .string()
+      .uuid('candidateId must be a valid UUIDv4')
+      .optional()
+      .describe('Optional candidate UUID. If omitted, resolved from authenticated context.'),
+    includeArchived: z
+      .boolean()
+      .default(true)
+      .describe('Whether archived kits are included in the listing (default true).'),
+  })
+  .strict();
+
+export const ListHandoffKitsOutputSchema = z.object({
+  items: z.array(
+    z.object({
+      applicationId: z.string().uuid(),
+      candidateId: z.string().uuid(),
+      companyName: z.string(),
+      jobTitle: z.string(),
+      applicationStatus: ApplicationStatusEnum,
+      packageHash: z.string().length(64),
+      generatedAt: z.string().nullable().optional(),
+      archivedAt: z.string().nullable().optional(),
+      lifecycleState: z.enum(['CURRENT', 'ARCHIVED']),
+      isLatestForTarget: z.boolean().optional(),
+      destinationUrl: z.string().nullable().optional(),
+      artifacts: z.record(z.unknown()),
+    })
+  ),
+  total: z.number().int().nonnegative(),
+  _meta: z.record(z.unknown()).optional(),
+});
+
+export const ArchiveHandoffKitInputSchema = z
+  .object({
+    applicationId: z.string().uuid('applicationId must be a valid UUIDv4'),
+  })
+  .strict();
+
+export const ArchiveHandoffKitOutputSchema = z.object({
+  archived: z.boolean(),
+  applicationId: z.string().uuid(),
+  lifecycleState: z.enum(['ARCHIVED']),
+  archivedAt: z.string(),
+  packageHash: z.string().length(64),
+  _meta: z.record(z.unknown()).optional(),
+});
+
+export const DeleteHandoffKitInputSchema = z
+  .object({
+    applicationId: z.string().uuid('applicationId must be a valid UUIDv4'),
+  })
+  .strict();
+
+export const DeleteHandoffKitOutputSchema = z.object({
+  deleted: z.boolean(),
+  applicationId: z.string().uuid(),
+  packageHash: z.string().length(64),
+  deletedDocumentSnapshots: z.number().int().nonnegative(),
+  deletedArtifacts: z.number().int().nonnegative(),
+  applicationRecordPreserved: z.boolean(),
+  _meta: z.record(z.unknown()).optional(),
+});
+
 export const CAREER_TRACKING_TOOL_DEFINITIONS = Object.freeze({
   track_job_application: {
     name: 'track_job_application',
@@ -630,9 +734,10 @@ export const CAREER_TRACKING_TOOL_DEFINITIONS = Object.freeze({
   get_job_application: {
     name: 'get_job_application',
     description:
-      'Retrieves complete job application details, chronological interview stages, and tailored document summaries.',
+      'Retrieves complete job application details, chronological interview stages, and tailored document summaries including verified resume and cover-letter artifact references.',
     inputSchema: GetJobApplicationInputSchema,
     outputSchema: GetJobApplicationOutputSchema,
+    exposeOutputSchema: true,
     requiredRole: McpRoleEnum.enum.READONLY,
     requiredScopes: ['career:read'],
     annotations: CAREER_TRACKING_TOOL_ANNOTATIONS.get_job_application,
@@ -646,5 +751,50 @@ export const CAREER_TRACKING_TOOL_DEFINITIONS = Object.freeze({
     requiredRole: McpRoleEnum.enum.READONLY,
     requiredScopes: ['career:read'],
     annotations: CAREER_TRACKING_TOOL_ANNOTATIONS.list_active_applications,
+  },
+  list_handoff_kits: {
+    name: 'list_handoff_kits',
+    description:
+      'Lists generated Handoff Kits with created date, target company/job, package hash, lifecycle state (CURRENT vs ARCHIVED), and the latest-kit-per-target flag.',
+    inputSchema: ListHandoffKitsInputSchema,
+    outputSchema: ListHandoffKitsOutputSchema,
+    requiredRole: McpRoleEnum.enum.READONLY,
+    requiredScopes: ['career:read'],
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  archive_handoff_kit: {
+    name: 'archive_handoff_kit',
+    description:
+      'Archives an obsolete Handoff Kit. The application record, history, document snapshots, and encrypted artifacts are preserved; only the kit lifecycle state changes.',
+    inputSchema: ArchiveHandoffKitInputSchema,
+    outputSchema: ArchiveHandoffKitOutputSchema,
+    requiredRole: McpRoleEnum.enum.MEMBER,
+    requiredScopes: ['career:write'],
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  delete_handoff_kit: {
+    name: 'delete_handoff_kit',
+    description:
+      'Safely deletes a Handoff Kit (kit metadata, generated snapshots, tenant-scoped encrypted artifacts) from an application that has NOT been submitted. Applications with submission history must be archived instead; candidate profile data is never touched.',
+    inputSchema: DeleteHandoffKitInputSchema,
+    outputSchema: DeleteHandoffKitOutputSchema,
+    requiredRole: McpRoleEnum.enum.MEMBER,
+    requiredScopes: ['career:write'],
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
 });

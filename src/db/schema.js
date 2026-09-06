@@ -222,6 +222,16 @@ export const tailoredDocumentTypeEnum = pgEnum('tailored_document_type', [
 ]);
 
 /**
+ * Application package version lifecycle states (P14-005BA).
+ * Exactly one version per application is CURRENT at any time; superseded
+ * versions are ARCHIVED (history preserved, never silently current).
+ */
+export const packageLifecycleStateEnum = pgEnum('package_lifecycle_state', [
+  'CURRENT',
+  'ARCHIVED',
+]);
+
+/**
  * Resume document lifecycle states (Phase 13.5 / ARCH-052 / ADR-072).
  */
 export const resumeLifecycleStateEnum = pgEnum('resume_lifecycle_state', [
@@ -971,6 +981,63 @@ export const tailoredDocuments = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// 20b. Application Packages Table (Authoritative Current/Latest Package Versions - P14-005BA)
+// ---------------------------------------------------------------------------
+
+/**
+ * Immutable package version ledger for job applications.
+ *
+ * Invariants:
+ * - applicationId identifies the application; (applicationId, packageHash)
+ *   identifies a package VERSION.
+ * - Exactly one version per application has lifecycleState = 'CURRENT';
+ *   get_job_application resolves this version as the authoritative package.
+ * - A failed preparation never creates a row, so a valid previous package
+ *   always remains CURRENT.
+ * - History is preserved: superseded versions become ARCHIVED, never deleted.
+ */
+export const applicationPackages = pgTable(
+  'application_packages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    applicationId: uuid('application_id')
+      .notNull()
+      .references(() => jobApplications.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull().default(1),
+    packageHash: text('package_hash').notNull(),
+    resumeContentHash: text('resume_content_hash'),
+    coverLetterContentHash: text('cover_letter_content_hash'),
+    fitScore: real('fit_score'),
+    answers: jsonb('answers').notNull().default('{}'),
+    source: text('source').notNull().default('PREPARE_JOB_APPLICATION'),
+    lifecycleState: packageLifecycleStateEnum('lifecycle_state').notNull().default('CURRENT'),
+    preparedAt: timestamp('prepared_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('application_packages_tenant_app_hash_unique').on(
+      table.tenantId,
+      table.applicationId,
+      table.packageHash
+    ),
+    index('idx_application_packages_tenant_application').on(table.tenantId, table.applicationId),
+    index('idx_application_packages_current').on(
+      table.tenantId,
+      table.applicationId,
+      table.lifecycleState
+    ),
+    index('idx_application_packages_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_application_packages_hash').on(table.packageHash),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // 21. Resumes Table (Source Upload & Version Lifecycle - Phase 13.5 / ARCH-052)
 // ---------------------------------------------------------------------------
 
@@ -1145,6 +1212,7 @@ export const schema = {
   jobApplications,
   applicationStages,
   tailoredDocuments,
+  applicationPackages,
   resumes,
   resumeSections,
   candidateClaims,

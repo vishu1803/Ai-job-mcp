@@ -1,7 +1,7 @@
 /**
  * @file Implementation of MCP Career Tracking Tools (Phase 12 / P12-003 / ARCH-044)
  *
- * Implements the 7 core job application tracking MCP tools:
+ * Implements the 10 core job application tracking MCP tools:
  * 1. track_job_application (career:write / MEMBER)
  * 2. update_application_status (career:write / MEMBER)
  * 3. add_application_stage (career:write / MEMBER)
@@ -9,6 +9,9 @@
  * 5. attach_application_document (career:write / MEMBER)
  * 6. get_job_application (career:read / READONLY)
  * 7. list_active_applications (career:read / READONLY)
+ * 8. list_handoff_kits (career:read / READONLY) — Handoff Kit lifecycle (P14-006)
+ * 9. archive_handoff_kit (career:write / MEMBER) — Handoff Kit lifecycle (P14-006)
+ * 10. delete_handoff_kit (career:write / MEMBER) — Handoff Kit lifecycle (P14-006)
  *
  * Adheres to:
  * - Pure Transport/Authorization Wrapper: Delegates directly to ApplicationTrackingService.
@@ -23,6 +26,7 @@ import { db as defaultDb } from '../../db/index.js';
 import { candidates, jobApplications } from '../../db/schema.js';
 import { NotFoundError } from '../../errors/index.js';
 import { ApplicationTrackingService } from '../../services/application-tracking.service.js';
+import { DocumentStorageService } from '../../services/document-storage.service.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import { assertToolPermission } from '../../security/mcp-auth.js';
 import {
@@ -41,10 +45,17 @@ import {
   GetJobApplicationOutputSchema,
   ListActiveApplicationsInputSchema,
   ListActiveApplicationsOutputSchema,
+  ListHandoffKitsInputSchema,
+  ListHandoffKitsOutputSchema,
+  ArchiveHandoffKitInputSchema,
+  ArchiveHandoffKitOutputSchema,
+  DeleteHandoffKitInputSchema,
+  DeleteHandoffKitOutputSchema,
   MAX_RAW_JD_CHARS_IN_GET,
   MAX_STAGES_PER_GET,
   MAX_DOCUMENTS_PER_GET,
 } from '../../domain/mcp/career-tracking-tools.schemas.js';
+import { getVerifiedHandoffDocuments } from './handoff-artifacts.js';
 
 /**
  * Resolves the target candidate ID for an authenticated request.
@@ -334,11 +345,38 @@ export async function handleGetJobApplication(context, args, deps = {}) {
   const details = await trackingService.getApplicationDetails(context, input.applicationId);
   const { application, stages, tailoredDocuments } = details;
 
+  // Authoritative CURRENT package version (P14-005BA). get_job_application must
+  // resolve the newest successfully prepared package — never a stale kit or
+  // historical snapshot — so that
+  // prepare_job_application().packageHash === get_job_application().currentPackage.packageHash.
+  const currentPackage = details.currentPackage || null;
+
   // Bounded Output Shaping
   let rawJd = null;
   if (input.includeFullJd && application.rawJobDescription) {
     rawJd = application.rawJobDescription.slice(0, MAX_RAW_JD_CHARS_IN_GET);
   }
+
+  // Enrich with verified encrypted handoff-kit artifacts (TAILORED_RESUME /
+  // TAILORED_COVER_LETTER PDFs) belonging to the CURRENT package so AI clients
+  // inspecting this tool see the same View/Download references as
+  // get_application_submission_status — for the same package version.
+  //
+  // P14-005BC: Pass the authoritative Markdown content hashes from currentPackage
+  // so that get_job_application().tailoredDocuments[].contentHash matches
+  // prepare_job_application().tailoredResume.contentHash / coverLetter.contentHash.
+  if (!deps.documentStorageService) deps.documentStorageService = new DocumentStorageService();
+  const artifactAwareDocuments = await getVerifiedHandoffDocuments(
+    application,
+    tailoredDocuments,
+    deps.documentStorageService,
+    {
+      currentPackageHash: currentPackage?.packageHash || null,
+      packageVersion: currentPackage?.version || null,
+      resumeContentHash: currentPackage?.resumeContentHash || null,
+      coverLetterContentHash: currentPackage?.coverLetterContentHash || null,
+    }
+  );
 
   const boundedStages = stages.slice(0, MAX_STAGES_PER_GET).map((s) => ({
     id: s.id,
@@ -353,16 +391,34 @@ export async function handleGetJobApplication(context, args, deps = {}) {
     createdAt: s.createdAt.toISOString(),
   }));
 
-  const boundedDocuments = tailoredDocuments.slice(0, MAX_DOCUMENTS_PER_GET).map((d) => ({
-    id: d.id,
+  const boundedDocuments = artifactAwareDocuments.slice(0, MAX_DOCUMENTS_PER_GET).map((d) => ({
+    id: d.id ?? null,
     documentType: d.documentType,
     version: d.version,
+    packageVersion: d.packageVersion ?? null,
     title: d.title,
     contentHash: d.contentHash,
+    packageHash: d.packageHash ?? d.metadata?.packageHash ?? null,
     citationRefsCount: Array.isArray(d.citationRefs) ? d.citationRefs.length : 0,
-    integrityScore: d.integrityScore,
-    atsFitScore: d.atsFitScore,
-    createdAt: d.createdAt.toISOString(),
+    integrityScore: d.integrityScore ?? null,
+    atsFitScore: d.atsFitScore ?? null,
+    createdAt:
+      d.createdAt instanceof Date
+        ? d.createdAt.toISOString()
+        : String(d.createdAt ?? new Date().toISOString()),
+    ...(d.viewUrl
+      ? {
+          artifactReference: d.artifactReference,
+          filename: d.filename,
+          mimeType: d.mimeType,
+          fileSizeBytes: d.fileSizeBytes,
+          availabilityStatus: d.availabilityStatus,
+          viewUrl: d.viewUrl,
+          downloadUrl: d.downloadUrl,
+          // P14-005BC: PDF byte hash for artifact integrity verification
+          pdfContentHash: d.pdfContentHash ?? null,
+        }
+      : {}),
   }));
 
   const output = {
@@ -385,6 +441,19 @@ export async function handleGetJobApplication(context, args, deps = {}) {
       createdAt: application.createdAt.toISOString(),
       updatedAt: application.updatedAt.toISOString(),
     },
+    currentPackage: currentPackage
+      ? {
+          packageHash: currentPackage.packageHash,
+          packageVersion: currentPackage.version,
+          isLatest: true,
+          resumeContentHash: currentPackage.resumeContentHash,
+          coverLetterContentHash: currentPackage.coverLetterContentHash,
+          fitScore: currentPackage.fitScore,
+          lifecycleState: currentPackage.lifecycleState,
+          preparedAt: currentPackage.preparedAt.toISOString(),
+          createdAt: currentPackage.createdAt.toISOString(),
+        }
+      : null,
     stages: boundedStages,
     tailoredDocuments: boundedDocuments,
   };
@@ -454,6 +523,89 @@ export async function handleListActiveApplications(context, args, deps = {}) {
   return ListActiveApplicationsOutputSchema.parse(output);
 }
 
+/**
+ * 8. list_handoff_kits handler (P14-006 Handoff Kit lifecycle)
+ */
+export async function handleListHandoffKits(context, args, deps = {}) {
+  assertToolPermission(context, CAREER_TRACKING_TOOL_DEFINITIONS.list_handoff_kits);
+
+  const input = ListHandoffKitsInputSchema.parse(args);
+  const dbClient = deps.db || defaultDb;
+  const trackingService =
+    deps.applicationTrackingService || new ApplicationTrackingService({ database: dbClient });
+
+  const candidateId = await resolveTargetCandidateId(context, input.candidateId, dbClient);
+  const { items, total } = await trackingService.listHandoffKits(context, candidateId, {
+    includeArchived: input.includeArchived,
+  });
+
+  const output = {
+    items: items.map((kit) => ({
+      applicationId: kit.applicationId,
+      candidateId: kit.candidateId,
+      companyName: SecretScrubber.scrub(kit.companyName),
+      jobTitle: SecretScrubber.scrub(kit.jobTitle),
+      applicationStatus: kit.applicationStatus,
+      packageHash: kit.packageHash,
+      generatedAt: kit.generatedAt,
+      archivedAt: kit.archivedAt,
+      lifecycleState: kit.lifecycleState,
+      ...(kit.isLatestForTarget ? { isLatestForTarget: true } : {}),
+      destinationUrl: kit.destinationUrl,
+      artifacts: kit.artifacts,
+    })),
+    total,
+    _meta: { cacheControl: { cacheScope: 'tenant-private', ttlMs: 0 } },
+  };
+
+  return ListHandoffKitsOutputSchema.parse(output);
+}
+
+/**
+ * 9. archive_handoff_kit handler (P14-006 Handoff Kit lifecycle)
+ */
+export async function handleArchiveHandoffKit(context, args, deps = {}) {
+  assertToolPermission(context, CAREER_TRACKING_TOOL_DEFINITIONS.archive_handoff_kit);
+
+  const input = ArchiveHandoffKitInputSchema.parse(args);
+  const dbClient = deps.db || defaultDb;
+  const trackingService =
+    deps.applicationTrackingService || new ApplicationTrackingService({ database: dbClient });
+
+  const result = await trackingService.archiveHandoffKit(context, input.applicationId);
+
+  return ArchiveHandoffKitOutputSchema.parse({
+    archived: result.archived,
+    applicationId: result.applicationId,
+    lifecycleState: result.lifecycleState,
+    archivedAt: result.archivedAt,
+    packageHash: result.packageHash,
+  });
+}
+
+/**
+ * 10. delete_handoff_kit handler (P14-006 Handoff Kit lifecycle)
+ */
+export async function handleDeleteHandoffKit(context, args, deps = {}) {
+  assertToolPermission(context, CAREER_TRACKING_TOOL_DEFINITIONS.delete_handoff_kit);
+
+  const input = DeleteHandoffKitInputSchema.parse(args);
+  const dbClient = deps.db || defaultDb;
+  const trackingService =
+    deps.applicationTrackingService || new ApplicationTrackingService({ database: dbClient });
+
+  const result = await trackingService.deleteHandoffKit(context, input.applicationId);
+
+  return DeleteHandoffKitOutputSchema.parse({
+    deleted: result.deleted,
+    applicationId: result.applicationId,
+    packageHash: result.packageHash,
+    deletedDocumentSnapshots: result.deletedDocumentSnapshots,
+    deletedArtifacts: result.deletedArtifacts,
+    applicationRecordPreserved: result.applicationRecordPreserved,
+  });
+}
+
 // =============================================================================
 // Registration Helper for McpServerWrapper
 // =============================================================================
@@ -498,5 +650,20 @@ export function registerCareerTrackingTools(mcpServer, deps = {}) {
   mcpServer.registerTool(
     CAREER_TRACKING_TOOL_DEFINITIONS.list_active_applications,
     async (context, args) => handleListActiveApplications(context, args, deps)
+  );
+
+  mcpServer.registerTool(
+    CAREER_TRACKING_TOOL_DEFINITIONS.list_handoff_kits,
+    async (context, args) => handleListHandoffKits(context, args, deps)
+  );
+
+  mcpServer.registerTool(
+    CAREER_TRACKING_TOOL_DEFINITIONS.archive_handoff_kit,
+    async (context, args) => handleArchiveHandoffKit(context, args, deps)
+  );
+
+  mcpServer.registerTool(
+    CAREER_TRACKING_TOOL_DEFINITIONS.delete_handoff_kit,
+    async (context, args) => handleDeleteHandoffKit(context, args, deps)
   );
 }

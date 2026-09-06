@@ -165,12 +165,13 @@ describe('MCP Career Tracking Tools Integration Tests (P12-003)', () => {
   });
 
   describe('1. Server Factory Registration & Catalog', () => {
-    it('createCareerMcpServer registers exactly 16 total tools (4 read, 3 artifact, 2 write, 7 tracking)', () => {
+    it('createCareerMcpServer registers exactly 29 total tools (4 read, 3 artifact, 2 write, 10 tracking incl. Handoff Kit lifecycle)', () => {
       const server = createCareerMcpServer();
       const toolNames = Array.from(server.registeredTools.keys());
-      assert.strictEqual(toolNames.length, 26);
+      // 26 pre-existing tools + 3 Handoff Kit lifecycle tools (P14-006)
+      assert.strictEqual(toolNames.length, 29);
 
-      // Verify all 7 tracking tools are present
+      // Verify all 10 tracking tools are present
       assert.ok(toolNames.includes('track_job_application'));
       assert.ok(toolNames.includes('update_application_status'));
       assert.ok(toolNames.includes('add_application_stage'));
@@ -178,6 +179,9 @@ describe('MCP Career Tracking Tools Integration Tests (P12-003)', () => {
       assert.ok(toolNames.includes('attach_application_document'));
       assert.ok(toolNames.includes('get_job_application'));
       assert.ok(toolNames.includes('list_active_applications'));
+      assert.ok(toolNames.includes('list_handoff_kits'));
+      assert.ok(toolNames.includes('archive_handoff_kit'));
+      assert.ok(toolNames.includes('delete_handoff_kit'));
 
       // Verify destructive delete primitive is NOT exposed to MCP clients
       assert.strictEqual(toolNames.includes('delete_job_application'), false);

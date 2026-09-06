@@ -272,6 +272,11 @@ describe('Staging Proxy & Perimeter Security Verification (P14-004)', () => {
     assert.ok(authHeader, 'Expected www-authenticate header');
     assert.ok(authHeader.includes('Bearer realm="mcp"'));
     assert.ok(authHeader.includes('resource_metadata='));
+    assert.ok(
+      authHeader.includes(
+        'resource_metadata="https://dev.aicareershub.tech/.well-known/oauth-protected-resource"'
+      )
+    );
 
     const body = JSON.parse(response.payload);
     assert.strictEqual(body.jsonrpc, '2.0');

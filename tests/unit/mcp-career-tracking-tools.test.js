@@ -169,9 +169,9 @@ describe('MCP Career Tracking Tools Unit Tests (P12-003)', () => {
   });
 
   describe('2. Tool Definitions & Advisory Annotations Registry', () => {
-    it('verifies 7 tools exist with approved annotations and RBAC rules', () => {
+    it('verifies 10 tools exist with approved annotations and RBAC rules', () => {
       const tools = Object.keys(CAREER_TRACKING_TOOL_DEFINITIONS);
-      assert.strictEqual(tools.length, 7);
+      assert.strictEqual(tools.length, 10);
 
       assert.ok(CAREER_TRACKING_TOOL_DEFINITIONS.track_job_application);
       assert.strictEqual(

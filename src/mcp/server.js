@@ -87,6 +87,23 @@ function toMcpInputSchema(inputSchema) {
   return fromJsonSchema({ type: 'object', properties: {} });
 }
 
+/** Converts a Zod/raw output contract to the official MCP JSON schema wrapper. */
+function toMcpOutputSchema(outputSchema) {
+  if (!outputSchema) return undefined;
+  if (outputSchema.type && typeof outputSchema.type === 'string') {
+    return fromJsonSchema(outputSchema);
+  }
+  if (
+    outputSchema._def ||
+    (typeof outputSchema.parse === 'function' && typeof outputSchema.safeParse === 'function')
+  ) {
+    return fromJsonSchema(
+      zodToJsonSchema(outputSchema, { $refStrategy: 'none', target: 'jsonSchema7' })
+    );
+  }
+  return undefined;
+}
+
 /**
  * Maps application and domain errors to standardized JSON-RPC 2.0 / MCP error envelopes.
  * Guarantees zero leakage of database credentials, SQL statements, stack traces, or file paths.
@@ -291,6 +308,9 @@ export class McpServerWrapper {
         {
           description: definition.description,
           inputSchema: toMcpInputSchema(definition.inputSchema),
+          ...(definition.exposeOutputSchema && definition.outputSchema
+            ? { outputSchema: toMcpOutputSchema(definition.outputSchema) }
+            : {}),
           ...(definition.annotations ? { annotations: definition.annotations } : {}),
           ...(definition._meta ? { _meta: definition._meta } : {}),
         },
