@@ -1716,7 +1716,27 @@ export class ApplicationTrackingService {
    * @param {string} applicationId Application UUID
    * @returns {Promise<object>} Deletion confirmation
    */
+  /**
+   * Deletes a tracked job application (delegates to safeDeleteApplication).
+   *
+   * @param {object} context Authenticated context { tenantId, userId, role, candidateId }
+   * @param {string} applicationId Application UUID
+   * @returns {Promise<object>} Deletion confirmation
+   */
   async deleteApplication(context, applicationId) {
+    return this.safeDeleteApplication(context, applicationId);
+  }
+
+  /**
+   * Safely deletes an application, verifying it has no submission history,
+   * performing multi-tenant and candidate authorization, cascading child entities,
+   * reference-counting physical encrypted artifacts, and writing an audit event.
+   *
+   * @param {object} context Authenticated context { tenantId, userId, role, candidateId }
+   * @param {string} applicationId Application UUID
+   * @returns {Promise<object>} Deletion result
+   */
+  async safeDeleteApplication(context, applicationId) {
     this._validateContext(context, true);
 
     if (!applicationId) {
@@ -1725,8 +1745,8 @@ export class ApplicationTrackingService {
 
     const tenantId = context.tenantId;
 
-    return await this.db.transaction(async (tx) => {
-      // 1. Verify existence and load metadata for audit
+    const result = await this.db.transaction(async (tx) => {
+      // 1. Verify existence and load application for audit
       const [application] = await tx
         .select()
         .from(jobApplications)
@@ -1737,23 +1757,166 @@ export class ApplicationTrackingService {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
 
-      // 2. Count child stages and documents for audit record
+      // 2. Strict Candidate Authorization
+      if (context.candidateId && application.candidateId !== context.candidateId) {
+        throw new AuthorizationError(
+          `Candidate not authorized to delete application: ${applicationId}`
+        );
+      }
+
+      // 3. SAFE DELETE INVARIANT: Block deletion if application was submitted
+      if (
+        application.status === 'APPLIED' ||
+        application.appliedAt ||
+        application.metadata?.externalSubmissionState === 'SUBMITTED'
+      ) {
+        throw new ConflictError(
+          `Cannot delete application: application ${applicationId} has submission history or status ${application.status}. Submitted applications cannot be deleted.`,
+          'APPLICATION_DELETE_NOT_PERMITTED'
+        );
+      }
+
+      // 4. Load child entities to count and reference-count artifacts
+      const appPackages = await tx
+        .select()
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.applicationId, applicationId),
+            eq(applicationPackages.tenantId, tenantId)
+          )
+        );
+
+      const appDocs = await tx
+        .select()
+        .from(tailoredDocuments)
+        .where(
+          and(
+            eq(tailoredDocuments.applicationId, applicationId),
+            eq(tailoredDocuments.tenantId, tenantId)
+          )
+        );
+
       const [stageCountRes] = await tx
         .select({ total: count() })
         .from(applicationStages)
         .where(eq(applicationStages.applicationId, applicationId));
 
-      const [docCountRes] = await tx
-        .select({ total: count() })
-        .from(tailoredDocuments)
-        .where(eq(tailoredDocuments.applicationId, applicationId));
+      // 5. Gather candidate storage keys for this application
+      const candidateStorageKeys = new Set();
+      for (const doc of appDocs) {
+        if (doc.metadata?.artifact?.storageKey)
+          candidateStorageKeys.add(doc.metadata.artifact.storageKey);
+        if (doc.metadata?.storageKey) candidateStorageKeys.add(doc.metadata.storageKey);
+      }
+      for (const pkg of appPackages) {
+        if (pkg.answers?.resumeStorageKey) candidateStorageKeys.add(pkg.answers.resumeStorageKey);
+        if (pkg.answers?.coverLetterStorageKey)
+          candidateStorageKeys.add(pkg.answers.coverLetterStorageKey);
+      }
+      const hkResumeKey =
+        application.metadata?.handoffKit?.resume?.storageKey ||
+        application.metadata?.handoffKit?.tailoredResume?.artifact?.storageKey;
+      const hkCoverKey =
+        application.metadata?.handoffKit?.coverLetter?.storageKey ||
+        application.metadata?.handoffKit?.tailoredCoverLetter?.artifact?.storageKey;
+      if (hkResumeKey) candidateStorageKeys.add(hkResumeKey);
+      if (hkCoverKey) candidateStorageKeys.add(hkCoverKey);
 
-      // 3. Delete Application (Foreign key CASCADE removes stages and documents)
+      // 6. Reference-count against all other applications, packages, and documents in tenant
+      const allOtherDocs = await tx
+        .select({
+          metadata: tailoredDocuments.metadata,
+        })
+        .from(tailoredDocuments)
+        .where(
+          and(
+            eq(tailoredDocuments.tenantId, tenantId),
+            ne(tailoredDocuments.applicationId, applicationId)
+          )
+        );
+
+      const allOtherApps = await tx
+        .select({
+          id: jobApplications.id,
+          metadata: jobApplications.metadata,
+        })
+        .from(jobApplications)
+        .where(and(eq(jobApplications.tenantId, tenantId), ne(jobApplications.id, applicationId)));
+
+      const allOtherPackages = await tx
+        .select({
+          answers: applicationPackages.answers,
+        })
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.tenantId, tenantId),
+            ne(applicationPackages.applicationId, applicationId)
+          )
+        );
+
+      const otherUsedKeys = new Set();
+      for (const d of allOtherDocs) {
+        if (d.metadata?.artifact?.storageKey) otherUsedKeys.add(d.metadata.artifact.storageKey);
+        if (d.metadata?.storageKey) otherUsedKeys.add(d.metadata.storageKey);
+      }
+      for (const oa of allOtherApps) {
+        const rKey =
+          oa.metadata?.handoffKit?.resume?.storageKey ||
+          oa.metadata?.handoffKit?.tailoredResume?.artifact?.storageKey;
+        const cKey =
+          oa.metadata?.handoffKit?.coverLetter?.storageKey ||
+          oa.metadata?.handoffKit?.tailoredCoverLetter?.artifact?.storageKey;
+        if (rKey) otherUsedKeys.add(rKey);
+        if (cKey) otherUsedKeys.add(cKey);
+      }
+      for (const p of allOtherPackages) {
+        if (p.answers?.resumeStorageKey) otherUsedKeys.add(p.answers.resumeStorageKey);
+        if (p.answers?.coverLetterStorageKey) otherUsedKeys.add(p.answers.coverLetterStorageKey);
+      }
+
+      const safeStorageKeysToDelete = [];
+      for (const sk of candidateStorageKeys) {
+        if (!otherUsedKeys.has(sk)) {
+          safeStorageKeysToDelete.push(sk);
+        }
+      }
+
+      // 7. Cascade delete child rows
+      await tx
+        .delete(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.applicationId, applicationId),
+            eq(applicationPackages.tenantId, tenantId)
+          )
+        );
+
+      await tx
+        .delete(tailoredDocuments)
+        .where(
+          and(
+            eq(tailoredDocuments.applicationId, applicationId),
+            eq(tailoredDocuments.tenantId, tenantId)
+          )
+        );
+
+      await tx
+        .delete(applicationStages)
+        .where(
+          and(
+            eq(applicationStages.applicationId, applicationId),
+            eq(applicationStages.tenantId, tenantId)
+          )
+        );
+
+      // 8. Delete the job_applications row
       await tx
         .delete(jobApplications)
         .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)));
 
-      // 4. Emit Audit Event
+      // 9. Emit Audit Log Event
       await tx.insert(auditLogs).values({
         tenantId,
         userId: context.userId || null,
@@ -1761,18 +1924,42 @@ export class ApplicationTrackingService {
         resourceType: 'job_application',
         resourceId: applicationId,
         details: {
+          applicationId,
+          candidateId: application.candidateId,
+          jobId:
+            application.metadata?.jobId || application.metadata?.handoffKit?.targetJob?.id || null,
           companyName: application.companyName,
           jobTitle: application.jobTitle,
+          deletedPackagesCount: appPackages.length,
+          deletedSnapshotsCount: appDocs.length,
           deletedStagesCount: Number(stageCountRes?.total ?? 0),
-          deletedDocsCount: Number(docCountRes?.total ?? 0),
+          deletedArtifactsCount: safeStorageKeysToDelete.length,
         },
       });
 
       return {
         deleted: true,
         applicationId,
+        storageKeys: safeStorageKeysToDelete,
       };
     });
+
+    // 10. Physical storage deletion for unreferenced encrypted files
+    for (const storageKey of result.storageKeys) {
+      try {
+        await this._getDocumentStorage().deleteEncryptedDocument({
+          tenantId,
+          storageKey,
+        });
+      } catch (storageErr) {
+        this.logger?.warn?.(
+          { err: storageErr.message, storageKey },
+          'Physical encrypted artifact deletion failed non-fatally'
+        );
+      }
+    }
+
+    return result;
   }
 
   // ---------------------------------------------------------------------------

@@ -477,7 +477,11 @@ export function renderHandoffPage({
                    <tbody>
                      ${packageHistory
                        .map((pkg) => {
-                         const isCurrent = pkg.lifecycleState === 'CURRENT';
+                         const lifecycle = pkg.lifecycleState || pkg.lifecycle_state || pkg.status;
+                         const currentPkgVer = currentPackage?.version;
+                         const isCurrent =
+                           lifecycle === 'CURRENT' ||
+                           (currentPkgVer != null && pkg.version === currentPkgVer);
                          const isViewingThis = pkg.version === viewingVersion;
                          const pkgShortHash = pkg.packageHash ? pkg.packageHash.slice(0, 10) : '—';
                          const answers = pkg.answers || {};
@@ -485,7 +489,7 @@ export function renderHandoffPage({
                            answers.regenerationReason ||
                            (pkg.source === 'PREPARE_JOB_APPLICATION'
                              ? 'Initial preparation'
-                             : pkg.source);
+                             : pkg.source || 'Generated');
                          const scopeText = answers.regenerationScope
                            ? `[${answers.regenerationScope}] `
                            : '';
@@ -498,7 +502,7 @@ export function renderHandoffPage({
                              </td>
                              <td style="padding:12px;">
                                <span class="badge" style="background:${isCurrent ? 'rgba(16, 185, 129, 0.12)' : 'rgba(156, 163, 175, 0.15)'}; color:${isCurrent ? '#10B981' : '#9CA3AF'}; border:1px solid ${isCurrent ? 'rgba(16, 185, 129, 0.3)' : 'rgba(156, 163, 175, 0.3)'}; font-size:0.7rem; font-weight:700; padding:2px 6px; border-radius:3px;">
-                                 ${escapeHtml(pkg.lifecycleState)}
+                                 ${escapeHtml(isCurrent ? 'CURRENT' : (lifecycle || 'ARCHIVED'))}
                                </span>
                              </td>
                              <td style="padding:12px; font-family:var(--font-mono); color:var(--text-muted);" title="${escapeHtml(pkg.packageHash || '')}">
@@ -513,35 +517,37 @@ export function renderHandoffPage({
                              <td style="padding:12px; text-align:right; white-space:nowrap;">
                                <div style="display:inline-flex; align-items:center; gap:6px;">
                                  ${
-                                   !isViewingThis
-                                     ? `<a href="/applications/${escapeHtml(application.id)}/handoff?version=${escapeHtml(String(pkg.version))}" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; text-decoration:none;">View</a>`
-                                     : ''
-                                 }
-                                 ${
-                                   !isCurrent
-                                     ? `<form method="POST" action="/applications/${escapeHtml(application.id)}/packages/${escapeHtml(String(pkg.version))}/restore" style="display:inline; margin:0;">
-                                          <button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; color:#10B981; border-color:rgba(16, 185, 129, 0.3);" onclick="return confirm('Restore version v${escapeHtml(String(pkg.version))} as CURRENT?')">
-                                            Restore
-                                          </button>
-                                        </form>`
-                                     : `<form method="POST" action="/applications/${escapeHtml(application.id)}/packages/${escapeHtml(String(pkg.version))}/archive" style="display:inline; margin:0;">
-                                          <button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; color:var(--text-dim);" onclick="return confirm('Archive current package v${escapeHtml(String(pkg.version))}?')">
-                                            Archive
-                                          </button>
-                                        </form>`
-                                 }
-                                 ${
-                                   !isCurrent
-                                     ? `<form method="POST" action="/applications/${escapeHtml(application.id)}/packages/${escapeHtml(String(pkg.version))}/delete" style="display:inline; margin:0;">
-                                          ${
-                                            !canDeletePackages
-                                              ? `<button type="button" disabled class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; opacity:0.4; cursor:not-allowed;" title="Cannot delete packages for submitted applications">Delete</button>`
-                                              : packageHistory.length <= 1
-                                                ? `<button type="button" disabled class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; opacity:0.4; cursor:not-allowed;" title="Cannot delete sole package">Delete</button>`
-                                                : `<button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; color:#EF4444; border-color:rgba(239, 68, 68, 0.3);" onclick="return confirm('Permanently delete package version v${escapeHtml(String(pkg.version))} (${escapeHtml(pkgShortHash)}) and its document snapshots?')">Delete</button>`
-                                          }
-                                        </form>`
-                                     : ''
+                                   isCurrent
+                                     ? `
+                                       <a href="/applications/${escapeHtml(application.id)}/handoff?version=${escapeHtml(String(pkg.version))}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; text-decoration:none;">View</a>
+                                       <a href="/api/applications/${escapeHtml(application.id)}/artifacts/resume/download?version=${escapeHtml(String(pkg.version))}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; text-decoration:none;" download>Download</a>
+                                       <form method="POST" action="/applications/${escapeHtml(application.id)}/packages/${escapeHtml(String(pkg.version))}/archive" style="display:inline; margin:0;">
+                                         <button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; color:var(--text-dim);" onclick="return confirm('Archive current package v${escapeHtml(String(pkg.version))}?')">
+                                           Archive
+                                         </button>
+                                       </form>
+                                       <button type="button" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px;" onclick="openRegenerateModal()">
+                                         Regenerate
+                                       </button>
+                                     `
+                                     : `
+                                       <a href="/applications/${escapeHtml(application.id)}/handoff?version=${escapeHtml(String(pkg.version))}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; text-decoration:none;">View</a>
+                                       <a href="/api/applications/${escapeHtml(application.id)}/artifacts/resume/download?version=${escapeHtml(String(pkg.version))}" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; text-decoration:none;" download>Download</a>
+                                       <form method="POST" action="/applications/${escapeHtml(application.id)}/packages/${escapeHtml(String(pkg.version))}/restore" style="display:inline; margin:0;">
+                                         <button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; color:#10B981; border-color:rgba(16, 185, 129, 0.3);" onclick="return confirm('Restore version v${escapeHtml(String(pkg.version))} as CURRENT?')">
+                                           Restore
+                                         </button>
+                                       </form>
+                                       <form method="POST" action="/applications/${escapeHtml(application.id)}/packages/${escapeHtml(String(pkg.version))}/delete" style="display:inline; margin:0;">
+                                         ${
+                                           !canDeletePackages
+                                             ? `<button type="button" disabled class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; opacity:0.4; cursor:not-allowed; color:#EF4444; border-color:rgba(239, 68, 68, 0.3);" title="Cannot delete packages for submitted applications">Delete</button>`
+                                             : packageHistory.length <= 1
+                                               ? `<button type="button" disabled class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; opacity:0.4; cursor:not-allowed; color:#EF4444; border-color:rgba(239, 68, 68, 0.3);" title="Cannot delete sole package">Delete</button>`
+                                               : `<button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 10px; color:#EF4444; border-color:rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.08);" onclick="return confirm('Permanently delete package version v${escapeHtml(String(pkg.version))} (${escapeHtml(pkgShortHash)}) and its document snapshots?')">Delete</button>`
+                                         }
+                                       </form>
+                                     `
                                  }
                                </div>
                              </td>

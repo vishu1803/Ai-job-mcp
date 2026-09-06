@@ -5,6 +5,101 @@
 
 ---
 
+### P14-015: Career Pipeline Application-Level Safe Deletion, Multi-Tenant Authorization, and Artifact Reference Counting
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+While package-level deletion (`POST /applications/:id/packages/:version/delete`) allowed deleting historical snapshots within a single application, the Career Pipeline UI (`/applications`) accumulated duplicate application records for the same candidate and job (e.g. experimental exploratory iterations for Vercel Software Engineer, Backend).
+To maintain data hygiene and respect user intent without risking data loss or compliance violations, an authoritative application-level deletion capability was implemented and verified.
+
+**Core Invariants & Safety Contracts Enforced:**
+1. **Scope Distinction:**
+   - Package Deletion: `Application -> Handoff Kit -> Package Version` (retains application row, deletes archived snapshot).
+   - Application Deletion: `Candidate -> Same Job -> Multiple Applications` (deletes disposable experimental application record).
+2. **Submission Immutability Gate:**
+   - Hard rejection if `status === 'APPLIED'`, `appliedAt !== null`, or `metadata.externalSubmissionState === 'SUBMITTED'`.
+   - Never relies on `status` alone; timestamp and external submission state are strictly verified server-side.
+3. **Multi-Tenant & Candidate Authorization:**
+   - Validates `tenantId`, `userId`, and `candidateId` ownership against the application record.
+4. **Physical Storage Reference-Counting:**
+   - Candidate encrypted artifact keys (`metadata.artifact.storageKey`, `answers.resumeStorageKey`, `answers.coverLetterStorageKey`) are cross-referenced across all remaining applications, packages, and tailored documents in the tenant.
+   - Physical encrypted files in storage are deleted ONLY if reference count equals zero.
+5. **Cascading Child Cleanup:**
+   - Automatically cleans child rows in `application_packages`, `tailored_documents`, and `application_stages`.
+6. **Zero Source-of-Truth Mutation:**
+   - Candidate profile (`candidates`), skills (`candidate_skills`), projects (`projects`), repositories (`resources`), and evidence (`evidence_items`) remain completely immutable.
+7. **Audit Trail:**
+   - Records transactional audit event `job_application.deleted` with full context and counts.
+
+**Key Changes Implemented:**
+1. **Application Tracking Service (`src/services/application-tracking.service.js`):**
+   - Implemented `safeDeleteApplication(context, applicationId)` with transactional locking, submission history checks, cross-application artifact reference counting, child cascading, and audit log generation.
+2. **Web Route Layer (`src/routes/web.routes.js`):**
+   - Added `POST /applications/:id/delete` with session authentication, candidate context resolution, error handling, and flash message redirects.
+3. **Career Pipeline UI (`src/views/applications.page.js`):**
+   - Updated table row renderer to display prominent destructive `[Delete]` button ONLY for genuinely unsubmitted disposable applications (`SAVED` or `ARCHIVED` with no submission history).
+   - Preserves `[Handoff Kit &nearr;]` and status dropdown; strictly omits `Delete` for submitted applications.
+   - Interactive confirm dialogue: `"Delete this ${company} — ${title} application (${shortId}) and its Handoff Kit artifacts?"`.
+4. **Unit Test Suite (`tests/unit/safe-application-delete.test.js`):**
+   - 11/11 automated unit tests verifying parameter validation, authorization rejection, submission safety blocking, cascade deletion, artifact reference safety, and UI action contracts.
+5. **Live Chrome CDP Browser & Local DB Verification (`scratch/live-app-delete-investigation.mjs`):**
+   - Executed live CDP test against running Chrome browser and local Fastify server (`http://localhost:3000/applications`).
+   - Verified pre-delete DOM: target `b7591a4c` had Delete button; submitted `0fe0cce0` did NOT have Delete button.
+   - Clicked Delete on `b7591a4c`, intercepted browser confirm dialog, verified successful POST deletion, reloaded page, confirmed `b7591a4c` row disappeared from UI.
+   - Verified post-delete DB: `b7591a4c` deleted; packages, docs, stages cascaded; submitted Vercel `0fe0cce0` and Stripe `13a7fdc7` completely intact; candidate skills (78), evidence (246), projects (11), repos (10) 100% preserved.
+
+**Verification Results:**
+- `tests/unit/safe-application-delete.test.js`: **11/11 PASS**
+- `tests/unit/handoff-page-actions.test.js`: **3/3 PASS**
+- `tests/unit/application-package-lifecycle.test.js`: **11/11 PASS**
+- Combined Lifecycle Suite: **25/25 PASS**
+- Live Chrome CDP Verification (`scratch/live-app-delete-investigation.mjs`): **ALL 13 CHECKS PASS**
+- ESLint: **0 errors, 0 warnings** on modified files
+- Prettier: **PASS** across all modified files
+- Secrets Scan (`scripts/scan-secrets.js`): **PASS (0 exposed secrets)**
+
+---
+
+### P14-014: Handoff Kit UI Package Action Controls & Delete Action Visibility Standardization
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+While backend package deletion functionality (`POST /applications/:id/packages/:version/delete`) was confirmed working, user testing revealed missing and inconsistent action controls on the Handoff Kit UI (`src/views/handoff.page.js`).
+Specifically:
+1. The CURRENT package row lacked explicit `[View]`, `[Download]`, and `[Regenerate]` controls, presenting only an `Archive` button.
+2. The ARCHIVED package rows lacked a `[Download]` action, and `[View]` was conditionally suppressed when viewing that version.
+3. The `[Delete]` button suffered from low visibility and cramped inline styling in horizontal overflow tables, and had ambiguous lifecycle conditions.
+
+**UI Action Contract Standardized:**
+- **CURRENT Package Row:** Exactly `[View] [Download] [Archive] [Regenerate]` (NO Delete action).
+- **ARCHIVED Package Row:** Exactly `[View] [Download] [Restore] [Delete]`.
+- **Delete Button Presentation:** Prominent text "Delete", destructive styling (`color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.08);`), located within the package row.
+- **Confirmation Dialogue Preserved:** `Permanently delete package version vN (<short hash>) and its document snapshots?`.
+
+**Key Changes Implemented:**
+1. **Handoff View Template (`src/views/handoff.page.js`):**
+   - Standardized `packageHistory.map` action cell rendering to output the exact 4-button contracts for CURRENT and ARCHIVED rows.
+   - Made `isCurrent` determination robust against casing and properties (`lifecycleState`, `lifecycle_state`, `status`, or matching `currentPackage.version`).
+   - Integrated resume artifact download links (`/api/applications/${application.id}/artifacts/resume/download?version=${pkg.version}`) on all package rows.
+   - Connected `openRegenerateModal()` trigger on CURRENT package rows.
+2. **Unit Test Suite (`tests/unit/handoff-page-actions.test.js`):**
+   - Implemented automated tests verifying exact 4-button contracts for both CURRENT and ARCHIVED rows.
+   - Verified that CURRENT is strictly protected against deletion even when viewing archived versions.
+3. **Live Browser Verification (`scratch/execute-full-investigation.mjs`):**
+   - Executed live CDP test against running Chrome browser and local Fastify server (`appId: 13a7fdc7-5af7-459f-a3b1-7615e35fdc2c`).
+   - Inspected live DOM before deletion: verified `v3` (CURRENT) had `[View] [Download] [Archive] [Regenerate]` (0 Delete), and `v2` (ARCHIVED) had `[View] [Download] [Restore] [Delete]`.
+   - Programmatically submitted Delete on `v2`, verified browser confirm dialog, verified successful POST deletion, reloaded page, confirmed `v2` disappeared, and confirmed `v3` remained intact with 0 Delete buttons.
+
+**Verification Results:**
+- `tests/unit/handoff-page-actions.test.js`: 3/3 tests PASS.
+- Live Chrome CDP Verification (`scratch/execute-full-investigation.mjs`): ALL 9 CHECKS PASS.
+
+---
+
 ### P14-013: Evidence-Aware Professional Summary Curation, Package Deletion Reference Safety, and Zero-Fabrication Resume Truth Audit
 
 **Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  

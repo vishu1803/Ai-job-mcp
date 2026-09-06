@@ -227,13 +227,20 @@ export function renderApplicationsPage({
                 <th>Location / Mode</th>
                 <th style="width:150px;">Salary Target</th>
                 <th style="width:150px;">Updated</th>
-                <th style="text-align:right; width:220px;">Handoff &amp; Stage</th>
+                <th style="text-align:right; width:280px;">Actions &amp; Stage</th>
               </tr>
             </thead>
             <tbody>
               ${filteredApps
-                .map(
-                  (app) => `
+                .map((app) => {
+                  const isSubmitted =
+                    app.status === 'APPLIED' ||
+                    Boolean(app.appliedAt) ||
+                    app.metadata?.externalSubmissionState === 'SUBMITTED';
+                  const canDeleteApp =
+                    !isSubmitted && (app.status === 'SAVED' || app.status === 'ARCHIVED');
+
+                  return `
                 <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
                   <td style="padding:14px 18px;">
                     <div style="font-weight:700; font-size:0.9rem; color:var(--text-main);">${escapeHtml(app.companyName)}</div>
@@ -270,11 +277,22 @@ export function renderApplicationsPage({
                           <option value="ARCHIVED" ${app.status === 'ARCHIVED' ? 'selected' : ''}>Archived</option>
                         </select>
                       </form>
+                      ${
+                        canDeleteApp
+                          ? `
+                      <form action="/applications/${app.id}/delete" method="POST" style="display:inline; margin:0;">
+                        <button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.75rem; font-weight:600; padding:4px 9px; color:#EF4444; border-color:rgba(239, 68, 68, 0.4); background:rgba(239, 68, 68, 0.08); cursor:pointer;" onclick="return confirm('Delete this ${escapeHtml(app.companyName || 'Job')} — ${escapeHtml(app.jobTitle || 'Application')} application (${escapeHtml(app.id.slice(0, 8))}) and its Handoff Kit artifacts?');" title="Permanently delete this unsubmitted application and its artifacts">
+                          Delete
+                        </button>
+                      </form>
+                      `
+                          : ''
+                      }
                     </div>
                   </td>
                 </tr>
-              `
-                )
+              `;
+                })
                 .join('')}
             </tbody>
           </table>

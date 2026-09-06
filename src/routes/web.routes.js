@@ -2760,6 +2760,39 @@ export default async function webRoutes(app, opts = {}) {
   });
 
   // -------------------------------------------------------------------------
+  // 21c. POST /applications/:id/delete (Safe Application Deletion)
+  // -------------------------------------------------------------------------
+  app.post('/applications/:id/delete', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/applications');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const appId = req.params.id;
+
+    try {
+      const context = {
+        tenantId: tenant.id,
+        userId: user.id,
+        candidateId: candidate.id,
+        role: 'MEMBER',
+      };
+      await applicationTrackingService.safeDeleteApplication(context, appId);
+
+      return reply.redirect(
+        `/applications?success=${encodeURIComponent('Application safely deleted')}`
+      );
+    } catch (err) {
+      req.log.error({ err: err.message, appId }, 'Application delete failed');
+      return reply.redirect(
+        `/applications?error=${encodeURIComponent('Delete failed: ' + err.message)}`
+      );
+    }
+  });
+
+  // -------------------------------------------------------------------------
   // 22b. GET /applications/:id/handoff — Application Handoff Kit Workspace
   // -------------------------------------------------------------------------
   app.get('/applications/:id/handoff', async (req, reply) => {
