@@ -174,14 +174,32 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
   it('4. renders REAL skills strictly separated by provenance truth', async () => {
     const { docs } = await generate();
     const resume = docs.resume.markdownContent;
-    // Verified skills under the Verified label
-    const verifiedLine = resume.split('\n').find((l) => l.includes('**Verified:**'));
-    assert.ok(verifiedLine.includes('Postgresql'));
-    assert.ok(verifiedLine.includes('FastAPI'));
-    // Self-reported skills must NOT be presented as verified
-    const claimedLine = resume.split('\n').find((l) => l.includes('**Self-reported:**'));
-    assert.ok(claimedLine.includes('Django'));
-    assert.ok(claimedLine.includes('AWS'));
+
+    // Categorized presentation in resume
+    assert.ok(resume.includes('## Technical Skills'));
+    assert.ok(resume.includes('**Databases & ORMs:**') || resume.includes('**Backend & APIs:**'));
+    assert.ok(resume.includes('Postgresql'));
+    assert.ok(resume.includes('FastAPI'));
+
+    // Provenance truth preserved internally in skillAudit
+    const skillAudit = docs.resume.skillAudit || [];
+    assert.ok(skillAudit.length > 0, 'skillAudit must be populated');
+
+    const pgAudit = skillAudit.find((s) => s.skill === 'Postgresql');
+    assert.ok(pgAudit, 'Postgresql must be present in skill audit');
+    assert.equal(pgAudit.provenance, 'VERIFIED');
+
+    const fastApiAudit = skillAudit.find((s) => s.skill === 'FastAPI');
+    assert.ok(fastApiAudit, 'FastAPI must be present in skill audit');
+    assert.equal(fastApiAudit.provenance, 'VERIFIED');
+
+    const djangoAudit = skillAudit.find((s) => s.skill === 'Django');
+    assert.ok(djangoAudit, 'Django must be present in skill audit');
+    assert.equal(djangoAudit.provenance, 'CLAIMED');
+
+    const awsAudit = skillAudit.find((s) => s.skill === 'AWS');
+    assert.ok(awsAudit, 'AWS must be present in skill audit');
+    assert.equal(awsAudit.provenance, 'SELF_DECLARED');
   });
 
   it('5. renders REAL projects with repository names and technologies', async () => {

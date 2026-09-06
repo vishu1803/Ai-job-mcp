@@ -140,6 +140,193 @@ function formatMonthYear(value) {
   return `${monthNames[monthIndex]} ${match[1]}`;
 }
 
+/**
+ * Normalizes a project name or URL into a canonical comparison slug.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function slugifyProject(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/^https?:\/\/[^/]+\//, '')
+    .replace(/^github\.com\//, '')
+    .replace(/^[^/]+\//, '') // strip owner/ if present
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Reconciles candidate projects across connected repository evidence, candidate
+ * curated resume records, and relational projects table rows.
+ *
+ * @param {object} params
+ * @param {Array<object>} [params.profileProjects] Projects from connected repository sync
+ * @param {Array<object>} [params.resumeDataProjects] Curated projects from candidate profile
+ * @param {Array<object>} [params.storedProjects] Authoritative rows from projects database table
+ * @returns {Array<object>} Reconciled canonical project objects
+ */
+export function reconcileCandidateProjects({
+  profileProjects = [],
+  resumeDataProjects = [],
+  storedProjects = [],
+}) {
+  const projectMap = new Map();
+
+  const storedByKey = new Map();
+  for (const sp of storedProjects) {
+    if (!sp.name) continue;
+    const key = slugifyProject(sp.name);
+    const isArchived =
+      sp.metadata?.portfolioStatus === 'ARCHIVED' || Boolean(sp.metadata?.archivedAt);
+    const existing = storedByKey.get(key);
+    if (!existing || (existing.isArchived && !isArchived)) {
+      storedByKey.set(key, { ...sp, isArchived });
+    }
+  }
+
+  // 1. Ingest candidate's curated resumeData projects (authoritative for authentic titles & bullets)
+  for (const rp of resumeDataProjects) {
+    const rawName = rp.title || rp.name;
+    if (!rawName) continue;
+    const key = slugifyProject(rawName) || slugifyProject(rp.url) || slugifyProject(rp.urls?.[0]);
+    if (!key) continue;
+
+    let liveUrl = null;
+    let repoUrl = rp.url || rp.urls?.[0] || null;
+    const cleanBullets = [];
+    for (const b of rp.bullets || []) {
+      const bText = String(b).trim();
+      const match = /^(?:Project Link|Source Code):\s*(https?:\/\/\S+)/i.exec(bText);
+      if (match) {
+        const link = match[1].replace(/\/+$/, '');
+        if (/github\.com/i.test(link)) {
+          if (!repoUrl) repoUrl = link;
+        } else {
+          liveUrl = link;
+        }
+      } else {
+        cleanBullets.push(bText);
+      }
+    }
+
+    projectMap.set(key, {
+      name: String(rawName).trim(),
+      slug: key,
+      title: String(rawName).trim(),
+      summary: rp.summary || rp.headline || null,
+      bullets: cleanBullets,
+      technologies: Array.isArray(rp.technologies) ? rp.technologies.filter(Boolean) : [],
+      repositoryUrl: repoUrl,
+      liveUrl,
+      evidence: [],
+      evidenceCount: 0,
+      provenanceStatus: 'CLAIMED',
+      isArchived: false,
+    });
+  }
+
+  // 2. Ingest and reconcile profile projects (from connected repository scan)
+  for (const pp of profileProjects) {
+    const rawName = pp.name || pp.slug;
+    if (!rawName) continue;
+    const key =
+      slugifyProject(rawName) || slugifyProject(pp.metadata?.sourceUrl) || slugifyProject(pp.url);
+    if (!key) continue;
+
+    const stored = storedByKey.get(key);
+    const isArchived =
+      pp.metadata?.portfolioStatus === 'ARCHIVED' ||
+      Boolean(pp.metadata?.archivedAt) ||
+      stored?.isArchived === true;
+
+    const resolvedUrl =
+      pp.metadata?.sourceUrl ||
+      pp.metadata?.repositoryUrl ||
+      stored?.metadata?.sourceUrl ||
+      stored?.metadata?.repositoryUrl ||
+      pp.url ||
+      null;
+
+    const evidence = Array.isArray(pp.evidence) ? pp.evidence : [];
+    const evidenceCount = evidence.length;
+
+    const evidenceTech = new Set();
+    for (const ev of evidence) {
+      if (ev.skillName) evidenceTech.add(ev.skillName);
+      else if (ev.skillSlug) evidenceTech.add(ev.skillSlug);
+    }
+    const repoTech = [
+      ...(Array.isArray(pp.technologies) ? pp.technologies : []),
+      ...(Array.isArray(pp.primaryLanguages) ? pp.primaryLanguages : []),
+      ...evidenceTech,
+    ].filter(Boolean);
+
+    const existing = projectMap.get(key);
+    if (!existing) {
+      projectMap.set(key, {
+        name: String(rawName).trim(),
+        slug: key,
+        title: String(rawName).trim(),
+        summary: pp.summary || pp.headline || null,
+        bullets: Array.isArray(pp.bullets) ? pp.bullets : [],
+        technologies: repoTech,
+        repositoryUrl: resolvedUrl,
+        liveUrl: null,
+        evidence,
+        evidenceCount,
+        provenanceStatus: 'VERIFIED',
+        isArchived,
+      });
+    } else {
+      if (!existing.repositoryUrl && resolvedUrl) existing.repositoryUrl = resolvedUrl;
+      if (evidence.length > 0) {
+        existing.evidence = evidence;
+        existing.evidenceCount = evidenceCount;
+      }
+      const techSet = new Set(existing.technologies);
+      for (const t of repoTech) {
+        if (![...techSet].some((ex) => ex.toLowerCase() === t.toLowerCase())) {
+          techSet.add(t);
+        }
+      }
+      existing.technologies = Array.from(techSet);
+      if (evidenceCount > 0 || resolvedUrl) {
+        existing.provenanceStatus = 'CORROBORATED';
+      }
+      if (existing.isArchived && !isArchived) {
+        existing.isArchived = false;
+      }
+    }
+  }
+
+  // 3. Keep archived rows for auditability if not already present
+  for (const sp of storedProjects) {
+    const isArchived =
+      sp.metadata?.portfolioStatus === 'ARCHIVED' || Boolean(sp.metadata?.archivedAt);
+    if (isArchived && sp.name) {
+      const key = slugifyProject(sp.name) + '-archived';
+      if (!projectMap.has(key)) {
+        projectMap.set(key, {
+          name: String(sp.name).trim(),
+          slug: key,
+          title: String(sp.name).trim(),
+          summary: sp.summary || null,
+          bullets: [],
+          technologies: Array.isArray(sp.primaryLanguages) ? sp.primaryLanguages : [],
+          repositoryUrl: sp.metadata?.sourceUrl || null,
+          liveUrl: null,
+          evidence: [],
+          evidenceCount: 0,
+          provenanceStatus: 'CLAIMED',
+          isArchived: true,
+        });
+      }
+    }
+  }
+
+  return Array.from(projectMap.values());
+}
+
 export class CandidateArtifactContentService {
   /**
    * @param {object} [options={}]
@@ -327,6 +514,18 @@ export class CandidateArtifactContentService {
         ? metadata.education
         : [];
 
+    const resumeDataProjects = Array.isArray(metadata.resumeData?.projects)
+      ? metadata.resumeData.projects
+      : Array.isArray(userCustom.projects)
+        ? userCustom.projects
+        : [];
+
+    const reconciledProjects = reconcileCandidateProjects({
+      profileProjects: profileView.projects || [],
+      resumeDataProjects,
+      storedProjects,
+    });
+
     const snapshot = {
       tenantId,
       candidateId,
@@ -342,7 +541,7 @@ export class CandidateArtifactContentService {
       education,
       certifications: Array.isArray(userCustom.certifications) ? userCustom.certifications : [],
       skills: profileView.skills || [],
-      projects: profileView.projects || [],
+      projects: reconciledProjects.length > 0 ? reconciledProjects : profileView.projects || [],
       storedProjectByUrl,
       githubUsername: resolvedGithubUsername,
       portfolioLinks,
@@ -419,98 +618,624 @@ export class CandidateArtifactContentService {
    * @param {object} candidateData Candidate data snapshot
    * @returns {Array<{ name: string, url: string|null, summary: string|null, technologies: string[], relevance: number }>}
    */
-  rankProjectsForJob(candidateData) {
-    // 1. Deduplicate by canonical project identity (case-insensitive name)
-    const projectMap = new Map();
+  /**
+   * Computes project job relevance using deterministic multi-factor scoring:
+   * evidenceQuality + technicalDepth + roleRelevance + technologyOverlap + diversityTieBreaker.
+   *
+   * Invariants Enforced:
+   * - Never selects a project merely because repo name matches job keywords.
+   * - Never uses project name alone as evidence of technical capability.
+   * - Selected projects must have authentic technical bullets from candidate/repo records.
+   * - Archived projects are never selected but preserved in audit.
+   * - Produces a deterministic project selection audit.
+   *
+   * @param {object} candidateData Candidate data snapshot
+   * @param {object} [jobPosting] Target job posting (defaults to candidateData.jobPosting)
+   * @returns {Array<object>} Ranked projects with .selectedProjects and .selectionAudit attached
+   */
+  rankProjectsForJob(candidateData, jobPosting = candidateData?.jobPosting) {
+    const targetPosting = jobPosting || candidateData?.jobPosting || {};
+    const jobTitle = (targetPosting.title || '').toLowerCase();
+    const jobDesc =
+      `${targetPosting.title || ''} ${targetPosting.description || ''} ${(targetPosting.requirements || []).join(' ')} ${(targetPosting.responsibilities || []).join(' ')} ${(targetPosting.skills || []).join(' ')}`.toLowerCase();
 
-    for (const project of candidateData.projects || []) {
-      const name = project.name || project.title;
+    const isBackendRole =
+      /backend|api|database|server|distributed|infrastructure|microservice/i.test(jobTitle) ||
+      /backend|api|database|server|sql|postgresql|rest/i.test(jobDesc);
+    const isFrontendRole = /frontend|ui|ux|client/i.test(jobTitle) && !isBackendRole;
+
+    const jobSkillsList = (targetPosting.skills || []).map((s) => s.toLowerCase());
+
+    // 1. Deduplicate candidateData.projects by slug, preferring active over archived, and resolving repository URLs
+    const projectBySlug = new Map();
+    for (const rawProj of candidateData.projects || []) {
+      const name = rawProj.name || rawProj.title;
       if (!name) continue;
-      const cleanName = String(name).trim();
-      const nameKey = cleanName.toLowerCase();
-
-      const stored = candidateData.storedProjectByUrl?.get(nameKey);
-      const resolvedUrl =
-        stored?.metadata?.repositoryUrl ||
-        stored?.metadata?.sourceUrl ||
-        project.url ||
-        project.repositoryUrl ||
-        null;
-
+      const slug = slugifyProject(name);
+      const stored = candidateData.storedProjectByUrl?.get(String(name).toLowerCase());
       const isArchived =
-        project.metadata?.portfolioStatus === 'ARCHIVED' ||
-        Boolean(project.metadata?.archivedAt) ||
+        rawProj.isArchived === true ||
+        rawProj.metadata?.portfolioStatus === 'ARCHIVED' ||
+        Boolean(rawProj.metadata?.archivedAt) ||
         stored?.metadata?.portfolioStatus === 'ARCHIVED' ||
         Boolean(stored?.metadata?.archivedAt);
 
-      const technologies = [
-        ...(Array.isArray(project.technologies) ? project.technologies : []),
-        ...(Array.isArray(project.primaryLanguages) ? project.primaryLanguages : []),
-      ].filter(Boolean);
+      const resolvedUrl =
+        rawProj.url ||
+        rawProj.repositoryUrl ||
+        rawProj.metadata?.sourceUrl ||
+        stored?.metadata?.sourceUrl ||
+        stored?.metadata?.repositoryUrl ||
+        null;
 
-      const summary = project.summary || project.headline || null;
+      const proj = {
+        ...rawProj,
+        name: String(name).trim(),
+        url: resolvedUrl,
+        repositoryUrl: resolvedUrl,
+        isArchived,
+      };
 
-      const existing = projectMap.get(nameKey);
+      const existing = projectBySlug.get(slug);
       if (!existing) {
-        projectMap.set(nameKey, {
-          name: cleanName,
-          url: resolvedUrl,
-          summary,
-          technologies,
-          isArchived,
-        });
+        projectBySlug.set(slug, proj);
       } else {
-        // Deterministic preference: active over archived; row with URL over row without
         if (existing.isArchived && !isArchived) {
-          projectMap.set(nameKey, {
-            name: cleanName,
-            url: resolvedUrl || existing.url,
-            summary: summary || existing.summary,
-            technologies: technologies.length > 0 ? technologies : existing.technologies,
-            isArchived: false,
-          });
-        } else if (!existing.url && resolvedUrl && !isArchived) {
-          existing.url = resolvedUrl;
-          if (!existing.summary && summary) existing.summary = summary;
-          if (existing.technologies.length === 0 && technologies.length > 0) {
-            existing.technologies = technologies;
+          projectBySlug.set(slug, proj);
+        } else if (!existing.isArchived && isArchived) {
+          // Keep active
+        } else {
+          if (!existing.url && resolvedUrl) existing.url = resolvedUrl;
+          if (!existing.repositoryUrl && resolvedUrl) existing.repositoryUrl = resolvedUrl;
+          if ((!existing.bullets || existing.bullets.length === 0) && proj.bullets?.length > 0) {
+            existing.bullets = proj.bullets;
+          }
+          const mergedTech = Array.from(
+            new Set([...(existing.technologies || []), ...(proj.technologies || [])])
+          );
+          existing.technologies = mergedTech;
+          if (!existing.summary && proj.summary) existing.summary = proj.summary;
+        }
+      }
+    }
+
+    const projectsList = Array.from(projectBySlug.values());
+    const scored = [];
+
+    for (const proj of projectsList) {
+      if (proj.isArchived) {
+        scored.push({
+          project: proj,
+          score: 0,
+          scoreComponents: {
+            evidenceQuality: 0,
+            technicalDepth: 0,
+            roleRelevance: 0,
+            technologyOverlap: 0,
+            diversityTieBreaker: 0,
+          },
+          status: 'REJECTED',
+          rejectionReason: 'Project is archived (portfolioStatus: ARCHIVED)',
+        });
+        continue;
+      }
+
+      const evidenceCount =
+        proj.evidenceCount || (Array.isArray(proj.evidence) ? proj.evidence.length : 0);
+      const rawBullets = Array.isArray(proj.bullets) ? proj.bullets : [];
+      const hasSummary = Boolean(proj.summary && proj.summary.trim().length > 0);
+      const bullets = rawBullets.length > 0 ? rawBullets : hasSummary ? [proj.summary.trim()] : [];
+
+      if (evidenceCount === 0 && bullets.length === 0) {
+        scored.push({
+          project: proj,
+          score: 0,
+          scoreComponents: {
+            evidenceQuality: 0,
+            technicalDepth: 0,
+            roleRelevance: 0,
+            technologyOverlap: 0,
+            diversityTieBreaker: 0,
+          },
+          status: 'REJECTED',
+          rejectionReason:
+            'Zero repository evidence and no authentic technical bullets or description',
+        });
+        continue;
+      }
+
+      // 1. Evidence Quality (0 - 30)
+      let evidenceQuality = 0;
+      if (proj.repositoryUrl || proj.url) evidenceQuality += 10;
+      if (evidenceCount >= 25) evidenceQuality += 15;
+      else if (evidenceCount >= 10) evidenceQuality += 10;
+      else if (evidenceCount >= 1) evidenceQuality += 5;
+      if (proj.provenanceStatus === 'CORROBORATED') evidenceQuality += 5;
+
+      // 2. Technical Depth (0 - 30) - from technologies & authentic technical bullets (NEVER project name alone)
+      let technicalDepth = 0;
+      const techText = `${(proj.technologies || []).join(' ')} ${bullets.join(' ')}`.toLowerCase();
+
+      if (
+        /fastify|express|fastapi|flask|django|nest|node|rest|graphql|mcp|model context protocol|socket\.io/i.test(
+          techText
+        )
+      ) {
+        technicalDepth += 8;
+      }
+      if (/postgres|prisma|drizzle|mongo|redis|sql|orm/i.test(techText)) {
+        technicalDepth += 8;
+      }
+      if (/jwt|rbac|auth|role-based|permission|security/i.test(techText)) {
+        technicalDepth += 7;
+      }
+      if (
+        /async|webhook|real-time|realtime|socket|latency|optimization|concurrency/i.test(techText)
+      ) {
+        technicalDepth += 7;
+      }
+
+      // 3. Role Relevance (0 - 30) - dynamic to target role
+      let roleRelevance = 0;
+      if (isBackendRole) {
+        let backendSignals = 0;
+        if (/rest|api|crud|endpoints/i.test(techText)) backendSignals += 10;
+        if (/postgres|database|prisma|drizzle|sql/i.test(techText)) backendSignals += 10;
+        if (/backend|fastapi|flask|fastify|express|node|server/i.test(techText))
+          backendSignals += 10;
+        roleRelevance = Math.min(30, backendSignals);
+        if (roleRelevance === 0) roleRelevance = 5;
+      } else if (isFrontendRole) {
+        let frontendSignals = 0;
+        if (/react|next|ui|css|tailwind|components/i.test(techText)) frontendSignals += 20;
+        if (/state|responsive|design/i.test(techText)) frontendSignals += 10;
+        roleRelevance = Math.min(30, frontendSignals);
+        if (roleRelevance === 0) roleRelevance = 5;
+      } else {
+        roleRelevance = 20;
+      }
+
+      // 4. Technology Overlap (0 - 20) - Overlap of verified technologies/bullets with job skills (NEVER project name alone)
+      let technologyOverlap = 0;
+      const matchedJobTechs = new Set();
+      for (const skill of jobSkillsList) {
+        const s = skill.toLowerCase();
+        const inTechs = (proj.technologies || []).some(
+          (t) => t.toLowerCase().includes(s) || s.includes(t.toLowerCase())
+        );
+        const inBullets = bullets.some((b) => b.toLowerCase().includes(s));
+        if (inTechs || inBullets) {
+          matchedJobTechs.add(s);
+        }
+      }
+      technologyOverlap = Math.min(20, matchedJobTechs.size * 5);
+
+      const baseScore = evidenceQuality + technicalDepth + roleRelevance + technologyOverlap;
+
+      scored.push({
+        project: proj,
+        score: baseScore,
+        scoreComponents: {
+          evidenceQuality,
+          technicalDepth,
+          roleRelevance,
+          technologyOverlap,
+          diversityTieBreaker: 0,
+        },
+        status: 'PENDING',
+        rejectionReason: null,
+      });
+    }
+
+    // Sort by base score descending
+    const activeCandidates = scored
+      .filter((item) => item.status === 'PENDING')
+      .sort(
+        (a, b) =>
+          b.score - a.score || (b.project.evidenceCount || 0) - (a.project.evidenceCount || 0)
+      );
+
+    const selected = [];
+    const maxToSelect = 2;
+
+    for (let i = 0; i < activeCandidates.length; i++) {
+      const candidate = activeCandidates[i];
+      const rawBullets = Array.isArray(candidate.project.bullets) ? candidate.project.bullets : [];
+      const projBullets =
+        rawBullets.length > 0
+          ? rawBullets
+          : candidate.project.summary
+            ? [candidate.project.summary]
+            : [];
+
+      if (projBullets.length === 0) {
+        candidate.status = 'REJECTED';
+        candidate.rejectionReason =
+          'Lacks authentic technical bullets or description in candidate records';
+        continue;
+      }
+
+      if (selected.length === 0) {
+        candidate.status = 'SELECTED';
+        selected.push(candidate);
+      } else if (selected.length < maxToSelect) {
+        const prevSelectedTechs = new Set(
+          (selected[0].project.technologies || []).map((t) => t.toLowerCase())
+        );
+        const curTechs = (candidate.project.technologies || []).map((t) => t.toLowerCase());
+        const hasDistinctStack = curTechs.some((t) => !prevSelectedTechs.has(t));
+
+        if (hasDistinctStack) {
+          candidate.scoreComponents.diversityTieBreaker = 3;
+          candidate.score += 3;
+        }
+        candidate.status = 'SELECTED';
+        selected.push(candidate);
+      } else {
+        candidate.status = 'REJECTED';
+        candidate.rejectionReason = `Lower relevance score (${candidate.score}) compared to top selected projects`;
+      }
+    }
+
+    const selectionAudit = scored.map((item) => ({
+      projectName: item.project.name,
+      score: item.score,
+      scoreComponents: item.scoreComponents,
+      status: item.status === 'PENDING' ? 'REJECTED' : item.status,
+      rejectionReason:
+        item.rejectionReason ||
+        (item.status === 'SELECTED' ? null : 'Lower relevance compared to top selected projects'),
+    }));
+
+    const selectedProjects = selected.map((s) => s.project);
+
+    // Format output array: deduplicated, sorted by relevance score descending
+    const rankedList = projectsList
+      .map((p) => {
+        const auditItem = selectionAudit.find((a) => a.projectName === p.name);
+        return {
+          name: p.name,
+          url: p.repositoryUrl || p.url || null,
+          repositoryUrl: p.repositoryUrl || p.url || null,
+          liveUrl: p.liveUrl || null,
+          summary: p.summary,
+          technologies: p.technologies || [],
+          bullets:
+            Array.isArray(p.bullets) && p.bullets.length > 0
+              ? p.bullets
+              : p.summary
+                ? [p.summary]
+                : [],
+          relevance: auditItem?.score || 0,
+          provenanceStatus: p.provenanceStatus || 'VERIFIED',
+        };
+      })
+      .sort((a, b) => b.relevance - a.relevance || a.name.localeCompare(b.name));
+
+    // Attach metadata properties
+    rankedList.selectedProjects =
+      selectedProjects.length > 0 ? selectedProjects : rankedList.slice(0, 2);
+    rankedList.selectionAudit = selectionAudit;
+
+    return rankedList;
+  }
+
+  /**
+   * Dynamically categorizes and selects role-relevant candidate skills.
+   * Filters low-value tooling noise (Cypress, ESLint, Vite, Tailwind CSS) for backend roles.
+   * Produces a deterministic skill selection audit.
+   *
+   * @param {object} candidateData
+   * @param {object} [jobPosting]
+   * @returns {{ categorizedSkills: object, skillAudit: Array<object> }}
+   */
+  selectAndCategorizeSkillsForJob(candidateData, jobPosting = candidateData?.jobPosting) {
+    const targetPosting = jobPosting || candidateData?.jobPosting || {};
+    const jobTitle = (targetPosting.title || '').toLowerCase();
+    const jobDesc =
+      `${targetPosting.title || ''} ${targetPosting.description || ''} ${(targetPosting.requirements || []).join(' ')} ${(targetPosting.skills || []).join(' ')}`.toLowerCase();
+
+    const isBackendRole =
+      /backend|api|database|server|distributed|infrastructure|microservice/i.test(jobTitle) ||
+      /backend|api|database|server|sql|postgresql|rest/i.test(jobDesc);
+
+    const jobSkillTokens = new Set(
+      (targetPosting.skills || []).map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    );
+
+    const getCategory = (skillName, rawCategory) => {
+      const s = String(skillName).toLowerCase();
+      if (
+        [
+          'typescript',
+          'javascript',
+          'python',
+          'sql',
+          'c++',
+          'java',
+          'go',
+          'rust',
+          'c',
+          'c#',
+          'ruby',
+          'php',
+        ].includes(s) ||
+        rawCategory === 'LANGUAGE'
+      ) {
+        return 'Languages';
+      }
+      if (
+        [
+          'postgresql',
+          'postgres',
+          'prisma',
+          'prisma orm',
+          'drizzle orm',
+          'drizzle',
+          'mongodb',
+          'redis',
+          'mysql',
+          'sqlite',
+        ].includes(s) ||
+        s.includes('prisma') ||
+        s.includes('drizzle') ||
+        rawCategory === 'DATABASE'
+      ) {
+        return 'Databases & ORMs';
+      }
+      if (
+        [
+          'fastify',
+          'express.js',
+          'express',
+          'fastapi',
+          'flask',
+          'django',
+          'nestjs',
+          'node.js',
+          'node',
+          'rest apis',
+          'rest api',
+          'graphql',
+          'socket io',
+          'socket.io',
+          'model context protocol',
+          'mcp',
+        ].includes(s)
+      ) {
+        return 'Backend & APIs';
+      }
+      if (
+        [
+          'docker',
+          'kubernetes',
+          'aws',
+          'microsoft azure',
+          'azure',
+          'gcp',
+          'github actions',
+          'gitlab ci/cd',
+          'git',
+          'github',
+          'linux',
+          'ci/cd',
+        ].includes(s) ||
+        rawCategory === 'CLOUD_DEVOPS'
+      ) {
+        return 'Cloud, DevOps & Systems';
+      }
+      if (
+        ['react', 'next.js', 'tailwind css', 'vue', 'angular', 'svelte', 'html', 'css'].includes(s)
+      ) {
+        return 'Frontend & Web';
+      }
+      if (['jest', 'cypress', 'eslint', 'vite', 'npm', 'prettier'].includes(s)) {
+        return 'Developer Tooling';
+      }
+      return 'Other';
+    };
+
+    const backendNoise = new Set(['eslint', 'vite', 'cypress', 'tailwind css', 'npm', 'prettier']);
+
+    // Build unique skill candidate set (merge candidateSkills and any verified technologies in candidate profile)
+    const skillMap = new Map();
+    for (const s of candidateData.skills || []) {
+      const name = s.name || s.skillName;
+      if (!name) continue;
+      skillMap.set(name.toLowerCase(), s);
+    }
+
+    // Also check candidate projects for verified languages/frameworks if not already in catalog
+    for (const p of candidateData.projects || []) {
+      for (const t of p.technologies || []) {
+        const k = t.toLowerCase();
+        if (!skillMap.has(k)) {
+          if (['python', 'typescript', 'javascript', 'node.js', 'postgresql'].includes(k)) {
+            skillMap.set(k, {
+              name: t,
+              category: getCategory(t, null),
+              provenanceStatus: p.provenanceStatus || 'CLAIMED',
+              evidenceCount: p.evidenceCount || 0,
+            });
           }
         }
       }
     }
 
-    // 2. Score and deduplicate by repository URL
-    const ranked = [];
-    const seenUrls = new Set();
+    const scoredSkills = [];
 
-    for (const project of projectMap.values()) {
-      if (project.url) {
-        const normUrl = String(project.url)
-          .toLowerCase()
-          .replace(/^https?:\/\//, '')
-          .replace(/\/$/, '');
-        if (seenUrls.has(normUrl)) continue;
-        seenUrls.add(normUrl);
+    for (const skill of skillMap.values()) {
+      const name = skill.name || skill.skillName;
+      if (!name) continue;
+      const token = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const category = getCategory(name, skill.category);
+      const provenance =
+        skill.provenanceStatus || skill.provenance || (skill.isUserClaim ? 'CLAIMED' : 'VERIFIED');
+      const evidenceCount = skill.evidenceCount || skill.evidence?.length || 0;
+
+      let score = 0;
+      let matchReason = '';
+
+      if (
+        jobSkillTokens.has(token) ||
+        (token.length >= 4 &&
+          [...jobSkillTokens].some((t) => t.includes(token) || token.includes(t)))
+      ) {
+        score += 35;
+        matchReason = 'Direct requirement match in job posting';
+      } else if (jobDesc.includes(name.toLowerCase())) {
+        score += 20;
+        matchReason = 'Mentioned in job requirements or description';
       }
 
-      const haystack = normalizeSkillToken(
-        `${project.name} ${project.technologies.join(' ')} ${project.summary || ''}`
-      );
-      let relevance = 0;
-      for (const keyword of candidateData.jobKeywords || []) {
-        if (haystack.includes(keyword)) relevance += 5;
+      if (isBackendRole) {
+        if (category === 'Databases & ORMs' || category === 'Backend & APIs') {
+          score += 25;
+          if (!matchReason) matchReason = 'Core backend / database architecture competency';
+        } else if (category === 'Languages') {
+          score += 20;
+          if (!matchReason) matchReason = 'Core programming language';
+        } else if (category === 'Cloud, DevOps & Systems') {
+          score += 15;
+          if (!matchReason) matchReason = 'Infrastructure & DevOps automation competency';
+        } else if (category === 'Frontend & Web') {
+          score += 5;
+          if (!matchReason) matchReason = 'Secondary full-stack web framework';
+        } else if (backendNoise.has(name.toLowerCase())) {
+          score -= 25;
+          matchReason = 'Low-value tooling noise for backend role';
+        }
       }
 
-      ranked.push({
-        name: project.name,
-        url: project.url,
-        summary: project.summary,
-        technologies: project.technologies,
-        relevance,
+      if (provenance === 'VERIFIED' || provenance === 'CORROBORATED') {
+        score += 10;
+        if (evidenceCount > 0) score += Math.min(5, evidenceCount);
+      } else if (provenance === 'SELF_DECLARED') {
+        score -= 5;
+      }
+
+      scoredSkills.push({
+        name,
+        category,
+        provenance,
+        evidenceCount,
+        score,
+        matchReason,
       });
     }
 
-    return ranked.sort((a, b) => b.relevance - a.relevance || a.name.localeCompare(b.name));
+    const categoryGroups = {
+      Languages: [],
+      'Backend & APIs': [],
+      'Databases & ORMs': [],
+      'Cloud, DevOps & Systems': [],
+    };
+
+    const skillAudit = [];
+
+    for (const s of scoredSkills) {
+      const isNoise =
+        isBackendRole &&
+        backendNoise.has(s.name.toLowerCase()) &&
+        !jobSkillTokens.has(s.name.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      const isSelfDeclaredUnverified = s.provenance === 'SELF_DECLARED' && s.score < 20;
+      const isSecondaryFrontend = isBackendRole && s.category === 'Frontend & Web' && s.score < 25;
+
+      const isClaimedBackendWithoutEvidence =
+        isBackendRole &&
+        s.category === 'Backend & APIs' &&
+        (s.provenance === 'CLAIMED' || s.provenance === 'SELF_DECLARED') &&
+        s.evidenceCount === 0 &&
+        !jobSkillTokens.has(s.name.toLowerCase().replace(/[^a-z0-9]/g, '')) &&
+        !jobDesc.includes(s.name.toLowerCase()) &&
+        !(candidateData.projects || []).some(
+          (p) =>
+            (p.technologies || []).some((t) => t.toLowerCase() === s.name.toLowerCase()) ||
+            (p.bullets || []).some((b) => new RegExp(`\\b${s.name}\\b`, 'i').test(b))
+        );
+      const isPeripheralBackendUtility =
+        isBackendRole &&
+        s.category === 'Backend & APIs' &&
+        (s.name.toLowerCase() === 'socket io' || s.name.toLowerCase() === 'socket.io') &&
+        !jobSkillTokens.has('socketio');
+
+      if (isNoise) {
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'OMITTED',
+          reason: 'Low-value tooling noise for backend role (not requested in job posting)',
+        });
+      } else if (isPeripheralBackendUtility) {
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'OMITTED',
+          reason: 'Specialized real-time utility deprioritized for core backend API frameworks',
+        });
+      } else if (isClaimedBackendWithoutEvidence) {
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'OMITTED',
+          reason:
+            'Claimed backend technology without repository evidence or direct job requirement',
+        });
+      } else if (isSelfDeclaredUnverified) {
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'OMITTED',
+          reason: 'Self-declared without repository evidence or direct job requirement',
+        });
+      } else if (isSecondaryFrontend) {
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'OMITTED',
+          reason: 'Frontend technology deprioritized for backend engineering focus',
+        });
+      } else if (s.score >= 15 && categoryGroups[s.category]) {
+        categoryGroups[s.category].push(s);
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'SELECTED',
+          reason: s.matchReason || 'Role-relevant verified competency',
+        });
+      } else {
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'OMITTED',
+          reason: 'Lower relevance compared to primary role technologies',
+        });
+      }
+    }
+
+    const categorizedSkills = {};
+    for (const [cat, list] of Object.entries(categoryGroups)) {
+      list.sort((a, b) => b.score - a.score || b.evidenceCount - a.evidenceCount);
+      if (list.length > 0) {
+        categorizedSkills[cat] = list.map((s) => s.name);
+      }
+    }
+
+    return { categorizedSkills, skillAudit };
   }
 
   /**
@@ -518,7 +1243,7 @@ export class CandidateArtifactContentService {
    *
    * @param {object} candidateData Candidate data snapshot
    * @param {object} jobPosting Normalized job posting
-   * @returns {{ markdownContent: string, fitScore: number, title: string, sections: string[] }}
+   * @returns {{ markdownContent: string, fitScore: number, title: string, sections: string[], selectedProjects: Array<object>, selectionAudit: Array<object>, categorizedSkills: object, skillAudit: Array<object> }}
    */
   buildTailoredResumeMarkdown(candidateData, jobPosting) {
     const { displayName } = candidateData;
@@ -559,25 +1284,61 @@ export class CandidateArtifactContentService {
     lines.push('');
     pushSection('PROFESSIONAL_SUMMARY');
 
-    // ---- Core Competencies (truth-partitioned, job-relevance-ordered) --------
-    const { verified, claimed, learning } = this.partitionSkills(candidateData);
-    if (verified.length > 0 || claimed.length > 0 || learning.length > 0) {
-      lines.push('## Core Competencies');
+    // ---- Technical Skills (categorized, job-relevance-ordered) ---------------
+    const { categorizedSkills, skillAudit } = this.selectAndCategorizeSkillsForJob(
+      candidateData,
+      jobPosting
+    );
+    const categoryEntries = Object.entries(categorizedSkills);
+    if (categoryEntries.length > 0) {
+      lines.push('## Technical Skills');
       lines.push('');
-      if (verified.length > 0) {
-        const rankedVerified = this.rankSkillsForJob(verified, candidateData);
-        lines.push(`- **Verified:** ${rankedVerified.map((s) => s.name).join(', ')}`);
-      }
-      if (claimed.length > 0) {
-        const rankedClaimed = this.rankSkillsForJob(claimed, candidateData);
-        lines.push(`- **Self-reported:** ${rankedClaimed.map((s) => s.name).join(', ')}`);
-      }
-      if (learning.length > 0) {
-        const rankedLearning = this.rankSkillsForJob(learning, candidateData);
-        lines.push(`- **Currently learning:** ${rankedLearning.map((s) => s.name).join(', ')}`);
+      for (const [categoryName, skillsList] of categoryEntries) {
+        if (skillsList.length > 0) {
+          lines.push(`- **${categoryName}:** ${skillsList.join(', ')}`);
+        }
       }
       lines.push('');
-      pushSection('CORE_COMPETENCIES');
+      pushSection('TECHNICAL_SKILLS');
+    }
+
+    // ---- Projects (real stored projects with authentic bullets, ranked by multi-factor score) ---
+    const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting);
+    const selectedProjects = rankedProjects.selectedProjects || rankedProjects.slice(0, 2);
+    const selectionAudit = rankedProjects.selectionAudit || [];
+
+    if (selectedProjects.length > 0) {
+      lines.push('## Technical Projects');
+      lines.push('');
+      for (const project of selectedProjects) {
+        const urlPart = project.repositoryUrl || project.url;
+        const nameLine = urlPart ? `[${project.name}](${urlPart})` : project.name;
+        lines.push(`### ${nameLine}`);
+
+        const metaParts = [];
+        if (Array.isArray(project.technologies) && project.technologies.length > 0) {
+          metaParts.push(`Technologies: ${project.technologies.slice(0, 6).join(', ')}`);
+        }
+        if (project.liveUrl) {
+          metaParts.push(`Live Demo: ${project.liveUrl}`);
+        }
+        if (metaParts.length > 0) {
+          lines.push(`*${metaParts.join(' · ')}*`);
+          lines.push('');
+        }
+
+        const bullets = Array.isArray(project.bullets) ? project.bullets : [];
+        if (bullets.length > 0) {
+          for (const bullet of bullets) {
+            lines.push(`- ${String(bullet).trim()}`);
+          }
+          lines.push('');
+        } else if (project.summary) {
+          lines.push(project.summary);
+          lines.push('');
+        }
+      }
+      pushSection('PROJECTS');
     }
 
     // ---- Professional Experience (only real stored records) ------------------
@@ -608,33 +1369,6 @@ export class CandidateArtifactContentService {
         lines.push('');
       }
       pushSection('PROFESSIONAL_EXPERIENCE');
-    }
-
-    // ---- Projects (real stored projects, ranked by job relevance) ------------
-    const rankedProjects = this.rankProjectsForJob(candidateData);
-    if (rankedProjects.length > 0) {
-      lines.push('## Projects');
-      lines.push('');
-      const seenProjectNames = new Set();
-      for (const project of rankedProjects) {
-        const normName = project.name.toLowerCase().trim();
-        if (seenProjectNames.has(normName)) continue;
-        seenProjectNames.add(normName);
-
-        const nameLine = project.url ? `[${project.name}](${project.url})` : project.name;
-        lines.push(`### ${nameLine}`);
-        lines.push('');
-        if (project.summary) {
-          lines.push(project.summary);
-          lines.push('');
-        }
-        if (project.technologies.length > 0) {
-          lines.push(`*Technologies: ${project.technologies.join(', ')}*`);
-          lines.push('');
-        }
-        if (seenProjectNames.size >= 4) break;
-      }
-      pushSection('PROJECTS');
     }
 
     // ---- Education (only real stored records) --------------------------------
@@ -682,10 +1416,9 @@ export class CandidateArtifactContentService {
     const markdownContent = lines.join('\n');
     const contentHash = crypto.createHash('sha256').update(markdownContent, 'utf8').digest('hex');
 
-    // Transparent, evidence-derived fit score: proportional to the share of
-    // verified + self-reported skills that overlap the job description.
-    // No fabricated precision — floored at a neutral 0 when no signal exists.
-    const allSkillTokens = [...verified, ...claimed].map(normalizeSkillToken);
+    // Fit score calculation
+    const allSelectedSkills = Object.values(categorizedSkills).flat();
+    const allSkillTokens = allSelectedSkills.map(normalizeSkillToken);
     const matchedSkills = allSkillTokens.filter((token) =>
       [...candidateData.jobKeywords].some(
         (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
@@ -702,6 +1435,10 @@ export class CandidateArtifactContentService {
       title: `${displayName} — Tailored Resume`,
       contentHash,
       sections: renderedSections,
+      selectedProjects,
+      selectionAudit,
+      categorizedSkills,
+      skillAudit,
     };
   }
 
@@ -738,21 +1475,14 @@ export class CandidateArtifactContentService {
     const experienceCompany = experience?.company || experience?.employer || null;
 
     // Real project evidence ranked by job relevance (strictly deduplicated)
-    const rankedProjects = this.rankProjectsForJob(candidateData);
-    const topProjects = [];
-    const seenNames = new Set();
-    for (const proj of rankedProjects) {
-      const k = proj.name.toLowerCase().trim();
-      if (!seenNames.has(k)) {
-        seenNames.add(k);
-        topProjects.push(proj);
-      }
-      if (topProjects.length >= 2) break;
-    }
+    const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting);
+    const topProjects = rankedProjects.selectedProjects || rankedProjects.slice(0, 2);
 
     const topProjectNames = topProjects.map((p) => p.name);
     const projectUrlByName = Object.fromEntries(
-      rankedProjects.filter((p) => p.url).map((p) => [p.name, p.url])
+      (candidateData.projects || [])
+        .filter((p) => p.repositoryUrl || p.url)
+        .map((p) => [p.name, p.repositoryUrl || p.url])
     );
 
     const paragraphs = [];
@@ -796,7 +1526,8 @@ export class CandidateArtifactContentService {
           project.technologies.length > 0
             ? `, built with ${project.technologies.slice(0, 4).join(', ')}`
             : '';
-        const urlPart = project.url ? ` (${project.url})` : '';
+        const urlPart =
+          project.url || project.repositoryUrl ? ` (${project.url || project.repositoryUrl})` : '';
         return `${project.name}${urlPart}${tech}`;
       });
 
@@ -874,7 +1605,7 @@ export class CandidateArtifactContentService {
    * @param {object} params.jobPosting Normalized job posting
    * @param {string} [params.candidateEmail] Authoritative email from candidate record
    * @param {string} [params.candidatePhone] Phone from candidate record
-   * @returns {Promise<{ resume: object, coverLetter: object, evidence: object }>}
+   * @returns {Promise<{ resume: object, coverLetter: object, evidence: object, projectUrlByName: object, selectedProjects: Array<object>, selectionAudit: Array<object>, categorizedSkills: object, skillAudit: Array<object> }>}
    */
   async generateApplicationDocuments({
     tenantId,
@@ -918,7 +1649,16 @@ export class CandidateArtifactContentService {
       githubUsername: candidateData.githubUsername,
     };
 
-    return { resume, coverLetter, evidence };
+    return {
+      resume,
+      coverLetter,
+      evidence,
+      projectUrlByName: coverLetter.projectUrlByName,
+      selectedProjects: resume.selectedProjects,
+      selectionAudit: resume.selectionAudit,
+      categorizedSkills: resume.categorizedSkills,
+      skillAudit: resume.skillAudit,
+    };
   }
 
   /**
@@ -947,6 +1687,7 @@ export class CandidateArtifactContentService {
       /Academic\/Technical Foundation/i,
       /Dedicated professional tailored for/i,
       /delivering immediate value/i,
+      /Evidence-backed project referenced in tailored documents/i,
     ];
     for (const pattern of forbiddenPatterns) {
       if (pattern.test(text)) violations.push(`Forbidden placeholder content: ${pattern}`);

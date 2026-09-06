@@ -5,6 +5,173 @@
 
 ---
 
+### P14-009: Handoff Kit Canonical Readiness Resolution, Multi-Version Package Lifecycle Controls, and In-Kit Multi-Scope Regeneration
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
+**Date:** 2026-09-06
+
+**Context & Objective:**
+During manual acceptance of the real Vercel Software Engineer, Backend application (`b71486d8-6738-4526-823a-00d9cf97e2ef`) for candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`, three critical Handoff Kit product issues were identified:
+1. **Issue 1 — Application Readiness Matrix Inaccuracies:**
+   - The Handoff Kit displayed `DOCUMENTS: READY` alongside `SCREENING PROFILE: INCOMPLETE`, falsely reporting Contact Phone, Work Authorization, Visa Sponsorship, LinkedIn Profile, Code / Portfolio, and Earliest Start Date as `MISSING`.
+   - Root cause: `evaluateApplicationReadiness` looked at non-existent synthetic properties (`contactMeta.phone`, `readinessMeta.workAuthorization`, etc.) rather than resolving authoritative database records.
+2. **Issue 2 — Missing Multiple Handoff Kits / Version History UI:**
+   - Although the `application_packages` table supports versioning ($v_1 \dots v_n$), the Handoff Kit UI did not expose version history, timestamps, hashes, or lifecycle management controls (`CURRENT` vs `ARCHIVED` badges, Restore, Archive, Safe Delete).
+3. **Issue 3 — In-Kit Package Regeneration & UI Separation:**
+   - Users had no way to trigger package regeneration from within the Handoff Kit UI, nor to selectively target scopes (`Resume`, `Cover Letter`, `Both`) with reason tagging.
+   - Document readiness and screening profile completeness cards were conflated in the UI.
+
+**Core Invariants & Constraints Enforced:**
+- Zero synthetic metrics or fabricated profile data; readiness derived strictly from authoritative database records (`candidates`, `userCustom`, `careerPreferences`, identities, and answers).
+- Strict link discrimination: project repositories (`https://github.com/user/repo`) never satisfy the candidate's profile-level GitHub URL.
+- Exactly one package version is `CURRENT` per application at any given time; promoting/restoring a version atomically archives the previous current package.
+- Safe deletion policy: fail-closed rejection if application status is `SUBMITTED`, or if attempting to delete the application's sole remaining package version.
+- Fail-closed regeneration: errors during LaTeX compilation, QA audit, or encryption never corrupt or replace the existing valid current package.
+- Document readiness and screening profile completeness strictly separated into distinct visual cards.
+
+**Key Changes Implemented:**
+1. **Canonical Application Readiness Service (`src/services/application-readiness.service.js`):**
+   - Implemented `ApplicationReadinessService` evaluating all 8 screening fields: Full Name, Email, Phone, Work Auth, Visa Sponsorship, LinkedIn, Code/Portfolio, and Earliest Start Date.
+   - Enforced profile-level URL vs project-level repository discrimination.
+   - Integrated into `ApplicationHandoffService` (`src/services/application-handoff.service.js`).
+2. **Package Version Lifecycle Management (`src/services/application-tracking.service.js`):**
+   - Implemented `listApplicationPackages`, `getApplicationPackageByVersion`, `restoreApplicationPackage`, `archiveApplicationPackage`, and `safeDeleteApplicationPackage`.
+   - Guaranteed atomic transitions, immutable audit trail, and snapshot-aware document queries.
+3. **In-Kit Multi-Scope Regeneration (`src/services/job-application-workflow.service.js`):**
+   - Implemented `regenerateApplicationPackage` supporting selective regeneration scopes (`BOTH`, `RESUME`, `COVER_LETTER`) and optional user reason tagging (`reasonTag`, `notes`).
+   - Executes Tectonic ATS LaTeX compilation, pre-exposure QA audits, AES-256-GCM artifact encryption, and atomic ledger version increment ($v_n \to v_{n+1}$).
+4. **Web Routes & Security (`src/routes/web.routes.js`):**
+   - Enhanced `GET /applications/:id/handoff` with historical version inspection (`?version=N`), version ledger data, and real-time canonical readiness re-evaluation.
+   - Added `POST /applications/:id/regenerate` with CSRF protection, scope parsing, and user feedback flash/redirect.
+   - Added `POST /applications/:id/packages/:version/restore`, `POST /applications/:id/packages/:version/archive`, and `POST /applications/:id/packages/:version/delete`.
+   - Updated `/view` and `/download` routes with version and hash snapshot lookup support.
+5. **Ashby/Linear-Grade Handoff UI View (`src/views/handoff.page.js`):**
+   - Decoupled `DOCUMENT READINESS` card (with QA scores & view/download links) from `SCREENING PROFILE COMPLETENESS` card.
+   - Added "Package Version History" ledger table displaying version badges, package hashes, generation timestamps, documents status, and lifecycle actions.
+   - Added accessible "Regenerate Package" modal dialog with scope selection (`Both`, `Resume only`, `Cover Letter only`) and reason presets.
+   - Added historical version warning banner with one-click "Restore as Current" action when viewing an archived version.
+
+**Verification:**
+- `tests/unit/application-readiness.test.js`: **4/4 PASS** (covers profile-level link discrimination, missing field detection, and authoritative record resolution).
+- `tests/unit/application-package-lifecycle.test.js`: **8/8 PASS** (covers version listing, retrieval, restore as current, archive, deletion safeguards on sole package & submitted applications).
+- `tests/unit/application-regeneration.test.js`: **4/4 PASS** (covers multi-scope regeneration, atomic version increment, reason tagging, and fail-closed error handling).
+- `tests/unit/application-handoff.test.js`: **5/5 PASS**.
+- `tests/integration/application-package-consistency.test.js`: **18/18 PASS**.
+- `scratch/offline-handoff-acceptance.mjs`: Offline acceptance against real candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` and real application `b71486d8-6738-4526-823a-00d9cf97e2ef`:
+  - Issue 1: All 8 screening fields authoritatively verified against real DB records with zero synthetic fabrication.
+  - Issue 2: Package version ledger correctly retrieved historical packages, showing active package `v7` as `CURRENT` and `v6` as `ARCHIVED`.
+  - Issue 3: In-kit regeneration from $v_6 \to v_7$ executed with Tectonic LaTeX compilation, 100/100 QA score, and atomic version promotion.
+- Prettier: **PASS** across all 8 modified files.
+- Secrets Scan (`scripts/scan-secrets.js`): **PASS (0 exposed secrets)**.
+- Core Unit Test Suite (`node --test tests/unit/application-*.test.js ...`): **74/74 PASS**.
+
+---
+
+### P14-008: Final Human-Quality Presentation Audit & Polishing of Offline-Generated Vercel Backend Resume
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
+**Date:** 2026-09-06
+
+**Context & Objective:**
+Perform a final human-quality presentation audit of the offline-generated Vercel Backend resume for candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` across 7 strict criteria:
+1. Header Links: verify canonical profile GitHub URL (`https://github.com/vishu1803`) vs project repository URLs.
+2. Skill Presentation: audit 9 Backend & APIs skills for target job relevance, strength of evidence, actual project support, and information density.
+3. Summary Truthfulness: verify authoritative support for technology claims (FastAPI, Django, Node.js, Express, NestJS, PostgreSQL).
+4. Information Hierarchy: verify visual prioritization, compact skill layout, prominent project bullets, and unburied experience.
+5. Project Content: verify Collaborative Task Manager and AI-Powered Code Review Assistant bullets are concise and non-redundant.
+6. Truth / Fabrication: verify zero invented metrics, scale, production usage, or unsupported claims.
+7. Final PDF: verify 1-page fit, clean typography, correct links, readable skills, and prominent experience.
+
+**Concrete Defects Identified & Minimal Fixes Applied:**
+1. **Header Contact Link Bug (`src/services/latex-document-generator.service.js`):**
+   - *Defect:* Generator pushed `portfolioLinks[0].repositoryUrl` (`https://github.com/vishu1803/Collaborative-task-manager`) into the contact header line instead of the candidate's canonical profile link.
+   - *Fix:* Resolved canonical profile GitHub URL (`https://github.com/vishu1803`) from candidate identities, profile metadata, or tailored resume markdown header. Project repository URLs belong strictly inside project entries.
+2. **Education Field Duplication (`src/services/latex-document-generator.service.js`):**
+   - *Defect:* Concatenating `degree` and `field` rendered `"Bachelor of Technology in Electronics Engineering in Electronics Engineering"`.
+   - *Fix:* Added substring deduplication: if `degree` already contains `field`, do not append duplicate `" in " + field`.
+3. **Backend & APIs Information Density (`src/services/candidate-artifact-content.service.js`):**
+   - *Defect:* Claimed frameworks with 0 evidence and no target job match (`Django`, `NestJS`) and peripheral utilities (`Socket Io`) cluttered the primary backend API line.
+   - *Fix:* In backend engineering roles, omitted unevidenced claimed backend frameworks without project backing or job requirement (`Django`, `NestJS`) and transport utilities (`Socket Io`) from the primary framework line, while recording explicit audit entries in `skillAudit`. Retained 6 high-signal backend competencies (`Node.js`, `FastAPI`, `Fastify`, `Express.js`, `Flask`, `Model Context Protocol`).
+
+**Verification:**
+- `scratch/offline-real-candidate-acceptance.mjs`:
+  - Extracted resume PDF text confirms header uses `https://github.com/vishu1803`.
+  - Project repository URLs remain strictly inside project entries.
+  - Backend & APIs line: `Node.js, FastAPI, Fastify, Model Context Protocol, Express.js, Flask`.
+  - Education line: `Bachelor of Technology in Electronics Engineering 2021 – 2025-07`.
+  - Resume PDF QA Score: **100/100 EXCELLENT** (`qaPassed: true`).
+  - Page count verified objectively: exactly 1 page (`/Count 1`, `/Type /Page matches: 1`).
+- `node --test tests/unit/resume-content-strategy.test.js tests/unit/candidate-artifact-content.test.js tests/unit/latex-document-generator.test.js`: **32/32 PASS**.
+- Targeted ESLint: **0 errors, 0 warnings**.
+- Targeted Prettier: **PASS**.
+- Secrets Scanner (`scripts/scan-secrets.js`): **PASS (0 exposed secrets)**.
+
+---
+
+### P14-007: Resume Content Strategy Redesign: Multi-Factor Project Scoring, Dynamic Skill Categorization, and ATS Information Architecture
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
+**Date:** 2026-09-06
+
+**Context & Objective:**
+A manual comparison between the newly generated Career Hub resume and Vishwanath Nishad's custom resume revealed that while the PDF pipeline and artifact hash integrity were proven, the resume content strategy suffered from major weaknesses:
+1. Bare keyword matching on repository titles selected generic/toy repositories (`Python-projects`, `Object-detection-web-app`) over rich backend systems (`Collaborative Task Manager`, `AI-Powered Code Review Assistant`).
+2. Project highlights emitted generic filler (`"Evidence-backed project referenced in tailored documents"`), losing authentic technical bullets from candidate and repository records.
+3. Skills were partitioned solely by provenance (`Verified: ...`, `Self-reported: ...`) and dumped as comma-separated lists, allowing low-value tooling noise (ESLint, Vite, Cypress, Tailwind CSS) to crowd out core backend competencies for a Backend Engineer role.
+4. Information architecture placed huge uncurated skill dumps above experience and projects, compromising the professional one-page density.
+
+**Core Invariants & Constraints Enforced:**
+- The custom resume is strictly an ATS structure, selection, and presentation reference; candidate profile, DB records, `resumeData`, and repository evidence remain authoritative sources of truth (zero synthetic metrics, scale, or claims).
+- Canonical skill catalog and dynamic role relevance: no hardcoded skill inventory or Vercel-specific assumptions inside the generator.
+- Multi-factor project scoring: `evidenceQuality` (0-30) + `technicalDepth` (0-30) + `roleRelevance` (0-30) + `technologyOverlap` (0-20) + `diversityTieBreaker` (secondary +3 tie-breaker only).
+- Project name alone never grants capability points; projects lacking authentic bullets or evidence are rejected.
+- Deterministic project-selection audit (`projectName`, `score`, `scoreComponents`, `status`, `rejectionReason`).
+- Deterministic skill-selection audit (`skill`, `category`, `provenance`, `score`, `status`, `reason`).
+- Omission of low-value tooling noise for backend roles unless explicitly requested by the job posting.
+- Total prohibition of filler phrase `"Evidence-backed project referenced in tailored documents"`; enforced by `auditDocumentContent`, `auditLatexContent`, and `PdfQaValidatorService`.
+- Zero changes to PDF storage, artifact persistence, package versioning, package hashing, secure routes, or MCP contracts.
+- ATS single-page hierarchy: Header -> Summary -> Technical Skills -> Technical Projects -> Professional Experience (FTV Saloon with 4 authentic bullets) -> Education.
+- `\usepackage[T1]{fontenc}` in LaTeX preambles guarantees pristine email extraction (`vishwanatnishad@gmail.com`) under Tectonic compilation.
+
+**Changes Implemented:**
+1. **Candidate Content Service (`src/services/candidate-artifact-content.service.js`):**
+   - Reconciled candidate's structured projects in `resumeData.projects` with connected repository evidence rows (`evidenceCount: 34` and `33`), live demo links, and authentic technical bullets.
+   - Implemented `rankProjectsForJob` with multi-factor scoring, active-over-archived deduplication, diversity tie-breaking, and attached `.selectedProjects` and `.selectionAudit`.
+   - Implemented `selectAndCategorizeSkillsForJob` grouping competencies into standard engineering categories (Languages, Backend & APIs, Databases & ORMs, Cloud, DevOps & Systems) while omitting low-value noise and recording exact provenance in `skillAudit`.
+   - Updated `buildTailoredResumeMarkdown` and `buildCoverLetterMarkdown` to format categorized skills and cite authentic top selected projects.
+   - Added forbidden filler check to `auditDocumentContent`.
+2. **Workflow Service (`src/services/job-application-workflow.service.js`):**
+   - Populated `portfolioLinks[i].highlights` with authentic technical bullets from `selectedProjects`, eliminating the `"Evidence-backed project..."` filler.
+   - Added forbidden filler pattern to preparation content audit.
+3. **LaTeX Document Generator (`src/services/latex-document-generator.service.js`):**
+   - Added `\usepackage[T1]{fontenc}` to resume and cover letter preambles.
+   - Extracted `## Technical Skills` from markdown into `\atssection{Technical Skills}` with dynamic categories, falling back to `\atssection{Core Competencies}` if absent.
+   - Fixed section ordering to Header -> Professional Summary -> Technical Skills -> Technical Projects -> Professional Experience -> Education.
+   - Added forbidden filler check to `auditLatexContent`.
+4. **PDF QA Validator (`src/services/pdf-qa-validator.service.js`):**
+   - Added `'Evidence-backed project referenced in tailored documents'` to `genericPlaceholderPhrases` as a hard failure gate.
+
+**Verification:**
+- `tests/unit/resume-content-strategy.test.js` -> **15/15 PASS** (covers all 15 regression criteria).
+- `tests/unit/candidate-artifact-content.test.js` -> **11/11 PASS**.
+- `tests/unit/pdf-qa-validator.test.js` -> **4/4 PASS**.
+- `tests/unit/application-content-defects.test.js` -> **17/17 PASS**.
+- `tests/unit/latex-document-generator.test.js` -> **6/6 PASS**.
+- `tests/unit/mcp-handoff-artifacts.test.js` & `tests/unit/mcp-career-tracking-tools.test.js` -> **21/21 PASS**.
+- `tests/integration/application-package-consistency.test.js` & `tests/integration/handoff-kit-lifecycle.test.js` -> **28/28 PASS**.
+- Prettier formatting -> **PASS**.
+- ESLint (0 errors, 0 warnings) -> **PASS**.
+- Secrets Scanner (`scripts/scan-secrets.js`) -> **PASS (0 exposed secrets)**.
+- Offline Real-Candidate Acceptance (`scratch/offline-real-candidate-acceptance.mjs`) against candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` and Vercel Backend Engineer job:
+  - Top selected projects: `Collaborative Task Manager` (score 100) and `AI-Powered Code Review Assistant` (score 101).
+  - Selected skills cleanly grouped into Languages, Backend & APIs, Databases & ORMs, Cloud, DevOps & Systems.
+  - Omitted noise (ESLint, Cypress, Vite, Tailwind CSS) cleanly audited.
+  - Resume PDF QA Score: **100/100 EXCELLENT** (`qaPassed: true`).
+  - Cover Letter PDF QA Score: **100/100 EXCELLENT** (`qaPassed: true`).
+  - Decrypted PDF text confirms single-page ATS layout, zero filler, and prominent FTV Saloon experience.
+
+---
+
 ### P14-006D: Application Package Document QA Exposure Contract in get_job_application
 
 **Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
@@ -134,14 +301,14 @@ The real application was read-only inspected. It has no `application_packages` r
 
 | Metric | Current Value | Note |
 | :--- | :--- | :--- |
-| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-006B (50 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
-| **Project State** | **ACTIVE / IN PROGRESS — P14-006B REAL APPLICATION HANDOFF KIT COMPLETE & VERIFIED** | P14-006B Real Application Handoff Kit 100% verified. Real tailored ATS LaTeX resume & formal cover letter PDFs compiled via Tectonic 0.15.0, validated via Resume Quality Audit QA engine (90/100), encrypted in DocumentStorageService, and rendered in Ashby/Linear-grade UI with authenticated preview modal, manual submission notice, and profile loop. |
-| **Total Tasks** | **134 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
-| **Completed Tasks** | **132 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-006B (50 tasks) |
+| **Current Phase** | **PHASE 14 — Security Hardening & Production Readiness** | Phases 0-13.5 100% COMPLETE & VERIFIED (82/82 tasks across 15 phases); Phase 14 Tasks P14-001A through P14-009 (53 tasks) COMPLETE; P14-005W NOT ACCEPTED (Contract Mismatch) and P14-005AB Local Implementation Verified (Awaiting live ChatGPT call) |
+| **Project State** | **ACTIVE / IN PROGRESS — P14-009 HANDOFF KIT LIFECYCLE & READINESS COMPLETE & VERIFIED** | P14-009 Canonical readiness evaluation, package version ledger controls, and in-kit regeneration 100% verified. Real tailored ATS LaTeX resume & cover letter PDFs compiled via Tectonic 0.15.0, validated via QA engine, encrypted in DocumentStorageService, and managed with multi-version lifecycle controls. |
+| **Total Tasks** | **137 Tasks** | Across Phases 0 to 15 (including Phase 13.5 and Phase 14 subtasks) |
+| **Completed Tasks** | **135 Tasks** | Phases 0-13.5 (82 tasks) + Phase 14 Tasks P14-001A through P14-009 (53 tasks) |
 | **In Progress Tasks** | **1 Task** | P14-005AB (`analyze_job_fit` Severity/Evidence-Trust Separation — Local Implementation Verified, Live ChatGPT MCP Verification Required) |
 | **Blocked / Not Accepted Tasks** | **2 Tasks** | P14-005W (`get_candidate_profile` NOT ACCEPTED due to public ChatGPT schema mismatch) and P14-005AB (blocked on live ChatGPT MCP call returning actual analysis payload) |
-| **Overall Task Completion** | **99.25% (132 / 133 Tasks)** | Strict calculation, zero inflation |
-| **Weighted Phase Completion** | **99.25% (16.90 / 17 Phases)** | Strictly based on verified deliverables |
+| **Overall Task Completion** | **99.27% (135 / 136 Tasks)** | Strict calculation, zero inflation |
+| **Weighted Phase Completion** | **99.31% (16.94 / 17 Phases)** | Strictly based on verified deliverables |
 
 ---
 
@@ -164,7 +331,7 @@ The real application was read-only inspected. It has no `application_packages` r
 | **PHASE 12** | Job / Application Tracking | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13** | Public Multi-User Beta | 5 | 5 | 0 | **COMPLETE** | **100.0%** |
 | **PHASE 13.5** | Product Experience, Public MCP & Career Document Onboarding | 7 | 7 | 0 | **COMPLETE** | **100.0%** |
-| **PHASE 14** | Security Hardening & Production Readiness | 43 | 42 | 1 | **IN_PROGRESS** | **97.7%** |
+| **PHASE 14** | Security Hardening & Production Readiness | 46 | 45 | 1 | **IN_PROGRESS** | **97.8%** |
 | **PHASE 15** | Advanced Automation & Future Connectors | 4 | 0 | 0 | NOT_STARTED | 0.0% |
 
 ---

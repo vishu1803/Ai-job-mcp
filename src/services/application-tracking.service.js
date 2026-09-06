@@ -924,6 +924,419 @@ export class ApplicationTrackingService {
   }
 
   /**
+   * Lists all package versions for an application ordered by version descending.
+   *
+   * @param {object} context Authenticated context { tenantId, userId, role }
+   * @param {string} applicationId Application UUID
+   * @returns {Promise<Array<object>>} List of application packages
+   */
+  async listApplicationPackages(context, applicationId) {
+    this._validateContext(context, false);
+    if (!applicationId) {
+      throw new ValidationError('applicationId is required');
+    }
+    const tenantId = context.tenantId;
+
+    const [application] = await this.db
+      .select({ id: jobApplications.id })
+      .from(jobApplications)
+      .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)));
+
+    if (!application) {
+      throw new NotFoundError(`Job application not found: ${applicationId}`);
+    }
+
+    const packages = await this.db
+      .select()
+      .from(applicationPackages)
+      .where(
+        and(
+          eq(applicationPackages.applicationId, applicationId),
+          eq(applicationPackages.tenantId, tenantId)
+        )
+      )
+      .orderBy(desc(applicationPackages.version));
+
+    return packages;
+  }
+
+  /**
+   * Retrieves a specific package version for an application along with its document snapshots.
+   *
+   * @param {object} context Authenticated context { tenantId, userId, role }
+   * @param {string} applicationId Application UUID
+   * @param {number|string} versionOrHash Version number or SHA-256 package hash
+   * @returns {Promise<{ package: object, documentSnapshots: Array<object> }>}
+   */
+  async getApplicationPackageByVersion(context, applicationId, versionOrHash) {
+    this._validateContext(context, false);
+    if (!applicationId) {
+      throw new ValidationError('applicationId is required');
+    }
+    if (versionOrHash === undefined || versionOrHash === null || versionOrHash === '') {
+      throw new ValidationError('version or packageHash is required');
+    }
+    const tenantId = context.tenantId;
+
+    const isVersionNumber =
+      !isNaN(Number(versionOrHash)) && Number.isInteger(Number(versionOrHash));
+
+    const condition = isVersionNumber
+      ? eq(applicationPackages.version, Number(versionOrHash))
+      : eq(applicationPackages.packageHash, String(versionOrHash));
+
+    const [pkg] = await this.db
+      .select()
+      .from(applicationPackages)
+      .where(
+        and(
+          eq(applicationPackages.applicationId, applicationId),
+          eq(applicationPackages.tenantId, tenantId),
+          condition
+        )
+      )
+      .limit(1);
+
+    if (!pkg) {
+      throw new NotFoundError(
+        `Application package not found for ${isVersionNumber ? 'version' : 'hash'}: ${versionOrHash}`
+      );
+    }
+
+    const snapshots = await this.db
+      .select()
+      .from(tailoredDocuments)
+      .where(
+        and(
+          eq(tailoredDocuments.applicationId, applicationId),
+          eq(tailoredDocuments.tenantId, tenantId)
+        )
+      )
+      .orderBy(desc(tailoredDocuments.createdAt));
+
+    const packageSnapshots = snapshots.filter(
+      (doc) =>
+        doc.metadata?.packageHash === pkg.packageHash ||
+        doc.metadata?.artifact?.packageHash === pkg.packageHash
+    );
+
+    return {
+      package: pkg,
+      documentSnapshots: packageSnapshots,
+    };
+  }
+
+  /**
+   * Restores an archived package version as the authoritative CURRENT version.
+   *
+   * @param {object} context Authenticated context { tenantId, userId, role }
+   * @param {string} applicationId Application UUID
+   * @param {number|string} packageVersion Version number to restore
+   * @returns {Promise<object>} Promoted package record
+   */
+  async restoreApplicationPackage(context, applicationId, packageVersion) {
+    this._validateContext(context, true);
+    if (!applicationId) {
+      throw new ValidationError('applicationId is required');
+    }
+    const versionNum = Number(packageVersion);
+    if (isNaN(versionNum) || !Number.isInteger(versionNum) || versionNum <= 0) {
+      throw new ValidationError('Valid positive integer packageVersion is required');
+    }
+    const tenantId = context.tenantId;
+
+    return await this.db.transaction(async (tx) => {
+      const [application] = await tx
+        .select()
+        .from(jobApplications)
+        .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
+        .for('update');
+
+      if (!application) {
+        throw new NotFoundError(`Job application not found: ${applicationId}`);
+      }
+
+      const [targetPackage] = await tx
+        .select()
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.applicationId, applicationId),
+            eq(applicationPackages.tenantId, tenantId),
+            eq(applicationPackages.version, versionNum)
+          )
+        )
+        .for('update');
+
+      if (!targetPackage) {
+        throw new NotFoundError(`Application package version ${versionNum} not found`);
+      }
+
+      // Promote target package to CURRENT
+      const [promoted] = await tx
+        .update(applicationPackages)
+        .set({ lifecycleState: 'CURRENT' })
+        .where(eq(applicationPackages.id, targetPackage.id))
+        .returning();
+
+      // Archive all other versions
+      await tx
+        .update(applicationPackages)
+        .set({ lifecycleState: 'ARCHIVED' })
+        .where(
+          and(
+            eq(applicationPackages.applicationId, applicationId),
+            ne(applicationPackages.id, targetPackage.id)
+          )
+        );
+
+      // Sync application metadata and notes
+      const metadata = { ...(application.metadata || {}) };
+      if (
+        metadata.currentPackageHash &&
+        metadata.currentPackageHash !== targetPackage.packageHash
+      ) {
+        metadata.previousPackageHashes = [
+          ...new Set([...(metadata.previousPackageHashes || []), metadata.currentPackageHash]),
+        ].slice(-10);
+      }
+      metadata.currentPackageHash = targetPackage.packageHash;
+      metadata.currentPackageVersion = targetPackage.version;
+
+      const notesLine = `Current Package Hash: ${targetPackage.packageHash}`;
+      let notes = application.notes || '';
+      if (notes.includes('Current Package Hash:')) {
+        notes = notes.replace(/Current Package Hash: [a-f0-9]{64}/, notesLine);
+      } else {
+        notes = notes ? `${notes}\n${notesLine}` : notesLine;
+      }
+
+      await tx
+        .update(jobApplications)
+        .set({ notes, metadata, updatedAt: new Date() })
+        .where(eq(jobApplications.id, applicationId));
+
+      await tx.insert(auditLogs).values({
+        tenantId,
+        userId: context.userId || null,
+        eventType: 'application.package_restored',
+        resourceType: 'application_package',
+        resourceId: targetPackage.id,
+        details: {
+          applicationId,
+          restoredVersion: targetPackage.version,
+          packageHash: targetPackage.packageHash,
+        },
+      });
+
+      return promoted;
+    });
+  }
+
+  /**
+   * Manually archives an application package version.
+   *
+   * @param {object} context Authenticated context { tenantId, userId, role }
+   * @param {string} applicationId Application UUID
+   * @param {number|string} packageVersion Version number to archive
+   * @returns {Promise<object>} Archived package record
+   */
+  async archiveApplicationPackage(context, applicationId, packageVersion) {
+    this._validateContext(context, true);
+    if (!applicationId) {
+      throw new ValidationError('applicationId is required');
+    }
+    const versionNum = Number(packageVersion);
+    if (isNaN(versionNum) || !Number.isInteger(versionNum) || versionNum <= 0) {
+      throw new ValidationError('Valid positive integer packageVersion is required');
+    }
+    const tenantId = context.tenantId;
+
+    return await this.db.transaction(async (tx) => {
+      const [targetPackage] = await tx
+        .select()
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.applicationId, applicationId),
+            eq(applicationPackages.tenantId, tenantId),
+            eq(applicationPackages.version, versionNum)
+          )
+        )
+        .for('update');
+
+      if (!targetPackage) {
+        throw new NotFoundError(`Application package version ${versionNum} not found`);
+      }
+
+      const [archived] = await tx
+        .update(applicationPackages)
+        .set({ lifecycleState: 'ARCHIVED' })
+        .where(eq(applicationPackages.id, targetPackage.id))
+        .returning();
+
+      await tx.insert(auditLogs).values({
+        tenantId,
+        userId: context.userId || null,
+        eventType: 'application.package_archived',
+        resourceType: 'application_package',
+        resourceId: targetPackage.id,
+        details: {
+          applicationId,
+          packageVersion: targetPackage.version,
+          packageHash: targetPackage.packageHash,
+        },
+      });
+
+      return archived;
+    });
+  }
+
+  /**
+   * Safely deletes an archived package version and its snapshots if permitted.
+   * Rejects deletion if application is submitted/progressed, or if it is the sole package,
+   * or if it is currently active.
+   *
+   * @param {object} context Authenticated context { tenantId, userId, role }
+   * @param {string} applicationId Application UUID
+   * @param {number|string} packageVersion Version number to delete
+   * @returns {Promise<object>} Deletion outcome
+   */
+  async safeDeleteApplicationPackage(context, applicationId, packageVersion) {
+    this._validateContext(context, true);
+    if (!applicationId) {
+      throw new ValidationError('applicationId is required');
+    }
+    const versionNum = Number(packageVersion);
+    if (isNaN(versionNum) || !Number.isInteger(versionNum) || versionNum <= 0) {
+      throw new ValidationError('Valid positive integer packageVersion is required');
+    }
+    const tenantId = context.tenantId;
+
+    const result = await this.db.transaction(async (tx) => {
+      const [application] = await tx
+        .select()
+        .from(jobApplications)
+        .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
+        .for('update');
+
+      if (!application) {
+        throw new NotFoundError(`Job application not found: ${applicationId}`);
+      }
+
+      // SAFE DELETE RULE 1: Never delete packages for submitted or progressed applications
+      if (
+        application.status !== 'SAVED' ||
+        application.appliedAt ||
+        application.metadata?.externalSubmissionState === 'SUBMITTED'
+      ) {
+        throw new ConflictError(
+          `Cannot delete package: application ${applicationId} has submission history or status ${application.status}. Packages cannot be deleted once an application is submitted.`,
+          'PACKAGE_DELETE_NOT_PERMITTED'
+        );
+      }
+
+      const allPackages = await tx
+        .select()
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.applicationId, applicationId),
+            eq(applicationPackages.tenantId, tenantId)
+          )
+        )
+        .for('update');
+
+      // SAFE DELETE RULE 2: Cannot delete sole package
+      if (allPackages.length <= 1) {
+        throw new ConflictError(
+          `Cannot delete package: this is the sole package for application ${applicationId}. Applications must have at least one package.`,
+          'CANNOT_DELETE_SOLE_PACKAGE'
+        );
+      }
+
+      const targetPackage = allPackages.find((p) => p.version === versionNum);
+      if (!targetPackage) {
+        throw new NotFoundError(`Application package version ${versionNum} not found`);
+      }
+
+      // SAFE DELETE RULE 3: Cannot delete CURRENT package
+      if (targetPackage.lifecycleState === 'CURRENT') {
+        throw new ConflictError(
+          `Cannot delete the CURRENT active package (version ${versionNum}). Restore another package version first before deleting this one.`,
+          'CANNOT_DELETE_CURRENT_PACKAGE'
+        );
+      }
+
+      // Delete document snapshots
+      const matchingDocs = await tx
+        .select()
+        .from(tailoredDocuments)
+        .where(
+          and(
+            eq(tailoredDocuments.applicationId, applicationId),
+            eq(tailoredDocuments.tenantId, tenantId)
+          )
+        );
+
+      const docsToDelete = matchingDocs.filter(
+        (d) =>
+          d.metadata?.packageHash === targetPackage.packageHash ||
+          d.metadata?.artifact?.packageHash === targetPackage.packageHash
+      );
+
+      const storageKeys = docsToDelete.map((d) => d.metadata?.artifact?.storageKey).filter(Boolean);
+
+      if (docsToDelete.length > 0) {
+        const docIds = docsToDelete.map((d) => d.id);
+        await tx.delete(tailoredDocuments).where(inArray(tailoredDocuments.id, docIds));
+      }
+
+      await tx.delete(applicationPackages).where(eq(applicationPackages.id, targetPackage.id));
+
+      await tx.insert(auditLogs).values({
+        tenantId,
+        userId: context.userId || null,
+        eventType: 'application.package_deleted',
+        resourceType: 'application_package',
+        resourceId: targetPackage.id,
+        details: {
+          applicationId,
+          packageVersion: versionNum,
+          packageHash: targetPackage.packageHash,
+          deletedSnapshots: docsToDelete.length,
+          deletedArtifacts: storageKeys.length,
+        },
+      });
+
+      return {
+        deleted: true,
+        applicationId,
+        packageVersion: versionNum,
+        packageHash: targetPackage.packageHash,
+        storageKeys,
+      };
+    });
+
+    // Best-effort cleanup of encrypted storage files
+    for (const storageKey of result.storageKeys) {
+      try {
+        await this._getDocumentStorage().deleteEncryptedDocument({
+          tenantId,
+          storageKey,
+        });
+      } catch (err) {
+        logger.warn(
+          { err: err.message, applicationId, storageKey },
+          'Failed to clean up storage file for deleted package'
+        );
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Sets the application's handoff kit metadata atomically. A kit generated
    * for a historical package is retained for auditability but cannot move the
    * application's authoritative current-package pointer backwards.

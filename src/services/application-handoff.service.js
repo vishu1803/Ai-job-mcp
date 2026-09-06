@@ -20,6 +20,7 @@ import { PdfQaValidatorService } from './pdf-qa-validator.service.js';
 import { DocumentStorageService } from './document-storage.service.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
+import { ApplicationReadinessService } from './application-readiness.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -32,6 +33,7 @@ export class ApplicationHandoffService {
    * @param {DocumentStorageService} [dependencies.documentStorage]
    * @param {CandidateProfileService} [dependencies.candidateProfileService]
    * @param {ApplicationTrackingService} [dependencies.applicationTrackingService]
+   * @param {ApplicationReadinessService} [dependencies.readinessService]
    */
   constructor(dependencies = {}) {
     this.latexGenerator = dependencies.latexGenerator || new LatexDocumentGenerator();
@@ -42,208 +44,33 @@ export class ApplicationHandoffService {
       dependencies.candidateProfileService || new CandidateProfileService();
     this.applicationTrackingService =
       dependencies.applicationTrackingService || new ApplicationTrackingService();
+    this.readinessService = dependencies.readinessService || new ApplicationReadinessService();
     this.logger = logger.child({ module: 'ApplicationHandoffService' });
   }
 
   /**
    * Evaluates application readiness across canonical candidate profile data.
+   * Delegates to the single source of truth ApplicationReadinessService.
    *
    * @param {object} params
    * @param {object} params.candidateProfile Candidate profile DTO
    * @param {object} params.applicationPackage Canonical application package
+   * @param {object} [params.answers] Candidate answers
+   * @param {object} [params.jobPosting] Target job posting
    * @returns {Array<object>} Evaluated readiness checklist items
    */
-  evaluateApplicationReadiness({ candidateProfile, applicationPackage }) {
-    const candidateMeta = candidateProfile?.profileMetadata || {};
-    const identityMeta = candidateMeta.identity || {};
-    const readinessMeta = candidateMeta.readiness || {};
-    const contactMeta = candidateMeta.contact || {};
-    const preferencesMeta = candidateMeta.jobPreferences || {};
-
-    const items = [];
-
-    // 1. Email
-    const email = applicationPackage?.candidateEmail || candidateProfile?.primaryEmail;
-    if (email && !email.includes('example.com')) {
-      items.push({
-        field: 'email',
-        label: 'Candidate Email',
-        value: email,
-        status: 'READY',
-        notes: 'Authoritative primary account email verified',
-        profileSection: 'contact',
-        profileAnchor: '/profile#section-contact',
-      });
-    } else {
-      items.push({
-        field: 'email',
-        label: 'Candidate Email',
-        value: null,
-        status: 'MISSING',
-        notes: 'Valid candidate email required',
-        profileSection: 'contact',
-        profileAnchor: '/profile#section-contact',
-      });
-    }
-
-    // 2. Phone
-    const phone =
-      applicationPackage?.candidatePhone ||
-      candidateProfile?.candidatePhone ||
-      candidateProfile?.phone ||
-      contactMeta.phone;
-
-    if (phone && phone.trim().length > 0) {
-      items.push({
-        field: 'phone',
-        label: 'Contact Phone',
-        value: phone.trim(),
-        status: 'READY',
-        notes: 'Candidate phone number registered',
-        profileSection: 'contact',
-        profileAnchor: '/profile#section-contact',
-      });
-    } else {
-      items.push({
-        field: 'phone',
-        label: 'Contact Phone',
-        value: null,
-        status: 'MISSING',
-        notes: 'Phone number not yet provided in Profile',
-        profileSection: 'contact',
-        profileAnchor: '/profile#section-contact',
-      });
-    }
-
-    // 3. Work Authorization
-    const workAuth = readinessMeta.workAuthorization || identityMeta.workAuthorization;
-    if (workAuth && workAuth.trim().length > 0) {
-      items.push({
-        field: 'workAuthorization',
-        label: 'Work Authorization',
-        value: workAuth,
-        status: 'NEEDS_CONFIRMATION',
-        notes: 'Requires candidate confirmation for target job jurisdiction',
-        profileSection: 'readiness',
-        profileAnchor: '/profile#section-readiness',
-      });
-    } else {
-      items.push({
-        field: 'workAuthorization',
-        label: 'Work Authorization',
-        value: null,
-        status: 'MISSING',
-        notes: 'Work authorization status not yet documented',
-        profileSection: 'readiness',
-        profileAnchor: '/profile#section-readiness',
-      });
-    }
-
-    // 4. Visa Sponsorship Required
-    const visaSponsorship =
-      readinessMeta.visaSponsorshipRequired ?? identityMeta.visaSponsorshipRequired;
-    if (visaSponsorship !== undefined && visaSponsorship !== null) {
-      items.push({
-        field: 'visaSponsorship',
-        label: 'Visa Sponsorship',
-        value: visaSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed',
-        status: 'NEEDS_CONFIRMATION',
-        notes: 'Confirm sponsorship requirements with target employer',
-        profileSection: 'readiness',
-        profileAnchor: '/profile#section-readiness',
-      });
-    } else {
-      items.push({
-        field: 'visaSponsorship',
-        label: 'Visa Sponsorship',
-        value: null,
-        status: 'MISSING',
-        notes: 'Visa sponsorship preference not set',
-        profileSection: 'readiness',
-        profileAnchor: '/profile#section-readiness',
-      });
-    }
-
-    // 5. LinkedIn / Professional Links
-    const allLinks = [
-      ...(Array.isArray(candidateProfile?.portfolioLinks) ? candidateProfile.portfolioLinks : []),
-      ...(Array.isArray(contactMeta.links) ? contactMeta.links : []),
-    ];
-    const linkedin = allLinks.find((l) => /linkedin/i.test(l.platform || l.label || l.url || ''));
-    if (linkedin && linkedin.url) {
-      items.push({
-        field: 'linkedin',
-        label: 'LinkedIn Profile',
-        value: linkedin.url,
-        status: 'READY',
-        notes: 'Connected professional profile link',
-        profileSection: 'links',
-        profileAnchor: '/profile#section-links',
-      });
-    } else {
-      items.push({
-        field: 'linkedin',
-        label: 'LinkedIn Profile',
-        value: null,
-        status: 'MISSING',
-        notes: 'LinkedIn profile link not added to links collection',
-        profileSection: 'links',
-        profileAnchor: '/profile#section-links',
-      });
-    }
-
-    // 6. Portfolio / Code Repositories
-    const githubUser = candidateProfile?.githubUsername;
-    const portfolioUrl = allLinks.find((l) =>
-      /portfolio|github|website/i.test(l.platform || l.label || '')
-    )?.url;
-
-    if (githubUser || portfolioUrl) {
-      items.push({
-        field: 'portfolio',
-        label: 'Code / Portfolio',
-        value: portfolioUrl || `https://github.com/${githubUser}`,
-        status: 'READY',
-        notes: 'Evidence-backed repository profile verified',
-        profileSection: 'links',
-        profileAnchor: '/profile#section-links',
-      });
-    } else {
-      items.push({
-        field: 'portfolio',
-        label: 'Code / Portfolio',
-        value: null,
-        status: 'MISSING',
-        notes: 'GitHub or portfolio URL not linked',
-        profileSection: 'links',
-        profileAnchor: '/profile#section-links',
-      });
-    }
-
-    // 7. Earliest Availability / Notice Period
-    const availability = preferencesMeta.availabilityDate || readinessMeta.availabilityDate;
-    if (availability) {
-      items.push({
-        field: 'availability',
-        label: 'Earliest Start Date',
-        value: availability,
-        status: 'READY',
-        notes: 'Candidate start date recorded',
-        profileSection: 'preferences',
-        profileAnchor: '/profile#section-preferences',
-      });
-    } else {
-      items.push({
-        field: 'availability',
-        label: 'Earliest Start Date',
-        value: null,
-        status: 'MISSING',
-        notes: 'Availability date not specified in Job Search Intent',
-        profileSection: 'preferences',
-        profileAnchor: '/profile#section-preferences',
-      });
-    }
-
+  evaluateApplicationReadiness({
+    candidateProfile,
+    applicationPackage,
+    answers = null,
+    jobPosting = null,
+  }) {
+    const { items } = this.readinessService.evaluateReadiness({
+      candidateProfile,
+      applicationPackage,
+      answers: answers || applicationPackage?.answers,
+      jobPosting: jobPosting || applicationPackage?.targetJob,
+    });
     return items;
   }
 
@@ -583,6 +410,8 @@ export class ApplicationHandoffService {
     const readinessItems = this.evaluateApplicationReadiness({
       candidateProfile,
       applicationPackage,
+      answers: applicationPackage.answers,
+      jobPosting: applicationPackage.targetJob,
     });
 
     const appRef = applicationId || 'pkg-' + packageHash.slice(0, 8);

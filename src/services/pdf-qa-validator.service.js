@@ -198,6 +198,7 @@ export class PdfQaValidatorService {
       'Dedicated professional tailored for',
       'delivering immediate value',
       'Production project',
+      'Evidence-backed project referenced in tailored documents',
     ];
     const genericPlaceholderPatterns = genericPlaceholderPhrases.map((phrase) => {
       const tolerant = phrase

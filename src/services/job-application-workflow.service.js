@@ -294,13 +294,34 @@ export class JobApplicationWorkflowService {
     const tailoredResumeResult = documentContent.resume;
     const coverLetterResult = documentContent.coverLetter;
 
-    // Real stored projects (ranked by job relevance) as portfolio evidence
-    const portfolioLinks = documentContent.evidence.projectNamesUsed.map((projectName) => {
-      const stored = documentContent.projectUrlByName?.[projectName];
+    // Real stored projects (ranked by job relevance) with authentic technical bullets as portfolio evidence
+    const selectedProjectsList =
+      documentContent.resume?.selectedProjects || documentContent.selectedProjects || [];
+
+    const portfolioLinks = (
+      selectedProjectsList.length > 0
+        ? selectedProjectsList
+        : (documentContent.evidence.projectNamesUsed || []).map((name) => ({
+            name,
+            bullets: [],
+          }))
+    ).map((project) => {
+      const projName = project.name || project.projectName;
+      const stored =
+        documentContent.projectUrlByName?.[projName] || project.repositoryUrl || project.url;
+      const rawHighlights =
+        Array.isArray(project.bullets) && project.bullets.length > 0
+          ? project.bullets
+          : project.summary
+            ? [project.summary]
+            : [];
+      const cleanHighlights = rawHighlights.filter(
+        (h) => !/Evidence-backed project referenced in tailored documents/i.test(h)
+      );
       return {
-        projectName,
+        projectName: projName,
         repositoryUrl: stored || undefined,
-        highlights: ['Evidence-backed project referenced in tailored documents'],
+        highlights: cleanHighlights,
       };
     });
 
@@ -315,6 +336,7 @@ export class JobApplicationWorkflowService {
           /Independent \/ Open Source Engineering/i,
           /Academic \/ Technical Foundation/i,
           /Accredited Institution/i,
+          /Evidence-backed project referenced in tailored documents/i,
         ],
       }
     );
@@ -477,6 +499,379 @@ export class JobApplicationWorkflowService {
       documentsStatus,
       artifactsReady,
       ...(artifactFailureReason ? { artifactFailureReason } : {}),
+    };
+  }
+
+  /**
+   * Regenerates tailored documents and creates a new application package version (Issue 3 / P14-005BA).
+   *
+   * Capabilities:
+   * - Supports scope: 'BOTH' (default), 'RESUME', or 'COVER_LETTER'.
+   * - Optional user reason tag stored in package answers for audit and history tracking.
+   * - Monotonically increments version (v_n -> v_{n+1}), archiving the previous version.
+   * - Runs full end-to-end PDF compilation, QA audit, and encrypted storage.
+   * - Fail-closed: If compilation or QA fails, existing CURRENT package remains untouched.
+   * - Never duplicates applications or runs on already submitted applications.
+   *
+   * @param {object} params
+   * @param {string} params.tenantId Tenant UUID
+   * @param {string} [params.userId] User UUID
+   * @param {string} params.candidateId Candidate UUID
+   * @param {string} params.applicationId Application UUID
+   * @param {'BOTH'|'RESUME'|'COVER_LETTER'} [params.scope='BOTH'] Scope of regeneration
+   * @param {string} [params.reason=''] Reason description (e.g. 'Updated portfolio links')
+   * @returns {Promise<object>} Regenerated package result and handoff kit
+   */
+  async regenerateApplicationPackage({
+    tenantId,
+    userId,
+    candidateId,
+    applicationId,
+    scope = 'BOTH',
+    reason = '',
+  }) {
+    if (!tenantId || !candidateId || !applicationId) {
+      throw new ValidationError(
+        'tenantId, candidateId, and applicationId are required for package regeneration.',
+        'INVALID_PARAMETERS'
+      );
+    }
+
+    const context = { tenantId, userId: userId || null, role: 'MEMBER' };
+
+    // 1. Fetch Application & verify state
+    const appDetails = await this.applicationTrackingService.getApplicationDetails(
+      context,
+      applicationId
+    );
+    const application = appDetails.application;
+
+    if (
+      application.status !== 'SAVED' ||
+      application.appliedAt ||
+      application.metadata?.externalSubmissionState === 'SUBMITTED'
+    ) {
+      throw new ConflictError(
+        `Cannot regenerate package: application ${applicationId} has submission history or status ${application.status}. Packages cannot be regenerated once an application is submitted.`,
+        'APPLICATION_ALREADY_SUBMITTED'
+      );
+    }
+
+    // 2. Fetch Candidate Profile and Linked User
+    const [candRow] = await this.db
+      .select({
+        candidate: candidates,
+        userEmail: users.email,
+      })
+      .from(candidates)
+      .leftJoin(users, eq(candidates.userId, users.id))
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)))
+      .limit(1);
+
+    if (!candRow || (!candRow.candidate && !candRow.id)) {
+      throw new NotFoundError(`Candidate not found: ${candidateId}`, 'CANDIDATE_NOT_FOUND');
+    }
+
+    const cand = candRow.candidate || candRow;
+    const userEmail = candRow.userEmail || null;
+    const candidateEmail = resolveCandidateEmail(cand, userEmail);
+
+    // 3. Fetch candidate skills & verified evidence
+    const candidateSkillsList = await this.db
+      .select({
+        skillName: skills.name,
+        provenanceStatus: candidateSkills.provenanceStatus,
+        evidenceId: candidateSkills.primaryEvidenceId,
+      })
+      .from(candidateSkills)
+      .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+      .where(
+        and(eq(candidateSkills.tenantId, tenantId), eq(candidateSkills.candidateId, candidateId))
+      );
+
+    const verifiedSkills = candidateSkillsList
+      .filter((s) => s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED')
+      .map((s) => ({
+        name: s.skillName,
+        truthCategory: s.provenanceStatus === 'CORROBORATED' ? 'CORROBORATED' : 'VERIFIED',
+        evidenceId: s.evidenceId || undefined,
+        notes:
+          s.provenanceStatus === 'CORROBORATED'
+            ? 'Corroborated by authenticated repository code inspection and resume claim'
+            : 'Supported by authenticated repository code inspection',
+      }));
+
+    const claimedSkills = candidateSkillsList
+      .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
+      .map((s) => ({
+        name: s.skillName,
+        truthCategory: s.provenanceStatus === 'SELF_DECLARED' ? 'USER_PROVIDED' : 'CLAIMED',
+        notes: 'Self-reported in candidate resume / profile',
+      }));
+
+    // 4. Construct normalized job posting
+    const validSources = ['GREENHOUSE', 'LEVER', 'REMOTE_OK', 'STRUCTURED_FEED', 'MANUAL'];
+    const jobSource = validSources.includes(application.source) ? application.source : 'MANUAL';
+
+    const jobPosting = {
+      id: application.id,
+      source: jobSource,
+      company: application.companyName,
+      title: application.jobTitle,
+      location: application.location || 'Remote',
+      description:
+        application.rawJobDescription ||
+        application.metadata?.jobDescription ||
+        application.jobTitle,
+      responsibilities: application.parsedJobDescription?.responsibilities || [],
+      requirements: application.parsedJobDescription?.requirements || [],
+      skills: application.parsedJobDescription?.skills || [],
+      applicationUrl:
+        application.jobUrl ||
+        application.metadata?.destinationUrl ||
+        'https://boards.greenhouse.io',
+      retrievedAt: new Date().toISOString(),
+    };
+
+    // 5. Generate fresh document content from canonical candidate data
+    const documentContent = await this.candidateArtifactContentService.generateApplicationDocuments(
+      {
+        tenantId,
+        userId: cand.userId,
+        candidateId,
+        jobPosting,
+        candidateEmail,
+        candidatePhone: cand.phone || undefined,
+      }
+    );
+
+    // 6. Handle scope: allow selective reuse if scope is RESUME or COVER_LETTER
+    const currentPkg = appDetails.currentPackage;
+    const currentSnapshots = appDetails.tailoredDocuments || [];
+
+    let tailoredResumeResult = documentContent.resume;
+    let coverLetterResult = documentContent.coverLetter;
+
+    if (scope === 'COVER_LETTER') {
+      const existingResumeDoc = currentSnapshots.find(
+        (d) =>
+          d.documentType === 'TAILORED_RESUME' &&
+          (!currentPkg ||
+            d.metadata?.packageHash === currentPkg.packageHash ||
+            d.metadata?.artifact?.packageHash === currentPkg.packageHash)
+      );
+      if (existingResumeDoc?.renderedMarkdown || currentPkg?.resumeContentHash) {
+        tailoredResumeResult = {
+          title:
+            existingResumeDoc?.title ||
+            currentPkg?.tailoredResume?.title ||
+            documentContent.resume.title,
+          markdownContent:
+            existingResumeDoc?.renderedMarkdown ||
+            existingResumeDoc?.content?.markdownContent ||
+            documentContent.resume.markdownContent,
+          contentHash:
+            existingResumeDoc?.metadata?.markdownContentHash ||
+            currentPkg?.resumeContentHash ||
+            documentContent.resume.contentHash,
+          fitScore:
+            existingResumeDoc?.atsFitScore ??
+            currentPkg?.fitScore ??
+            documentContent.resume.fitScore,
+        };
+      }
+    } else if (scope === 'RESUME') {
+      const existingClDoc = currentSnapshots.find(
+        (d) =>
+          d.documentType === 'TAILORED_COVER_LETTER' &&
+          (!currentPkg ||
+            d.metadata?.packageHash === currentPkg.packageHash ||
+            d.metadata?.artifact?.packageHash === currentPkg.packageHash)
+      );
+      if (existingClDoc?.renderedMarkdown || currentPkg?.coverLetterContentHash) {
+        coverLetterResult = {
+          title:
+            existingClDoc?.title ||
+            currentPkg?.coverLetter?.title ||
+            documentContent.coverLetter.title,
+          markdownContent:
+            existingClDoc?.renderedMarkdown ||
+            existingClDoc?.content?.markdownContent ||
+            documentContent.coverLetter.markdownContent,
+          contentHash:
+            existingClDoc?.metadata?.markdownContentHash ||
+            currentPkg?.coverLetterContentHash ||
+            documentContent.coverLetter.contentHash,
+        };
+      }
+    }
+
+    // Portfolio links
+    const selectedProjectsList =
+      documentContent.resume?.selectedProjects || documentContent.selectedProjects || [];
+
+    const portfolioLinks = (
+      selectedProjectsList.length > 0
+        ? selectedProjectsList
+        : (documentContent.evidence.projectNamesUsed || []).map((name) => ({
+            name,
+            bullets: [],
+          }))
+    ).map((project) => {
+      const projName = project.name || project.projectName;
+      const stored =
+        documentContent.projectUrlByName?.[projName] || project.repositoryUrl || project.url;
+      const rawHighlights =
+        Array.isArray(project.bullets) && project.bullets.length > 0
+          ? project.bullets
+          : project.summary
+            ? [project.summary]
+            : [];
+      const cleanHighlights = rawHighlights.filter(
+        (h) => !/Evidence-backed project referenced in tailored documents/i.test(h)
+      );
+      return {
+        projectName: projName,
+        repositoryUrl: stored || undefined,
+        highlights: cleanHighlights,
+      };
+    });
+
+    // Final content audit
+    const contentAudit = CandidateArtifactContentService.auditDocumentContent(
+      tailoredResumeResult.markdownContent + '\n' + coverLetterResult.markdownContent,
+      {
+        requiredTokens: [cand.displayName, candidateEmail].filter(Boolean),
+        forbiddenTokens: [
+          /Dedicated software engineer with verified technical skills/i,
+          /Software Development Experience Verified/i,
+          /Independent \/ Open Source Engineering/i,
+          /Academic \/ Technical Foundation/i,
+          /Accredited Institution/i,
+          /Evidence-backed project referenced in tailored documents/i,
+        ],
+      }
+    );
+    if (!contentAudit.passed) {
+      throw new ValidationError(
+        `Application document content audit failed during regeneration: ${contentAudit.violations.join('; ')}`
+      );
+    }
+
+    // 7. Build package with regeneration metadata in answers
+    const previousAnswers =
+      currentPkg?.answers && typeof currentPkg.answers === 'object' ? currentPkg.answers : {};
+    const answers = {
+      ...previousAnswers,
+      ...(reason ? { regenerationReason: String(reason).trim() } : {}),
+      ...(scope ? { regenerationScope: scope } : {}),
+      regenerationTimestamp: new Date().toISOString(),
+    };
+
+    const preparedPackage = {
+      candidateId,
+      candidateName: cand.displayName || 'Candidate',
+      candidateEmail,
+      candidatePhone: cand.phone || undefined,
+      targetJob: jobPosting,
+      tailoredResume: {
+        documentId: tailoredResumeResult.documentId || undefined,
+        title: tailoredResumeResult.title || `Resume - ${jobPosting.company}`,
+        markdownContent:
+          tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
+        contentHash: tailoredResumeResult.contentHash || crypto.randomBytes(16).toString('hex'),
+        fitScore: tailoredResumeResult.fitScore || 85,
+      },
+      coverLetter: {
+        documentId: coverLetterResult.documentId || undefined,
+        title: coverLetterResult.title || `Cover Letter - ${jobPosting.company}`,
+        markdownContent:
+          coverLetterResult.markdownContent || coverLetterResult.renderedMarkdown || '',
+        contentHash: coverLetterResult.contentHash || crypto.randomBytes(16).toString('hex'),
+      },
+      verifiedSkills,
+      claimedSkills,
+      portfolioLinks,
+      answers,
+      packageHash: '',
+      preparedAt: new Date().toISOString(),
+    };
+
+    preparedPackage.packageHash = computeApplicationPackageHash(preparedPackage);
+    const validatedPackage = ApplicationPackageSchema.parse(preparedPackage);
+
+    // 8. Pre-Exposure PDF Compilation and QA Audit BEFORE Ledger Mutation (Fail-Closed)
+    const handoffKit = await this.applicationHandoffService.buildApplicationHandoffKit({
+      tenantId,
+      userId: cand.userId,
+      candidateId,
+      applicationPackage: validatedPackage,
+      applicationId: application.id,
+      destinationUrl: jobPosting.applicationUrl,
+    });
+
+    const resumeQaPassed = Boolean(handoffKit?.resume?.qaAudit?.passed);
+    const clQaPassed = Boolean(handoffKit?.coverLetter?.qaAudit?.passed);
+    const hasStorageKeys = Boolean(
+      handoffKit?.resume?.storageKey && handoffKit?.coverLetter?.storageKey
+    );
+
+    if (!resumeQaPassed || !clQaPassed || !hasStorageKeys) {
+      const failureReason = [
+        !resumeQaPassed
+          ? `Resume QA failed: ${handoffKit?.resume?.qaAudit?.findings?.join(', ') || 'QA not passed'}`
+          : null,
+        !clQaPassed
+          ? `Cover letter QA failed: ${handoffKit?.coverLetter?.qaAudit?.findings?.join(', ') || 'QA not passed'}`
+          : null,
+        !hasStorageKeys ? 'Encrypted artifact storage keys missing' : null,
+      ]
+        .filter(Boolean)
+        .join('; ');
+
+      throw new ValidationError(
+        `Regeneration aborted: pre-exposure QA check failed (${failureReason}). Current package preserved.`,
+        'PRE_EXPOSURE_QA_FAILED'
+      );
+    }
+
+    // 9. Attach snapshots and commit the new package version as CURRENT
+    await this.applicationTrackingService.attachPackageDocumentSnapshots(
+      context,
+      application.id,
+      validatedPackage
+    );
+
+    const current = await this.applicationTrackingService.recordApplicationPackage(
+      context,
+      application.id,
+      validatedPackage,
+      { source: 'REGENERATE_PACKAGE' }
+    );
+
+    await this.applicationTrackingService.setApplicationHandoffKit(
+      context,
+      application.id,
+      handoffKit
+    );
+
+    this.logger.info(
+      {
+        tenantId,
+        applicationId: application.id,
+        newPackageVersion: current.version,
+        newPackageHash: current.packageHash,
+        scope,
+        reason,
+      },
+      'Application package regenerated and promoted as CURRENT version'
+    );
+
+    return {
+      package: current,
+      handoffKit,
+      documentsStatus: 'DOCUMENTS_READY',
+      artifactsReady: true,
     };
   }
 

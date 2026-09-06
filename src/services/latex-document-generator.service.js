@@ -106,6 +106,7 @@ export class LatexDocumentGenerator {
       /\[updated\]/i,
       /high-performan\b/i,
       /Each of these skills is verified/i,
+      /Evidence-backed project referenced in tailored documents/i,
     ];
     for (const pattern of forbidden) {
       if (pattern.test(text))
@@ -201,19 +202,55 @@ export class LatexDocumentGenerator {
       portfolioLinks.push(p);
     }
 
-    if (portfolioLinks.length > 0 && portfolioLinks[0].repositoryUrl) {
-      const firstUrl = portfolioLinks[0].repositoryUrl;
-      contactElements.push(`\\url{${firstUrl}}`);
-    } else if (candidateProfile?.githubUsername) {
-      contactElements.push(
-        `\\url{https://github.com/${escapeLatex(candidateProfile.githubUsername)}}`
+    // Candidate's canonical profile-level GitHub URL (never a project repository URL)
+    let profileGithubUrl = null;
+    if (candidateProfile?.githubUsername) {
+      profileGithubUrl = `https://github.com/${escapeLatex(candidateProfile.githubUsername)}`;
+    } else if (Array.isArray(candidateProfile?.identities)) {
+      const ghIdentity = candidateProfile.identities.find(
+        (id) => (id.provider === 'GITHUB_APP' || id.provider === 'GITHUB') && id.externalUsername
       );
+      if (ghIdentity) {
+        profileGithubUrl = `https://github.com/${escapeLatex(ghIdentity.externalUsername)}`;
+      }
+    }
+
+    if (!profileGithubUrl) {
+      const customLinks =
+        candidateProfile?.candidate?.profileMetadata?.userCustom?.portfolioLinks ||
+        candidateProfile?.profileMetadata?.userCustom?.portfolioLinks ||
+        (Array.isArray(candidateProfile?.portfolioLinks) ? candidateProfile.portfolioLinks : []);
+      const ghLink = customLinks.find(
+        (l) =>
+          /github/i.test(l.label || l.platform || '') ||
+          (l.url && /^https?:\/\/github\.com\/[^/]+\/?$/i.test(l.url))
+      );
+      if (ghLink?.url) {
+        profileGithubUrl = ghLink.url;
+      }
+    }
+
+    if (!profileGithubUrl && applicationPackage.tailoredResume?.markdownContent) {
+      const mdGhMatch = applicationPackage.tailoredResume.markdownContent.match(
+        /\*\*GitHub:\*\*\s*(https?:\/\/github\.com\/[^\s·\n]+)/i
+      );
+      if (mdGhMatch?.[1]) {
+        profileGithubUrl = mdGhMatch[1];
+      }
+    }
+
+    if (profileGithubUrl) {
+      contactElements.push(`\\url{${profileGithubUrl}}`);
     }
 
     const contactLine = contactElements.join(' $\\cdot$ ');
 
     // 2. Summary / Objective — real stored summary only; never synthesized.
+    const summaryMatch = applicationPackage.tailoredResume?.markdownContent?.match(
+      /## Professional Summary\n+([\s\S]*?)(?=\n+##|$)/
+    );
     const summaryText =
+      summaryMatch?.[1]?.trim() ||
       applicationPackage.tailoredResume?.markdownContent
         ?.replace(/^#+.*$/gm, '')
         ?.replace(/\*\*Email:\*\*.*$/gm, '')
@@ -224,7 +261,31 @@ export class LatexDocumentGenerator {
       candidateProfile?.candidate?.profileMetadata?.userCustom?.summary ||
       '';
 
-    // 3. Core Competencies partitioned strictly by truth provenance
+    // 3. Technical Skills: parsed from markdown dynamic categories or fallback to Core Competencies
+    const skillsMatch = applicationPackage.tailoredResume?.markdownContent?.match(
+      /## Technical Skills\n+([\s\S]*?)(?=\n+##|$)/
+    );
+    let skillsLatexSection = '';
+    if (skillsMatch) {
+      const categoryLines = skillsMatch[1]
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('- **') || l.startsWith('* **'));
+      if (categoryLines.length > 0) {
+        const formattedLines = categoryLines.map((line) => {
+          const m = line.match(/^[-*]\s*\*\*([^*]+)\*\*\s*(.*)$/);
+          if (m) {
+            const catName = escapeLatex(m[1].replace(/:$/, ''));
+            const skillsList = escapeLatex(m[2].replace(/^:\s*/, ''));
+            return `\\textbf{${catName}:} ${skillsList}\\\\`;
+          }
+          return `${escapeLatex(line)}\\\\`;
+        });
+        skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\n')}\n\\vspace{2pt}`;
+      }
+    }
+
+    // Core Competencies partitioned strictly by truth provenance (fallback)
     const verifiedSkills = (applicationPackage.verifiedSkills || [])
       .filter((s) => s.truthCategory === 'VERIFIED' || s.truthCategory === 'CORROBORATED')
       .map((s) => s.name);
@@ -237,10 +298,23 @@ export class LatexDocumentGenerator {
       .filter((s) => s.truthCategory === 'LEARNING')
       .map((s) => s.name);
 
+    if (
+      !skillsLatexSection &&
+      (verifiedSkills.length > 0 || claimedSkills.length > 0 || learningSkills.length > 0)
+    ) {
+      skillsLatexSection = `\\atssection{Core Competencies}
+${verifiedSkills.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(verifiedSkills.join(', '))}\\\\\n` : ''}${
+        claimedSkills.length > 0
+          ? `\\textbf{Technical Proficiency:} ${escapeLatex(claimedSkills.join(', '))}\\\\\n`
+          : ''
+      }${
+        learningSkills.length > 0
+          ? `\\textbf{Active Learning / Growth:} ${escapeLatex(learningSkills.join(', '))}\\\\\n`
+          : ''
+      }`;
+    }
+
     // 4. Professional Experience — real stored records only.
-    // Accepts every canonical profile shape: plain DTO ({ experience }),
-    // raw profileMetadata, and the CandidateProfileService view
-    // (candidate.profileMetadata.userCustom.experience).
     const experienceRecords =
       candidateProfile?.experience ||
       candidateProfile?.profileMetadata?.experience ||
@@ -248,7 +322,7 @@ export class LatexDocumentGenerator {
       candidateProfile?.candidate?.profileMetadata?.experience ||
       [];
 
-    // 5. Education — real stored records only (same shape coverage)
+    // 5. Education — real stored records only
     const educationRecords =
       candidateProfile?.education ||
       candidateProfile?.profileMetadata?.education ||
@@ -262,6 +336,7 @@ export class LatexDocumentGenerator {
     // Assemble LaTeX Document
     const tex = `\\documentclass[10pt,letterpaper]{article}
 \\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
 \\usepackage[margin=0.6in]{geometry}
 \\usepackage{hyperref}
 \\pagestyle{empty}
@@ -296,19 +371,23 @@ export class LatexDocumentGenerator {
 \\atssection{Professional Summary}
 ${summaryText ? escapeLatex(summaryText) : '\\textit{(Professional summary not provided in profile.)}'}
 
-% ---------------- CORE COMPETENCIES ----------------
+% ---------------- TECHNICAL SKILLS ----------------
+${skillsLatexSection}
+
+% ---------------- TECHNICAL PROJECTS ----------------
 ${
-  verifiedSkills.length > 0 || claimedSkills.length > 0 || learningSkills.length > 0
-    ? `\\atssection{Core Competencies}
-${verifiedSkills.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(verifiedSkills.join(', '))}\\\\\n` : ''}${
-        claimedSkills.length > 0
-          ? `\\textbf{Technical Proficiency:} ${escapeLatex(claimedSkills.join(', '))}\\\\\n`
-          : ''
-      }${
-        learningSkills.length > 0
-          ? `\\textbf{Active Learning / Growth:} ${escapeLatex(learningSkills.join(', '))}\\\\\n`
-          : ''
-      }`
+  portfolioLinks.length > 0
+    ? `\\atssection{Technical Projects \\& Repositories}
+${portfolioLinks
+  .slice(0, 3)
+  .map((p) => {
+    const pName = escapeLatex(p.projectName || p.name || 'Project');
+    const pUrl = p.repositoryUrl ? ` \\hfill \\url{${p.repositoryUrl}}` : '';
+    const pBullets = formatLatexBullets(p.highlights || []);
+    return `\\textbf{${pName}}${pUrl}\n${pBullets}\n\\vspace{3pt}`;
+  })
+  .join('\n')}
+`
     : ''
 }
 
@@ -334,32 +413,18 @@ ${bullets}
     : ''
 }
 
-% ---------------- TECHNICAL PROJECTS ----------------
-${
-  portfolioLinks.length > 0
-    ? `\\atssection{Technical Projects \\& Repositories}
-${portfolioLinks
-  .slice(0, 3)
-  .map((p) => {
-    const pName = escapeLatex(p.projectName || p.name || 'Project');
-    const pUrl = p.repositoryUrl ? ` \\hfill \\url{${p.repositoryUrl}}` : '';
-    const pBullets = formatLatexBullets(p.highlights || []);
-    return `\\textbf{${pName}}${pUrl}\n${pBullets}\n\\vspace{3pt}`;
-  })
-  .join('\n')}
-`
-    : ''
-}
-
 % ---------------- EDUCATION (omitted when no real records) ----------------
 ${
   hasRealEducation
     ? `\\atssection{Education}
 ${educationRecords
   .map((edu) => {
-    const degree = escapeLatex(edu.degree || '');
-    const field =
-      edu.fieldOfStudy || edu.field ? ` in ${escapeLatex(edu.fieldOfStudy || edu.field)}` : '';
+    const rawDegree = (edu.degree || '').trim();
+    const rawField = (edu.fieldOfStudy || edu.field || '').trim();
+    const degree = escapeLatex(rawDegree);
+    const fieldAlreadyInDegree =
+      rawField && rawDegree.toLowerCase().includes(rawField.toLowerCase());
+    const field = rawField && !fieldAlreadyInDegree ? ` in ${escapeLatex(rawField)}` : '';
     const institution = edu.institution ? escapeLatex(edu.institution) : '';
     const endDate = edu.isCurrent ? 'Present' : edu.endDate || '';
     const dates = [edu.startDate || '', endDate].filter(Boolean).join(' -- ');
@@ -471,6 +536,7 @@ ${institution ? `\\textit{${institution}}` : ''}\\vspace{3pt}`;
 
     const tex = `\\documentclass[11pt,letterpaper]{article}
 \\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
 \\usepackage[margin=1.0in]{geometry}
 \\usepackage{hyperref}
 \\pagestyle{empty}
