@@ -101,9 +101,15 @@ export class LatexDocumentGenerator {
       /verified achievements/i,
       /Dedicated professional tailored for/i,
       /delivering immediate value/i,
+      /Testing dirty state/i,
+      /dirty state bar/i,
+      /\[updated\]/i,
+      /high-performan\b/i,
+      /Each of these skills is verified/i,
     ];
     for (const pattern of forbidden) {
-      if (pattern.test(text)) violations.push(`Forbidden placeholder content: ${pattern}`);
+      if (pattern.test(text))
+        violations.push(`Forbidden placeholder content or test remnant: ${pattern}`);
     }
 
     for (const token of options.requiredTokens || []) {
@@ -181,9 +187,20 @@ export class LatexDocumentGenerator {
       contactElements.push(escapeLatex(candidateLocation));
     }
 
-    // Extract relevant portfolio / GitHub links
-    const portfolioLinks =
+    // Extract relevant portfolio / GitHub links (strictly deduplicated)
+    const rawPortfolioLinks =
       applicationPackage.portfolioLinks || candidateProfile?.portfolioLinks || [];
+    const portfolioLinks = [];
+    const seenLinks = new Set();
+    for (const p of rawPortfolioLinks) {
+      const nameKey = String(p.projectName || p.name || '')
+        .trim()
+        .toLowerCase();
+      if (!nameKey || seenLinks.has(nameKey)) continue;
+      seenLinks.add(nameKey);
+      portfolioLinks.push(p);
+    }
+
     if (portfolioLinks.length > 0 && portfolioLinks[0].repositoryUrl) {
       const firstUrl = portfolioLinks[0].repositoryUrl;
       contactElements.push(`\\url{${firstUrl}}`);

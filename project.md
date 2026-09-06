@@ -5,6 +5,73 @@
 
 ---
 
+### P14-006D: Application Package Document QA Exposure Contract in get_job_application
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
+**Date:** 2026-09-06
+
+**Context & Objective:**
+`prepare_job_application` already produces `qaScore` and `qaPassed` in `tailoredResume.artifact` and `coverLetter.artifact`. `get_job_application` returned all other package/document metadata (`packageVersion`, `packageHash`, `contentHash`, `pdfContentHash`, `filename`, `mimeType`, `fileSizeBytes`, `availabilityStatus: 'READY'`, `viewUrl`, `downloadUrl`), but omitted `qaScore` and `qaPassed`.
+Objective: Make the smallest possible MCP contract and serialization change so `get_job_application` exposes `qaScore` and `qaPassed` for both `TAILORED_RESUME` and `TAILORED_COVER_LETTER`, using existing persisted QA metadata without recalculation, fabrication, or sensitive storage leaks.
+
+**Minimal Fix:**
+1. **MCP Schema Contract (`src/domain/mcp/career-tracking-tools.schemas.js` & `src/domain/mcp/job-workflow-tools.schemas.js`):**
+   - Added `qaScore: z.number().min(0).max(100).optional()` and `qaPassed: z.boolean().optional()` to `tailoredDocuments` item schema in `GetJobApplicationOutputSchema` and `JOB_WORKFLOW_TOOL_DEFINITIONS.get_application_submission_status`.
+2. **Artifact Serialization Helper (`src/mcp/tools/handoff-artifacts.js`):**
+   - In `getVerifiedHandoffDocuments`, resolved persisted QA metadata from `storedArtifact.qaScore`, `storedArtifact.qaAudit`, `artifact.qaScore`, `artifact.qaAudit`, or persisted `existing.integrityScore`.
+   - Replaced row object spreading (`...(existing || {})`) with explicit safe field projection (`id`, `applicationId`, `candidateId`, `documentType`, `version`, `packageVersion`, `title`, `contentHash`, `pdfContentHash`, `citationRefsCount`, `integrityScore`, `atsFitScore`, `createdAt`, `artifactReference`, `filename`, `mimeType`, `fileSizeBytes`, `availabilityStatus`, `viewUrl`, `downloadUrl`, `packageHash`, `qaScore`, `qaPassed`).
+   - Zero sensitive storage fields (`storageKey`, `texStorageKey`, `ciphertext`, internal `metadata`, or raw `content`) can leak into MCP tool output.
+3. **MCP Handler Output Shaping (`src/mcp/tools/career-tracking-tools.js`):**
+   - In `handleGetJobApplication`, mapped `qaScore` and `qaPassed` into `boundedDocuments` when present on verified documents.
+
+**Verification:**
+- `node --test tests/unit/mcp-handoff-artifacts.test.js tests/unit/mcp-career-tracking-tools.test.js` → **21/21 PASS**
+  - Proved `qaScore` is returned when persisted (e.g. 98 and 95).
+  - Proved `qaPassed` is returned when persisted (`true`).
+  - Proved both documents (`TAILORED_RESUME` and `TAILORED_COVER_LETTER`) expose the fields.
+  - Proved zero sensitive storage fields leak (`storageKey`, `texStorageKey`, `ciphertext`, internal `metadata` are all `undefined`).
+- `node --test tests/integration/application-package-consistency.test.js` → **18/18 PASS**
+  - Full end-to-end integration test verified that `get_job_application` returns complete artifact metadata including `qaScore` (number) and `qaPassed` (boolean) for verified documents, while guaranteeing `storageKey` and `texStorageKey` remain strictly unexposed.
+- `node --test tests/unit/mcp-handoff-artifacts.test.js tests/unit/package-document-hash-consistency.test.js tests/unit/application-content-defects.test.js tests/unit/mcp-career-tracking-tools.test.js` → **46/46 PASS**.
+- Targeted Prettier Check → **ALL MATCHED FILES USE PRETTIER STYLE (PASS)**.
+- Targeted ESLint Check → **0 ERRORS, 0 WARNINGS (PASS)**.
+- `node scripts/scan-secrets.js` → **SECRETS AUDIT PASSED: Zero exposed secrets or private tokens detected**.
+
+---
+
+### P14-006C: Application Content Defect Resolution and End-to-End PDF Artifact Readiness
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
+**Date:** 2026-09-06
+
+**Root cause analysis of the 5 defects:**
+1. **Malformed Text (`"high-performan Testing dirty state bar.ce"`):** Introduced into candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`'s `candidates.summary` during prior manual UI testing of the dirty-state indicator. Unit tests missed it because they used clean hardcoded in-memory mocks.
+2. & 3. **Duplicate Project in Resume & Repeated Project in Cover Letter (`"vishu1803/Ai-job-mcp"`):** Two rows existed in PostgreSQL `projects` table for candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (active row `57e17373` and archived row `f68e4520`). `rankProjectsForJob` scored both without deduplicating, rendering both in the resume and producing `"I built vishu1803/Ai-job-mcp and vishu1803/Ai-job-mcp"` in the cover letter.
+4. **Unsupported Verification Claim:** Paragraph 4 emitted `"Each of these skills is verified against my public repository work"` without distinguishing verified skills from claimed/self-reported skills.
+5. **Missing PDF Artifact Readiness in `prepare_job_application`:** `prepareJobApplication` only generated Markdown and never invoked `buildApplicationHandoffKit`. It returned packages without compiling LaTeX, executing PDF QA, storing encrypted artifacts, or exposing artifact readiness metadata (`viewUrl`, `downloadUrl`, `pdfContentHash`, `availabilityStatus: 'READY'`).
+
+**Minimal, high-integrity fix:**
+- **Database & Input Integrity (Constraints 1 & 2):** Restored `candidates.summary` for candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` to authentic text. Implemented fail-closed `validateCandidateInputIntegrity(candidateData)` that rejects test remnants or malformed text and identifies the exact source field (e.g. `candidates.summary`), refusing to silently sanitize candidate-owned content.
+- **Project Deduplication (Constraint 3):** Preserved the duplicate archived row (`f68e4520`) in PostgreSQL for auditability. `rankProjectsForJob` and document generators deterministically prefer the active repository row with URL and enforce strict uniqueness across Resume Markdown, Cover Letter Markdown, and LaTeX.
+- **Truthful Skill Separation (Constraint 4):** Cover letter Paragraph 4 truthfully separates verified proficiency (`demonstrated across my public repositories`) from practical experience in claimed skills. Sweeping claims (`Each of these skills is verified`) are prohibited and rejected by self-audit gates.
+- **End-to-End PDF Readiness (Constraint 5):** `prepareJobApplication` now synchronously compiles ATS LaTeX via Tectonic, executes `PdfQaValidatorService.validatePdf`, stores encrypted artifacts in `DocumentStorageService`, attaches snapshots to `tailored_documents`, and persists the kit to `job_applications`. Exposes `documentsStatus: 'DOCUMENTS_READY'`, `artifactsReady: true`, and complete artifact metadata (`filename`, `mimeType`, `fileSizeBytes`, `contentHash`, `pdfContentHash`, `availabilityStatus: 'READY'`, `viewUrl`, `downloadUrl`, `qaScore`, `qaPassed`) directly in preparation output. If QA or storage fails, it reports `DOCUMENTS_BLOCKED` and `artifactsReady: false`.
+- **PDF QA Hard Gates:** Extended `PdfQaValidatorService` to detect and fail closed on test remnants, sweeping claims, and duplicate project clauses in extracted PDF text.
+
+**Verification:**
+- `node --test tests/unit/application-content-defects.test.js` → **17/17 PASS**.
+- `node --test tests/integration/application-package-consistency.test.js` → **18/18 PASS**.
+- `node --test tests/unit/candidate-artifact-content.test.js tests/unit/pdf-qa-validator.test.js tests/unit/mcp-handoff-artifacts.test.js` → **24/24 PASS**.
+- `node --test tests/integration/handoff-kit-lifecycle.test.js tests/unit/mcp-career-tracking-tools.test.js` → **20/20 PASS**.
+- Offline real candidate acceptance test (`scratch/offline-real-candidate-acceptance.mjs`) using real candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` against Vercel Backend Engineer job:
+  - 0 malformed text phrases; summary verified authentic.
+  - `vishu1803/Ai-job-mcp` appears exactly once as project heading.
+  - Distinct projects in cover letter; verified skills separated from claimed skills.
+  - Tectonic compiled resume and cover letter PDFs; QA scores 100/100 (`qaPassed: true`).
+  - Decrypted PDFs from AES-256-GCM storage inspected via `ResumeParserService`: 0 test remnants, authentic candidate identity confirmed.
+- Targeted ESLint → **PASS**; Targeted Prettier → **PASS**; `node scripts/scan-secrets.js` → **PASS**.
+
+---
+
 ### P14-005BA: Current Application Package Version Consistency
 
 **Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING

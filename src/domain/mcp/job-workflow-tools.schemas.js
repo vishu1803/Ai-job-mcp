@@ -150,6 +150,8 @@ export const JOB_WORKFLOW_TOOL_DEFINITIONS = {
               // PDF byte hash for artifact integrity; contentHash is the
               // authoritative Markdown hash from the current package.
               pdfContentHash: z.string().length(64).optional(),
+              qaScore: z.number().min(0).max(100).optional(),
+              qaPassed: z.boolean().optional(),
             })
             .passthrough()
         ),

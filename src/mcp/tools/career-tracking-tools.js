@@ -419,6 +419,8 @@ export async function handleGetJobApplication(context, args, deps = {}) {
           pdfContentHash: d.pdfContentHash ?? null,
         }
       : {}),
+    ...(typeof d.qaScore === 'number' ? { qaScore: d.qaScore } : {}),
+    ...(typeof d.qaPassed === 'boolean' ? { qaPassed: d.qaPassed } : {}),
   }));
 
   const output = {

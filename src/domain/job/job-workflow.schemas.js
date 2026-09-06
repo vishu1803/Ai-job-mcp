@@ -96,6 +96,20 @@ export const ApplicationSkillItemSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const ApplicationDocumentArtifactSchema = z.object({
+  artifactReference: z.string().optional(),
+  filename: z.string(),
+  mimeType: z.string(),
+  fileSizeBytes: z.number().int().positive().optional(),
+  contentHash: z.string().length(64).optional(),
+  pdfContentHash: z.string().length(64).optional(),
+  availabilityStatus: z.enum(['READY', 'BLOCKED']),
+  viewUrl: z.string().optional(),
+  downloadUrl: z.string().optional(),
+  qaScore: z.number().min(0).max(100).optional(),
+  qaPassed: z.boolean().optional(),
+});
+
 export const ApplicationPackageSchema = z.object({
   candidateId: z.string().uuid(),
   candidateName: z.string(),
@@ -108,12 +122,14 @@ export const ApplicationPackageSchema = z.object({
     markdownContent: z.string(),
     contentHash: z.string(),
     fitScore: z.number().min(0).max(100),
+    artifact: ApplicationDocumentArtifactSchema.optional(),
   }),
   coverLetter: z.object({
     documentId: z.string().optional(),
     title: z.string(),
     markdownContent: z.string(),
     contentHash: z.string(),
+    artifact: ApplicationDocumentArtifactSchema.optional(),
   }),
   verifiedSkills: z.array(ApplicationSkillItemSchema),
   claimedSkills: z.array(ApplicationSkillItemSchema),
@@ -132,6 +148,9 @@ export const ApplicationPackageSchema = z.object({
   // back through validate/submit) remain valid.
   applicationId: z.string().uuid().optional(),
   packageVersion: z.number().int().positive().optional(),
+  documentsStatus: z.enum(['DOCUMENTS_READY', 'DOCUMENTS_BLOCKED', 'DOCUMENTS_PENDING']).optional(),
+  artifactsReady: z.boolean().optional(),
+  artifactFailureReason: z.string().optional(),
 });
 
 // -----------------------------------------------------------------------------

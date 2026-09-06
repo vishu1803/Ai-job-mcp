@@ -62,6 +62,10 @@ export class ApplicationTrackingService {
    * @private
    * @returns {object} DocumentStorageService instance
    */
+  get documentStorage() {
+    return this._getDocumentStorage();
+  }
+
   _getDocumentStorage() {
     if (this._documentStorageOverride) return this._documentStorageOverride;
     if (!this._documentStorageInstance) {

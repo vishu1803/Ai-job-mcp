@@ -15,6 +15,7 @@ import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { candidates, users, jobApplications, candidateSkills, skills } from '../db/schema.js';
 import { CandidateArtifactContentService } from './candidate-artifact-content.service.js';
+import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
 import { ApplicationHandoffService } from './application-handoff.service.js';
 import {
@@ -186,8 +187,17 @@ export class JobApplicationWorkflowService {
       new CandidateArtifactContentService({ database: this.db });
     this.applicationTrackingService =
       options.applicationTrackingService || new ApplicationTrackingService({ database: this.db });
+    const documentStorage =
+      options.documentStorageService ||
+      options.documentStorage ||
+      this.applicationTrackingService.documentStorage;
     this.applicationHandoffService =
-      options.applicationHandoffService || new ApplicationHandoffService();
+      options.applicationHandoffService ||
+      new ApplicationHandoffService({
+        applicationTrackingService: this.applicationTrackingService,
+        documentStorage,
+        candidateProfileService: new CandidateProfileService(this.db),
+      });
     this.submissionAdapters = Array.isArray(options.submissionAdapters)
       ? options.submissionAdapters
       : options.submissionAdapters instanceof Map
@@ -362,10 +372,111 @@ export class JobApplicationWorkflowService {
       logger: this.logger,
     });
 
+    // 9. End-to-End PDF Compilation, Pre-Exposure QA, Encrypted Storage, and Metadata Attachment.
+    // Invariant: Documents are NEVER reported as READY until:
+    // Markdown generation -> LaTeX compilation -> PDF QA -> Encrypted artifact storage -> Metadata persistence
+    // all succeed.
+    let handoffKit = null;
+    let artifactsReady = false;
+    let documentsStatus = 'DOCUMENTS_BLOCKED';
+    let artifactFailureReason = null;
+    let resumeArtifact = undefined;
+    let coverLetterArtifact = undefined;
+
+    if (persisted?.applicationId) {
+      try {
+        handoffKit = await this.applicationHandoffService.buildApplicationHandoffKit({
+          tenantId,
+          userId: cand.userId,
+          candidateId,
+          applicationPackage: validatedPackage,
+          applicationId: persisted.applicationId,
+        });
+
+        const resumeQaPassed = Boolean(handoffKit?.resume?.qaAudit?.passed);
+        const clQaPassed = Boolean(handoffKit?.coverLetter?.qaAudit?.passed);
+        const hasStorageKeys = Boolean(
+          handoffKit?.resume?.storageKey && handoffKit?.coverLetter?.storageKey
+        );
+
+        if (handoffKit && resumeQaPassed && clQaPassed && hasStorageKeys) {
+          artifactsReady = true;
+          documentsStatus = 'DOCUMENTS_READY';
+        } else {
+          artifactsReady = false;
+          documentsStatus = 'DOCUMENTS_BLOCKED';
+          artifactFailureReason = [
+            !resumeQaPassed
+              ? `Resume QA failed: ${handoffKit?.resume?.qaAudit?.findings?.join(', ') || 'QA not passed'}`
+              : null,
+            !clQaPassed
+              ? `Cover letter QA failed: ${handoffKit?.coverLetter?.qaAudit?.findings?.join(', ') || 'QA not passed'}`
+              : null,
+            !hasStorageKeys ? 'Encrypted artifact storage keys missing' : null,
+          ]
+            .filter(Boolean)
+            .join('; ');
+        }
+
+        if (handoffKit?.resume) {
+          resumeArtifact = {
+            filename: handoffKit.resume.filename || 'tailored-resume.pdf',
+            mimeType: handoffKit.resume.mimeType || 'application/pdf',
+            fileSizeBytes: handoffKit.resume.fileSizeBytes,
+            contentHash: validatedPackage.tailoredResume.contentHash,
+            pdfContentHash: handoffKit.resume.contentHash,
+            availabilityStatus: resumeQaPassed && hasStorageKeys ? 'READY' : 'BLOCKED',
+            viewUrl: handoffKit.resume.viewUrl,
+            downloadUrl: handoffKit.resume.downloadUrl,
+            qaScore: handoffKit.resume.qaAudit?.score,
+            qaPassed: resumeQaPassed,
+          };
+        }
+
+        if (handoffKit?.coverLetter) {
+          coverLetterArtifact = {
+            filename: handoffKit.coverLetter.filename || 'tailored-cover-letter.pdf',
+            mimeType: handoffKit.coverLetter.mimeType || 'application/pdf',
+            fileSizeBytes: handoffKit.coverLetter.fileSizeBytes,
+            contentHash: validatedPackage.coverLetter.contentHash,
+            pdfContentHash: handoffKit.coverLetter.contentHash,
+            availabilityStatus: clQaPassed && hasStorageKeys ? 'READY' : 'BLOCKED',
+            viewUrl: handoffKit.coverLetter.viewUrl,
+            downloadUrl: handoffKit.coverLetter.downloadUrl,
+            qaScore: handoffKit.coverLetter.qaAudit?.score,
+            qaPassed: clQaPassed,
+          };
+        }
+      } catch (err) {
+        this.logger.error(
+          { error: err.message, candidateId, packageHash: validatedPackage.packageHash },
+          'Failed to compile, QA, or store PDF artifacts for prepared application'
+        );
+        artifactsReady = false;
+        documentsStatus = 'DOCUMENTS_BLOCKED';
+        artifactFailureReason = `PDF artifact generation error: ${err.message}`;
+      }
+    } else {
+      artifactsReady = false;
+      documentsStatus = 'DOCUMENTS_BLOCKED';
+      artifactFailureReason = 'Application package could not be persisted in database ledger';
+    }
+
     return {
       ...validatedPackage,
+      tailoredResume: {
+        ...validatedPackage.tailoredResume,
+        ...(resumeArtifact ? { artifact: resumeArtifact } : {}),
+      },
+      coverLetter: {
+        ...validatedPackage.coverLetter,
+        ...(coverLetterArtifact ? { artifact: coverLetterArtifact } : {}),
+      },
       applicationId: persisted?.applicationId ?? undefined,
       packageVersion: persisted?.version ?? undefined,
+      documentsStatus,
+      artifactsReady,
+      ...(artifactFailureReason ? { artifactFailureReason } : {}),
     };
   }
 

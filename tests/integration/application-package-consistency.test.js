@@ -57,6 +57,7 @@ describe('Integration: Application Package Consistency (P14-005BA)', () => {
   let candidate2;
 
   let tracking;
+  let documentStorage;
   let tempStorageDir;
   let candidateBefore;
 
@@ -94,7 +95,8 @@ describe('Integration: Application Package Consistency (P14-005BA)', () => {
   const workflow = (applicationTrackingService = null) => {
     const service = new JobApplicationWorkflowService({
       database: db,
-      ...(applicationTrackingService ? { applicationTrackingService } : {}),
+      applicationTrackingService: applicationTrackingService || tracking,
+      documentStorageService: documentStorage,
     });
     if (contentOverride) {
       const original = service.candidateArtifactContentService.generateApplicationDocuments.bind(
@@ -127,7 +129,7 @@ describe('Integration: Application Package Consistency (P14-005BA)', () => {
 
   before(async () => {
     tempStorageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pkg-consistency-'));
-    const documentStorage = new DocumentStorageService({ storageDir: tempStorageDir });
+    documentStorage = new DocumentStorageService({ storageDir: tempStorageDir });
     tracking = new ApplicationTrackingService({ database: db, documentStorage });
 
     [tenant1] = await db
@@ -883,6 +885,10 @@ describe('Integration: Application Package Consistency (P14-005BA)', () => {
           assert.ok(doc.fileSizeBytes > 0, 'fileSizeBytes required for artifacts');
           assert.ok(doc.availabilityStatus, 'availabilityStatus required for artifacts');
           assert.ok(doc.downloadUrl, 'downloadUrl required for artifacts');
+          assert.ok(typeof doc.qaScore === 'number', 'qaScore required for artifacts');
+          assert.ok(typeof doc.qaPassed === 'boolean', 'qaPassed required for artifacts');
+          assert.equal(doc.storageKey, undefined, 'storageKey must not leak');
+          assert.equal(doc.texStorageKey, undefined, 'texStorageKey must not leak');
         }
       }
     });

@@ -177,6 +177,18 @@ export async function getVerifiedHandoffDocuments(
             ? new Date(existing.createdAt).toISOString()
             : new Date().toISOString(),
           packageHash: existing.metadata?.packageHash || currentPackageHash || null,
+          ...(typeof existing.metadata?.artifact?.qaScore === 'number'
+            ? { qaScore: existing.metadata.artifact.qaScore }
+            : typeof existing.metadata?.qaScore === 'number'
+              ? { qaScore: existing.metadata.qaScore }
+              : typeof existing.integrityScore === 'number'
+                ? { qaScore: Math.round(existing.integrityScore * 100) }
+                : {}),
+          ...(typeof existing.metadata?.artifact?.qaPassed === 'boolean'
+            ? { qaPassed: existing.metadata.artifact.qaPassed }
+            : typeof existing.metadata?.qaPassed === 'boolean'
+              ? { qaPassed: existing.metadata.qaPassed }
+              : {}),
         });
       }
       continue;
@@ -215,8 +227,38 @@ export async function getVerifiedHandoffDocuments(
         storedArtifact.markdownContentHash ||
         (hasAuthoritativePackage ? null : storedArtifact.contentHash);
 
+      // Resolve persisted QA score and pass/fail status without recalculation or fabrication
+      const rawQaScore =
+        storedArtifact?.qaScore ??
+        storedArtifact?.qaAudit?.score ??
+        artifact?.qaScore ??
+        artifact?.qaAudit?.score ??
+        existing?.metadata?.artifact?.qaScore ??
+        existing?.metadata?.artifact?.qaAudit?.score ??
+        (typeof existing?.integrityScore === 'number' && Number.isFinite(existing.integrityScore)
+          ? Math.round(existing.integrityScore * 100)
+          : undefined);
+
+      const qaScore =
+        typeof rawQaScore === 'number' && !Number.isNaN(rawQaScore) ? rawQaScore : undefined;
+
+      const rawQaPassed =
+        storedArtifact?.qaPassed ??
+        storedArtifact?.qaAudit?.passed ??
+        artifact?.qaPassed ??
+        artifact?.qaAudit?.passed ??
+        existing?.metadata?.artifact?.qaPassed ??
+        existing?.metadata?.artifact?.qaAudit?.passed ??
+        (availabilityStatus === 'READY'
+          ? true
+          : availabilityStatus === 'BLOCKED'
+            ? false
+            : undefined);
+
+      const qaPassed = typeof rawQaPassed === 'boolean' ? rawQaPassed : undefined;
+
       verified.push({
-        ...(existing || {}),
+        id: existing?.id ?? null,
         applicationId: application.id,
         candidateId: application.candidateId,
         documentType,
@@ -243,6 +285,8 @@ export async function getVerifiedHandoffDocuments(
         viewUrl: storedArtifact.viewUrl,
         downloadUrl: storedArtifact.downloadUrl,
         packageHash: currentPackageHash || storedArtifact.packageHash || null,
+        ...(qaScore !== undefined ? { qaScore } : {}),
+        ...(qaPassed !== undefined ? { qaPassed } : {}),
       });
     } catch (err) {
       // Never expose stale metadata when the encrypted object cannot be read.

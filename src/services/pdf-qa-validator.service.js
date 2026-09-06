@@ -215,6 +215,49 @@ export class PdfQaValidatorService {
       }
     }
 
+    // Check 2C-ter: Suspicious test remnants or malformed text
+    const testRemnantPatterns = [
+      /Testing dirty state/i,
+      /dirty state bar/i,
+      /\[updated\]/i,
+      /high-performan\b/i,
+      /\b[a-zA-Z]{4,}\s+Testing\s+dirty/i,
+    ];
+    for (const pattern of testRemnantPatterns) {
+      if (pattern.test(cleanText) || pattern.test(normalizedText)) {
+        contentIntegrity -= 35;
+        criticalFailures.push(`Suspicious test remnant or malformed text detected: ${pattern}`);
+        findings.push(`Test remnant detected: ${pattern}`);
+        break;
+      }
+    }
+
+    // Check 2C-quater: Unsupported sweeping verification claims
+    if (/Each of these skills is verified/i.test(normalizedText)) {
+      contentIntegrity -= 20;
+      criticalFailures.push(
+        'Sweeping unverified skill claim detected ("Each of these skills is verified")'
+      );
+      findings.push('Sweeping verification claim detected in document');
+    }
+
+    // Check 2C-quinquies: Duplicate projects in cover letter
+    if (documentType === 'COVER_LETTER') {
+      const coverLetterRepeatMatch =
+        /I built\s+([^,.]+?)(?:\s*\([^)]*\))?(?:,\s*built with[^,.]*)?\s+and\s+([^,.]+?)(?:\s*\([^)]*\))?(?:,\s*built with[^,.]*)?\./i.exec(
+          normalizedText
+        );
+      if (coverLetterRepeatMatch) {
+        const p1 = coverLetterRepeatMatch[1].trim().toLowerCase();
+        const p2 = coverLetterRepeatMatch[2].trim().toLowerCase();
+        if (p1 === p2) {
+          contentIntegrity -= 25;
+          criticalFailures.push(`Duplicate project in cover letter: repeated project "${p1}"`);
+          findings.push(`Repeated project clause in cover letter: "${p1}"`);
+        }
+      }
+    }
+
     // Check 2D: Target Job Context
     if (targetJob.company && !cleanText.toLowerCase().includes(targetJob.company.toLowerCase())) {
       contentIntegrity -= 5;

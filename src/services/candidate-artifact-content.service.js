@@ -205,6 +205,66 @@ export class CandidateArtifactContentService {
    * @param {object} params.jobPosting Normalized job posting (NormalizedJobPostingSchema)
    * @returns {Promise<object>} candidateData snapshot
    */
+  /**
+   * Validates candidate-owned input content against test artifacts, suspicious remnants,
+   * or malformed fragments. Fails closed with the exact source field rather than
+   * silently mutating user content.
+   *
+   * @param {object} candidateData
+   * @throws {ValidationError} When suspicious or malformed content is found
+   */
+  validateCandidateInputIntegrity(candidateData) {
+    const suspiciousPatterns = [
+      { pattern: /Testing dirty state/i, label: 'Testing dirty state test remnant' },
+      { pattern: /dirty state bar/i, label: 'dirty state bar test artifact' },
+      { pattern: /\[updated\]/i, label: '[updated] test tag' },
+      { pattern: /\[test\]/i, label: '[test] tag' },
+      { pattern: /\bTODO:/i, label: 'TODO marker' },
+      { pattern: /\bLorem ipsum\b/i, label: 'Lorem ipsum placeholder' },
+      { pattern: /high-performan\s+Testing/i, label: 'corrupted word splice' },
+      { pattern: /\b[a-zA-Z]{4,}\s+Testing\s+dirty/i, label: 'test text injection' },
+    ];
+
+    const checkField = (value, fieldName) => {
+      if (typeof value !== 'string') return;
+      for (const { pattern, label } of suspiciousPatterns) {
+        if (pattern.test(value)) {
+          throw new ValidationError(
+            `Candidate profile data in field '${fieldName}' contains suspicious test artifact or malformed content (${label}): "${value.slice(0, 80)}...". Candidate-owned content cannot be silently rewritten; profile must be corrected at source.`
+          );
+        }
+      }
+    };
+
+    checkField(candidateData.summary, 'candidates.summary');
+    checkField(candidateData.headline, 'candidates.headline');
+
+    for (let i = 0; i < (candidateData.experience || []).length; i++) {
+      const exp = candidateData.experience[i];
+      checkField(exp.title, `experience[${i}].title`);
+      checkField(exp.company, `experience[${i}].company`);
+      for (let j = 0; j < (exp.bullets || []).length; j++) {
+        checkField(exp.bullets[j], `experience[${i}].bullets[${j}]`);
+      }
+    }
+
+    for (let i = 0; i < (candidateData.projects || []).length; i++) {
+      const proj = candidateData.projects[i];
+      checkField(proj.name, `projects[${i}].name`);
+      checkField(proj.summary, `projects[${i}].summary`);
+    }
+  }
+
+  /**
+   * Builds the canonical candidate data snapshot used by all document builders.
+   *
+   * @param {object} params
+   * @param {string} params.tenantId
+   * @param {string} params.userId
+   * @param {string} params.candidateId
+   * @param {object} params.jobPosting Normalized job posting (NormalizedJobPostingSchema)
+   * @returns {Promise<object>} candidateData snapshot
+   */
   async buildCandidateData({ tenantId, userId, candidateId, jobPosting }) {
     const profileView = await this.loadCandidateProfile({ tenantId, userId, candidateId });
     const candidate = profileView.candidate || {};
@@ -214,7 +274,28 @@ export class CandidateArtifactContentService {
     const storedProjects = await this.loadStoredProjects({ tenantId, candidateId });
     const storedProjectByUrl = new Map();
     for (const project of storedProjects) {
-      if (project.name) storedProjectByUrl.set(String(project.name).toLowerCase(), project);
+      if (!project.name) continue;
+      const key = String(project.name).toLowerCase().trim();
+      const existing = storedProjectByUrl.get(key);
+      const isArchived =
+        project.metadata?.portfolioStatus === 'ARCHIVED' || Boolean(project.metadata?.archivedAt);
+      const hasUrl = Boolean(project.metadata?.sourceUrl || project.metadata?.repositoryUrl);
+      if (!existing) {
+        storedProjectByUrl.set(key, project);
+      } else {
+        const existingArchived =
+          existing.metadata?.portfolioStatus === 'ARCHIVED' ||
+          Boolean(existing.metadata?.archivedAt);
+        const existingHasUrl = Boolean(
+          existing.metadata?.sourceUrl || existing.metadata?.repositoryUrl
+        );
+        // Prefer active over archived; prefer row with valid source URL
+        if (existingArchived && !isArchived) {
+          storedProjectByUrl.set(key, project);
+        } else if (!existingHasUrl && hasUrl && !isArchived) {
+          storedProjectByUrl.set(key, project);
+        }
+      }
     }
 
     const githubIdentity = (profileView.identities || []).find(
@@ -246,7 +327,7 @@ export class CandidateArtifactContentService {
         ? metadata.education
         : [];
 
-    return {
+    const snapshot = {
       tenantId,
       candidateId,
       jobPosting,
@@ -266,6 +347,11 @@ export class CandidateArtifactContentService {
       githubUsername: resolvedGithubUsername,
       portfolioLinks,
     };
+
+    // Fail-closed on malformed or test-contaminated candidate input content
+    this.validateCandidateInputIntegrity(snapshot);
+
+    return snapshot;
   }
 
   /**
@@ -325,38 +411,105 @@ export class CandidateArtifactContentService {
   }
 
   /**
-   * Computes project job relevance using the canonical ProjectRelevanceService
-   * when a full profile domain object is available; falls back to a transparent
-   * keyword-overlap score on the raw project rows.
+   * Computes project job relevance using deterministic keyword-overlap.
+   * Enforces project deduplication: projects sharing the same canonical name or
+   * repository URL are merged, preferring active rows over archived ones.
+   * Every project in the returned list has a unique name and unique URL.
    *
    * @param {object} candidateData Candidate data snapshot
    * @returns {Array<{ name: string, url: string|null, summary: string|null, technologies: string[], relevance: number }>}
    */
   rankProjectsForJob(candidateData) {
-    const ranked = [];
+    // 1. Deduplicate by canonical project identity (case-insensitive name)
+    const projectMap = new Map();
+
     for (const project of candidateData.projects || []) {
       const name = project.name || project.title;
       if (!name) continue;
-      const stored = candidateData.storedProjectByUrl.get(String(name).toLowerCase());
+      const cleanName = String(name).trim();
+      const nameKey = cleanName.toLowerCase();
+
+      const stored = candidateData.storedProjectByUrl?.get(nameKey);
+      const resolvedUrl =
+        stored?.metadata?.repositoryUrl ||
+        stored?.metadata?.sourceUrl ||
+        project.url ||
+        project.repositoryUrl ||
+        null;
+
+      const isArchived =
+        project.metadata?.portfolioStatus === 'ARCHIVED' ||
+        Boolean(project.metadata?.archivedAt) ||
+        stored?.metadata?.portfolioStatus === 'ARCHIVED' ||
+        Boolean(stored?.metadata?.archivedAt);
+
       const technologies = [
         ...(Array.isArray(project.technologies) ? project.technologies : []),
         ...(Array.isArray(project.primaryLanguages) ? project.primaryLanguages : []),
       ].filter(Boolean);
+
+      const summary = project.summary || project.headline || null;
+
+      const existing = projectMap.get(nameKey);
+      if (!existing) {
+        projectMap.set(nameKey, {
+          name: cleanName,
+          url: resolvedUrl,
+          summary,
+          technologies,
+          isArchived,
+        });
+      } else {
+        // Deterministic preference: active over archived; row with URL over row without
+        if (existing.isArchived && !isArchived) {
+          projectMap.set(nameKey, {
+            name: cleanName,
+            url: resolvedUrl || existing.url,
+            summary: summary || existing.summary,
+            technologies: technologies.length > 0 ? technologies : existing.technologies,
+            isArchived: false,
+          });
+        } else if (!existing.url && resolvedUrl && !isArchived) {
+          existing.url = resolvedUrl;
+          if (!existing.summary && summary) existing.summary = summary;
+          if (existing.technologies.length === 0 && technologies.length > 0) {
+            existing.technologies = technologies;
+          }
+        }
+      }
+    }
+
+    // 2. Score and deduplicate by repository URL
+    const ranked = [];
+    const seenUrls = new Set();
+
+    for (const project of projectMap.values()) {
+      if (project.url) {
+        const normUrl = String(project.url)
+          .toLowerCase()
+          .replace(/^https?:\/\//, '')
+          .replace(/\/$/, '');
+        if (seenUrls.has(normUrl)) continue;
+        seenUrls.add(normUrl);
+      }
+
       const haystack = normalizeSkillToken(
-        `${name} ${technologies.join(' ')} ${project.summary || project.headline || ''}`
+        `${project.name} ${project.technologies.join(' ')} ${project.summary || ''}`
       );
       let relevance = 0;
-      for (const keyword of candidateData.jobKeywords) {
+      for (const keyword of candidateData.jobKeywords || []) {
         if (haystack.includes(keyword)) relevance += 5;
       }
+
       ranked.push({
-        name,
-        url: stored?.metadata?.repositoryUrl || project.url || project.repositoryUrl || null,
-        summary: project.summary || project.headline || null,
-        technologies,
+        name: project.name,
+        url: project.url,
+        summary: project.summary,
+        technologies: project.technologies,
         relevance,
       });
     }
+
     return ranked.sort((a, b) => b.relevance - a.relevance || a.name.localeCompare(b.name));
   }
 
@@ -462,7 +615,12 @@ export class CandidateArtifactContentService {
     if (rankedProjects.length > 0) {
       lines.push('## Projects');
       lines.push('');
-      for (const project of rankedProjects.slice(0, 4)) {
+      const seenProjectNames = new Set();
+      for (const project of rankedProjects) {
+        const normName = project.name.toLowerCase().trim();
+        if (seenProjectNames.has(normName)) continue;
+        seenProjectNames.add(normName);
+
         const nameLine = project.url ? `[${project.name}](${project.url})` : project.name;
         lines.push(`### ${nameLine}`);
         lines.push('');
@@ -474,6 +632,7 @@ export class CandidateArtifactContentService {
           lines.push(`*Technologies: ${project.technologies.join(', ')}*`);
           lines.push('');
         }
+        if (seenProjectNames.size >= 4) break;
       }
       pushSection('PROJECTS');
     }
@@ -558,9 +717,15 @@ export class CandidateArtifactContentService {
     const targetRole = jobPosting.title;
     const targetCompany = jobPosting.company;
 
-    const { verified } = this.partitionSkills(candidateData);
+    const { verified, claimed } = this.partitionSkills(candidateData);
     const verifiedTokens = verified.map(normalizeSkillToken);
     const matchedVerifiedSkills = verified.filter((name) => {
+      const token = normalizeSkillToken(name);
+      return [...candidateData.jobKeywords].some(
+        (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
+      );
+    });
+    const matchedClaimedSkills = claimed.filter((name) => {
       const token = normalizeSkillToken(name);
       return [...candidateData.jobKeywords].some(
         (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
@@ -572,9 +737,19 @@ export class CandidateArtifactContentService {
     const experienceTitle = experience?.title || experience?.role || null;
     const experienceCompany = experience?.company || experience?.employer || null;
 
-    // Real project evidence ranked by job relevance
+    // Real project evidence ranked by job relevance (strictly deduplicated)
     const rankedProjects = this.rankProjectsForJob(candidateData);
-    const topProjects = rankedProjects.slice(0, 2);
+    const topProjects = [];
+    const seenNames = new Set();
+    for (const proj of rankedProjects) {
+      const k = proj.name.toLowerCase().trim();
+      if (!seenNames.has(k)) {
+        seenNames.add(k);
+        topProjects.push(proj);
+      }
+      if (topProjects.length >= 2) break;
+    }
+
     const topProjectNames = topProjects.map((p) => p.name);
     const projectUrlByName = Object.fromEntries(
       rankedProjects.filter((p) => p.url).map((p) => [p.name, p.url])
@@ -614,7 +789,7 @@ export class CandidateArtifactContentService {
       });
     }
 
-    // Paragraph 3 — PROJECT_EVIDENCE (real project names + technologies)
+    // Paragraph 3 — PROJECT_EVIDENCE (real distinct project names + technologies)
     if (topProjects.length > 0) {
       const projectClauses = topProjects.map((project) => {
         const tech =
@@ -624,24 +799,39 @@ export class CandidateArtifactContentService {
         const urlPart = project.url ? ` (${project.url})` : '';
         return `${project.name}${urlPart}${tech}`;
       });
+
+      const projectSentence =
+        projectClauses.length === 1
+          ? `I built ${projectClauses[0]}.`
+          : `I built ${projectClauses[0]} and ${projectClauses[1]}.`;
+
       paragraphs.push({
         type: 'PROJECT_EVIDENCE',
-        text: `My public repository work demonstrates this directly: I built ${projectClauses.join(' and ')}. The source code for all of these projects is publicly available for review.`,
+        text: `My public repository work demonstrates this directly: ${projectSentence} The source code for all of these projects is publicly available for review.`,
       });
     }
 
-    // Paragraph 4 — COMPANY_ALIGNMENT (evidence-backed skill overlap only)
-    if (matchedVerifiedSkills.length > 0 || verified.length > 0) {
-      const alignmentSkills = (
-        matchedVerifiedSkills.length > 0 ? matchedVerifiedSkills : verified
-      ).slice(0, 6);
+    // Paragraph 4 — COMPANY_ALIGNMENT (truthfully separates verified from claimed)
+    const verifiedToMention = (
+      matchedVerifiedSkills.length > 0 ? matchedVerifiedSkills : verified
+    ).slice(0, 6);
+    const claimedToMention = (
+      matchedClaimedSkills.length > 0 ? matchedClaimedSkills : claimed
+    ).slice(0, 4);
+
+    if (verifiedToMention.length > 0) {
+      let alignmentText = `My technical background aligns with the requirements for the ${targetRole} role, with verified proficiency in ${verifiedToMention.join(', ')} demonstrated across my public repositories.`;
+      if (claimedToMention.length > 0) {
+        alignmentText += ` In addition, my background includes practical experience with ${claimedToMention.join(', ')}.`;
+      }
       paragraphs.push({
         type: 'COMPANY_ALIGNMENT',
-        text: `My engineering skills in ${alignmentSkills.join(', ')} align with the requirements described in your ${targetRole} posting. Each of these skills is verified against my public repository work${
-          matchedVerifiedSkills.length > 0
-            ? `, and ${matchedVerifiedSkills.join(', ')} match the specific technologies listed for this role`
-            : ''
-        }.`,
+        text: alignmentText,
+      });
+    } else if (claimedToMention.length > 0) {
+      paragraphs.push({
+        type: 'COMPANY_ALIGNMENT',
+        text: `My technical background includes practical experience with ${claimedToMention.join(', ')}, which aligns with the requirements described for the ${targetRole} role.`,
       });
     }
 
@@ -732,20 +922,21 @@ export class CandidateArtifactContentService {
   }
 
   /**
-   * Validates a document's text against the canonical generic placeholder
-   * phrases that previously replaced real candidate data. Used as a final
-   * self-audit gate before content enters an application package.
+   * Validates a document's text against canonical generic placeholder phrases,
+   * duplicate projects, suspicious test remnants, and contradictory verification
+   * claims. Used as a final self-audit gate before content enters an application package.
    *
    * @param {string} markdownContent Rendered document markdown
    * @param {object} [options]
    * @param {string[]} [options.requiredTokens] Tokens that MUST appear (real data)
-   * @param {string[]} [options.forbiddenTokens] Tokens that MUST NOT appear
+   * @param {RegExp[]} [options.forbiddenTokens] Tokens that MUST NOT appear
    * @returns {{ passed: boolean, violations: string[] }}
    */
   static auditDocumentContent(markdownContent, options = {}) {
     const violations = [];
     const text = String(markdownContent || '');
 
+    // 1. Generic placeholder patterns
     const forbiddenPatterns = options.forbiddenTokens || [
       /Dedicated software engineer with verified technical skills/i,
       /Software Development Experience Verified/i,
@@ -761,6 +952,53 @@ export class CandidateArtifactContentService {
       if (pattern.test(text)) violations.push(`Forbidden placeholder content: ${pattern}`);
     }
 
+    // 2. Suspicious test remnants or malformed text fragments
+    const testRemnantPatterns = [
+      /Testing dirty state/i,
+      /dirty state bar/i,
+      /\[updated\]/i,
+      /high-performan\b/i,
+      /\b[a-zA-Z]{4,}\s+Testing\b/i,
+    ];
+    for (const pattern of testRemnantPatterns) {
+      if (pattern.test(text)) {
+        violations.push(`Malformed text or test remnant detected: ${pattern}`);
+      }
+    }
+
+    // 3. Duplicate project sections in Resume (### ProjectName)
+    const projectHeaderMatches = [...text.matchAll(/^###\s+(?:\[([^\]]+)\]\([^)]+\)|(.+))$/gm)];
+    const seenResumeProjects = new Set();
+    for (const match of projectHeaderMatches) {
+      const name = (match[1] || match[2] || '').trim().toLowerCase();
+      if (!name) continue;
+      if (seenResumeProjects.has(name)) {
+        violations.push(`Duplicate project section in resume: "${name}"`);
+      }
+      seenResumeProjects.add(name);
+    }
+
+    // 4. Duplicate project in Cover Letter ("I built X and X")
+    const coverLetterProjectMatch =
+      /I built\s+([^,.]+?)(?:\s*\([^)]*\))?(?:,\s*built with[^,.]*)?\s+and\s+([^,.]+?)(?:\s*\([^)]*\))?(?:,\s*built with[^,.]*)?\./i.exec(
+        text
+      );
+    if (coverLetterProjectMatch) {
+      const p1 = coverLetterProjectMatch[1].trim().toLowerCase();
+      const p2 = coverLetterProjectMatch[2].trim().toLowerCase();
+      if (p1 === p2) {
+        violations.push(`Duplicate project in cover letter: repeated project "${p1}"`);
+      }
+    }
+
+    // 5. Sweeping unsupported verification claims
+    if (/Each of these skills is verified/i.test(text)) {
+      violations.push(
+        'Sweeping skill verification claim detected ("Each of these skills is verified")'
+      );
+    }
+
+    // 6. Required tokens
     for (const token of options.requiredTokens || []) {
       if (!token) continue;
       if (!text.toLowerCase().includes(String(token).toLowerCase())) {

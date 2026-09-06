@@ -545,6 +545,8 @@ export const GetJobApplicationOutputSchema = z.object({
         // P14-005BC: PDF byte hash for artifact integrity verification (separate from contentHash).
         // contentHash is the authoritative Markdown hash matching prepare_job_application output.
         pdfContentHash: z.string().length(64).optional(),
+        qaScore: z.number().min(0).max(100).optional(),
+        qaPassed: z.boolean().optional(),
       })
       .passthrough()
   ),

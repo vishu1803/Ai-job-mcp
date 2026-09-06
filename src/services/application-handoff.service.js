@@ -664,11 +664,12 @@ export class ApplicationHandoffService {
     // 10. Persist metadata back to tracked application record if available.
     // setApplicationHandoffKit atomically writes the kit and syncs
     // metadata.currentPackageHash so inspection tools resolve the same package.
-    if (existingApp) {
+    const targetAppId = existingApp?.id || applicationId;
+    if (targetAppId) {
       try {
         await this.applicationTrackingService.setApplicationHandoffKit(
           { tenantId, userId, role: 'MEMBER' },
-          existingApp.id,
+          targetAppId,
           handoffKit
         );
       } catch (saveErr) {

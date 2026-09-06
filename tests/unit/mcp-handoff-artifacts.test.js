@@ -262,4 +262,82 @@ describe('getVerifiedHandoffDocuments (shared MCP handoff artifact enrichment)',
     assert.equal(resume.packageVersion, 3);
     assert.equal(coverLetter.packageVersion, 3);
   });
+
+  describe('QA metadata exposure and storage isolation regression', () => {
+    it('exposes qaScore and qaPassed for both TAILORED_RESUME and TAILORED_COVER_LETTER when persisted', async () => {
+      const app = makeApplication({
+        metadata: {
+          handoffKit: {
+            applicationId: 'app-1',
+            packageHash: 'f'.repeat(64),
+            resume: makeArtifact({
+              qaAudit: { passed: true, score: 98 },
+            }),
+            coverLetter: makeArtifact({
+              filename: 'tailored-cover-letter.pdf',
+              qaAudit: { passed: true, score: 95 },
+            }),
+          },
+        },
+      });
+
+      const result = await getVerifiedHandoffDocuments(app, [], makeStorage(), {
+        currentPackageHash: 'f'.repeat(64),
+      });
+
+      assert.equal(result.length, 2);
+      const resume = result.find((d) => d.documentType === 'TAILORED_RESUME');
+      const coverLetter = result.find((d) => d.documentType === 'TAILORED_COVER_LETTER');
+
+      // Both documents expose qaScore and qaPassed
+      assert.equal(resume.qaScore, 98);
+      assert.equal(resume.qaPassed, true);
+      assert.equal(coverLetter.qaScore, 95);
+      assert.equal(coverLetter.qaPassed, true);
+    });
+
+    it('strictly prevents sensitive storage fields from leaking in tailoredDocuments', async () => {
+      const app = makeApplication();
+      const existingRows = [
+        {
+          id: 'doc-resume-id',
+          documentType: 'TAILORED_RESUME',
+          version: 1,
+          title: 'Resume Title',
+          content: { markdownContent: '...', packageHash: '...' },
+          renderedMarkdown: '# Secret Markdown',
+          ciphertext: 'raw-encrypted-bytes-that-should-never-leak',
+          metadata: {
+            storageKey: 'tenants/t1/secret-storage-key.enc',
+            texStorageKey: 'tenants/t1/secret-tex.enc',
+            artifact: {
+              ...app.metadata.handoffKit.resume,
+              storageKey: 'tenants/t1/nested-storage-key.enc',
+              texStorageKey: 'tenants/t1/nested-tex.enc',
+            },
+          },
+        },
+      ];
+
+      const result = await getVerifiedHandoffDocuments(app, existingRows, makeStorage());
+
+      for (const doc of result) {
+        // Assert sensitive storage keys and payloads never leak
+        assert.equal(doc.storageKey, undefined, 'storageKey must never leak');
+        assert.equal(doc.texStorageKey, undefined, 'texStorageKey must never leak');
+        assert.equal(doc.ciphertext, undefined, 'ciphertext must never leak');
+        assert.equal(doc.metadata, undefined, 'internal metadata object must never leak');
+        assert.equal(doc.content, undefined, 'raw database content object must never leak');
+        assert.equal(doc.renderedMarkdown, undefined, 'renderedMarkdown must never leak');
+
+        // Verify public fields are present
+        assert.ok(doc.documentType);
+        assert.ok(doc.availabilityStatus);
+        assert.ok(doc.viewUrl);
+        assert.ok(doc.downloadUrl);
+        assert.equal(typeof doc.qaScore, 'number');
+        assert.equal(typeof doc.qaPassed, 'boolean');
+      }
+    });
+  });
 });
