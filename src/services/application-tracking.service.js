@@ -1285,7 +1285,40 @@ export class ApplicationTrackingService {
           d.metadata?.artifact?.packageHash === targetPackage.packageHash
       );
 
-      const storageKeys = docsToDelete.map((d) => d.metadata?.artifact?.storageKey).filter(Boolean);
+      const candidateStorageKeys = docsToDelete
+        .map((d) => d.metadata?.artifact?.storageKey)
+        .filter(Boolean);
+
+      // SAFE ARTIFACT CLEANUP: Only delete physical storage files if no other document,
+      // no other package, and no current handoff kit references the storageKey.
+      const safeStorageKeysToDelete = [];
+      for (const storageKey of candidateStorageKeys) {
+        const referencedInOtherDocs = matchingDocs.some(
+          (d) =>
+            !docsToDelete.some((delDoc) => delDoc.id === d.id) &&
+            (d.metadata?.artifact?.storageKey === storageKey || d.storageKey === storageKey)
+        );
+        const referencedInCurrentHandoffKit =
+          application.metadata?.handoffKit?.tailoredResume?.artifact?.storageKey === storageKey ||
+          application.metadata?.handoffKit?.tailoredCoverLetter?.artifact?.storageKey ===
+            storageKey;
+
+        const referencedInOtherPackages = allPackages.some(
+          (p) =>
+            p.id !== targetPackage.id &&
+            (p.metadata?.resumeStorageKey === storageKey ||
+              p.metadata?.coverLetterStorageKey === storageKey ||
+              p.answers?.resumeStorageKey === storageKey)
+        );
+
+        if (
+          !referencedInOtherDocs &&
+          !referencedInCurrentHandoffKit &&
+          !referencedInOtherPackages
+        ) {
+          safeStorageKeysToDelete.push(storageKey);
+        }
+      }
 
       if (docsToDelete.length > 0) {
         const docIds = docsToDelete.map((d) => d.id);
@@ -1305,7 +1338,7 @@ export class ApplicationTrackingService {
           packageVersion: versionNum,
           packageHash: targetPackage.packageHash,
           deletedSnapshots: docsToDelete.length,
-          deletedArtifacts: storageKeys.length,
+          deletedArtifacts: safeStorageKeysToDelete.length,
         },
       });
 
@@ -1314,7 +1347,7 @@ export class ApplicationTrackingService {
         applicationId,
         packageVersion: versionNum,
         packageHash: targetPackage.packageHash,
-        storageKeys,
+        storageKeys: safeStorageKeysToDelete,
       };
     });
 

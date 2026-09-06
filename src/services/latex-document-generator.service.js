@@ -21,6 +21,7 @@
  */
 
 import { ValidationError } from '../errors/index.js';
+import { curateProfessionalSummary } from './candidate-artifact-content.service.js';
 
 /**
  * Escapes reserved LaTeX characters in dynamic user strings.
@@ -289,32 +290,39 @@ export class LatexDocumentGenerator {
       targetRole ||
       '';
 
-    // 2. Summary / Objective — real stored summary only; never synthesized or leaking "Tailored for:"
-    let summaryText =
-      candidateProfile?.summary ||
-      candidateProfile?.candidate?.summary ||
-      candidateProfile?.candidate?.profileMetadata?.userCustom?.summary ||
-      candidateProfile?.profileMetadata?.userCustom?.summary ||
-      '';
-
-    if (!summaryText) {
-      const summaryMatch = applicationPackage.tailoredResume?.markdownContent?.match(
-        /## Professional Summary\n+([\s\S]*?)(?=\n+##|$)/
-      );
+    // 2. Summary / Objective — real stored summary only; curated for evidence truth; never synthesized or leaking "Tailored for:"
+    let summaryText = '';
+    const summaryMatch = applicationPackage.tailoredResume?.markdownContent?.match(
+      /## Professional Summary\n+([\s\S]*?)(?=\n+##|$)/
+    );
+    if (summaryMatch?.[1]?.trim()) {
+      summaryText = summaryMatch[1].trim();
+    } else {
       summaryText =
-        summaryMatch?.[1]?.trim() ||
+        candidateProfile?.summary ||
+        candidateProfile?.candidate?.summary ||
+        candidateProfile?.candidate?.profileMetadata?.userCustom?.summary ||
+        candidateProfile?.profileMetadata?.userCustom?.summary ||
         applicationPackage.tailoredResume?.markdownContent
           ?.replace(/^#+.*$/gm, '')
           ?.replace(/\*\*Email:\*\*.*$/gm, '')
           ?.replace(/\*\*Phone:\*\*.*$/gm, '')
           ?.trim() ||
         '';
+
+      // Clean any legacy internal tailoring tags from summary
+      summaryText = summaryText
+        .replace(/^tailored for:\s*[^\n]+\n*/i, '')
+        .replace(/^dedicated professional tailored for\s*[^\n]+\n*/i, '')
+        .trim();
+
+      // Curate summary for evidence truth against candidate profile/package
+      summaryText = curateProfessionalSummary(
+        summaryText,
+        candidateProfile || applicationPackage,
+        targetJob
+      );
     }
-    // Clean any legacy internal tailoring tags from summary
-    summaryText = summaryText
-      .replace(/^tailored for:\s*[^\n]+\n*/i, '')
-      .replace(/^dedicated professional tailored for\s*[^\n]+\n*/i, '')
-      .trim();
 
     // 3. Technical Skills: Canonical mapping & alias deduplication
     const CANONICAL_SKILL_REPLACEMENTS = {

@@ -221,7 +221,6 @@ describe('Application Package Lifecycle Service', () => {
 
     it('successfully deletes an ARCHIVED package on an unsubmitted application', async () => {
       let deletedPackageId = null;
-      let deletedSnapshotIds = null;
       let auditLogged = false;
 
       const mockDb = {
@@ -269,16 +268,16 @@ describe('Application Package Lifecycle Service', () => {
                 }),
               }),
             }),
-            delete: (table) => ({
-              where: (cond) => ({
+            delete: (_table) => ({
+              where: (_cond) => ({
                 then: (resolve) => {
                   deletedPackageId = 'pkg-1';
                   resolve();
                 },
               }),
             }),
-            insert: (table) => ({
-              values: (val) => ({
+            insert: (_table) => ({
+              values: (_val) => ({
                 then: (resolve) => {
                   auditLogged = true;
                   resolve();
@@ -292,7 +291,7 @@ describe('Application Package Lifecycle Service', () => {
 
       const storageDeleted = [];
       const stubStorage = {
-        deleteEncryptedDocument: async ({ tenantId, storageKey }) => {
+        deleteEncryptedDocument: async ({ storageKey }) => {
           storageDeleted.push(storageKey);
           return true;
         },
@@ -308,8 +307,235 @@ describe('Application Package Lifecycle Service', () => {
       assert.equal(result.deleted, true);
       assert.equal(result.packageVersion, 1);
       assert.equal(result.packageHash, 'hash-1');
+      assert.equal(deletedPackageId, 'pkg-1');
       assert.ok(auditLogged);
       assert.ok(storageDeleted.includes('storage-1'));
+    });
+
+    it('rejects deletion of stale or nonexistent package version with NotFoundError', async () => {
+      const mockDb = {
+        transaction: async (cb) => {
+          let callCount = 0;
+          const tx = {
+            select: () => ({
+              from: () => ({
+                where: () => ({
+                  for: () => {
+                    callCount++;
+                    if (callCount === 1) {
+                      return [
+                        {
+                          id: applicationId,
+                          tenantId,
+                          status: 'SAVED',
+                          appliedAt: null,
+                          metadata: {},
+                        },
+                      ];
+                    }
+                    return [
+                      { id: 'pkg-2', version: 2, lifecycleState: 'CURRENT', packageHash: 'hash-2' },
+                      {
+                        id: 'pkg-1',
+                        version: 1,
+                        lifecycleState: 'ARCHIVED',
+                        packageHash: 'hash-1',
+                      },
+                    ];
+                  },
+                }),
+              }),
+            }),
+          };
+          return cb(tx);
+        },
+      };
+
+      const service = new ApplicationTrackingService({ database: mockDb });
+
+      await assert.rejects(
+        () => service.safeDeleteApplicationPackage(memberContext, applicationId, 999),
+        (err) => {
+          assert.ok(err instanceof NotFoundError);
+          assert.ok(err.message.includes('version 999 not found'));
+          return true;
+        }
+      );
+    });
+
+    it('deleting one package does not delete artifacts shared with another package or current handoff kit', async () => {
+      const mockDb = {
+        transaction: async (cb) => {
+          let callCount = 0;
+          const tx = {
+            select: () => ({
+              from: () => ({
+                where: () => ({
+                  for: () => {
+                    callCount++;
+                    if (callCount === 1) {
+                      return [
+                        {
+                          id: applicationId,
+                          tenantId,
+                          status: 'SAVED',
+                          appliedAt: null,
+                          metadata: {
+                            handoffKit: {
+                              tailoredResume: {
+                                artifact: { storageKey: 'shared-resume-storage-key' },
+                              },
+                            },
+                          },
+                        },
+                      ];
+                    }
+                    return [
+                      {
+                        id: 'pkg-2',
+                        version: 2,
+                        lifecycleState: 'CURRENT',
+                        packageHash: 'hash-2',
+                        metadata: { resumeStorageKey: 'shared-resume-storage-key' },
+                      },
+                      {
+                        id: 'pkg-1',
+                        version: 1,
+                        lifecycleState: 'ARCHIVED',
+                        packageHash: 'hash-1',
+                      },
+                    ];
+                  },
+                  // tailoredDocuments query
+                  then: (resolve) =>
+                    resolve([
+                      {
+                        id: 'doc-1',
+                        documentType: 'TAILORED_RESUME',
+                        metadata: {
+                          packageHash: 'hash-1',
+                          artifact: {
+                            storageKey: 'shared-resume-storage-key',
+                            packageHash: 'hash-1',
+                          },
+                        },
+                      },
+                      {
+                        id: 'doc-1-cover',
+                        documentType: 'TAILORED_COVER_LETTER',
+                        metadata: {
+                          packageHash: 'hash-1',
+                          artifact: {
+                            storageKey: 'exclusive-cover-letter-key',
+                            packageHash: 'hash-1',
+                          },
+                        },
+                      },
+                    ]),
+                }),
+              }),
+            }),
+            delete: (_table) => ({
+              where: (_cond) => ({
+                then: (resolve) => resolve(),
+              }),
+            }),
+            insert: (_table) => ({
+              values: (_val) => ({
+                then: (resolve) => resolve(),
+              }),
+            }),
+          };
+          return cb(tx);
+        },
+      };
+
+      const storageDeleted = [];
+      const stubStorage = {
+        deleteEncryptedDocument: async ({ storageKey }) => {
+          storageDeleted.push(storageKey);
+          return true;
+        },
+      };
+
+      const service = new ApplicationTrackingService({
+        database: mockDb,
+        documentStorage: stubStorage,
+      });
+
+      const result = await service.safeDeleteApplicationPackage(memberContext, applicationId, 1);
+
+      assert.equal(result.deleted, true);
+      // Only the exclusive cover letter key may be deleted from physical storage!
+      assert.ok(
+        !storageDeleted.includes('shared-resume-storage-key'),
+        'Shared storage key must NOT be deleted from storage'
+      );
+      assert.ok(
+        storageDeleted.includes('exclusive-cover-letter-key'),
+        'Exclusive storage key must be cleaned up'
+      );
+    });
+
+    it('deleting old package leaves CURRENT package unchanged', async () => {
+      const packagesDeleted = [];
+      const mockDb = {
+        transaction: async (cb) => {
+          let callCount = 0;
+          const tx = {
+            select: () => ({
+              from: () => ({
+                where: () => ({
+                  for: () => {
+                    callCount++;
+                    if (callCount === 1) {
+                      return [
+                        {
+                          id: applicationId,
+                          tenantId,
+                          status: 'SAVED',
+                          appliedAt: null,
+                          metadata: { currentPackageHash: 'hash-2', currentPackageVersion: 2 },
+                        },
+                      ];
+                    }
+                    return [
+                      { id: 'pkg-2', version: 2, lifecycleState: 'CURRENT', packageHash: 'hash-2' },
+                      {
+                        id: 'pkg-1',
+                        version: 1,
+                        lifecycleState: 'ARCHIVED',
+                        packageHash: 'hash-1',
+                      },
+                    ];
+                  },
+                  then: (resolve) => resolve([]),
+                }),
+              }),
+            }),
+            delete: (_table) => ({
+              where: (_cond) => ({
+                then: (resolve) => {
+                  packagesDeleted.push('pkg-1');
+                  resolve();
+                },
+              }),
+            }),
+            insert: (_table) => ({
+              values: (_val) => ({
+                then: (resolve) => resolve(),
+              }),
+            }),
+          };
+          return cb(tx);
+        },
+      };
+
+      const service = new ApplicationTrackingService({ database: mockDb });
+      const result = await service.safeDeleteApplicationPackage(memberContext, applicationId, 1);
+
+      assert.equal(result.deleted, true);
+      assert.deepEqual(packagesDeleted, ['pkg-1']);
     });
   });
 
@@ -353,7 +579,7 @@ describe('Application Package Lifecycle Service', () => {
                 }),
               }),
             }),
-            update: (table) => ({
+            update: (_table) => ({
               set: (vals) => ({
                 where: () => ({
                   returning: () => {
@@ -374,8 +600,8 @@ describe('Application Package Lifecycle Service', () => {
                 }),
               }),
             }),
-            insert: (table) => ({
-              values: (val) => ({
+            insert: (_table) => ({
+              values: (_val) => ({
                 then: (resolve) => {
                   auditLogged = true;
                   resolve();
@@ -393,6 +619,7 @@ describe('Application Package Lifecycle Service', () => {
 
       assert.equal(restored.version, 1);
       assert.equal(restored.lifecycleState, 'CURRENT');
+      assert.equal(promotedId, 'pkg-1');
       assert.ok(demotedCalled, 'Other versions must be demoted to ARCHIVED');
       assert.equal(appMetadataUpdated.currentPackageHash, 'hash-1');
       assert.equal(appMetadataUpdated.currentPackageVersion, 1);

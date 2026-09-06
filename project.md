@@ -5,6 +5,80 @@
 
 ---
 
+### P14-013: Evidence-Aware Professional Summary Curation, Package Deletion Reference Safety, and Zero-Fabrication Resume Truth Audit
+
+**Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Following content-truth auditing of candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` targeting the Stripe Senior Backend Engineer position, two critical issues were addressed:
+1. **Summary-Truth Defect (`SUMMARY TRUTH: FAIL`):**
+   - The stored candidate summary (`candidates.summary`) contained parenthetical framework groupings: `"Python (FastAPI/Django)"` and `"Node.js (Express/NestJS)"`.
+   - Audit revealed `Django` has 0 repository evidence items and is an unverified user claim (`provenanceStatus: CLAIMED`). Furthermore, for general backend API positions like Stripe Senior Backend Engineer, candidate experience (FTV Saloon) and top backend project (Collaborative Task Manager) ground `Express` over `NestJS`.
+   - Exposing unevidenced or deprioritized frameworks in the prominent professional summary failed the zero-fabrication content-truth gate.
+   - Requirement: Implement a generic evidence-aware summary curation step (`curateProfessionalSummary`) without hardcoded string replacements, without inventing replacement technologies, and without mutating stored profile records (`candidates.summary`, `userCustom.summary`).
+2. **Handoff Kit Historical Package Deletion Hardening:**
+   - When deleting historical package versions ($v_1 \dots v_n$), the deletion logic had to guarantee that physical encrypted artifact files in storage are NOT deleted if they are still referenced by the active `CURRENT` package, the application's current `handoffKit` metadata, or any other historical package version.
+   - Invariants: Never delete CURRENT version; never delete the sole package; fail-closed if status is `SUBMITTED`; preserve immutable artifacts for active packages.
+
+**Core Invariants Enforced:**
+- Zero database mutations to candidate profile or summary source of truth (`candidates.summary`, `userCustom.summary` remain immutable).
+- Zero hardcoded literal string replacement: framework parsing, canonical skill resolution, provenance inspection, and job-relevance/grounding evaluation are fully dynamic.
+- Physical artifact cleanup in document storage checks reference counts across all remaining packages and the current handoff kit before invoking storage deletion.
+- All candidate profile URLs strictly derive from authoritative DB records (`https://github.com/vishu1803` for GitHub; project-level repositories never satisfy candidate-level links).
+- Strict single-page layout (374 words, 0.5in margins, balanced ATS density, 100/100 QA score).
+
+**Key Changes Implemented:**
+1. **Candidate Artifact Content Service (`src/services/candidate-artifact-content.service.js`):**
+   - Implemented `curateProfessionalSummary(rawSummary, candidateData, jobPosting)`:
+     - Parses technology parenthetical expressions (`Base (Framework1/Framework2)`) via regex.
+     - Resolves framework tokens against canonical candidate skills via `CANONICAL_ALIAS_MAP`.
+     - Filters out unevidenced claimed skills (`evidenceCount === 0` or `provenanceStatus === 'CLAIMED'`).
+     - Evaluates job description requirements and candidate experience/project grounding to select the most relevant supported framework.
+     - Gracefully reduces to base technology if no frameworks have evidence, maintaining natural sentence grammar.
+   - Integrated into `buildTailoredResumeMarkdown`.
+2. **LaTeX Document Generator (`src/services/latex-document-generator.service.js`):**
+   - Updated `generateTailoredResumeLatex` to directly extract and preserve the curated summary from `applicationPackage.tailoredResume.markdownContent` (with fallback to `curateProfessionalSummary`).
+3. **Application Tracking Service (`src/services/application-tracking.service.js`):**
+   - Hardened `safeDeleteApplicationPackage`:
+     - Added cross-reference safety check scanning `application.metadata.handoffKit`, all remaining package records, and snapshot tailored documents.
+     - Physical encrypted files in storage are only deleted if 0 other records reference the `storageKey`.
+     - Deleting a historical package version leaves the `CURRENT` version and its artifacts completely unaffected.
+4. **Handoff UI View (`src/views/handoff.page.js`):**
+   - Updated package deletion confirmation prompt to include package version and short hash prefix: `Permanently delete package version v${escapeHtml(String(pkg.version))} (${escapeHtml(pkgShortHash)}) and its document snapshots?`.
+5. **Acceptance Test Suite (`scratch/test-stripe-resume.mjs`):**
+   - Implemented end-to-end acceptance verification using Tectonic 0.15.0 and `PdfQaValidatorService`.
+   - Added programmatic assertions verifying all 6 truth categories: `SUMMARY TRUTH`, `HEADER LINKS`, `SKILL TRUTH`, `PROJECT TRUTH`, `EXPERIENCE TRUTH`, `ONE-PAGE LAYOUT`.
+
+**Verification Results:**
+- **Stripe Senior Backend Resume End-to-End Acceptance (`scratch/test-stripe-resume.mjs`):**
+  - **Overall QA Score:** 100/100 (EXCELLENT)
+  - **Category Scores:** `{ parsingCompatibility: 35, contentIntegrity: 35, readability: 30 }`
+  - **Findings Count:** 0
+  - **Extracted Word Count:** 374 words (strictly 1 page)
+  - **Audit Truth Ratings:**
+    - `SUMMARY TRUTH:` **PASS** (`Python (FastAPI)` and `Node.js (Express)` curated; `Django` omitted)
+    - `HEADER LINKS:` **PASS** (GitHub: `https://github.com/vishu1803`, LinkedIn, Portfolio, LeetCode)
+    - `SKILL TRUTH:` **PASS** (Authentic partitioned technical skills)
+    - `PROJECT TRUTH:` **PASS** (Collaborative Task Manager, AI-Powered Code Review Assistant with authentic bullets)
+    - `EXPERIENCE TRUTH:` **PASS** (FTV Saloon prominent with authentic bullets)
+    - `ONE-PAGE LAYOUT:` **PASS** (Exactly 1 page, balanced density)
+- **Unit Test Suites (`node --test ...`):**
+  - `tests/unit/summary-truth-curation.test.js`: **7/7 PASS** (unsupported claimed omitted, verified preserved, candidate DB immutable, zero hallucinations, grammatical coherence, job relevance selection)
+  - `tests/unit/application-package-lifecycle.test.js`: **11/11 PASS** (safe deletion, nonexistent version error, shared artifact protection, CURRENT invariant)
+  - `tests/unit/resume-content-strategy.test.js`: **15/15 PASS**
+  - `tests/unit/latex-document-generator.test.js`: **6/6 PASS**
+  - `tests/unit/pdf-qa-validator.test.js`: **4/4 PASS**
+  - `tests/unit/application-content-defects.test.js`: **17/17 PASS**
+  - `tests/unit/job-application-submission-truth.test.js`: **8/8 PASS**
+  - **Combined Regression Suite:** **68/68 PASS**
+- **Code Style & Governance:**
+  - ESLint: **0 errors, 0 warnings**
+  - Prettier: **PASS** across all modified files
+  - Secrets Scan (`scripts/scan-secrets.js`): **PASS (0 exposed secrets)**
+
+---
+
 ### P14-012: Final Resume Presentation & Layout Optimization: Internal Metadata Elimination, 4-Tier ATS Header, and Dynamic Content Density
 
 **Status:** COMPLETE LOCALLY; PUBLIC DEPLOYMENT/CONNECTOR VERIFICATION PENDING  

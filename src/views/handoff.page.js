@@ -538,7 +538,7 @@ export function renderHandoffPage({
                                               ? `<button type="button" disabled class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; opacity:0.4; cursor:not-allowed;" title="Cannot delete packages for submitted applications">Delete</button>`
                                               : packageHistory.length <= 1
                                                 ? `<button type="button" disabled class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; opacity:0.4; cursor:not-allowed;" title="Cannot delete sole package">Delete</button>`
-                                                : `<button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; color:#EF4444; border-color:rgba(239, 68, 68, 0.3);" onclick="return confirm('Permanently delete package version v${escapeHtml(String(pkg.version))} and its document snapshots?')">Delete</button>`
+                                                : `<button type="submit" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:3px 8px; color:#EF4444; border-color:rgba(239, 68, 68, 0.3);" onclick="return confirm('Permanently delete package version v${escapeHtml(String(pkg.version))} (${escapeHtml(pkgShortHash)}) and its document snapshots?')">Delete</button>`
                                           }
                                         </form>`
                                      : ''

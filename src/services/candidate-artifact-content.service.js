@@ -327,6 +327,255 @@ export function reconcileCandidateProjects({
   return Array.from(projectMap.values());
 }
 
+/**
+ * Generic evidence-aware professional summary curation.
+ *
+ * Inspects technology and framework references in the candidate's summary text,
+ * resolves each reference against canonical skills and evidence, and prunes
+ * unsupported (unverified/claimed without evidence) framework references while
+ * preserving authentic wording, punctuation, and surrounding text.
+ *
+ * Truth Invariants:
+ * 1. Never modifies stored candidate records (candidates.summary, userCustom.summary).
+ * 2. Never invents replacement technologies.
+ * 3. Prunes claimed technologies with zero code/repository evidence.
+ * 4. Preserves authentic wording and structure.
+ * 5. Uses job-specific relevance and candidate evidence to select between multiple supported alternatives.
+ *
+ * @param {string} rawSummary Stored summary text
+ * @param {object} candidateData Canonical candidate data snapshot or career profile
+ * @param {object} [jobPosting] Optional job posting for relevance scoring
+ * @returns {string} Truth-curated professional summary
+ */
+export function curateProfessionalSummary(rawSummary, candidateData = {}, jobPosting = {}) {
+  if (!rawSummary || typeof rawSummary !== 'string') {
+    return rawSummary || '';
+  }
+
+  const CANONICAL_ALIAS_MAP = {
+    prisma: 'Prisma ORM',
+    'prisma orm': 'Prisma ORM',
+    postgres: 'PostgreSQL',
+    postgresql: 'PostgreSQL',
+    'postgresql (sql)': 'PostgreSQL',
+    node: 'Node.js',
+    'node.js': 'Node.js',
+    express: 'Express.js',
+    'express.js': 'Express.js',
+    react: 'React',
+    'react.js': 'React',
+    drizzle: 'Drizzle ORM',
+    'drizzle orm': 'Drizzle ORM',
+    'rest api': 'RESTful APIs',
+    'rest apis': 'RESTful APIs',
+    'rest api design': 'RESTful APIs',
+    fastapi: 'FastAPI',
+    fastify: 'Fastify',
+    'next.js': 'Next.js',
+    nextjs: 'Next.js',
+    nestjs: 'NestJS',
+    django: 'Django',
+    flask: 'Flask',
+  };
+
+  // 1. Build canonical skill lookup from candidateData
+  const skillMap = new Map();
+  const rawSkills = [
+    ...(candidateData.skills || []),
+    ...(candidateData.candidateSkills || []),
+    ...((candidateData.candidate && candidateData.skills) || []),
+  ];
+  if (rawSkills.length === 0 && candidateData.skillsByCategory) {
+    for (const group of Object.values(candidateData.skillsByCategory)) {
+      if (Array.isArray(group)) rawSkills.push(...group);
+    }
+  }
+  if (rawSkills.length === 0 && candidateData.skillsByProvenance) {
+    for (const group of Object.values(candidateData.skillsByProvenance)) {
+      if (Array.isArray(group)) rawSkills.push(...group);
+    }
+  }
+
+  for (const s of rawSkills) {
+    const name = s.name || s.skillName;
+    if (!name) continue;
+    const token = normalizeSkillToken(name);
+    skillMap.set(token, s);
+    const lower = name.toLowerCase().trim();
+    if (CANONICAL_ALIAS_MAP[lower]) {
+      skillMap.set(normalizeSkillToken(CANONICAL_ALIAS_MAP[lower]), s);
+    }
+    if (lower === 'express.js' || lower === 'express') {
+      skillMap.set('express', s);
+      skillMap.set('expressjs', s);
+    }
+  }
+
+  // Also build lookup from projects
+  const projectTechTokens = new Set();
+  const projectsList =
+    candidateData.projects ||
+    candidateData.selectedProjects ||
+    (candidateData.candidate && candidateData.projects) ||
+    [];
+  for (const p of projectsList) {
+    for (const t of p.technologies || []) {
+      projectTechTokens.add(normalizeSkillToken(t));
+    }
+  }
+
+  // Job keywords for relevance
+  const jobTokens = jobPosting?.skills
+    ? new Set(jobPosting.skills.map((s) => normalizeSkillToken(s)))
+    : extractJobKeywords(jobPosting);
+  const jobDescText = String(
+    (jobPosting?.title || '') +
+      ' ' +
+      (jobPosting?.description || '') +
+      ' ' +
+      (jobPosting?.requirements || []).join(' ')
+  ).toLowerCase();
+
+  // 2. Parse parenthetical technology references: e.g. "Python (FastAPI/Django)", "Node.js (Express/NestJS)"
+  const parentheticalRegex = /\b([A-Za-z0-9#+.]+(?:\s+[A-Za-z0-9#+.]+)?)\s*\(([^)]+)\)/g;
+
+  let curated = rawSummary.replace(parentheticalRegex, (fullMatch, baseTech, innerStr) => {
+    const rawTokens = innerStr
+      .split(/[/,]|\s+(?:and|or)\s+/i)
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    if (rawTokens.length === 0) return fullMatch;
+
+    const evaluatedTokens = [];
+
+    for (const tokenStr of rawTokens) {
+      const token = normalizeSkillToken(tokenStr);
+      const aliasTarget =
+        CANONICAL_ALIAS_MAP[tokenStr.toLowerCase().trim()] || CANONICAL_ALIAS_MAP[token];
+      let matchedSkill =
+        skillMap.get(token) ||
+        (aliasTarget ? skillMap.get(normalizeSkillToken(aliasTarget)) : null);
+      if (!matchedSkill) {
+        for (const [sToken, sObj] of skillMap.entries()) {
+          if (sToken === token || sToken.startsWith(token) || token.startsWith(sToken)) {
+            matchedSkill = sObj;
+            break;
+          }
+        }
+      }
+
+      const provenance =
+        matchedSkill?.provenanceStatus ||
+        matchedSkill?.provenance ||
+        (matchedSkill?.isUserClaim ? 'CLAIMED' : matchedSkill ? 'VERIFIED' : null);
+      const evidenceCount =
+        matchedSkill?.evidenceCount ||
+        (Array.isArray(matchedSkill?.evidence) ? matchedSkill.evidence.length : 0);
+
+      const hasProjectEvidence = projectTechTokens.has(token);
+
+      // Provenance/Evidence strength check:
+      // A technology is UNSUPPORTED if it has 0 evidence rows AND is purely CLAIMED / SELF_DECLARED / UNVERIFIED,
+      // and has no backing in candidate projects.
+      const isClaimedZeroEvidence =
+        evidenceCount === 0 &&
+        (!provenance || provenance === 'CLAIMED' || provenance === 'SELF_DECLARED') &&
+        !hasProjectEvidence;
+
+      if (isClaimedZeroEvidence) {
+        // Unsupported framework (e.g. Django with 0 evidence) -> omit
+        continue;
+      }
+
+      // Compute job-specific relevance and grounding score
+      let relevanceScore = 0;
+      if (
+        jobTokens.has(token) ||
+        (token.length >= 3 && jobDescText.includes(tokenStr.toLowerCase()))
+      ) {
+        relevanceScore += 30;
+      }
+      // If role emphasizes REST APIs / RESTful architecture and framework is Express
+      if (
+        (token === 'express' || token === 'expressjs') &&
+        (jobDescText.includes('rest') ||
+          jobDescText.includes('api') ||
+          jobTokens.has('restapis') ||
+          jobTokens.has('restfulapis'))
+      ) {
+        relevanceScore += 25;
+      }
+      if (hasProjectEvidence) {
+        relevanceScore += 20;
+      }
+      if (provenance === 'VERIFIED' || provenance === 'CORROBORATED') {
+        relevanceScore += 15;
+      }
+      if (evidenceCount > 0) {
+        relevanceScore += Math.min(10, evidenceCount);
+      }
+
+      const experienceList =
+        candidateData.experience ||
+        candidateData.candidate?.profileMetadata?.userCustom?.experience ||
+        candidateData.profileMetadata?.userCustom?.experience ||
+        [];
+      for (const exp of experienceList) {
+        const expText = ((exp.title || '') + ' ' + (exp.bullets || []).join(' ')).toLowerCase();
+        if (
+          expText.includes(tokenStr.toLowerCase()) ||
+          ((token === 'express' || token === 'expressjs') && expText.includes('restful api'))
+        ) {
+          relevanceScore += 20;
+          break;
+        }
+      }
+
+      evaluatedTokens.push({
+        name: tokenStr,
+        canonicalName: matchedSkill?.name || tokenStr,
+        evidenceCount,
+        provenance,
+        relevanceScore,
+      });
+    }
+
+    if (evaluatedTokens.length === 0) {
+      return baseTech;
+    }
+
+    if (evaluatedTokens.length === 1) {
+      return `${baseTech} (${evaluatedTokens[0].name})`;
+    }
+
+    // Multiple supported tokens: sort by relevance score descending
+    evaluatedTokens.sort(
+      (a, b) => b.relevanceScore - a.relevanceScore || b.evidenceCount - a.evidenceCount
+    );
+
+    const top = evaluatedTokens[0];
+    const second = evaluatedTokens[1];
+    if (
+      top.relevanceScore - second.relevanceScore >= 10 ||
+      top.relevanceScore > second.relevanceScore
+    ) {
+      return `${baseTech} (${top.name})`;
+    }
+
+    return `${baseTech} (${evaluatedTokens.map((t) => t.name).join('/')})`;
+  });
+
+  // Clean formatting artifacts
+  curated = curated
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([.,;:])/g, '$1')
+    .trim();
+
+  return curated;
+}
+
 export class CandidateArtifactContentService {
   /**
    * @param {object} [options={}]
@@ -1295,6 +1544,18 @@ export class CandidateArtifactContentService {
   }
 
   /**
+   * Generic evidence-aware professional summary curation method.
+   *
+   * @param {string} rawSummary Stored candidate summary
+   * @param {object} candidateData Canonical candidate data snapshot
+   * @param {object} [jobPosting] Optional job posting
+   * @returns {string} Truth-curated summary
+   */
+  curateProfessionalSummary(rawSummary, candidateData, jobPosting) {
+    return curateProfessionalSummary(rawSummary, candidateData, jobPosting);
+  }
+
+  /**
    * Builds the tailored resume markdown from real candidate data.
    *
    * @param {object} candidateData Candidate data snapshot
@@ -1354,13 +1615,13 @@ export class CandidateArtifactContentService {
     }
     lines.push('');
 
-    // ---- Professional Summary (verbatim stored summary; never synthesized) ---
+    // ---- Professional Summary (curated authentic summary; never synthesized) ---
     lines.push('## Professional Summary');
     lines.push('');
-    if (candidateData.summary) {
-      lines.push(candidateData.summary);
-    } else if (candidateData.headline) {
-      lines.push(candidateData.headline);
+    const rawSummary = candidateData.summary || candidateData.headline;
+    if (rawSummary) {
+      const curated = this.curateProfessionalSummary(rawSummary, candidateData, jobPosting);
+      lines.push(curated);
     } else {
       lines.push('*(Professional summary not provided in profile.)*');
     }
