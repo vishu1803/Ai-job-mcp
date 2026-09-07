@@ -90,6 +90,10 @@ export function renderHandoffPage({
   const missingFieldSet = new Set(missingFields);
   const needsConfirmSet = new Set(needsConfirmFields);
   const resumeQa = resume.qaAudit || {};
+  const resumeQuality = resume.resumeQuality || null;
+  const atsParseability = resumeQuality?.atsParseability || null;
+  const jobMatch = resumeQuality?.jobMatch || null;
+  const evidenceCoverage = resumeQuality?.evidenceBackedCoverage || null;
   const packageHash =
     handoffKit.packageHash ||
     application.metadata?.currentPackageHash ||
@@ -264,11 +268,15 @@ export function renderHandoffPage({
             </div>
           </div>
           ${
-            resumeQa.score !== undefined
+            resumeQuality
               ? `<span class="badge" style="background:rgba(16, 185, 129, 0.1); color:#10B981; border:1px solid rgba(16, 185, 129, 0.25); font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:4px; max-width:100%; box-sizing:border-box;">
-                  <span class="quality-pill-score">${escapeHtml(String(resumeQa.score))}/100</span> &bull; <span class="quality-pill-label">Resume Quality Audit</span>
+                  <span class="quality-pill-score">${escapeHtml(String(atsParseability?.score ?? '—'))}/100</span> &bull; <span class="quality-pill-label">ATS Parseability</span>
                  </span>`
-              : ''
+              : resumeQa.score !== undefined
+                ? `<span class="badge" style="background:rgba(16, 185, 129, 0.1); color:#10B981; border:1px solid rgba(16, 185, 129, 0.25); font-size:0.8rem; font-weight:700; padding:4px 10px; border-radius:4px; max-width:100%; box-sizing:border-box;">
+                    <span class="quality-pill-score">${escapeHtml(String(resumeQa.score))}/100</span> &bull; <span class="quality-pill-label">Resume Quality Audit</span>
+                   </span>`
+                : ''
           }
         </div>
 
@@ -290,7 +298,48 @@ export function renderHandoffPage({
                 </div>
               </div>
 
-              <!-- Resume Quality Breakdown -->
+              ${
+                resumeQuality
+                  ? `
+              <!-- RESUME QUALITY: three honest, auditable metrics (P14-024) -->
+              <div style="background:#05070D; border:1px solid rgba(255,255,255,0.04); border-radius:6px; padding:12px; margin-bottom:16px;">
+                <div style="font-size:0.72rem; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+                  Resume Quality
+                </div>
+                <div style="display:flex; flex-direction:column; gap:6px; font-size:0.8rem;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <span style="color:var(--text-muted);">ATS Parseability</span>
+                    <span style="font-weight:700; color:var(--text-main); font-family:var(--font-mono);">${escapeHtml(String(atsParseability?.score ?? '—'))}/100</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <span style="color:var(--text-muted);">Job Match</span>
+                    <span style="font-weight:700; color:var(--text-main); font-family:var(--font-mono);">${jobMatch?.score != null ? escapeHtml(String(jobMatch.score)) : '—'}/100</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <span style="color:var(--text-muted);">Evidence-Backed Coverage</span>
+                    <span style="font-weight:700; color:var(--text-main); font-family:var(--font-mono);">${escapeHtml(String(evidenceCoverage?.score ?? '—'))}/100</span>
+                  </div>
+                </div>
+                ${
+                  atsParseability?.disclaimer
+                    ? `<div style="margin-top:8px; font-size:0.7rem; color:var(--text-dim); line-height:1.4;">
+                        ${escapeHtml(atsParseability.disclaimer)}
+                       </div>`
+                    : ''
+                }
+                ${
+                  evidenceCoverage?.summary
+                    ? `<div style="margin-top:6px; font-size:0.72rem; color:var(--text-dim); display:flex; flex-wrap:wrap; gap:10px;">
+                        <span><strong style="color:#10B981;">${escapeHtml(String(evidenceCoverage.summary.evidenceBacked))}</strong> evidence-backed</span>
+                        <span><strong style="color:#F59E0B;">${escapeHtml(String(evidenceCoverage.summary.claimed))}</strong> candidate-claimed</span>
+                        <span><strong style="color:#EF4444;">${escapeHtml(String(evidenceCoverage.summary.missing))}</strong> unsupported</span>
+                       </div>`
+                    : ''
+                }
+              </div>
+              `
+                  : `
+              <!-- Resume Quality Breakdown (legacy QA audit) -->
               <div style="background:#05070D; border:1px solid rgba(255,255,255,0.04); border-radius:6px; padding:12px; margin-bottom:16px;">
                 <div style="font-size:0.72rem; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
                   Resume Quality Audit Breakdown
@@ -314,6 +363,8 @@ export function renderHandoffPage({
                   <span style="font-weight:600; color:var(--accent-indigo);">${escapeHtml(String(resumeQa.metrics?.jobAlignmentCoverage ?? 90))}% Supported</span>
                 </div>
               </div>
+              `
+              }
             </div>
 
             <div style="display:flex; gap:10px; margin-top:8px;">

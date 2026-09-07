@@ -17,12 +17,14 @@
 import { LatexDocumentGenerator } from './latex-document-generator.service.js';
 import { LatexCompilerService } from './latex-compiler.service.js';
 import { PdfQaValidatorService } from './pdf-qa-validator.service.js';
+import { ResumeQualityAssessmentService } from './resume-quality-assessment.service.js';
 import { DocumentStorageService } from './document-storage.service.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
 import { ApplicationReadinessService } from './application-readiness.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
+import { ResumeParserService } from './resume-parser.service.js';
 
 export class ApplicationHandoffService {
   /**
@@ -39,6 +41,9 @@ export class ApplicationHandoffService {
     this.latexGenerator = dependencies.latexGenerator || new LatexDocumentGenerator();
     this.latexCompiler = dependencies.latexCompiler || new LatexCompilerService();
     this.qaValidator = dependencies.qaValidator || new PdfQaValidatorService();
+    this.resumeQualityAssessment =
+      dependencies.resumeQualityAssessment || new ResumeQualityAssessmentService();
+    this.resumeParser = dependencies.resumeParser || new ResumeParserService();
     this.documentStorage = dependencies.documentStorage || new DocumentStorageService();
     this.candidateProfileService =
       dependencies.candidateProfileService || new CandidateProfileService();
@@ -363,6 +368,31 @@ export class ApplicationHandoffService {
       documentType: 'RESUME',
     });
 
+    // 4b. Deterministic Resume-Quality Assessment (P14-024).
+    // Three honest metrics replace the misleading arbitrary ATS score:
+    // - ATS Parseability: deterministic check ledger over the ACTUAL rendered PDF
+    // - Job Match: strict passthrough of the existing evidence-aware fit engine
+    // - Evidence-Backed Coverage: job requirements vs evidence-grounded content
+    let resumeQuality = null;
+    try {
+      const extractedResumeText = this.resumeParser
+        ? this.resumeParser.extractRawText({ buffer: resumePdfResult.pdfBuffer, format: 'PDF' })
+        : '';
+      resumeQuality = this.resumeQualityAssessment.assessResumeQuality({
+        extractedText: extractedResumeText,
+        texContent: resumeLatexResult.texContent,
+        applicationPackage,
+        candidateProfile,
+        jobFit: applicationPackage.jobFitAnalysis || null,
+        analyzedAt: applicationPackage.preparedAt || null,
+      });
+    } catch (assessErr) {
+      this.logger.warn(
+        { error: assessErr.message },
+        'Resume-quality assessment failed; kit continues without the three-metric block'
+      );
+    }
+
     // 5. Document Generation: Cover Letter
     const clLatexResult = this.latexGenerator.generateTailoredCoverLetterLatex({
       applicationPackage,
@@ -454,6 +484,7 @@ export class ApplicationHandoffService {
           metrics: resumeQaAudit.metrics,
           findings: resumeQaAudit.findings,
         },
+        resumeQuality,
       },
       coverLetter: {
         filename: 'tailored-cover-letter.pdf',

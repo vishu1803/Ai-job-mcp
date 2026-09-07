@@ -88,7 +88,7 @@ function formatLatexBullets(bullets) {
 
   if (cleanLines.length === 0) return '';
   return (
-    '\\begin{itemize}\n\\setlength{\\itemsep}{1pt}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\n' +
+    '\\begin{itemize}\n\\setlength{\\itemsep}{\\atsBulletSep}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}\n' +
     cleanLines.map((l) => `  \\item ${escapeLatex(l)}`).join('\n') +
     '\n\\end{itemize}'
   );
@@ -215,12 +215,15 @@ export class LatexDocumentGenerator {
     // Build profile links (Tier 4: LinkedIn, GitHub, Portfolio, LeetCode)
     const profileLinkElements = [];
 
-    // Resolve authoritative portfolio links from candidate profile or package
-    const customLinks =
-      candidateProfile?.candidate?.profileMetadata?.userCustom?.portfolioLinks ||
-      candidateProfile?.profileMetadata?.userCustom?.portfolioLinks ||
-      (Array.isArray(candidateProfile?.portfolioLinks) ? candidateProfile.portfolioLinks : []) ||
-      (Array.isArray(applicationPackage?.portfolioLinks) ? applicationPackage.portfolioLinks : []);
+    // Resolve authoritative portfolio links from candidate profile or package.
+    // NOTE: an empty profile array must NOT short-circuit the package fallback.
+    const profileLinksList = Array.isArray(candidateProfile?.portfolioLinks)
+      ? candidateProfile.portfolioLinks
+      : [];
+    const packageLinksList = Array.isArray(applicationPackage?.portfolioLinks)
+      ? applicationPackage.portfolioLinks
+      : [];
+    const customLinks = profileLinksList.length > 0 ? profileLinksList : packageLinksList;
 
     const linkedInLink = customLinks.find(
       (l) =>
@@ -421,7 +424,7 @@ export class LatexDocumentGenerator {
         }
       }
       if (formattedLines.length > 0) {
-        skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\n')}\n\\vspace{2pt}`;
+        skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\n')}`;
       }
     }
 
@@ -450,7 +453,7 @@ export class LatexDocumentGenerator {
             }
             return `${escapeLatex(line)}\\\\`;
           });
-          skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\n')}\n\\vspace{2pt}`;
+          skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\n')}`;
         }
       }
     }
@@ -644,10 +647,12 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
         }
         const linksStr = linkParts.join(' $\\cdot$ ');
 
-        // Build project header: \textbf{Name} $|$ \textit{Technologies} \hfill Links
+        // Project header: bold title + right-aligned action links on line 1;
+        // technologies render on their own compact line beneath so long stacks
+        // wrap intentionally instead of breaking mid-list after the title.
         let headerLine = `\\textbf{${pName}}`;
-        if (techs) headerLine += ` $|$ \\textit{${techs}}`;
         if (linksStr) headerLine += ` \\hfill ${linksStr}`;
+        const techLine = techs ? `{\\small\\textit{${techs}}}` : '';
 
         // Clean bullets: filter out raw link bullets, keep top 2-3 meaningful bullets
         const rawBullets = Array.isArray(p.bullets) ? p.bullets : p.highlights || [];
@@ -663,7 +668,12 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
 
         const pBullets = formatLatexBullets(cleanBullets);
 
-        return `${headerLine}\n${pBullets}\n\\vspace{2pt}`;
+        const entryLines = [`${headerLine}\\\\`];
+        if (techLine) entryLines.push(techLine);
+        entryLines.push('\\atsentryheadgap');
+        if (pBullets) entryLines.push(pBullets);
+        entryLines.push('\\atsentrygap');
+        return entryLines.join('\n');
       });
       projectsLatexSection = `\\atssection{Technical Projects}\n${projectEntries.join('\n')}`;
     }
@@ -673,13 +683,15 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
       const leetcodeUrl = leetcodeLink.url;
       const cleanLeetcodeDisplay = leetcodeUrl.replace(/^https?:\/\/(www\.)?/, '');
       dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
-\\textbf{LeetCode Profile} $|$ \\textit{Candidate-Reported Problem Solving} \\hfill \\href{${escapeLatex(leetcodeUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}\\\\
+\\textbf{LeetCode Profile} \\hfill \\href{${escapeLatex(leetcodeUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}\\\\
+{\\small\\textit{Candidate-Reported Problem Solving}}
+\\atsentryheadgap
 \\begin{itemize}
-\\setlength{\\itemsep}{1pt}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}
+\\setlength{\\itemsep}{\\atsBulletSep}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
   \\item Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.
   \\item Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.
 \\end{itemize}
-\\vspace{2pt}`;
+\\atsentrygap`;
     }
 
     // 5. Professional Experience — real stored records only.
@@ -722,10 +734,10 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
     if (certNames.length > 0) {
       certLatexSection = `\\atssection{Certifications}
 \\begin{itemize}
-\\setlength{\\itemsep}{1pt}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}
+\\setlength{\\itemsep}{\\atsBulletSep}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
 ${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
 \\end{itemize}
-\\vspace{2pt}`;
+\\atsentrygap`;
     }
 
     const hasRealExperience = experienceRecords.length > 0;
@@ -748,12 +760,23 @@ ${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
   citecolor=black
 }
 
+% --- Centralized vertical spacing system (single source of truth) ---
+% Hierarchy: major section gap > entry gap > heading-to-content gap > bullet gap
+\\newcommand{\\atsSectionGap}{7pt}      % major section separation
+\\newcommand{\\atsHeadingGap}{3pt}      % section heading -> first content line
+\\newcommand{\\atsProjectGap}{4pt}      % project-to-project / entry-to-entry
+\\newcommand{\\atsProjectHeadGap}{2pt}  % project heading -> project bullets
+\\newcommand{\\atsBulletSep}{1.5pt}     % bullet-to-bullet
+
 % Clean, ATS-Compliant Section Dividers
 \\newcommand{\\atssection}[1]{%
-  \\vspace{4pt}%
+  \\vspace{\\atsSectionGap}%
   {\\noindent\\large\\textbf{\\uppercase{#1}}}%
-  \\vspace{1pt}\\hrule\\vspace{3pt}%
+  \\vspace{1pt}\\hrule\\vspace{\\atsHeadingGap}%
 }
+% Entry spacing inside a section (projects, experience, education, certifications)
+\\newcommand{\\atsentrygap}{\\vspace{\\atsProjectGap}}
+\\newcommand{\\atsentryheadgap}{\\vspace{\\atsProjectHeadGap}}
 
 \\begin{document}
 
@@ -794,7 +817,7 @@ ${experienceRecords
     return `\\textbf{${title}${company ? ` — ${company}` : ''}}${dates ? ` \\hfill ${escapeLatex(dates)}` : ''}\\\\
 ${location ? `\\textit{${location}}\\\\` : ''}
 ${bullets}
-\\vspace{3pt}`;
+\\atsentrygap`;
   })
   .join('\n')}`
     : ''
@@ -821,7 +844,7 @@ ${educationRecords
         : '';
     return `\\textbf{${degree}${field}}${dates ? ` \\hfill ${escapeLatex(dates)}` : ''}\\\\
 ${institution ? `\\textit{${institution}}\\\\` : ''}
-${coursework}\\vspace{2pt}`;
+${coursework}\\atsentrygap`;
   })
   .join('\n')}`
     : ''

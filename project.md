@@ -3,6 +3,28 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-07*
 
+### P14-024: Centralized LaTeX Spacing Architecture & Deterministic Resume-Quality Metrics
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+1. **Centralized LaTeX Vertical Spacing System:** Replaced fragmented ad-hoc `\vspace` adjustments with a single-source-of-truth macro hierarchy (`\atsSectionGap`, `\atsHeadingGap`, `\atsProjectGap`, `\atsProjectHeadGap`, `\atsBulletSep`). Enforced compact zero-padding itemize environments with consistent bullet separation (`\atsBulletSep`), eliminated section bottom margins, and placed project technologies on a dedicated compact line beneath the title/links line to prevent mid-list line-breaking.
+2. **Deterministic Resume-Quality Assessment Integration:** Wired `ResumeQualityAssessmentService` into `ApplicationHandoffService` (`src/services/application-handoff.service.js`) and updated the handoff page UI (`src/views/handoff.page.js`) to render three honest, auditable quality metrics:
+   - **ATS Parseability:** Evaluated directly over the rendered PDF text extraction with deterministic deductions and an explicit disclaimer.
+   - **Job Match:** Passthrough of the evidence-grounded fit score against target role requirements.
+   - **Evidence-Backed Coverage:** Clear breakdown of requirements into evidence-backed, candidate-claimed, and unsupported signals.
+3. **Empty Profile Links Fallback Fix:** Fixed `customLinks` resolution in `latex-document-generator.service.js` so that an empty `portfolioLinks: []` array on candidate profile does not short-circuit fallback to application package links.
+
+**Verification & Evidence:**
+- **Automated Unit Tests:** 120/120 PASS across 6 core test suites in 2.68s.
+- **Tectonic Compilation:** Both Scenario A and Scenario B resume PDFs and Cover Letter compile cleanly without errors.
+- **Strict 1-Page Verification:** Scenario A Resume = 1 page; Scenario B Resume = 1 page; Cover Letter = 1 page.
+- **PDF QA Validation:** 100/100 QA score with 0 findings and 0 critical failures across both scenarios.
+- **Database Immutability:** Bit-for-bit identical row counts across all tables.
+
+---
+
 ### P14-023: Final Offline Resume-Content Policy Correction & Full Verification
 
 **Status:** COMPLETE  
