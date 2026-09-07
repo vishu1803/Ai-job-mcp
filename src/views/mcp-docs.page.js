@@ -770,6 +770,87 @@ export const TOOLS_CATALOG = [
     },
     safetyNotes: 'Encrypted storage with immutable SHA-256 content hash.',
   },
+  {
+    name: 'list_handoff_kits',
+    category: 'Career Tracking',
+    scope: 'career:read',
+    role: 'READONLY',
+    classification: 'Tracking',
+    purpose:
+      'Lists generated Handoff Kits with created date, target company/job, package hash, lifecycle state (CURRENT vs ARCHIVED), and the latest-kit-per-target flag.',
+    parameters: [
+      {
+        name: 'candidateId',
+        type: 'string (UUID)',
+        required: false,
+        description: 'Optional candidate UUID. If omitted, resolved from authenticated context.',
+      },
+      {
+        name: 'includeArchived',
+        type: 'boolean',
+        required: false,
+        description: 'Whether archived kits are included in the listing (default true).',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'list_handoff_kits',
+        arguments: { includeArchived: true },
+      },
+    },
+    safetyNotes: 'Read-only. Tenant-isolated.',
+  },
+  {
+    name: 'archive_handoff_kit',
+    category: 'Career Tracking',
+    scope: 'career:write',
+    role: 'MEMBER',
+    classification: 'Tracking',
+    purpose:
+      'Archives an obsolete Handoff Kit. The application record, history, document snapshots, and encrypted artifacts are preserved; only the kit lifecycle state changes.',
+    parameters: [
+      {
+        name: 'applicationId',
+        type: 'string (UUID)',
+        required: true,
+        description: 'Target application UUID.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'archive_handoff_kit',
+        arguments: { applicationId: '3c8e42f0-91a6-455b-bfa1-7f8e32906b3e' },
+      },
+    },
+    safetyNotes: 'Idempotent state transition. Preserves underlying documents and audit history.',
+  },
+  {
+    name: 'delete_handoff_kit',
+    category: 'Career Tracking',
+    scope: 'career:write',
+    role: 'MEMBER',
+    classification: 'Tracking',
+    purpose:
+      'Safely deletes a Handoff Kit (kit metadata, generated snapshots, tenant-scoped encrypted artifacts) from an application that has NOT been submitted.',
+    parameters: [
+      {
+        name: 'applicationId',
+        type: 'string (UUID)',
+        required: true,
+        description: 'Target application UUID.',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'delete_handoff_kit',
+        arguments: { applicationId: '3c8e42f0-91a6-455b-bfa1-7f8e32906b3e' },
+      },
+    },
+    safetyNotes: 'Destructive for unsubmitted applications only. Submitted applications must be archived instead.',
+  },
 
   // Category 5: Job Discovery & Application Workflow (8 tools)
   {

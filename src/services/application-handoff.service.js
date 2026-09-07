@@ -22,6 +22,7 @@ import { DocumentStorageService } from './document-storage.service.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
 import { ApplicationReadinessService } from './application-readiness.service.js';
+import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
 import { ResumeParserService } from './resume-parser.service.js';
@@ -44,6 +45,7 @@ export class ApplicationHandoffService {
     this.resumeQualityAssessment =
       dependencies.resumeQualityAssessment || new ResumeQualityAssessmentService();
     this.resumeParser = dependencies.resumeParser || new ResumeParserService();
+    this.geometryAnalyzer = dependencies.geometryAnalyzer || new PdfGeometryAnalyzer({ resumeParser: this.resumeParser });
     this.documentStorage = dependencies.documentStorage || new DocumentStorageService();
     this.candidateProfileService =
       dependencies.candidateProfileService || new CandidateProfileService();
@@ -393,6 +395,31 @@ export class ApplicationHandoffService {
       );
     }
 
+    // 4c. PDF Geometry Analysis (P14-026): measure actual compiled PDF layout
+    let layoutDiagnostics = null;
+    try {
+      const selectedSections = applicationPackage.tailoredResume?.selectedSections ||
+        applicationPackage.selectedSections || [];
+      const expectedSections = ['SUMMARY', 'SKILLS', 'PROJECTS'];
+      if (selectedSections.includes('PROBLEM_SOLVING') ||
+          selectedSections.includes('LEETCODE') ||
+          selectedSections.includes('ALGORITHMIC_PRACTICE')) {
+        expectedSections.push('DSA');
+      }
+      expectedSections.push('EXPERIENCE', 'EDUCATION');
+
+      const geometryReport = this.geometryAnalyzer.analyze({
+        pdfBuffer: resumePdfResult.pdfBuffer,
+        expectedSections,
+      });
+      layoutDiagnostics = geometryReport.layoutDiagnostics;
+    } catch (geoErr) {
+      this.logger.warn(
+        { error: geoErr.message },
+        'PDF geometry analysis failed; kit continues without layout diagnostics'
+      );
+    }
+
     // 5. Document Generation: Cover Letter
     const clLatexResult = this.latexGenerator.generateTailoredCoverLetterLatex({
       applicationPackage,
@@ -485,6 +512,7 @@ export class ApplicationHandoffService {
           findings: resumeQaAudit.findings,
         },
         resumeQuality,
+        layoutDiagnostics,
       },
       coverLetter: {
         filename: 'tailored-cover-letter.pdf',

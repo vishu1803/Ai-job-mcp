@@ -168,7 +168,7 @@ export function slugifyProject(text) {
 export function formatProjectDisplayName(name) {
   if (!name || typeof name !== 'string') return '';
   // 1. Strip owner prefix (e.g., 'vishu1803/', 'org-name/')
-  let clean = name.replace(/^[a-zA-Z0-9_-]+\//, '').trim();
+  const clean = name.replace(/^[a-zA-Z0-9_-]+\//, '').trim();
 
   // Known acronyms and casing overrides
   const ACRONYMS = new Set([
@@ -1351,14 +1351,29 @@ export class CandidateArtifactContentService {
     const leetcodeLinkObj = portfolioLinks.find((l) =>
       /leetcode/i.test(l.label || l.platform || l.url || '')
     );
-    const hasProblemSolvingSection = Boolean(hasDsaSkill || hasDsaCoursework || leetcodeLinkObj);
+    const candidateDsaBullets = (
+      Array.isArray(userCustom.problemSolving?.bullets) && userCustom.problemSolving.bullets.length > 0
+        ? userCustom.problemSolving.bullets
+        : Array.isArray(metadata.problemSolving?.bullets) && metadata.problemSolving.bullets.length > 0
+          ? metadata.problemSolving.bullets
+          : Array.isArray(metadata.resumeData?.problemSolving?.bullets) && metadata.resumeData.problemSolving.bullets.length > 0
+            ? metadata.resumeData.problemSolving.bullets
+            : (hasDsaSkill || hasDsaCoursework)
+              ? [
+                  'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
+                  'Engaged in problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
+                ]
+              : []
+    );
+
+    const hasProblemSolvingSection = Boolean(
+      candidateDsaBullets.length > 0 &&
+      (hasDsaSkill || hasDsaCoursework || userCustom.problemSolving?.hasSection || metadata.problemSolving?.hasSection)
+    );
     const problemSolving = {
       hasSection: hasProblemSolvingSection,
       profileUrl: isRealUrl(leetcodeLinkObj?.url) ? leetcodeLinkObj.url : null,
-      bullets: [
-        'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
-        'Engaged in problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
-      ],
+      bullets: candidateDsaBullets,
       provenanceStatus: 'CLAIMED',
     };
 
@@ -1376,7 +1391,36 @@ export class CandidateArtifactContentService {
       summary: candidate.summary || userCustom.summary || null,
       experience,
       education,
-      certifications: Array.isArray(userCustom.certifications) ? userCustom.certifications : [],
+      certifications: Array.isArray(userCustom.certifications)
+        ? userCustom.certifications
+        : Array.isArray(metadata.certifications)
+          ? metadata.certifications
+          : [],
+      coursework: Array.isArray(userCustom.coursework)
+        ? userCustom.coursework
+        : Array.isArray(metadata.coursework)
+          ? metadata.coursework
+          : [],
+      publications: Array.isArray(userCustom.publications)
+        ? userCustom.publications
+        : Array.isArray(metadata.publications)
+          ? metadata.publications
+          : [],
+      achievements: Array.isArray(userCustom.achievements)
+        ? userCustom.achievements
+        : Array.isArray(metadata.achievements)
+          ? metadata.achievements
+          : [],
+      additionalSkills: Array.isArray(userCustom.additionalSkills)
+        ? userCustom.additionalSkills
+        : Array.isArray(metadata.additionalSkills)
+          ? metadata.additionalSkills
+          : [],
+      awards: Array.isArray(userCustom.awards)
+        ? userCustom.awards
+        : Array.isArray(metadata.awards)
+          ? metadata.awards
+          : [],
       skills: profileView.skills || [],
       projects: reconciledProjects.length > 0 ? reconciledProjects : profileView.projects || [],
       storedProjectByUrl,
@@ -2375,20 +2419,51 @@ export class CandidateArtifactContentService {
     }
 
     // Problem Solving & Algorithmic Practice section decision:
-    // Determine whether candidate has authentic DSA background and whether section should be included
-    const hasSourceDsa = Boolean(
-      candidateData.hasProblemSolvingSection ||
-      candidateData.problemSolving?.hasSection ||
-      (candidateData.skills || []).some((s) =>
-        /data structures|algorithm|leetcode|binary search|competitive programming/i.test(
-          s.name || s.skillName || ''
-        )
-      )
+    // LeetCode URL presence is NOT the selection condition.
+    // DSA selection comes from Content Strategy.
+    // Extract candidate-owned DSA content.
+    const candidateDsaBullets = (
+      Array.isArray(candidateData.problemSolving?.bullets) && candidateData.problemSolving.bullets.length > 0
+        ? candidateData.problemSolving.bullets
+        : Array.isArray(candidateData.resumeData?.problemSolving?.bullets) && candidateData.resumeData.problemSolving.bullets.length > 0
+          ? candidateData.resumeData.problemSolving.bullets
+          : Array.isArray(candidateData.userCustom?.problemSolving?.bullets) && candidateData.userCustom.problemSolving.bullets.length > 0
+            ? candidateData.userCustom.problemSolving.bullets
+            : (candidateData.hasProblemSolvingSection || candidateData.problemSolving?.hasSection)
+              ? [
+                  'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
+                  'Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
+                ]
+              : []
     );
+
+    const hasSourceDsa = Boolean(
+      candidateDsaBullets.length > 0 &&
+      (candidateData.hasProblemSolvingSection ||
+        candidateData.problemSolving?.hasSection ||
+        (candidateData.skills || []).some((s) =>
+          /data structures|algorithm|leetcode|binary search|competitive programming/i.test(
+            s.name || s.skillName || ''
+          )
+        ) ||
+        (candidateData.education || []).some((edu) =>
+          (edu.coursework || []).some((c) => /data structures|algorithm/i.test(String(c)))
+        ))
+    );
+
     const includeProblemSolving =
       options.includeProblemSolving !== undefined
         ? Boolean(options.includeProblemSolving)
         : hasSourceDsa;
+
+    // Fail validation if DSA is selected by Content Strategy but valid candidate-owned DSA content is missing
+    if (includeProblemSolving) {
+      if (!candidateDsaBullets || candidateDsaBullets.length === 0) {
+        throw new ValidationError(
+          'Problem Solving & Algorithmic Practice section is selected by Content Strategy, but valid candidate-owned DSA content is missing from snapshot; refusing to invent unverified content.'
+        );
+      }
+    }
 
     // One-Page Content Budget:
     // When Problem Solving & Algorithmic Practice is included, budget 2 top projects
@@ -2477,20 +2552,24 @@ export class CandidateArtifactContentService {
     }
 
     // ---- Problem Solving & Algorithmic Practice (candidate-reported truthful framing) ----
+    const dsaProfileUrl = (leetcodeLink?.url && isRealUrl(leetcodeLink.url))
+      ? leetcodeLink.url
+      : (candidateData.problemSolving?.profileUrl && isRealUrl(candidateData.problemSolving.profileUrl))
+        ? candidateData.problemSolving.profileUrl
+        : (candidateData.resumeData?.problemSolving?.profileUrl && isRealUrl(candidateData.resumeData.problemSolving.profileUrl))
+          ? candidateData.resumeData.problemSolving.profileUrl
+          : null;
+
     if (includeProblemSolving) {
       lines.push('## Problem Solving & Algorithmic Practice');
       lines.push('');
-      const subHeader =
-        leetcodeLink?.url && isRealUrl(leetcodeLink.url)
-          ? `### [LeetCode Profile](${leetcodeLink.url}) · Candidate-Reported Problem Solving`
-          : '### LeetCode Profile · Candidate-Reported Problem Solving';
+      const subHeader = dsaProfileUrl
+        ? `### [LeetCode Profile](${dsaProfileUrl}) · Candidate-Reported Problem Solving`
+        : '### LeetCode Profile · Candidate-Reported Problem Solving';
       lines.push(subHeader);
-      lines.push(
-        '- Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.'
-      );
-      lines.push(
-        '- Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.'
-      );
+      for (const bullet of candidateDsaBullets) {
+        lines.push(`- ${bullet}`);
+      }
       lines.push('');
       pushSection('PROBLEM_SOLVING');
     }
@@ -2556,15 +2635,170 @@ export class CandidateArtifactContentService {
 
     // ---- Certifications (only real stored records) ----------------------------
     const certifications = (candidateData.certifications || []).filter(Boolean);
-    if (certifications.length > 0) {
+    const includeCertifications = options.includeCertifications !== undefined
+      ? Boolean(options.includeCertifications)
+      : certifications.length > 0;
+    if (includeCertifications && certifications.length > 0) {
       lines.push('## Certifications');
       lines.push('');
       for (const cert of certifications) {
-        const name = typeof cert === 'string' ? cert : cert.name;
+        const name = typeof cert === 'string' ? cert : cert.name || cert.title;
         if (name) lines.push(`- ${name}`);
       }
       lines.push('');
       pushSection('CERTIFICATIONS');
+    }
+
+    // ---- Relevant Coursework (optional standalone section) --------------------
+    const coursework = (candidateData.coursework || []).filter(Boolean);
+    const includeCoursework = options.includeCoursework !== undefined
+      ? Boolean(options.includeCoursework)
+      : false;
+    if (includeCoursework && coursework.length > 0) {
+      lines.push('## Relevant Coursework');
+      lines.push('');
+      for (const cw of coursework) {
+        const title = typeof cw === 'string' ? cw : cw.name || cw.title;
+        if (title) lines.push(`- ${title}`);
+      }
+      lines.push('');
+      pushSection('COURSEWORK');
+    }
+
+    // ---- Publications (optional standalone section) --------------------------
+    const publications = (candidateData.publications || []).filter(Boolean);
+    const includePublications = options.includePublications !== undefined
+      ? Boolean(options.includePublications)
+      : publications.length > 0;
+    if (includePublications && publications.length > 0) {
+      lines.push('## Publications');
+      lines.push('');
+      for (const pub of publications) {
+        const title = typeof pub === 'string' ? pub : pub.title || pub.name;
+        if (title) lines.push(`- ${title}`);
+      }
+      lines.push('');
+      pushSection('PUBLICATIONS');
+    }
+
+    // ---- Achievements (optional standalone section) --------------------------
+    const achievements = (candidateData.achievements || []).filter(Boolean);
+    const includeAchievements = options.includeAchievements !== undefined
+      ? Boolean(options.includeAchievements)
+      : achievements.length > 0;
+    if (includeAchievements && achievements.length > 0) {
+      lines.push('## Achievements');
+      lines.push('');
+      for (const ach of achievements) {
+        const title = typeof ach === 'string' ? ach : ach.title || ach.name;
+        if (title) lines.push(`- ${title}`);
+      }
+      lines.push('');
+      pushSection('ACHIEVEMENTS');
+    }
+
+    // ---- Additional Skills (optional standalone section) ---------------------
+    const additionalSkills = (candidateData.additionalSkills || []).filter(Boolean);
+    const includeAdditionalSkills = options.includeAdditionalSkills !== undefined
+      ? Boolean(options.includeAdditionalSkills)
+      : additionalSkills.length > 0;
+    if (includeAdditionalSkills && additionalSkills.length > 0) {
+      lines.push('## Additional Skills');
+      lines.push('');
+      for (const sk of additionalSkills) {
+        const name = typeof sk === 'string' ? sk : sk.name || sk.skill;
+        if (name) lines.push(`- ${name}`);
+      }
+      lines.push('');
+      pushSection('ADDITIONAL_SKILLS');
+    }
+
+    // ---- Awards (optional standalone section) --------------------------------
+    const awards = (candidateData.awards || []).filter(Boolean);
+    const includeAwards = options.includeAwards !== undefined
+      ? Boolean(options.includeAwards)
+      : awards.length > 0;
+    if (includeAwards && awards.length > 0) {
+      lines.push('## Awards');
+      lines.push('');
+      for (const aw of awards) {
+        const title = typeof aw === 'string' ? aw : aw.title || aw.name;
+        if (title) lines.push(`- ${title}`);
+      }
+      lines.push('');
+      pushSection('AWARDS');
+    }
+
+    // Build structured section content snapshots
+    const sectionSnapshots = {};
+    if (renderedSections.includes('SUMMARY') || renderedSections.includes('PROFESSIONAL_SUMMARY')) {
+      sectionSnapshots.SUMMARY = {
+        text: rawSummary || null,
+        headline: candidateData.headline || null,
+        provenance: 'CLAIMED',
+      };
+    }
+    if (renderedSections.includes('TECHNICAL_SKILLS')) {
+      sectionSnapshots.TECHNICAL_SKILLS = {
+        categorizedSkills,
+        skillAudit,
+      };
+    }
+    if (renderedSections.includes('PROJECTS')) {
+      sectionSnapshots.PROJECTS = {
+        selectedProjects,
+        omittedProjects,
+        selectionAudit,
+      };
+    }
+    if (renderedSections.includes('PROBLEM_SOLVING')) {
+      sectionSnapshots.PROBLEM_SOLVING = {
+        title: 'Problem Solving & Algorithmic Practice',
+        subtitle: 'Candidate-Reported Problem Solving',
+        profileUrl: dsaProfileUrl,
+        bullets: candidateDsaBullets,
+        provenance: 'CLAIMED',
+      };
+    }
+    if (renderedSections.includes('PROFESSIONAL_EXPERIENCE')) {
+      sectionSnapshots.PROFESSIONAL_EXPERIENCE = {
+        records: experience,
+      };
+    }
+    if (renderedSections.includes('EDUCATION')) {
+      sectionSnapshots.EDUCATION = {
+        records: education,
+      };
+    }
+    if (renderedSections.includes('CERTIFICATIONS')) {
+      sectionSnapshots.CERTIFICATIONS = {
+        records: certifications,
+      };
+    }
+    if (renderedSections.includes('COURSEWORK')) {
+      sectionSnapshots.COURSEWORK = {
+        records: coursework,
+      };
+    }
+    if (renderedSections.includes('PUBLICATIONS')) {
+      sectionSnapshots.PUBLICATIONS = {
+        records: publications,
+      };
+    }
+    if (renderedSections.includes('ACHIEVEMENTS')) {
+      sectionSnapshots.ACHIEVEMENTS = {
+        records: achievements,
+      };
+    }
+    if (renderedSections.includes('ADDITIONAL_SKILLS')) {
+      sectionSnapshots.ADDITIONAL_SKILLS = {
+        records: additionalSkills,
+      };
+    }
+    if (renderedSections.includes('AWARDS')) {
+      sectionSnapshots.AWARDS = {
+        records: awards,
+      };
     }
 
     const markdownContent = lines.join('\n');
@@ -2590,6 +2824,8 @@ export class CandidateArtifactContentService {
       title: `${displayName} — Tailored Resume`,
       contentHash,
       sections: renderedSections,
+      selectedSections: renderedSections,
+      sectionSnapshots,
       selectedProjects,
       omittedProjects,
       selectionAudit,
@@ -2820,6 +3056,8 @@ export class CandidateArtifactContentService {
 
     const evidence = {
       resumeSections: resume.sections,
+      selectedSections: resume.sections,
+      sectionSnapshots: resume.sectionSnapshots,
       coverLetterParagraphTypes: coverLetter.paragraphs.map((p) => p.type),
       projectNamesUsed: coverLetter.topProjectNames,
       verifiedSkillsMatched: coverLetter.matchedVerifiedSkills,
@@ -2835,6 +3073,8 @@ export class CandidateArtifactContentService {
       projectUrlByName: coverLetter.projectUrlByName,
       selectedProjects: resume.selectedProjects,
       omittedProjects: resume.omittedProjects || [],
+      selectedSections: resume.sections,
+      sectionSnapshots: resume.sectionSnapshots,
       selectionAudit: resume.selectionAudit,
       categorizedSkills: resume.categorizedSkills,
       skillAudit: resume.skillAudit,

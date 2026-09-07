@@ -3,6 +3,94 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-07*
 
+### P14-027: Content Selection & Optional Section Boundary Architecture
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Enforce strict architectural separation between **Content Strategy** and the **Rendering Layer** regarding optional candidate-owned sections:
+1. **Authoritative Content Strategy:** Content Strategy is strictly authoritative for Problem Solving / DSA, Certifications, Coursework, Publications, Achievements, Additional Skills, Awards, and any optional candidate-owned sections.
+2. **Pure Rendering Layer:** The renderer (`LatexDocumentGenerator`, `ResumeLayoutEngine`) receives `selectedSections` and structured `sectionSnapshots`, and only performs layout and rendering. The renderer must never infer section selection from available whitespace or page budget, and must never invent content to fill whitespace.
+3. **Decoupled DSA Selection & LeetCode Content:** LeetCode URL presence is NOT the selection condition for DSA. DSA selection comes strictly from Content Strategy. A LeetCode URL is optional content inside the selected DSA section.
+4. **Fail-Closed Provenance Gate:** If DSA is selected by Content Strategy but valid candidate-owned DSA content is missing, the system throws `ValidationError` rather than inventing filler or fallback bullets. If DSA is not selected, the renderer omits the section even if a LeetCode URL exists.
+
+**Key Changes Implemented:**
+1. **Schema Enhancements (`src/domain/job/job-workflow.schemas.js`):**
+   - Added `selectedSections: z.array(z.string()).optional()` and `sectionSnapshots: z.record(z.string(), z.any()).optional()` to `tailoredResume` and `ApplicationPackageSchema`.
+2. **Content Strategy & Snapshot Generation (`src/services/candidate-artifact-content.service.js`):**
+   - Extracted candidate-owned DSA bullets and optional sections (`certifications`, `coursework`, `publications`, `achievements`, `additionalSkills`, `awards`).
+   - Decoupled LeetCode URL presence from DSA selection; throws `ValidationError` if DSA is selected but `candidateDsaBullets.length === 0`.
+   - Assembled structured `sectionSnapshots` preserving authentic records for all selected sections.
+   - Emitted `selectedSections` and `sectionSnapshots` in `buildTailoredResumeMarkdown` and `generateApplicationDocuments`.
+3. **Workflow Layer Propagation (`src/services/job-application-workflow.service.js`):**
+   - Propagated `selectedSections` and `sectionSnapshots` through `prepareApplicationPackage` and `createTailoredPackage`.
+4. **Pure Layout & Rendering (`src/services/latex-document-generator.service.js`, `src/services/resume-layout-engine.service.js`):**
+   - `LatexDocumentGenerator`: Extracts `selectedSections` and `sectionSnapshots`. Replaced hardcoded fallback DSA bullets with fail-closed `ValidationError`. Omitted unselected optional sections (e.g., Certifications) even if profile records exist. Rendered optional sections (`COURSEWORK`, `PUBLICATIONS`, `ACHIEVEMENTS`, `ADDITIONAL_SKILLS`, `AWARDS`) when present in `selectedSections` and `sectionSnapshots`.
+   - `ResumeLayoutEngine`: Synced semantic model to respect `selectedSections` for DSA and certifications.
+5. **Dedicated Boundary Verification (`tests/unit/optional-section-boundary.test.js`):**
+   - Built 9 comprehensive unit tests verifying snapshot construction, optional section omission, LeetCode decoupling, fail-closed missing DSA handling, unselected certification omission, and layout engine semantic model fidelity.
+
+**Verification Results:**
+- `tests/unit/optional-section-boundary.test.js`: **9/9 PASS**
+- Automated Regression Suite: **112/112 PASS** across `optional-section-boundary.test.js`, `resume-content-strategy.test.js`, `application-content-defects.test.js`, `application-document-pipeline-fixes.test.js`, `resume-layout-engine.test.js`, and `pdf-qa-validator.service.test.js`.
+- Acceptance Verification Suite (`scratch/run_p14_026_acceptance.mjs`):
+  - Scenario A (2 projects + DSA): Exactly 1 page, DSA present, balanced density (PASS)
+  - Scenario B (3 projects, no DSA): Exactly 1 page, DSA omitted, balanced density (PASS)
+  - 8/8 synthetic fixture shapes compiled and verified (PASS)
+  - Zero candidate-specific or job-specific branching in layout code (PASS)
+- Code Style: ESLint **0 errors, 0 warnings** across all modified files.
+
+---
+
+### P14-026: Adaptive ATS-Safe Resume Layout Engine
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Build a reusable, candidate-independent adaptive layout engine that dynamically computes LaTeX spacing values based on the semantic shape of each document. Replaces hardcoded spacing constants with a computed layout profile while preserving universal ATS-safe constraints (single-column, linear order, selectable text, conventional headings).
+
+Key architectural principles:
+1. **Candidate-Independent Design:** Zero candidate-specific or job-specific layout hacks in layout engine or document generator.
+2. **Strict Spacing Hierarchy:** Invariant `sectionGap > entryGap > headingGap > bulletGap` preserved across all density profiles.
+3. **Content Strategy Boundary:** The layout engine never decides content inclusion or invents sections. Content selection (e.g., DSA inclusion, omitted projects tracking) belongs strictly to the Content Strategy / Curation layer.
+4. **Internal Diagnostic Telemetry:** `PdfGeometryAnalyzer` produces internal diagnostic logs and validation gates — NOT employer-facing ATS scores.
+
+**Remediation & Final Acceptance Verification (2026-09-07):**
+- **Verdict:** **PASS (ALL ACCEPTANCE CRITERIA SATISFIED)**
+- **Remediations Executed:**
+  1. **Accurate PDF 1.5 Geometry Analyzer:** Upgraded `PdfGeometryAnalyzer` to decompress FlateDecode `/ObjStm` object streams, fixing the false-positive 1-page report on multi-page PDFs compiled by Tectonic.
+  2. **Tightened DSA & Section Ordering Detection:** Constrained heading regexes to section headers (`/problem\s+solving|algorithmic\s+practice|data\s+structures/i`), eliminating false positives triggered by contact header links (e.g., LeetCode profile URLs).
+  3. **Calibrated Page-Budget Modeling:** Enhanced `calculatePageBudget` to accurately reflect real TeX vertical heights (itemize baseline overhead, `\titlerule` rules, multi-category skills wrap lines, and compact entry padding).
+  4. **Content-Aware Adaptive Layout Engine:** Calibrated dynamic spacing compression bands (sparse, balanced, dense, overfull) to ensure tight 1-page targets fit physical 1-page boundaries without overflowing.
+  5. **MCP Tooling Parity:** Registered `list_handoff_kits`, `archive_handoff_kit`, and `delete_handoff_kit` in documentation catalog (`src/views/mcp-docs.page.js`) and synchronized test suites to 29 tools.
+
+- **Acceptance Verification Suite Results (`run_p14_026_acceptance.mjs`):**
+  1. **Scenario A (2 projects + DSA, 1-page target):** **PASS** — Compiled via Tectonic to **EXACTLY 1 page** (0 overflow; utilization ~0.94; geometry QA 100/100).
+  2. **Scenario B (3 projects, no DSA, 1-page target):** **PASS** — Compiled via Tectonic to **EXACTLY 1 page** (0 overflow; utilization ~0.93; geometry QA 100/100).
+  3. **8/8 Synthetic Fixture Shapes:** **PASS** — All 8 fixtures met page-budget targets:
+     - `fixture-1-proj-no-dsa` -> 1 page (PASS)
+     - `fixture-2-proj-dsa` -> 1 page (PASS)
+     - `fixture-3-proj-no-dsa` -> 1 page (PASS)
+     - `fixture-long-summary` -> 1 page (PASS)
+     - `fixture-long-tech-list` -> 1 page (PASS)
+     - `fixture-multi-experience` -> 1 page (PASS)
+     - `fixture-multi-education` -> 1 page (PASS)
+     - `fixture-experienced-two-page` -> 2 pages (PASS, senior target: 2 pages)
+  4. **Anti-Hacks Audit:** **PASS** — 0 candidate-specific or job-specific branching in layout code.
+  5. **Unit Regression Suite:** **PASS** — 190/190 PASS across all 10 targeted layout, geometry, QA, and MCP test suites.
+
+- **Physical Artifacts:**
+  - `scratch/acceptance_scenario_a.pdf` (1 page verified)
+  - `scratch/acceptance_scenario_b.pdf` (1 page verified)
+  - `scratch/fixtures/*.pdf` (8 synthetic fixture PDFs verified)
+  - `scratch/acceptance_metrics.json` (Full metric ledger)
+  - `geometry_qa_report.md` (Detailed QA report)
+
+---
+
+
 ### P14-024: Centralized LaTeX Spacing Architecture & Deterministic Resume-Quality Metrics
 
 **Status:** COMPLETE  

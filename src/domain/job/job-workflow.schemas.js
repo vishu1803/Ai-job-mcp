@@ -124,6 +124,7 @@ export const ApplicationPackageSchema = z.object({
     fitScore: z.number().min(0).max(100),
     selectedProjects: z.array(z.any()).optional(),
     selectedSections: z.array(z.string()).optional(),
+    sectionSnapshots: z.record(z.string(), z.any()).optional(),
     artifact: ApplicationDocumentArtifactSchema.optional(),
   }),
   coverLetter: z.object({
@@ -142,6 +143,8 @@ export const ApplicationPackageSchema = z.object({
       highlights: z.array(z.string()),
     })
   ),
+  selectedSections: z.array(z.string()).optional(),
+  sectionSnapshots: z.record(z.string(), z.any()).optional(),
   answers: z.record(z.string(), z.string()).default({}),
   packageHash: z.string(), // SHA-256 of canonical JSON package
   preparedAt: z.string(),

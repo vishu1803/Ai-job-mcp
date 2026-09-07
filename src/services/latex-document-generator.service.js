@@ -27,7 +27,9 @@ import {
   isRealUrl,
   cleanResumeFacingTechnologies,
   formatProjectDisplayName,
+  groundAndSanitizeProject,
 } from './candidate-artifact-content.service.js';
+import { ResumeLayoutEngine } from './resume-layout-engine.service.js';
 
 /**
  * Escapes reserved LaTeX characters in dynamic user strings.
@@ -88,7 +90,7 @@ function formatLatexBullets(bullets) {
 
   if (cleanLines.length === 0) return '';
   return (
-    '\\begin{itemize}\n\\setlength{\\itemsep}{\\atsBulletSep}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}\n' +
+    '\\begin{itemize}\n\\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}\n' +
     cleanLines.map((l) => `  \\item ${escapeLatex(l)}`).join('\n') +
     '\n\\end{itemize}'
   );
@@ -147,12 +149,21 @@ export class LatexDocumentGenerator {
    * @param {object} params
    * @param {object} params.applicationPackage Canonical ApplicationPackage
    * @param {object} [params.candidateProfile] Optional verified Candidate Career Profile
+   * @param {object} [params.layoutOverrides] Optional layout overrides for calibration
    * @returns {{ texContent: string, candidateName: string, candidateEmail: string, targetRole: string, targetCompany: string }}
    */
-  generateTailoredResumeLatex({ applicationPackage, candidateProfile = null }) {
+  generateTailoredResumeLatex({ applicationPackage, candidateProfile = null, layoutOverrides = {} }) {
     if (!applicationPackage) {
       throw new ValidationError('applicationPackage is required to generate resume LaTeX');
     }
+
+    // Compute adaptive layout profile from semantic document model (P14-026)
+    const layoutEngine = new ResumeLayoutEngine();
+    const { layoutProfile } = layoutEngine.computeLayout({
+      applicationPackage,
+      candidateProfile,
+      overrides: layoutOverrides,
+    });
 
     const targetJob = applicationPackage.targetJob || {};
     const targetRole = targetJob.title || 'Software Engineer';
@@ -216,10 +227,19 @@ export class LatexDocumentGenerator {
     const profileLinkElements = [];
 
     // Resolve authoritative portfolio links from candidate profile or package.
-    // NOTE: an empty profile array must NOT short-circuit the package fallback.
-    const profileLinksList = Array.isArray(candidateProfile?.portfolioLinks)
-      ? candidateProfile.portfolioLinks
-      : [];
+    const profileLinksList = (
+      Array.isArray(candidateProfile?.portfolioLinks) && candidateProfile.portfolioLinks.length > 0
+        ? candidateProfile.portfolioLinks
+        : Array.isArray(candidateProfile?.profileMetadata?.portfolioLinks) && candidateProfile.profileMetadata.portfolioLinks.length > 0
+          ? candidateProfile.profileMetadata.portfolioLinks
+          : Array.isArray(candidateProfile?.candidate?.profileMetadata?.portfolioLinks) && candidateProfile.candidate.profileMetadata.portfolioLinks.length > 0
+            ? candidateProfile.candidate.profileMetadata.portfolioLinks
+            : Array.isArray(candidateProfile?.profileMetadata?.userCustom?.portfolioLinks) && candidateProfile.profileMetadata.userCustom.portfolioLinks.length > 0
+              ? candidateProfile.profileMetadata.userCustom.portfolioLinks
+              : Array.isArray(candidateProfile?.candidate?.profileMetadata?.userCustom?.portfolioLinks)
+                ? candidateProfile.candidate.profileMetadata.userCustom.portfolioLinks
+                : []
+    );
     const packageLinksList = Array.isArray(applicationPackage?.portfolioLinks)
       ? applicationPackage.portfolioLinks
       : [];
@@ -306,7 +326,7 @@ export class LatexDocumentGenerator {
     // 2. Summary / Objective — real stored summary only; curated for evidence truth; never synthesized or leaking "Tailored for:"
     let summaryText = '';
     const summaryMatch = applicationPackage.tailoredResume?.markdownContent?.match(
-      /## Professional Summary\n+([\s\S]*?)(?=\n+##(?!\#)\s+[^\n]+|$)/
+      /## Professional Summary\n+([\s\S]*?)(?=\n+##(?!#)\s+[^\n]+|$)/
     );
     if (summaryMatch?.[1]?.trim()) {
       summaryText = summaryMatch[1].trim();
@@ -418,20 +438,20 @@ export class LatexDocumentGenerator {
           const deduped = normalizeAndDeduplicateSkills(skillsList);
           if (deduped.length > 0) {
             formattedLines.push(
-              `\\textbf{${escapeLatex(catName)}:} ${escapeLatex(deduped.join(', '))}\\\\`
+              `\\textbf{${escapeLatex(catName)}:} ${escapeLatex(deduped.join(', '))}`
             );
           }
         }
       }
       if (formattedLines.length > 0) {
-        skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\n')}`;
+        skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\\\\\n')}\\par`;
       }
     }
 
     // Fallback 1: parse from markdown content
     if (!skillsLatexSection) {
       const skillsMatch = applicationPackage.tailoredResume?.markdownContent?.match(
-        /## Technical Skills\n+([\s\S]*?)(?=\n+##(?!\#)\s+[^\n]+|$)/
+        /## Technical Skills\n+([\s\S]*?)(?=\n+##(?!#)\s+[^\n]+|$)/
       );
       if (skillsMatch) {
         const categoryLines = skillsMatch[1]
@@ -449,11 +469,11 @@ export class LatexDocumentGenerator {
                 .map((s) => s.trim())
                 .filter(Boolean);
               const deduped = normalizeAndDeduplicateSkills(rawSkills);
-              return `\\textbf{${catName}:} ${escapeLatex(deduped.join(', '))}\\\\`;
+              return `\\textbf{${catName}:} ${escapeLatex(deduped.join(', '))}`;
             }
-            return `${escapeLatex(line)}\\\\`;
+            return `${escapeLatex(line)}`;
           });
-          skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\n')}`;
+          skillsLatexSection = `\\atssection{Technical Skills}\n${formattedLines.join('\\\\\n')}\\par`;
         }
       }
     }
@@ -478,16 +498,19 @@ export class LatexDocumentGenerator {
       const dedupedVerified = normalizeAndDeduplicateSkills(verifiedSkills);
       const dedupedClaimed = normalizeAndDeduplicateSkills(claimedSkills);
       const dedupedLearning = normalizeAndDeduplicateSkills(learningSkills);
-      skillsLatexSection = `\\atssection{Core Competencies}
-${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(dedupedVerified.join(', '))}\\\\\n` : ''}${
-        dedupedClaimed.length > 0
-          ? `\\textbf{Technical Proficiency:} ${escapeLatex(dedupedClaimed.join(', '))}\\\\\n`
-          : ''
-      }${
-        dedupedLearning.length > 0
-          ? `\\textbf{Active Learning / Growth:} ${escapeLatex(dedupedLearning.join(', '))}\\\\\n`
-          : ''
-      }`;
+      const capLines = [];
+      if (dedupedVerified.length > 0) {
+        capLines.push(`\\textbf{Verified Capabilities:} ${escapeLatex(dedupedVerified.join(', '))}`);
+      }
+      if (dedupedClaimed.length > 0) {
+        capLines.push(`\\textbf{Technical Proficiency:} ${escapeLatex(dedupedClaimed.join(', '))}`);
+      }
+      if (dedupedLearning.length > 0) {
+        capLines.push(`\\textbf{Active Learning / Growth:} ${escapeLatex(dedupedLearning.join(', '))}`);
+      }
+      if (capLines.length > 0) {
+        skillsLatexSection = `\\atssection{Core Competencies}\n${capLines.join('\\\\\n')}\\par`;
+      }
     }
 
     // 4. Technical Projects — parse projects with clean engineering bullets & action links
@@ -503,7 +526,7 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
       // Parse ## Technical Projects from markdown
       const md = applicationPackage.tailoredResume.markdownContent;
       const projSectionMatch = md.match(
-        /## Technical Projects\n+([\s\S]*?)(?=\n+##(?!\#)\s+[^\n]+|$)/
+        /## Technical Projects\n+([\s\S]*?)(?=\n+##(?!#)\s+[^\n]+|$)/
       );
       if (projSectionMatch) {
         const rawProjText = projSectionMatch[1];
@@ -605,35 +628,54 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
     }
 
     // Problem Solving & Algorithmic Practice:
-    // Render ONLY when the resume content strategy explicitly selects this section
-    // (e.g. via applicationPackage.tailoredResume.selectedSections or markdown content).
-    // Do NOT auto-inject solely because a LeetCode URL exists.
+    // The rendering layer MUST NOT decide whether optional content exists.
+    // Content Strategy is authoritative for DSA selection.
+    // LeetCode URL presence is NOT the selection condition.
+    // The renderer receives selectedSections + sectionSnapshots and only performs layout/rendering.
     const selectedSections =
       applicationPackage.tailoredResume?.selectedSections ||
       applicationPackage.selectedSections ||
-      [];
-    const isExplicitlySelected =
-      selectedSections.includes('PROBLEM_SOLVING') ||
-      selectedSections.includes('LEETCODE') ||
-      selectedSections.includes('ALGORITHMIC_PRACTICE') ||
-      /## (?:Problem Solving|Algorithmic Practice|LeetCode)/i.test(
-        applicationPackage.tailoredResume?.markdownContent || ''
-      );
+      null;
+
+    const sectionSnapshots =
+      applicationPackage.tailoredResume?.sectionSnapshots ||
+      applicationPackage.sectionSnapshots ||
+      {};
+
+    const hasSelectedSectionsList = Array.isArray(selectedSections) && selectedSections.length > 0;
+
+    const isExplicitlySelected = hasSelectedSectionsList
+      ? selectedSections.some((s) =>
+          ['PROBLEM_SOLVING', 'DSA', 'LEETCODE', 'ALGORITHMIC_PRACTICE'].includes(String(s).toUpperCase())
+        )
+      : /## (?:Problem Solving|Algorithmic Practice|LeetCode)/i.test(
+          applicationPackage.tailoredResume?.markdownContent || ''
+        );
 
     let projectsLatexSection = '';
     if (projectsToRender.length > 0) {
       // Content Budget: feature top 2 projects when Problem Solving is included to ensure 1-page fit
       const projectsBudget = isExplicitlySelected ? 2 : 3;
       const projectsToFeature = projectsToRender.slice(0, projectsBudget);
-      const maxBulletsPerProject = 2;
-      const projectEntries = projectsToFeature.map((p) => {
-        const rawName = p.name || p.projectName || p.title || 'Project';
+      const maxBulletsPerProject = layoutProfile.maxBulletsPerProject;
+      const projectEntries = projectsToFeature.map((p, index) => {
+        const pSanitized = {
+          ...p,
+          technologies: Array.isArray(p.technologies) ? [...p.technologies] : [],
+          bullets: Array.isArray(p.bullets)
+            ? [...p.bullets]
+            : Array.isArray(p.highlights)
+              ? [...p.highlights]
+              : [],
+        };
+        groundAndSanitizeProject(pSanitized);
+        const rawName = pSanitized.name || pSanitized.projectName || pSanitized.title || 'Project';
         const pName = escapeLatex(formatProjectDisplayName(rawName));
-        const repoUrl = p.repositoryUrl || p.repoUrl || p.url || '';
-        const liveUrl = p.liveUrl || '';
+        const repoUrl = pSanitized.repositoryUrl || pSanitized.repoUrl || pSanitized.url || '';
+        const liveUrl = pSanitized.liveUrl || '';
 
         // Format technologies inline
-        const rawTechs = Array.isArray(p.technologies) ? p.technologies : [];
+        const rawTechs = Array.isArray(pSanitized.technologies) ? pSanitized.technologies : [];
         const cleanTechs = cleanResumeFacingTechnologies(rawTechs);
         const techs = cleanTechs.map((t) => escapeLatex(t)).join(', ');
 
@@ -648,14 +690,13 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
         const linksStr = linkParts.join(' $\\cdot$ ');
 
         // Project header: bold title + right-aligned action links on line 1;
-        // technologies render on their own compact line beneath so long stacks
-        // wrap intentionally instead of breaking mid-list after the title.
+        // technologies render on their own compact line beneath
         let headerLine = `\\textbf{${pName}}`;
         if (linksStr) headerLine += ` \\hfill ${linksStr}`;
         const techLine = techs ? `{\\small\\textit{${techs}}}` : '';
 
         // Clean bullets: filter out raw link bullets, keep top 2-3 meaningful bullets
-        const rawBullets = Array.isArray(p.bullets) ? p.bullets : p.highlights || [];
+        const rawBullets = Array.isArray(pSanitized.bullets) ? pSanitized.bullets : [];
         const cleanBullets = rawBullets
           .map((b) => String(b).trim())
           .filter(
@@ -668,30 +709,112 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
 
         const pBullets = formatLatexBullets(cleanBullets);
 
-        const entryLines = [`${headerLine}\\\\`];
-        if (techLine) entryLines.push(techLine);
-        entryLines.push('\\atsentryheadgap');
+        const entryLines = [`${headerLine}\\par`];
+        if (techLine) {
+          entryLines.push('\\vspace{\\atsProjectTitleToTech}');
+          entryLines.push(`${techLine}\\par`);
+        }
+        entryLines.push('\\vspace{\\atsProjectTechToBullets}');
         if (pBullets) entryLines.push(pBullets);
-        entryLines.push('\\atsentrygap');
+
+        // ENTRY_TO_ENTRY separator: ONLY between entries, NEVER after the last entry!
+        if (index < projectsToFeature.length - 1) {
+          entryLines.push('\\vspace{\\atsEntryToEntry}');
+        }
         return entryLines.join('\n');
       });
       projectsLatexSection = `\\atssection{Technical Projects}\n${projectEntries.join('\n')}`;
     }
 
     let dsaLatexSection = '';
-    if (isExplicitlySelected && leetcodeLink?.url) {
-      const leetcodeUrl = leetcodeLink.url;
-      const cleanLeetcodeDisplay = leetcodeUrl.replace(/^https?:\/\/(www\.)?/, '');
+    if (isExplicitlySelected) {
+      // Content Strategy is authoritative: DSA is selected. Find candidate-owned DSA content in snapshot.
+      let dsaBullets = [];
+      let dsaSubtitle = 'Candidate-Reported Problem Solving';
+      let dsaTitle = 'Problem Solving & Algorithmic Practice';
+      let dsaUrl = null;
+
+      const dsaSnapshot = sectionSnapshots.PROBLEM_SOLVING || sectionSnapshots.DSA || null;
+      if (dsaSnapshot) {
+        if (Array.isArray(dsaSnapshot.bullets) && dsaSnapshot.bullets.length > 0) {
+          dsaBullets = dsaSnapshot.bullets;
+        }
+        if (dsaSnapshot.title) dsaTitle = dsaSnapshot.title;
+        if (dsaSnapshot.subtitle) dsaSubtitle = dsaSnapshot.subtitle;
+        if (dsaSnapshot.profileUrl && isRealUrl(dsaSnapshot.profileUrl)) {
+          dsaUrl = dsaSnapshot.profileUrl;
+        }
+      }
+
+      if (dsaBullets.length === 0) {
+        const dsaMdMatch = applicationPackage.tailoredResume?.markdownContent?.match(
+          /## (?:Problem Solving & Algorithmic Practice|Problem Solving|Algorithmic Practice|LeetCode[^\n]*)\n+([\s\S]*?)(?=\n+##(?!#)\s+[^\n]+|$)/i
+        );
+        if (dsaMdMatch) {
+          const rawText = dsaMdMatch[1];
+          const subMatch = rawText.match(/###\s*(?:\[([^\]]+)\]\(([^)]+)\)|([^\n]+))/);
+          if (subMatch) {
+            if (subMatch[2] && isRealUrl(subMatch[2])) {
+              dsaUrl = dsaUrl || subMatch[2];
+            }
+            if (subMatch[1]) {
+              dsaTitle = subMatch[1].trim();
+            } else if (subMatch[3]) {
+              const parts = subMatch[3].split('·').map((p) => p.trim());
+              if (parts[0]) dsaTitle = parts[0];
+              if (parts[1]) dsaSubtitle = parts[1];
+            }
+          }
+          const parsedBullets = rawText
+            .split('\n')
+            .map((l) => l.trim())
+            .filter((l) => /^[-*]\s+/.test(l))
+            .map((l) => l.replace(/^[-*]\s+/, '').trim())
+            .filter(Boolean);
+          if (parsedBullets.length > 0) {
+            dsaBullets = parsedBullets;
+          }
+        }
+      }
+
+      if (dsaBullets.length === 0) {
+        const profileDsaBullets =
+          candidateProfile?.problemSolving?.bullets ||
+          candidateProfile?.candidate?.profileMetadata?.problemSolving?.bullets ||
+          candidateProfile?.profileMetadata?.problemSolving?.bullets ||
+          candidateProfile?.candidate?.profileMetadata?.userCustom?.problemSolving?.bullets ||
+          candidateProfile?.profileMetadata?.userCustom?.problemSolving?.bullets ||
+          null;
+        if (Array.isArray(profileDsaBullets) && profileDsaBullets.length > 0) {
+          dsaBullets = profileDsaBullets;
+        }
+      }
+
+      // If DSA is selected but valid DSA content is missing, fail validation rather than inventing content
+      if (dsaBullets.length === 0) {
+        throw new ValidationError(
+          'DSA section is selected by Content Strategy, but valid candidate-owned DSA content is missing from snapshot; refusing to invent content.'
+        );
+      }
+
+      // LeetCode URL is optional content inside the selected DSA section
+      if (!dsaUrl && leetcodeLink?.url && isRealUrl(leetcodeLink.url)) {
+        dsaUrl = leetcodeLink.url;
+      }
+
+      const cleanLeetcodeDisplay = dsaUrl ? dsaUrl.replace(/^https?:\/\/(www\.)?/, '') : '';
+      const headerRight = dsaUrl
+        ? `\\href{${escapeLatex(dsaUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}`
+        : `{\\small\\textit{Candidate-Reported}}`;
+
+      const bulletTex = formatLatexBullets(dsaBullets);
+
       dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
-\\textbf{LeetCode Profile} \\hfill \\href{${escapeLatex(leetcodeUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}\\\\
-{\\small\\textit{Candidate-Reported Problem Solving}}
-\\atsentryheadgap
-\\begin{itemize}
-\\setlength{\\itemsep}{\\atsBulletSep}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
-  \\item Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.
-  \\item Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.
-\\end{itemize}
-\\atsentrygap`;
+\\textbf{${escapeLatex(dsaTitle)}} \\hfill ${headerRight}\\par
+\\vspace{\\atsRoleToMetadata}
+{\\small\\textit{${escapeLatex(dsaSubtitle)}}}\\par
+\\vspace{\\atsMetadataToBullets}
+${bulletTex}`;
     }
 
     // 5. Professional Experience — real stored records only.
@@ -702,6 +825,31 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
       candidateProfile?.candidate?.profileMetadata?.experience ||
       [];
 
+    const expEntries = experienceRecords.map((exp, index) => {
+      const title = escapeLatex(exp.title || exp.role || 'Role');
+      const company = exp.company || exp.employer ? escapeLatex(exp.company || exp.employer) : '';
+      const endDate = exp.isCurrent ? 'Present' : exp.endDate || exp.endYear || '';
+      const dates = [exp.startDate || exp.startYear || '', endDate].filter(Boolean).join(' -- ');
+      const location = exp.location ? escapeLatex(exp.location) : '';
+      const bullets = formatLatexBullets(exp.bullets || exp.highlights || exp.description);
+
+      let headerLine = `\\textbf{${title}${company ? ` — ${company}` : ''}}`;
+      if (dates) headerLine += ` \\hfill ${escapeLatex(dates)}`;
+
+      const entryLines = [`${headerLine}\\par`];
+      if (location) {
+        entryLines.push('\\vspace{\\atsRoleToMetadata}');
+        entryLines.push(`{\\small\\textit{${location}}}\\par`);
+      }
+      entryLines.push('\\vspace{\\atsMetadataToBullets}');
+      if (bullets) entryLines.push(bullets);
+
+      if (index < experienceRecords.length - 1) {
+        entryLines.push('\\vspace{\\atsEntryToEntry}');
+      }
+      return entryLines.join('\n');
+    });
+
     // 6. Education — real stored records only
     const educationRecords =
       candidateProfile?.education ||
@@ -710,34 +858,168 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
       candidateProfile?.candidate?.profileMetadata?.education ||
       [];
 
+    const eduEntries = educationRecords.map((edu, index) => {
+      const rawDegree = (edu.degree || '').trim();
+      const rawField = (edu.fieldOfStudy || edu.field || '').trim();
+      const degree = escapeLatex(rawDegree);
+      const fieldAlreadyInDegree =
+        rawField && rawDegree.toLowerCase().includes(rawField.toLowerCase());
+      const field = rawField && !fieldAlreadyInDegree ? ` in ${escapeLatex(rawField)}` : '';
+      const institution = edu.institution ? escapeLatex(edu.institution) : '';
+      const endDate = edu.isCurrent ? 'Present' : edu.endDate || '';
+      const dates = [edu.startDate || '', endDate].filter(Boolean).join(' -- ');
+      const coursework =
+        Array.isArray(edu.coursework) && edu.coursework.length > 0
+          ? `\\textit{Relevant Coursework: ${escapeLatex(edu.coursework.slice(0, 6).join(', '))}}`
+          : '';
+
+      let headerLine = `\\textbf{${degree}${field}}`;
+      if (dates) headerLine += ` \\hfill ${escapeLatex(dates)}`;
+
+      const entryLines = [`${headerLine}\\par`];
+      if (institution) {
+        entryLines.push('\\vspace{\\atsRoleToMetadata}');
+        entryLines.push(`{\\small\\textit{${institution}}}\\par`);
+      }
+      if (coursework) {
+        entryLines.push('\\vspace{\\atsRoleToMetadata}');
+        entryLines.push(`{\\small ${coursework}}\\par`);
+      }
+
+      if (index < educationRecords.length - 1) {
+        entryLines.push('\\vspace{\\atsEntryToEntry}');
+      }
+      return entryLines.join('\n');
+    });
+
     // 7. Certifications — candidate-provided / claimed records
-    const certRecords =
-      candidateProfile?.certifications ||
-      candidateProfile?.profileMetadata?.userCustom?.certifications ||
-      candidateProfile?.candidate?.profileMetadata?.userCustom?.certifications ||
-      [];
-    const mdCertsMatch = applicationPackage.tailoredResume?.markdownContent?.match(
-      /## Certifications\n+([\s\S]*?)(?=\n+##(?!\#)\s+[^\n]+|$)/
-    );
-    let certNames = [];
-    if (Array.isArray(certRecords) && certRecords.length > 0) {
-      certNames = certRecords
-        .map((c) => (typeof c === 'string' ? c : c.name || c.title || ''))
-        .filter(Boolean);
-    } else if (mdCertsMatch) {
-      certNames = mdCertsMatch[1]
-        .split('\n')
-        .map((l) => l.trim().replace(/^[-*]\s*/, ''))
-        .filter(Boolean);
-    }
+    // Content Strategy is authoritative: render ONLY if selectedSections includes CERTIFICATIONS
+    const isCertSelected = hasSelectedSectionsList
+      ? selectedSections.some((s) =>
+          ['CERTIFICATIONS', 'CERTIFICATION'].includes(String(s).toUpperCase())
+        )
+      : Boolean(
+          candidateProfile?.certifications?.length ||
+          /## Certifications/i.test(applicationPackage.tailoredResume?.markdownContent || '')
+        );
+
     let certLatexSection = '';
-    if (certNames.length > 0) {
-      certLatexSection = `\\atssection{Certifications}
+    if (isCertSelected) {
+      let certNames = [];
+      const certSnapshot = sectionSnapshots.CERTIFICATIONS || null;
+      if (certSnapshot && Array.isArray(certSnapshot.records) && certSnapshot.records.length > 0) {
+        certNames = certSnapshot.records
+          .map((c) => (typeof c === 'string' ? c : c.name || c.title || ''))
+          .filter(Boolean);
+      }
+      if (certNames.length === 0) {
+        const certRecords =
+          candidateProfile?.certifications ||
+          candidateProfile?.profileMetadata?.userCustom?.certifications ||
+          candidateProfile?.candidate?.profileMetadata?.userCustom?.certifications ||
+          [];
+        const mdCertsMatch = applicationPackage.tailoredResume?.markdownContent?.match(
+          /## Certifications\n+([\s\S]*?)(?=\n+##(?!#)\s+[^\n]+|$)/
+        );
+        if (Array.isArray(certRecords) && certRecords.length > 0) {
+          certNames = certRecords
+            .map((c) => (typeof c === 'string' ? c : c.name || c.title || ''))
+            .filter(Boolean);
+        } else if (mdCertsMatch) {
+          certNames = mdCertsMatch[1]
+            .split('\n')
+            .map((l) => l.trim().replace(/^[-*]\s*/, ''))
+            .filter(Boolean);
+        }
+      }
+      if (certNames.length > 0) {
+        certLatexSection = `\\atssection{Certifications}
 \\begin{itemize}
-\\setlength{\\itemsep}{\\atsBulletSep}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
+\\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
 ${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
-\\end{itemize}
-\\atsentrygap`;
+\\end{itemize}`;
+      }
+    }
+
+    // 8. Other optional candidate-owned sections (Coursework, Publications, Achievements, Additional Skills, Awards)
+    let courseworkLatexSection = '';
+    const isCourseworkSelected = hasSelectedSectionsList && selectedSections.some((s) =>
+      ['COURSEWORK', 'RELEVANT_COURSEWORK'].includes(String(s).toUpperCase())
+    );
+    if (isCourseworkSelected) {
+      const cwSnapshot = sectionSnapshots.COURSEWORK || null;
+      const cwRecords = Array.isArray(cwSnapshot?.records) ? cwSnapshot.records : [];
+      if (cwRecords.length > 0) {
+        courseworkLatexSection = `\\atssection{Relevant Coursework}
+\\begin{itemize}
+\\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
+${cwRecords.map((c) => `  \\item ${escapeLatex(typeof c === 'string' ? c : c.name || c.title)}`).join('\n')}
+\\end{itemize}`;
+      }
+    }
+
+    let publicationsLatexSection = '';
+    const isPubSelected = hasSelectedSectionsList && selectedSections.some((s) =>
+      ['PUBLICATIONS', 'PUBLICATION'].includes(String(s).toUpperCase())
+    );
+    if (isPubSelected) {
+      const pubSnapshot = sectionSnapshots.PUBLICATIONS || null;
+      const pubRecords = Array.isArray(pubSnapshot?.records) ? pubSnapshot.records : [];
+      if (pubRecords.length > 0) {
+        publicationsLatexSection = `\\atssection{Publications}
+\\begin{itemize}
+\\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
+${pubRecords.map((p) => `  \\item ${escapeLatex(typeof p === 'string' ? p : p.title || p.name)}`).join('\n')}
+\\end{itemize}`;
+      }
+    }
+
+    let achievementsLatexSection = '';
+    const isAchievementsSelected = hasSelectedSectionsList && selectedSections.some((s) =>
+      ['ACHIEVEMENTS', 'ACHIEVEMENT'].includes(String(s).toUpperCase())
+    );
+    if (isAchievementsSelected) {
+      const achSnapshot = sectionSnapshots.ACHIEVEMENTS || null;
+      const achRecords = Array.isArray(achSnapshot?.records) ? achSnapshot.records : [];
+      if (achRecords.length > 0) {
+        achievementsLatexSection = `\\atssection{Achievements}
+\\begin{itemize}
+\\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
+${achRecords.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.title || a.name)}`).join('\n')}
+\\end{itemize}`;
+      }
+    }
+
+    let additionalSkillsLatexSection = '';
+    const isAddSkillsSelected = hasSelectedSectionsList && selectedSections.some((s) =>
+      ['ADDITIONAL_SKILLS', 'ADDITIONAL_SKILL'].includes(String(s).toUpperCase())
+    );
+    if (isAddSkillsSelected) {
+      const skSnapshot = sectionSnapshots.ADDITIONAL_SKILLS || null;
+      const skRecords = Array.isArray(skSnapshot?.records) ? skSnapshot.records : [];
+      if (skRecords.length > 0) {
+        additionalSkillsLatexSection = `\\atssection{Additional Skills}
+\\begin{itemize}
+\\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
+${skRecords.map((s) => `  \\item ${escapeLatex(typeof s === 'string' ? s : s.name || s.skill)}`).join('\n')}
+\\end{itemize}`;
+      }
+    }
+
+    let awardsLatexSection = '';
+    const isAwardsSelected = hasSelectedSectionsList && selectedSections.some((s) =>
+      ['AWARDS', 'AWARD'].includes(String(s).toUpperCase())
+    );
+    if (isAwardsSelected) {
+      const awSnapshot = sectionSnapshots.AWARDS || null;
+      const awRecords = Array.isArray(awSnapshot?.records) ? awSnapshot.records : [];
+      if (awRecords.length > 0) {
+        awardsLatexSection = `\\atssection{Awards}
+\\begin{itemize}
+\\setlength{\\itemsep}{\\atsBulletToBullet}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{0pt}\\setlength{\\partopsep}{0pt}
+${awRecords.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.title || a.name)}`).join('\n')}
+\\end{itemize}`;
+      }
     }
 
     const hasRealExperience = experienceRecords.length > 0;
@@ -760,37 +1042,53 @@ ${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
   citecolor=black
 }
 
-% --- Centralized vertical spacing system (single source of truth) ---
-% Hierarchy: major section gap > entry gap > heading-to-content gap > bullet gap
-\\newcommand{\\atsSectionGap}{7pt}      % major section separation
-\\newcommand{\\atsHeadingGap}{3pt}      % section heading -> first content line
-\\newcommand{\\atsProjectGap}{4pt}      % project-to-project / entry-to-entry
-\\newcommand{\\atsProjectHeadGap}{2pt}  % project heading -> project bullets
-\\newcommand{\\atsBulletSep}{1.5pt}     % bullet-to-bullet
+% --- Adaptive vertical spacing system (computed by ResumeLayoutEngine P14-026) ---
+% Hierarchy: SECTION_TO_SECTION > ENTRY_TO_ENTRY > HEADING_TO_CONTENT > BULLET_TO_BULLET
+\\newcommand{\\atsHeaderToSection}{${layoutProfile.texMacros.atsHeaderToSection}}
+\\newcommand{\\atsSectionToSection}{${layoutProfile.texMacros.atsSectionToSection}}
+\\newcommand{\\atsHeadingToContent}{${layoutProfile.texMacros.atsHeadingToContent}}
+\\newcommand{\\atsEntryToEntry}{${layoutProfile.texMacros.atsEntryToEntry}}
+\\newcommand{\\atsProjectTitleToTech}{${layoutProfile.texMacros.atsProjectTitleToTech}}
+\\newcommand{\\atsProjectTechToBullets}{${layoutProfile.texMacros.atsProjectTechToBullets}}
+\\newcommand{\\atsRoleToMetadata}{${layoutProfile.texMacros.atsRoleToMetadata}}
+\\newcommand{\\atsMetadataToBullets}{${layoutProfile.texMacros.atsMetadataToBullets}}
+\\newcommand{\\atsBulletToBullet}{${layoutProfile.texMacros.atsBulletToBullet}}
+
+% Backward-compatibility aliases
+\\newcommand{\\atsSectionGap}{\\atsSectionToSection}
+\\newcommand{\\atsHeadingGap}{\\atsHeadingToContent}
+\\newcommand{\\atsProjectGap}{\\atsEntryToEntry}
+\\newcommand{\\atsProjectHeadGap}{\\atsProjectTechToBullets}
+\\newcommand{\\atsBulletSep}{\\atsBulletToBullet}
+\\newcommand{\\atsentrygap}{\\vspace{\\atsEntryToEntry}}
+\\newcommand{\\atsentryheadgap}{\\vspace{\\atsProjectTechToBullets}}
 
 % Clean, ATS-Compliant Section Dividers
 \\newcommand{\\atssection}[1]{%
-  \\vspace{\\atsSectionGap}%
-  {\\noindent\\large\\textbf{\\uppercase{#1}}}%
-  \\vspace{1pt}\\hrule\\vspace{\\atsHeadingGap}%
+  \\vspace{\\atsSectionToSection}%
+  {\\noindent\\large\\textbf{\\uppercase{#1}}}\\par
+  \\vspace{1.5pt}\\hrule\\vspace{\\atsHeadingToContent}%
 }
-% Entry spacing inside a section (projects, experience, education, certifications)
-\\newcommand{\\atsentrygap}{\\vspace{\\atsProjectGap}}
-\\newcommand{\\atsentryheadgap}{\\vspace{\\atsProjectHeadGap}}
+\\newcommand{\\atsfirstsection}[1]{%
+  \\vspace{\\atsHeaderToSection}%
+  {\\noindent\\large\\textbf{\\uppercase{#1}}}\\par
+  \\vspace{1.5pt}\\hrule\\vspace{\\atsHeadingToContent}%
+}
 
 \\begin{document}
 
 % ---------------- HEADER (4-tier) ----------------
-\\begin{center}
-  {\\Huge \\textbf{${escapeLatex(candidateName)}}}\\\\[3pt]
-${candidateHeadline ? `  {\\large \\textbf{${escapeLatex(candidateHeadline)}}}\\\\[3pt]\n` : ''}\
-  {\\small ${contactLine}}${profileLinksLine ? `\\\\[2pt]\n  {\\small ${profileLinksLine}}` : ''}
-\\end{center}
-\\vspace{-2pt}
+{\\centering
+  {\\Huge \\textbf{${escapeLatex(candidateName)}}}\\par
+  \\vspace{2.5pt}
+${candidateHeadline ? `  {\\large \\textbf{${escapeLatex(candidateHeadline)}}}\\par\n  \\vspace{2.5pt}\n` : ''}\
+  {\\small ${contactLine}}\\par
+${profileLinksLine ? `  \\vspace{2pt}\n  {\\small ${profileLinksLine}}\\par\n` : ''}\
+}
 
 % ---------------- SUMMARY ----------------
-\\atssection{Professional Summary}
-${summaryText ? escapeLatex(summaryText) : '\\textit{(Professional summary not provided in profile.)}'}
+\\atsfirstsection{Professional Summary}
+${summaryText ? escapeLatex(summaryText) : '\\textit{(Professional summary not provided in profile.)}'}\\par
 
 % ---------------- TECHNICAL SKILLS ----------------
 ${skillsLatexSection}
@@ -805,21 +1103,7 @@ ${dsaLatexSection}
 ${
   hasRealExperience
     ? `\\atssection{Professional Experience}
-${experienceRecords
-  .map((exp) => {
-    const title = escapeLatex(exp.title || exp.role || 'Role');
-    const company = exp.company || exp.employer ? escapeLatex(exp.company || exp.employer) : '';
-    const endDate = exp.isCurrent ? 'Present' : exp.endDate || exp.endYear || '';
-    const dates = [exp.startDate || exp.startYear || '', endDate].filter(Boolean).join(' -- ');
-    const location = exp.location ? escapeLatex(exp.location) : '';
-    const bullets = formatLatexBullets(exp.bullets || exp.highlights || exp.description);
-
-    return `\\textbf{${title}${company ? ` — ${company}` : ''}}${dates ? ` \\hfill ${escapeLatex(dates)}` : ''}\\\\
-${location ? `\\textit{${location}}\\\\` : ''}
-${bullets}
-\\atsentrygap`;
-  })
-  .join('\n')}`
+${expEntries.join('\n')}`
     : ''
 }
 
@@ -827,31 +1111,19 @@ ${bullets}
 ${
   hasRealEducation
     ? `\\atssection{Education}
-${educationRecords
-  .map((edu) => {
-    const rawDegree = (edu.degree || '').trim();
-    const rawField = (edu.fieldOfStudy || edu.field || '').trim();
-    const degree = escapeLatex(rawDegree);
-    const fieldAlreadyInDegree =
-      rawField && rawDegree.toLowerCase().includes(rawField.toLowerCase());
-    const field = rawField && !fieldAlreadyInDegree ? ` in ${escapeLatex(rawField)}` : '';
-    const institution = edu.institution ? escapeLatex(edu.institution) : '';
-    const endDate = edu.isCurrent ? 'Present' : edu.endDate || '';
-    const dates = [edu.startDate || '', endDate].filter(Boolean).join(' -- ');
-    const coursework =
-      Array.isArray(edu.coursework) && edu.coursework.length > 0
-        ? `\\textit{Relevant Coursework: ${escapeLatex(edu.coursework.slice(0, 6).join(', '))}}\\\\`
-        : '';
-    return `\\textbf{${degree}${field}}${dates ? ` \\hfill ${escapeLatex(dates)}` : ''}\\\\
-${institution ? `\\textit{${institution}}\\\\` : ''}
-${coursework}\\atsentrygap`;
-  })
-  .join('\n')}`
+${eduEntries.join('\n')}`
     : ''
 }
 
-% ---------------- CERTIFICATIONS (omitted when no real records) ----------------
+% ---------------- CERTIFICATIONS (omitted when unselected or no records) ----------------
 ${certLatexSection}
+
+% ---------------- OTHER OPTIONAL CANDIDATE SECTIONS ----------------
+${courseworkLatexSection}
+${publicationsLatexSection}
+${achievementsLatexSection}
+${additionalSkillsLatexSection}
+${awardsLatexSection}
 
 \\end{document}
 `;

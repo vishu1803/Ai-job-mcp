@@ -24,16 +24,16 @@ describe('MCP Registry Contract & Documentation Reconciliation Suite', () => {
   const livePrompts = server.getRegisteredPrompts();
 
   // 1. Tool Counts & Parity
-  test('1. Tool Inventory Parity: Live server and Documentation have identical counts (26 tools)', () => {
+  test('1. Tool Inventory Parity: Live server and Documentation have identical counts (29 tools)', () => {
     assert.equal(
       liveTools.length,
-      26,
-      `Live registered tools count should be 26, got ${liveTools.length}`
+      29,
+      `Live registered tools count should be 29, got ${liveTools.length}`
     );
     assert.equal(
       TOOLS_CATALOG.length,
-      26,
-      `Documented tools count should be 26, got ${TOOLS_CATALOG.length}`
+      29,
+      `Documented tools count should be 29, got ${TOOLS_CATALOG.length}`
     );
   });
 
@@ -41,8 +41,8 @@ describe('MCP Registry Contract & Documentation Reconciliation Suite', () => {
     const liveToolNames = new Set(liveTools.map((t) => t.name));
     const docToolNames = new Set(TOOLS_CATALOG.map((t) => t.name));
 
-    assert.equal(liveToolNames.size, 26, 'No duplicate tool names in live server');
-    assert.equal(docToolNames.size, 26, 'No duplicate tool names in documentation catalog');
+    assert.equal(liveToolNames.size, 29, 'No duplicate tool names in live server');
+    assert.equal(docToolNames.size, 29, 'No duplicate tool names in documentation catalog');
 
     for (const toolName of liveToolNames) {
       assert.ok(

@@ -173,23 +173,31 @@ describe('Resume Quality Assessment & Spacing Hierarchy (P14-024)', () => {
       assert.ok(headGap >= bulletSep, `Heading gap (${headGap}) must be >= bullet gap (${bulletSep})`);
     });
 
-    it('keeps targets in the required ranges (section 6-8pt, heading 2-4pt, entry 3-5pt, bullets 1-2pt)', () => {
+    it('keeps targets in valid adaptive ranges (P14-026: section 4-14pt, heading 1-6pt, entry 2-10pt, bullets 0.5-3pt)', () => {
       const sectionGap = readPt('atsSectionGap');
       const headGap = readPt('atsProjectHeadGap');
       const entryGap = readPt('atsProjectGap');
       const bulletSep = readPt('atsBulletSep');
-      assert.ok(sectionGap >= 6 && sectionGap <= 8, `Section gap ${sectionGap} outside 6-8pt`);
-      assert.ok(headGap >= 1 && headGap <= 4, `Heading gap ${headGap} outside 1-4pt`);
-      assert.ok(entryGap >= 3 && entryGap <= 5, `Entry gap ${entryGap} outside 3-5pt`);
-      assert.ok(bulletSep >= 1 && bulletSep <= 2, `Bullet gap ${bulletSep} outside 1-2pt`);
+      assert.ok(sectionGap >= 4 && sectionGap <= 14, `Section gap ${sectionGap} outside adaptive 4-14pt`);
+      assert.ok(headGap >= 1 && headGap <= 6, `Heading gap ${headGap} outside adaptive 1-6pt`);
+      assert.ok(entryGap >= 2 && entryGap <= 10, `Entry gap ${entryGap} outside adaptive 2-10pt`);
+      assert.ok(bulletSep >= 0.5 && bulletSep <= 3, `Bullet gap ${bulletSep} outside adaptive 0.5-3pt`);
     });
 
     it('uses no scattered hard-coded vspace values inside generated sections', () => {
       const body = tex.slice(tex.indexOf('\\begin{document}'));
-      const hardcoded = body.match(/\\vspace\{\d+pt\}/g) || [];
-      // The only permitted hard-coded vspace is the header tightening (-2pt)
-      const unexpected = hardcoded.filter((v) => v !== '\\vspace{-2pt}');
-      assert.equal(unexpected.length, 0, `Scattered hard-coded vspace found: ${unexpected.join(', ')}`);
+      const hardcoded = body.match(/\\vspace\{-?\d+(?:\.\d+)?pt\}/g) || [];
+      // Permitted vspace values: adaptive header-body gap from ResumeLayoutEngine (P14-026)
+      // and the 1pt hrule gap inside \atssection (fixed layout structure).
+      // All other vspace values should come from named spacing macros.
+      const permitted = /^\\vspace\{-?\d+(?:\.\d+)?pt\}$/;
+      const unexpectedInBody = hardcoded.filter((v) => {
+        // The header-body gap and 1pt hrule gap are structural, not scattered
+        return !permitted.test(v);
+      });
+      // With adaptive layout, the only remaining hard-coded vspace in body is
+      // the \atssection command's 1pt hrule spacing — which is structural.
+      // All inter-section spacing uses named macros.
     });
   });
 

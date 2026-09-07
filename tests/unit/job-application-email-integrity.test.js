@@ -157,9 +157,9 @@ describe('Job Application Email Integrity & Demo Leakage Prevention', () => {
       const jobPosting = {
         id: '70ce5b11-0cca-4c6e-8b85-f7b6e8c8321f',
         title: 'Senior Backend Engineer',
-        company: 'Regression Testing Corp',
+        company: 'Platform Systems Inc',
         description: 'Building robust microservices using Node.js, TypeScript, and PostgreSQL.',
-        applicationUrl: 'https://regression-testing-corp.com/apply',
+        applicationUrl: 'https://platform-systems.example-corp.com/apply',
         source: 'MANUAL',
         retrievedAt: new Date().toISOString(),
       };

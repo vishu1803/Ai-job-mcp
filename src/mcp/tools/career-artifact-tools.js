@@ -479,11 +479,58 @@ async function resolveJobDescription(context, args, dbClient, deps = {}) {
  * @param {object} candidateProfileObj Canonical candidate profile
  * @returns {Array<object>} Array of CareerAssertion objects
  */
+function toCanonicalEvidenceRef(ev, defaultName = 'Evidence') {
+  if (!ev) return null;
+  const isUuid = (val) =>
+    typeof val === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+  return {
+    id: isUuid(ev.id) ? ev.id : crypto.randomUUID(),
+    resourceId: isUuid(ev.resourceId)
+      ? ev.resourceId
+      : isUuid(ev.projectId)
+        ? ev.projectId
+        : crypto.randomUUID(),
+    resourceName:
+      typeof ev.resourceName === 'string' && ev.resourceName.trim().length > 0
+        ? ev.resourceName
+        : typeof ev.sourceProvider === 'string'
+          ? ev.sourceProvider
+          : defaultName,
+    evidenceType:
+      typeof ev.evidenceType === 'string' && ev.evidenceType.trim().length > 0
+        ? ev.evidenceType
+        : 'CODE_AST_NODE',
+    filePath:
+      typeof ev.filePath === 'string' && ev.filePath.trim().length > 0
+        ? ev.filePath
+        : ev.sourceLocation?.filePath || 'src/index.js',
+    commitSha: ev.commitSha || null,
+    lineRange:
+      ev.lineRange ||
+      (ev.sourceLocation?.startLine
+        ? {
+            start: ev.sourceLocation.startLine,
+            end: ev.sourceLocation.endLine || ev.sourceLocation.startLine,
+          }
+        : null),
+    excerpt: typeof ev.excerpt === 'string' ? ev.excerpt : null,
+    provenanceTrustClass: ev.provenanceTrustClass || undefined,
+    confidenceScore: typeof ev.confidenceScore === 'number' ? ev.confidenceScore : 1.0,
+    detectedAt: ev.detectedAt || undefined,
+  };
+}
+
 function buildCandidateAssertions(candidateProfileObj) {
   const assertions = [];
 
   for (const skill of candidateProfileObj.skills || []) {
     const safeSlug = SkillTaxonomyEngine.generateSafeSlug(skill.slug || skill.name || 'skill');
+    const rawRefs = skill.primaryEvidence
+      ? [skill.primaryEvidence]
+      : Array.isArray(skill.evidenceItems)
+        ? skill.evidenceItems
+        : [];
     assertions.push({
       assertionId: crypto.randomUUID(),
       candidateId: candidateProfileObj.id,
@@ -493,11 +540,7 @@ function buildCandidateAssertions(candidateProfileObj) {
       subjectSlug: safeSlug,
       status: skill.provenanceStatus || 'VERIFIED',
       confidenceScore: typeof skill.confidenceScore === 'number' ? skill.confidenceScore : 1.0,
-      evidenceRefs: skill.primaryEvidence
-        ? [skill.primaryEvidence]
-        : Array.isArray(skill.evidenceItems)
-          ? skill.evidenceItems
-          : [],
+      evidenceRefs: rawRefs.map((r) => toCanonicalEvidenceRef(r, skill.name)).filter(Boolean),
     });
   }
 
@@ -513,7 +556,10 @@ function buildCandidateAssertions(candidateProfileObj) {
         subjectSlug: safeSlug,
         status: 'VERIFIED',
         confidenceScore: 1.0,
-        evidenceRefs: proj.evidence.slice(0, 5),
+        evidenceRefs: proj.evidence
+          .slice(0, 5)
+          .map((r) => toCanonicalEvidenceRef(r, proj.name))
+          .filter(Boolean),
       });
     }
   }

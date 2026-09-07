@@ -304,16 +304,26 @@ Full-stack engineer.
       );
     });
 
-    it('renders Problem Solving section as Candidate-Reported when explicitly selected', () => {
+    it('renders Problem Solving section as Candidate-Reported when explicitly selected with valid candidate content', () => {
       const pkg = {
         candidateName: 'Vishwanath Nishad',
         candidateEmail: 'vishwanatnishad@gmail.com',
         targetJob: dummyJob,
         tailoredResume: {
           title: 'Resume',
-          markdownContent: '## Summary\nEngineer.',
+          markdownContent:
+            '## Summary\nEngineer.\n\n## Problem Solving & Algorithmic Practice\n### LeetCode Profile · Candidate-Reported Problem Solving\n- Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
           selectedProjects: [],
           selectedSections: ['TECHNICAL_SKILLS', 'PROJECTS', 'PROBLEM_SOLVING', 'PROFESSIONAL_EXPERIENCE'],
+          sectionSnapshots: {
+            PROBLEM_SOLVING: {
+              title: 'Problem Solving & Algorithmic Practice',
+              subtitle: 'Candidate-Reported Problem Solving',
+              bullets: [
+                'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
+              ],
+            },
+          },
         },
       };
 
@@ -329,6 +339,30 @@ Full-stack engineer.
       assert.ok(
         result.texContent.includes('Candidate-Reported Problem Solving'),
         'Must classify as candidate-reported problem solving'
+      );
+    });
+
+    it('fails validation when DSA is selected but valid candidate-owned DSA content is missing', () => {
+      const pkg = {
+        candidateName: 'Vishwanath Nishad',
+        candidateEmail: 'vishwanatnishad@gmail.com',
+        targetJob: dummyJob,
+        tailoredResume: {
+          title: 'Resume',
+          markdownContent: '## Summary\nEngineer.',
+          selectedProjects: [],
+          selectedSections: ['TECHNICAL_SKILLS', 'PROJECTS', 'PROBLEM_SOLVING'],
+        },
+      };
+
+      assert.throws(
+        () => {
+          latexGen.generateTailoredResumeLatex({
+            applicationPackage: pkg,
+            candidateProfile: dummyCandidateData,
+          });
+        },
+        /DSA section is selected by Content Strategy, but valid candidate-owned DSA content is missing/i
       );
     });
   });
