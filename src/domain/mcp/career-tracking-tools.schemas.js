@@ -201,6 +201,16 @@ export const TrackJobApplicationInputSchema = z
       .uuid('jobId must be a valid UUIDv4')
       .optional()
       .describe('Optional alias for canonical job UUID.'),
+    canonicalJobId: z
+      .string()
+      .optional()
+      .describe('Canonical unique identifier for job opportunity across sources.'),
+    normalizedJobUrl: z
+      .string()
+      .url('normalizedJobUrl must be a valid URL')
+      .optional()
+      .nullable()
+      .describe('Normalized URL of the job opportunity.'),
     candidateId: z
       .string()
       .uuid('candidateId must be a valid UUIDv4')
@@ -275,6 +285,8 @@ export const TrackJobApplicationOutputSchema = z.object({
   application: z.object({
     id: z.string().uuid(),
     candidateId: z.string().uuid(),
+    canonicalJobId: z.string().nullable().optional(),
+    normalizedJobUrl: z.string().nullable().optional(),
     companyName: z.string(),
     jobTitle: z.string(),
     status: ApplicationStatusEnum,
@@ -490,6 +502,7 @@ export const GetJobApplicationOutputSchema = z.object({
   // prepared before package versioning existed.
   currentPackage: z
     .object({
+      applicationId: z.string().uuid().optional(),
       packageHash: z.string().length(64),
       packageVersion: z.number().int().positive(),
       isLatest: z.literal(true),
@@ -499,12 +512,17 @@ export const GetJobApplicationOutputSchema = z.object({
       lifecycleState: z.enum(['CURRENT', 'ARCHIVED']),
       preparedAt: z.string(),
       createdAt: z.string(),
+      resumeQuality: z.record(z.unknown()).nullable().optional(),
+      layoutDiagnostics: z.record(z.unknown()).nullable().optional(),
     })
+    .passthrough()
     .nullable()
     .optional(),
   application: z.object({
     id: z.string().uuid(),
     candidateId: z.string().uuid(),
+    canonicalJobId: z.string().nullable().optional(),
+    normalizedJobUrl: z.string().nullable().optional(),
     companyName: z.string(),
     jobTitle: z.string(),
     jobUrl: z.string().nullable().optional(),
@@ -605,6 +623,8 @@ export const ListActiveApplicationsOutputSchema = z.object({
   items: z.array(
     z.object({
       id: z.string().uuid(),
+      canonicalJobId: z.string().nullable().optional(),
+      normalizedJobUrl: z.string().nullable().optional(),
       companyName: z.string(),
       jobTitle: z.string(),
       status: ApplicationStatusEnum,

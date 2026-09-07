@@ -24,6 +24,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
 // Enumerations
@@ -883,6 +884,8 @@ export const jobApplications = pgTable(
     candidateId: uuid('candidate_id')
       .notNull()
       .references(() => candidates.id, { onDelete: 'cascade' }),
+    canonicalJobId: text('canonical_job_id'),
+    normalizedJobUrl: text('normalized_job_url'),
     companyName: text('company_name').notNull(),
     jobTitle: text('job_title').notNull(),
     jobUrl: text('job_url'),
@@ -908,6 +911,16 @@ export const jobApplications = pgTable(
     index('idx_job_applications_tenant_status').on(table.tenantId, table.status),
     index('idx_job_applications_tenant_company').on(table.tenantId, table.companyName),
     index('idx_job_applications_tenant_applied').on(table.tenantId, table.appliedAt.desc()),
+    uniqueIndex('uq_job_applications_active_canonical_job')
+      .on(table.tenantId, table.candidateId, table.canonicalJobId)
+      .where(
+        sql`${table.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED') AND ${table.canonicalJobId} IS NOT NULL`
+      ),
+    uniqueIndex('uq_job_applications_active_normalized_url')
+      .on(table.tenantId, table.candidateId, table.normalizedJobUrl)
+      .where(
+        sql`${table.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED') AND ${table.normalizedJobUrl} IS NOT NULL`
+      ),
   ]
 );
 

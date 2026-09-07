@@ -11,13 +11,14 @@
  */
 
 import crypto from 'node:crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { candidates, users, jobApplications, candidateSkills, skills } from '../db/schema.js';
 import { CandidateArtifactContentService } from './candidate-artifact-content.service.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
 import { ApplicationHandoffService } from './application-handoff.service.js';
+import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 import {
   ApplicationPackageSchema,
   ApplicationValidationResultSchema,
@@ -47,6 +48,9 @@ import { logger as defaultLogger } from '../utils/logger.js';
  * @param {string} params.tenantId
  * @param {string} params.userId
  * @param {string} params.candidateId
+ * @param {string} [params.applicationId]
+ * @param {string} [params.canonicalJobId]
+ * @param {string} [params.jobId]
  * @param {object} params.preparedPackage Validated ApplicationPackage
  * @param {import('pino').Logger} params.logger
  * @returns {Promise<object|null>} Persisted CURRENT package row, or null
@@ -56,19 +60,55 @@ async function persistPreparedPackage({
   tenantId,
   userId,
   candidateId,
+  applicationId,
+  canonicalJobId,
+  jobId,
   preparedPackage,
   logger,
 }) {
   try {
     const context = { tenantId, userId, role: 'MEMBER' };
+    const targetJob = preparedPackage.targetJob || {};
+    const directUrl =
+      targetJob.directPortalUrl ||
+      targetJob.applicationUrl ||
+      targetJob.sourceUrl ||
+      null;
+    const normalizedUrl = directUrl ? normalizeJobUrl(directUrl) : null;
+    const resolvedCanonicalJobId =
+      canonicalJobId ||
+      targetJob.canonicalJobId ||
+      deriveCanonicalJobId({
+        canonicalJobId: targetJob.canonicalJobId,
+        jobId: targetJob.id || jobId,
+        source: targetJob.source,
+        directPortalUrl: directUrl,
+        applicationUrl: directUrl,
+      });
+
+    const appSource = [
+      'LINKEDIN',
+      'INDEED',
+      'COMPANY_CAREERS',
+      'REFERRAL',
+      'RECRUITER',
+      'MANUAL',
+      'OTHER',
+    ].includes(String(targetJob.source || '').toUpperCase())
+      ? String(targetJob.source).toUpperCase()
+      : 'COMPANY_CAREERS';
+
     const application = await service.applicationTrackingService.resolveOrCreateApplication(
       context,
       candidateId,
       {
-        company: preparedPackage.targetJob.company,
-        title: preparedPackage.targetJob.title,
-        jobUrl: preparedPackage.targetJob.applicationUrl || null,
-        source: 'COMPANY_CAREERS',
+        applicationId: applicationId || preparedPackage.applicationId,
+        canonicalJobId: resolvedCanonicalJobId,
+        normalizedJobUrl: normalizedUrl,
+        company: targetJob.company,
+        title: targetJob.title,
+        jobUrl: directUrl,
+        source: appSource,
         packageHash: preparedPackage.packageHash,
       }
     );
@@ -91,16 +131,32 @@ async function persistPreparedPackage({
       { source: 'PREPARE_JOB_APPLICATION' }
     );
 
+    let lifecycleAction = 'CREATED';
+    if (application.isReused) {
+      if (current.version > 1 && !current.isReused) {
+        lifecycleAction = 'UPDATED';
+      } else {
+        lifecycleAction = 'REUSED';
+      }
+    }
+
     logger.info(
       {
         tenantId,
         applicationId: application.id,
         packageHash: current.packageHash,
         packageVersion: current.version,
+        lifecycleAction,
       },
       'Prepared application package persisted as CURRENT version'
     );
-    return { applicationId: application.id, ...current };
+    return {
+      applicationId: application.id,
+      canonicalJobId: application.canonicalJobId || resolvedCanonicalJobId || null,
+      lifecycleAction,
+      packageStatus: application.status || 'SAVED',
+      ...current,
+    };
   } catch (err) {
     logger.warn(
       {
@@ -213,11 +269,12 @@ export class JobApplicationWorkflowService {
    * @param {object} params
    * @param {string} params.tenantId
    * @param {string} params.candidateId
+   * @param {string} [params.applicationId]
    * @param {object} params.jobPosting Normalized job posting
    * @param {object} [params.answers={}] User-provided questions/answers
    * @returns {Promise<object>} Complete Application Package
    */
-  async prepareJobApplication({ tenantId, candidateId, jobPosting, answers = {} }) {
+  async prepareJobApplication({ tenantId, candidateId, applicationId, jobPosting, answers = {} }) {
     if (!tenantId || !candidateId || !jobPosting) {
       throw new ValidationError(
         'tenantId, candidateId, and jobPosting are required.',
@@ -408,6 +465,9 @@ export class JobApplicationWorkflowService {
       tenantId,
       userId: cand.userId,
       candidateId,
+      applicationId,
+      canonicalJobId: targetJobPosting.canonicalJobId,
+      jobId: targetJobPosting.id,
       preparedPackage: validatedPackage,
       logger: this.logger,
     });
@@ -470,6 +530,8 @@ export class JobApplicationWorkflowService {
             downloadUrl: handoffKit.resume.downloadUrl,
             qaScore: handoffKit.resume.qaAudit?.score,
             qaPassed: resumeQaPassed,
+            resumeQuality: handoffKit.resume.resumeQuality || undefined,
+            layoutDiagnostics: handoffKit.resume.layoutDiagnostics || undefined,
           };
         }
 
@@ -504,6 +566,15 @@ export class JobApplicationWorkflowService {
 
     return {
       ...validatedPackage,
+      applicationId: persisted?.applicationId ?? applicationId ?? undefined,
+      jobId: validatedPackage.targetJob?.id || persisted?.canonicalJobId || undefined,
+      packageVersion: persisted?.version ?? undefined,
+      packageHash: validatedPackage.packageHash,
+      packageStatus: persisted?.packageStatus ?? 'SAVED',
+      artifactStatus: artifactsReady ? 'READY' : 'BLOCKED',
+      lifecycleAction: persisted?.lifecycleAction ?? 'CREATED',
+      resumeQuality: handoffKit?.resume?.resumeQuality || undefined,
+      layoutDiagnostics: handoffKit?.resume?.layoutDiagnostics || undefined,
       tailoredResume: {
         ...validatedPackage.tailoredResume,
         ...(resumeArtifact ? { artifact: resumeArtifact } : {}),
@@ -512,8 +583,6 @@ export class JobApplicationWorkflowService {
         ...validatedPackage.coverLetter,
         ...(coverLetterArtifact ? { artifact: coverLetterArtifact } : {}),
       },
-      applicationId: persisted?.applicationId ?? undefined,
-      packageVersion: persisted?.version ?? undefined,
       documentsStatus,
       artifactsReady,
       ...(artifactFailureReason ? { artifactFailureReason } : {}),
@@ -912,10 +981,12 @@ export class JobApplicationWorkflowService {
    */
   async validateJobApplication({ tenantId, candidateId, applicationPackage, destinationUrl }) {
     const validatedPkg = ApplicationPackageSchema.parse(applicationPackage);
-    const targetUrl = destinationUrl || validatedPkg.targetJob.applicationUrl;
+    const targetJob = validatedPkg.targetJob || {};
+    const targetUrl = destinationUrl || targetJob.applicationUrl || targetJob.directPortalUrl || '';
 
     const missingFields = [];
     const warnings = [];
+    const errors = [];
 
     if (!validatedPkg.candidateEmail) {
       missingFields.push('candidateEmail');
@@ -923,38 +994,108 @@ export class JobApplicationWorkflowService {
     if (!validatedPkg.candidateName) {
       missingFields.push('candidateName');
     }
-    if (!validatedPkg.tailoredResume?.markdownContent) {
-      missingFields.push('tailoredResume');
-    }
 
-    // Duplicate Check in DB
-    const existing = await this.db
+    const hasCompany = Boolean(targetJob.company?.trim());
+    const hasTitle = Boolean(targetJob.title?.trim());
+    if (!hasCompany) missingFields.push('targetJob.company');
+    if (!hasTitle) missingFields.push('targetJob.title');
+
+    // Canonical identity resolution for duplicate check
+    const targetCanonicalJobId =
+      targetJob.canonicalJobId ||
+      deriveCanonicalJobId({
+        canonicalJobId: targetJob.canonicalJobId,
+        jobId: targetJob.id,
+        source: targetJob.source,
+        directPortalUrl: targetUrl,
+        applicationUrl: targetUrl,
+      });
+    const targetNormalizedUrl = targetUrl ? normalizeJobUrl(targetUrl) : null;
+
+    // Active applications query
+    const activeRows = await this.db
       .select({
         id: jobApplications.id,
         status: jobApplications.status,
         appliedAt: jobApplications.appliedAt,
+        canonicalJobId: jobApplications.canonicalJobId,
+        normalizedJobUrl: jobApplications.normalizedJobUrl,
+        companyName: jobApplications.companyName,
+        jobTitle: jobApplications.jobTitle,
+        jobUrl: jobApplications.jobUrl,
+        metadata: jobApplications.metadata,
       })
       .from(jobApplications)
       .where(
         and(
           eq(jobApplications.tenantId, tenantId),
           eq(jobApplications.candidateId, candidateId),
-          eq(jobApplications.companyName, validatedPkg.targetJob.company),
-          eq(jobApplications.jobTitle, validatedPkg.targetJob.title)
+          sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
         )
-      )
-      .limit(1);
+      );
+
+    let matchedApp = null;
+    // Priority 1: Match by canonicalJobId
+    if (targetCanonicalJobId) {
+      matchedApp = activeRows.find(
+        (row) =>
+          row.canonicalJobId === targetCanonicalJobId ||
+          row.metadata?.canonicalJobId === targetCanonicalJobId ||
+          row.metadata?.jobId === targetCanonicalJobId ||
+          row.id === targetCanonicalJobId
+      );
+    }
+
+    // Priority 2: Match by normalizedJobUrl
+    if (!matchedApp && targetNormalizedUrl) {
+      matchedApp = activeRows.find((row) => {
+        if (row.normalizedJobUrl && row.normalizedJobUrl === targetNormalizedUrl) return true;
+        if (row.jobUrl && normalizeJobUrl(row.jobUrl) === targetNormalizedUrl) return true;
+        return false;
+      });
+    }
+
+    // Priority 3: Guarded legacy fallback by (company, title)
+    if (!matchedApp && hasCompany && hasTitle) {
+      const companyMatches = activeRows.filter(
+        (row) =>
+          row.companyName.trim().toLowerCase() === targetJob.company.trim().toLowerCase() &&
+          row.jobTitle.trim().toLowerCase() === targetJob.title.trim().toLowerCase()
+      );
+      matchedApp = companyMatches.find((row) => {
+        const rowCanonical =
+          row.canonicalJobId || row.metadata?.canonicalJobId || row.metadata?.jobId;
+        if (rowCanonical && targetCanonicalJobId && rowCanonical !== targetCanonicalJobId) {
+          return false;
+        }
+        const rowNormUrl =
+          row.normalizedJobUrl || (row.jobUrl ? normalizeJobUrl(row.jobUrl) : null);
+        if (rowNormUrl && targetNormalizedUrl && rowNormUrl !== targetNormalizedUrl) {
+          return false;
+        }
+        return true;
+      });
+    }
 
     let duplicateWarning;
-    if (existing.length > 0) {
-      duplicateWarning = {
-        existingApplicationId: existing[0].id,
-        status: existing[0].status,
-        appliedAt: existing[0].appliedAt ? existing[0].appliedAt.toISOString() : undefined,
-      };
-      warnings.push(
-        `You already have an application recorded for "${validatedPkg.targetJob.title}" at ${validatedPkg.targetJob.company} (Status: ${existing[0].status}).`
-      );
+    if (matchedApp) {
+      const isSelf = validatedPkg.applicationId && matchedApp.id === validatedPkg.applicationId;
+      if (!isSelf || matchedApp.status === 'APPLIED' || matchedApp.status === 'INTERVIEWING') {
+        if (matchedApp.status === 'APPLIED' || matchedApp.status === 'INTERVIEWING') {
+          duplicateWarning = {
+            existingApplicationId: matchedApp.id,
+            status: matchedApp.status,
+            appliedAt: matchedApp.appliedAt ? matchedApp.appliedAt.toISOString() : undefined,
+          };
+          warnings.push(
+            `You already have a submitted application recorded for "${targetJob.title}" at ${targetJob.company} (Status: ${matchedApp.status}).`
+          );
+        } else if (!isSelf) {
+          warnings.push(
+            `An existing active application (${matchedApp.id}) is already tracked for "${targetJob.title}" at ${targetJob.company} (Status: ${matchedApp.status}).`
+          );
+        }
+      }
     }
 
     // Portal Type Identification
@@ -976,6 +1117,97 @@ export class JobApplicationWorkflowService {
       );
     }
 
+    // Resume Validation
+    const resumeIssues = [];
+    const hasMarkdown = Boolean(validatedPkg.tailoredResume?.markdownContent?.trim());
+    const hasPdfArtifact = Boolean(
+      validatedPkg.tailoredResume?.artifact?.downloadUrl ||
+        validatedPkg.tailoredResume?.artifact?.viewUrl
+    );
+    const qaPassed = Boolean(validatedPkg.tailoredResume?.artifact?.qaPassed ?? false);
+
+    if (!hasMarkdown) {
+      resumeIssues.push('Resume markdown content is empty');
+      missingFields.push('tailoredResume');
+    }
+    if (!hasPdfArtifact) {
+      resumeIssues.push('Resume compiled PDF artifact is not ready');
+    }
+    if (!qaPassed && validatedPkg.tailoredResume?.artifact) {
+      resumeIssues.push('Resume pre-exposure QA did not pass');
+    }
+
+    const resumeValidation = {
+      hasMarkdown,
+      hasPdfArtifact,
+      qaScore: validatedPkg.tailoredResume?.artifact?.qaScore ?? null,
+      qaPassed,
+      contentHash: validatedPkg.tailoredResume?.contentHash,
+      pdfContentHash: validatedPkg.tailoredResume?.artifact?.pdfContentHash ?? null,
+      issues: resumeIssues,
+    };
+
+    // Document Validation
+    const docIssues = [];
+    if (validatedPkg.artifactFailureReason) {
+      docIssues.push(validatedPkg.artifactFailureReason);
+    }
+    const documentValidation = {
+      documentsStatus:
+        validatedPkg.documentsStatus ||
+        (validatedPkg.artifactsReady ? 'DOCUMENTS_READY' : 'DOCUMENTS_PENDING'),
+      artifactsReady: Boolean(validatedPkg.artifactsReady),
+      coverLetterReady: Boolean(validatedPkg.coverLetter?.markdownContent?.trim()),
+      issues: docIssues,
+    };
+
+    // Job Consistency
+    const jobIssues = [];
+    if (!hasCompany) jobIssues.push('Target company name is missing');
+    if (!hasTitle) jobIssues.push('Target job title is missing');
+    const jobConsistency = {
+      isConsistent: hasCompany && hasTitle,
+      targetCompany: targetJob.company || '',
+      targetTitle: targetJob.title || '',
+      applicationId: validatedPkg.applicationId || null,
+      packageVersion: validatedPkg.packageVersion || null,
+      issues: jobIssues,
+    };
+
+    // Provenance Issues
+    const provIssues = [];
+    const unsubstantiatedSkills = (validatedPkg.claimedSkills || [])
+      .map((s) => s.name)
+      .filter(Boolean);
+    const unverifiedProjects = (validatedPkg.portfolioLinks || [])
+      .filter((p) => !p.repositoryUrl)
+      .map((p) => p.projectName);
+
+    if (unsubstantiatedSkills.length > 0) {
+      provIssues.push(
+        `${unsubstantiatedSkills.length} claimed skills lack repository verification: ${unsubstantiatedSkills.join(', ')}`
+      );
+    }
+    if (unverifiedProjects.length > 0) {
+      provIssues.push(
+        `${unverifiedProjects.length} portfolio projects lack repository URLs: ${unverifiedProjects.join(', ')}`
+      );
+    }
+
+    const provenanceIssues = {
+      unsubstantiatedSkillsCount: unsubstantiatedSkills.length,
+      unsubstantiatedSkills,
+      unverifiedProjects,
+      issues: provIssues,
+    };
+
+    if (resumeIssues.length > 0 && !hasMarkdown) {
+      errors.push(...resumeIssues);
+    }
+    if (jobIssues.length > 0) {
+      errors.push(...jobIssues);
+    }
+
     let status = 'READY_TO_APPLY';
     if (missingFields.length > 0) {
       status = 'NEEDS_USER_INPUT';
@@ -984,16 +1216,24 @@ export class JobApplicationWorkflowService {
       (duplicateWarning.status === 'APPLIED' || duplicateWarning.status === 'INTERVIEWING')
     ) {
       status = 'DUPLICATE';
+    } else if (errors.length > 0) {
+      status = 'BLOCKED';
     } else if (submissionMethod === 'BROWSER_HANDOFF_REQUIRED') {
       status = 'UNSUPPORTED_PORTAL';
     }
 
     const result = {
       status,
+      overallStatus: status,
       isReady: status === 'READY_TO_APPLY' || status === 'UNSUPPORTED_PORTAL',
+      errors,
       missingFields,
       warnings,
       duplicateWarning,
+      resumeValidation,
+      documentValidation,
+      jobConsistency,
+      provenanceIssues,
       portalType,
       submissionMethod,
       validatedAt: new Date().toISOString(),

@@ -1,7 +1,62 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-07*
+*Last Updated: 2026-09-08*
+
+### P14-028: Canonical Application Identity, Database Migration, and E2E MCP Workflow Remediation
+
+**Status:** COMPLETE  
+**Date:** 2026-09-08
+
+**Context & Objective:**
+Enforce canonical job identity hierarchy across the database, workflow services, and MCP tools while strictly preserving zero-touch core boundaries (project evidence, recommendation scoring, resume layout engine, DSA selection architecture):
+1. **Canonical Job Identity Hierarchy:**
+   - **Primary:** `tenantId + candidateId + canonicalJobId`
+   - **Secondary:** `tenantId + candidateId + normalizedJobUrl`
+   - **Guarded Legacy Fallback:** `tenantId + candidateId + companyName + jobTitle` (strictly guarded: never merges distinct roles with conflicting canonical job identities or URLs).
+2. **Migration Pre-check & Active Constraints:**
+   - Audited existing database for active duplicate applications before migration: 5 active applications scanned, 0 duplicates found.
+   - Generated and applied Drizzle migration `drizzle/0011_canonical_application_identity.sql`: added `canonical_job_id` and `normalized_job_url` columns with partial unique indexes `uq_job_applications_active_canonical_job` and `uq_job_applications_active_normalized_url` on active applications (`status NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`).
+3. **E2E MCP Workflow Remediation:**
+   - **Idempotency & Lifecycle Action:** `prepare_job_application` now idempotently returns existing packages (`lifecycleAction: 'REUSED'`), creates new records for fresh jobs (`'CREATED'`), and atomically increments versions on content change (`'UPDATED'`).
+   - **Complete Context Exposure:** `applicationId`, `jobId`, `candidateId`, `canonicalJobId`, `normalizedJobUrl`, `packageVersion`, `packageHash`, `packageStatus`, `artifactStatus`, `lifecycleAction`, `resumeQuality`, and `layoutDiagnostics` fully propagated and exposed across tools (`prepare_job_application`, `get_job_application`, `list_active_applications`, `create_application_preview`).
+   - **Enriched Validation Subcategories:** `validate_job_application` exposes `overallStatus`, `errors`, `warnings`, `missingFields`, `resumeValidation`, `documentValidation`, `jobConsistency`, and `provenanceIssues`.
+   - **Structured Preview + Markdown:** `create_application_preview` returns structured preview fields along with human-readable `previewMarkdown`.
+   - **Submitted Application Protection:** Applications in `APPLIED` (or subsequent interview) statuses reject destructive mutations with `ConflictError('APPLICATION_ALREADY_SUBMITTED')`.
+   - **Job Selection Policy & Gating:** Implemented `JobSelectionPolicy` evaluating 6 dimensions (seniority, role fit, location feasibility, salary, domain, posting freshness) with `NO_SUITABLE_JOB` gating when roles are severely substandard (<40 fit score) or violate location constraints.
+
+**Key Changes Implemented:**
+1. **Database Migration & Schema (`drizzle/0011_canonical_application_identity.sql`, `src/db/schema.js`, `drizzle/meta/_journal.json`):**
+   - Added `canonical_job_id` and `normalized_job_url` columns to `jobApplications`.
+   - Added partial unique indexes for active applications.
+2. **Job URL Normalizer & Canonical ID Derivation (`src/utils/url-normalizer.js`):**
+   - Built `normalizeJobUrl` (standardizing ATS hostnames, stripping tracking params `utm_*`, `gh_*`, `ref`, etc.) and `deriveCanonicalJobId`.
+3. **Job Selection Policy (`src/services/job-selection-policy.js`):**
+   - Implemented `evaluateJobSuitability` and `rankSuitableJobs` supporting both positional and object arguments, 6 ranking dimensions, and `NO_SUITABLE_JOB` gating.
+4. **Domain Schemas Updated (`src/domain/career/job-application.schemas.js`, `src/domain/job/job-workflow.schemas.js`, `src/domain/mcp/career-tracking-tools.schemas.js`, `src/domain/mcp/job-workflow-tools.schemas.js`):**
+   - Added `canonicalJobId` and `normalizedJobUrl` to `JobApplicationSchema`, `CreateJobApplicationInputSchema`, `UpdateJobApplicationInputSchema`, `GetJobApplicationOutputSchema`, `TrackJobApplicationInputSchema`, `TrackJobApplicationOutputSchema`, and `ListActiveApplicationsOutputSchema`.
+   - Enriched `ApplicationPackageSchema` and `ApplicationValidationResultSchema` with complete context and subcategories.
+5. **Services Updated (`src/services/application-tracking.service.js`, `src/services/job-application-workflow.service.js`):**
+   - `createApplication` & `resolveOrCreateApplication`: Implemented 3-tier canonical identity resolution with guarded fallback.
+   - `recordApplicationPackage`: Enforced submitted application protection and idempotent package reuse.
+   - `persistPreparedPackage` & `prepareJobApplication`: Propagated complete application context, diagnostic telemetry, and lifecycle action calculation.
+   - `validateJobApplication`: Enriched with canonical duplicate detection and granular subcategories.
+6. **MCP Tools Updated (`src/mcp/tools/career-tracking-tools.js`, `src/mcp/tools/job-workflow-tools.js`):**
+   - Correctly mapped `canonicalJobId`, `normalizedJobUrl`, and `currentPackage.applicationId`.
+7. **Verification Suites (`tests/unit/url-normalizer.test.js`, `tests/integration/mcp-workflow-remediation.test.js`):**
+   - Unit tests covering URL normalizer, canonical ID derivation, and job selection policy: 9/9 PASS.
+   - Comprehensive E2E MCP integration test covering Scenarios A through J: 10/10 PASS.
+
+**Verification Results:**
+- `tests/unit/url-normalizer.test.js`: **9/9 PASS**
+- `tests/integration/mcp-workflow-remediation.test.js`: **10/10 PASS** (Scenarios A through J)
+- `tests/integration/application-package-consistency.test.js`: **18/18 PASS**
+- `tests/integration/handoff-kit-lifecycle.test.js`: **10/10 PASS**
+- `tests/unit/mcp-application-submission-status.test.js`: **6/6 PASS**
+- `tests/unit/mcp-candidate-profile-email-integrity.test.js`: **6/6 PASS**
+- Code Style: ESLint **0 errors, 0 warnings** across all modified and new files.
+
+---
 
 ### P14-027: Content Selection & Optional Section Boundary Architecture
 

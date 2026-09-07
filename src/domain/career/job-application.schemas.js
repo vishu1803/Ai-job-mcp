@@ -104,6 +104,8 @@ export const DocumentCitationRefSchema = z.object({
 export const CreateJobApplicationInputSchema = z.object({
   id: z.string().uuid().optional(),
   candidateId: z.string().uuid(),
+  canonicalJobId: z.string().optional().nullable(),
+  normalizedJobUrl: z.string().optional().nullable(),
   companyName: z.string().min(1).max(200),
   jobTitle: z.string().min(1).max(200),
   jobUrl: z.string().url().max(2048).optional().nullable(),
@@ -122,6 +124,8 @@ export const CreateJobApplicationInputSchema = z.object({
 });
 
 export const UpdateJobApplicationInputSchema = z.object({
+  canonicalJobId: z.string().optional().nullable(),
+  normalizedJobUrl: z.string().optional().nullable(),
   companyName: z.string().min(1).max(200).optional(),
   jobTitle: z.string().min(1).max(200).optional(),
   jobUrl: z.string().url().max(2048).optional().nullable(),
@@ -141,6 +145,8 @@ export const JobApplicationSchema = z.object({
   id: z.string().uuid(),
   tenantId: z.string().uuid(),
   candidateId: z.string().uuid(),
+  canonicalJobId: z.string().nullable().optional(),
+  normalizedJobUrl: z.string().nullable().optional(),
   companyName: z.string().min(1).max(200),
   jobTitle: z.string().min(1).max(200),
   jobUrl: z.string().url().nullable().optional(),

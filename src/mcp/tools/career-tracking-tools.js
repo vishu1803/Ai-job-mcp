@@ -121,8 +121,8 @@ export async function handleTrackJobApplication(context, args, deps = {}) {
   const targetCandidateId = await resolveTargetCandidateId(context, input.candidateId, dbClient);
 
   const explicitId = input.id || input.jobId || null;
-  const application = await trackingService.createApplication(context, targetCandidateId, {
-    ...(explicitId ? { id: explicitId } : {}),
+  const application = await trackingService.resolveOrCreateApplication(context, targetCandidateId, {
+    ...(explicitId ? { id: explicitId, applicationId: explicitId } : {}),
     companyName: SecretScrubber.scrub(input.companyName),
     jobTitle: SecretScrubber.scrub(input.jobTitle),
     jobUrl: input.jobUrl || null,
@@ -146,6 +146,8 @@ export async function handleTrackJobApplication(context, args, deps = {}) {
     application: {
       id: application.id,
       candidateId: application.candidateId,
+      canonicalJobId: application.canonicalJobId ?? null,
+      normalizedJobUrl: application.normalizedJobUrl ?? null,
       companyName: application.companyName,
       jobTitle: application.jobTitle,
       status: application.status,
@@ -433,6 +435,8 @@ export async function handleGetJobApplication(context, args, deps = {}) {
     application: {
       id: application.id,
       candidateId: application.candidateId,
+      canonicalJobId: application.canonicalJobId ?? null,
+      normalizedJobUrl: application.normalizedJobUrl ?? null,
       companyName: application.companyName,
       jobTitle: application.jobTitle,
       jobUrl: application.jobUrl,
@@ -451,6 +455,7 @@ export async function handleGetJobApplication(context, args, deps = {}) {
     },
     currentPackage: currentPackage
       ? {
+          applicationId: application.id,
           packageHash: currentPackage.packageHash,
           packageVersion: currentPackage.version,
           isLatest: true,
@@ -460,6 +465,8 @@ export async function handleGetJobApplication(context, args, deps = {}) {
           lifecycleState: currentPackage.lifecycleState,
           preparedAt: currentPackage.preparedAt.toISOString(),
           createdAt: currentPackage.createdAt.toISOString(),
+          resumeQuality: application.metadata?.handoffKit?.resume?.resumeQuality || null,
+          layoutDiagnostics: application.metadata?.handoffKit?.resume?.layoutDiagnostics || null,
         }
       : null,
     stages: boundedStages,
@@ -509,6 +516,8 @@ export async function handleListActiveApplications(context, args, deps = {}) {
   // Compact summary items without sensitive compensation numbers or raw JDs
   const compactItems = result.items.map((app) => ({
     id: app.id,
+    canonicalJobId: app.canonicalJobId ?? null,
+    normalizedJobUrl: app.normalizedJobUrl ?? null,
     companyName: app.companyName,
     jobTitle: app.jobTitle,
     status: app.status,

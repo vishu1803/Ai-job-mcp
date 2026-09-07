@@ -144,6 +144,7 @@ export function registerJobWorkflowTools(
       const result = await workflowService.prepareJobApplication({
         tenantId: context.tenantId,
         candidateId: targetCandidateId,
+        applicationId: params.applicationId,
         jobPosting: params.jobPosting,
         answers: params.answers || {},
       });
@@ -185,11 +186,39 @@ export function registerJobWorkflowTools(
     async (context, params) => {
       assertToolPermission(context, JOB_WORKFLOW_TOOL_DEFINITIONS.create_application_preview);
 
-      const previewMarkdown = workflowService.createApplicationPreview(params.applicationPackage);
+      const pkg = params.applicationPackage;
+      const previewMarkdown = workflowService.createApplicationPreview(pkg);
 
       return {
+        applicationId: pkg.applicationId || null,
+        candidateInfo: {
+          name: pkg.candidateName,
+          email: pkg.candidateEmail,
+          phone: pkg.candidatePhone || null,
+        },
+        job: {
+          company: pkg.targetJob.company,
+          title: pkg.targetJob.title,
+          location: pkg.targetJob.location || null,
+          applicationUrl: pkg.targetJob.applicationUrl || null,
+        },
+        resumePreview: {
+          title: pkg.tailoredResume?.title,
+          fitScore: pkg.tailoredResume?.fitScore,
+          selectedProjectsCount: pkg.tailoredResume?.selectedProjects?.length || 0,
+          artifactStatus: pkg.tailoredResume?.artifact?.availabilityStatus || null,
+        },
+        projects: pkg.portfolioLinks || [],
+        selectedSections: pkg.selectedSections || pkg.tailoredResume?.selectedSections || [],
+        documents: {
+          resume: pkg.tailoredResume?.artifact?.filename || 'tailored-resume.pdf',
+          coverLetter: pkg.coverLetter?.artifact?.filename || 'tailored-cover-letter.pdf',
+          documentsStatus: pkg.documentsStatus || 'DOCUMENTS_READY',
+          artifactsReady: Boolean(pkg.artifactsReady),
+        },
+        warnings: [],
         previewMarkdown: SecretScrubber.scrub(previewMarkdown),
-        packageHash: params.applicationPackage.packageHash,
+        packageHash: pkg.packageHash,
       };
     }
   );

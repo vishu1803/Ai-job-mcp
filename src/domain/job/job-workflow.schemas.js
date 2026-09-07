@@ -40,6 +40,7 @@ export const SearchJobsInputSchema = z.object({
 
 export const NormalizedJobPostingSchema = z.object({
   id: z.string().min(1, 'id is required'),
+  canonicalJobId: z.string().optional().describe('Canonical job identifier'),
   source: JobSourceEnum,
   provider: JobSourceEnum.optional().describe('Provider that supplied the job'),
   externalJobId: z
@@ -64,6 +65,7 @@ export const NormalizedJobPostingSchema = z.object({
     })
     .optional(),
   applicationUrl: z.string().url(),
+  directPortalUrl: z.string().optional().describe('Direct portal application URL'),
   sourceUrl: z.string().url().optional(),
   postedAt: z.string().optional(),
   retrievedAt: z.string(),
@@ -96,19 +98,23 @@ export const ApplicationSkillItemSchema = z.object({
   notes: z.string().optional(),
 });
 
-export const ApplicationDocumentArtifactSchema = z.object({
-  artifactReference: z.string().optional(),
-  filename: z.string(),
-  mimeType: z.string(),
-  fileSizeBytes: z.number().int().positive().optional(),
-  contentHash: z.string().length(64).optional(),
-  pdfContentHash: z.string().length(64).optional(),
-  availabilityStatus: z.enum(['READY', 'BLOCKED']),
-  viewUrl: z.string().optional(),
-  downloadUrl: z.string().optional(),
-  qaScore: z.number().min(0).max(100).optional(),
-  qaPassed: z.boolean().optional(),
-});
+export const ApplicationDocumentArtifactSchema = z
+  .object({
+    artifactReference: z.string().optional(),
+    filename: z.string(),
+    mimeType: z.string(),
+    fileSizeBytes: z.number().int().positive().optional(),
+    contentHash: z.string().length(64).optional(),
+    pdfContentHash: z.string().length(64).optional(),
+    availabilityStatus: z.enum(['READY', 'BLOCKED']),
+    viewUrl: z.string().optional(),
+    downloadUrl: z.string().optional(),
+    qaScore: z.number().min(0).max(100).optional(),
+    qaPassed: z.boolean().optional(),
+    resumeQuality: z.record(z.unknown()).optional(),
+    layoutDiagnostics: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
 
 export const ApplicationPackageSchema = z.object({
   candidateId: z.string().uuid(),
@@ -152,7 +158,13 @@ export const ApplicationPackageSchema = z.object({
   // (P14-005BA). Optional so packages prepared without persistence (or echoed
   // back through validate/submit) remain valid.
   applicationId: z.string().uuid().optional(),
+  jobId: z.string().optional(),
   packageVersion: z.number().int().positive().optional(),
+  packageStatus: z.string().optional(),
+  artifactStatus: z.string().optional(),
+  lifecycleAction: z.enum(['CREATED', 'REUSED', 'UPDATED']).optional(),
+  resumeQuality: z.record(z.unknown()).optional(),
+  layoutDiagnostics: z.record(z.unknown()).optional(),
   documentsStatus: z.enum(['DOCUMENTS_READY', 'DOCUMENTS_BLOCKED', 'DOCUMENTS_PENDING']).optional(),
   artifactsReady: z.boolean().optional(),
   artifactFailureReason: z.string().optional(),
@@ -177,7 +189,9 @@ export const ValidateJobApplicationInputSchema = z.object({
 
 export const ApplicationValidationResultSchema = z.object({
   status: ApplicationValidationStatusEnum,
+  overallStatus: ApplicationValidationStatusEnum.optional(),
   isReady: z.boolean(),
+  errors: z.array(z.string()).default([]),
   missingFields: z.array(z.string()).default([]),
   warnings: z.array(z.string()).default([]),
   duplicateWarning: z
@@ -185,6 +199,43 @@ export const ApplicationValidationResultSchema = z.object({
       existingApplicationId: z.string().uuid(),
       status: z.string(),
       appliedAt: z.string().optional(),
+    })
+    .optional(),
+  resumeValidation: z
+    .object({
+      hasMarkdown: z.boolean(),
+      hasPdfArtifact: z.boolean(),
+      qaScore: z.number().nullable().optional(),
+      qaPassed: z.boolean(),
+      contentHash: z.string().optional(),
+      pdfContentHash: z.string().nullable().optional(),
+      issues: z.array(z.string()).default([]),
+    })
+    .optional(),
+  documentValidation: z
+    .object({
+      documentsStatus: z.string(),
+      artifactsReady: z.boolean(),
+      coverLetterReady: z.boolean(),
+      issues: z.array(z.string()).default([]),
+    })
+    .optional(),
+  jobConsistency: z
+    .object({
+      isConsistent: z.boolean(),
+      targetCompany: z.string(),
+      targetTitle: z.string(),
+      applicationId: z.string().nullable().optional(),
+      packageVersion: z.number().nullable().optional(),
+      issues: z.array(z.string()).default([]),
+    })
+    .optional(),
+  provenanceIssues: z
+    .object({
+      unsubstantiatedSkillsCount: z.number(),
+      unsubstantiatedSkills: z.array(z.string()),
+      unverifiedProjects: z.array(z.string()),
+      issues: z.array(z.string()).default([]),
     })
     .optional(),
   portalType: z.enum(['GREENHOUSE', 'LEVER', 'WORKDAY', 'GENERIC_WEB', 'UNSUPPORTED']),

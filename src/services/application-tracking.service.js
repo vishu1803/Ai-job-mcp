@@ -43,6 +43,7 @@ import {
 } from '../errors/index.js';
 import { DocumentStorageService } from './document-storage.service.js';
 import { logger } from '../utils/logger.js';
+import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 
 export class ApplicationTrackingService {
   /**
@@ -110,30 +111,104 @@ export class ApplicationTrackingService {
         throw new NotFoundError(`Candidate not found: ${candidateId}`);
       }
 
-      // 2. Active Application Duplicate Check
-      const existingActive = await tx
-        .select({ id: jobApplications.id, status: jobApplications.status })
+      // 2. Active Application Duplicate Check & Reuse
+      const canonicalJobId =
+        validatedInput.canonicalJobId ||
+        validatedInput.metadata?.canonicalJobId ||
+        validatedInput.metadata?.jobId ||
+        deriveCanonicalJobId(validatedInput) ||
+        null;
+      const normalizedJobUrl = normalizeJobUrl(validatedInput.jobUrl);
+
+      // Find all active applications for this candidate in this tenant
+      const activeRows = await tx
+        .select()
         .from(jobApplications)
         .where(
           and(
             eq(jobApplications.tenantId, tenantId),
             eq(jobApplications.candidateId, candidateId),
-            eq(jobApplications.companyName, validatedInput.companyName),
-            eq(jobApplications.jobTitle, validatedInput.jobTitle),
             sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
           )
+        )
+        .orderBy(desc(jobApplications.updatedAt));
+
+      let matchedExisting = null;
+
+      // Priority 1: Match by canonicalJobId
+      if (canonicalJobId) {
+        matchedExisting = activeRows.find(
+          (row) =>
+            row.canonicalJobId === canonicalJobId ||
+            row.metadata?.canonicalJobId === canonicalJobId ||
+            row.metadata?.jobId === canonicalJobId ||
+            row.id === canonicalJobId
+        );
+      }
+
+      // Priority 2: Match by normalizedJobUrl
+      if (!matchedExisting && normalizedJobUrl) {
+        matchedExisting = activeRows.find((row) => {
+          if (row.normalizedJobUrl && row.normalizedJobUrl === normalizedJobUrl) return true;
+          if (row.jobUrl && normalizeJobUrl(row.jobUrl) === normalizedJobUrl) return true;
+          return false;
+        });
+      }
+
+      // Priority 3: Guarded legacy fallback by (company, title)
+      if (!matchedExisting) {
+        const companyMatches = activeRows.filter(
+          (row) =>
+            row.companyName.trim().toLowerCase() === validatedInput.companyName.trim().toLowerCase() &&
+            row.jobTitle.trim().toLowerCase() === validatedInput.jobTitle.trim().toLowerCase()
         );
 
-      if (existingActive.length > 0) {
+        // Guard: Do not merge distinct roles with conflicting canonical job identities or URLs
+        matchedExisting = companyMatches.find((row) => {
+          const rowCanonical =
+            row.canonicalJobId || row.metadata?.canonicalJobId || row.metadata?.jobId;
+          if (rowCanonical && canonicalJobId && rowCanonical !== canonicalJobId) {
+            return false; // Conflicting canonical IDs -> distinct roles!
+          }
+          const rowNormUrl = row.normalizedJobUrl || normalizeJobUrl(row.jobUrl);
+          if (rowNormUrl && normalizedJobUrl && rowNormUrl !== normalizedJobUrl) {
+            return false; // Conflicting URLs -> distinct roles!
+          }
+          return true;
+        });
+      }
+
+      if (matchedExisting) {
         logger.info(
           {
             tenantId,
             candidateId,
+            applicationId: matchedExisting.id,
             companyName: validatedInput.companyName,
             jobTitle: validatedInput.jobTitle,
+            canonicalJobId,
           },
-          'Duplicate active job application detected for candidate'
+          'Duplicate active job application detected for candidate; reusing existing application ID'
         );
+
+        // Backfill missing canonical fields on the existing record if available
+        const updates = {};
+        if (!matchedExisting.canonicalJobId && canonicalJobId) {
+          updates.canonicalJobId = canonicalJobId;
+        }
+        if (!matchedExisting.normalizedJobUrl && normalizedJobUrl) {
+          updates.normalizedJobUrl = normalizedJobUrl;
+        }
+        if (Object.keys(updates).length > 0) {
+          const [updated] = await tx
+            .update(jobApplications)
+            .set(updates)
+            .where(eq(jobApplications.id, matchedExisting.id))
+            .returning();
+          return { ...updated, isReused: true };
+        }
+
+        return { ...matchedExisting, isReused: true };
       }
 
       // 3. Status and Timestamp Initializations
@@ -150,6 +225,8 @@ export class ApplicationTrackingService {
           ...(validatedInput.id ? { id: validatedInput.id } : {}),
           tenantId,
           candidateId,
+          canonicalJobId,
+          normalizedJobUrl,
           companyName: validatedInput.companyName,
           jobTitle: validatedInput.jobTitle,
           jobUrl: validatedInput.jobUrl || null,
@@ -165,7 +242,10 @@ export class ApplicationTrackingService {
           closedAt: isTerminalStatus(status) ? new Date() : null,
           compensation: validatedInput.compensation || {},
           notes: validatedInput.notes || null,
-          metadata: validatedInput.metadata || {},
+          metadata: {
+            ...(canonicalJobId ? { canonicalJobId, jobId: canonicalJobId } : {}),
+            ...(validatedInput.metadata || {}),
+          },
         })
         .returning();
 
@@ -592,11 +672,19 @@ export class ApplicationTrackingService {
     }
     const tenantId = context.tenantId;
 
-    // Accept both { company, title } and { companyName, jobTitle } target
-    // shapes so prepare- and submit-path callers cannot drift apart.
+    // Accept both { company, title } and { companyName, jobTitle } target shapes
     const companyName = String(target.company ?? target.companyName ?? '').trim();
     const jobTitle = String(target.title ?? target.jobTitle ?? '').trim();
-    const jobUrl = target.jobUrl ? String(target.jobUrl).trim() : null;
+    const rawJobUrl = target.jobUrl || target.applicationUrl || target.directPortalUrl || null;
+    const normalizedJobUrl = normalizeJobUrl(rawJobUrl);
+    const canonicalJobId =
+      target.canonicalJobId ||
+      target.jobId ||
+      target.metadata?.canonicalJobId ||
+      deriveCanonicalJobId(target) ||
+      null;
+    const explicitApplicationId = target.applicationId || target.id || null;
+
     if (!companyName || !jobTitle) {
       throw new ValidationError('target.company and target.title are required');
     }
@@ -610,9 +698,36 @@ export class ApplicationTrackingService {
       throw new NotFoundError(`Candidate not found: ${candidateId}`);
     }
 
-    // 2. Deterministic match among active applications for the same target.
-    //    The archive- and terminal-state filter mirrors createApplication's
-    //    duplicate check so both paths agree on what counts as one target.
+    // 2. Priority 0: Explicit applicationId lookup
+    if (explicitApplicationId) {
+      const [app] = await this.db
+        .select()
+        .from(jobApplications)
+        .where(
+          and(
+            eq(jobApplications.tenantId, tenantId),
+            eq(jobApplications.candidateId, candidateId),
+            eq(jobApplications.id, explicitApplicationId),
+            sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
+          )
+        );
+      if (app) {
+        const updates = {};
+        if (!app.canonicalJobId && canonicalJobId) updates.canonicalJobId = canonicalJobId;
+        if (!app.normalizedJobUrl && normalizedJobUrl) updates.normalizedJobUrl = normalizedJobUrl;
+        if (Object.keys(updates).length > 0) {
+          const [updated] = await this.db
+            .update(jobApplications)
+            .set(updates)
+            .where(eq(jobApplications.id, app.id))
+            .returning();
+          return { ...updated, isReused: true };
+        }
+        return { ...app, isReused: true };
+      }
+    }
+
+    // 3. Query all active applications for this candidate in this tenant
     const activeRows = await this.db
       .select()
       .from(jobApplications)
@@ -620,37 +735,101 @@ export class ApplicationTrackingService {
         and(
           eq(jobApplications.tenantId, tenantId),
           eq(jobApplications.candidateId, candidateId),
-          sql`LOWER(${jobApplications.companyName}) = LOWER(${companyName})`,
-          sql`LOWER(${jobApplications.jobTitle}) = LOWER(${jobTitle})`,
           sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
         )
       )
       .orderBy(desc(jobApplications.updatedAt));
 
-    // The URL distinguishes two roles with the same title at one employer.
-    // When a URL is available, only that exact target is eligible for reuse;
-    // a same-company/title row with another URL is a separate application.
-    const targetRows = jobUrl ? activeRows.filter((row) => row.jobUrl === jobUrl) : activeRows;
+    let matched = null;
 
-    if (targetRows.length > 0) {
-      if (target.packageHash) {
-        const hashMatch = targetRows.find(
-          (row) => row.metadata?.currentPackageHash === target.packageHash
-        );
-        if (hashMatch) return hashMatch;
-      }
-      return targetRows[0];
+    // Priority 1: Match by canonicalJobId
+    if (canonicalJobId) {
+      matched = activeRows.find(
+        (row) =>
+          row.canonicalJobId === canonicalJobId ||
+          row.metadata?.canonicalJobId === canonicalJobId ||
+          row.metadata?.jobId === canonicalJobId ||
+          row.id === canonicalJobId
+      );
     }
 
-    // 3. No active application for this target: create one.
+    // Priority 2: Match by normalizedJobUrl
+    if (!matched && normalizedJobUrl) {
+      matched = activeRows.find((row) => {
+        if (row.normalizedJobUrl && row.normalizedJobUrl === normalizedJobUrl) return true;
+        if (row.jobUrl && normalizeJobUrl(row.jobUrl) === normalizedJobUrl) return true;
+        return false;
+      });
+    }
+
+    // Priority 3: Guarded legacy fallback by (company, title)
+    if (!matched) {
+      const companyMatches = activeRows.filter(
+        (row) =>
+          row.companyName.trim().toLowerCase() === companyName.toLowerCase() &&
+          row.jobTitle.trim().toLowerCase() === jobTitle.toLowerCase()
+      );
+
+      // Guard: Do not merge distinct roles with conflicting canonical job identities or URLs
+      matched = companyMatches.find((row) => {
+        const rowCanonical =
+          row.canonicalJobId || row.metadata?.canonicalJobId || row.metadata?.jobId;
+        if (rowCanonical && canonicalJobId && rowCanonical !== canonicalJobId) {
+          return false; // Conflicting canonical IDs -> distinct roles!
+        }
+        const rowNormUrl = row.normalizedJobUrl || normalizeJobUrl(row.jobUrl);
+        if (rowNormUrl && normalizedJobUrl && rowNormUrl !== normalizedJobUrl) {
+          return false; // Conflicting URLs -> distinct roles!
+        }
+        return true;
+      });
+    }
+
+    if (matched) {
+      if (target.packageHash && matched.metadata?.currentPackageHash === target.packageHash) {
+        return { ...matched, isReused: true, packageReused: true };
+      }
+      const updates = {};
+      if (!matched.canonicalJobId && canonicalJobId) updates.canonicalJobId = canonicalJobId;
+      if (!matched.normalizedJobUrl && normalizedJobUrl) updates.normalizedJobUrl = normalizedJobUrl;
+      if (Object.keys(updates).length > 0) {
+        const [updated] = await this.db
+          .update(jobApplications)
+          .set(updates)
+          .where(eq(jobApplications.id, matched.id))
+          .returning();
+        return { ...updated, isReused: true };
+      }
+      return { ...matched, isReused: true };
+    }
+
+    // 4. No active application for this target: create one.
+    const validAppSources = [
+      'LINKEDIN',
+      'INDEED',
+      'COMPANY_CAREERS',
+      'REFERRAL',
+      'RECRUITER',
+      'MANUAL',
+      'OTHER',
+    ];
+    const normalizedSource = validAppSources.includes(String(target.source || '').toUpperCase())
+      ? String(target.source).toUpperCase()
+      : 'COMPANY_CAREERS';
+
     return this.createApplication(context, candidateId, {
       companyName,
       jobTitle,
-      jobUrl,
-      source: target.source || 'MANUAL',
+      jobUrl: rawJobUrl,
+      canonicalJobId,
+      normalizedJobUrl,
+      source: normalizedSource,
       status: 'SAVED',
       notes: target.notes || null,
-      metadata: target.metadata || {},
+      metadata: {
+        ...(canonicalJobId ? { canonicalJobId, jobId: canonicalJobId } : {}),
+        ...(target.metadata || {}),
+      },
     });
   }
 
@@ -680,7 +859,13 @@ export class ApplicationTrackingService {
     return await this.db.transaction(async (tx) => {
       // 1. Lock application row for serialized version transitions
       const [application] = await tx
-        .select({ id: jobApplications.id, candidateId: jobApplications.candidateId })
+        .select({
+          id: jobApplications.id,
+          candidateId: jobApplications.candidateId,
+          status: jobApplications.status,
+          appliedAt: jobApplications.appliedAt,
+          metadata: jobApplications.metadata,
+        })
         .from(jobApplications)
         .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
         .for('update');
@@ -688,6 +873,12 @@ export class ApplicationTrackingService {
       if (!application) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      // 1b. SAFE PRESERVE INVARIANT: If application was submitted, do not overwrite with a different package
+      const isSubmitted =
+        application.status !== 'SAVED' ||
+        Boolean(application.appliedAt) ||
+        application.metadata?.externalSubmissionState === 'SUBMITTED';
 
       // 2. Idempotent re-promotion of an existing identical version
       const [existingVersion] = await tx
@@ -701,6 +892,13 @@ export class ApplicationTrackingService {
           )
         )
         .for('update');
+
+      if (isSubmitted && !existingVersion) {
+        throw new ConflictError(
+          `Cannot create or modify packages for application ${applicationId}: application has already been submitted (status: ${application.status}). Submitted packages are protected.`,
+          'APPLICATION_ALREADY_SUBMITTED'
+        );
+      }
 
       const source = options.source || 'PREPARE_JOB_APPLICATION';
       let current;
@@ -812,7 +1010,10 @@ export class ApplicationTrackingService {
         },
       });
 
-      return current;
+      return {
+        ...current,
+        isReused: Boolean(existingVersion),
+      };
     });
   }
 

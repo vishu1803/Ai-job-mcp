@@ -46,6 +46,7 @@ export const JOB_WORKFLOW_TOOL_DEFINITIONS = {
     requiredRole: 'MEMBER',
     inputSchema: z.object({
       candidateId: z.string().uuid().optional(),
+      applicationId: z.string().uuid().optional(),
       jobPosting: NormalizedJobPostingSchema,
       answers: z.record(z.string(), z.string()).optional().default({}),
     }),
