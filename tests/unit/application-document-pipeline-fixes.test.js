@@ -18,6 +18,7 @@ import {
   groundAndSanitizeProject,
   isRealUrl,
   cleanResumeFacingTechnologies,
+  formatProjectDisplayName,
 } from '../../src/services/candidate-artifact-content.service.js';
 import { LatexDocumentGenerator } from '../../src/services/latex-document-generator.service.js';
 import { ApplicationPackageSchema } from '../../src/domain/job/job-workflow.schemas.js';
@@ -157,9 +158,18 @@ describe('Application Document Pipeline Defect Fixes & Integrity', () => {
         candidateProfile: dummyCandidateData,
       });
 
-      assert.ok(result.texContent.includes('Product-Data-Explorer'));
-      assert.ok(result.texContent.includes('Collaborative-task-manager'));
-      assert.ok(result.texContent.includes('Ai-powered-code-review-assistant'));
+      assert.ok(
+        result.texContent.includes('Product Data Explorer'),
+        'Must format to human-readable Product Data Explorer'
+      );
+      assert.ok(
+        result.texContent.includes('Collaborative Task Manager'),
+        'Must format to human-readable Collaborative Task Manager'
+      );
+      assert.ok(
+        result.texContent.includes('AI-Powered Code Review Assistant'),
+        'Must format to human-readable AI-Powered Code Review Assistant'
+      );
       assert.ok(!result.texContent.includes('Dummy Project'));
     });
 
@@ -707,6 +717,275 @@ Full-stack engineer.
         'Candidate experience must be classified as USER_PROVIDED'
       );
       assert.equal(candidateData.experience[0].company, 'FTV Saloon');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Policy Correction: Project Names, 1-Page Budget, DSA Section, & Additional Skills
+  // ---------------------------------------------------------------------------
+  describe('Policy Correction: Project Names, 1-Page Budget, DSA Section, and Additional Skills', () => {
+    const contentService = new CandidateArtifactContentService();
+
+    it('formatProjectDisplayName generically normalizes repository slugs into clean Title Case', () => {
+      assert.equal(
+        formatProjectDisplayName('vishu1803/Product-Data-Explorer'),
+        'Product Data Explorer'
+      );
+      assert.equal(
+        formatProjectDisplayName('vishu1803/Collaborative-task-manager'),
+        'Collaborative Task Manager'
+      );
+      assert.equal(
+        formatProjectDisplayName('vishu1803/Ai-powered-code-review-assistant'),
+        'AI-Powered Code Review Assistant'
+      );
+      assert.equal(
+        formatProjectDisplayName('vishu1803/Audience-query-system'),
+        'Audience Query System'
+      );
+      assert.equal(formatProjectDisplayName('vishu1803/Ai-job-mcp'), 'AI Job MCP');
+      assert.equal(formatProjectDisplayName('spotify-clone'), 'Spotify Clone');
+      assert.equal(formatProjectDisplayName('REST-api-service'), 'REST API Service');
+      assert.equal(
+        formatProjectDisplayName('Product Data Explorer'),
+        'Product Data Explorer'
+      );
+    });
+
+    it('Scenario A: 3 recommended projects + DSA selected -> selects top 2 projects, preserves DSA section, explicitly records omitted 3rd project', () => {
+      const candidateWithDsa = {
+        ...dummyCandidateData,
+        hasProblemSolvingSection: true,
+        portfolioLinks: [
+          { label: 'LeetCode', url: 'https://leetcode.com/u/vishwanatnishad' },
+          { label: 'GitHub', url: 'https://github.com/vishu1803' },
+        ],
+        projects: [
+          {
+            name: 'Product-Data-Explorer',
+            title: 'Product Data Explorer',
+            repositoryUrl: 'https://github.com/vishu1803/Product-Data-Explorer',
+            technologies: ['TypeScript', 'NestJS', 'React', 'PostgreSQL', 'Redis'],
+            bullets: [
+              'Architected robust RESTful API endpoints using NestJS with TypeORM and PostgreSQL.',
+              'Integrated Redis caching layer reducing high-frequency catalog latency by 60%.',
+            ],
+            evidenceCount: 73,
+            provenanceStatus: 'CORROBORATED',
+          },
+          {
+            name: 'Collaborative-task-manager',
+            title: 'Collaborative Task Manager',
+            repositoryUrl: 'https://github.com/vishu1803/Collaborative-task-manager',
+            technologies: ['Node.js', 'Prisma', 'PostgreSQL', 'Next.js', 'TypeScript'],
+            bullets: [
+              'Engineered full-stack task management platform with JWT authentication and RBAC.',
+              'Implemented RESTful CRUD APIs using Node.js, Prisma ORM, and PostgreSQL.',
+            ],
+            evidenceCount: 34,
+            provenanceStatus: 'CORROBORATED',
+          },
+          {
+            name: 'Ai-powered-code-review-assistant',
+            title: 'AI-Powered Code Review Assistant',
+            repositoryUrl: 'https://github.com/vishu1803/Ai-powered-code-review-assistant',
+            technologies: ['Python', 'FastAPI', 'Next.js', 'OpenAI API'],
+            bullets: [
+              'Architected an asynchronous PR review pipeline using FastAPI, Python, and OpenAI API.',
+              'Implemented modular webhook receiver architecture to process GitHub events.',
+            ],
+            evidenceCount: 33,
+            provenanceStatus: 'CORROBORATED',
+          },
+        ],
+      };
+
+      const jobPosting = {
+        ...dummyJob,
+        recommendedProjects: [
+          'Product-Data-Explorer',
+          'Collaborative-task-manager',
+          'Ai-powered-code-review-assistant',
+        ],
+      };
+
+      const resume = contentService.buildTailoredResumeMarkdown(candidateWithDsa, jobPosting, {
+        includeProblemSolving: true,
+      });
+
+      // 1. Budget: exactly top 2 projects selected
+      assert.equal(resume.selectedProjects.length, 2, 'Must select top 2 projects for 1-page budget with DSA');
+      assert.equal(resume.selectedProjects[0].name, 'Product Data Explorer');
+      assert.equal(resume.selectedProjects[1].name, 'Collaborative Task Manager');
+
+      // 2. No silent loss: 3rd project explicitly tracked in omittedProjects
+      assert.equal(resume.omittedProjects.length, 1, 'Must track omitted 3rd project');
+      assert.equal(resume.omittedProjects[0].name, 'AI-Powered Code Review Assistant');
+      assert.ok(
+        resume.omittedProjects[0].reason.includes('1-page resume'),
+        'Must record clear 1-page budget omission rationale'
+      );
+
+      // 3. DSA section present in sections and markdown
+      assert.ok(resume.sections.includes('PROBLEM_SOLVING'), 'PROBLEM_SOLVING must be in sections');
+      assert.ok(
+        resume.markdownContent.includes('## Problem Solving & Algorithmic Practice'),
+        'Markdown must contain Problem Solving section'
+      );
+      assert.ok(
+        !resume.markdownContent.includes('300+'),
+        'Must not contain unverified problem count claims'
+      );
+
+      // 4. LaTeX generator renders both projects and DSA section
+      const latex = latexGen.generateTailoredResumeLatex({
+        applicationPackage: {
+          candidateName: 'Vishwanath Nishad',
+          candidateEmail: 'vishwanatnishad@gmail.com',
+          targetJob: jobPosting,
+          tailoredResume: resume,
+        },
+        candidateProfile: candidateWithDsa,
+      });
+
+      assert.ok(latex.texContent.includes('Product Data Explorer'));
+      assert.ok(latex.texContent.includes('Collaborative Task Manager'));
+      assert.ok(latex.texContent.includes('Problem Solving \\& Algorithmic Practice'));
+    });
+
+    it('Scenario B: 3 recommended projects + DSA not selected -> selects all 3 projects and omits DSA section', () => {
+      const candidateWithoutDsa = {
+        ...dummyCandidateData,
+        projects: [
+          {
+            name: 'Product-Data-Explorer',
+            title: 'Product Data Explorer',
+            repositoryUrl: 'https://github.com/vishu1803/Product-Data-Explorer',
+            technologies: ['TypeScript', 'NestJS', 'React', 'PostgreSQL', 'Redis'],
+            bullets: ['Bullet 1', 'Bullet 2'],
+            evidenceCount: 73,
+          },
+          {
+            name: 'Collaborative-task-manager',
+            title: 'Collaborative Task Manager',
+            repositoryUrl: 'https://github.com/vishu1803/Collaborative-task-manager',
+            technologies: ['Node.js', 'Prisma', 'PostgreSQL', 'Next.js'],
+            bullets: ['Bullet 1', 'Bullet 2'],
+            evidenceCount: 34,
+          },
+          {
+            name: 'Ai-powered-code-review-assistant',
+            title: 'AI-Powered Code Review Assistant',
+            repositoryUrl: 'https://github.com/vishu1803/Ai-powered-code-review-assistant',
+            technologies: ['Python', 'FastAPI', 'OpenAI API'],
+            bullets: ['Bullet 1', 'Bullet 2'],
+            evidenceCount: 33,
+          },
+        ],
+      };
+
+      const jobPosting = {
+        ...dummyJob,
+        recommendedProjects: [
+          'Product-Data-Explorer',
+          'Collaborative-task-manager',
+          'Ai-powered-code-review-assistant',
+        ],
+      };
+
+      const resume = contentService.buildTailoredResumeMarkdown(candidateWithoutDsa, jobPosting, {
+        includeProblemSolving: false,
+      });
+
+      assert.equal(resume.selectedProjects.length, 3, 'Must render up to 3 projects when DSA is omitted');
+      assert.equal(resume.omittedProjects.length, 0, 'No projects omitted from recommended list');
+      assert.ok(!resume.sections.includes('PROBLEM_SOLVING'), 'PROBLEM_SOLVING must NOT be in sections');
+      assert.ok(
+        !resume.markdownContent.includes('## Problem Solving & Algorithmic Practice'),
+        'Markdown must NOT contain DSA section'
+      );
+
+      const latex = latexGen.generateTailoredResumeLatex({
+        applicationPackage: {
+          candidateName: 'Vishwanath Nishad',
+          candidateEmail: 'vishwanatnishad@gmail.com',
+          targetJob: jobPosting,
+          tailoredResume: resume,
+        },
+        candidateProfile: candidateWithoutDsa,
+      });
+
+      assert.ok(latex.texContent.includes('Product Data Explorer'));
+      assert.ok(latex.texContent.includes('Collaborative Task Manager'));
+      assert.ok(latex.texContent.includes('AI-Powered Code Review Assistant'));
+      assert.ok(!latex.texContent.includes('Problem Solving \\& Algorithmic Practice'));
+    });
+
+    it('Scenario C: Additional Skills inclusion and accurate SELF_DECLARED provenance audit', () => {
+      const candidateWithSelfDeclared = {
+        ...dummyCandidateData,
+        skills: [
+          { name: 'TypeScript', provenanceStatus: 'VERIFIED', evidenceCount: 10 },
+          { name: 'Python', provenanceStatus: 'VERIFIED', evidenceCount: 8 },
+          { name: 'PostgreSQL', provenanceStatus: 'VERIFIED', evidenceCount: 12 },
+          { name: 'NestJS', provenanceStatus: 'VERIFIED', evidenceCount: 15 },
+          { name: 'Docker', provenanceStatus: 'VERIFIED', evidenceCount: 5 },
+          { name: 'AWS', provenanceStatus: 'SELF_DECLARED', evidenceCount: 0 },
+          { name: 'Microsoft Azure', provenanceStatus: 'SELF_DECLARED', evidenceCount: 0 },
+          { name: 'Google Cloud Platform', provenanceStatus: 'SELF_DECLARED', evidenceCount: 0 },
+          { name: 'Cloudflare', provenanceStatus: 'SELF_DECLARED', evidenceCount: 0 },
+        ],
+      };
+
+      const { categorizedSkills, skillAudit } = contentService.selectAndCategorizeSkillsForJob(
+        candidateWithSelfDeclared,
+        dummyJob
+      );
+
+      // AWS should be selected under Cloud, DevOps & Systems
+      const cloudSkills = categorizedSkills['Cloud, DevOps & Systems'] || [];
+      assert.ok(cloudSkills.includes('AWS'), 'AWS must be included as relevant declared cloud platform');
+
+      // AWS provenance in skillAudit must remain strictly SELF_DECLARED
+      const awsAudit = skillAudit.find((s) => s.skill === 'AWS');
+      assert.ok(awsAudit, 'AWS must be audited');
+      assert.equal(awsAudit.provenance, 'SELF_DECLARED', 'AWS provenance must remain SELF_DECLARED');
+      assert.equal(awsAudit.status, 'SELECTED', 'AWS must be SELECTED');
+
+      // Redundant secondary cloud platforms must be omitted with clear audit reasons
+      const azureAudit = skillAudit.find((s) => s.skill === 'Microsoft Azure');
+      assert.ok(azureAudit);
+      assert.equal(azureAudit.status, 'OMITTED');
+      assert.ok(azureAudit.reason.includes('redundancy'));
+
+      const gcpAudit = skillAudit.find((s) => s.skill === 'Google Cloud Platform');
+      assert.ok(gcpAudit);
+      assert.equal(gcpAudit.status, 'OMITTED');
+    });
+
+    it('Scenario D: Project without real demo URL omits Live Demo and rejects synthetic URLs', () => {
+      const candidateWithNoDemo = {
+        ...dummyCandidateData,
+        projects: [
+          {
+            name: 'Product Data Explorer',
+            repositoryUrl: 'https://github.com/vishu1803/Product-Data-Explorer',
+            liveUrl: 'https://task-manager.example.com', // synthetic URL
+            technologies: ['NestJS', 'PostgreSQL'],
+            bullets: ['Built RESTful APIs'],
+          },
+        ],
+      };
+
+      const resume = contentService.buildTailoredResumeMarkdown(candidateWithNoDemo, dummyJob);
+      assert.ok(
+        !resume.markdownContent.includes('Live Demo:'),
+        'Live Demo must be omitted when demo URL is synthetic example.com'
+      );
+      assert.ok(
+        !resume.markdownContent.includes('example.com'),
+        'example.com must never leak into resume'
+      );
     });
   });
 });

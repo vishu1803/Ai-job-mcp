@@ -3,6 +3,70 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-07*
 
+### P14-023: Final Offline Resume-Content Policy Correction & Full Verification
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Following the structural document pipeline remediation (P14-021) and content quality remediation (P14-022), a final offline policy correction pass was performed for the Discord v2 application package (`46ba9d63-67d5-4198-83f0-9b984e6380c1`, Candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`, Tenant `24d53f53-780e-4431-b065-32180c354175`):
+1. **Generic Project Display Name:** Stripped repository owner prefix (`vishu1803/`), converted slugs to generic Title Case with standard tech acronyms (`AI`, `API`, `REST`, `MCP`, `SQL`, `JWT`, `RBAC`, etc.), preserving authentic GitHub URLs as links (`### [Product Data Explorer](https://github.com/vishu1803/Product-Data-Explorer)`). Zero hardcoding of project names.
+2. **DSA / LeetCode Section Policy:** Candidate-owned DSA section in source profile/resume preserved when selected by Resume Content Strategy. Rendered with candidate-reported truthful framing without unverified metrics (no "300+", ratings, or rankings).
+3. **One-Page Content Budget & Layer Separation:** Clean separation between Step 4 (portfolio recommendation selecting 3 projects) and Resume Content Strategy (enforcing strict 1-page layout budget):
+   - **Scenario A (DSA selected):** Selects top 2 projects + DSA section. The 3rd recommended project is explicitly recorded in `omittedProjects` with clear rationale (`Omitted from 1-page resume to preserve Problem Solving & Algorithmic Practice section within 1-page budget; remains featured in portfolio recommendations`). No silent data loss.
+   - **Scenario B (DSA omitted):** Selects and renders all 3 recommended projects on 1 page with 0 omitted projects.
+4. **Additional Skills / User Declaration:** Candidate self-declared skills (`AWS`, `Docker`) evaluated for role relevance under `Cloud, DevOps & Systems` with `SELF_DECLARED` provenance (never `VERIFIED`). Capped at 2 per category to avoid dumping all self-declared cloud providers (`Azure`, `GCP`, `Cloudflare` omitted with clear audit reasons).
+5. **Database Immutability & Offline Boundary:** 100% offline verification; zero database mutations across `candidate_skills` (80), `evidence_items` (246), `projects` (11), `resources` (10), and `job_applications` (3).
+
+**Implementation Summary:**
+1. **`src/services/candidate-artifact-content.service.js`:**
+   - Implemented and exported `formatProjectDisplayName(name)`: Strips GitHub owner prefixes, converts hyphenated/underscored slugs to Title Case, and preserves canonical tech acronyms (`AI`, `API`, `REST`, `MCP`, `SQL`, `JWT`, `RBAC`, `CLI`, etc.).
+   - Updated `reconcileCandidateProjects`: Normalizes project display names and titles via `formatProjectDisplayName` while preserving canonical slugs for deduplication.
+   - Updated `buildCandidateData`: Detects authentic DSA background (`hasProblemSolvingSection`, `problemSolving`) and candidate-declared additional skills.
+   - Updated `selectAndCategorizeSkillsForJob`: Considers role-relevant `SELF_DECLARED` skills with capped categories and strict non-`VERIFIED` audit provenance.
+   - Updated `buildTailoredResumeMarkdown`: Accepts `options.includeProblemSolving`, budgets 2 projects when DSA is selected vs 3 projects when omitted, tracks `omittedProjects` with explicit rationale, formats project headings as `### [Name](url)`, and emits candidate-reported DSA bullets.
+   - Updated `generateApplicationDocuments`: Forwards `options` and returns `omittedProjects`.
+2. **`src/services/latex-document-generator.service.js`:**
+   - Imported `formatProjectDisplayName`.
+   - Used `formatProjectDisplayName` for visible project headings in both structured and fallback markdown parsing.
+   - Enforced 2-project budget when DSA is selected and 3-project budget when omitted (`projectsBudget = isExplicitlySelected ? 2 : 3`).
+   - Tightened `\atssection` spacing to ensure 1-page fit across all scenarios.
+3. **`tests/unit/application-content-defects.test.js` & `tests/unit/application-document-pipeline-fixes.test.js`:**
+   - Updated tests to assert human-readable project headings.
+   - Added comprehensive test suites for `formatProjectDisplayName`, Scenario A (2 projects + DSA + omitted tracking), Scenario B (3 projects + no DSA), Scenario C (Additional Skills audit), and Scenario D (Synthetic URL rejection).
+4. **`scratch/validate_offline_pipeline.mjs`:**
+   - Comprehensive offline test script executing end-to-end Markdown generation, LaTeX compilation via Tectonic, PDF text extraction, and QA validation across Scenario A, Scenario B, Scenario C, Scenario D, Cover Letter, and DB Immutability.
+
+**Verification & Evidence:**
+- **Automated Unit Tests:** 120/120 PASS across all 6 core suites (`tests/unit/application-document-pipeline-fixes.test.js`, `tests/unit/resume-content-strategy.test.js`, `tests/unit/application-content-defects.test.js`, `tests/unit/portfolio-recommendation.service.test.js`, `tests/unit/project-relevance.service.test.js`, `tests/unit/portfolio-recommendation-scoring-fix.test.js`) in 2.22s.
+- **Offline Pipeline Execution:** `scratch/validate_offline_pipeline.mjs` executed to completion (exited 0).
+- **LaTeX Compilation (Tectonic):**
+  - Scenario A Resume: SUCCESS (Engine: tectonic)
+  - Scenario B Resume: SUCCESS (Engine: tectonic)
+  - Cover Letter: SUCCESS (Engine: tectonic)
+- **Page Count Verification:**
+  - Scenario A Resume PDF: Exactly 1 page.
+  - Scenario B Resume PDF: Exactly 1 page.
+  - Cover Letter PDF: Exactly 1 page.
+- **PDF QA Scores:**
+  - Scenario A Resume: 100/100 (PASSED, 0 critical failures, 0 findings).
+  - Scenario B Resume: 100/100 (PASSED, 0 critical failures, 0 findings).
+  - Cover Letter: 100/100 (PASSED, 0 critical failures, 0 findings).
+- **Text & Policy Verification:**
+  - Scenario A: Top 2 projects rendered (`Collaborative Task Manager`, `AI-Powered Code Review Assistant`); `Product Data Explorer` recorded in `omittedProjects` with 1-page budget rationale; `Candidate-Reported Problem Solving` present without unverified numbers; 0 occurrences of `vishu1803/` in visible headings.
+  - Scenario B: All 3 projects rendered (`Product Data Explorer`, `Collaborative Task Manager`, `AI-Powered Code Review Assistant`); 0 omitted projects; Problem Solving omitted from body; 0 occurrences of `vishu1803/` in visible headings.
+  - Scenario C: `Cloud, DevOps & Systems` contains `Docker`, `GitHub Actions`, `GitLab CI/CD`; `Azure` and `GCP` capped/omitted; `AWS` provenance audited as non-`VERIFIED`.
+  - Scenario D: Zero occurrences of `example.com`, `task-manager.example.com`, `placeholder`, `dummy`, or `127.0.0.1` across all Markdown, LaTeX, and extracted PDF text.
+- **Database Immutability Audit:**
+  - `candidate_skills`: 80 (bit-for-bit identical before and after).
+  - `evidence_items`: 246 (bit-for-bit identical before and after).
+  - `projects`: 11 (bit-for-bit identical before and after).
+  - `resources`: 10 (bit-for-bit identical before and after).
+  - `job_applications`: 3 (bit-for-bit identical before and after).
+  - Database immutability verified bit-for-bit.
+
+---
+
 ### P14-022: Document Content Quality & Evidence Grounding Remediation
 
 **Status:** COMPLETE  

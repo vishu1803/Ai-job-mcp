@@ -248,12 +248,12 @@ describe('Unit: Application Content Defects & Readiness Regression Suite', () =>
       const resume = service.buildTailoredResumeMarkdown(candidateData, dummyJob);
       // Name can appear in heading + link once, but the project heading ### must appear exactly once
       const headingMatches = [
-        ...resume.markdownContent.matchAll(/###\s+\[vishu1803\/Ai-job-mcp\]/g),
+        ...resume.markdownContent.matchAll(/###\s+\[AI Job MCP\]/g),
       ];
       assert.strictEqual(
         headingMatches.length,
         1,
-        'Resume must contain exactly one project heading for Ai-job-mcp'
+        'Resume must contain exactly one project heading for AI Job MCP'
       );
     });
 
@@ -291,12 +291,12 @@ describe('Unit: Application Content Defects & Readiness Regression Suite', () =>
 
       const cl = service.buildCoverLetterMarkdown(candidateData, dummyJob);
       assert.ok(
-        !cl.markdownContent.includes('I built vishu1803/Ai-job-mcp and vishu1803/Ai-job-mcp'),
+        !cl.markdownContent.includes('I built AI Job MCP and AI Job MCP'),
         'Cover letter must never repeat the same project name'
       );
       assert.ok(
-        cl.markdownContent.includes('I built vishu1803/Ai-job-mcp'),
-        'Cover letter should mention the project once'
+        cl.markdownContent.includes('I built AI Job MCP'),
+        'Cover letter should mention the project once with clean human-readable name'
       );
     });
   });

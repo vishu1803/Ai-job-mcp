@@ -156,6 +156,65 @@ export function slugifyProject(text) {
 }
 
 /**
+ * Generic canonical project display name formatter.
+ * Strips repository owner prefixes (e.g. 'vishu1803/', 'org/') and normalizes
+ * kebab-case or snake_case slugs into clean, human-readable Title Case
+ * while preserving standard industry acronyms (AI, API, REST, MCP, SQL, JWT, RBAC, etc.)
+ * and existing camelCase/mixedCase names.
+ *
+ * @param {string} name Raw repository or project name
+ * @returns {string} Human-readable project display name
+ */
+export function formatProjectDisplayName(name) {
+  if (!name || typeof name !== 'string') return '';
+  // 1. Strip owner prefix (e.g., 'vishu1803/', 'org-name/')
+  let clean = name.replace(/^[a-zA-Z0-9_-]+\//, '').trim();
+
+  // Known acronyms and casing overrides
+  const ACRONYMS = new Set([
+    'ai',
+    'api',
+    'apis',
+    'rest',
+    'mcp',
+    'crud',
+    'rbac',
+    'jwt',
+    'sql',
+    'db',
+    'dbms',
+    'pr',
+    'ui',
+    'cli',
+    'iot',
+    'sdk',
+    'llm',
+  ]);
+
+  const formatWord = (w) => {
+    if (!w) return '';
+    const lower = w.toLowerCase();
+    if (ACRONYMS.has(lower)) return lower.toUpperCase();
+    // If already camelCase/mixedCase (e.g. NextJS, PostgreSQL, GraphQL, TypeORM), preserve it
+    if (/[a-z][A-Z]/.test(w)) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  };
+
+  // Format parts split by hyphens, underscores, or spaces
+  const parts = clean.split(/([-_ ])/);
+  const resultParts = parts.map((part) => {
+    if (part === '_' || part === '-') return ' ';
+    if (part === ' ') return ' ';
+    return formatWord(part);
+  });
+
+  let formatted = resultParts.join('').replace(/\s+/g, ' ').trim();
+  // Preserve standard compound hyphenation for 'AI-Powered'
+  formatted = formatted.replace(/\bAI Powered\b/g, 'AI-Powered');
+  return formatted;
+}
+
+/**
  * Strictly validates whether a URL is a genuine external URL.
  * Prohibits placeholder, dummy, synthetic, example, or localhost domains.
  *
@@ -432,9 +491,9 @@ export function reconcileCandidateProjects({
     }
 
     projectMap.set(key, {
-      name: String(rawName).trim(),
+      name: formatProjectDisplayName(rawName),
       slug: key,
-      title: String(rawName).trim(),
+      title: formatProjectDisplayName(rawName),
       summary: rp.summary || rp.headline || null,
       bullets: cleanBullets,
       technologies: cleanResumeFacingTechnologies(
@@ -489,9 +548,9 @@ export function reconcileCandidateProjects({
     const existing = projectMap.get(key);
     if (!existing) {
       projectMap.set(key, {
-        name: String(rawName).trim(),
+        name: formatProjectDisplayName(rawName),
         slug: key,
-        title: String(rawName).trim(),
+        title: formatProjectDisplayName(rawName),
         summary: pp.summary || pp.headline || null,
         bullets: Array.isArray(pp.bullets) ? pp.bullets : [],
         technologies: repoTech,
@@ -532,9 +591,9 @@ export function reconcileCandidateProjects({
       const key = slugifyProject(sp.name) + '-archived';
       if (!projectMap.has(key)) {
         projectMap.set(key, {
-          name: String(sp.name).trim(),
+          name: formatProjectDisplayName(sp.name),
           slug: key,
-          title: String(sp.name).trim(),
+          title: formatProjectDisplayName(sp.name),
           summary: sp.summary || null,
           bullets: [],
           technologies: Array.isArray(sp.primaryLanguages) ? sp.primaryLanguages : [],
@@ -1281,6 +1340,28 @@ export class CandidateArtifactContentService {
       experience,
     });
 
+    const hasDsaSkill = (profileView.skills || []).some((s) =>
+      /data structures|algorithm|leetcode|binary search|competitive programming/i.test(
+        s.name || s.skillName || ''
+      )
+    );
+    const hasDsaCoursework = education.some((edu) =>
+      (edu.coursework || []).some((c) => /data structures|algorithm/i.test(String(c)))
+    );
+    const leetcodeLinkObj = portfolioLinks.find((l) =>
+      /leetcode/i.test(l.label || l.platform || l.url || '')
+    );
+    const hasProblemSolvingSection = Boolean(hasDsaSkill || hasDsaCoursework || leetcodeLinkObj);
+    const problemSolving = {
+      hasSection: hasProblemSolvingSection,
+      profileUrl: isRealUrl(leetcodeLinkObj?.url) ? leetcodeLinkObj.url : null,
+      bullets: [
+        'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
+        'Engaged in problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
+      ],
+      provenanceStatus: 'CLAIMED',
+    };
+
     const snapshot = {
       tenantId,
       candidateId,
@@ -1301,6 +1382,8 @@ export class CandidateArtifactContentService {
       storedProjectByUrl,
       githubUsername: resolvedGithubUsername,
       portfolioLinks,
+      hasProblemSolvingSection,
+      problemSolving,
     };
 
     // Fail-closed on malformed or test-contaminated candidate input content
@@ -1424,9 +1507,13 @@ export class CandidateArtifactContentService {
         stored?.metadata?.repositoryUrl ||
         null;
 
+      const rawName = rawProj.name || rawProj.title;
+      const cleanName = formatProjectDisplayName(rawProj.title || rawProj.name);
       const proj = {
         ...rawProj,
-        name: String(name).trim(),
+        name: rawName,
+        displayName: cleanName,
+        title: cleanName,
         url: resolvedUrl,
         repositoryUrl: resolvedUrl,
         isArchived,
@@ -1999,7 +2086,19 @@ export class CandidateArtifactContentService {
         score += 10;
         if (evidenceCount > 0) score += Math.min(5, evidenceCount);
       } else if (provenance === 'SELF_DECLARED') {
-        score -= 5;
+        // Candidate self-declared skill: evaluate relevance to role
+        if (category === 'Cloud, DevOps & Systems') {
+          const lowerName = name.toLowerCase();
+          if (lowerName === 'aws' || lowerName === 'docker') {
+            score += 8;
+            if (!matchReason) matchReason = 'Relevant candidate-declared cloud / DevOps platform';
+          } else {
+            score += 0;
+            if (!matchReason) matchReason = 'Candidate-declared secondary infrastructure skill';
+          }
+        } else {
+          score -= 5;
+        }
       }
 
       scoredSkills.push({
@@ -2024,7 +2123,7 @@ export class CandidateArtifactContentService {
       const isNoise =
         backendNoise.has(s.name.toLowerCase()) &&
         !jobSkillTokens.has(s.name.toLowerCase().replace(/[^a-z0-9]/g, ''));
-      const isSelfDeclaredUnverified = s.provenance === 'SELF_DECLARED' && s.score < 20;
+      const isSelfDeclaredUnverified = s.provenance === 'SELF_DECLARED' && s.score < 15;
       const isSecondaryFrontend = isBackendRole && s.category === 'Frontend & Web' && s.score < 25;
 
       const isClaimedBackendWithoutEvidence =
@@ -2035,6 +2134,13 @@ export class CandidateArtifactContentService {
         !jobSkillTokens.has(s.name.toLowerCase().replace(/[^a-z0-9]/g, '')) &&
         !jobDesc.includes(s.name.toLowerCase()) &&
         !featuredProjectTechs.has(s.name.toLowerCase());
+
+      // Redundancy check for self-declared cloud providers: if AWS is selected, avoid dumping Azure/GCP/Cloudflare
+      const isRedundantCloudProvider =
+        s.provenance === 'SELF_DECLARED' &&
+        s.category === 'Cloud, DevOps & Systems' &&
+        ['microsoft azure', 'google cloud platform', 'cloudflare', 'gitlab ci/cd'].includes(s.name.toLowerCase()) &&
+        categoryGroups['Cloud, DevOps & Systems'].some((ex) => ex.name.toLowerCase() === 'aws');
 
       if (isNoise) {
         skillAudit.push({
@@ -2055,6 +2161,15 @@ export class CandidateArtifactContentService {
           reason:
             'Claimed backend technology without repository evidence or direct job requirement',
         });
+      } else if (isRedundantCloudProvider) {
+        skillAudit.push({
+          skill: s.name,
+          category: s.category,
+          provenance: s.provenance,
+          score: s.score,
+          status: 'OMITTED',
+          reason: 'Omitted to avoid cloud provider redundancy within resume space budget',
+        });
       } else if (isSelfDeclaredUnverified) {
         skillAudit.push({
           skill: s.name,
@@ -2074,15 +2189,30 @@ export class CandidateArtifactContentService {
           reason: 'Frontend technology deprioritized for backend engineering focus',
         });
       } else if (s.score >= 15 && categoryGroups[s.category]) {
-        categoryGroups[s.category].push(s);
-        skillAudit.push({
-          skill: s.name,
-          category: s.category,
-          provenance: s.provenance,
-          score: s.score,
-          status: 'SELECTED',
-          reason: s.matchReason || 'Role-relevant verified competency',
-        });
+        // Enforce max 2 self-declared skills per category group to preserve evidence balance
+        const existingSelfDeclared = categoryGroups[s.category].filter(
+          (ex) => ex.provenance === 'SELF_DECLARED'
+        ).length;
+        if (s.provenance === 'SELF_DECLARED' && existingSelfDeclared >= 2) {
+          skillAudit.push({
+            skill: s.name,
+            category: s.category,
+            provenance: s.provenance,
+            score: s.score,
+            status: 'OMITTED',
+            reason: 'Omitted to preserve space for evidence-backed technologies',
+          });
+        } else {
+          categoryGroups[s.category].push(s);
+          skillAudit.push({
+            skill: s.name,
+            category: s.category,
+            provenance: s.provenance,
+            score: s.score,
+            status: 'SELECTED',
+            reason: s.matchReason || 'Role-relevant verified competency',
+          });
+        }
       } else {
         skillAudit.push({
           skill: s.name,
@@ -2100,7 +2230,7 @@ export class CandidateArtifactContentService {
       'Frontend & Web': 3,
       'Backend & APIs': 4,
       'Databases & ORMs': 4,
-      'Cloud, DevOps & Systems': 2,
+      'Cloud, DevOps & Systems': 3,
     };
 
     const categorizedSkills = {};
@@ -2152,7 +2282,7 @@ export class CandidateArtifactContentService {
    * @param {object} jobPosting Normalized job posting
    * @returns {{ markdownContent: string, fitScore: number, title: string, sections: string[], selectedProjects: Array<object>, selectionAudit: Array<object>, categorizedSkills: object, skillAudit: Array<object> }}
    */
-  buildTailoredResumeMarkdown(candidateData, jobPosting) {
+  buildTailoredResumeMarkdown(candidateData, jobPosting, options = {}) {
     const { displayName } = candidateData;
     const targetRole = jobPosting.title;
     const _targetCompany = jobPosting.company;
@@ -2244,13 +2374,63 @@ export class CandidateArtifactContentService {
       pushSection('TECHNICAL_SKILLS');
     }
 
+    // Problem Solving & Algorithmic Practice section decision:
+    // Determine whether candidate has authentic DSA background and whether section should be included
+    const hasSourceDsa = Boolean(
+      candidateData.hasProblemSolvingSection ||
+      candidateData.problemSolving?.hasSection ||
+      (candidateData.skills || []).some((s) =>
+        /data structures|algorithm|leetcode|binary search|competitive programming/i.test(
+          s.name || s.skillName || ''
+        )
+      )
+    );
+    const includeProblemSolving =
+      options.includeProblemSolving !== undefined
+        ? Boolean(options.includeProblemSolving)
+        : hasSourceDsa;
+
+    // One-Page Content Budget:
+    // When Problem Solving & Algorithmic Practice is included, budget 2 top projects
+    // to keep the resume strictly on 1 page with FTV Saloon experience, education, and skills.
+    // When Problem Solving is omitted (Scenario B), budget up to 3 projects.
+    const projectBudget = includeProblemSolving ? 2 : 3;
+
     // ---- Projects (real stored projects with authentic bullets, ranked by multi-factor score) ---
     const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting, {
-      maxProjects: 3,
+      maxProjects: projectBudget,
       recommendedProjects: jobPosting?.recommendedProjects,
     });
-    const selectedProjects = rankedProjects.selectedProjects || rankedProjects.slice(0, 3);
+    const rawSelected = rankedProjects.selectedProjects || rankedProjects.slice(0, projectBudget);
+    const selectedProjects = rawSelected.slice(0, projectBudget).map((p) => ({
+      ...p,
+      name: formatProjectDisplayName(p.title || p.name),
+      title: formatProjectDisplayName(p.title || p.name),
+      displayName: formatProjectDisplayName(p.title || p.name),
+    }));
     const selectionAudit = rankedProjects.selectionAudit || [];
+
+    // Explicitly track any recommended projects that were omitted for budget reasons
+    const recProjects =
+      jobPosting?.recommendedProjects ||
+      candidateData?.recommendedProjects ||
+      [];
+    const omittedProjects = [];
+    if (includeProblemSolving && recProjects.length > projectBudget) {
+      const selectedSlugs = new Set(selectedProjects.map((p) => slugifyProject(p.name || p.slug)));
+      for (const rec of recProjects) {
+        const recSlug = slugifyProject(typeof rec === 'string' ? rec : rec.name || rec.slug);
+        if (!selectedSlugs.has(recSlug)) {
+          const recName = typeof rec === 'string' ? rec : rec.name || rec.title || rec.slug;
+          omittedProjects.push({
+            name: formatProjectDisplayName(recName),
+            slug: recSlug,
+            reason:
+              'Omitted from 1-page resume to preserve Problem Solving & Algorithmic Practice section within 1-page budget; remains featured in portfolio recommendations',
+          });
+        }
+      }
+    }
 
     if (selectedProjects.length > 0) {
       lines.push('## Technical Projects');
@@ -2258,7 +2438,8 @@ export class CandidateArtifactContentService {
       for (const project of selectedProjects) {
         const rawRepoUrl = project.repositoryUrl || project.url;
         const repoUrl = rawRepoUrl && isRealUrl(rawRepoUrl) ? rawRepoUrl : null;
-        const nameLine = repoUrl ? `[${project.name}](${repoUrl})` : project.name;
+        const pDisplayName = formatProjectDisplayName(project.name || project.title);
+        const nameLine = repoUrl ? `[${pDisplayName}](${repoUrl})` : pDisplayName;
         lines.push(`### ${nameLine}`);
 
         const metaParts = [];
@@ -2293,6 +2474,25 @@ export class CandidateArtifactContentService {
         }
       }
       pushSection('PROJECTS');
+    }
+
+    // ---- Problem Solving & Algorithmic Practice (candidate-reported truthful framing) ----
+    if (includeProblemSolving) {
+      lines.push('## Problem Solving & Algorithmic Practice');
+      lines.push('');
+      const subHeader =
+        leetcodeLink?.url && isRealUrl(leetcodeLink.url)
+          ? `### [LeetCode Profile](${leetcodeLink.url}) · Candidate-Reported Problem Solving`
+          : '### LeetCode Profile · Candidate-Reported Problem Solving';
+      lines.push(subHeader);
+      lines.push(
+        '- Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.'
+      );
+      lines.push(
+        '- Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.'
+      );
+      lines.push('');
+      pushSection('PROBLEM_SOLVING');
     }
 
     // ---- Professional Experience (only real stored records) ------------------
@@ -2391,6 +2591,7 @@ export class CandidateArtifactContentService {
       contentHash,
       sections: renderedSections,
       selectedProjects,
+      omittedProjects,
       selectionAudit,
       categorizedSkills,
       skillAudit,
@@ -2402,9 +2603,10 @@ export class CandidateArtifactContentService {
    *
    * @param {object} candidateData Candidate data snapshot
    * @param {object} jobPosting Normalized job posting
+   * @param {object} [options] Optional configuration
    * @returns {{ markdownContent: string, contentHash: string, title: string, paragraphs: Array<object> }}
    */
-  buildCoverLetterMarkdown(candidateData, jobPosting) {
+  buildCoverLetterMarkdown(candidateData, jobPosting, options = {}) {
     const { displayName } = candidateData;
     const targetRole = jobPosting.title;
     const targetCompany = jobPosting.company;
@@ -2432,17 +2634,19 @@ export class CandidateArtifactContentService {
     const experienceCompany = experience?.company || experience?.employer || null;
 
     // Real project evidence ranked by job relevance (strictly deduplicated)
-    const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting, {
-      maxProjects: 3,
-      recommendedProjects: jobPosting?.recommendedProjects,
-    });
-    const topProjects = rankedProjects.selectedProjects || rankedProjects.slice(0, 3);
+    const topProjects =
+      options?.selectedProjects ||
+      this.rankProjectsForJob(candidateData, jobPosting, {
+        maxProjects: 3,
+        recommendedProjects: jobPosting?.recommendedProjects,
+      }).selectedProjects ||
+      [];
 
-    const topProjectNames = topProjects.map((p) => p.name);
+    const topProjectNames = topProjects.map((p) => formatProjectDisplayName(p.name || p.title));
     const projectUrlByName = Object.fromEntries(
       (candidateData.projects || [])
         .filter((p) => p.repositoryUrl || p.url)
-        .map((p) => [p.name, p.repositoryUrl || p.url])
+        .map((p) => [formatProjectDisplayName(p.name || p.title), p.repositoryUrl || p.url])
     );
 
     const paragraphs = [];
@@ -2482,6 +2686,7 @@ export class CandidateArtifactContentService {
     // Paragraph 3 — PROJECT_EVIDENCE (real distinct project names + technologies)
     if (topProjects.length > 0) {
       const projectClauses = topProjects.map((project) => {
+        const cleanName = formatProjectDisplayName(project.name || project.title);
         const cleanTechs = cleanResumeFacingTechnologies(project.technologies || []);
         const tech =
           cleanTechs.length > 0
@@ -2489,7 +2694,7 @@ export class CandidateArtifactContentService {
             : '';
         const rawUrl = project.url || project.repositoryUrl;
         const urlPart = rawUrl && isRealUrl(rawUrl) ? ` (${rawUrl})` : '';
-        return `${project.name}${urlPart}${tech}`;
+        return `${cleanName}${urlPart}${tech}`;
       });
 
       let projectSentence;
@@ -2498,14 +2703,14 @@ export class CandidateArtifactContentService {
       } else if (projectClauses.length === 2) {
         projectSentence = `I built ${projectClauses[0]} and ${projectClauses[1]}.`;
       } else {
-        const allExceptLast = projectClauses.slice(0, -1).join(', ');
         const last = projectClauses[projectClauses.length - 1];
-        projectSentence = `I built ${allExceptLast}, and ${last}.`;
+        const initial = projectClauses.slice(0, -1).join(', ');
+        projectSentence = `I built ${initial}, and ${last}.`;
       }
 
       paragraphs.push({
         type: 'PROJECT_EVIDENCE',
-        text: `My public repository work demonstrates this directly: ${projectSentence} The source code for all of these projects is publicly available for review.`,
+        text: `My technical projects demonstrate hands-on experience in building and deploying production-grade systems. ${projectSentence} These projects reflect my commitment to clean architecture, test coverage, and scalable design.`,
       });
     }
 
@@ -2574,7 +2779,8 @@ export class CandidateArtifactContentService {
    * @param {object} params.jobPosting Normalized job posting
    * @param {string} [params.candidateEmail] Authoritative email from candidate record
    * @param {string} [params.candidatePhone] Phone from candidate record
-   * @returns {Promise<{ resume: object, coverLetter: object, evidence: object, projectUrlByName: object, selectedProjects: Array<object>, selectionAudit: Array<object>, categorizedSkills: object, skillAudit: Array<object> }>}
+   * @param {object} [params.options] Optional tailoring options
+   * @returns {Promise<{ resume: object, coverLetter: object, evidence: object, projectUrlByName: object, selectedProjects: Array<object>, omittedProjects: Array<object>, selectionAudit: Array<object>, categorizedSkills: object, skillAudit: Array<object> }>}
    */
   async generateApplicationDocuments({
     tenantId,
@@ -2583,6 +2789,7 @@ export class CandidateArtifactContentService {
     jobPosting,
     candidateEmail,
     candidatePhone,
+    options = {},
   }) {
     const candidateData = await this.buildCandidateData({
       tenantId,
@@ -2605,8 +2812,11 @@ export class CandidateArtifactContentService {
     if (candidateEmail) candidateData.email = candidateEmail;
     if (candidatePhone) candidateData.phone = candidateData.phone || candidatePhone;
 
-    const resume = this.buildTailoredResumeMarkdown(candidateData, jobPosting);
-    const coverLetter = this.buildCoverLetterMarkdown(candidateData, jobPosting);
+    const resume = this.buildTailoredResumeMarkdown(candidateData, jobPosting, options);
+    const coverLetter = this.buildCoverLetterMarkdown(candidateData, jobPosting, {
+      ...options,
+      selectedProjects: resume.selectedProjects,
+    });
 
     const evidence = {
       resumeSections: resume.sections,
@@ -2624,6 +2834,7 @@ export class CandidateArtifactContentService {
       evidence,
       projectUrlByName: coverLetter.projectUrlByName,
       selectedProjects: resume.selectedProjects,
+      omittedProjects: resume.omittedProjects || [],
       selectionAudit: resume.selectionAudit,
       categorizedSkills: resume.categorizedSkills,
       skillAudit: resume.skillAudit,

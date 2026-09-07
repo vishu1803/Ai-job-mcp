@@ -26,6 +26,7 @@ import {
   curateCandidateHeadline,
   isRealUrl,
   cleanResumeFacingTechnologies,
+  formatProjectDisplayName,
 } from './candidate-artifact-content.service.js';
 
 /**
@@ -511,9 +512,10 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
             .filter(Boolean);
           if (lines.length === 0) continue;
           const headerMatch = lines[0].match(/^###\s*(?:\[([^\]]+)\]\(([^)]+)\)|([^(\n]+))/);
-          const pName = headerMatch
+          const rawHeaderName = headerMatch
             ? (headerMatch[1] || headerMatch[3]).trim()
             : lines[0].replace(/^###\s*/, '');
+          const pName = formatProjectDisplayName(rawHeaderName);
           const repoUrl = headerMatch && headerMatch[2] ? headerMatch[2] : null;
 
           let techs = [];
@@ -582,7 +584,7 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
               !/^https?:\/\//i.test(b)
           );
           projectsToRender.push({
-            name: p.title || p.name,
+            name: formatProjectDisplayName(p.title || p.name),
             repositoryUrl:
               p.repositoryUrl ||
               p.sourceUrl ||
@@ -599,11 +601,31 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
       }
     }
 
+    // Problem Solving & Algorithmic Practice:
+    // Render ONLY when the resume content strategy explicitly selects this section
+    // (e.g. via applicationPackage.tailoredResume.selectedSections or markdown content).
+    // Do NOT auto-inject solely because a LeetCode URL exists.
+    const selectedSections =
+      applicationPackage.tailoredResume?.selectedSections ||
+      applicationPackage.selectedSections ||
+      [];
+    const isExplicitlySelected =
+      selectedSections.includes('PROBLEM_SOLVING') ||
+      selectedSections.includes('LEETCODE') ||
+      selectedSections.includes('ALGORITHMIC_PRACTICE') ||
+      /## (?:Problem Solving|Algorithmic Practice|LeetCode)/i.test(
+        applicationPackage.tailoredResume?.markdownContent || ''
+      );
+
     let projectsLatexSection = '';
     if (projectsToRender.length > 0) {
-      const maxBulletsPerProject = projectsToRender.length >= 3 ? 2 : 3;
-      const projectEntries = projectsToRender.slice(0, 3).map((p) => {
-        const pName = escapeLatex(p.name || p.projectName || p.title || 'Project');
+      // Content Budget: feature top 2 projects when Problem Solving is included to ensure 1-page fit
+      const projectsBudget = isExplicitlySelected ? 2 : 3;
+      const projectsToFeature = projectsToRender.slice(0, projectsBudget);
+      const maxBulletsPerProject = 2;
+      const projectEntries = projectsToFeature.map((p) => {
+        const rawName = p.name || p.projectName || p.title || 'Project';
+        const pName = escapeLatex(formatProjectDisplayName(rawName));
         const repoUrl = p.repositoryUrl || p.repoUrl || p.url || '';
         const liveUrl = p.liveUrl || '';
 
@@ -646,22 +668,6 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
       projectsLatexSection = `\\atssection{Technical Projects}\n${projectEntries.join('\n')}`;
     }
 
-    // Problem Solving & Algorithmic Practice:
-    // Render ONLY when the resume content strategy explicitly selects this section
-    // (e.g. via applicationPackage.tailoredResume.selectedSections or markdown content).
-    // Do NOT auto-inject solely because a LeetCode URL exists.
-    const selectedSections =
-      applicationPackage.tailoredResume?.selectedSections ||
-      applicationPackage.selectedSections ||
-      [];
-    const isExplicitlySelected =
-      selectedSections.includes('PROBLEM_SOLVING') ||
-      selectedSections.includes('LEETCODE') ||
-      selectedSections.includes('ALGORITHMIC_PRACTICE') ||
-      /## (?:Problem Solving|Algorithmic Practice|LeetCode)/i.test(
-        applicationPackage.tailoredResume?.markdownContent || ''
-      );
-
     let dsaLatexSection = '';
     if (isExplicitlySelected && leetcodeLink?.url) {
       const leetcodeUrl = leetcodeLink.url;
@@ -670,8 +676,8 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
 \\textbf{LeetCode Profile} $|$ \\textit{Candidate-Reported Problem Solving} \\hfill \\href{${escapeLatex(leetcodeUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}\\\\
 \\begin{itemize}
 \\setlength{\\itemsep}{1pt}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}
-  \\item Solved algorithmic challenges covering dynamic programming, graph traversal, trees, and binary search.
-  \\item Practice problem solving to optimize computational time and space complexity in backend systems.
+  \\item Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.
+  \\item Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.
 \\end{itemize}
 \\vspace{2pt}`;
     }
@@ -744,9 +750,9 @@ ${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
 
 % Clean, ATS-Compliant Section Dividers
 \\newcommand{\\atssection}[1]{%
-  \\vspace{5pt}%
+  \\vspace{4pt}%
   {\\noindent\\large\\textbf{\\uppercase{#1}}}%
-  \\vspace{2pt}\\hrule\\vspace{3pt}%
+  \\vspace{1pt}\\hrule\\vspace{3pt}%
 }
 
 \\begin{document}
