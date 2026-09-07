@@ -120,7 +120,9 @@ export async function handleTrackJobApplication(context, args, deps = {}) {
 
   const targetCandidateId = await resolveTargetCandidateId(context, input.candidateId, dbClient);
 
+  const explicitId = input.id || input.jobId || null;
   const application = await trackingService.createApplication(context, targetCandidateId, {
+    ...(explicitId ? { id: explicitId } : {}),
     companyName: SecretScrubber.scrub(input.companyName),
     jobTitle: SecretScrubber.scrub(input.jobTitle),
     jobUrl: input.jobUrl || null,
@@ -134,6 +136,10 @@ export async function handleTrackJobApplication(context, args, deps = {}) {
     compensation: input.compensation || {},
     notes: input.notes ? SecretScrubber.scrub(input.notes) : null,
     status: input.status || 'SAVED',
+    metadata: {
+      ...(explicitId ? { jobId: explicitId, canonicalJobId: explicitId } : {}),
+      ...(input.metadata || {}),
+    },
   });
 
   const output = {

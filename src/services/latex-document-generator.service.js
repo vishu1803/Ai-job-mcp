@@ -21,7 +21,12 @@
  */
 
 import { ValidationError } from '../errors/index.js';
-import { curateProfessionalSummary } from './candidate-artifact-content.service.js';
+import {
+  curateProfessionalSummary,
+  curateCandidateHeadline,
+  isRealUrl,
+  cleanResumeFacingTechnologies,
+} from './candidate-artifact-content.service.js';
 
 /**
  * Escapes reserved LaTeX characters in dynamic user strings.
@@ -258,7 +263,7 @@ export class LatexDocumentGenerator {
     if (!profileGithubUrl && /vishwanath/i.test(candidateName)) {
       profileGithubUrl = 'https://github.com/vishu1803';
     }
-    if (profileGithubUrl) {
+    if (profileGithubUrl && isRealUrl(profileGithubUrl)) {
       profileLinkElements.push(`\\href{${profileGithubUrl}}{GitHub}`);
     }
 
@@ -267,7 +272,7 @@ export class LatexDocumentGenerator {
         /portfolio/i.test(l.label || l.platform || '') ||
         (l.url && /vercel\.app|portfolio/i.test(l.url) && !/task-manager/i.test(l.url))
     );
-    if (portfolioLink?.url) {
+    if (portfolioLink?.url && isRealUrl(portfolioLink.url)) {
       profileLinkElements.push(`\\href{${portfolioLink.url}}{Portfolio}`);
     }
 
@@ -275,25 +280,29 @@ export class LatexDocumentGenerator {
       (l) =>
         /leetcode/i.test(l.label || l.platform || '') || (l.url && /leetcode\.com/i.test(l.url))
     );
-    if (leetcodeLink?.url) {
+    if (leetcodeLink?.url && isRealUrl(leetcodeLink.url)) {
       profileLinkElements.push(`\\href{${leetcodeLink.url}}{LeetCode}`);
     }
 
     const profileLinksLine = profileLinkElements.join(' $\\cdot$ ');
 
-    // Resolve professional headline
-    const candidateHeadline =
+    // Resolve professional headline (curated to strip seniority inflation for freshers)
+    const rawHeadline =
       candidateProfile?.headline ||
       candidateProfile?.candidate?.headline ||
       candidateProfile?.candidate?.profileMetadata?.userCustom?.headline ||
       candidateProfile?.profileMetadata?.userCustom?.headline ||
       targetRole ||
       '';
+    const candidateHeadline = curateCandidateHeadline(
+      rawHeadline,
+      candidateProfile || applicationPackage
+    );
 
     // 2. Summary / Objective — real stored summary only; curated for evidence truth; never synthesized or leaking "Tailored for:"
     let summaryText = '';
     const summaryMatch = applicationPackage.tailoredResume?.markdownContent?.match(
-      /## Professional Summary\n+([\s\S]*?)(?=\n+##|$)/
+      /## Professional Summary\n+([\s\S]*?)(?=\n+##(?!\#)\s+[^\n]+|$)/
     );
     if (summaryMatch?.[1]?.trim()) {
       summaryText = summaryMatch[1].trim();
@@ -418,7 +427,7 @@ export class LatexDocumentGenerator {
     // Fallback 1: parse from markdown content
     if (!skillsLatexSection) {
       const skillsMatch = applicationPackage.tailoredResume?.markdownContent?.match(
-        /## Technical Skills\n+([\s\S]*?)(?=\n+##|$)/
+        /## Technical Skills\n+([\s\S]*?)(?=\n+##(?!\#)\s+[^\n]+|$)/
       );
       if (skillsMatch) {
         const categoryLines = skillsMatch[1]
@@ -489,7 +498,9 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
     } else if (applicationPackage.tailoredResume?.markdownContent) {
       // Parse ## Technical Projects from markdown
       const md = applicationPackage.tailoredResume.markdownContent;
-      const projSectionMatch = md.match(/## Technical Projects\n+([\s\S]*?)(?=\n+##|$)/);
+      const projSectionMatch = md.match(
+        /## Technical Projects\n+([\s\S]*?)(?=\n+##(?!\#)\s+[^\n]+|$)/
+      );
       if (projSectionMatch) {
         const rawProjText = projSectionMatch[1];
         const projBlocks = rawProjText.split(/\n+(?=###\s+)/);
@@ -515,11 +526,15 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
               /\*Technologies:\s*([^*]+)(?:·\s*Live Demo:\s*([^*]+))?\*/i
             );
             if (techMatch) {
-              techs = techMatch[1]
-                .split(',')
-                .map((t) => t.trim())
-                .filter(Boolean);
-              if (techMatch[2]) liveUrl = techMatch[2].trim();
+              techs = cleanResumeFacingTechnologies(
+                techMatch[1]
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+              );
+              if (techMatch[2] && isRealUrl(techMatch[2].trim())) {
+                liveUrl = techMatch[2].trim();
+              }
               continue;
             }
             if (/^[-*]\s+/.test(line)) {
@@ -532,7 +547,7 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
               ) {
                 if (!liveUrl && /live|demo|vercel/i.test(bulletText)) {
                   const urlMatch = bulletText.match(/https?:\/\/[^\s]+/);
-                  if (urlMatch) liveUrl = urlMatch[0];
+                  if (urlMatch && isRealUrl(urlMatch[0])) liveUrl = urlMatch[0];
                 }
                 continue;
               }
@@ -586,26 +601,23 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
 
     let projectsLatexSection = '';
     if (projectsToRender.length > 0) {
+      const maxBulletsPerProject = projectsToRender.length >= 3 ? 2 : 3;
       const projectEntries = projectsToRender.slice(0, 3).map((p) => {
         const pName = escapeLatex(p.name || p.projectName || p.title || 'Project');
-        const repoUrl = p.repositoryUrl || p.url || '';
+        const repoUrl = p.repositoryUrl || p.repoUrl || p.url || '';
         const liveUrl = p.liveUrl || '';
 
         // Format technologies inline
-        const techs = Array.isArray(p.technologies)
-          ? p.technologies
-              .filter(Boolean)
-              .slice(0, 6)
-              .map((t) => escapeLatex(t))
-              .join(', ')
-          : '';
+        const rawTechs = Array.isArray(p.technologies) ? p.technologies : [];
+        const cleanTechs = cleanResumeFacingTechnologies(rawTechs);
+        const techs = cleanTechs.map((t) => escapeLatex(t)).join(', ');
 
         // Build clean action links: \href{repoUrl}{GitHub} · \href{liveUrl}{Live Demo}
         const linkParts = [];
-        if (repoUrl) {
+        if (repoUrl && isRealUrl(repoUrl)) {
           linkParts.push(`\\href{${repoUrl}}{\\small\\textbf{GitHub}}`);
         }
-        if (liveUrl) {
+        if (liveUrl && isRealUrl(liveUrl)) {
           linkParts.push(`\\href{${liveUrl}}{\\small\\textbf{Live Demo}}`);
         }
         const linksStr = linkParts.join(' $\\cdot$ ');
@@ -625,40 +637,43 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
               !/^(source code|project link|repository|repo|url):\s*https?:\/\//i.test(b) &&
               !/^https?:\/\//i.test(b)
           )
-          .slice(0, 3);
+          .slice(0, maxBulletsPerProject);
 
         const pBullets = formatLatexBullets(cleanBullets);
 
-        return `${headerLine}\n${pBullets}\n\\vspace{3pt}`;
+        return `${headerLine}\n${pBullets}\n\\vspace{2pt}`;
       });
       projectsLatexSection = `\\atssection{Technical Projects}\n${projectEntries.join('\n')}`;
     }
 
-    // Problem Solving & Algorithmic Practice (Optional: only when authoritative evidence supports it)
-    let dsaLatexSection = '';
-    const hasDsaEvidence =
-      Boolean(leetcodeLink?.url) ||
-      (candidateProfile?.skills || []).some((s) =>
-        /data structures|algorithms|leetcode|competitive programming/i.test(s.name || s)
-      ) ||
-      /data structures and algorithms/i.test(summaryText);
-
-    const isTechnicalEngineeringRole =
-      /backend|software|engineer|developer|systems|infrastructure|distributed|algorithm/i.test(
-        targetRole
+    // Problem Solving & Algorithmic Practice:
+    // Render ONLY when the resume content strategy explicitly selects this section
+    // (e.g. via applicationPackage.tailoredResume.selectedSections or markdown content).
+    // Do NOT auto-inject solely because a LeetCode URL exists.
+    const selectedSections =
+      applicationPackage.tailoredResume?.selectedSections ||
+      applicationPackage.selectedSections ||
+      [];
+    const isExplicitlySelected =
+      selectedSections.includes('PROBLEM_SOLVING') ||
+      selectedSections.includes('LEETCODE') ||
+      selectedSections.includes('ALGORITHMIC_PRACTICE') ||
+      /## (?:Problem Solving|Algorithmic Practice|LeetCode)/i.test(
+        applicationPackage.tailoredResume?.markdownContent || ''
       );
 
-    if (hasDsaEvidence && isTechnicalEngineeringRole && leetcodeLink?.url) {
+    let dsaLatexSection = '';
+    if (isExplicitlySelected && leetcodeLink?.url) {
       const leetcodeUrl = leetcodeLink.url;
       const cleanLeetcodeDisplay = leetcodeUrl.replace(/^https?:\/\/(www\.)?/, '');
       dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
-\\textbf{LeetCode Profile} $|$ \\textit{Data Structures \\& Algorithms} \\hfill \\href{${escapeLatex(leetcodeUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}\\\\
+\\textbf{LeetCode Profile} $|$ \\textit{Candidate-Reported Problem Solving} \\hfill \\href{${escapeLatex(leetcodeUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}\\\\
 \\begin{itemize}
 \\setlength{\\itemsep}{1pt}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}
   \\item Solved algorithmic challenges covering dynamic programming, graph traversal, trees, and binary search.
-  \\item Practice daily problem solving to optimize computational time and space complexity in backend systems.
+  \\item Practice problem solving to optimize computational time and space complexity in backend systems.
 \\end{itemize}
-\\vspace{3pt}`;
+\\vspace{2pt}`;
     }
 
     // 5. Professional Experience — real stored records only.
@@ -676,6 +691,36 @@ ${dedupedVerified.length > 0 ? `\\textbf{Verified Capabilities:} ${escapeLatex(d
       candidateProfile?.candidate?.profileMetadata?.userCustom?.education ||
       candidateProfile?.candidate?.profileMetadata?.education ||
       [];
+
+    // 7. Certifications — candidate-provided / claimed records
+    const certRecords =
+      candidateProfile?.certifications ||
+      candidateProfile?.profileMetadata?.userCustom?.certifications ||
+      candidateProfile?.candidate?.profileMetadata?.userCustom?.certifications ||
+      [];
+    const mdCertsMatch = applicationPackage.tailoredResume?.markdownContent?.match(
+      /## Certifications\n+([\s\S]*?)(?=\n+##(?!\#)\s+[^\n]+|$)/
+    );
+    let certNames = [];
+    if (Array.isArray(certRecords) && certRecords.length > 0) {
+      certNames = certRecords
+        .map((c) => (typeof c === 'string' ? c : c.name || c.title || ''))
+        .filter(Boolean);
+    } else if (mdCertsMatch) {
+      certNames = mdCertsMatch[1]
+        .split('\n')
+        .map((l) => l.trim().replace(/^[-*]\s*/, ''))
+        .filter(Boolean);
+    }
+    let certLatexSection = '';
+    if (certNames.length > 0) {
+      certLatexSection = `\\atssection{Certifications}
+\\begin{itemize}
+\\setlength{\\itemsep}{1pt}\\setlength{\\parskip}{0pt}\\setlength{\\parsep}{0pt}
+${certNames.map((c) => `  \\item ${escapeLatex(c)}`).join('\n')}
+\\end{itemize}
+\\vspace{2pt}`;
+    }
 
     const hasRealExperience = experienceRecords.length > 0;
     const hasRealEducation = educationRecords.length > 0;
@@ -775,6 +820,9 @@ ${coursework}\\vspace{2pt}`;
   .join('\n')}`
     : ''
 }
+
+% ---------------- CERTIFICATIONS (omitted when no real records) ----------------
+${certLatexSection}
 
 \\end{document}
 `;

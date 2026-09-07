@@ -14,7 +14,7 @@
  * - Sensitive Data Redaction: Salary, private notes, and raw feedback never leak into audit logs
  */
 
-import { eq, and, ne, desc, asc, count, ilike, inArray, sql } from 'drizzle-orm';
+import { eq, and, or, ne, desc, asc, count, ilike, inArray, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   candidates,
@@ -147,6 +147,7 @@ export class ApplicationTrackingService {
       const [application] = await tx
         .insert(jobApplications)
         .values({
+          ...(validatedInput.id ? { id: validatedInput.id } : {}),
           tenantId,
           candidateId,
           companyName: validatedInput.companyName,
@@ -1635,7 +1636,16 @@ export class ApplicationTrackingService {
     const [application] = await this.db
       .select()
       .from(jobApplications)
-      .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)));
+      .where(
+        and(
+          eq(jobApplications.tenantId, tenantId),
+          or(
+            eq(jobApplications.id, applicationId),
+            sql`${jobApplications.metadata}->>'jobId' = ${applicationId}`,
+            sql`${jobApplications.metadata}->>'canonicalJobId' = ${applicationId}`
+          )
+        )
+      );
 
     if (!application) {
       throw new NotFoundError(`Job application not found: ${applicationId}`);

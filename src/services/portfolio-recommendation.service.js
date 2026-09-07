@@ -164,13 +164,22 @@ export class PortfolioRecommendationService {
       : [];
     const relevanceByProjectId = new Map(relevanceRankings.map((r) => [r.projectId, r]));
 
-    // 5. Deduplicate Candidate Projects by canonical slug/name
+    // 5. Deduplicate Candidate Projects by canonical slug/name and exclude archived
     const seenProjectKeys = new Set();
     const deduplicatedProjects = [];
     for (const project of candidateProjects) {
-      const canonicalKey = SkillTaxonomyEngine.generateSafeSlug(
-        project.slug || project.name || project.displayName || project.id || 'project'
-      );
+      // Exclude archived projects
+      const isArchived =
+        project.metadata?.portfolioStatus === 'ARCHIVED' ||
+        Boolean(project.metadata?.archivedAt) ||
+        Boolean(project.metadata?.isArchived) ||
+        Boolean(project.isArchived);
+      if (isArchived) continue;
+
+      const rawName = (project.name || '').includes('/')
+        ? project.name.split('/').pop()
+        : (project.name || project.slug || project.displayName || project.id || 'project');
+      const canonicalKey = SkillTaxonomyEngine.generateSafeSlug(rawName);
       if (seenProjectKeys.has(canonicalKey)) continue;
       seenProjectKeys.add(canonicalKey);
       deduplicatedProjects.push(project);
@@ -642,11 +651,15 @@ export class PortfolioRecommendationService {
     if (
       signals.includes('API_ROUTING') ||
       signals.includes('BACKGROUND_PROCESSING') ||
+      signals.includes('REALTIME_COMMUNICATION') ||
       allText.includes('grpc') ||
       allText.includes('microservice') ||
       allText.includes('distributed') ||
       allText.includes('fastify') ||
       allText.includes('express') ||
+      allText.includes('socket.io') ||
+      allText.includes('socket-io') ||
+      allText.includes('websocket') ||
       allText.includes('go')
     ) {
       set.add(PortfolioSignalEnum.enum.BACKEND_DISTRIBUTED);
@@ -904,22 +917,25 @@ export class PortfolioRecommendationService {
     const weights =
       JOB_FAMILY_SIGNAL_WEIGHTS[jobFamily] || JOB_FAMILY_SIGNAL_WEIGHTS.GENERAL_SOFTWARE;
 
-    // 1. Already covered requirements and signals
+    // 1. Already covered requirements, signals, and primary backend frameworks
     const coveredReqs = new Set();
     const coveredSignals = new Set();
-    const coveredSkills = new Set();
+    const coveredFrameworks = new Set();
 
     for (const proj of selectedProjects) {
       for (const reqId of proj.requirementsCovered || []) coveredReqs.add(reqId);
       for (const sig of proj.signalsAdded || []) coveredSignals.add(sig);
-      for (const sk of proj.contributingSkills || []) coveredSkills.add(sk);
+      const fw = proj.contributingSkills?.find((s) =>
+        ['fastapi', 'express', 'nestjs', 'fastify', 'django', 'flask'].includes(s)
+      );
+      if (fw) coveredFrameworks.add(fw);
     }
 
-    // 2. Newly covered requirements
+    // 2. Newly covered requirements (awards 25.0 points per new requirement)
     let newReqScore = 0.0;
     for (const reqId of candidate.requirementsCovered || []) {
       if (!coveredReqs.has(reqId)) {
-        newReqScore += 25.0; // 25 points for each new job requirement
+        newReqScore += 25.0;
       }
     }
 
@@ -932,25 +948,44 @@ export class PortfolioRecommendationService {
       }
     }
 
-    // 4. Redundancy penalty for repeating already demonstrated skills
-    let redundancyPenalty = 0.0;
-    for (const sk of candidate.contributingSkills || []) {
-      if (coveredSkills.has(sk)) {
-        redundancyPenalty += 5.0;
-      }
+    // 4. Complementary architecture / distinct backend stack bonus
+    let complementaryBonus = 0.0;
+    const candidateFw = candidate.contributingSkills?.find((s) =>
+      ['fastapi', 'express', 'nestjs', 'fastify', 'django', 'flask'].includes(s)
+    );
+    if (candidateFw && !coveredFrameworks.has(candidateFw)) {
+      complementaryBonus += 6.0;
     }
 
-    // 5. Engineering maturity and interview base
-    const maturityBonus = (candidate.scoreBreakdown.architecturalDensityScore / 25.0) * 10.0;
-    const interviewBonus = (candidate.interviewDiscussionValue / 100.0) * 10.0;
+    // 5. Duplicate stack penalty: ONLY applies if candidate shares the exact same primary backend framework
+    // and adds NO new architectural signals and NO new requirements
+    let duplicateStackPenalty = 0.0;
+    if (
+      candidateFw &&
+      coveredFrameworks.has(candidateFw) &&
+      newSignalScore === 0 &&
+      newReqScore === 0
+    ) {
+      duplicateStackPenalty = 4.0;
+    }
+
+    // 6. Implementation depth, engineering maturity and interview base
+    const maturityBonus = (candidate.scoreBreakdown.architecturalDensityScore / 25.0) * 8.0;
+    const interviewBonus = (candidate.interviewDiscussionValue / 100.0) * 8.0;
+    const qualityBonus = (candidate.scoreBreakdown.evidenceQualityScore / 15.0) * 6.0;
+
+    // 7. Base relevance: Strategic selection score weighted appropriately
+    const baseRelevance = candidate.selectionScore * 0.4;
 
     const netMarginalValue =
-      candidate.relevanceScore * 0.3 +
+      baseRelevance +
       newReqScore * 0.4 +
       newSignalScore * 0.2 +
+      complementaryBonus +
       maturityBonus +
-      interviewBonus -
-      redundancyPenalty;
+      interviewBonus +
+      qualityBonus -
+      duplicateStackPenalty;
 
     return Math.max(0.0, Number(netMarginalValue.toFixed(2)));
   }

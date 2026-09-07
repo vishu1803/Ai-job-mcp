@@ -191,6 +191,16 @@ export const CAREER_TRACKING_TOOL_COST_METADATA = Object.freeze({
 
 export const TrackJobApplicationInputSchema = z
   .object({
+    id: z
+      .string()
+      .uuid('id must be a valid UUIDv4')
+      .optional()
+      .describe('Optional explicit canonical UUID for the job opportunity.'),
+    jobId: z
+      .string()
+      .uuid('jobId must be a valid UUIDv4')
+      .optional()
+      .describe('Optional alias for canonical job UUID.'),
     candidateId: z
       .string()
       .uuid('candidateId must be a valid UUIDv4')
@@ -253,6 +263,11 @@ export const TrackJobApplicationInputSchema = z
       .enum(['SAVED', 'APPLIED'])
       .default('SAVED')
       .describe('Initial application state. Default is SAVED.'),
+    metadata: z
+      .record(z.unknown())
+      .optional()
+      .default({})
+      .describe('Arbitrary opportunity metadata (e.g. canonical jobId, provider, externalJobId).'),
   })
   .strict();
 

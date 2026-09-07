@@ -122,6 +122,8 @@ export const ApplicationPackageSchema = z.object({
     markdownContent: z.string(),
     contentHash: z.string(),
     fitScore: z.number().min(0).max(100),
+    selectedProjects: z.array(z.any()).optional(),
+    selectedSections: z.array(z.string()).optional(),
     artifact: ApplicationDocumentArtifactSchema.optional(),
   }),
   coverLetter: z.object({

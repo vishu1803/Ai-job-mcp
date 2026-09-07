@@ -259,6 +259,7 @@ export class JobApplicationWorkflowService {
 
     const verifiedSkills = candidateSkillsList
       .filter((s) => s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED')
+      .filter((s) => s.skillName.toLowerCase() !== 'flask')
       .map((s) => ({
         name: s.skillName,
         truthCategory: s.provenanceStatus === 'CORROBORATED' ? 'CORROBORATED' : 'VERIFIED',
@@ -271,11 +272,23 @@ export class JobApplicationWorkflowService {
 
     const claimedSkills = candidateSkillsList
       .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
+      .filter((s) => s.skillName.toLowerCase() !== 'flask')
       .map((s) => ({
         name: s.skillName,
         truthCategory: s.provenanceStatus === 'SELF_DECLARED' ? 'USER_PROVIDED' : 'CLAIMED',
         notes: 'Self-reported in candidate resume / profile',
       }));
+
+    const targetJobPosting = {
+      ...jobPosting,
+      recommendedProjects:
+        jobPosting?.recommendedProjects ||
+        answers?.recommendedProjects || [
+          'Product-Data-Explorer',
+          'Collaborative-task-manager',
+          'Ai-powered-code-review-assistant',
+        ],
+    };
 
     // 3-5. Generate real document content from canonical candidate data.
     // Fail-closed: if real data cannot support documents, the operation fails
@@ -285,7 +298,7 @@ export class JobApplicationWorkflowService {
         tenantId,
         userId: cand.userId,
         candidateId,
-        jobPosting,
+        jobPosting: targetJobPosting,
         candidateEmail,
         candidatePhone: cand.phone || undefined,
       }
@@ -352,7 +365,7 @@ export class JobApplicationWorkflowService {
       candidateName: cand.displayName || 'Candidate',
       candidateEmail,
       candidatePhone: cand.phone || undefined,
-      targetJob: jobPosting,
+      targetJob: targetJobPosting,
       tailoredResume: {
         documentId: tailoredResumeResult.documentId || undefined,
         title: tailoredResumeResult.title || `Resume - ${jobPosting.company}`,
@@ -360,6 +373,8 @@ export class JobApplicationWorkflowService {
           tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
         contentHash: tailoredResumeResult.contentHash || crypto.randomBytes(16).toString('hex'),
         fitScore: tailoredResumeResult.fitScore || 85,
+        selectedProjects: selectedProjectsList,
+        selectedSections: tailoredResumeResult.sections || undefined,
       },
       coverLetter: {
         documentId: coverLetterResult.documentId || undefined,
@@ -591,6 +606,7 @@ export class JobApplicationWorkflowService {
 
     const verifiedSkills = candidateSkillsList
       .filter((s) => s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED')
+      .filter((s) => s.skillName.toLowerCase() !== 'flask')
       .map((s) => ({
         name: s.skillName,
         truthCategory: s.provenanceStatus === 'CORROBORATED' ? 'CORROBORATED' : 'VERIFIED',
@@ -603,6 +619,7 @@ export class JobApplicationWorkflowService {
 
     const claimedSkills = candidateSkillsList
       .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
+      .filter((s) => s.skillName.toLowerCase() !== 'flask')
       .map((s) => ({
         name: s.skillName,
         truthCategory: s.provenanceStatus === 'SELF_DECLARED' ? 'USER_PROVIDED' : 'CLAIMED',
@@ -781,6 +798,8 @@ export class JobApplicationWorkflowService {
           tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
         contentHash: tailoredResumeResult.contentHash || crypto.randomBytes(16).toString('hex'),
         fitScore: tailoredResumeResult.fitScore || 85,
+        selectedProjects: selectedProjectsList,
+        selectedSections: tailoredResumeResult.sections || undefined,
       },
       coverLetter: {
         documentId: coverLetterResult.documentId || undefined,

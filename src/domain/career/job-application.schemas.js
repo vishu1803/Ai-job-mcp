@@ -49,7 +49,7 @@ export const TailoredDocumentTypeEnum = z.enum([
   'CUSTOM_NOTE',
 ]);
 
-export const WorkplaceTypeEnum = z.enum(['REMOTE', 'HYBRID', 'ONSITE']);
+export const WorkplaceTypeEnum = z.enum(['REMOTE', 'HYBRID', 'ONSITE', 'ON_SITE']);
 
 export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP']);
 
@@ -102,6 +102,7 @@ export const DocumentCitationRefSchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const CreateJobApplicationInputSchema = z.object({
+  id: z.string().uuid().optional(),
   candidateId: z.string().uuid(),
   companyName: z.string().min(1).max(200),
   jobTitle: z.string().min(1).max(200),

@@ -205,7 +205,31 @@ function buildCandidateProfileDomainObject(profileView, context) {
 
   const normalizedProjects = (profileView.projects || []).map((p) => ({
     ...p,
-    evidence: Array.isArray(p.evidence) ? p.evidence.map(normalizeEvidenceRef).filter(Boolean) : [],
+    evidence: Array.isArray(p.evidence)
+      ? p.evidence
+          .map((ev) => {
+            if (!ev) return null;
+            const ref = normalizeEvidenceRef(ev);
+            if (!ref) return null;
+            return {
+              ...ref,
+              tenantId: ev.tenantId || context.tenantId,
+              candidateId: ev.candidateId || profileView.candidate.id,
+              projectId: ev.projectId || p.id,
+              skillId: ev.skillId || null,
+              skillSlug: ev.skillSlug || null,
+              skillName: ev.skillName || null,
+              sourceProvider: ev.sourceProvider || 'GITHUB',
+              sourceLocation: ev.sourceLocation || {
+                filePath: ref.filePath,
+                lineRange: ref.lineRange,
+                commitSha: ref.commitSha,
+              },
+              metadata: ev.metadata || {},
+            };
+          })
+          .filter(Boolean)
+      : [],
   }));
 
   return {

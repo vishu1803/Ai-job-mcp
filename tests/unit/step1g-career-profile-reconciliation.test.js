@@ -11,12 +11,16 @@
  * 7. Multi-tenant 404 boundary enforcement
  */
 
-import { describe, it } from 'node:test';
+import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import { NotFoundError } from '../../src/errors/index.js';
+import { pool } from '../../src/db/index.js';
 
 describe('Step 1G: Canonical Career Profile Reconciliation Unit Tests', () => {
+  after(async () => {
+    await pool.end();
+  });
   const tenantIdA = 'a0000000-0000-4000-a000-000000000001';
   const tenantIdB = 'b0000000-0000-4000-a000-000000000002';
   const userIdA = '10000000-0000-4000-a000-000000000001';

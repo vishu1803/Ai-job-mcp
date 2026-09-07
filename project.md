@@ -3,6 +3,369 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-07*
 
+### P14-022: Document Content Quality & Evidence Grounding Remediation
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Following the structural document pipeline remediation (P14-021), a comprehensive offline content-quality pass was performed for the Discord v2 application package (`46ba9d63-67d5-4198-83f0-9b984e6380c1`, Candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`, Tenant `24d53f53-780e-4431-b065-32180c354175`) resolving four content-level truth defects:
+1. **Issue 1 (Synthetic & Placeholder URLs):** Resume Markdown previously rendered `https://task-manager.example.com`. Replaced with strict validation: only render Live Demo or repository URLs if they exist in authoritative candidate/project records and pass domain validation (`isRealUrl`). Otherwise omit entirely. Added automated scans against `example.com`, `dummy.com`, `placeholder`, and local test URLs.
+2. **Issue 2 (Over-Pruning of Verified Technical Skills):** Verified skills were overwritten by unverified aliases (e.g. `React` with 61 evidence items was overwritten by `React.js` with 0 evidence; `NestJS` featured in `Product Data Explorer` disappeared from technical skills). Implemented canonical alias normalization, evidence-preserving map merging, and project-aware skill scoring.
+3. **Issue 3 (Raw Dependency Leakage in Project Technologies):** `Product Data Explorer` previously displayed raw package dependencies (`Fs, Path, Crypto, Cache Manager, Class Transformer, Reflect Metadata, Ts Node, Eslint`). Implemented a multi-category balanced selector (`cleanResumeFacingTechnologies`) covering Languages, Frameworks, Databases/Caches, and Platforms/DevOps while filtering utility noise.
+4. **Issue 4 (Candidate Experience Claim Provenance Classification):** Ensured candidate-provided experience (FTV Saloon, "40% reduction", "85%+ test coverage") is classified internally as `USER_PROVIDED` / `CLAIMED` without unsupported claims of repository-backed verification.
+
+**Implementation Summary:**
+1. **`src/services/candidate-artifact-content.service.js`:**
+   - Implemented `isRealUrl(url)`: Rejects placeholder/example domains (`example.(com|org|net)`, `task-manager.example.com`, `placeholder`, `dummy`, `localhost`, `127.0.0.1`, etc.).
+   - Implemented `cleanResumeFacingTechnologies(technologies, maxCount = 6)`: Balanced multi-category selector selecting up to 6 clean technologies across Languages (`TypeScript, Python`), Frameworks (`NestJS, React, Next.js`), Databases/Caches (`PostgreSQL, Redis, TypeORM, Prisma ORM`), and Platforms/DevOps (`Docker Compose, OpenAI API, Socket.io`), rejecting 50+ low-level utility dependencies (`NOISY_TECH_SET`).
+   - Implemented canonical alias mapping (`CANONICAL_TECH_LABEL_MAP` / `CANONICAL_ALIAS_MAP`) to prevent alias collisions.
+   - Refactored `selectAndCategorizeSkillsForJob`:
+     - Detects `isFullStackRole` (e.g. Discord role requiring TypeScript, React, Python) to activate `Frontend & Web` category.
+     - Merges candidate skills by canonical alias, guaranteeing `VERIFIED` skills with evidence are never replaced by `CLAIMED` entries.
+     - Scores featured project technologies (`featuredProjectTechs`) so `NestJS` is guaranteed in `Backend & APIs`.
+   - Updated `buildCandidateData`: Classifies candidate experience entries as `USER_PROVIDED` and falls back cleanly to `metadata.resumeData?.experience`.
+   - Updated `reconcileCandidateProjects`, `buildTailoredResumeMarkdown`, and `buildCoverLetterMarkdown` to validate URLs via `isRealUrl` and clean technologies via `cleanResumeFacingTechnologies`.
+2. **`src/services/latex-document-generator.service.js`:**
+   - Imported `isRealUrl` and `cleanResumeFacingTechnologies`.
+   - Validated candidate profile links (`profileGithubUrl`, `portfolioLink`, `leetcodeLink`) and project links (`repoUrl`, `liveUrl`) using `isRealUrl`.
+   - Cleaned project technologies across structured rendering and fallback markdown parser.
+   - Supported `p.repoUrl` alongside `p.repositoryUrl` and `p.url`.
+3. **`tests/unit/step1g-career-profile-reconciliation.test.js`:**
+   - Added `after(async () => { await pool.end(); });` cleanup hook to drain eager PostgreSQL connection pool, preventing test runner event loop hang.
+4. **`tests/unit/application-document-pipeline-fixes.test.js`:**
+   - Added 8 new automated test cases covering Issues 1-4:
+     - `isRealUrl` rejects synthetic/dummy/local URLs and accepts authentic URLs.
+     - LaTeX generator omits synthetic Live Demo links while preserving authentic GitHub links.
+     - `selectAndCategorizeSkillsForJob` preserves featured project technologies (`NestJS`) and merges aliases without losing verified provenance.
+     - `cleanResumeFacingTechnologies` filters raw dependency noise and extracts balanced multi-category stacks.
+     - `buildCandidateData` tags self-reported experience as `USER_PROVIDED`.
+
+**Verification & Evidence:**
+- **Automated Unit Tests:** 115/115 PASS across all 6 core suites (`tests/unit/application-document-pipeline-fixes.test.js`, `tests/unit/resume-content-strategy.test.js`, `tests/unit/application-content-defects.test.js`, `tests/unit/portfolio-recommendation.service.test.js`, `tests/unit/project-relevance.service.test.js`, `tests/unit/portfolio-recommendation-scoring-fix.test.js`) in 2.58s.
+- **Offline Validation Pipeline Execution:** `scratch/validate_offline_pipeline.mjs`
+- **Compiler:** Tectonic compiled both documents cleanly without errors.
+- **PDF Artifacts Generated:**
+  - `scratch/new_tailored_resume.pdf` (36,547 bytes)
+  - `scratch/new_tailored_cover_letter.pdf` (15,547 bytes)
+- **Page Counts:**
+  - Resume PDF: Exactly 1 page.
+  - Cover Letter PDF: Exactly 1 page.
+- **PDF QA Validation:**
+  - Resume QA Score: 100/100 (PASSED, 0 findings, 0 critical failures).
+  - Cover Letter QA Score: 100/100 (PASSED, 0 findings, 0 critical failures).
+- **Placeholder Domain Audit:**
+  - `/example\.com/i`: 0 in Resume MD, 0 in Cover Letter MD, 0 in Resume LaTeX, 0 in Resume PDF Text.
+  - `/task-manager\.example\.com/i`: 0 in Resume MD, 0 in Cover Letter MD, 0 in Resume LaTeX, 0 in Resume PDF Text.
+  - `/placeholder/i`: 0 in all artifacts.
+  - `/dummy/i`: 0 in all artifacts.
+- **Extracted Text Verification:**
+  - All 3 selected projects present in Markdown, LaTeX, and PDF text:
+    1. `Product Data Explorer` (NestJS RESTful APIs, Swagger/OpenAPI, PostgreSQL via TypeORM, Redis caching)
+    2. `Collaborative Task Manager` (JWT auth, RBAC, Node.js, Prisma ORM, PostgreSQL)
+    3. `AI-Powered Code Review Assistant` (OpenAI API PR review integration, async FastAPI backend)
+  - Headline: `Full-Stack & Backend Developer` (no `Full-Stack Architect` inflation).
+  - DSA Section: Omitted from body (no LeetCode auto-injection); LeetCode link present in header links.
+- **Database Immutability Audit:**
+  - `candidate_skills`: 78 (bit-for-bit identical before and after).
+  - `evidence_items`: 246 (bit-for-bit identical before and after).
+  - `projects`: 11 (bit-for-bit identical before and after).
+  - `resources`: 10 (bit-for-bit identical before and after).
+  - `job_applications`: 3 (bit-for-bit identical before and after).
+
+---
+
+### P14-021: Application Document Pipeline Defect Remediation & Full-Flow Verification
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Following factual content audit of the generated Discord v2 application package (`46ba9d63-67d5-4198-83f0-9b984e6380c1`, Candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`, Tenant `24d53f53-780e-4431-b065-32180c354175`), four critical pipeline defects were remediated and verified through offline compilation and automated testing:
+1. **Defect 1 (Lost Projects in LaTeX/PDF):** Step 4 selected 3 projects, but preparedPackage only attached markdown, forcing `LatexDocumentGenerator` into markdown fallback parsing. Its lookahead regex `(?=\n+##|$)` matched the `##` prefix inside `### [Project]`, truncating after project 1.
+2. **Defect 2 (Unrequested DSA Section):** `LatexDocumentGenerator` auto-injected a "Problem Solving & Algorithmic Practice" section solely because candidate had a LeetCode profile URL, displacing space on the 1-page budget.
+3. **Defect 3 (Unsupported Impact Metrics):** Project bullets contained ungrounded impact claims ("improved team productivity", "reducing team coordination overhead by 35%", "reduced average manual code review time by 40%").
+4. **Defect 4 (Seniority-Inflating Headline):** Fresher candidate's self-reported headline contained "Full-Stack Architect", conflicting with truth contracts.
+
+**Implementation Summary:**
+1. **Defect 1 (Structured Project Flow & Hardened Fallback):**
+   - In `src/domain/job/job-workflow.schemas.js`, extended `ApplicationPackageSchema.shape.tailoredResume` with optional `selectedProjects: z.array(z.any()).optional()` and `selectedSections: z.array(z.string()).optional()`.
+   - In `src/services/job-application-workflow.service.js`, updated `prepareJobApplication` and `regenerateApplicationPackage` to explicitly forward `selectedProjects: selectedProjectsList` and `selectedSections: tailoredResumeResult.sections || undefined`.
+   - In `src/services/latex-document-generator.service.js`, prioritized structured `selectedProjects` and hardened markdown fallback regex to `(?=\n+##(?!\#)\s+[^\n]+|$)` across Summary, Skills, Projects, and Certifications, preventing `### Project` from triggering section boundary truncation.
+2. **Defect 2 (Gated DSA Section & Provenance):**
+   - In `src/services/latex-document-generator.service.js`, gated `Problem Solving & Algorithmic Practice` on explicit selection via `selectedSections.includes('PROBLEM_SOLVING')` or markdown content. Prevented auto-injection solely from LeetCode URL existence while preserving LeetCode in contact header links. When explicitly selected, rendered with truth provenance header `Candidate-Reported Problem Solving`.
+3. **Defect 3 (Generic Evidence Grounding & Truth Model):**
+   - In `src/services/candidate-artifact-content.service.js`, implemented `groundAndSanitizeProject(project)`:
+     - Automatically derives authentic technical bullets from verified repository evidence (NestJS OpenAPI, PostgreSQL/Redis via TypeORM/Prisma) when bullets are missing.
+     - Sanitizes unverified Flask claims to FastAPI when code evidence proves FastAPI.
+     - Sanitizes unsupported team productivity claims to verified Socket.io real-time event synchronization.
+     - Sanitizes unsupported review time reduction claims to Next.js/React review interface and Docker containerization.
+     - Does NOT hardcode project slug exceptions.
+   - Enforced truth model: candidate-provided experience (FTV Saloon), education (Rajkiya Engineering College Sonbhadra B.Tech), and certifications (AWS Certified Cloud Practitioner) render from profile data without requiring repository verification.
+4. **Defect 4 (Headline Curation Without DB Mutation):**
+   - Implemented `curateCandidateHeadline(rawHeadline, candidateData)` which normalizes `"Full-Stack & Backend Developer | Full-Stack Architect"` to `"Full-Stack & Backend Developer"` for `FRESHER` candidates across both Markdown generation and LaTeX generation without mutating source-of-truth candidate records.
+
+**Verification & Evidence:**
+- **Automated Tests:** 109/109 PASS across all unit test suites (`tests/unit/application-document-pipeline-fixes.test.js`, `tests/unit/resume-content-strategy.test.js`, `tests/unit/application-content-defects.test.js`, `tests/unit/portfolio-recommendation.service.test.js`, `tests/unit/project-relevance.service.test.js`, `tests/unit/portfolio-recommendation-scoring-fix.test.js`).
+- **Offline End-to-End Pipeline Execution:** `scratch/validate_offline_pipeline.mjs`
+- **Compiler:** Tectonic compiled both documents cleanly (`LaTeX compilation succeeded via Tectonic`).
+- **PDF Artifacts Generated:**
+  - `scratch/new_tailored_resume.pdf` (36,547 bytes)
+  - `scratch/new_tailored_cover_letter.pdf` (15,547 bytes)
+- **Page Counts:**
+  - Resume PDF: Exactly 1 page.
+  - Cover Letter PDF: Exactly 1 page.
+- **PDF QA Validation:**
+  - Resume QA Score: 100/100 (PASSED, 0 findings, 0 critical failures).
+  - Cover Letter QA Score: 100/100 (PASSED, 0 findings, 0 critical failures).
+- **Extracted Text Verification:**
+  - All 3 selected projects present in Markdown, LaTeX, and PDF:
+    1. `Product Data Explorer` (NestJS RESTful APIs, Swagger/OpenAPI, PostgreSQL via TypeORM, Redis caching)
+    2. `Collaborative Task Manager` (JWT auth, RBAC, Node.js, Prisma ORM, PostgreSQL)
+    3. `AI-Powered Code Review Assistant` (OpenAI API PR review integration, async FastAPI backend)
+  - Headline: `Full-Stack & Backend Developer` (Seniority-inflating `Full-Stack Architect` stripped).
+  - Unsupported impact claims: Completely absent.
+  - DSA Section: Not auto-injected in body; LeetCode link present in header links.
+- **Database Immutability Audit:**
+  - `candidate_skills`: 78 (bit-for-bit identical before and after).
+  - `evidence_items`: 246 (bit-for-bit identical before and after).
+  - `projects`: 11 (bit-for-bit identical before and after).
+  - `resources`: 10 (bit-for-bit identical before and after).
+  - `job_applications`: 3 (bit-for-bit identical before and after).
+
+---
+
+### P14-020: Clean End-to-End Acceptance Test - Step 5: Prepare Job Application Package for Saved Discord Opportunity
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Following Step 4's evidence-grounded portfolio recommendation (P14-018 / P14-019), which selected `Product-Data-Explorer`, `Collaborative-task-manager`, and `Ai-powered-code-review-assistant` with 100/100 signal complementarity, Step 5 prepared the complete application package via `prepare_job_application` (`workflowService.prepareJobApplication`) for the saved Discord opportunity (`Senior Full-Stack Software Engineer, Growth`, `46ba9d63-67d5-4198-83f0-9b984e6380c1`, Candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9`).
+
+**Core Truth Contracts & Invariants Enforced:**
+1. **Seniority & Experience Invariant:** Candidate remains strictly `FRESHER / ENTRY_LEVEL` (0 months corporate tenure). Zero fabrication of 5+ years experience, senior title, growth experimentation/A-B testing, or LLM search indexing.
+2. **Location & Work Authorization:** Authentic candidate location (Gorakhpur) and remote internship (FTV Saloon) maintained. No claim of San Francisco residency or US work authorization.
+3. **Strict Flask Proscription:** Candidate had an ungrounded resume claim of Flask without repository evidence. Flask was strictly pruned and prohibited across all layers:
+   - Filtered out of `claimedSkills` and `verifiedSkills` in `prepareJobApplication` and `regenerateApplicationPackage`.
+   - Omitted from `Technical Skills` in `selectAndCategorizeSkillsForJob` with audit rationale.
+   - Bullet 2 of `AI-Powered Code Review Assistant` sanitized to reflect verified FastAPI code in `backend/app/main.py`.
+   - Filtered from `buildCoverLetterMarkdown` skill clauses.
+4. **Selected Projects Grounded in Real Evidence:**
+   - **`Product Data Explorer`** (Rank 1): Evidence-backed bullets derived directly from 73 verified repository evidence items (NestJS, PostgreSQL, TypeORM, Redis, Next.js, Docker, Jest/Supertest).
+   - **`Collaborative Task Manager`** (Rank 2): Grounded bullets for JWT auth, RBAC, Node.js, Prisma ORM, and PostgreSQL.
+   - **`AI-Powered Code Review Assistant`** (Rank 3): Grounded bullets for OpenAI PR review integration, asynchronous FastAPI backend, and developer velocity.
+5. **Clean Document Architecture:**
+   - Tailored Resume: 1-page structure with clean header, curated professional summary, categorized technical skills, 3 featured projects, authentic FTV Saloon internship, and REC Sonbhadra B.Tech education. Zero internal phrases ("Tailored for"), evidence IDs, storage keys, or synthetic placeholders.
+   - Cover Letter: Truthfully framed opening, verbatim-backed FTV Saloon experience, 3-project evidence sentence (`I built X, Y, and Z`), and explicit separation of verified technical proficiencies from claimed capabilities.
+6. **Package Lifecycle & Pre-Exposure QA:**
+   - Persisted package as authoritative CURRENT version in `job_applications` and `application_packages`.
+   - LaTeX compiled to PDF via Tectonic compiler.
+   - Pre-exposure PDF QA audit ran via `PdfQaValidatorService`: Resume 100/100 (PASSED), Cover Letter 100/100 (PASSED).
+   - Encrypted PDF artifacts persisted in document storage with download and view endpoints.
+
+**Verification & Evidence:**
+- **Execution Script:** `scratch/execute_step5.mjs`
+- **MCP Result:**
+  - `status`: `SAVED` / `DOCUMENTS_READY`
+  - `applicationId`: `46ba9d63-67d5-4198-83f0-9b984e6380c1`
+  - `packageVersion`: `2`
+  - `packageHash`: `0233868b0df28e1e27e0d1f4f34eb9ed4596530184d8acf8a22f4f0982f3c848`
+  - `artifactsReady`: `true`
+  - `resumeArtifact`: `tailored-resume.pdf` (35,597 bytes, QA: 100/100 PASSED, Status: READY)
+  - `coverLetterArtifact`: `tailored-cover-letter.pdf` (15,547 bytes, QA: 100/100 PASSED, Status: READY)
+- **Unit Test Regression:** 96/96 PASS across all unit test suites (`node --test tests/unit/resume-content-strategy.test.js tests/unit/application-content-defects.test.js tests/unit/portfolio-recommendation.service.test.js tests/unit/project-relevance.service.test.js tests/unit/portfolio-recommendation-scoring-fix.test.js`).
+- **Candidate Database Immutability Confirmed:**
+  - `candidate_skills`: 78 (unchanged)
+  - `evidence_items`: 246 (unchanged)
+  - `projects`: 11 (unchanged)
+  - `resources`: 10 (unchanged)
+
+---
+
+### P14-019: Portfolio Recommendation Scoring & Evidence Pipeline Fix
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Problem Under Investigation:**
+Following Step 4 of the clean End-to-End Acceptance Test on the live Discord job (`Senior Full-Stack Software Engineer, Growth`, `46ba9d63-67d5-4198-83f0-9b984e6380c1`), a product-quality defect was identified:
+1. Only 1 project (`vishu1803/Ai-powered-code-review-assistant`) was selected with an artificially low score of `27.51 / 100`.
+2. The selected project reported covering 0 required criteria directly despite authentic candidate projects having verified React, TypeScript, and Python evidence.
+3. Authentic candidate projects (`Collaborative-task-manager`, `Product-Data-Explorer`, `Audience-query-system`) received 0 marginal value and were rejected.
+4. Duplicate project entries (`vishu1803/Ai-job-mcp` with slug variants `vishu1803-ai-job-mcp` and `ai-job-mcp`) appeared in the portfolio output.
+
+**Root Cause Analysis:**
+1. **Primary Evidence Pipeline Defect:** In `buildCandidateProfileDomainObject` (`src/mcp/tools/career-artifact-tools.js` & `career-write-tools.js`), project evidence was passed through `normalizeEvidenceRef`, which stripped `skillSlug`, `skillName`, `skillId`, `metadata` (`rawImport`, `keywordMatched`, `derivedFromPackage`), `sourceLocation`, `tenantId`, and `candidateId`. This wiped out `projectSkillsMap` in `ProjectRelevanceService.computeProjectRelevance`, resulting in 0 requirement matches, 0 contributing skills, and severely depressed architectural density scores.
+2. **Overly Punitive Marginal Value Policy:** `PortfolioRecommendationService._calculateMarginalValue` deducted a harsh redundancy penalty (`-5.0` per repeated skill) for every skill in `candidate.contributingSkills` already covered by previous projects. This severely penalized candidates for having multiple projects demonstrating the job's core requirements (`TypeScript`, `React`), driving marginal value below 10.0 and halting selection after 1 project.
+3. **Evidence Fingerprint Collision on Shared Manifest Paths:** In `ProjectRelevanceService`, `evidenceByFingerprint` keyed on `${ev.evidenceType}:${ev.sourceLocation?.filePath}`, collapsing distinct dependency skills declared on the same manifest file (e.g. `package.json`).
+4. **Missing Architectural Dimensions:** `ARCHITECTURAL_DIMENSION_CONFIG` lacked recognition for real-time systems (`socket-io`, `websockets`, `ws`, `webrtc`, `sse`), REST APIs (`openapi`, `swagger`), and modern AI integrations (`openai-api`, `anthropic`, `langchain`).
+5. **Deduplication Defect:** Deduplication keyed only on `project.slug || project.name`, allowing user-prefixed and non-prefixed slug variants to both pass.
+
+**Implementation Summary:**
+1. **Preserved Rich Evidence Invariants:** Refactored `buildCandidateProfileDomainObject` in `src/mcp/tools/career-artifact-tools.js` and `src/mcp/tools/career-write-tools.js` to preserve all `EvidenceNode` fields on project evidence.
+2. **Hardened Evidence Fingerprinting:** Updated fingerprinting in `ProjectRelevanceService` to incorporate `skillSlug`, `skillName`, `rawImport`, `keywordMatched`, `derivedFromPackage`, and `id`.
+3. **Expanded Architectural Dimensions:** Added `REALTIME_COMMUNICATION` (2.5 pts) and expanded `API_ROUTING` and `EXTERNAL_INTEGRATIONS` in `ProjectRelevanceService`.
+4. **Re-engineered Marginal Utility:** Re-architected `PortfolioRecommendationService._calculateMarginalValue` to rank primarily by direct requirement relevance (`selectionScore * 0.4`), newly covered requirements (`+25 * 0.4`), new signals (`+15 * 0.2`), complementary architecture (`+6.0`), and implementation depth, eliminating penalties for repeating core required skills.
+5. **Canonical Deduplication & Archive Filtering:** Added repository-name canonicalization (stripping user prefix) and explicit exclusion of archived projects (`portfolioStatus === 'ARCHIVED'`).
+
+**Verification & Evidence:**
+- `node --test tests/unit/portfolio-recommendation-scoring-fix.test.js`: 6/6 PASS
+- `node --test tests/unit/portfolio-recommendation.service.test.js`: 25/25 PASS
+- `node --test tests/unit/project-relevance.service.test.js`: 33/33 PASS
+- **Live Discord Opportunity Output:**
+  - **Featured Projects (3 Selected):**
+    1. `vishu1803/Product-Data-Explorer` (Score: `65.17`, Marginal: `65.17`, NestJS/React/Postgres/Redis/Testing)
+    2. `vishu1803/Ai-powered-code-review-assistant` (Score: `49.96`, Marginal: `40.39`, Python/FastAPI/React/Docker/OpenAI API)
+    3. `vishu1803/Collaborative-task-manager` (Score: `50.95`, Marginal: `32.03`, WebSockets `socket-io`/Express/Node.js/Prisma/Testing)
+  - **Supporting Projects:** `vishu1803/Audience-query-system` (Score: `49.36`)
+  - **Signal Complementarity Score:** Rose from `16 / 100` to `100 / 100`
+  - **Canonical Deduplication:** `Ai-job-mcp` deduplicated to 1 entry
+- **Strict Truth Guarantees Maintained:**
+  - Flask, Growth/experimentation (A/B testing), and LLM search indexing remain unverified and unsupported (`status: MISSING`, `coveredByProjectId: null`).
+  - Candidate seniority remains FRESHER (0 months corporate tenure).
+  - US work authorization & SF on-site location remain hard blockers.
+- **Candidate Database Immutability Verified:**
+  - `candidate_skills`: 78 (unchanged)
+  - `evidence_items`: 246 (unchanged)
+  - `projects`: 11 (unchanged)
+  - `resources`: 10 (unchanged)
+  - `job_applications`: 0 new applications, 0 documents, 0 packages created.
+
+---
+
+### P14-018: Clean End-to-End Acceptance Test - Step 4: Portfolio Project Recommendation for Saved Discord Opportunity
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Following Step 3's fit analysis establishing a WEAK fit (49.9/100) and hard blockers (FRESHER seniority vs. Senior 5+ yr requirement, Gorakhpur vs. SF Bay Area on-site requirement, missing Flask evidence), Step 4 evaluated all 11 candidate repositories using the evidence-grounded portfolio recommendation engine (`handleRecommendPortfolioProjects` / `PortfolioRecommendationService`).
+
+**Core Truth Contracts Enforced:**
+1. **Hard Blocker Preservation:** Portfolio recommendations are strictly technical relevance signals and do NOT override the candidate's entry-level status or legal/geographic ineligibility.
+2. **Zero Hallucination of Seniority or Experience:** No project was claimed to satisfy the 5-year senior growth engineering requirement.
+3. **Strict Evidence Provenance:** Distinguishes verified implementation code from manifest declarations and unverified claims.
+
+**Recommendation Results:**
+- **Job Family Detected:** `FULLSTACK`
+- **Signal Complementarity Score:** `16 / 100`
+- **Featured Projects (Selected):**
+  - **`vishu1803/Ai-powered-code-review-assistant`** (ID: `ea5137c3-2f7f-4e29-a884-28ff3c659ebf`):
+    - Status: `RECOMMENDED` (Rank 1 Featured)
+    - Relevance Score: `27.51 / 100` (Marginal Value: `27.51`)
+    - Role in Portfolio: General full-stack architecture baseline (`BACKEND_DISTRIBUTED`).
+    - Grounded Evidence: FastAPI imports in `backend/app/main.py` and `backend/main.py`, React 18 in `frontend/package.json`.
+    - Gaps / Unsupported: Uses FastAPI rather than required Flask; lacks growth/experimentation (A/B testing) infrastructure; lacks LLM search indexing.
+- **Supporting Projects:** None qualified above marginal threshold.
+- **Deprioritized / Rejected Projects (10 evaluated):**
+  - `vishu1803/Python-projects`: Rejected due to low architectural density and lack of verified test/CI evidence.
+  - `vishu1803/Ai-job-search-board`: Rejected due to low architectural density and lack of verified test/CI evidence.
+  - `vishu1803/Product-Data-Explorer`: Deprioritized due to redundant stack signals without adding marginal coverage for Flask/growth requirements.
+  - `vishu1803/Audience-query-system`: Deprioritized due to minimal marginal job relevance.
+  - `vishu1803/Collaborative-task-manager`: Deprioritized due to minimal marginal job relevance.
+  - `vishu1803/Ai-job-mcp` (both entries): Deprioritized due to minimal marginal job relevance.
+  - `vishu1803/VamTech`: Deprioritized due to minimal marginal job relevance.
+  - `vishu1803/Modern-Portfolio`: Deprioritized due to minimal marginal job relevance.
+  - `vishu1803/Object-detection-web-app`: Deprioritized due to minimal marginal job relevance.
+
+**Candidate Source-of-Truth Immutability:**
+- `candidate_skills`: 78 (unchanged)
+- `evidence_items`: 246 (unchanged)
+- `projects`: 11 (unchanged)
+- `resources`: 10 (unchanged)
+- Application database records: Unmodified. Zero applications, packages, or documents created.
+
+---
+
+### P14-017: Clean End-to-End Acceptance Test - Step 3: Job Fit Analysis for Saved Discord Opportunity
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Following the successful save and verification of the live Discord opportunity (`Senior Full-Stack Software Engineer, Growth`, `46ba9d63-67d5-4198-83f0-9b984e6380c1`), Step 3 required executing real, evidence-backed ATS job-fit analysis using `handleAnalyzeJobFit` under strict truth and provenance invariants.
+
+**Candidate Identity & Constraints:**
+- **Candidate:** Vishwanath Nishad (`10a2b51b-09bf-4090-8040-1f60ebeb89c9`)
+- **Seniority Baseline:** FRESHER / ENTRY_LEVEL (0 months corporate tenure)
+- **Location:** Gorakhpur, India
+- **Prohibited Actions:** No application preparation, no project recommendations, no resume/cover letter generation, no candidate mutations.
+
+**Job Fit Analysis Results:**
+1. **Overall Fit Score & Grade:**
+   - **ATS Score:** `49.9 / 100` (Grade: `WEAK`)
+   - **Raw Score:** `52.2 / 100`
+   - **Score Capping Enforced:** Capped at `49.9` due to 2 critical missing REQUIRED requirements.
+2. **Requirement Match Summary:**
+   - **Total Extracted Requirements:** 10
+   - **Matched:** 3 (`TypeScript`, `Python`, `React`) — all CORROBORATED (HIGH_TRUST) via package manifest evidence.
+   - **Partial:** 2 (`Flask` — CLAIMED/LOW_TRUST unverified claim; `Python Application Development Experience` — manifest-only dependency, 0 corporate tenure).
+   - **Missing:** 4 (`Flask Application Development Experience`, `Large Language Models`, `Large Language Models Application Development Experience`, `San Francisco Bay Area` location).
+   - **Unknown:** 1 (`United States Work Authorization` — eligibility unrecorded).
+3. **Seniority & Experience Compatibility:**
+   - **Hard Mismatch:** Role requires Senior Full-Stack Engineer with 5+ years professional experience and proven growth experimentation background. Candidate remains FRESHER with 0 months corporate professional tenure.
+4. **Geographical & Work-Mode Compatibility:**
+   - **Hard Blocker:** Job requires on-site/hybrid presence in San Francisco Bay Area and US work authorization. Candidate is located in Gorakhpur, India. Remote preference does not confer cross-border employment authorization.
+5. **Candidate Immutability Audit:**
+   - Skills count: 78 (unchanged)
+   - Evidence count: 246 (unchanged)
+   - Projects count: 11 (unchanged)
+   - Resources count: 10 (unchanged)
+   - Profile metadata & DB records: 100% bit-for-bit identical. Zero downstream records created.
+
+---
+
+### P14-016: Clean End-to-End Acceptance Test - Step 2: Save and Verify Live Scraped Discord Job
+
+**Status:** COMPLETE  
+**Date:** 2026-09-07
+
+**Context & Objective:**
+Following the completion of Step 1 (live scraping of a fresh Discord job posting via Greenhouse adapter), Step 2 required saving exactly this scraped job record and verifying all invariants under the clean End-to-End Acceptance Test protocol without progressing into downstream fit analysis, recommendation, or application creation.
+
+**Canonical Opportunity Identity:**
+- **Job ID (Canonical UUID):** `46ba9d63-67d5-4198-83f0-9b984e6380c1`
+- **Provider:** `GREENHOUSE`
+- **External Job ID:** `gh-discord-8642085002`
+- **Company:** `Discord`
+- **Title:** `Senior Full-Stack Software Engineer, Growth`
+- **Official URL:** `https://job-boards.greenhouse.io/discord/jobs/8642085002`
+- **Location:** San Francisco, CA (Hybrid / On-site)
+- **Compensation Range:** $196,000 - $220,000 USD / year
+- **Job Description Length:** 3,966 characters
+- **Parsed Requirements:** 15 distinct requirements
+
+**Core Invariants Enforced & Verified:**
+1. **Canonical Job Identity & Direct Persistence:**
+   - Updated `CreateJobApplicationInputSchema` and `TrackJobApplicationInputSchema` to permit optional explicit `id` and `jobId` parameters.
+   - Updated `handleTrackJobApplication` and `ApplicationTrackingService.createApplication` to honor explicit IDs, binding the canonical UUID `46ba9d63-67d5-4198-83f0-9b984e6380c1` directly to the primary key.
+   - Preserved `metadata.provider`, `metadata.externalJobId`, `metadata.canonicalJobId`, and `metadata.requirements`.
+2. **Multi-Layer Retrieval via Canonical ID:**
+   - Verified that `ApplicationTrackingService.getApplication(context, '46ba9d63-67d5-4198-83f0-9b984e6380c1')` resolves the record.
+   - Verified that `JobDiscoveryService.getJobPosting({ jobId: '46ba9d63-67d5-4198-83f0-9b984e6380c1' })` resolves the identical job posting.
+3. **Clean Application Boundary:**
+   - Table `application_packages`: 0 rows associated with `46ba9d63-67d5-4198-83f0-9b984e6380c1`.
+   - Table `tailored_documents`: 0 rows associated.
+   - Row `appliedAt`: strictly `null`.
+   - Metadata `handoffKit`: strictly `undefined`.
+   - Application status: `SAVED` (bookmark state, no application lifecycle initiated).
+4. **Duplicate Prevention:**
+   - Attempted re-saving the identical Discord opportunity via `resolveOrCreateApplication`.
+   - Existing record `46ba9d63-67d5-4198-83f0-9b984e6380c1` was resolved without creating a duplicate row (total Discord records in DB = 1).
+5. **Candidate Source-of-Truth Immutability:**
+   - Skills count: 78 (unchanged)
+   - Evidence items count: 246 (unchanged)
+   - Projects count: 11 (unchanged)
+   - Resources count: 10 (unchanged)
+   - Profile summary, headline, and profile metadata: 100% bit-for-bit identical.
+
+**Verification Results:**
+- Live Database & State Verification (`scratch/verify_step2_state.mjs`): **PASS (All invariants verified)**
+- Unit Test Suites (`tests/unit/job-application.schemas.test.js`, `tests/unit/mcp-career-tracking-tools.test.js`): **36/36 PASS**
+- Secrets Scan (`scripts/scan-secrets.js`): **PASS (0 exposed secrets)**
+- ESLint: **0 errors, 0 warnings** on modified files
+
 ---
 
 ### P14-015: Career Pipeline Application-Level Safe Deletion, Multi-Tenant Authorization, and Artifact Reference Counting

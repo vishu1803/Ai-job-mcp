@@ -72,8 +72,23 @@ const ARCHITECTURAL_DIMENSION_CONFIG = Object.freeze({
       'spring',
       'rails',
       'actix-web',
+      'rest-api',
+      'rest',
+      'restful-api',
+      'openapi',
+      'swagger',
+      'swagger-ui-express',
+      'node-js',
     ]),
-    filePatterns: [/routes?\//i, /controllers?\//i, /endpoints?\//i, /api\//i, /handlers?\//i],
+    filePatterns: [
+      /routes?\//i,
+      /controllers?\//i,
+      /endpoints?\//i,
+      /api\//i,
+      /handlers?\//i,
+      /swagger/i,
+      /openapi/i,
+    ],
     weight: 2.5,
   },
   DATA_PERSISTENCE: {
@@ -204,6 +219,13 @@ const ARCHITECTURAL_DIMENSION_CONFIG = Object.freeze({
       'octokit',
       'stripe',
       'openai',
+      'openai-api',
+      'anthropic',
+      'langchain',
+      'llamaindex',
+      'gemini',
+      'ai',
+      'huggingface',
       'google-cloud',
       'resend',
       'sendgrid',
@@ -211,7 +233,34 @@ const ARCHITECTURAL_DIMENSION_CONFIG = Object.freeze({
       'got',
       'undici',
     ]),
-    filePatterns: [/integrations?\//i, /clients?\//i, /webhooks?\//i, /sdk\//i],
+    filePatterns: [
+      /integrations?\//i,
+      /clients?\//i,
+      /webhooks?\//i,
+      /sdk\//i,
+      /ai\//i,
+      /llm\//i,
+      /prompts?\//i,
+    ],
+    weight: 2.5,
+  },
+  REALTIME_COMMUNICATION: {
+    skills: new Set([
+      'socket-io',
+      'websockets',
+      'ws',
+      'webrtc',
+      'sse',
+      'server-sent-events',
+      'pub-sub',
+    ]),
+    filePatterns: [
+      /sockets?\//i,
+      /events?\//i,
+      /realtime\//i,
+      /gateway\//i,
+      /channels?\//i,
+    ],
     weight: 2.5,
   },
   MODULAR_ARCHITECTURE: {
@@ -498,7 +547,8 @@ export class ProjectRelevanceService {
     const allFilePaths = new Set();
 
     for (const ev of rawEvidence) {
-      const fp = `${ev.evidenceType}:${ev.sourceLocation?.filePath || ''}:${ev.sourceLocation?.commitSha || ''}:${ev.excerpt || ''}`;
+      const skillIden = ev.skillSlug || ev.skillName || ev.metadata?.rawImport || ev.metadata?.keywordMatched || ev.metadata?.derivedFromPackage || ev.id || '';
+      const fp = `${ev.evidenceType}:${skillIden}:${ev.sourceLocation?.filePath || ''}:${ev.sourceLocation?.commitSha || ''}:${ev.excerpt || ''}`;
       if (!evidenceByFingerprint.has(fp)) {
         evidenceByFingerprint.set(fp, ev);
         if (ev.sourceLocation?.filePath) {
@@ -510,7 +560,8 @@ export class ProjectRelevanceService {
     for (const res of resources) {
       if (Array.isArray(res.evidence)) {
         for (const ev of res.evidence) {
-          const fp = `${ev.evidenceType}:${ev.sourceLocation?.filePath || ''}:${ev.sourceLocation?.commitSha || ''}:${ev.excerpt || ''}`;
+          const skillIden = ev.skillSlug || ev.skillName || ev.metadata?.rawImport || ev.metadata?.keywordMatched || ev.metadata?.derivedFromPackage || ev.id || '';
+          const fp = `${ev.evidenceType}:${skillIden}:${ev.sourceLocation?.filePath || ''}:${ev.sourceLocation?.commitSha || ''}:${ev.excerpt || ''}`;
           if (!evidenceByFingerprint.has(fp)) {
             evidenceByFingerprint.set(fp, ev);
             if (ev.sourceLocation?.filePath) {
@@ -569,14 +620,20 @@ export class ProjectRelevanceService {
       else if (ev.metadata?.rawImport && typeof ev.metadata.rawImport === 'string') {
         rawSkillName = ev.metadata.rawImport;
       }
-      // 4. ev.metadata?.skillName / technology as final fallback only
+      // 4. ev.metadata?.keywordMatched, derivedFromPackage, packageName, skillName, etc.
       else if (
+        ev.metadata?.keywordMatched ||
+        ev.metadata?.derivedFromPackage ||
+        ev.metadata?.packageName ||
         ev.metadata?.skillName ||
         ev.metadata?.technology ||
         ev.metadata?.canonicalSkill ||
         ev.metadata?.framework
       ) {
         rawSkillName =
+          ev.metadata?.keywordMatched ||
+          ev.metadata?.derivedFromPackage ||
+          ev.metadata?.packageName ||
           ev.metadata?.skillName ||
           ev.metadata?.technology ||
           ev.metadata?.canonicalSkill ||
@@ -619,7 +676,10 @@ export class ProjectRelevanceService {
       ? jobDescription.requirements
       : [];
     const eligibleRequirements = jobRequirements.filter(
-      (r) => r.category === 'SKILL' || r.category === 'DOMAIN'
+      (r) =>
+        r.category === 'SKILL' ||
+        r.category === 'DOMAIN' ||
+        (r.category === 'EXPERIENCE' && Boolean(r.skillSlug))
     );
 
     let totalTierWeight = 0;
