@@ -3,6 +3,102 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-08*
 
+### P15-001: aicareershub Browser Extension Foundation + Authenticated Job-Page Workflow
+
+**Status:** COMPLETE  
+**Date:** 2026-09-08  
+**Phase:** Phase 15 — Browser Extension Integration (P15)
+
+**Context & Objective:**
+Design and implement the official Chrome extension named **`aicareershub`** (Manifest V3) as a thin client for detecting/extracting job posting details directly from live target career pages, seamlessly connecting with existing authenticated user sessions on AI Careers Hub, evaluating ATS job fit & portfolio recommendations via authoritative backend services, preparing verifiable Handoff Kits with LaTeX compilation, and downloading validated artifacts (Resume PDF, Cover Letter PDF, full Handoff Kit ZIP bundle) for manual human-in-the-loop submission.
+
+**Architecture Decisions & Invariants:**
+1. **Thin Client Architecture (Zero Duplicate Business Logic):**
+   - The browser extension never duplicates resume rendering, ATS scoring, content strategy, DSA selection, evidence checking, or state machines.
+   - Dedicated backend routes (`/api/extension/*`) act as adapters and orchestrators, delegating to authoritative services (`JobApplicationWorkflowService`, `ApplicationTrackingService`, `handleAnalyzeJobFit`, `handleRecommendPortfolioProjects`).
+   - Identical candidate + canonical job + package inputs produce identical application/package semantics across Web App, Career MCP, and Browser Extension.
+2. **Canonical Job Identity & Idempotency:**
+   - Canonical job identity is derived via `deriveCanonicalJobId` and `normalizeJobUrl` (stripping tracking query params such as UTM, lever-, etc.).
+   - Repeated preparation of the same job reuses existing applications without duplicating database rows (`lifecycleAction: REUSED`).
+3. **Multi-Tenant Isolation & Zero Secrets:**
+   - Strict tenant boundary enforcement across all endpoints and artifact downloads (cross-tenant 404 verified).
+   - Zero hardcoded API keys, passwords, or service tokens in extension code.
+   - `SecretScrubber` strips sensitive tokens from generated previews.
+4. **Submitted Application Protection:**
+   - Applications in submitted states (`APPLIED`, `INTERVIEWING`, `OFFER`, `ACCEPTED`) are protected against destructive modifications, returning HTTP 409 `APPLICATION_ALREADY_SUBMITTED`.
+5. **Zero Auto-Submission Guarantee:**
+   - Extension prepares and downloads packages for user review and manual submission; automated bot submissions to ATS are explicitly excluded.
+
+**Key Changes Implemented:**
+1. **Zero-Dependency Zip Packager (`src/utils/zip-packager.js`):**
+   - Built a compliant PKZIP v2.0 archiver using Node.js `node:zlib.deflateRawSync` and standard CRC-32 table computation.
+2. **Backend Extension Orchestration Routes (`src/routes/extension.routes.js`):**
+   - Implemented `GET /api/extension/session` (session resolution via cookie or Bearer header).
+   - Implemented `POST /api/extension/analyze-job` (canonical job identity derivation, ATS fit score, and portfolio project recommendation).
+   - Implemented `POST /api/extension/prepare-handoff` (authoritative handoff preparation with LaTeX compilation, resume quality assessment, and artifact telemetry).
+   - Implemented `POST /api/extension/validate-package` (exact package validation).
+   - Implemented `POST /api/extension/preview-package` (sanitized structured markdown preview).
+3. **Web Server & Middleware Enhancements (`src/middleware/auth.middleware.js`, `src/routes/web.routes.js`, `src/app.js`):**
+   - Added support for `Authorization: Bearer <sessionToken>` in `authenticate` and `getOptionalSession`.
+   - Enhanced `GET /api/applications/:id/artifacts/:artifactType/download` to support `artifactType === 'bundle'` streaming ZIP archives with `X-Package-Hash`, `X-Application-Id`, and `X-Artifact-Type` headers.
+   - Added CORS support for `chrome-extension://*` origins.
+4. **Official Extension Package (`extension/`):**
+   - `manifest.json`: Manifest V3 specification with `activeTab`, `tabs`, `storage`, `downloads`, `scripting`, and host permissions.
+   - `icons/`: Valid PNG icons generated in 16x16, 48x48, and 128x128.
+   - `job-detection/`: Master detector and modular adapters for Greenhouse (`boards.greenhouse.io`), Lever (`jobs.lever.co`), Workday (`*.myworkdayjobs.com`), LinkedIn (`linkedin.com/jobs/view/`), Indeed (`indeed.com/viewjob`), and generic career pages (JSON-LD `schema.org/JobPosting` + OpenGraph + semantic DOM fallback). Includes prompt-injection and control token sanitization.
+   - `content/content-script.js`: Page extraction listener for runtime messaging.
+   - `background/service-worker.js`: MV3 background worker managing content script execution.
+   - `auth/auth-client.js`: Session management and web app deep-linking.
+   - `api/backend-client.js`: Backend communication client.
+   - `downloads/download-manager.js`: File download manager with SHA-256 integrity header verification.
+   - `popup/`: Accessible dark-mode UI (`popup.html`, `popup.css`, `popup.js`) supporting all workflow states (Loading, Not Signed In, Detected Job, Analysis & Recommendations, Handoff Kit Ready).
+
+**Verification & Evidence:**
+1. **Unit Test Suites (100% PASS):**
+   - `node --test tests/unit/zip-packager.test.js`: 2/2 tests PASS.
+   - `node --test tests/unit/extension-job-detector.test.js`: 9/9 tests PASS.
+2. **Extension Backend API Integration Suite (100% PASS):**
+   - `node --test tests/integration/extension-api.test.js`: 12/12 tests PASS.
+     - Session check (unauthenticated, cookie, Bearer token)
+     - Job analysis with canonicalization & ATS scoring
+     - Handoff preparation, idempotency & artifact link generation
+     - Exact package validation & scrubbed structured preview
+     - Full ZIP bundle download with `X-Package-Hash`, `X-Application-Id`, `X-Artifact-Type` headers
+     - Cross-tenant isolation verification (404)
+     - Submitted application protection against mutation (409)
+3. **Extension Matrix Suite: Scenarios A through Q (100% PASS):**
+   - `node --test tests/integration/extension-matrix.test.js`: 13/13 tests PASS.
+     - Scenario A: New user received NOT_AUTHENTICATED
+     - Scenario B: Existing user recognized immediately
+     - Scenario C: Expired session requires re-authentication
+     - Scenario D: Greenhouse job canonicalization & analysis
+     - Scenario E: Lever/Workday/LinkedIn/Indeed alternative providers
+     - Scenario F: Generic career page fallback extraction
+     - Scenario H & I: Creates exactly one application row and idempotently reuses on repeat prepare
+     - Scenario G: Explicit applicationId reuse preserves application identity
+     - Scenario J: Current package reflects consistent version and packageHash
+     - Scenario N: Validates exact prepared package identity
+     - Scenario O: Generates structured preview for exact package identity
+     - Scenario P & Q: Downloads exact persisted artifacts matching packageHash
+     - Scenario K: Submitted application is protected against mutation
+4. **Code Quality & Linting:**
+   - `npx eslint extension/ src/routes/extension.routes.js src/utils/zip-packager.js tests/unit/zip-packager.test.js tests/unit/extension-job-detector.test.js tests/integration/extension-api.test.js tests/integration/extension-matrix.test.js scripts/run-real-chrome-acceptance.js`: 0 errors, 0 warnings.
+5. **Real Chrome Acceptance Suite (P15-001, 10/10 PASS — 2026-09-08):**
+   - `node scripts/run-real-chrome-acceptance.js` executed the official `aicareershub` MV3 extension in real Google Chrome (CDP-attached, fresh temp profile per run, live Cloudflare Greenhouse posting + local fixtures) and passed ALL 10 suites (exit code 0):
+     - Test 1 — Existing Authenticated User (full workflow): session recognized, Greenhouse job extracted (`Principal Software Engineer, DataHybrid` / Cloudflare / GREENHOUSE), fit analysis Score=46 Grade B with 3 recommended projects, Handoff Kit `REUSED` + validation `PASSED` (Parseability 96/100, Evidence 100/100, Layout BALANCED).
+     - Test 2 — Existing User Reopen: session + job context preserved on popup reopen.
+     - Test 3 — New User / Auth Flow: unauthenticated `Sign In` state rendered, auth transition recognized on focus.
+     - Test 4 — Job Extraction: Greenhouse verified in Test 1; generic career page JSON-LD extraction (`Staff Distributed Systems Engineer` / `Acme Autonomous Corp` / `GENERIC_JSONLD`).
+     - Test 5 — Handoff Artifact Integrity: `X-Package-Hash` matches `application_packages.packageHash` (CURRENT lifecycle row), valid `%PDF-` resume, valid `PK` ZIP bundle, zero secrets exposed.
+     - Test 6 — Repeated Same Job: two identical `prepare-handoff` calls → identical `applicationId` + `packageHash`, `lifecycleAction: REUSED`, ledger count 1.
+     - Test 7 — Different Job: distinct canonical job identity per job URL.
+     - Test 8 — Unsupported Page: NO false-positive job detection on a blog article (`stateNoJob` rendered).
+     - Test 9 — Submitted Application Protection: mutation blocked with HTTP 409 `APPLICATION_ALREADY_SUBMITTED`.
+     - Test 10 — Security Invariants: unauthenticated/invalid-token protected-action 401, cross-tenant download 404, popup DOM clean, extension bundle clean.
+   - **Product fix shipped from acceptance evidence:** `JobPageDetector` confidence gate (`extension/job-detection/job-page-detector.js`) — the generic DOM fallback previously reported `isConfident: true` for ANY page with an `h1` + ≥50 chars of text (a blog article extracted `company: "127"` from `127.0.0.1`). Now structured providers (`GREENHOUSE`, `LEVER`, `WORKDAY`, `LINKEDIN`, `INDEED`, `GENERIC_JSONLD`) keep title+description gating, while the generic fallback additionally requires real job-posting signals (job-signal regex over description, extracted requirements, or explicit employment type). Regression tests added in `tests/unit/extension-job-detector.test.js` (13/13 PASS).
+   - **Acceptance runner hardening (`scripts/run-real-chrome-acceptance.js`):** package integrity now reads the CURRENT row from `application_packages` (not nonexistent `jobApplications.packageHash`); application selection is by canonical job URL instead of latest-row; Test 6 verifies idempotency via two identical prepare calls; Test 9 uses the real `application_status` enum (`SAVED` reset, `appliedAt` column); Test 10 asserts invalid-token 401 on the protected `analyze-job` route (session-check endpoint intentionally returns 200 + `NOT_AUTHENTICATED` for popup UX, per `tests/integration/extension-api.test.js` contract).
+   - **Regression suites re-verified after fixes:** unit 13/13 PASS, integration 25/25 PASS (extension-api + extension-matrix).
+
 ### P14-030: Canonical Candidate Email Resolution & State Integrity Audit
 
 **Status:** COMPLETE  

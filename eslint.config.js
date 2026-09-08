@@ -34,6 +34,33 @@ export default [
     },
   },
   {
+    files: ['extension/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: 'module',
+      globals: {
+        chrome: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        FormData: 'readonly',
+        Blob: 'readonly',
+        navigator: 'readonly',
+        location: 'readonly',
+        console: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+      },
+    },
+    rules: {
+      'no-control-regex': 'off',
+    },
+  },
+  {
     ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', '.git/', 'scratch/'],
   },
 ];

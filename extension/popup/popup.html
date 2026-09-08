@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>aicareershub</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="extension-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <h1 class="brand-title">aicareershub</h1>
+      </div>
+      <div id="authStatusPill" class="status-pill status-checking">
+        <span class="pill-dot"></span>
+        <span class="pill-text" id="authStatusText">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Global Alert / Error Box -->
+    <div id="alertBox" class="alert-box hidden" role="alert">
+      <span id="alertMessage" class="alert-text"></span>
+      <button id="alertCloseBtn" class="alert-close-btn" aria-label="Dismiss">&times;</button>
+    </div>
+
+    <!-- Main Content State Screens -->
+    <main id="mainContent">
+      <!-- Loading State -->
+      <section id="stateLoading" class="state-view">
+        <div class="loader-spinner"></div>
+        <p id="loadingMessage" class="state-hint">Inspecting page...</p>
+      </section>
+
+      <!-- State: Not Signed In -->
+      <section id="stateNotAuth" class="state-view hidden">
+        <div class="empty-state-card">
+          <div class="empty-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <h2 class="view-title">You're not signed in</h2>
+          <p class="view-subtitle">Sign in to AI Careers Hub to analyze job fit, get project recommendations, and prepare verifiable Handoff Kits.</p>
+          <button id="openAuthBtn" class="btn btn-primary btn-block">
+            <span>Open AI Careers Hub</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- State: Job Not Found / Non-Job Page -->
+      <section id="stateNoJob" class="state-view hidden">
+        <div class="empty-state-card">
+          <div class="empty-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </div>
+          <h2 class="view-title">No Job Posting Detected</h2>
+          <p class="view-subtitle" id="noJobSubtitle">Open a job posting page on Greenhouse, Lever, Workday, LinkedIn, Indeed, or any career portal.</p>
+          <button id="retryDetectBtn" class="btn btn-secondary btn-block">
+            <span>Scan Page Again</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- State: Job Detected -->
+      <section id="stateDetected" class="state-view hidden">
+        <div class="job-card">
+          <div class="job-meta-row">
+            <span id="jobProviderBadge" class="badge badge-provider">GENERIC</span>
+            <span id="jobWorkplaceBadge" class="badge badge-workplace">UNKNOWN</span>
+            <span id="existingAppBadge" class="badge badge-saved hidden">EXISTING</span>
+          </div>
+          <h2 id="jobTitle" class="job-title">Senior Full-Stack Engineer</h2>
+          <div class="job-subinfo">
+            <span id="jobCompany" class="job-company">Company Name</span>
+            <span class="info-dot">•</span>
+            <span id="jobLocation" class="job-location">Location</span>
+          </div>
+
+          <div class="profile-status-bar">
+            <span class="status-label">Profile:</span>
+            <span id="candidateStatusLabel" class="status-val text-success">CONNECTED</span>
+          </div>
+        </div>
+
+        <div id="submittedWarning" class="alert-banner alert-warning hidden">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+          <span>Application already applied. Read-only mode enabled.</span>
+        </div>
+
+        <div class="actions-group">
+          <button id="analyzeJobBtn" class="btn btn-primary btn-block">
+            <span>Analyze Job Fit</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- State: Fit Analysis & Recommendations -->
+      <section id="stateAnalysis" class="state-view hidden">
+        <div class="analysis-summary-card">
+          <div class="score-circle-wrap">
+            <div class="score-display">
+              <span id="fitScoreNum" class="score-num">--</span>
+              <span class="score-den">/100</span>
+            </div>
+            <div id="fitGradeBadge" class="grade-badge">--</div>
+          </div>
+          <div class="score-meta">
+            <h3 id="analysisJobTitle" class="analysis-title">Job Fit Assessment</h3>
+            <p id="fitRecommendationText" class="analysis-subtitle">Evaluating candidate evidence against requirements</p>
+          </div>
+        </div>
+
+        <!-- Tabs for Breakdown -->
+        <div class="tab-header">
+          <button id="tabRequirementsBtn" class="tab-btn active" data-tab="requirementsTab">Requirements</button>
+          <button id="tabProjectsBtn" class="tab-btn" data-tab="projectsTab">Recommended Projects</button>
+        </div>
+
+        <!-- Tab 1: Requirements -->
+        <div id="requirementsTab" class="tab-content active">
+          <div id="requirementsBlockersList" class="requirements-section hidden">
+            <h4 class="section-heading text-danger">Hard Blockers</h4>
+            <div id="blockersItems" class="req-items-list"></div>
+          </div>
+
+          <div class="requirements-section">
+            <h4 class="section-heading">Requirement Matches</h4>
+            <div id="matchedItems" class="req-items-list"></div>
+          </div>
+
+          <div id="missingReqsSection" class="requirements-section">
+            <h4 class="section-heading">Missing / Unsubstantiated Requirements</h4>
+            <div id="missingItems" class="req-items-list"></div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Projects -->
+        <div id="projectsTab" class="tab-content hidden">
+          <div class="projects-section">
+            <h4 class="section-heading">Featured Portfolio Projects</h4>
+            <div id="featuredProjectsList" class="projects-list"></div>
+          </div>
+
+          <div id="omittedProjectsSection" class="projects-section hidden">
+            <h4 class="section-heading text-muted">Omitted Projects (Budget Capped)</h4>
+            <div id="omittedProjectsList" class="projects-list"></div>
+          </div>
+        </div>
+
+        <div class="actions-group action-sticky">
+          <button id="prepareHandoffBtn" class="btn btn-primary btn-block">
+            <span>Prepare Handoff Kit</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- State: Handoff Kit Ready -->
+      <section id="stateHandoffReady" class="state-view hidden">
+        <div class="handoff-header-card">
+          <div class="handoff-title-row">
+            <h2 class="view-title">Handoff Kit</h2>
+            <span id="lifecycleActionBadge" class="badge badge-success">READY</span>
+          </div>
+          <p class="view-subtitle">Package prepared and verified. Review and download artifacts for manual submission.</p>
+
+          <!-- Status checklist -->
+          <div class="status-checklist">
+            <div class="checklist-item">
+              <span class="item-name">Resume</span>
+              <span id="statusResumeBadge" class="badge badge-success">READY</span>
+            </div>
+            <div class="checklist-item">
+              <span class="item-name">Cover Letter</span>
+              <span id="statusCoverLetterBadge" class="badge badge-success">READY</span>
+            </div>
+            <div class="checklist-item">
+              <span class="item-name">Package Validation</span>
+              <span id="statusValidationBadge" class="badge badge-success">PASSED</span>
+            </div>
+          </div>
+
+          <!-- Diagnostic Telemetry -->
+          <div class="telemetry-grid">
+            <div class="telemetry-item">
+              <span class="tel-label">ATS Parseability</span>
+              <span id="telParseability" class="tel-value">--/100</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="tel-label">Job Match</span>
+              <span id="telJobMatch" class="tel-value">--/100</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="tel-label">Evidence Coverage</span>
+              <span id="telEvidenceCoverage" class="tel-value">--/100</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="tel-label">Layout Profile</span>
+              <span id="telLayoutProfile" class="tel-value">BALANCED</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download Buttons -->
+        <div class="downloads-group">
+          <div class="download-row">
+            <button id="downloadResumeBtn" class="btn btn-secondary btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              <span>Download Resume</span>
+            </button>
+            <button id="downloadCoverLetterBtn" class="btn btn-secondary btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              <span>Download Cover Letter</span>
+            </button>
+          </div>
+
+          <button id="downloadBundleBtn" class="btn btn-primary btn-block">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            <span>Download Full Handoff Kit (.zip)</span>
+          </button>
+
+          <button id="openAppBtn" class="btn btn-outline btn-block">
+            <span>Open in AI Careers Hub</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+            </svg>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <span class="footer-note">Thin client • Authoritative AI Careers Hub backend</span>
+      <span id="versionTag" class="version-tag">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

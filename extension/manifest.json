@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "aicareershub",
+  "version": "1.0.0",
+  "description": "Official AI Careers Hub thin-client extension for job detection, ATS fit analysis, and Handoff Kit preparation.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "aicareershub",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "options_ui": {
+    "page": "popup/popup.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "downloads",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*",
+    "https://*.aicareershub.tech/*",
+    "https://aicareershub.tech/*",
+    "*://*.greenhouse.io/*",
+    "*://*.lever.co/*",
+    "*://*.myworkdayjobs.com/*",
+    "*://*.linkedin.com/*",
+    "*://*.indeed.com/*",
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "job-detection/*",
+        "popup/*",
+        "icons/*",
+        "content/*"
+      ],
+      "matches": [
+        "*://*/*"
+      ]
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAujTwJGMjzwwBPe8ITXhlsefept5nRACUA8Kt97XaK9DKmUswF0BIgy6Lpd6Hofm9UuUcy/KwWPh93tqrjWb1RDcNC7se/I48zRl9Lklm90AGrz2YtPvSdb09jijUC6GpaawDny7ELUQNXc8qNPNLtTPZD9ILqjT61npty+gOPoOP/27vhkp3bxs3sjoIpUFauiswTihLBYBdGEQReCw+M3Us1WRtdn5fH2YOO191jf0EDi+JuJQMGpQFLUpAacv0rk8ZJoSCOnowB+S+pazP4khnHioESlJhdk8BfFDN3vaRB0+naJYvJj1O1PJbnrSXTTI7NSDIbrEyC83KPqgXMwIDAQAB"
+}

@@ -20,11 +20,14 @@ import { config } from '../config/env.js';
  */
 export async function authenticate(req, _reply) {
   const cookieOpts = getSessionCookieOptions(config);
-  const rawToken = req.cookies[cookieOpts.name] || req.cookies['career_hub_session'];
+  let rawToken = req.cookies[cookieOpts.name] || req.cookies['career_hub_session'];
+  if (!rawToken && req.headers?.authorization?.startsWith('Bearer ')) {
+    rawToken = req.headers.authorization.slice(7).trim();
+  }
 
   if (!rawToken) {
     throw new AuthenticationError(
-      'Authentication required. Missing session cookie.',
+      'Authentication required. Missing session cookie or bearer token.',
       'UNAUTHENTICATED'
     );
   }

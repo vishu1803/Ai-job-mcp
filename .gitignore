@@ -75,7 +75,6 @@ scratch/
 
 # Internal Project & AI Control Documents (Only README.md is tracked in Git)
 AGENTS.md
-project.md
 goal.md
 road.md
 roadmap.md
@@ -89,4 +88,12 @@ storage/
 # External Tools & Binaries
 tools/bin/*.exe
 tools/bin/*.zip
+
+# Real-Chrome Acceptance Test Artifacts (P15-001)
+# Bundled Chromium downloaded for CDP testing + disposable profiles & downloads
+chrome/
+.tmp-chrome-profile/
+.tmp-chrome-profile-test/
+.tmp-chrome-profile-fresh/
+.tmp-downloads/
 

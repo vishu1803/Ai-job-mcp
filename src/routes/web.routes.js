@@ -48,6 +48,7 @@ import { ApplicationTrackingService } from '../services/application-tracking.ser
 import { JobApplicationWorkflowService } from '../services/job-application-workflow.service.js';
 import { CandidateArtifactContentService } from '../services/candidate-artifact-content.service.js';
 import { DocumentStorageService } from '../services/document-storage.service.js';
+import { createZipArchive } from '../utils/zip-packager.js';
 import { renderLandingPage } from '../views/landing.page.js';
 import { renderLoginPage } from '../views/login.page.js';
 import { renderDashboardPage } from '../views/dashboard.page.js';
@@ -102,6 +103,10 @@ async function getOptionalSession(req, db) {
     if (match) {
       rawToken = decodeURIComponent(match[1]);
     }
+  }
+
+  if (!rawToken && req.headers?.authorization?.startsWith('Bearer ')) {
+    rawToken = req.headers.authorization.slice(7).trim();
   }
 
   if (!rawToken) {
@@ -3385,9 +3390,116 @@ export default async function webRoutes(app, opts = {}) {
       return reply.code(404).send({ error: 'Application not found or unauthorized' });
     }
 
+    // -------------------------------------------------------------------------
+    // Full Handoff Kit ZIP Bundle Download
+    // -------------------------------------------------------------------------
+    if (artifactType === 'bundle' || artifactType === 'handoff-kit') {
+      const handoffKit = application.metadata?.handoffKit;
+      const entries = [];
+      let resolvedPackageHash = packageHashParam || handoffKit?.packageHash;
+
+      if (!resolvedPackageHash && versionParam) {
+        const [pkgRow] = await database
+          .select({ packageHash: applicationPackages.packageHash })
+          .from(applicationPackages)
+          .where(
+            and(
+              eq(applicationPackages.applicationId, appId),
+              eq(applicationPackages.tenantId, tenant.id),
+              eq(applicationPackages.version, versionParam)
+            )
+          )
+          .limit(1);
+        resolvedPackageHash = pkgRow?.packageHash;
+      }
+
+      // 1. Decrypt Resume PDF
+      const resumeKey = handoffKit?.resume?.storageKey;
+      if (resumeKey) {
+        try {
+          const resumeBuf = await documentStorageService.getDecryptedDocument({
+            tenantId: tenant.id,
+            storageKey: resumeKey,
+          });
+          entries.push({
+            name: handoffKit?.resume?.filename || 'tailored-resume.pdf',
+            data: resumeBuf,
+          });
+        } catch (err) {
+          req.log.warn({ error: err.message }, 'Failed to bundle resume PDF');
+        }
+      }
+
+      // 2. Decrypt Cover Letter PDF
+      const clKey = handoffKit?.coverLetter?.storageKey;
+      if (clKey) {
+        try {
+          const clBuf = await documentStorageService.getDecryptedDocument({
+            tenantId: tenant.id,
+            storageKey: clKey,
+          });
+          entries.push({
+            name: handoffKit?.coverLetter?.filename || 'tailored-cover-letter.pdf',
+            data: clBuf,
+          });
+        } catch (err) {
+          req.log.warn({ error: err.message }, 'Failed to bundle cover letter PDF');
+        }
+      }
+
+      // 3. Decrypt Resume TeX Source
+      const texKey = handoffKit?.resume?.texStorageKey;
+      if (texKey) {
+        try {
+          const texBuf = await documentStorageService.getDecryptedDocument({
+            tenantId: tenant.id,
+            storageKey: texKey,
+          });
+          entries.push({
+            name: 'tailored-resume.tex',
+            data: texBuf,
+          });
+        } catch (err) {
+          req.log.warn({ error: err.message }, 'Failed to bundle resume TeX');
+        }
+      }
+
+      // 4. Manifest JSON
+      const manifest = {
+        applicationId: application.id,
+        candidateId: application.candidateId,
+        company: application.company,
+        title: application.title,
+        status: application.status,
+        packageHash: resolvedPackageHash || null,
+        packageVersion: versionParam || application.metadata?.currentPackageVersion || 1,
+        exportedAt: new Date().toISOString(),
+        files: entries.map((e) => e.name),
+      };
+      entries.push({
+        name: 'manifest.json',
+        data: Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'),
+      });
+
+      if (entries.length <= 1) {
+        return reply.code(404).send({ error: 'No generated artifacts found for this handoff kit' });
+      }
+
+      const zipBuffer = createZipArchive(entries);
+      return reply
+        .type('application/zip')
+        .header('Content-Disposition', `attachment; filename="handoff-kit-${appId.slice(0, 8)}.zip"`)
+        .header('X-Content-Type-Options', 'nosniff')
+        .header('X-Package-Hash', resolvedPackageHash || '')
+        .header('X-Application-Id', appId)
+        .header('X-Artifact-Type', 'bundle')
+        .send(zipBuffer);
+    }
+
     let storageKey = null;
     let filename = 'document.pdf';
     let mimeType = 'application/pdf';
+    let resolvedPackageHash = packageHashParam || null;
 
     // Check tailored_documents snapshots first if version or packageHash requested
     if (versionParam || packageHashParam) {
@@ -3413,6 +3525,7 @@ export default async function webRoutes(app, opts = {}) {
           .limit(1);
         targetHash = pkgRow?.packageHash;
       }
+      resolvedPackageHash = targetHash;
 
       if (targetHash) {
         const targetDocType =
@@ -3441,6 +3554,7 @@ export default async function webRoutes(app, opts = {}) {
     if (!storageKey) {
       const handoffKit = application.metadata?.handoffKit;
       if (handoffKit) {
+        resolvedPackageHash = resolvedPackageHash || handoffKit.packageHash;
         if (artifactType === 'resume') {
           storageKey = handoffKit.resume?.storageKey;
           filename = handoffKit.resume?.filename || 'tailored-resume.pdf';
@@ -3469,6 +3583,9 @@ export default async function webRoutes(app, opts = {}) {
         .type(mimeType)
         .header('Content-Disposition', `attachment; filename="${filename}"`)
         .header('X-Content-Type-Options', 'nosniff')
+        .header('X-Package-Hash', resolvedPackageHash || '')
+        .header('X-Application-Id', appId)
+        .header('X-Artifact-Type', artifactType)
         .send(buffer);
     } catch (err) {
       req.log.error(

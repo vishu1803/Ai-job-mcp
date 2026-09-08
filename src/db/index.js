@@ -87,7 +87,7 @@ export function getPoolConfig(overrides = {}) {
     ssl: useSsl ? { rejectUnauthorized: false } : false,
     statement_timeout: config.DATABASE_STATEMENT_TIMEOUT_MS,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 30000,
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000,
     ...overrides,
