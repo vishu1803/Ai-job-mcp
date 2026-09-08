@@ -218,9 +218,14 @@ export function signApplicationTicket(ticketData, secretKey = 'career-hub-approv
   return crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
 }
 
-import { isSyntheticEmail, resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
+import {
+  isSyntheticEmail,
+  resolveCandidateEmail,
+  evaluateCandidateEmailStatus,
+  isValidEmailFormat,
+} from '../utils/candidate-email-resolver.js';
 
-export { isSyntheticEmail, resolveCandidateEmail };
+export { isSyntheticEmail, resolveCandidateEmail, evaluateCandidateEmailStatus, isValidEmailFormat };
 
 /**
  * Detects the ATS/portal provider from destination URL.
@@ -1228,8 +1233,17 @@ export class JobApplicationWorkflowService {
     const warnings = [];
     const errors = [];
 
-    if (!validatedPkg.candidateEmail) {
+    const emailStatus = evaluateCandidateEmailStatus(
+      { canonicalEmail: validatedPkg.candidateEmail, applicationPackage: validatedPkg },
+      null,
+      { applicationPackage: validatedPkg }
+    );
+    if (emailStatus.state === 'MISSING_EMAIL' || !validatedPkg.candidateEmail) {
       missingFields.push('candidateEmail');
+    } else if (emailStatus.state === 'INVALID_EMAIL') {
+      errors.push(`Candidate email "${validatedPkg.candidateEmail}" has an invalid format.`);
+    } else if (isSyntheticEmail(validatedPkg.candidateEmail)) {
+      warnings.push(`Candidate email "${validatedPkg.candidateEmail}" uses a synthetic or placeholder domain.`);
     }
     if (!validatedPkg.candidateName) {
       missingFields.push('candidateName');

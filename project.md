@@ -3,6 +3,73 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-08*
 
+### P14-030: Canonical Candidate Email Resolution & State Integrity Audit
+
+**Status:** COMPLETE  
+**Date:** 2026-09-08
+
+**Context & Objective:**
+Investigate and resolve critical data-resolution discrepancy where candidate profile `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad) had a valid candidate email (`vishwanatnishad@gmail.com`) that rendered correctly on generated resumes and in `get_candidate_profile`, but the application readiness UI / handoff kit reported: `Candidate Email: MISSING - "Valid candidate email required in Profile"`.
+
+**Root Cause Analysis:**
+1. In PostgreSQL, candidate row `10a2b51b-09bf-4090-8040-1f60ebeb89c9` holds `canonicalEmail = 'vishw@example.com'` from early development/test seed scripts.
+2. The user record holds `user.email = 'vishwanatnishad@gmail.com'`, and profile metadata holds `resumeData.identity.email = 'vishwanatnishad@gmail.com'`.
+3. `CandidateProfileService` and resume generation relied on `resolveCandidateEmail`, which used `isSyntheticEmail` to identify `'vishw@example.com'` as a placeholder seed and fell back to the authentic user/resume email (`vishwanatnishad@gmail.com`).
+4. `ApplicationReadinessService` implemented duplicate, ad-hoc email extraction (`pkgEmail || cand.canonicalEmail || cand.email`). It extracted `'vishw@example.com'`, checked `!email.toLowerCase().includes('example.com')`, which evaluated to `false`, and immediately marked the email as `MISSING` (`notes: 'Valid candidate email required in Profile'`) rather than falling back to nested authentic email sources.
+5. In addition, the web handoff route (`/applications/:id/handoff`) did not pass the authenticated `user.email` or `applicationPackage` to `evaluateApplicationReadiness`.
+
+**Key Changes Implemented:**
+1. **Shared Canonical Email Resolver Enhancement (`src/utils/candidate-email-resolver.js`):**
+   - Introduced `CandidateEmailState` enum (`VALID_EMAIL`, `MISSING_EMAIL`, `INVALID_EMAIL`, `UNCONFIRMED_EMAIL`).
+   - Implemented RFC 5322-compliant email syntax validation (`isValidEmailFormat`).
+   - Extended `resolveCandidateEmail` candidate traversal to inspect nested paths: `cand.profileMetadata?.userCustom?.email`, `cand.profileMetadata?.resumeData?.identity?.email`, `cand.identities[].externalEmail`, and `options.applicationPackage?.candidateEmail`.
+   - Created `evaluateCandidateEmailStatus(candidate, userEmail, options)`:
+     - Discards synthetic placeholder domains (`example.com`, etc.) without treating them as authentic candidate identity.
+     - Detects malformed email formats and flags them explicitly as `INVALID_EMAIL`.
+     - Ensures an authentic candidate email never triggers a false conflict with a synthetic seed.
+     - Emits structured evaluation `{ email, state, status, presence, source, hasConflict, notes }`.
+2. **Application Readiness Service Unification (`src/services/application-readiness.service.js`):**
+   - Replaced ad-hoc extraction with canonical `evaluateCandidateEmailStatus(...)`.
+   - Populates readiness item `field: 'email'` with canonical status, value, source, presence, and clear actionable notes.
+3. **Application Handoff Route (`src/routes/web.routes.js`):**
+   - Updated `/applications/:id/handoff` to supply `{ ...candidate, userEmail: user.email }` and `applicationPackage` to `evaluateApplicationReadiness`.
+4. **Job Application Workflow Validation (`src/services/job-application-workflow.service.js`):**
+   - Updated validation check for candidate email using `evaluateCandidateEmailStatus(...)` and `isValidEmailFormat` so authentic emails are never flagged in `missingFields`.
+5. **Resume Quality Assessment Service (`src/services/resume-quality-assessment.service.js`):**
+   - Added fallback to `candidateProfile?.canonicalEmail`.
+6. **Zero-Touch Guarantee Verified:**
+   - Candidate row `10a2b51b-09bf-4090-8040-1f60ebeb89c9` in database `candidates` table was NOT mutated.
+   - Zero hardcoded email addresses or domains added to code.
+
+**Verification & Evidence:**
+- **Automated Regression Suite (`tests/unit/canonical-email-resolution.test.js`):**
+  - Scenario A: Canonical profile email -> READY / VALID_EMAIL (PASS).
+  - Scenario B1: Email from resumeData.identity.email -> READY / VALID_EMAIL (PASS).
+  - Scenario B2: Email from userCustom.email -> READY / VALID_EMAIL (PASS).
+  - Scenario B3: Email from identities externalEmail -> READY / VALID_EMAIL (PASS).
+  - Scenario C: Missing email anywhere -> MISSING / MISSING_EMAIL (PASS).
+  - Scenario D: Malformed email syntax -> INVALID_EMAIL / MISSING (PASS).
+  - Scenario E: Live candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` cross-service verification:
+    - Direct resolver: `vishwanatnishad@gmail.com`
+    - `CandidateProfileService.getProfile`: `vishwanatnishad@gmail.com`
+    - `CandidateProfileService.getCareerProfile`: `vishwanatnishad@gmail.com`
+    - `handleGetCandidateProfile` (Live MCP Tool): `vishwanatnishad@gmail.com`
+    - `ApplicationReadinessService` (direct cand): status `READY`, value `vishwanatnishad@gmail.com`
+    - `ApplicationReadinessService` (careerProfile): status `READY`, value `vishwanatnishad@gmail.com`
+    - `JobApplicationWorkflowService.validateJobApplication`: zero email missing fields (PASS).
+  - Scenario F: Authentic non-synthetic email always supersedes synthetic seeds without false conflict (PASS).
+  - Scenario G: Candidate database row remains 100% unmodified and authentic (PASS).
+  - Result: 9/9 PASS.
+- **Related Suites:**
+  - `tests/unit/application-readiness.test.js` & `tests/unit/job-application-email-integrity.test.js`: 19/19 PASS.
+  - `tests/integration/mcp-roundtrip-idempotency.test.js`: 13/13 PASS.
+  - ESLint across all modified files: 0 errors, 0 warnings.
+- **Other Contact Fields Audited:**
+  - Phone: `7905087928` -> READY
+  - LinkedIn: `https://linkedin.com/in/vishwanath-nishad` -> READY
+  - GitHub: `https://github.com/vishu1803` -> READY
+  - Portfolio: `https://my-portfolio-kappa-beige-71.vercel.app/` -> READY
+
 ### P14-029: MCP Application Package Round-Trip & Idempotency Contract
 
 **Status:** COMPLETE  

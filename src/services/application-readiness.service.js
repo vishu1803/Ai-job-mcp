@@ -24,6 +24,7 @@
  */
 
 import { logger } from '../utils/logger.js';
+import { evaluateCandidateEmailStatus } from '../utils/candidate-email-resolver.js';
 
 function normalizeDigits(str) {
   if (!str) return '';
@@ -77,7 +78,7 @@ export class ApplicationReadinessService {
     candidate: directCandidate = null,
     applicationPackage = null,
     answers = null,
-    jobPosting = null,
+    _jobPosting = null,
   }) {
     // 1. Resolve normalized candidate root and profile metadata
     const cand = candidateProfile?.candidate || directCandidate || candidateProfile || {};
@@ -112,49 +113,29 @@ export class ApplicationReadinessService {
 
     // -------------------------------------------------------------------------
     // 1. Candidate Email (READY | NEEDS_CONFIRMATION | MISSING)
-    // Precedence: APPLICATION_PACKAGE > PROFILE_CANONICAL > USER_ACCOUNT
+    // Canonical resolver handles authenticity, synthetic isolation, and conflict.
     // -------------------------------------------------------------------------
-    const pkgEmail = applicationPackage?.candidateEmail?.trim() || null;
-    const profileEmail =
-      cand.canonicalEmail?.trim() ||
-      candidateProfile?.canonicalEmail?.trim() ||
-      candidateProfile?.primaryEmail?.trim() ||
-      null;
-    const accountEmail = cand.email?.trim() || candidateProfile?.userEmail?.trim() || null;
-
-    const emailCandidate = pkgEmail || profileEmail || accountEmail;
-    const hasValidEmail =
-      Boolean(emailCandidate) &&
-      typeof emailCandidate === 'string' &&
-      emailCandidate.includes('@') &&
-      !emailCandidate.toLowerCase().includes('example.com');
-
-    let emailConflict = false;
-    if (pkgEmail && profileEmail && pkgEmail.toLowerCase() !== profileEmail.toLowerCase()) {
-      emailConflict = true;
-    }
-
-    const emailStatus = !hasValidEmail ? 'MISSING' : emailConflict ? 'NEEDS_CONFIRMATION' : 'READY';
+    const emailDetails = evaluateCandidateEmailStatus(
+      {
+        candidate: cand,
+        candidateProfile,
+        applicationPackage,
+        userEmail: candidateProfile?.userEmail || cand.userEmail || cand.user?.email,
+      },
+      candidateProfile?.userEmail || cand.userEmail || cand.user?.email,
+      { applicationPackage }
+    );
 
     items.push({
       field: 'email',
       label: 'Candidate Email',
-      value: hasValidEmail ? emailCandidate : null,
-      status: emailStatus,
-      presence: hasValidEmail ? 'PRESENT' : 'MISSING',
-      source: pkgEmail
-        ? 'APPLICATION_PACKAGE'
-        : profileEmail
-          ? 'PROFILE_CANONICAL'
-          : accountEmail
-            ? 'USER_ACCOUNT'
-            : 'NONE',
-      hasConflict: emailConflict,
-      notes: !hasValidEmail
-        ? 'Valid candidate email required in Profile'
-        : emailConflict
-          ? `Conflict detected: Application package email ("${pkgEmail}") differs from canonical profile email ("${profileEmail}"). Candidate confirmation required.`
-          : 'Authoritative primary account email verified',
+      value: emailDetails.status === 'READY' || emailDetails.status === 'NEEDS_CONFIRMATION' ? emailDetails.email : null,
+      status: emailDetails.status,
+      presence: emailDetails.presence,
+      state: emailDetails.state,
+      source: emailDetails.source,
+      hasConflict: emailDetails.hasConflict,
+      notes: emailDetails.notes,
       profileSection: 'contact',
       profileAnchor: '/profile#section-contact',
     });

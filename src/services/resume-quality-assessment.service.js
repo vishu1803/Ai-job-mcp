@@ -402,7 +402,11 @@ export class ResumeQualityAssessmentService {
       )
     );
 
-    const email = pkg.candidateEmail || candidateProfile?.primaryEmail || '';
+    const email =
+      pkg.candidateEmail ||
+      candidateProfile?.canonicalEmail ||
+      candidateProfile?.primaryEmail ||
+      '';
     const emailOk = Boolean(email) && lowerText.includes(String(email).toLowerCase());
     checks.push(
       buildCheck(

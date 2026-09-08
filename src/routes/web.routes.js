@@ -3063,7 +3063,11 @@ export default async function webRoutes(app, opts = {}) {
     // Always run authoritative screening readiness evaluation
     try {
       const evalResult = await applicationHandoffService.evaluateApplicationReadiness({
-        candidate,
+        candidate: {
+          ...candidate,
+          userEmail: user?.email,
+        },
+        applicationPackage: targetPackage?.packagePayload || targetPackage || null,
         jobPosting: {
           id: application.id,
           title: application.jobTitle,
