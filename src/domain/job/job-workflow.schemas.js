@@ -151,7 +151,7 @@ export const ApplicationPackageSchema = z.object({
   ),
   selectedSections: z.array(z.string()).optional(),
   sectionSnapshots: z.record(z.string(), z.any()).optional(),
-  answers: z.record(z.string(), z.string()).default({}),
+  answers: z.record(z.string(), z.any()).default({}),
   packageHash: z.string(), // SHA-256 of canonical JSON package
   preparedAt: z.string(),
   // Application linkage populated by prepare_job_application persistence
@@ -168,6 +168,8 @@ export const ApplicationPackageSchema = z.object({
   documentsStatus: z.enum(['DOCUMENTS_READY', 'DOCUMENTS_BLOCKED', 'DOCUMENTS_PENDING']).optional(),
   artifactsReady: z.boolean().optional(),
   artifactFailureReason: z.string().optional(),
+  jobFitAnalysis: z.record(z.unknown()).optional(),
+  atsFitSnapshot: z.record(z.unknown()).optional(),
 });
 
 // -----------------------------------------------------------------------------
@@ -190,6 +192,7 @@ export const ValidateJobApplicationInputSchema = z.object({
 export const ApplicationValidationResultSchema = z.object({
   status: ApplicationValidationStatusEnum,
   overallStatus: ApplicationValidationStatusEnum.optional(),
+  packageHash: z.string().optional(),
   isReady: z.boolean(),
   errors: z.array(z.string()).default([]),
   missingFields: z.array(z.string()).default([]),

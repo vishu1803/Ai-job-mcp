@@ -524,7 +524,7 @@ export class ResumeQualityAssessmentService {
 
     // 6. Count consistency checks against the package contract
     const selectedProjects = pkg.tailoredResume?.selectedProjects || pkg.selectedProjects || [];
-    const projectHeadingCount = (lowerText.match(/\bprojects?\b/g) || []).length; // not used for counting; headings only
+    const _projectHeadingCount = (lowerText.match(/\bprojects?\b/g) || []).length; // not used for counting; headings only
     const renderedProjectNames = selectedProjects.map(
       (p) => String(p.name || p.projectName || p.title || '')
     );
@@ -799,13 +799,11 @@ export class ResumeQualityAssessmentService {
    * @param {number} [params.tailoredResumeFitScore] Legacy package fitScore fallback
    * @returns {object} resumeQuality payload for the handoff kit
    */
-  buildResumeQuality({ atsParseability, evidenceCoverage, jobFit = null, tailoredResumeFitScore = null }) {
+  buildResumeQuality({ atsParseability, evidenceCoverage, jobFit = null, tailoredResumeFitScore: _tailoredResumeFitScore = null }) {
     const jobMatchScore =
       jobFit && typeof jobFit.overallFit?.atsScore === 'number'
         ? jobFit.overallFit.atsScore
-        : typeof tailoredResumeFitScore === 'number'
-          ? tailoredResumeFitScore
-          : null;
+        : null;
 
     return {
       atsParseability: {
@@ -821,9 +819,11 @@ export class ResumeQualityAssessmentService {
       },
       jobMatch: {
         score: jobMatchScore,
-        source: jobFit ? 'analyze_job_fit' : 'tailored_resume_fit_score',
+        source: jobFit ? 'analyze_job_fit' : 'unavailable',
         fitBand: jobFit?.overallFit?.fitBand || null,
-        note: 'Candidate/job alignment from the existing evidence-aware fit engine. Independent of resume formatting quality.',
+        note: jobFit
+          ? 'Candidate/job alignment from the existing evidence-aware fit engine (analyze_job_fit). Independent of resume formatting quality.'
+          : 'No analyze_job_fit assessment available for this application.',
       },
       evidenceBackedCoverage: {
         score: evidenceCoverage.score,

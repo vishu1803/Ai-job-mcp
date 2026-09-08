@@ -85,6 +85,13 @@
       "when": 1788022800000,
       "tag": "0011_canonical_application_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788109200000,
+      "tag": "0012_application_package_payload",
+      "breakpoints": true
     }
   ]
 }

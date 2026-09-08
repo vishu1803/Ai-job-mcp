@@ -1028,6 +1028,7 @@ export const applicationPackages = pgTable(
     coverLetterContentHash: text('cover_letter_content_hash'),
     fitScore: real('fit_score'),
     answers: jsonb('answers').notNull().default('{}'),
+    packagePayload: jsonb('package_payload'),
     source: text('source').notNull().default('PREPARE_JOB_APPLICATION'),
     lifecycleState: packageLifecycleStateEnum('lifecycle_state').notNull().default('CURRENT'),
     preparedAt: timestamp('prepared_at', { withTimezone: true }).notNull().defaultNow(),

@@ -706,25 +706,51 @@ export class ApplicationTrackingService {
         .where(
           and(
             eq(jobApplications.tenantId, tenantId),
-            eq(jobApplications.candidateId, candidateId),
-            eq(jobApplications.id, explicitApplicationId),
-            sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
+            eq(jobApplications.id, explicitApplicationId)
           )
         );
-      if (app) {
-        const updates = {};
-        if (!app.canonicalJobId && canonicalJobId) updates.canonicalJobId = canonicalJobId;
-        if (!app.normalizedJobUrl && normalizedJobUrl) updates.normalizedJobUrl = normalizedJobUrl;
-        if (Object.keys(updates).length > 0) {
-          const [updated] = await this.db
-            .update(jobApplications)
-            .set(updates)
-            .where(eq(jobApplications.id, app.id))
-            .returning();
-          return { ...updated, isReused: true };
-        }
-        return { ...app, isReused: true };
+
+      if (!app) {
+        throw new NotFoundError(`Job application not found: ${explicitApplicationId}`);
       }
+
+      if (app.candidateId !== candidateId) {
+        throw new AuthorizationError(
+          `Application ${explicitApplicationId} does not belong to candidate ${candidateId}`
+        );
+      }
+
+      // Verify application belongs to canonical target job
+      const appCanonical = app.canonicalJobId || app.metadata?.canonicalJobId || app.metadata?.jobId;
+      if (appCanonical && canonicalJobId && appCanonical !== canonicalJobId) {
+        throw new ConflictError(
+          `[APPLICATION_JOB_MISMATCH] Application ${explicitApplicationId} belongs to job ${appCanonical}, not requested target job ${canonicalJobId}`,
+          'APPLICATION_JOB_MISMATCH'
+        );
+      }
+      if (
+        companyName &&
+        app.companyName &&
+        app.companyName.trim().toLowerCase() !== companyName.trim().toLowerCase()
+      ) {
+        throw new ConflictError(
+          `[APPLICATION_JOB_MISMATCH] Application ${explicitApplicationId} belongs to company ${app.companyName}, not requested target company ${companyName}`,
+          'APPLICATION_JOB_MISMATCH'
+        );
+      }
+
+      const updates = {};
+      if (!app.canonicalJobId && canonicalJobId) updates.canonicalJobId = canonicalJobId;
+      if (!app.normalizedJobUrl && normalizedJobUrl) updates.normalizedJobUrl = normalizedJobUrl;
+      if (Object.keys(updates).length > 0) {
+        const [updated] = await this.db
+          .update(jobApplications)
+          .set(updates)
+          .where(eq(jobApplications.id, app.id))
+          .returning();
+        return { ...updated, isReused: true };
+      }
+      return { ...app, isReused: true };
     }
 
     // 3. Query all active applications for this candidate in this tenant
@@ -895,7 +921,7 @@ export class ApplicationTrackingService {
 
       if (isSubmitted && !existingVersion) {
         throw new ConflictError(
-          `Cannot create or modify packages for application ${applicationId}: application has already been submitted (status: ${application.status}). Submitted packages are protected.`,
+          `[APPLICATION_ALREADY_SUBMITTED] Cannot create or modify packages for application ${applicationId}: application has already been submitted (status: ${application.status}). Submitted packages are protected.`,
           'APPLICATION_ALREADY_SUBMITTED'
         );
       }
@@ -906,9 +932,13 @@ export class ApplicationTrackingService {
       if (existingVersion) {
         // Re-point CURRENT at the existing row (covers re-preparation after
         // switching back to an older package content).
+        const updateFields = { lifecycleState: 'CURRENT', preparedAt: new Date() };
+        if (!existingVersion.packagePayload && pkg) {
+          updateFields.packagePayload = pkg;
+        }
         const [promoted] = await tx
           .update(applicationPackages)
-          .set({ lifecycleState: 'CURRENT', preparedAt: new Date() })
+          .set(updateFields)
           .where(eq(applicationPackages.id, existingVersion.id))
           .returning();
         current = promoted;
@@ -934,6 +964,7 @@ export class ApplicationTrackingService {
             coverLetterContentHash: pkg.coverLetter?.contentHash || null,
             fitScore: pkg.tailoredResume?.fitScore ?? null,
             answers: pkg.answers || {},
+            packagePayload: pkg,
             source,
             lifecycleState: 'CURRENT',
           })
@@ -1015,6 +1046,119 @@ export class ApplicationTrackingService {
         isReused: Boolean(existingVersion),
       };
     });
+  }
+
+  /**
+   * Retrieves the exact, immutable application package snapshot for an application.
+   *
+   * @param {object} context Authenticated context { tenantId, userId, role }
+   * @param {string} applicationId Application UUID
+   * @param {number} [packageVersion=null] Specific version (defaults to CURRENT version)
+   * @returns {Promise<object>} Exact application package snapshot envelope
+   */
+  async getApplicationPackage(context, applicationId, packageVersion = null) {
+    this._validateContext(context, true);
+    if (!applicationId) {
+      throw new ValidationError('applicationId is required');
+    }
+    const tenantId = context.tenantId;
+
+    const [application] = await this.db
+      .select({
+        id: jobApplications.id,
+        candidateId: jobApplications.candidateId,
+        canonicalJobId: jobApplications.canonicalJobId,
+        normalizedJobUrl: jobApplications.normalizedJobUrl,
+        status: jobApplications.status,
+        companyName: jobApplications.companyName,
+        jobTitle: jobApplications.jobTitle,
+        metadata: jobApplications.metadata,
+      })
+      .from(jobApplications)
+      .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
+      .limit(1);
+
+    if (!application) {
+      throw new NotFoundError(`Job application not found: ${applicationId}`);
+    }
+
+    let packageRow;
+    if (packageVersion !== undefined && packageVersion !== null) {
+      const versionNum = Number(packageVersion);
+      const [row] = await this.db
+        .select()
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.tenantId, tenantId),
+            eq(applicationPackages.applicationId, applicationId),
+            eq(applicationPackages.version, versionNum)
+          )
+        )
+        .limit(1);
+      packageRow = row;
+    } else {
+      const [currentRow] = await this.db
+        .select()
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.tenantId, tenantId),
+            eq(applicationPackages.applicationId, applicationId),
+            eq(applicationPackages.lifecycleState, 'CURRENT')
+          )
+        )
+        .limit(1);
+
+      if (currentRow) {
+        packageRow = currentRow;
+      } else {
+        const [latestRow] = await this.db
+          .select()
+          .from(applicationPackages)
+          .where(
+            and(
+              eq(applicationPackages.tenantId, tenantId),
+              eq(applicationPackages.applicationId, applicationId)
+            )
+          )
+          .orderBy(desc(applicationPackages.version))
+          .limit(1);
+        packageRow = latestRow;
+      }
+    }
+
+    if (!packageRow) {
+      throw new NotFoundError(
+        `No application package found for application ${applicationId}${
+          packageVersion ? ` version ${packageVersion}` : ''
+        }`
+      );
+    }
+
+    if (!packageRow.packagePayload) {
+      throw new NotFoundError(
+        `Application package snapshot payload not found for application ${applicationId} version ${packageRow.version}`
+      );
+    }
+
+    const pkg = packageRow.packagePayload;
+
+    return {
+      applicationId: application.id,
+      candidateId: application.candidateId,
+      jobId: pkg.targetJob?.id || application.canonicalJobId || null,
+      canonicalJobId: application.canonicalJobId || pkg.targetJob?.canonicalJobId || null,
+      packageVersion: packageRow.version,
+      packageHash: packageRow.packageHash,
+      packageStatus: application.status || 'SAVED',
+      preparedAt: packageRow.preparedAt
+        ? packageRow.preparedAt instanceof Date
+          ? packageRow.preparedAt.toISOString()
+          : String(packageRow.preparedAt)
+        : new Date().toISOString(),
+      applicationPackage: pkg,
+    };
   }
 
   /**

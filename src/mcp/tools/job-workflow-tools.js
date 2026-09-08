@@ -340,4 +340,30 @@ export function registerJobWorkflowTools(
       };
     }
   );
+
+  // ---------------------------------------------------------------------------
+  // 9. get_application_package (career:read / MEMBER)
+  // ---------------------------------------------------------------------------
+  server.registerTool(
+    JOB_WORKFLOW_TOOL_DEFINITIONS.get_application_package,
+    async (context, params) => {
+      assertToolPermission(context, JOB_WORKFLOW_TOOL_DEFINITIONS.get_application_package);
+
+      const targetCandidateId = params.candidateId
+        ? await resolveCandidateId(context, params.candidateId, database)
+        : null;
+
+      const result = await trackingService.getApplicationPackage(
+        context,
+        params.applicationId,
+        params.packageVersion
+      );
+
+      if (targetCandidateId && result.candidateId !== targetCandidateId) {
+        throw new NotFoundError(`Job application not found: ${params.applicationId}`);
+      }
+
+      return result;
+    }
+  );
 }

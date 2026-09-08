@@ -18,6 +18,9 @@ import { CandidateArtifactContentService } from './candidate-artifact-content.se
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
 import { ApplicationHandoffService } from './application-handoff.service.js';
+import { AtsFitScoreService } from './ats-fit-score.service.js';
+import { EvidenceMatchingService } from './evidence-matching.service.js';
+import { ProjectRelevanceService } from './project-relevance.service.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 import {
   ApplicationPackageSchema,
@@ -158,6 +161,15 @@ async function persistPreparedPackage({
       ...current,
     };
   } catch (err) {
+    if (
+      err.code === 'APPLICATION_ALREADY_SUBMITTED' ||
+      err.code === 'APPLICATION_JOB_MISMATCH' ||
+      err instanceof ConflictError ||
+      err instanceof NotFoundError ||
+      err instanceof AuthorizationError
+    ) {
+      throw err;
+    }
     logger.warn(
       {
         error: err.message,
@@ -259,8 +271,222 @@ export class JobApplicationWorkflowService {
       : options.submissionAdapters instanceof Map
         ? Array.from(options.submissionAdapters.values())
         : [];
+    this.candidateProfileService =
+      options.candidateProfileService || new CandidateProfileService(this.db);
     this.mcpAuditService = options.mcpAuditService || null;
     this.logger = options.logger || defaultLogger;
+  }
+
+  /**
+   * Resolves or computes candidate-job fit analysis (Option A: analyze_job_fit passthrough).
+   *
+   * @private
+   * @param {object} params
+   * @param {object} params.context
+   * @param {string} params.candidateId
+   * @param {object} params.targetJobPosting
+   * @param {object} [params.answers]
+   * @returns {Promise<object|null>}
+   */
+  async _resolveOrComputeJobFit({ context, candidateId, targetJobPosting, answers }) {
+    // 1. Direct properties on targetJobPosting
+    if (
+      targetJobPosting?.jobFitAnalysis &&
+      typeof targetJobPosting.jobFitAnalysis.overallFit?.atsScore === 'number'
+    ) {
+      return targetJobPosting.jobFitAnalysis;
+    }
+    if (
+      targetJobPosting?.jobFit &&
+      typeof targetJobPosting.jobFit.overallFit?.atsScore === 'number'
+    ) {
+      return targetJobPosting.jobFit;
+    }
+    if (
+      targetJobPosting?.overallFit &&
+      typeof targetJobPosting.overallFit.atsScore === 'number'
+    ) {
+      return { overallFit: targetJobPosting.overallFit, source: 'analyze_job_fit' };
+    }
+    if (targetJobPosting?.atsFitSnapshot && typeof targetJobPosting.atsFitSnapshot === 'object') {
+      const atsScore =
+        targetJobPosting.atsFitSnapshot.overallScore ??
+        targetJobPosting.atsFitSnapshot.atsScore;
+      if (typeof atsScore === 'number') {
+        return {
+          overallFit: {
+            atsScore,
+            fitBand: targetJobPosting.atsFitSnapshot.fitBand || 'MODERATE',
+          },
+          source: 'analyze_job_fit',
+        };
+      }
+    }
+
+    // 2. Answers payload overrides
+    if (
+      answers?.jobFitAnalysis &&
+      typeof answers.jobFitAnalysis.overallFit?.atsScore === 'number'
+    ) {
+      return answers.jobFitAnalysis;
+    }
+    if (answers?.atsFitSnapshot && typeof answers.atsFitSnapshot === 'object') {
+      const atsScore =
+        answers.atsFitSnapshot.overallScore ?? answers.atsFitSnapshot.atsScore;
+      if (typeof atsScore === 'number') {
+        return {
+          overallFit: {
+            atsScore,
+            fitBand: answers.atsFitSnapshot.fitBand || 'MODERATE',
+          },
+          source: 'analyze_job_fit',
+        };
+      }
+    }
+
+    // 3. Check existing application for atsFitSnapshot
+    try {
+      const [existingApp] = await this.db
+        .select({
+          atsFitSnapshot: jobApplications.atsFitSnapshot,
+        })
+        .from(jobApplications)
+        .where(
+          and(
+            eq(jobApplications.tenantId, context.tenantId),
+            eq(jobApplications.candidateId, candidateId),
+            sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
+          )
+        )
+        .limit(1);
+
+      if (existingApp?.atsFitSnapshot && typeof existingApp.atsFitSnapshot === 'object') {
+        const atsScore =
+          existingApp.atsFitSnapshot.overallScore ??
+          existingApp.atsFitSnapshot.atsScore;
+        if (typeof atsScore === 'number') {
+          return {
+            overallFit: {
+              atsScore,
+              fitBand: existingApp.atsFitSnapshot.fitBand || 'MODERATE',
+            },
+            source: 'analyze_job_fit',
+          };
+        }
+      }
+    } catch {
+      // Best-effort check
+    }
+
+    // 4. In-flight computation via AtsFitScoreService
+    try {
+      const profileView = await this.candidateProfileService.getProfile(context, candidateId);
+      if (profileView) {
+        const normalizedSkills = (profileView.skills || []).map((s) => ({
+          ...s,
+          primaryEvidence: s.primaryEvidence || null,
+          evidenceItems: Array.isArray(s.evidenceItems) ? s.evidenceItems : [],
+        }));
+        const normalizedProjects = (profileView.projects || []).map((p) => ({
+          ...p,
+          evidence: Array.isArray(p.evidence) ? p.evidence : [],
+        }));
+        const candidateProfileObj = {
+          ...profileView.candidate,
+          skills: normalizedSkills,
+          projects: normalizedProjects,
+          experience: profileView.experience || [],
+          education: profileView.education || [],
+        };
+
+        const rawReqs = Array.isArray(targetJobPosting.requirements)
+          ? targetJobPosting.requirements
+          : [];
+        const extractedRequirements = rawReqs.map((req) => {
+          const text = typeof req === 'string' ? req : req.extractedValue || req.originalText || '';
+          return {
+            id: crypto.randomUUID(),
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            skillSlug: null,
+            rawSnippet: text.slice(0, 450),
+            extractedValue: text,
+            originalText: text,
+            normalizedCriteria: {},
+            confidenceScore: 0.85,
+            sourceSpan: { section: 'RAW_REQUIREMENT', snippet: text.slice(0, 450) },
+            createdAt: new Date().toISOString(),
+          };
+        });
+
+        const isJobIdUuid =
+          targetJobPosting.id &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
+        const jobDescription = {
+          id: isJobIdUuid ? targetJobPosting.id : crypto.randomUUID(),
+          tenantId: context.tenantId,
+          title: targetJobPosting.title || 'Target Role',
+          companyName: targetJobPosting.company || 'Target Company',
+          level: targetJobPosting.level || 'MID',
+          requirements: extractedRequirements,
+          skills: targetJobPosting.skills || [],
+          description: targetJobPosting.description || '',
+          provider: targetJobPosting.provider || targetJobPosting.source || 'EXTERNAL',
+          sourceUrl: targetJobPosting.sourceUrl || null,
+          applicationUrl: targetJobPosting.applicationUrl || null,
+        };
+
+        const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
+          context,
+          jobDescription,
+          candidateProfileObj
+        );
+        const projectAnalysis = ProjectRelevanceService.computeProjectsRelevance(
+          context,
+          jobDescription,
+          candidateProfileObj.projects,
+          { candidateId: candidateProfileObj.id, skills: candidateProfileObj.skills }
+        );
+        const fitScoreAnalysis = AtsFitScoreService.calculateCandidateJobFit(
+          context,
+          jobDescription,
+          matchAnalysis,
+          projectAnalysis,
+          candidateProfileObj
+        );
+
+        if (fitScoreAnalysis && typeof fitScoreAnalysis.overallScore === 'number') {
+          return {
+            overallFit: {
+              atsScore: fitScoreAnalysis.overallScore,
+              fitBand: fitScoreAnalysis.fitBand,
+            },
+            source: 'analyze_job_fit',
+          };
+        }
+      }
+    } catch (err) {
+      this.logger.debug({ error: err.message }, 'In-flight ATS fit score calculation skipped');
+    }
+
+    return null;
+  }
+
+  /**
+   * Retrieves the exact immutable package snapshot for round-tripping.
+   *
+   * @param {object} context
+   * @param {string} applicationId
+   * @param {number} [packageVersion]
+   * @returns {Promise<object>}
+   */
+  async getApplicationPackage(context, applicationId, packageVersion = null) {
+    return await this.applicationTrackingService.getApplicationPackage(
+      context,
+      applicationId,
+      packageVersion
+    );
   }
 
   /**
@@ -416,6 +642,19 @@ export class JobApplicationWorkflowService {
       );
     }
 
+    // Resolve or compute Job Fit Analysis (strictly analyze_job_fit passthrough - Section 9 Option A)
+    const jobFitAnalysis = await this._resolveOrComputeJobFit({
+      context: { tenantId, userId: cand.userId, role: 'MEMBER' },
+      candidateId,
+      targetJobPosting,
+      answers,
+    });
+
+    const effectiveFitScore =
+      jobFitAnalysis && typeof jobFitAnalysis.overallFit?.atsScore === 'number'
+        ? jobFitAnalysis.overallFit.atsScore
+        : tailoredResumeResult.fitScore || 85;
+
     // 6. Build Unhashed Package
     const preparedPackage = {
       candidateId,
@@ -429,7 +668,7 @@ export class JobApplicationWorkflowService {
         markdownContent:
           tailoredResumeResult.markdownContent || tailoredResumeResult.renderedMarkdown || '',
         contentHash: tailoredResumeResult.contentHash || crypto.randomBytes(16).toString('hex'),
-        fitScore: tailoredResumeResult.fitScore || 85,
+        fitScore: effectiveFitScore,
         selectedProjects: selectedProjectsList,
         selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
         sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
@@ -447,6 +686,7 @@ export class JobApplicationWorkflowService {
       selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
       sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
       answers: answers || {},
+      jobFitAnalysis: jobFitAnalysis || undefined,
       packageHash: '',
       preparedAt: new Date().toISOString(),
     };
@@ -1225,6 +1465,7 @@ export class JobApplicationWorkflowService {
     const result = {
       status,
       overallStatus: status,
+      packageHash: validatedPkg.packageHash,
       isReady: status === 'READY_TO_APPLY' || status === 'UNSUPPORTED_PORTAL',
       errors,
       missingFields,

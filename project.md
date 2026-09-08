@@ -3,6 +3,76 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-08*
 
+### P14-029: MCP Application Package Round-Trip & Idempotency Contract
+
+**Status:** COMPLETE  
+**Date:** 2026-09-08
+
+**Context & Objective:**
+Close the round-trip lifecycle loop for Model Context Protocol (MCP) clients with guaranteed idempotency and immutable package persistence:
+1. **Dedicated Read Capability (`get_application_package`):**
+   - Implemented `get_application_package(candidateId?, applicationId, packageVersion?)` returning the exact immutable package snapshot (`package_payload` jsonb) without reconstructing from hashes.
+   - Exposed in live MCP tools list with authoritative input and output schemas.
+2. **Explicit Application Identity Support (`applicationId?: UUID`):**
+   - Supported optional `applicationId` on `prepare_job_application`.
+   - Strictly enforces tenant/candidate ownership and canonical target job match (`[APPLICATION_JOB_MISMATCH]`).
+   - Reuses existing application identity with zero duplicate application rows created.
+3. **Guaranteed Package Idempotency & Lifecycle Actions:**
+   - Same inputs -> identical `applicationId`, `packageHash`, `packageVersion`, and `lifecycleAction = 'REUSED'`.
+   - Changed inputs -> identical `applicationId`, monotonic version increment (`packageVersion: n+1`), new `packageHash`, and `lifecycleAction = 'UPDATED'`.
+   - New target job -> new application record with `packageVersion: 1` and `lifecycleAction = 'CREATED'`.
+4. **Submitted Application Protection:**
+   - If an application is in `APPLIED`, `INTERVIEWING`, `OFFER`, or `ACCEPTED` statuses (or `appliedAt != null` / `externalSubmissionState = 'SUBMITTED'`), modifications are rejected with `[APPLICATION_ALREADY_SUBMITTED]` (`ConflictError`).
+   - The original package versions in the database ledger remain completely preserved and unmutated.
+5. **Round-Trip Contract Verification:**
+   - `get_application_package` -> `validate_job_application` with exact package -> packageHash matches.
+   - `create_application_preview` with exact package -> packageHash matches, structured preview fields returned.
+   - `get_job_application` -> `applicationId`, `packageVersion`, `packageHash` match.
+6. **Job Match Metric Resolution (Option A):**
+   - Job Match is strictly an `analyze_job_fit` passthrough.
+   - Automatically computes/resolves `jobFitAnalysis` during preparation and persists it in the snapshot.
+   - Sets `tailoredResume.fitScore = jobFitAnalysis.overallFit.atsScore` and `resumeQuality.jobMatch.score = jobFitAnalysis.overallFit.atsScore` with `source: 'analyze_job_fit'`.
+   - Completely eliminates the legacy dual-meaning 18 vs 49.9 discrepancy.
+7. **Strict Scope Boundaries (Zero-Touch Guarantee):**
+   - Zero changes to candidate truth model, project evidence verification, recommendation scoring algorithms, resume layout engine, or DSA content selection architecture.
+
+**Key Changes Implemented:**
+1. **Database Schema & Migration (`src/db/schema.js`, `drizzle/0012_application_package_payload.sql`, `drizzle/meta/_journal.json`):**
+   - Added `packagePayload: jsonb('package_payload')` to `applicationPackages`.
+   - Migration 0012 applied cleanly to database ledger.
+2. **Application Tracking Service (`src/services/application-tracking.service.js`):**
+   - `resolveOrCreateApplication`: Validates explicit `applicationId` candidate ownership and canonical job identity (`[APPLICATION_JOB_MISMATCH]`).
+   - `recordApplicationPackage`: Persists authoritative snapshot `packagePayload` on package insertion and promotion.
+   - `getApplicationPackage`: Implemented dedicated snapshot reader returning stored `package_payload` by applicationId and version.
+   - Prefixed `[APPLICATION_JOB_MISMATCH]` and `[APPLICATION_ALREADY_SUBMITTED]` in conflict errors for clear client diagnostics.
+3. **Job Application Workflow Service (`src/services/job-application-workflow.service.js`):**
+   - `prepareJobApplication`: Supports `applicationId` parameter; resolves `jobFitAnalysis` via `_resolveOrComputeJobFit` (using UUIDs for requirements/job description); attaches `jobFitAnalysis` into `preparedPackage`.
+   - `validateJobApplication`: Emits `packageHash` in validation result and validates duplicate submissions cleanly.
+   - `getApplicationPackage`: Forwarded to tracking service.
+4. **Resume Quality Assessment Service (`src/services/resume-quality-assessment.service.js`):**
+   - Enforced `jobMatch.score` strictly from `jobFit.overallFit.atsScore` with `source: 'analyze_job_fit'`. Removed keyword-overlap fallback.
+5. **Domain Schemas & MCP Tool Registration (`src/domain/job/job-workflow.schemas.js`, `src/domain/mcp/job-workflow-tools.schemas.js`, `src/mcp/tools/job-workflow-tools.js`, `src/views/mcp-docs.page.js`):**
+   - Added `jobFitAnalysis` and `atsFitSnapshot` to `ApplicationPackageSchema`.
+   - Registered `get_application_package` tool definition and handler (total 30 tools).
+   - Documented `applicationId` on `prepare_job_application` and added `get_application_package` in documentation view.
+6. **Verification Suites (`tests/integration/mcp-roundtrip-idempotency.test.js`, `tests/unit/resume-quality-assessment.test.js`, contract tests):**
+   - Built comprehensive integration suite covering Scenarios A through J plus schema audit: 13/13 PASS.
+   - Unit spacing hierarchy alias resolution fixed: 17/17 PASS.
+   - MCP registry contract suites updated to 30 tools: PASS.
+
+**Verification Results:**
+- `tests/integration/mcp-roundtrip-idempotency.test.js`: **13/13 PASS** (Scenarios A through J + Tools List Audit)
+- `tests/integration/mcp-workflow-remediation.test.js`: **10/10 PASS** (P14-028 regression check)
+- `tests/unit/resume-quality-assessment.test.js`: **17/17 PASS**
+- `tests/unit/mcp-registry-contract.test.js`: **14/14 PASS**
+- `tests/unit/mcp-write-tools.test.js`: **14/14 PASS**
+- `tests/unit/mcp-application-artifact-tools.test.js`: **14/14 PASS**
+- `tests/unit/optional-section-boundary.test.js`: **9/9 PASS**
+- `tests/unit/resume-layout-engine.test.js`: **53/53 PASS**
+- Code Style: ESLint **0 errors, 0 warnings** across all modified files.
+
+---
+
 ### P14-028: Canonical Application Identity, Database Migration, and E2E MCP Workflow Remediation
 
 **Status:** COMPLETE  

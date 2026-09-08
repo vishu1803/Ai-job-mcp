@@ -162,4 +162,37 @@ export const JOB_WORKFLOW_TOOL_DEFINITIONS = {
       .passthrough(),
     exposeOutputSchema: true,
   },
+  get_application_package: {
+    name: 'get_application_package',
+    description:
+      'Retrieves the exact immutable application package snapshot for validation, preview, and submission round-tripping.',
+    requiredScopes: ['career:read'],
+    requiredRole: 'MEMBER',
+    inputSchema: z.object({
+      candidateId: z
+        .string()
+        .uuid()
+        .optional()
+        .describe('Target candidate ID (optional for single-candidate tenants)'),
+      applicationId: z.string().uuid().describe('Target application UUID'),
+      packageVersion: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Package version number (defaults to CURRENT version)'),
+    }),
+    outputSchema: z.object({
+      applicationId: z.string().uuid(),
+      candidateId: z.string().uuid(),
+      jobId: z.string().nullable().optional(),
+      canonicalJobId: z.string().nullable().optional(),
+      packageVersion: z.number().int().positive(),
+      packageHash: z.string(),
+      packageStatus: z.string(),
+      preparedAt: z.string(),
+      applicationPackage: ApplicationPackageSchema,
+    }),
+    exposeOutputSchema: true,
+  },
 };

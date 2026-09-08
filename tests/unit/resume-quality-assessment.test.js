@@ -55,6 +55,12 @@ describe('Resume Quality Assessment & Spacing Hierarchy (P14-024)', () => {
         endDate: '2025-07',
       },
     ],
+    profileMetadata: {
+      problemSolving: {
+        bullets: ['Solved 500+ algorithmic problems across dynamic programming, trees, and graphs on LeetCode.'],
+        leetcodeUrl: 'https://leetcode.com/u/vishwanatnishad',
+      },
+    },
   };
 
   const portfolioLinks = [
@@ -131,6 +137,12 @@ describe('Resume Quality Assessment & Spacing Hierarchy (P14-024)', () => {
         fitScore,
         selectedProjects: projects,
         selectedSections,
+        sectionSnapshots: {
+          PROBLEM_SOLVING: {
+            bullets: ['Solved 500+ algorithmic problems across dynamic programming, trees, and graphs on LeetCode.'],
+            profileUrl: 'https://leetcode.com/u/vishwanatnishad',
+          },
+        },
       },
       coverLetter: {
         title: 'Cover Letter',
@@ -140,6 +152,13 @@ describe('Resume Quality Assessment & Spacing Hierarchy (P14-024)', () => {
       verifiedSkills,
       claimedSkills,
       portfolioLinks,
+      selectedSections,
+      sectionSnapshots: {
+        PROBLEM_SOLVING: {
+          bullets: ['Solved 500+ algorithmic problems across dynamic programming, trees, and graphs on LeetCode.'],
+          profileUrl: 'https://leetcode.com/u/vishwanatnishad',
+        },
+      },
       packageHash: 'c'.repeat(64),
       preparedAt: '2026-09-05T00:00:00Z',
     };
@@ -153,8 +172,13 @@ describe('Resume Quality Assessment & Spacing Hierarchy (P14-024)', () => {
     const tex = generator.generateTailoredResumeLatex({ applicationPackage: pkg, candidateProfile }).texContent;
 
     const readPt = (name) => {
-      const m = tex.match(new RegExp(`\\\\newcommand\\{\\\\${name}\\}\\{(\\d+(?:\\.\\d+)?)pt\\}`));
-      return m ? parseFloat(m[1]) : null;
+      const directMatch = tex.match(new RegExp(`\\\\newcommand\\{\\\\${name}\\}\\{(\\d+(?:\\.\\d+)?)pt\\}`));
+      if (directMatch) return parseFloat(directMatch[1]);
+      const aliasMatch = tex.match(new RegExp(`\\\\newcommand\\{\\\\${name}\\}\\{\\\\([a-zA-Z]+)\\}`));
+      if (aliasMatch) {
+        return readPt(aliasMatch[1]);
+      }
+      return null;
     };
 
     it('defines the full spacing hierarchy centrally in the preamble', () => {
@@ -198,6 +222,7 @@ describe('Resume Quality Assessment & Spacing Hierarchy (P14-024)', () => {
       // With adaptive layout, the only remaining hard-coded vspace in body is
       // the \atssection command's 1pt hrule spacing — which is structural.
       // All inter-section spacing uses named macros.
+      assert.strictEqual(unexpectedInBody.length, 0, 'No unexpected hard-coded vspace in body');
     });
   });
 
@@ -213,7 +238,7 @@ describe('Resume Quality Assessment & Spacing Hierarchy (P14-024)', () => {
       assert.ok(!/\\textbf\{Collaborative Task Manager\}\s*\$?\|/.test(tex), 'Title must not be concatenated with technologies');
       // Technologies render on their own compact line beneath the title
       assert.ok(
-        /\\textbf\{Collaborative Task Manager\}[^\n]*\\\\\n\{\\small\\textit\{TypeScript, Next\.js, Express\.js, Prisma ORM, PostgreSQL, Role-Based Access Control \(RBAC\)\}\}/.test(tex),
+        /\\textbf\{Collaborative[- ]Task[- ]Manager\}[^\n]*\\par\s*\\vspace\{\\atsProjectTitleToTech\}\s*\{\\small\\textit\{TypeScript, Next\.js, Express\.js, Prisma ORM, PostgreSQL, Role-Based Access Control \(RBAC\)\}\}/i.test(tex),
         'Technologies must render on a dedicated small italic line beneath the title'
       );
       // All technologies remain machine-readable in the text layer

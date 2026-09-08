@@ -952,6 +952,12 @@ export const TOOLS_CATALOG = [
       },
       { name: 'answers', type: 'record', required: false, description: 'Custom question answers.' },
       {
+        name: 'applicationId',
+        type: 'string (UUID)',
+        required: false,
+        description: 'Existing application ID to reuse instead of creating duplicate records.',
+      },
+      {
         name: 'candidateId',
         type: 'string (UUID)',
         required: false,
@@ -1030,6 +1036,44 @@ export const TOOLS_CATALOG = [
       },
     },
     safetyNotes: 'Includes explicit human approval boundary notification.',
+  },
+  {
+    name: 'get_application_package',
+    category: 'Job Discovery & Workflow',
+    scope: 'career:read',
+    role: 'MEMBER',
+    classification: 'Workflow',
+    purpose:
+      'Retrieves the exact immutable application package snapshot for round-trip validation, preview, and submission integrity verification.',
+    parameters: [
+      {
+        name: 'applicationId',
+        type: 'string (UUID)',
+        required: true,
+        description: 'Target application UUID.',
+      },
+      {
+        name: 'packageVersion',
+        type: 'integer',
+        required: false,
+        description: 'Package version number (defaults to CURRENT version).',
+      },
+      {
+        name: 'candidateId',
+        type: 'string (UUID)',
+        required: false,
+        description: 'Target candidate ID (optional for single-candidate tenants).',
+      },
+    ],
+    exampleRpc: {
+      method: 'tools/call',
+      params: {
+        name: 'get_application_package',
+        arguments: { applicationId: 'b7591a4c-6735-4668-a3be-d55a48693d5b' },
+      },
+    },
+    safetyNotes:
+      'Returns the authentic persisted package snapshot payload without reconstructing fields from hashes.',
   },
   {
     name: 'request_application_approval',
