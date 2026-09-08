@@ -606,4 +606,142 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
       assert.deepEqual([...EXTENSION_STATUSES], [...SUBMITTED_APPLICATION_STATUSES]);
     });
   });
+
+  // =========================================================================
+  // Batch 2 Item 2: Artifact-hash verification on download routes
+  // =========================================================================
+  describe('Batch 2 Item 2: Artifact-hash verification', () => {
+    let hashAppId;
+    let hashPkgHash;
+    let otherAppPkgHash;
+
+    before(async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/extension/prepare-handoff',
+        headers: { authorization: `Bearer ${sessionA.rawToken}` },
+        payload: {
+          job: {
+            sourceUrl: 'https://boards.greenhouse.io/p15two/jobs/400',
+            provider: 'GREENHOUSE',
+            title: 'Hash Probe Engineer',
+            company: 'HashCo',
+            description: 'Node.js and PostgreSQL engineering for hash probes.',
+          },
+        },
+      });
+      assert.equal(res.statusCode, 200);
+      const json = JSON.parse(res.payload);
+      hashAppId = json.applicationId;
+      hashPkgHash = json.packageHash;
+      assert.ok(hashPkgHash, 'prepare-handoff returned a packageHash');
+
+      // A second, distinct application/package for cross-application checks.
+      const resOther = await app.inject({
+        method: 'POST',
+        url: '/api/extension/prepare-handoff',
+        headers: { authorization: `Bearer ${sessionA.rawToken}` },
+        payload: {
+          job: {
+            sourceUrl: 'https://boards.greenhouse.io/p15two/jobs/401',
+            provider: 'GREENHOUSE',
+            title: 'Other Package Engineer',
+            company: 'HashCo',
+            description: 'Node.js and PostgreSQL engineering for the other package.',
+          },
+        },
+      });
+      assert.equal(resOther.statusCode, 200);
+      otherAppPkgHash = JSON.parse(resOther.payload).packageHash;
+      assert.notEqual(otherAppPkgHash, hashPkgHash);
+    });
+
+    it('valid packageHash still downloads (behavior preserved)', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/applications/${hashAppId}/artifacts/bundle/download?packageHash=${hashPkgHash}`,
+        cookies: { career_hub_session: sessionA.rawToken },
+      });
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.headers['x-package-hash'], hashPkgHash);
+    });
+
+    it('unknown packageHash is rejected with 404 PACKAGE_HASH_NOT_FOUND (bundle)', async () => {
+      const bogus = `deadbeef${'0'.repeat(48)}`;
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/applications/${hashAppId}/artifacts/bundle/download?packageHash=${bogus}`,
+        cookies: { career_hub_session: sessionA.rawToken },
+      });
+      assert.equal(res.statusCode, 404);
+      const json = JSON.parse(res.payload);
+      assert.equal(json.code, 'PACKAGE_HASH_NOT_FOUND');
+    });
+
+    it('unknown packageHash is rejected with 404 (individual artifact)', async () => {
+      const bogus = `feedface${'0'.repeat(48)}`;
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/applications/${hashAppId}/artifacts/resume/download?packageHash=${bogus}`,
+        cookies: { career_hub_session: sessionA.rawToken },
+      });
+      assert.equal(res.statusCode, 404);
+      const json = JSON.parse(res.payload);
+      assert.equal(json.code, 'PACKAGE_HASH_NOT_FOUND');
+    });
+
+    it('a packageHash from a different application is rejected (no substitution)', async () => {
+      // Cross-application substitution: a real hash belonging to a different
+      // application must not unlock this application's artifacts.
+      const res = await app.inject({
+        method: 'GET',
+        url: `/api/applications/${hashAppId}/artifacts/bundle/download?packageHash=${otherAppPkgHash}`,
+        cookies: { career_hub_session: sessionA.rawToken },
+      });
+      assert.equal(res.statusCode, 404);
+      const json = JSON.parse(res.payload);
+      assert.equal(json.code, 'PACKAGE_HASH_NOT_FOUND');
+    });
+  });
+
+  // =========================================================================
+  // Batch 2 Item 3: No raw error leakage in 500 responses
+  // =========================================================================
+  describe('Batch 2 Item 3: Raw 500 error leakage', () => {
+    it('500 responses from extension routes carry generic messages only', async () => {
+      // Force a server error inside prepare-handoff by breaking the workflow
+      // service dependency.
+      const brokenApp = buildApp({
+        db,
+        jobApplicationWorkflowService: {
+          prepareOrReuseApplicationPackage: async () => {
+            throw new Error('ECONNREFUSED 10.0.0.42:5432 - internal db host pg-internal.db.local');
+          },
+        },
+        applicationTrackingService: trackingService,
+      });
+      await brokenApp.ready();
+
+      const res = await brokenApp.inject({
+        method: 'POST',
+        url: '/api/extension/prepare-handoff',
+        headers: { authorization: `Bearer ${sessionA.rawToken}` },
+        payload: {
+          job: {
+            sourceUrl: 'https://boards.greenhouse.io/p15two/jobs/900',
+            provider: 'GREENHOUSE',
+            title: 'Leak Probe Engineer',
+            company: 'LeakCo',
+            description: 'Probe for raw error leakage.',
+          },
+        },
+      });
+      assert.equal(res.statusCode, 500);
+      const json = JSON.parse(res.payload);
+      assert.equal(json.code, 'PREPARE_HANDOFF_FAILED');
+      assert.ok(!json.message?.includes('ECONNREFUSED'), 'raw error must not leak');
+      assert.ok(!json.message?.includes('pg-internal'), 'internal host must not leak');
+      assert.ok(!JSON.stringify(json).includes('ECONNREFUSED'), 'raw error must not leak anywhere in body');
+    });
+  });
 });

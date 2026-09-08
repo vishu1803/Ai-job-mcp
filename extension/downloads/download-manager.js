@@ -35,7 +35,10 @@ export class DownloadManager {
         saveAs: false,
       });
 
-      return { downloadId, verified: true, url: downloadUrl };
+      // P15-002: verify the served artifact's identity before reporting
+      // success — never claim verification that did not happen.
+      const identity = await this.verifyArtifactIdentity(applicationId, artifactType, packageHash);
+      return { downloadId, verified: identity.verified, reason: identity.reason, url: downloadUrl };
     }
 
     // Fallback for non-extension environments / browser fetch
@@ -66,5 +69,41 @@ export class DownloadManager {
     URL.revokeObjectURL(blobUrl);
 
     return { verified: true, url: downloadUrl };
+  }
+
+  /**
+   * P15-002: verifies that the backend serves the exact package identity the
+   * extension asked for, via a HEAD probe of the download endpoint.
+   *
+   * @private
+   * @param {string} applicationId
+   * @param {'resume'|'cover-letter'|'bundle'} artifactType
+   * @param {string} [packageHash]
+   * @returns {Promise<{ verified: boolean, reason: string | null }>}
+   */
+  async verifyArtifactIdentity(applicationId, artifactType, packageHash) {
+    try {
+      const downloadUrl = await this.backendClient.getArtifactDownloadUrl(
+        applicationId,
+        artifactType,
+        packageHash
+      );
+      const probe = await fetch(downloadUrl, { method: 'HEAD', credentials: 'include' });
+      if (!probe.ok) {
+        return { verified: false, reason: `HTTP ${probe.status}` };
+      }
+      const servedHash = probe.headers.get('x-package-hash');
+      if (packageHash && servedHash && servedHash !== packageHash) {
+        return { verified: false, reason: 'PACKAGE_HASH_MISMATCH' };
+      }
+      const servedAppId = probe.headers.get('x-application-id');
+      if (applicationId && servedAppId && servedAppId !== applicationId) {
+        return { verified: false, reason: 'APPLICATION_ID_MISMATCH' }
+      }
+      return { verified: true, reason: null };
+    } catch {
+      // A probe failure must not silently masquerade as a verified download.
+      return { verified: false, reason: 'IDENTITY_PROBE_UNAVAILABLE' };
+    }
   }
 }

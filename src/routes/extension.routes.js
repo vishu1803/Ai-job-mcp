@@ -612,9 +612,12 @@ export default async function extensionRoutes(app, opts = {}) {
         });
       }
       req.log.error({ error: err.message }, 'Failed to prepare job application handoff kit');
+      // P15-002: raw error messages can leak internals (paths, SQL, service
+      // details). Log the detail server-side; return a generic safe message.
       return reply.code(500).send({
         error: 'Internal Server Error',
-        message: err.message || 'Failed to prepare handoff kit',
+        code: 'PREPARE_HANDOFF_FAILED',
+        message: 'Failed to prepare handoff kit. Please try again shortly.',
       });
     }
   });
@@ -688,9 +691,11 @@ export default async function extensionRoutes(app, opts = {}) {
         });
       }
       req.log.error({ error: err.message }, 'Validation failed');
+      // P15-002: no raw err.message in client-facing 500 responses.
       return reply.code(500).send({
         error: 'Validation Error',
-        message: err.message,
+        code: 'PACKAGE_VALIDATION_FAILED',
+        message: 'Package validation failed. Please try again shortly.',
       });
     }
   });
@@ -780,9 +785,11 @@ export default async function extensionRoutes(app, opts = {}) {
         });
       }
       req.log.error({ error: err.message }, 'Preview creation failed');
+      // P15-002: no raw err.message in client-facing 500 responses.
       return reply.code(500).send({
         error: 'Preview Error',
-        message: err.message,
+        code: 'PACKAGE_PREVIEW_FAILED',
+        message: 'Package preview failed. Please try again shortly.',
       });
     }
   });

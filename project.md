@@ -7159,3 +7159,25 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 - Existing unit (job-detector + zip-packager): **13/13 PASS**
 - Existing integration (extension-api + extension-matrix): **25/25 PASS**
 - ESLint (all touched files): **0 errors, 0 warnings**
+
+### P15-002 Batch 2: Deployment, Artifact & Information-Leakage Hardening
+
+**Status:** COMPLETE  
+**Date:** 2026-09-08
+
+**Scope:** Three deployment-integrity items only — backendUrl production pinning, artifact-hash verification, raw 500 error leakage. No features, no architecture changes, no weakened tests.
+
+**Items implemented:**
+1. **backendUrl production pinning** (`extension/config.js` — NEW) — stored `backendUrl` is credential-bearing configuration. `validateBackendUrl()` enforces: absolute http(s) origin only (no path/query/hash); plain http only for loopback hosts and only outside production; production requires the pinned https origin (`https://aicareershub.tech`) and rejects private/loopback hosts. `BackendClient.getBaseUrl()` validates before use, discards invalid stored URLs (and removes them from storage); `service-worker.js` seeds the pinned origin for production builds on install and re-validates/purges stale URLs on `onStartup`.
+2. **Artifact-hash verification** (`src/routes/web.routes.js` download route) — a requested `?packageHash=` is now verified against `application_packages` for THIS application (both bundle and individual-artifact paths); unknown or cross-application hashes return 404 `PACKAGE_HASH_NOT_FOUND` instead of silently serving current artifacts while echoing the requested hash. Extension `download-manager.js` `chrome.downloads` path verifies served identity (`X-Package-Hash`, `X-Application-Id`) via a HEAD probe before reporting `verified: true`.
+3. **Raw 500 error leakage** (`src/routes/exception` handlers in `src/routes/extension.routes.js`) — the three client-facing 500 handlers (prepare-handoff, validate-package, preview-package) no longer return raw `err.message`; they return generic safe messages with machine-readable codes (`PREPARE_HANDOFF_FAILED`, `PACKAGE_VALIDATION_FAILED`, `PACKAGE_PREVIEW_FAILED`); detail remains in server logs only.
+
+**Test evidence (all green):**
+- Backend-URL pinning unit (`tests/unit/extension-backend-url.test.js` — NEW): **13/13 PASS**
+- Hardening integration (`tests/integration/p15-002-hardening.test.js`): **31/31 PASS** (26 Batch 1 + 5 new: valid-hash download preserved, bogus hash 404 for bundle + artifact, cross-application hash substitution 404, 500-leak probe asserting `ECONNREFUSED`/internal host never appear in a 500 body)
+- Existing unit (job-detector + popup-controller + zip-packager): **25/25 PASS**
+- Existing integration (extension-api + extension-matrix): **25/25 PASS**
+- Real Chrome acceptance: **10/10 PASS** (exit 0, 2026-09-08)
+- ESLint (all touched files): **0 errors, 0 warnings**
+
+**Out of scope (deferred to Batch 3):** SPA hydration timing, multi-tab ambiguity, ATS adapter JSON-LD fallback, archived-application idempotency semantics.

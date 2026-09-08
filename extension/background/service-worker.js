@@ -6,14 +6,35 @@
  * and external navigation requests.
  */
 
+import { EXTENSION_ENV, PROD_BACKEND_URL, validateBackendUrl } from '../config.js';
+
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    // Set default configuration in local storage
+    // P15-002: the backend URL is credential-bearing configuration. Production
+    // builds pin the exact https origin; development defaults to local backend.
+    const defaultUrl = EXTENSION_ENV === 'production' ? PROD_BACKEND_URL : 'http://localhost:3000';
     chrome.storage.local.set({
-      backendUrl: 'http://localhost:3000',
+      backendUrl: defaultUrl,
       installedAt: new Date().toISOString(),
     });
   }
+});
+
+// P15-002: re-validate any previously-stored backendUrl on every browser
+// startup so a production build can never keep pointing session credentials
+// at a development or arbitrary host.
+chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.local
+    .get('backendUrl')
+    .then((data) => {
+      if (data?.backendUrl && !validateBackendUrl(data.backendUrl).valid) {
+        return chrome.storage.local.remove('backendUrl');
+      }
+      return undefined;
+    })
+    .catch(() => {
+      // Storage unavailable — BackendClient re-validates on every use anyway.
+    });
 });
 
 // Listener for messages from popup or other extension pages

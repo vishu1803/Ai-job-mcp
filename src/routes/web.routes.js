@@ -3398,6 +3398,30 @@ export default async function webRoutes(app, opts = {}) {
       const entries = [];
       let resolvedPackageHash = packageHashParam || handoffKit?.packageHash;
 
+      // P15-002: when a specific package identity is requested, it must be
+      // verified against application_packages. A packageHash that does not
+      // exist for this application is a client error — never fall back to a
+      // different package's artifacts while echoing the requested hash back.
+      if (packageHashParam) {
+        const [hashRow] = await database
+          .select({ packageHash: applicationPackages.packageHash })
+          .from(applicationPackages)
+          .where(
+            and(
+              eq(applicationPackages.applicationId, appId),
+              eq(applicationPackages.tenantId, tenant.id),
+              eq(applicationPackages.packageHash, packageHashParam)
+            )
+          )
+          .limit(1);
+        if (!hashRow) {
+          return reply.code(404).send({
+            error: 'Package version not found for this application',
+            code: 'PACKAGE_HASH_NOT_FOUND',
+          });
+        }
+      }
+
       if (!resolvedPackageHash && versionParam) {
         const [pkgRow] = await database
           .select({ packageHash: applicationPackages.packageHash })
@@ -3500,6 +3524,28 @@ export default async function webRoutes(app, opts = {}) {
     let filename = 'document.pdf';
     let mimeType = 'application/pdf';
     let resolvedPackageHash = packageHashParam || null;
+
+    // P15-002: same verification for individual artifact downloads — the
+    // requested packageHash must exist for THIS application, otherwise 404.
+    if (packageHashParam) {
+      const [hashRow] = await database
+        .select({ packageHash: applicationPackages.packageHash })
+        .from(applicationPackages)
+        .where(
+          and(
+            eq(applicationPackages.applicationId, appId),
+            eq(applicationPackages.tenantId, tenant.id),
+            eq(applicationPackages.packageHash, packageHashParam)
+          )
+        )
+        .limit(1);
+      if (!hashRow) {
+        return reply.code(404).send({
+          error: 'Package version not found for this application',
+          code: 'PACKAGE_HASH_NOT_FOUND',
+        });
+      }
+    }
 
     // Check tailored_documents snapshots first if version or packageHash requested
     if (versionParam || packageHashParam) {

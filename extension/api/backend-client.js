@@ -4,12 +4,19 @@
  * Provides authenticated HTTP communication between the extension thin client
  * and the authoritative AI Careers Hub backend endpoints.
  * Never connects directly to databases or exposes service keys.
+ *
+ * P15-002: the backend base URL is credential-bearing configuration. Stored
+ * values are validated before use (see extension/config.js) so cookies and
+ * tokens can never be redirected to an arbitrary host.
  */
+
+import { validateBackendUrl } from '../config.js';
 
 export class BackendClient {
   constructor(defaultBaseUrl = 'http://localhost:3000') {
     this.defaultBaseUrl = defaultBaseUrl;
     this._cachedBaseUrl = null;
+    this._lastValidationError = null;
   }
 
   /**
@@ -19,14 +26,30 @@ export class BackendClient {
    */
   async getBaseUrl() {
     if (this._cachedBaseUrl) return this._cachedBaseUrl;
+    this._lastValidationError = null;
     if (typeof chrome !== 'undefined' && chrome.storage?.local) {
       const data = await chrome.storage.local.get('backendUrl');
       if (data?.backendUrl) {
-        this._cachedBaseUrl = data.backendUrl.replace(/\/+$/, '');
-        return this._cachedBaseUrl;
+        const validation = validateBackendUrl(data.backendUrl);
+        if (validation.valid) {
+          this._cachedBaseUrl = validation.url;
+          return this._cachedBaseUrl;
+        }
+        // P15-002: a stored backendUrl is credential-bearing state — never
+        // point session cookies or tokens at an unvalidated host.
+        this._lastValidationError = validation.reason;
+        try {
+          await chrome.storage.local.remove('backendUrl');
+        } catch {
+          // Storage may be unavailable; the invalid URL is simply not used.
+        }
       }
     }
-    this._cachedBaseUrl = this.defaultBaseUrl.replace(/\/+$/, '');
+    const defaultValidation = validateBackendUrl(this.defaultBaseUrl);
+    this._cachedBaseUrl = (defaultValidation.valid ? defaultValidation.url : this.defaultBaseUrl).replace(
+      /\/+$/,
+      ''
+    );
     return this._cachedBaseUrl;
   }
 
