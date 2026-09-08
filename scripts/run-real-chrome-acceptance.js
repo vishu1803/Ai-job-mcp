@@ -490,11 +490,14 @@ async function main() {
     const jobTab = await openTab(jobUrl1);
     await sleep(5000); // Allow live page DOM to settle and potential redirects
 
-    // Resolve numeric Chrome tab ID for the job tab so the popup can target it
+    // Resolve numeric Chrome tab ID for the job tab so the popup can target it.
+    // P15-002 Batch 3: REQUIRED — the popup no longer guesses among tabs via
+    // substring heuristics, so this must resolve or the test cannot run.
     const jobTabNumericId = await resolveNumericTabId('greenhouse.io');
-    const popupUrl = jobTabNumericId
-      ? `chrome-extension://${extensionId}/popup/popup.html?tabId=${jobTabNumericId}`
-      : `chrome-extension://${extensionId}/popup/popup.html`;
+    if (!jobTabNumericId) {
+      throw new Error('Could not resolve numeric tab ID for the Greenhouse job tab (tabId targeting is required)');
+    }
+    const popupUrl = `chrome-extension://${extensionId}/popup/popup.html?tabId=${jobTabNumericId}`;
     console.log(`2. Opening aicareershub popup for job tab ${jobTab.targetId} (numericTabId: ${jobTabNumericId})...`);
     const popupTab = await openTab(popupUrl);
     

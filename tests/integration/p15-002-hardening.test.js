@@ -37,6 +37,8 @@ import {
   SUBMITTED_APPLICATION_STATUSES,
   isSubmittedApplicationStatus,
   isSubmittedApplication,
+  INACTIVE_APPLICATION_STATUSES,
+  isInactiveApplicationStatus,
 } from '../../src/domain/career/application-status.constants.js';
 import {
   buildExtensionAllowedOrigins,
@@ -701,6 +703,113 @@ describe('P15-002 Batch 1: Security & Correctness Hardening', () => {
       assert.equal(res.statusCode, 404);
       const json = JSON.parse(res.payload);
       assert.equal(json.code, 'PACKAGE_HASH_NOT_FOUND');
+    });
+  });
+
+  // =========================================================================
+  // Batch 3 Item 1: Archived-application idempotency alignment
+  // =========================================================================
+  describe('Batch 3 Item 1: Archived-application idempotency', () => {
+    let archivedAppId;
+
+    before(async () => {
+      // Create an application for a distinct job identity, then archive it.
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/extension/prepare-handoff',
+        headers: { authorization: `Bearer ${sessionA.rawToken}` },
+        payload: {
+          job: {
+            sourceUrl: 'https://boards.greenhouse.io/p15two/jobs/500',
+            provider: 'GREENHOUSE',
+            title: 'Archive Probe Engineer',
+            company: 'ArchiveCo',
+            description: 'Node.js and PostgreSQL engineering for archive probes.',
+          },
+        },
+      });
+      assert.equal(res.statusCode, 200);
+      const json = JSON.parse(res.payload);
+      archivedAppId = json.applicationId;
+
+      const [row] = await db
+        .update(jobApplications)
+        .set({ status: 'ARCHIVED' })
+        .where(eq(jobApplications.id, archivedAppId))
+        .returning({ id: jobApplications.id });
+      assert.ok(row, 'application archived');
+    });
+
+    it('analyze-job does NOT report an ARCHIVED application as existing', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/extension/analyze-job',
+        headers: { authorization: `Bearer ${sessionA.rawToken}` },
+        payload: {
+          job: {
+            sourceUrl: 'https://boards.greenhouse.io/p15two/jobs/500',
+            provider: 'GREENHOUSE',
+            title: 'Archive Probe Engineer',
+            company: 'ArchiveCo',
+            description: 'Node.js and PostgreSQL engineering for archive probes.',
+          },
+        },
+      });
+      assert.equal(res.statusCode, 200);
+      const json = JSON.parse(res.payload);
+      assert.equal(json.existingApplication, null, 'archived app must not be reported as existing');
+      assert.equal(json.isSubmitted, false);
+    });
+
+    it('prepare-handoff on an archived identity creates a FRESH application (no 409, no reuse)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/extension/prepare-handoff',
+        headers: { authorization: `Bearer ${sessionA.rawToken}` },
+        payload: {
+          job: {
+            sourceUrl: 'https://boards.greenhouse.io/p15two/jobs/500',
+            provider: 'GREENHOUSE',
+            title: 'Archive Probe Engineer',
+            company: 'ArchiveCo',
+            description: 'Node.js and PostgreSQL engineering for archive probes.',
+          },
+        },
+      });
+      assert.equal(res.statusCode, 200);
+      const json = JSON.parse(res.payload);
+      assert.notEqual(json.applicationId, archivedAppId, 'fresh application must be created for the archived identity');
+      assert.equal(json.lifecycleAction, 'CREATED');
+    });
+
+    it('SAVED applications remain reported as existing (no overreach)', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/extension/analyze-job',
+        headers: { authorization: `Bearer ${sessionA.rawToken}` },
+        payload: {
+          job: {
+            sourceUrl: 'https://boards.greenhouse.io/p15two/jobs/401',
+            provider: 'GREENHOUSE',
+            title: 'Other Package Engineer',
+            company: 'HashCo',
+            description: 'Node.js and PostgreSQL engineering for the other package.',
+          },
+        },
+      });
+      assert.equal(res.statusCode, 200);
+      const json = JSON.parse(res.payload);
+      assert.ok(json.existingApplication, 'SAVED app still reported');
+      assert.equal(json.existingApplication.status, 'SAVED');
+    });
+
+    it('inactive-status helpers expose the authoritative terminal set', () => {
+      assert.deepEqual([...INACTIVE_APPLICATION_STATUSES], ['REJECTED', 'WITHDRAWN', 'ARCHIVED']);
+      assert.equal(isInactiveApplicationStatus('ARCHIVED'), true);
+      assert.equal(isInactiveApplicationStatus('REJECTED'), true);
+      assert.equal(isInactiveApplicationStatus('WITHDRAWN'), true);
+      assert.equal(isInactiveApplicationStatus('SAVED'), false);
+      assert.equal(isInactiveApplicationStatus('APPLIED'), false);
     });
   });
 

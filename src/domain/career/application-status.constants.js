@@ -44,6 +44,28 @@ export function isSubmittedApplicationStatus(status) {
 }
 
 /**
+ * Terminal / inactive statuses. The application workflow treats applications
+ * in these states as inactive: the same canonical job identity may start a
+ * FRESH application. Route-level "existing application" matching must use
+ * the same exclusion so the extension is never told an archived row is the
+ * live application for a job (P15-002 Batch 3: idempotency alignment).
+ *
+ * Mirrors the service-level predicate in JobApplicationWorkflowService
+ * (`status NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`).
+ */
+export const INACTIVE_APPLICATION_STATUSES = Object.freeze(['REJECTED', 'WITHDRAWN', 'ARCHIVED']);
+
+/**
+ * Determines whether an application status is terminal/inactive.
+ *
+ * @param {string|null|undefined} status Application lifecycle status
+ * @returns {boolean} True if the status is in the inactive set
+ */
+export function isInactiveApplicationStatus(status) {
+  return typeof status === 'string' && INACTIVE_APPLICATION_STATUSES.includes(status);
+}
+
+/**
  * Determines whether an application row is submitted/protected.
  *
  * In addition to the lifecycle status, an explicit `appliedAt` timestamp or

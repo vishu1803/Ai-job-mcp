@@ -8,6 +8,15 @@ import { LinkedInAdapter } from '../../extension/job-detection/adapters/linkedin
 import { IndeedAdapter } from '../../extension/job-detection/adapters/indeed.adapter.js';
 import { GenericCareerPageAdapter } from '../../extension/job-detection/adapters/generic-career.adapter.js';
 
+const JOB_POSTING_JSONLD = JSON.stringify({
+  '@type': 'JobPosting',
+  title: 'Staff Platform Engineer',
+  hiringOrganization: { '@type': 'Organization', name: 'Structured Co' },
+  jobLocation: { address: { addressLocality: 'Austin', addressRegion: 'TX', addressCountry: 'US' } },
+  description: '<p>We are hiring! Apply now to join our team. Responsibilities include distributed systems work. 5+ years of experience required.</p>',
+  employmentType: 'FULL_TIME',
+});
+
 /**
  * Creates a lightweight mock Document for node test execution.
  */
@@ -296,6 +305,61 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
 
       const payload = JobPageDetector.detect(doc, url);
       assert.equal(payload.isConfident, true, 'Real job-signal page must remain confident');
+    });
+  });
+
+  describe('ATS adapter JSON-LD fallback (P15-002 Batch 3)', () => {
+    const cases = [
+      { Adapter: GreenhouseAdapter, name: 'Greenhouse', provider: 'GREENHOUSE', url: 'https://boards.greenhouse.io/acme/jobs/1' },
+      { Adapter: LeverAdapter, name: 'Lever', provider: 'LEVER', url: 'https://jobs.lever.co/acme/123' },
+      { Adapter: WorkdayAdapter, name: 'Workday', provider: 'WORKDAY', url: 'https://acme.wd5.myworkdayjobs.com/careers/1' },
+      { Adapter: LinkedInAdapter, name: 'LinkedIn', provider: 'LINKEDIN', url: 'https://www.linkedin.com/jobs/view/123' },
+      { Adapter: IndeedAdapter, name: 'Indeed', provider: 'INDEED', url: 'https://www.indeed.com/viewjob?jk=abc' },
+    ];
+
+    for (const { Adapter, name, provider, url } of cases) {
+      it(`${name}: healthy provider DOM still wins over JSON-LD (provider identity preserved)`, () => {
+        const doc = createMockDocument({
+          elements: {
+            [name === 'Greenhouse' ? 'h1' : 'h1']: { textContent: `  ${name} DOM Role  ` },
+          },
+          meta: { 'og:site_name': 'DOM Co' },
+          scripts: [],
+          bodyText: 'We are hiring. Apply now. Responsibilities include systems engineering. Full-time role.',
+        });
+        const payload = Adapter.extract(doc, url);
+        assert.equal(payload.provider, provider);
+        assert.equal(payload.title, `${name} DOM Role`);
+      });
+
+      it(`${name}: broken provider DOM + embedded JSON-LD falls back with SAME provider`, () => {
+        // No provider DOM selectors match — the adapter must use JSON-LD.
+        const doc = createMockDocument({
+          elements: {},
+          meta: {},
+          scripts: [JOB_POSTING_JSONLD],
+          bodyText: '',
+        });
+        const payload = Adapter.extract(doc, url);
+        assert.equal(payload.provider, provider, 'provider identity must NOT become GENERIC_JSONLD');
+        assert.equal(payload.title, 'Staff Platform Engineer');
+        assert.equal(payload.company, 'Structured Co');
+        assert.equal(payload.location, 'Austin, TX, US');
+        assert.ok(payload.description.includes('Apply now'));
+      });
+
+      it(`${name}: neither DOM nor JSON-LD yields no confident detection`, () => {
+        const doc = createMockDocument({ elements: {}, meta: {}, scripts: [], bodyText: 'unrelated content' });
+        const result = JobPageDetector.detect(doc, url);
+        assert.equal(result.isConfident, false);
+      });
+    }
+
+    it('generic adapter behavior unchanged: JSON-LD path reports GENERIC_JSONLD', () => {
+      const doc = createMockDocument({ elements: {}, meta: {}, scripts: [JOB_POSTING_JSONLD], bodyText: '' });
+      const payload = GenericCareerPageAdapter.extract(doc, 'https://example.com/careers/role');
+      assert.equal(payload.provider, 'GENERIC_JSONLD');
+      assert.equal(payload.title, 'Staff Platform Engineer');
     });
   });
 });

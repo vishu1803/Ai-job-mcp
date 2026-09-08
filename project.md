@@ -7181,3 +7181,26 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 - ESLint (all touched files): **0 errors, 0 warnings**
 
 **Out of scope (deferred to Batch 3):** SPA hydration timing, multi-tab ambiguity, ATS adapter JSON-LD fallback, archived-application idempotency semantics.
+
+### P15-002 Batch 3: Behavioral Robustness
+
+**Status:** COMPLETE  
+**Date:** 2026-09-08
+
+**Scope:** All four remaining behavioral SHOULD-FIX items from the P15-002 assessment. No features, no architecture changes, no weakened tests.
+
+**Items implemented:**
+1. **Archived-application idempotency alignment** — added authoritative `INACTIVE_APPLICATION_STATUSES` (`REJECTED`, `WITHDRAWN`, `ARCHIVED`) + `isInactiveApplicationStatus()` to `src/domain/career/application-status.constants.js`; both route-level application matches in `extension.routes.js` now exclude inactive statuses via parameterized `notInArray`, mirroring the workflow service find-or-create predicate. One source of truth: the extension never sees an archived row as `existingApplication`, and prepare-on-archived-identity consistently creates a fresh application.
+2. **Deterministic multi-tab selection** — new `extension/popup/job-tab-selector.js`: ATS-provider host priority list (Greenhouse, Lever, Workday, LinkedIn, Indeed) then first eligible tab in query order; extension/browser/devtools/blank tabs are ineligible. Removed the `'cloudflare'` acceptance-runner artifact and generic `'job'` substring heuristics from `popup.js`; the chosen host is surfaced in the loading state ("Detecting job on <host>...").
+3. **SPA hydration retry** — `popup.js detectJobOnPage` now retries extraction up to 3 attempts (1.2s apart) with user-visible "Still detecting job page... (attempt N of 3)" progress before rendering `stateNoJob`, so SPA job boards (Workday, LinkedIn) that hydrate after load are no longer falsely reported as "no job".
+4. **ATS adapter JSON-LD fallback** — new shared `extension/job-detection/json-ld.js` (`extractJobPostingJsonLd`, `jsonLdToJobPayload`); all 5 ATS adapters fall back to the page's JSON-LD `JobPosting` when provider-DOM extraction yields no title, preserving provider identity (`GREENHOUSE`/`LEVER`/`WORKDAY`/`LINKEDIN`/`INDEED`, never `GENERIC_JSONLD`). The Batch 1 false-positive confidence gate still applies.
+
+**Acceptance runner cleanup:** `scripts/run-real-chrome-acceptance.js` tab resolution is now fail-fast (throws if the Greenhouse tab ID cannot be resolved), so the removed popup heuristic can never be load-bearing again.
+
+**Test evidence (all green):**
+- Unit suites (detector/JSON-LD 27, tab-selector 9, popup-controller 12, zip-packager, backend-URL 13): **63/63 PASS**
+- Integration suites (P15-002 hardening 35, extension-api, extension-matrix): **60/60 PASS**
+- Real Chrome acceptance: **10/10 PASS** (exit 0, 2026-09-08; tab ID resolution confirmed fail-fast in run log)
+- ESLint (all touched files): **0 errors, 0 warnings**
+
+**Program status:** P15-002 hardening COMPLETE across Batches 1–3 (all 15 assessment areas addressed: 2 MUST-FIX + 13 SHOULD-FIX).

@@ -10,6 +10,7 @@ import { BackendClient } from '../api/backend-client.js';
 import { AuthClient } from '../auth/auth-client.js';
 import { DownloadManager } from '../downloads/download-manager.js';
 import { isSubmittedApplicationStatus } from '../lib/application-status.constants.js';
+import { selectJobTab } from './job-tab-selector.js';
 
 export class PopupController {
   constructor() {
@@ -223,12 +224,15 @@ export class PopupController {
         const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
         tab = activeTab;
         if (tab?.url?.startsWith('chrome-extension://') || !tab?.url) {
+          // P15-002 Batch 3: deterministic multi-tab selection (no arbitrary
+          // substring heuristics). ATS-provider hosts win; otherwise the first
+          // eligible tab in query order. The chosen host is surfaced to the
+          // user so the active page is never ambiguous.
           const allTabs = await chrome.tabs.query({});
-          const candidates = allTabs.filter(
-            (t) => t.url && !t.url.startsWith('chrome-extension://') && !t.url.startsWith('chrome://') && t.url !== 'about:blank'
-          );
-          if (candidates.length > 0) {
-            tab = candidates.find((t) => t.url.includes('greenhouse.io') || t.url.includes('lever.co') || t.url.includes('job') || t.url.includes('cloudflare')) || candidates[0];
+          const selected = selectJobTab(allTabs);
+          if (selected.id != null) {
+            tab = { id: selected.id, url: selected.url };
+            this.showState(this.stateLoading, `Detecting job on ${this.safeHost(selected.url)}...`);
           }
         }
       }
@@ -241,14 +245,35 @@ export class PopupController {
       // Ensure content script is loaded
       await chrome.runtime.sendMessage({ type: 'ENSURE_CONTENT_SCRIPT', tabId: tab.id });
 
-      // Request extraction
-      const response = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_JOB' });
+      // P15-002 Batch 3: bounded retry for SPA hydration — SPAs (Workday,
+      // LinkedIn) fill job content after initial load, so a single immediate
+      // extraction shows a false "no job". Retries stay inside this call;
+      // the loading state keeps the user informed.
+      const DETECTION_ATTEMPTS = 3;
+      const DETECTION_RETRY_DELAY_MS = 1200;
+      let response = null;
+      let lastErr = null;
+      for (let attempt = 1; attempt <= DETECTION_ATTEMPTS; attempt++) {
+        try {
+          response = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_JOB' });
+          lastErr = null;
+        } catch (extractErr) {
+          response = null;
+          lastErr = extractErr;
+        }
+        if (response?.success && response.job && response.job.isConfident) break;
+        if (attempt < DETECTION_ATTEMPTS) {
+          this.showState(this.stateLoading, `Still detecting job page... (attempt ${attempt + 1} of ${DETECTION_ATTEMPTS})`);
+          await new Promise((resolve) => setTimeout(resolve, DETECTION_RETRY_DELAY_MS));
+        }
+      }
 
       window._lastDetectionDebug = {
         tabId: tab.id,
         tabUrl: tab.url,
         response,
-        err: null,
+        attempts: DETECTION_ATTEMPTS,
+        err: lastErr?.message || null,
       };
 
       if (response?.success && response.job && response.job.isConfident) {
@@ -515,6 +540,21 @@ export function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * P15-002 Batch 3: safe host display for tab-selection messaging.
+ *
+ * @param {string|null|undefined} urlString
+ * @returns {string} Hostname or 'this page'
+ */
+export function safeHost(urlString) {
+  try {
+    const host = new URL(String(urlString || '')).host;
+    return host || 'this page';
+  } catch {
+    return 'this page';
+  }
 }
 
 // Only auto-bootstrap when running inside the real popup document (not under test).

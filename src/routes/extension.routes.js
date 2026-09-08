@@ -17,7 +17,7 @@
  *    credentials, service-role keys, or LLM secrets exposed to extension.
  */
 
-import { eq, and } from 'drizzle-orm';
+import { eq, and, notInArray } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import {
   candidates,
@@ -33,7 +33,10 @@ import { ApplicationTrackingService } from '../services/application-tracking.ser
 import { handleAnalyzeJobFit } from '../mcp/tools/career-read-tools.js';
 import { handleRecommendPortfolioProjects } from '../mcp/tools/career-artifact-tools.js';
 import { ConflictError, NotFoundError } from '../errors/index.js';
-import { isSubmittedApplication } from '../domain/career/application-status.constants.js';
+import {
+  isSubmittedApplication,
+  INACTIVE_APPLICATION_STATUSES,
+} from '../domain/career/application-status.constants.js';
 import { buildExtensionAllowedOrigins, isAllowedExtensionOrigin } from '../security/cors-allowlist.js';
 
 /**
@@ -259,6 +262,11 @@ export default async function extensionRoutes(app, opts = {}) {
     }
 
     // 2. Check for Existing Application
+    // P15-002 Batch 3: route-level matching mirrors the workflow service's
+    // find-or-create predicate — terminal/inactive applications (ARCHIVED,
+    // REJECTED, WITHDRAWN) are NOT reported as the existing application for
+    // a job, because the service would create a fresh application for that
+    // identity. One source of truth for idempotency semantics.
     let existingApp = null;
     let isSubmitted = false;
 
@@ -268,7 +276,8 @@ export default async function extensionRoutes(app, opts = {}) {
       .where(
         and(
           eq(jobApplications.tenantId, tenant.id),
-          eq(jobApplications.candidateId, candidate.id)
+          eq(jobApplications.candidateId, candidate.id),
+          notInArray(jobApplications.status, [...INACTIVE_APPLICATION_STATUSES])
         )
       );
 
@@ -505,13 +514,17 @@ export default async function extensionRoutes(app, opts = {}) {
         });
       }
     } else {
+      // P15-002 Batch 3: same inactive-status exclusion as above so the 409
+      // protection check and the reported existingApplication agree with the
+      // workflow service's reuse semantics.
       const existingApps = await database
         .select()
         .from(jobApplications)
         .where(
           and(
             eq(jobApplications.tenantId, tenant.id),
-            eq(jobApplications.candidateId, candidate.id)
+            eq(jobApplications.candidateId, candidate.id),
+            notInArray(jobApplications.status, [...INACTIVE_APPLICATION_STATUSES])
           )
         );
 

@@ -1,4 +1,5 @@
 import { classifyEmploymentType } from '../employment-type.js';
+import { extractJobPostingJsonLd, jsonLdToJobPayload } from '../json-ld.js';
 
 /**
  * @file Workday Job Page Extraction Adapter (P15-001).
@@ -68,6 +69,16 @@ export class WorkdayAdapter {
       doc.querySelector('#jobDescription');
 
     const title = titleEl ? titleEl.textContent.trim() : '';
+
+    // P15-002 Batch 3: JSON-LD fallback — when provider-DOM extraction fails
+    // to find a title, use the page's structured JobPosting data (survives
+    // ATS DOM redesigns) while keeping the WORKDAY provider identity.
+    if (!title) {
+      const jsonLd = extractJobPostingJsonLd(doc);
+      if (jsonLd) {
+        return jsonLdToJobPayload(jsonLd, url, WorkdayAdapter.provider);
+      }
+    }
     const location = locationEl ? locationEl.textContent.trim() : '';
     const description = descEl ? descEl.textContent.trim() : (doc.body ? doc.body.textContent.trim() : '');
 
