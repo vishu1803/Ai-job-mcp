@@ -7134,3 +7134,28 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 **Required next operation:** deploy/restart the current revision if the public host is managed separately, then remove and re-add or refresh the ChatGPT MCP connector so it performs a fresh authenticated `tools/list`. Only after that refresh can the acceptance criterion—two real artifact references in a fresh ChatGPT status call—be confirmed.
 
 ---
+
+### P15-002 Batch 1: Extension & Backend Production Hardening (Security/Correctness)
+
+**Status:** COMPLETE  
+**Date:** 2026-09-08
+
+**Scope:** Six security/correctness items only — 2 MUST-FIX + 4 high-value SHOULD-FIX from the P15-002 read-only gap assessment. No features, no architecture changes, no weakened tests.
+
+**MUST-FIX implemented:**
+1. **Protected application status enforcement** — one authoritative predicate (`src/domain/career/application-status.constants.js`, mirrored in `extension/lib/application-status.constants.js` for the unbundled MV3 popup) derived from the real `application_status` enum: `APPLIED, SCREENING, INTERVIEWING, OFFER_RECEIVED, OFFER_ACCEPTED`. Route 409 guard (`APPLICATION_ALREADY_SUBMITTED`) and popup Protected/read-only state use the same semantics; `SAVED` remains editable/preparable.
+2. **Zero-fabrication fit analysis** — `/analyze-job` no longer returns fabricated `Grade B / 50` when the authoritative fit service fails. It returns HTTP 503 with machine-readable `ANALYSIS_UNAVAILABLE`, a safe user message, and NO score/grade/recommendation payload. The popup renders an explicit error/unavailable state. Successful and low-fit authoritative results pass through unchanged (failure is never converted into low-fit).
+
+**SHOULD-FIX implemented:**
+3. **CORS origin allowlist** (`src/security/cors-allowlist.js` + `EXTENSION_ALLOWED_ORIGINS` env) — exact-match origins only, no wildcards for credentialed traffic, loopback dev origins only outside production, unknown origins receive no CORS headers, `Vary: Origin` set, explicit OPTIONS preflight route added (plugin-scoped hooks don't run on unregistered routes), opaque-scheme-safe origin normalization for `chrome-extension://`.
+4. **Cross-candidate package read scoping** — `ApplicationTrackingService` package retrieval/read paths now scope by `candidateId` + `tenantId` (not `packageId` alone); threaded through extension validate/preview routes.
+5. **Employment-type word-boundary classifier** (`extension/job-detection/employment-type.js`) — replaces per-adapter substring matching in all 5 ATS adapters (Greenhouse, Lever, Workday, LinkedIn, Indeed): `\bintern(ship)?\b` semantics; `internal`, `international`, `internet` no longer classify as INTERN. Generic adapter reads structured JSON-LD employmentType (no substring bug existed).
+6. **Popup regression coverage** — `tests/unit/extension-popup-controller.test.js` (12 tests): authenticated, not-authenticated, protected submitted, SAVED editable, successful analysis passthrough, analysis-service failure, NO fake Grade B/50, validation PASSED, job-not-detected, download-ready.
+
+**Test evidence (all green):**
+- Real Chrome acceptance: **10/10 PASS** (exit 0, 2026-09-08)
+- Hardening integration (`tests/integration/p15-002-hardening.test.js`): **26/26 PASS**
+- Popup unit: **12/12 PASS**
+- Existing unit (job-detector + zip-packager): **13/13 PASS**
+- Existing integration (extension-api + extension-matrix): **25/25 PASS**
+- ESLint (all touched files): **0 errors, 0 warnings**

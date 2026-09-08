@@ -1,3 +1,5 @@
+import { classifyEmploymentType } from '../employment-type.js';
+
 /**
  * @file Indeed Job Page Extraction Adapter (P15-001).
  *
@@ -86,7 +88,7 @@ export class IndeedAdapter {
       company,
       location: location || 'Not specified',
       workplace,
-      employmentType: combinedText.includes('intern') ? 'INTERN' : combinedText.includes('contract') ? 'CONTRACT' : 'FULL_TIME',
+      employmentType: classifyEmploymentType(combinedText),
       description,
       requirements: requirements.slice(0, 30),
       responsibilities: [],

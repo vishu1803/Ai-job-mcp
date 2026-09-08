@@ -33,6 +33,8 @@ import { ApplicationTrackingService } from '../services/application-tracking.ser
 import { handleAnalyzeJobFit } from '../mcp/tools/career-read-tools.js';
 import { handleRecommendPortfolioProjects } from '../mcp/tools/career-artifact-tools.js';
 import { ConflictError, NotFoundError } from '../errors/index.js';
+import { isSubmittedApplication } from '../domain/career/application-status.constants.js';
+import { buildExtensionAllowedOrigins, isAllowedExtensionOrigin } from '../security/cors-allowlist.js';
 
 /**
  * Resolves session context from cookies or Bearer Authorization header.
@@ -116,19 +118,23 @@ export default async function extensionRoutes(app, opts = {}) {
     opts.jobApplicationWorkflowService || new JobApplicationWorkflowService({ database });
   const trackingService =
     opts.applicationTrackingService || new ApplicationTrackingService({ database });
+  // Injectable authoritative tool implementations (tests may override to force
+  // success / low-fit / failure outcomes deterministically).
+  const analyzeJobFit = opts.careerReadToolsOverride?.handleAnalyzeJobFit || handleAnalyzeJobFit;
+  const recommendProjects =
+    opts.careerArtifactToolsOverride?.handleRecommendPortfolioProjects || handleRecommendPortfolioProjects;
 
-  // Handle Chrome extension CORS & Preflight
+  // Handle Chrome extension CORS & Preflight via explicit origin allowlist (P15-002).
+  // - Wildcard origins are never honored for credentialed API traffic.
+  // - Loopback dev origins are permitted only outside production.
+  // - Unknown origins receive NO CORS headers (browser blocks credentialed reads).
+  const allowedOrigins = buildExtensionAllowedOrigins(config);
   app.addHook('onRequest', async (req, reply) => {
     const origin = req.headers.origin;
-    if (
-      origin &&
-      (origin.startsWith('chrome-extension://') ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1') ||
-        origin.includes('aicareershub.tech'))
-    ) {
+    if (origin && isAllowedExtensionOrigin(origin, allowedOrigins)) {
       reply.header('Access-Control-Allow-Origin', origin);
       reply.header('Access-Control-Allow-Credentials', 'true');
+      reply.header('Vary', 'Origin');
       reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       reply.header(
         'Access-Control-Allow-Headers',
@@ -138,6 +144,13 @@ export default async function extensionRoutes(app, opts = {}) {
     if (req.method === 'OPTIONS') {
       return reply.code(204).send();
     }
+  });
+
+  // CORS preflight: explicit OPTIONS route so the plugin-scoped onRequest hook
+  // (which only runs for registered routes) can emit allowlist-based CORS
+  // headers instead of the request falling through to the 404 handler.
+  app.options('/*', async (_req, reply) => {
+    return reply.code(204).send();
   });
 
   // -------------------------------------------------------------------------
@@ -276,8 +289,7 @@ export default async function extensionRoutes(app, opts = {}) {
         packageVersion: match.metadata?.currentPackageVersion || 1,
       };
 
-      const submittedStatuses = ['APPLIED', 'INTERVIEWING', 'OFFER', 'ACCEPTED'];
-      if (submittedStatuses.includes(match.status) || match.appliedAt != null) {
+      if (isSubmittedApplication(match)) {
         isSubmitted = true;
       }
     }
@@ -291,29 +303,32 @@ export default async function extensionRoutes(app, opts = {}) {
     };
 
     // 4. Job Fit Analysis (Authoritative Career Read MCP tool)
+    // Zero-fabrication invariant: on authoritative-service failure we must NOT
+    // return guessed/default fit values that could be mistaken for real analysis.
     let fitAnalysis = null;
+    let analysisError = null;
     try {
-      const fitResult = await handleAnalyzeJobFit(mcpContext, {
+      const fitResult = await analyzeJobFit(mcpContext, {
         jobDescriptionText: jobDescriptionText || `${title} at ${company}`,
         jobTitle: title,
         companyName: company,
       });
       fitAnalysis = fitResult?.structuredData || fitResult;
     } catch (err) {
-      req.log.warn({ error: err.message }, 'handleAnalyzeJobFit encountered an error');
-      fitAnalysis = {
-        overallFit: { atsScore: 50, fitGrade: 'B', recommendation: 'MODERATE_FIT' },
-        matches: [],
-        partialMatches: [],
-        missingRequirements: [],
-        hardBlockers: [],
+      req.log.warn({ error: err.message }, 'handleAnalyzeJobFit failed — returning explicit analysis failure');
+      analysisError = {
+        code: 'ANALYSIS_UNAVAILABLE',
+        message: 'Job fit analysis is temporarily unavailable. Please try again shortly.',
       };
     }
 
     // 5. Portfolio Recommendation (Authoritative Career Artifact MCP tool)
+    // Zero-fabrication invariant: on failure return empty recommendations with an
+    // explicit error marker — never synthetic projects.
     let portfolioRecommendations = null;
+    let portfolioError = null;
     try {
-      const portfolioResult = await handleRecommendPortfolioProjects(mcpContext, {
+      const portfolioResult = await recommendProjects(mcpContext, {
         candidateId: candidate.id,
         jobDescriptionText:
           jobDescriptionText.length >= 50
@@ -328,12 +343,46 @@ export default async function extensionRoutes(app, opts = {}) {
         complementarityScore: pData?.complementarityScore ?? null,
       };
     } catch (err) {
-      req.log.warn({ error: err.message }, 'handleRecommendPortfolioProjects encountered an error');
+      req.log.warn({ error: err.message }, 'handleRecommendPortfolioProjects failed — returning empty recommendations');
       portfolioRecommendations = {
         featuredProjects: [],
         omittedProjects: [],
         complementarityScore: null,
       };
+      portfolioError = {
+        code: 'RECOMMENDATIONS_UNAVAILABLE',
+        message: 'Portfolio project recommendations are temporarily unavailable.',
+      };
+    }
+
+    // Zero-fabrication: if the authoritative fit analysis failed, return an
+    // explicit error response with NO score/grade/recommendation payload.
+    if (analysisError) {
+      return reply.code(503).send({
+        error: 'Service Unavailable',
+        code: 'ANALYSIS_UNAVAILABLE',
+        message: analysisError.message,
+        canonicalJob: {
+          canonicalJobId,
+          normalizedJobUrl,
+          title,
+          company,
+          location: job.location || 'Not specified',
+          workplace: job.workplace || 'UNKNOWN',
+          employmentType: job.employmentType || 'FULL_TIME',
+          provider: job.provider || 'COMPANY_CAREERS',
+        },
+        existingApplication: existingApp,
+        isSubmitted,
+        fitAnalysis: null,
+        portfolioRecommendations,
+        portfolioError,
+        candidateProfile: {
+          id: candidate.id,
+          displayName: candidate.displayName,
+          isConnected: true,
+        },
+      });
     }
 
     return reply.send({
@@ -436,7 +485,6 @@ export default async function extensionRoutes(app, opts = {}) {
     }
 
     // 1. Guard against mutations on submitted applications
-    const submittedStatuses = ['APPLIED', 'INTERVIEWING', 'OFFER', 'ACCEPTED'];
     if (applicationId) {
       const [appRow] = await database
         .select()
@@ -449,7 +497,7 @@ export default async function extensionRoutes(app, opts = {}) {
         )
         .limit(1);
 
-      if (appRow && (submittedStatuses.includes(appRow.status) || appRow.appliedAt != null)) {
+      if (appRow && isSubmittedApplication(appRow)) {
         return reply.code(409).send({
           error: 'Conflict',
           code: 'APPLICATION_ALREADY_SUBMITTED',
@@ -473,7 +521,7 @@ export default async function extensionRoutes(app, opts = {}) {
         return false;
       });
 
-      if (match && (submittedStatuses.includes(match.status) || match.appliedAt != null)) {
+      if (match && isSubmittedApplication(match)) {
         return reply.code(409).send({
           error: 'Conflict',
           code: 'APPLICATION_ALREADY_SUBMITTED',
@@ -594,6 +642,7 @@ export default async function extensionRoutes(app, opts = {}) {
     const mcpContext = {
       tenantId: tenant.id,
       userId: user.id,
+      candidateId: candidate.id,
       role: 'MEMBER',
     };
 
@@ -656,7 +705,7 @@ export default async function extensionRoutes(app, opts = {}) {
     }
 
     const { user, tenant } = sessionContext;
-    await getOrCreateCandidate(database, tenant.id, user);
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
     const { applicationId, packageHash } = req.body || {};
 
     if (!applicationId) {
@@ -669,6 +718,7 @@ export default async function extensionRoutes(app, opts = {}) {
     const mcpContext = {
       tenantId: tenant.id,
       userId: user.id,
+      candidateId: candidate.id,
       role: 'MEMBER',
     };
 

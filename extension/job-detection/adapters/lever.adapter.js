@@ -1,3 +1,5 @@
+import { classifyEmploymentType } from '../employment-type.js';
+
 /**
  * @file Lever Job Page Extraction Adapter (P15-001).
  *
@@ -97,7 +99,7 @@ export class LeverAdapter {
       company: company || 'Company',
       location: location || 'Not specified',
       workplace,
-      employmentType: combinedText.includes('intern') ? 'INTERN' : combinedText.includes('contract') ? 'CONTRACT' : 'FULL_TIME',
+      employmentType: classifyEmploymentType(combinedText),
       description: description.trim(),
       requirements: requirements.slice(0, 30),
       responsibilities: [],

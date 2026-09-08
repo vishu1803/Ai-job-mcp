@@ -9,8 +9,9 @@
 import { BackendClient } from '../api/backend-client.js';
 import { AuthClient } from '../auth/auth-client.js';
 import { DownloadManager } from '../downloads/download-manager.js';
+import { isSubmittedApplicationStatus } from '../lib/application-status.constants.js';
 
-class PopupController {
+export class PopupController {
   constructor() {
     this.backendClient = new BackendClient();
     this.authClient = new AuthClient(this.backendClient);
@@ -288,6 +289,15 @@ class PopupController {
       this.analysisData = result;
       this.existingApplication = result.existingApplication || null;
 
+      // P15-002 zero-fabrication: an authoritative-analysis failure must be
+      // surfaced as an error, never as a guessed score/grade.
+      if (result.code === 'ANALYSIS_UNAVAILABLE' || !result.fitAnalysis) {
+        const reason = result.message || 'Job fit analysis is temporarily unavailable.';
+        this.showAlert(`Analysis unavailable: ${reason}`);
+        this.showState(this.stateDetected);
+        return;
+      }
+
       if (result.existingApplication) {
         this.existingAppBadge.textContent = `SAVED v${result.existingApplication.packageVersion || 1}`;
         this.existingAppBadge.classList.remove('hidden');
@@ -295,7 +305,12 @@ class PopupController {
         this.existingAppBadge.classList.add('hidden');
       }
 
-      if (result.isSubmitted) {
+      // P15-002: protection state derived from the authoritative shared
+      // predicate so the popup never drifts from backend semantics.
+      const statusIsSubmitted =
+        result.isSubmitted ||
+        isSubmittedApplicationStatus(result.existingApplication?.status);
+      if (statusIsSubmitted) {
         this.submittedWarning.classList.remove('hidden');
         this.prepareHandoffBtn.disabled = true;
         this.prepareHandoffBtn.textContent = 'Application Submitted (Protected)';
@@ -493,7 +508,7 @@ class PopupController {
   }
 }
 
-function escapeHtml(str) {
+export function escapeHtml(str) {
   if (!str) return '';
   return String(str)
     .replace(/&/g, '&amp;')
@@ -502,7 +517,10 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const controller = new PopupController();
-  controller.init();
-});
+// Only auto-bootstrap when running inside the real popup document (not under test).
+if (typeof document !== 'undefined' && document.getElementById('authStatusPill')) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const controller = new PopupController();
+    controller.init();
+  });
+}

@@ -255,6 +255,8 @@ export function buildApp(opts = {}) {
     db: opts.db,
     jobApplicationWorkflowService: opts.jobApplicationWorkflowService,
     applicationTrackingService: opts.applicationTrackingService,
+    careerReadToolsOverride: opts.careerReadToolsOverride,
+    careerArtifactToolsOverride: opts.careerArtifactToolsOverride,
   });
 
   // Human Web Application & View Routes (/, /login, /onboarding, /dashboard, /connect, /settings, /docs/mcp)

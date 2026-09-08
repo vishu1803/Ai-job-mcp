@@ -110,6 +110,14 @@ const envSchema = z
     OAUTH_REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(2592000),
     OAUTH_AUTH_CODE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
 
+    // CORS origin allowlist for authenticated extension API traffic (P15-002).
+    // Comma-separated list of exact origins permitted to make credentialed
+    // requests to /api/extension/*. In production this MUST be explicitly
+    // configured (e.g. the web app origin + chrome-extension://<id> origins).
+    // Wildcards are not honored. Loopback dev origins are allowed only in
+    // non-production environments.
+    EXTENSION_ALLOWED_ORIGINS: z.string().optional().default(''),
+
     // Job Board API Configuration (comma-separated board tokens / site names)
     // Example: GREENHOUSE_BOARDS=stripe,github,vercel
     // Example: LEVER_SITES=leverdemo,notion,figma

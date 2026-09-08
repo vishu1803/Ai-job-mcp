@@ -1252,17 +1252,23 @@ export class ApplicationTrackingService {
       throw new ValidationError('applicationId is required');
     }
     const tenantId = context.tenantId;
+    const candidateId = context.candidateId || null;
+
+    // P15-002: enforce candidate scoping when the authenticated principal is
+    // known — a package must be readable only by its owning candidate.
+    const conditions = [
+      eq(applicationPackages.applicationId, applicationId),
+      eq(applicationPackages.tenantId, tenantId),
+      eq(applicationPackages.lifecycleState, 'CURRENT'),
+    ];
+    if (candidateId) {
+      conditions.push(eq(applicationPackages.candidateId, candidateId));
+    }
 
     const [current] = await this.db
       .select()
       .from(applicationPackages)
-      .where(
-        and(
-          eq(applicationPackages.applicationId, applicationId),
-          eq(applicationPackages.tenantId, tenantId),
-          eq(applicationPackages.lifecycleState, 'CURRENT')
-        )
-      )
+      .where(and(...conditions))
       .orderBy(desc(applicationPackages.version))
       .limit(1);
 
@@ -1323,6 +1329,7 @@ export class ApplicationTrackingService {
       throw new ValidationError('version or packageHash is required');
     }
     const tenantId = context.tenantId;
+    const candidateId = context.candidateId || null;
 
     const isVersionNumber =
       !isNaN(Number(versionOrHash)) && Number.isInteger(Number(versionOrHash));
@@ -1331,16 +1338,21 @@ export class ApplicationTrackingService {
       ? eq(applicationPackages.version, Number(versionOrHash))
       : eq(applicationPackages.packageHash, String(versionOrHash));
 
+    // P15-002: enforce candidate scoping when the authenticated principal is
+    // known — a package must be readable only by its owning candidate.
+    const conditions = [
+      eq(applicationPackages.applicationId, applicationId),
+      eq(applicationPackages.tenantId, tenantId),
+      condition,
+    ];
+    if (candidateId) {
+      conditions.push(eq(applicationPackages.candidateId, candidateId));
+    }
+
     const [pkg] = await this.db
       .select()
       .from(applicationPackages)
-      .where(
-        and(
-          eq(applicationPackages.applicationId, applicationId),
-          eq(applicationPackages.tenantId, tenantId),
-          condition
-        )
-      )
+      .where(and(...conditions))
       .limit(1);
 
     if (!pkg) {
