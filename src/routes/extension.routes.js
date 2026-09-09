@@ -45,6 +45,52 @@ import {
 import { buildExtensionAllowedOrigins, isAllowedExtensionOrigin } from '../security/cors-allowlist.js';
 
 /**
+ * Maps the authoritative analyze_job_fit MCP output contract to the extension's
+ * fitAnalysis response shape (P16-001F-5).
+ *
+ * The MCP tool emits `requirementMatches[]` with `matchStatus` /
+ * `normalizedRequirement` — it never emits `matches`, `partialMatches`,
+ * `missingRequirements`, or `hardBlockers`. Mapping those nonexistent fields
+ * produced permanently empty Requirements-tab data despite a healthy
+ * parser/matcher/snapshot pipeline.
+ *
+ * @param {object|null} fitAnalysis Raw analyzeJobFit structured output
+ * @returns {{ matches: Array, partialMatches: Array, missingRequirements: Array, hardBlockers: Array }}
+ */
+export function serializeRequirementMatchesForExtension(fitAnalysis) {
+  const requirementMatches = Array.isArray(fitAnalysis?.requirementMatches)
+    ? fitAnalysis.requirementMatches
+    : [];
+
+  const toDisplay = (m) => ({
+    requirement:
+      m.normalizedRequirement || m.originalRequirement || m.extractedValue || '',
+    status: m.matchStatus || 'UNKNOWN',
+    category: m.category || 'SKILL',
+    explanation: m.explanation || '',
+    matchConfidence: typeof m.matchConfidence === 'number' ? m.matchConfidence : 0,
+  });
+
+  const matches = [];
+  const partialMatches = [];
+  const missingRequirements = [];
+  for (const m of requirementMatches) {
+    const status = String(m.matchStatus || 'UNKNOWN').toUpperCase();
+    if (status === 'MATCHED') matches.push(toDisplay(m));
+    else if (status === 'PARTIAL') partialMatches.push(toDisplay(m));
+    else if (status === 'MISSING') missingRequirements.push(toDisplay(m));
+    // UNKNOWN statuses are intentionally not surfaced as hard missing/blocking.
+  }
+
+  // Hard blockers: critical-priority gaps reported by the matcher, when present.
+  const hardBlockers = Array.isArray(fitAnalysis?.hardBlockers)
+    ? fitAnalysis.hardBlockers
+    : [];
+
+  return { matches, partialMatches, missingRequirements, hardBlockers };
+}
+
+/**
  * Resolves session context from cookies or Bearer Authorization header.
  *
  * @param {import('fastify').FastifyRequest} req
@@ -498,10 +544,9 @@ export default async function extensionRoutes(app, opts = {}) {
           fitAnalysis?.overallFit?.recommendation ??
           fitAnalysis?.recommendation ??
           'MODERATE_FIT',
-        matches: fitAnalysis?.matches || [],
-        partialMatches: fitAnalysis?.partialMatches || [],
-        missingRequirements: fitAnalysis?.missingRequirements || [],
-        hardBlockers: fitAnalysis?.hardBlockers || [],
+        // P16-001F-5: derive from the authoritative requirementMatches contract
+        // (matches/partialMatches/missingRequirements never existed on the MCP output).
+        ...serializeRequirementMatchesForExtension(fitAnalysis),
         seniorityFit: fitAnalysis?.seniorityFit,
       },
       portfolioRecommendations,

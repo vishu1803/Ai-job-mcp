@@ -226,11 +226,21 @@ export class CandidateProfileService {
     // to the previous per-project query results.
     const projectIds = rawProjects.map((p) => p.id);
 
+    // P16-001F-5: join resources so each project carries resolved URLs. The
+    // prior query fetched only the link rows (resourceId), so the profile view
+    // exposed linkedResourceCount but never the repository/portfolio URL itself.
     const linkedResourceRows =
       projectIds.length > 0
         ? await this._db
-            .select()
+            .select({
+              pr: projectResources,
+              resourceUrl: resources.url,
+              resourceType: resources.resourceType,
+              resourceDisplayName: resources.displayName,
+              resourceName: resources.name,
+            })
             .from(projectResources)
+            .innerJoin(resources, eq(projectResources.resourceId, resources.id))
             .where(
               and(
                 eq(projectResources.tenantId, tenantId),
@@ -240,10 +250,10 @@ export class CandidateProfileService {
         : [];
     const linkedResourcesByProjectId = new Map();
     for (const prRow of linkedResourceRows) {
-      if (!linkedResourcesByProjectId.has(prRow.projectId)) {
-        linkedResourcesByProjectId.set(prRow.projectId, []);
+      if (!linkedResourcesByProjectId.has(prRow.pr.projectId)) {
+        linkedResourcesByProjectId.set(prRow.pr.projectId, []);
       }
-      linkedResourcesByProjectId.get(prRow.projectId).push(prRow);
+      linkedResourcesByProjectId.get(prRow.pr.projectId).push(prRow);
     }
 
     const projectEvidenceRows =
@@ -294,6 +304,21 @@ export class CandidateProfileService {
       const linkedRes = linkedResourcesByProjectId.get(proj.id) || [];
       const projEvidenceRows = evidenceByProjectId.get(proj.id) || [];
 
+      // P16-001F-5: resolve canonical project URL fields from linked resources.
+      // REPOSITORY → repositoryUrl; PORTFOLIO_SITE/DOCUMENT → liveUrl. First match
+      // wins (rows are in DB encounter order); no aliases invented.
+      let repositoryUrl = null;
+      let liveUrl = null;
+      for (const linked of linkedRes) {
+        const url = linked.resourceUrl || null;
+        if (!url) continue;
+        if (!repositoryUrl && linked.resourceType === 'REPOSITORY') {
+          repositoryUrl = url;
+        } else if (!liveUrl && (linked.resourceType === 'PORTFOLIO_SITE' || linked.resourceType === 'DOCUMENT')) {
+          liveUrl = url;
+        }
+      }
+
       projectList.push({
         id: proj.id,
         name: proj.name,
@@ -305,6 +330,8 @@ export class CandidateProfileService {
         startDate: proj.startDate ? String(proj.startDate) : null,
         endDate: proj.endDate ? String(proj.endDate) : null,
         linkedResourceCount: linkedRes.length,
+        repositoryUrl,
+        liveUrl,
         evidence: projEvidenceRows.map((e) => EvidenceRefMapper.toEvidenceNode(e)),
         metadata: proj.metadata || {},
         createdAt: proj.createdAt ? new Date(proj.createdAt).toISOString() : null,

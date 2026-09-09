@@ -527,11 +527,14 @@ export function reconcileCandidateProjects({
     const candidateResolvedUrl =
       pp.metadata?.sourceUrl ||
       pp.metadata?.repositoryUrl ||
+      pp.repositoryUrl || // P16-001F-5: canonical top-level URL resolved from linked resources
       stored?.metadata?.sourceUrl ||
       stored?.metadata?.repositoryUrl ||
       pp.url ||
       null;
     const resolvedUrl = isRealUrl(candidateResolvedUrl) ? candidateResolvedUrl : null;
+    // P16-001F-5: live/demo URL now flows from the profile view's linked resources.
+    const profileLiveUrl = isRealUrl(pp.liveUrl) ? pp.liveUrl : null;
 
     const evidence = Array.isArray(pp.evidence) ? pp.evidence : [];
     const evidenceCount = evidence.length;
@@ -549,6 +552,21 @@ export function reconcileCandidateProjects({
 
     const existing = projectMap.get(key);
     if (!existing) {
+      // P16-001F-5: prefer candidate-owned top-level fields, then candidate-owned
+      // metadata (bullets/technologies/description), before evidence-derived
+      // synthesis. groundAndSanitizeProject() synthesis now only fires for
+      // genuinely bullet-less projects.
+      const profileBullets = Array.isArray(pp.bullets)
+        ? pp.bullets
+        : Array.isArray(pp.metadata?.bullets)
+          ? pp.metadata.bullets
+          : [];
+      const profileTechSource =
+        Array.isArray(pp.technologies) && pp.technologies.length > 0
+          ? pp.technologies
+          : Array.isArray(pp.metadata?.technologies)
+            ? pp.metadata.technologies
+            : [];
       projectMap.set(key, {
         // P16-001F-3B: preserve the authoritative candidate-owned project identity.
         // buildStructuredResumeDocument resolves selectedProjectIds (UUIDs from the
@@ -558,11 +576,15 @@ export function reconcileCandidateProjects({
         name: formatProjectDisplayName(rawName),
         slug: key,
         title: formatProjectDisplayName(rawName),
-        summary: pp.summary || pp.headline || null,
-        bullets: Array.isArray(pp.bullets) ? pp.bullets : [],
-        technologies: repoTech,
+        summary: pp.summary || pp.headline || pp.metadata?.description || null,
+        bullets: profileBullets,
+        technologies: cleanResumeFacingTechnologies([
+          ...profileTechSource,
+          ...(Array.isArray(pp.primaryLanguages) ? pp.primaryLanguages : []),
+          ...evidenceTech,
+        ]),
         repositoryUrl: resolvedUrl,
-        liveUrl: null,
+        liveUrl: profileLiveUrl,
         evidence,
         evidenceCount,
         provenanceStatus: 'VERIFIED',
@@ -573,6 +595,8 @@ export function reconcileCandidateProjects({
       // enrich it with the authoritative candidate-owned identity when available.
       if (!existing.id && (pp.id || pp.projectId)) existing.id = pp.id || pp.projectId;
       if (!existing.repositoryUrl && resolvedUrl) existing.repositoryUrl = resolvedUrl;
+      // P16-001F-5: propagate live/demo URL through the merge path as well.
+      if (!existing.liveUrl && profileLiveUrl) existing.liveUrl = profileLiveUrl;
       if (evidence.length > 0) {
         existing.evidence = evidence;
         existing.evidenceCount = evidenceCount;

@@ -42,10 +42,35 @@ export class GreenhouseAdapter {
   static extract(doc, url) {
     const titleEl =
       doc.querySelector('#app_body .app-title') ||
-      doc.querySelector('.job__title') ||
+      doc.querySelector('.job__title h1') ||
+      doc.querySelector('.job__heading') ||
       doc.querySelector('h1.app-title') ||
       doc.querySelector('h1.job-title') ||
+      doc.querySelector('.job__title') ||
       doc.querySelector('h1');
+
+    // P16-001F-5: current Greenhouse boards nest div.job__location INSIDE the
+    // title block (div.job__title > h1 + div.job__location). Reading the
+    // wrapper's textContent glues location into the title (e.g.
+    // "Software Engineer, AgentHybrid - New York City"). Read from a detached
+    // clone with location nodes stripped so the title stays clean; the live
+    // DOM is never mutated.
+    let titleText = '';
+    if (titleEl) {
+      if (typeof titleEl.cloneNode === 'function') {
+        const titleClone = titleEl.cloneNode(true);
+        if (titleClone.querySelectorAll) {
+          titleClone.querySelectorAll('.job__location, .location').forEach((node) => {
+            if (typeof node.remove === 'function') node.remove();
+          });
+        }
+        titleText = titleClone.textContent.trim();
+      } else {
+        // Minimal mock/stub elements without DOM clone support.
+        titleText = titleEl.textContent.trim();
+      }
+    }
+    const title = titleText;
 
     const companyEl =
       doc.querySelector('.company-name') ||
@@ -73,7 +98,6 @@ export class GreenhouseAdapter {
       }
     }
 
-    const title = titleEl ? titleEl.textContent.trim() : '';
     const location = locationEl ? locationEl.textContent.trim() : '';
 
     // P15-002 Batch 3: JSON-LD fallback — when provider-DOM extraction fails
