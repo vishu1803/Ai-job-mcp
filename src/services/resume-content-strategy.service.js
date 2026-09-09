@@ -863,7 +863,17 @@ export function deriveSectionOrdering({ candidateProfile, _jobPosting = null, op
   const experiences = meta.experience || profile.experience || profile.workExperience || [];
   const education = meta.education || profile.education || [];
   const certifications = meta.certifications || profile.certifications || [];
-  const dsa = meta.dsa || profile.dsa || null;
+  // DSA detection MUST match the structured snapshot builder's alias resolution
+  // (structured-resume.service.js: meta.dsa || source.dsa || source.problemSolving || meta.problemSolving).
+  // The real candidate flow attaches DSA under the top-level 'problemSolving' alias;
+  // missing it here silently drops DSA from sectionOrder while structuredResume.dsa stays populated.
+  const dsa =
+    meta.dsa ||
+    profile.dsa ||
+    profile.problemSolving ||
+    meta.problemSolving ||
+    meta.resumeData?.problemSolving ||
+    null;
 
   const tenureMetrics = TenureCalculator.calculateTenure(experiences);
   const candidateSeniority = CareerStatusDerivation.deriveSeniority({

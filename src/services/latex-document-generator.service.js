@@ -567,6 +567,26 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
       .map((s) => String(s).toUpperCase())
       .filter((s) => s !== 'HEADER');
 
+    // DSA safety net (mirrors the legacy renderer's explicit-selection rule):
+    // if the structured snapshot carries real candidate-owned DSA content, DSA must
+    // reach the PDF even if the ordering derivation missed it. The page-budget logic
+    // governs PROJECTS, not whether candidate-owned DSA survives. No content is
+    // synthesized here: dsaLatexSection is empty unless structuredResume.dsa has
+    // candidate-owned bullets/URL, so an empty DSA block adds nothing.
+    if (!authoritativeOrder.includes('DSA')) {
+      const dsaHasRealContent = Boolean(
+        dsaLatexSection && typeof dsaLatexSection === 'string' && dsaLatexSection.trim().length > 0
+      );
+      if (dsaHasRealContent) {
+        const projIdx = authoritativeOrder.indexOf('PROJECTS');
+        if (projIdx !== -1) {
+          authoritativeOrder.splice(projIdx + 1, 0, 'DSA');
+        } else {
+          authoritativeOrder.push('DSA');
+        }
+      }
+    }
+
     const renderedSectionBlocks = [];
     let isFirstSection = true;
     const addedCanonical = new Set();

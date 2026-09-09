@@ -636,14 +636,20 @@ export class ResumeLayoutEngine {
 
     switch (density) {
       case DENSITY_CLASSIFICATION.TOO_SPARSE: {
-        const expansionRoom = Math.min(budget.remainingBudgetPt, 80);
+        // Bounded expansion: distribute unused page space into vertical rhythm so the
+        // page fills naturally from top to bottom. Caps keep the result professional
+        // (no ballooned gaps) and the spacing-hierarchy invariant still holds below.
+        const expansionRoom = Math.min(budget.remainingBudgetPt, 110);
         const sectionCount = budget.activeSectionCount;
         if (sectionCount > 0 && expansionRoom > 0) {
-          const extraPerSection = Math.min(expansionRoom / sectionCount, 3.5);
+          const extraPerSection = Math.min(expansionRoom / sectionCount, 6.0);
           adapted[SPACING_RELATIONSHIPS.SECTION_TO_SECTION] += extraPerSection;
-          adapted[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] += Math.min(extraPerSection * 0.4, 1.5);
-          adapted[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] += Math.min(extraPerSection * 0.25, 1.0);
-          adapted[SPACING_RELATIONSHIPS.HEADER_TO_SECTION] += Math.min(extraPerSection * 0.4, 2.0);
+          adapted[SPACING_RELATIONSHIPS.ENTRY_TO_ENTRY] += Math.min(extraPerSection * 0.6, 3.0);
+          adapted[SPACING_RELATIONSHIPS.HEADING_TO_CONTENT] += Math.min(extraPerSection * 0.4, 2.0);
+          adapted[SPACING_RELATIONSHIPS.HEADER_TO_SECTION] += Math.min(extraPerSection * 0.6, 3.0);
+          adapted[SPACING_RELATIONSHIPS.PROJECT_TITLE_TO_TECH] += Math.min(extraPerSection * 0.15, 0.8);
+          adapted[SPACING_RELATIONSHIPS.PROJECT_TECH_TO_BULLETS] += Math.min(extraPerSection * 0.25, 1.2);
+          adapted[SPACING_RELATIONSHIPS.BULLET_TO_BULLET] += Math.min(extraPerSection * 0.18, 1.0);
         }
         break;
       }
