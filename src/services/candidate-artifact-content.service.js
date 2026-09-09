@@ -550,6 +550,11 @@ export function reconcileCandidateProjects({
     const existing = projectMap.get(key);
     if (!existing) {
       projectMap.set(key, {
+        // P16-001F-3B: preserve the authoritative candidate-owned project identity.
+        // buildStructuredResumeDocument resolves selectedProjectIds (UUIDs from the
+        // analysis snapshot) against this id — dropping it silently omitted every
+        // reconciled project from structuredResume.projects.
+        id: pp.id || pp.projectId || undefined,
         name: formatProjectDisplayName(rawName),
         slug: key,
         title: formatProjectDisplayName(rawName),
@@ -564,6 +569,9 @@ export function reconcileCandidateProjects({
         isArchived,
       });
     } else {
+      // P16-001F-3B: the entry may originate from curated resumeData (no id);
+      // enrich it with the authoritative candidate-owned identity when available.
+      if (!existing.id && (pp.id || pp.projectId)) existing.id = pp.id || pp.projectId;
       if (!existing.repositoryUrl && resolvedUrl) existing.repositoryUrl = resolvedUrl;
       if (evidence.length > 0) {
         existing.evidence = evidence;
@@ -592,20 +600,21 @@ export function reconcileCandidateProjects({
     if (isArchived && sp.name) {
       const key = slugifyProject(sp.name) + '-archived';
       if (!projectMap.has(key)) {
-        projectMap.set(key, {
-          name: formatProjectDisplayName(sp.name),
-          slug: key,
-          title: formatProjectDisplayName(sp.name),
-          summary: sp.summary || null,
-          bullets: [],
-          technologies: Array.isArray(sp.primaryLanguages) ? sp.primaryLanguages : [],
-          repositoryUrl: sp.metadata?.sourceUrl || null,
-          liveUrl: null,
-          evidence: [],
-          evidenceCount: 0,
-          provenanceStatus: 'CLAIMED',
-          isArchived: true,
-        });
+      projectMap.set(key, {
+        id: sp.id || sp.projectId || undefined,
+        name: formatProjectDisplayName(sp.name),
+        slug: key,
+        title: formatProjectDisplayName(sp.name),
+        summary: sp.summary || null,
+        bullets: [],
+        technologies: Array.isArray(sp.primaryLanguages) ? sp.primaryLanguages : [],
+        repositoryUrl: sp.metadata?.sourceUrl || null,
+        liveUrl: null,
+        evidence: [],
+        evidenceCount: 0,
+        provenanceStatus: 'CLAIMED',
+        isArchived: true,
+      });
       }
     }
   }

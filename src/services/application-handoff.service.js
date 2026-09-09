@@ -26,6 +26,11 @@ import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
 import { ResumeParserService } from './resume-parser.service.js';
+import {
+  RESUME_GENERATION_CONTRACT_VERSION,
+  LEGACY_GENERATION_CONTRACT_VERSION,
+  DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
+} from '../domain/job/job-workflow.schemas.js';
 
 export class ApplicationHandoffService {
   /**
@@ -201,6 +206,18 @@ export class ApplicationHandoffService {
             viewUrl: artifact.viewUrl,
             downloadUrl: artifact.downloadUrl,
             packageHash: applicationPackage.packageHash,
+            generationContractVersion:
+              handoffKit.generationContractVersion ||
+              artifact.generationContractVersion ||
+              (applicationPackage.structuredResume || applicationPackage.tailoredResume?.structuredResume
+                ? RESUME_GENERATION_CONTRACT_VERSION
+                : LEGACY_GENERATION_CONTRACT_VERSION),
+            structuredResumeSchemaVersion:
+              handoffKit.structuredResumeSchemaVersion !== undefined
+                ? handoffKit.structuredResumeSchemaVersion
+                : artifact.structuredResumeSchemaVersion !== undefined
+                  ? artifact.structuredResumeSchemaVersion
+                  : null,
           },
         },
         integrityScore: artifact.qaAudit?.passed ? artifact.qaAudit.score / 100 : 0,
@@ -282,40 +299,67 @@ export class ApplicationHandoffService {
       }
     }
 
-    // If matching packageHash artifacts already exist, return them without re-generation.
-    // A kit for a DIFFERENT (non-current) packageHash must never be reused.
-    const currentMetaHash =
-      existingApp?.metadata?.currentPackageHash || existingApp?.metadata?.packageHash;
-    if (currentMetaHash && currentMetaHash !== packageHash) {
-      this.logger.info(
-        { applicationId, currentMetaHash, packageHash },
-        'Existing kit packageHash differs from incoming package; regenerating kit for the current package'
-      );
+    const currentContractVersion =
+      applicationPackage.generationContractVersion ||
+      applicationPackage.tailoredResume?.generationContractVersion ||
+      (structuredResume ? RESUME_GENERATION_CONTRACT_VERSION : LEGACY_GENERATION_CONTRACT_VERSION);
+
+    let currentSchemaVersion;
+    if (applicationPackage.structuredResumeSchemaVersion !== undefined) {
+      currentSchemaVersion = applicationPackage.structuredResumeSchemaVersion;
+    } else if (applicationPackage.tailoredResume?.structuredResumeSchemaVersion !== undefined) {
+      currentSchemaVersion = applicationPackage.tailoredResume.structuredResumeSchemaVersion;
+    } else if (structuredResume?.schemaVersion) {
+      currentSchemaVersion = structuredResume.schemaVersion;
+    } else if (currentContractVersion === LEGACY_GENERATION_CONTRACT_VERSION) {
+      currentSchemaVersion = null;
     } else {
-      const existingKit = existingApp?.metadata?.handoffKit;
-      if (
-        existingKit &&
-        existingKit.packageHash === packageHash &&
-        existingKit.resume?.storageKey
-      ) {
-        await this._attachTailoredDocumentSnapshots({
-          tenantId,
-          userId,
-          applicationId: existingApp.id,
-          applicationPackage,
-          handoffKit: existingKit,
-        });
-        this.logger.info(
-          { applicationId, packageHash },
-          'Reusing existing immutable handoff kit matching packageHash'
-        );
-        return existingKit;
-      }
+      currentSchemaVersion = DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION;
     }
 
-    // If matching packageHash artifacts already exist, return them without re-generation
     const existingKit = existingApp?.metadata?.handoffKit;
-    if (existingKit && existingKit.packageHash === packageHash && existingKit.resume?.storageKey) {
+
+    const existingKitContract =
+      existingKit?.generationContractVersion ||
+      existingKit?.resume?.generationContractVersion ||
+      (existingKit?.structuredResume || existingKit?.resume?.structuredResume
+        ? RESUME_GENERATION_CONTRACT_VERSION
+        : LEGACY_GENERATION_CONTRACT_VERSION);
+
+    let existingKitSchemaVersion;
+    if (existingKit?.structuredResumeSchemaVersion !== undefined) {
+      existingKitSchemaVersion = existingKit.structuredResumeSchemaVersion;
+    } else if (existingKit?.resume?.structuredResumeSchemaVersion !== undefined) {
+      existingKitSchemaVersion = existingKit.resume.structuredResumeSchemaVersion;
+    } else if (existingKitContract === LEGACY_GENERATION_CONTRACT_VERSION) {
+      existingKitSchemaVersion = null;
+    } else if (existingKit?.structuredResume?.schemaVersion) {
+      existingKitSchemaVersion = existingKit.structuredResume.schemaVersion;
+    } else {
+      existingKitSchemaVersion = DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION;
+    }
+
+    const contractMatches = existingKitContract === currentContractVersion;
+    const schemaMatches =
+      currentSchemaVersion === null || existingKitSchemaVersion === null
+        ? currentSchemaVersion === existingKitSchemaVersion
+        : existingKitSchemaVersion === currentSchemaVersion;
+    const hashMatches = existingKit?.packageHash === packageHash;
+    const hasStorageKey = Boolean(existingKit?.resume?.storageKey);
+    const belongsToApp =
+      !existingKit?.applicationId || !applicationId || existingKit.applicationId === applicationId;
+
+    // Artifact reuse requires BOTH identical packageHash AND matching generationContractVersion
+    // AND matching structuredResumeSchemaVersion AND valid application binding.
+    // A legacy artifact must NEVER satisfy a structured-package request (P16-001F-3A).
+    if (
+      existingKit &&
+      hashMatches &&
+      contractMatches &&
+      schemaMatches &&
+      hasStorageKey &&
+      belongsToApp
+    ) {
       await this._attachTailoredDocumentSnapshots({
         tenantId,
         userId,
@@ -324,10 +368,33 @@ export class ApplicationHandoffService {
         handoffKit: existingKit,
       });
       this.logger.info(
-        { applicationId, packageHash },
-        'Reusing existing immutable handoff kit matching packageHash'
+        {
+          applicationId,
+          packageHash,
+          generationContractVersion: currentContractVersion,
+          structuredResumeSchemaVersion: currentSchemaVersion,
+        },
+        'Reusing existing immutable handoff kit matching packageHash and generationContractVersion'
       );
       return existingKit;
+    } else if (existingKit) {
+      this.logger.info(
+        {
+          applicationId,
+          packageHash,
+          existingKitHash: existingKit.packageHash,
+          currentContractVersion,
+          existingKitContract,
+          currentSchemaVersion,
+          existingKitSchemaVersion,
+          hashMatches,
+          contractMatches,
+          schemaMatches,
+          hasStorageKey,
+          belongsToApp,
+        },
+        'Existing handoff kit not reusable due to contract/hash/schema mismatch; regenerating artifacts'
+      );
     }
 
     // 3. Document Generation: ATS Resume
@@ -527,6 +594,8 @@ export class ApplicationHandoffService {
     const handoffKit = {
       status: 'HANDOFF_READY',
       packageHash,
+      generationContractVersion: currentContractVersion,
+      structuredResumeSchemaVersion: currentSchemaVersion,
       applicationId: existingApp?.id || applicationId,
       submissionNotice: 'Prepared for manual submission. External submission has not occurred.',
       targetJob: {
@@ -544,6 +613,8 @@ export class ApplicationHandoffService {
         texStorageKey: storedResumeTex.storageKey,
         viewUrl: `/api/applications/${appRef}/artifacts/resume/view`,
         downloadUrl: `/api/applications/${appRef}/artifacts/resume/download`,
+        generationContractVersion: currentContractVersion,
+        structuredResumeSchemaVersion: currentSchemaVersion,
         qaAudit: {
           score: resumeQaAudit.score,
           qualityLevel: resumeQaAudit.qualityLevel,
@@ -563,6 +634,8 @@ export class ApplicationHandoffService {
         storageKey: storedClPdf.storageKey,
         viewUrl: `/api/applications/${appRef}/artifacts/cover-letter/view`,
         downloadUrl: `/api/applications/${appRef}/artifacts/cover-letter/download`,
+        generationContractVersion: currentContractVersion,
+        structuredResumeSchemaVersion: currentSchemaVersion,
         qaAudit: {
           score: clQaAudit.score,
           qualityLevel: clQaAudit.qualityLevel,

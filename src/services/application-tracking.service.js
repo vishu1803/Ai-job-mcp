@@ -1041,9 +1041,29 @@ export class ApplicationTrackingService {
         },
       });
 
+      const structuredResume = pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
+      const generationContractVersion =
+        pkg?.generationContractVersion ||
+        pkg?.tailoredResume?.generationContractVersion ||
+        (structuredResume ? 'P16-001F' : 'LEGACY');
+      let structuredResumeSchemaVersion;
+      if (pkg?.structuredResumeSchemaVersion !== undefined) {
+        structuredResumeSchemaVersion = pkg.structuredResumeSchemaVersion;
+      } else if (pkg?.tailoredResume?.structuredResumeSchemaVersion !== undefined) {
+        structuredResumeSchemaVersion = pkg.tailoredResume.structuredResumeSchemaVersion;
+      } else if (structuredResume?.schemaVersion) {
+        structuredResumeSchemaVersion = structuredResume.schemaVersion;
+      } else if (generationContractVersion === 'LEGACY') {
+        structuredResumeSchemaVersion = null;
+      } else {
+        structuredResumeSchemaVersion = '2.0.0';
+      }
+
       return {
         ...current,
         isReused: Boolean(existingVersion),
+        generationContractVersion,
+        structuredResumeSchemaVersion,
       };
     });
   }
@@ -1143,6 +1163,24 @@ export class ApplicationTrackingService {
     }
 
     const pkg = packageRow.packagePayload;
+    const structuredResume = pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
+    const generationContractVersion =
+      pkg?.generationContractVersion ||
+      pkg?.tailoredResume?.generationContractVersion ||
+      (structuredResume ? 'P16-001F' : 'LEGACY');
+
+    let structuredResumeSchemaVersion;
+    if (pkg?.structuredResumeSchemaVersion !== undefined) {
+      structuredResumeSchemaVersion = pkg.structuredResumeSchemaVersion;
+    } else if (pkg?.tailoredResume?.structuredResumeSchemaVersion !== undefined) {
+      structuredResumeSchemaVersion = pkg.tailoredResume.structuredResumeSchemaVersion;
+    } else if (structuredResume?.schemaVersion) {
+      structuredResumeSchemaVersion = structuredResume.schemaVersion;
+    } else if (generationContractVersion === 'LEGACY') {
+      structuredResumeSchemaVersion = null;
+    } else {
+      structuredResumeSchemaVersion = '2.0.0';
+    }
 
     return {
       applicationId: application.id,
@@ -1157,6 +1195,8 @@ export class ApplicationTrackingService {
           ? packageRow.preparedAt.toISOString()
           : String(packageRow.preparedAt)
         : new Date().toISOString(),
+      generationContractVersion,
+      structuredResumeSchemaVersion,
       applicationPackage: pkg,
     };
   }
@@ -1309,7 +1349,32 @@ export class ApplicationTrackingService {
       )
       .orderBy(desc(applicationPackages.version));
 
-    return packages;
+    return packages.map((row) => {
+      const pkg = row.packagePayload;
+      const structuredResume = pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
+      const generationContractVersion =
+        pkg?.generationContractVersion ||
+        pkg?.tailoredResume?.generationContractVersion ||
+        (structuredResume ? 'P16-001F' : 'LEGACY');
+      let structuredResumeSchemaVersion;
+      if (pkg?.structuredResumeSchemaVersion !== undefined) {
+        structuredResumeSchemaVersion = pkg.structuredResumeSchemaVersion;
+      } else if (pkg?.tailoredResume?.structuredResumeSchemaVersion !== undefined) {
+        structuredResumeSchemaVersion = pkg.tailoredResume.structuredResumeSchemaVersion;
+      } else if (structuredResume?.schemaVersion) {
+        structuredResumeSchemaVersion = structuredResume.schemaVersion;
+      } else if (generationContractVersion === 'LEGACY') {
+        structuredResumeSchemaVersion = null;
+      } else {
+        structuredResumeSchemaVersion = '2.0.0';
+      }
+
+      return {
+        ...row,
+        generationContractVersion,
+        structuredResumeSchemaVersion,
+      };
+    });
   }
 
   /**

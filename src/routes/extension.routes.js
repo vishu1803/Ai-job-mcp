@@ -32,7 +32,12 @@ import { JobApplicationWorkflowService } from '../services/job-application-workf
 import { ApplicationTrackingService } from '../services/application-tracking.service.js';
 import { handleAnalyzeJobFit } from '../mcp/tools/career-read-tools.js';
 import { handleRecommendPortfolioProjects } from '../mcp/tools/career-artifact-tools.js';
-import { ConflictError, NotFoundError } from '../errors/index.js';
+import { ConflictError, NotFoundError, AuthorizationError } from '../errors/index.js';
+import { JobAnalysisSnapshotService } from '../services/job-analysis-snapshot.service.js';
+import {
+  ANALYSIS_SNAPSHOT_CONTRACT_VERSION,
+  computeJobContentHash,
+} from '../domain/career/analysis-snapshot.schemas.js';
 import {
   isSubmittedApplication,
   INACTIVE_APPLICATION_STATUSES,
@@ -121,6 +126,10 @@ export default async function extensionRoutes(app, opts = {}) {
     opts.jobApplicationWorkflowService || new JobApplicationWorkflowService({ database });
   const trackingService =
     opts.applicationTrackingService || new ApplicationTrackingService({ database });
+  const snapshotService =
+    opts.jobAnalysisSnapshotService ||
+    opts.snapshotService ||
+    new JobAnalysisSnapshotService({ db: database });
   // Injectable authoritative tool implementations (tests may override to force
   // success / low-fit / failure outcomes deterministically).
   const analyzeJobFit = opts.careerReadToolsOverride?.handleAnalyzeJobFit || handleAnalyzeJobFit;
@@ -394,7 +403,73 @@ export default async function extensionRoutes(app, opts = {}) {
       });
     }
 
+    // 6. Build and Persist Server-Authoritative Analysis Snapshot (P16-001F-3B)
+    const jobContentHash = computeJobContentHash(job);
+    let analysisSnapshotId = null;
+
+    try {
+      const projectRankings =
+        (Array.isArray(fitAnalysis?.topRelevantProjects) && fitAnalysis.topRelevantProjects.length > 0)
+          ? fitAnalysis.topRelevantProjects
+          : (Array.isArray(portfolioRecommendations?.featuredProjects) && portfolioRecommendations.featuredProjects.length > 0)
+            ? portfolioRecommendations.featuredProjects.map((p, idx) => ({
+                projectId: p.projectId || p.id,
+                projectName: p.projectName || p.name || p.title,
+                relevanceScore: p.relevanceScore ?? p.score ?? 50,
+                relevanceRank: idx + 1,
+                relevanceBand: p.relevanceBand || (idx === 0 ? 'HIGH' : 'MEDIUM'),
+              }))
+            : [];
+
+      const topRelevantProjects =
+        (Array.isArray(portfolioRecommendations?.featuredProjects) && portfolioRecommendations.featuredProjects.length > 0)
+          ? portfolioRecommendations.featuredProjects
+          : projectRankings;
+
+      const snapshot = await snapshotService.saveSnapshot({
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+        canonicalJobId,
+        normalizedJobUrl,
+        jobContentHash,
+        contractVersion: ANALYSIS_SNAPSHOT_CONTRACT_VERSION,
+        overallFit: fitAnalysis?.overallFit || {
+          atsScore: Number(
+            fitAnalysis?.atsScore ??
+              fitAnalysis?.score ??
+              75
+          ),
+          fitBand:
+            fitAnalysis?.matchGrade ??
+            fitAnalysis?.fitGrade ??
+            fitAnalysis?.grade ??
+            'B',
+          recommendation:
+            fitAnalysis?.recommendation ??
+            'MODERATE_FIT',
+        },
+        matchAnalysis: {
+          requirementMatches: fitAnalysis?.requirementMatches || [],
+          skillGaps: fitAnalysis?.prioritizedSkillGaps || [],
+        },
+        projectRankings,
+        topRelevantProjects,
+        parsedJobDescription: {
+          requirements: fitAnalysis?.requirementMatches || [],
+        },
+        metadata: {
+          portfolioRecommendations,
+          sourceUrl,
+        },
+      });
+
+      analysisSnapshotId = snapshot?.id || null;
+    } catch (snapErr) {
+      req.log.warn({ error: snapErr.message }, 'Failed to persist job analysis snapshot');
+    }
+
     return reply.send({
+      analysisSnapshotId,
       canonicalJob: {
         canonicalJobId,
         normalizedJobUrl,
@@ -453,7 +528,7 @@ export default async function extensionRoutes(app, opts = {}) {
 
     const { user, tenant } = sessionContext;
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
-    const { job, applicationId } = req.body || {};
+    const { job, applicationId, analysisSnapshotId } = req.body || {};
 
     if (!job || (!job.description && !job.rawText && !job.title)) {
       return reply.code(400).send({
@@ -491,6 +566,51 @@ export default async function extensionRoutes(app, opts = {}) {
       const providerKey = (job.provider || 'GENERIC').toUpperCase();
       const seed = normalizedJobUrl || `${company.toLowerCase()}:${title.toLowerCase()}`;
       canonicalJobId = generateCanonicalJobId(providerKey, seed);
+    }
+
+    // Resolve and Validate Authoritative Analysis Snapshot (P16-001F-3B)
+    const jobContentHash = computeJobContentHash(job);
+    let authoritativeJobFit = null;
+    const targetSnapshotId = analysisSnapshotId || job.analysisSnapshotId || null;
+
+    if (targetSnapshotId || canonicalJobId) {
+      try {
+        const validationResult = await snapshotService.getValidatedSnapshot({
+          context: { tenantId: tenant.id, candidateId: candidate.id },
+          snapshotId: targetSnapshotId,
+          canonicalJobId,
+          jobContentHash,
+          expectedJob: job,
+        });
+
+        if (validationResult.valid && validationResult.snapshot) {
+          authoritativeJobFit = snapshotService.toWorkflowJobFit(validationResult.snapshot);
+          req.log.info(
+            { snapshotId: validationResult.snapshot.id, canonicalJobId },
+            'Authoritative analysis snapshot bound to prepare-handoff request'
+          );
+        } else {
+          req.log.warn(
+            { reason: validationResult.reason, targetSnapshotId, canonicalJobId },
+            'Analysis snapshot not used — falling back to parser-backed computation'
+          );
+        }
+      } catch (validationErr) {
+        if (
+          validationErr.statusCode === 403 ||
+          validationErr.statusCode === 409 ||
+          validationErr instanceof AuthorizationError ||
+          validationErr instanceof ConflictError ||
+          validationErr.code === 'ANALYSIS_JOB_MISMATCH'
+        ) {
+          return reply.code(validationErr.statusCode || 403).send({
+            error: validationErr.name || 'Error',
+            code: validationErr.code || (validationErr.statusCode === 409 ? 'ANALYSIS_JOB_MISMATCH' : 'ACCESS_DENIED'),
+            message: validationErr.message,
+          });
+        }
+        req.log.warn({ error: validationErr.message }, 'Unexpected snapshot validation error');
+      }
     }
 
     // 1. Guard against mutations on submitted applications
@@ -573,6 +693,7 @@ export default async function extensionRoutes(app, opts = {}) {
       responsibilities: Array.isArray(job.responsibilities) ? job.responsibilities : [],
       requirements: Array.isArray(job.requirements) ? job.requirements : [],
       skills: Array.isArray(job.skills) ? job.skills : [],
+      ...(authoritativeJobFit ? { jobFitAnalysis: authoritativeJobFit } : {}),
     };
 
     try {
@@ -581,6 +702,7 @@ export default async function extensionRoutes(app, opts = {}) {
         candidateId: candidate.id,
         jobPosting: targetJob,
         applicationId: applicationId || undefined,
+        answers: authoritativeJobFit ? { jobFitAnalysis: authoritativeJobFit } : undefined,
       });
 
       const appId = preparedResult.applicationId;
@@ -591,6 +713,7 @@ export default async function extensionRoutes(app, opts = {}) {
       return reply.send({
         applicationId: appId,
         canonicalJobId: preparedResult.jobId || preparedResult.canonicalJobId || null,
+        analysisSnapshotId: authoritativeJobFit?.snapshotId || null,
         packageVersion: preparedResult.packageVersion || preparedResult.version || 1,
         packageHash,
         packageStatus: preparedResult.packageStatus || 'SAVED',
@@ -617,16 +740,31 @@ export default async function extensionRoutes(app, opts = {}) {
         },
       });
     } catch (err) {
-      if (err.code === 'APPLICATION_ALREADY_SUBMITTED' || err instanceof ConflictError) {
+      if (err.code === 'ANALYSIS_JOB_MISMATCH') {
         return reply.code(409).send({
           error: 'Conflict',
-          code: 'APPLICATION_ALREADY_SUBMITTED',
-          message: 'This application has already been submitted and cannot be modified.',
+          code: 'ANALYSIS_JOB_MISMATCH',
+          message: err.message,
+        });
+      }
+      if (err.statusCode === 403 || err instanceof AuthorizationError) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          code: err.code || 'ACCESS_DENIED',
+          message: err.message,
+        });
+      }
+      if (
+        err.code === 'APPLICATION_ALREADY_SUBMITTED' ||
+        (err instanceof ConflictError && err.code !== 'ANALYSIS_JOB_MISMATCH')
+      ) {
+        return reply.code(409).send({
+          error: 'Conflict',
+          code: err.code || 'APPLICATION_ALREADY_SUBMITTED',
+          message: err.message || 'This application has already been submitted and cannot be modified.',
         });
       }
       req.log.error({ error: err.message }, 'Failed to prepare job application handoff kit');
-      // P15-002: raw error messages can leak internals (paths, SQL, service
-      // details). Log the detail server-side; return a generic safe message.
       return reply.code(500).send({
         error: 'Internal Server Error',
         code: 'PREPARE_HANDOFF_FAILED',

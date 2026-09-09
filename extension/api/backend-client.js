@@ -145,12 +145,13 @@ export class BackendClient {
    *
    * @param {object} job NormalizedJobPayload
    * @param {string} [applicationId] Existing application ID if known
+   * @param {string} [analysisSnapshotId] Server-authoritative analysis snapshot ID (P16-001F-3B)
    * @returns {Promise<object>} Handoff package telemetry and artifact links
    */
-  async prepareHandoff(job, applicationId = null) {
+  async prepareHandoff(job, applicationId = null, analysisSnapshotId = null) {
     return this._fetch('/api/extension/prepare-handoff', {
       method: 'POST',
-      body: { job, applicationId },
+      body: { job, applicationId, analysisSnapshotId },
     });
   }
 

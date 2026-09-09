@@ -688,3 +688,11 @@ export const EvidenceValidationReceiptSchema = z
 
 export const EvidenceValidationReceipt = EvidenceValidationReceiptSchema;
 
+// ---------------------------------------------------------------------------
+// 18. Generation Contract & Schema Version Constants (P16-001F-3A)
+// ---------------------------------------------------------------------------
+
+export const RESUME_GENERATION_CONTRACT_VERSION = 'P16-001F';
+export const LEGACY_GENERATION_CONTRACT_VERSION = 'LEGACY';
+export const DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION = '2.0.0';
+

@@ -20,6 +20,7 @@ export class PopupController {
 
     this.currentJob = null;
     this.analysisData = null;
+    this.analysisSnapshotId = null;
     this.handoffData = null;
     this.existingApplication = null;
     this.authState = null;
@@ -312,6 +313,7 @@ export class PopupController {
     try {
       const result = await this.backendClient.analyzeJob(this.currentJob);
       this.analysisData = result;
+      this.analysisSnapshotId = result.analysisSnapshotId || null;
       this.existingApplication = result.existingApplication || null;
 
       // P15-002 zero-fabrication: an authoritative-analysis failure must be
@@ -455,7 +457,11 @@ export class PopupController {
 
     try {
       const existingId = this.existingApplication?.id;
-      const handoffResult = await this.backendClient.prepareHandoff(this.currentJob, existingId);
+      const handoffResult = await this.backendClient.prepareHandoff(
+        this.currentJob,
+        existingId,
+        this.analysisSnapshotId
+      );
       this.handoffData = handoffResult;
 
       // Validate exact package
@@ -467,7 +473,9 @@ export class PopupController {
       this.renderHandoffKit(handoffResult, valResult);
       this.showState(this.stateHandoffReady);
     } catch (err) {
-      if (err.code === 'APPLICATION_ALREADY_SUBMITTED' || err.status === 409) {
+      if (err.code === 'ANALYSIS_JOB_MISMATCH') {
+        this.showAlert('Analysis snapshot mismatch: job was altered or belongs to another posting.');
+      } else if (err.code === 'APPLICATION_ALREADY_SUBMITTED' || err.status === 409) {
         this.showAlert('Application already submitted. Handoff kit is read-only.');
       } else {
         this.showAlert(`Preparation failed: ${err.message}`);

@@ -787,6 +787,68 @@ export class ProjectRelevanceService {
           matchRelType = 'DOMAIN';
           matchingEvidence = pooledEvidence[0] || null;
         }
+      } else if (req.category === 'EXPERIENCE') {
+        // Experience requirements with skillSlug are treated similarly to skill requirements
+        const targetNorm = SkillTaxonomyEngine.normalizeSkill(rawSkill);
+        const targetSlug = targetNorm.canonicalSlug;
+
+        // 1. Direct match
+        if (projectSkillsMap.has(targetSlug)) {
+          const entry = projectSkillsMap.get(targetSlug);
+          // Only qualifying evidence counts (not manual claims)
+          if (entry.bestEvidence.evidenceType !== 'DOCUMENT_CLAIM') {
+            matched = true;
+            relMultiplier = 1.0;
+            matchRelType = 'EXACT';
+            matchingSkillSlug = targetSlug;
+            matchingEvidence = entry.bestEvidence;
+          }
+        }
+
+        // 2. Taxonomy relationship match (BUILT_ON, PARENT_OF, ECOSYSTEM_OF, IMPLEMENTS)
+        if (!matched) {
+          for (const [candSlug, entry] of projectSkillsMap.entries()) {
+            if (entry.bestEvidence.evidenceType === 'DOCUMENT_CLAIM') continue;
+
+            const relations = SkillTaxonomyEngine.getRelationships(candSlug);
+            if (!relations) continue;
+
+            // Check directional relationships
+            if (relations.parentOf?.includes(targetSlug)) {
+              if (1.0 > relMultiplier) {
+                matched = true;
+                relMultiplier = 1.0;
+                matchRelType = 'PARENT_OF';
+                matchingSkillSlug = candSlug;
+                matchingEvidence = entry.bestEvidence;
+              }
+            } else if (relations.builtOn?.includes(targetSlug)) {
+              if (0.9 > relMultiplier) {
+                matched = true;
+                relMultiplier = 0.9;
+                matchRelType = 'BUILT_ON';
+                matchingSkillSlug = candSlug;
+                matchingEvidence = entry.bestEvidence;
+              }
+            } else if (relations.ecosystemOf?.includes(targetSlug)) {
+              if (0.75 > relMultiplier) {
+                matched = true;
+                relMultiplier = 0.75;
+                matchRelType = 'ECOSYSTEM_OF';
+                matchingSkillSlug = candSlug;
+                matchingEvidence = entry.bestEvidence;
+              }
+            } else if (relations.implements?.includes(targetSlug)) {
+              if (0.5 > relMultiplier) {
+                matched = true;
+                relMultiplier = 0.5;
+                matchRelType = 'IMPLEMENTS';
+                matchingSkillSlug = candSlug;
+                matchingEvidence = entry.bestEvidence;
+              }
+            }
+          }
+        }
       }
 
       if (matched && relMultiplier > 0) {

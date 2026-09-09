@@ -14,7 +14,16 @@ import {
   StructuredResumeDocumentSchema,
   ResumeTailoringPlanSchema,
   EvidenceValidationReceiptSchema,
+  RESUME_GENERATION_CONTRACT_VERSION,
+  LEGACY_GENERATION_CONTRACT_VERSION,
+  DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
 } from '../career/resume.schemas.js';
+
+export {
+  RESUME_GENERATION_CONTRACT_VERSION,
+  LEGACY_GENERATION_CONTRACT_VERSION,
+  DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
+};
 
 // -----------------------------------------------------------------------------
 // 1. Job Discovery & Posting Schemas
@@ -118,6 +127,8 @@ export const ApplicationDocumentArtifactSchema = z
     qaPassed: z.boolean().optional(),
     resumeQuality: z.record(z.unknown()).optional(),
     layoutDiagnostics: z.record(z.unknown()).optional(),
+    generationContractVersion: z.string().optional(),
+    structuredResumeSchemaVersion: z.string().nullable().optional(),
   })
   .passthrough();
 
@@ -140,6 +151,8 @@ export const ApplicationPackageSchema = z.object({
     structuredResume: StructuredResumeDocumentSchema.optional().nullable(),
     tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
     evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
+    generationContractVersion: z.string().optional(),
+    structuredResumeSchemaVersion: z.string().nullable().optional(),
   }),
   coverLetter: z.object({
     documentId: z.string().optional(),
@@ -181,6 +194,8 @@ export const ApplicationPackageSchema = z.object({
   structuredResume: StructuredResumeDocumentSchema.optional().nullable(),
   tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
   evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
+  generationContractVersion: z.string().optional(),
+  structuredResumeSchemaVersion: z.string().nullable().optional(),
 });
 
 // -----------------------------------------------------------------------------

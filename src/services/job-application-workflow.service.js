@@ -21,12 +21,16 @@ import { ApplicationHandoffService } from './application-handoff.service.js';
 import { AtsFitScoreService } from './ats-fit-score.service.js';
 import { EvidenceMatchingService } from './evidence-matching.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
+import { JobDescriptionParser } from '../domain/career/job-parser.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 import {
   ApplicationPackageSchema,
   ApplicationValidationResultSchema,
   ApplicationApprovalTicketSchema,
   SubmissionResultSchema,
+  RESUME_GENERATION_CONTRACT_VERSION,
+  LEGACY_GENERATION_CONTRACT_VERSION,
+  DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
 } from '../domain/job/job-workflow.schemas.js';
 import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
 import {
@@ -193,21 +197,44 @@ const APPROVAL_TICKETS_STORE = new Map();
 
 /**
  * Computes deterministic canonical SHA-256 hash of an application package payload.
+ * Canonical hash input includes generation contract version and structured resume schema version
+ * (P16-001F-3A).
  *
  * @param {object} pkg Raw application package
  * @returns {string} 64-character hex hash
  */
 export function computeApplicationPackageHash(pkg) {
+  const structuredResume = pkg?.structuredResume || pkg?.tailoredResume?.structuredResume || null;
+  const generationContractVersion =
+    pkg?.generationContractVersion ||
+    pkg?.tailoredResume?.generationContractVersion ||
+    (structuredResume ? RESUME_GENERATION_CONTRACT_VERSION : LEGACY_GENERATION_CONTRACT_VERSION);
+
+  let structuredResumeSchemaVersion;
+  if (pkg?.structuredResumeSchemaVersion !== undefined) {
+    structuredResumeSchemaVersion = pkg.structuredResumeSchemaVersion;
+  } else if (pkg?.tailoredResume?.structuredResumeSchemaVersion !== undefined) {
+    structuredResumeSchemaVersion = pkg.tailoredResume.structuredResumeSchemaVersion;
+  } else if (structuredResume?.schemaVersion) {
+    structuredResumeSchemaVersion = structuredResume.schemaVersion;
+  } else if (generationContractVersion === LEGACY_GENERATION_CONTRACT_VERSION) {
+    structuredResumeSchemaVersion = null;
+  } else {
+    structuredResumeSchemaVersion = DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION;
+  }
+
   const canonical = {
-    candidateId: pkg.candidateId,
-    candidateName: pkg.candidateName,
-    candidateEmail: pkg.candidateEmail,
-    jobId: pkg.targetJob?.id,
-    jobTitle: pkg.targetJob?.title,
-    company: pkg.targetJob?.company,
-    resumeContent: pkg.tailoredResume?.markdownContent,
-    coverLetterContent: pkg.coverLetter?.markdownContent,
-    answers: pkg.answers || {},
+    candidateId: pkg?.candidateId,
+    candidateName: pkg?.candidateName,
+    candidateEmail: pkg?.candidateEmail,
+    jobId: pkg?.targetJob?.id !== undefined ? pkg.targetJob.id : pkg?.jobId,
+    jobTitle: pkg?.targetJob?.title !== undefined ? pkg.targetJob.title : pkg?.jobTitle,
+    company: pkg?.targetJob?.company !== undefined ? pkg.targetJob.company : pkg?.company,
+    resumeContent: pkg?.tailoredResume?.markdownContent,
+    coverLetterContent: pkg?.coverLetter?.markdownContent,
+    answers: pkg?.answers || {},
+    generationContractVersion,
+    structuredResumeSchemaVersion,
   };
   return crypto.createHash('sha256').update(JSON.stringify(canonical), 'utf8').digest('hex');
 }
@@ -300,6 +327,25 @@ export class JobApplicationWorkflowService {
    * @returns {Promise<object|null>}
    */
   async _resolveOrComputeJobFit({ context, candidateId, targetJobPosting, answers }) {
+    // 0. Authoritative incoming analysis passthrough (P16-001F-3B Protocol Guard)
+    // If targetJobPosting.jobFitAnalysis contains authoritative projectRankings,
+    // matchAnalysis, or topRelevantProjects, USE IT DIRECTLY.
+    // It MUST NOT fall through to recomputation.
+    if (targetJobPosting?.jobFitAnalysis) {
+      const candidateFit = targetJobPosting.jobFitAnalysis;
+      const hasRankings =
+        (Array.isArray(candidateFit.projectRankings) && candidateFit.projectRankings.length > 0) ||
+        (Array.isArray(candidateFit.topRelevantProjects) && candidateFit.topRelevantProjects.length > 0);
+      if (hasRankings) {
+        return {
+          ...candidateFit,
+          projectRankings: candidateFit.projectRankings || candidateFit.topRelevantProjects || [],
+          topRelevantProjects: candidateFit.topRelevantProjects || candidateFit.projectRankings || [],
+          source: candidateFit.source || 'authoritative_analyze_snapshot',
+        };
+      }
+    }
+
     let resolvedFit = null;
 
     // 1. Direct properties on targetJobPosting
@@ -421,43 +467,93 @@ export class JobApplicationWorkflowService {
           education: profileView.education || [],
         };
 
-        const rawReqs = Array.isArray(targetJobPosting.requirements)
-          ? targetJobPosting.requirements
-          : [];
-        const extractedRequirements = rawReqs.map((req) => {
-          const text = typeof req === 'string' ? req : req.extractedValue || req.originalText || '';
-          return {
-            id: crypto.randomUUID(),
-            category: 'SKILL',
-            importance: 'REQUIRED',
-            weight: 1.0,
-            skillSlug: null,
-            rawSnippet: text.slice(0, 450),
-            extractedValue: text,
-            originalText: text,
-            normalizedCriteria: {},
-            confidenceScore: 0.85,
-            sourceSpan: { section: 'RAW_REQUIREMENT', snippet: text.slice(0, 450) },
-            createdAt: new Date().toISOString(),
-          };
-        });
+        const descriptionText = (
+          targetJobPosting.description ||
+          targetJobPosting.rawJobDescription ||
+          targetJobPosting.rawText ||
+          ''
+        ).trim();
 
-        const isJobIdUuid =
-          targetJobPosting.id &&
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
-        const jobDescription = {
-          id: isJobIdUuid ? targetJobPosting.id : crypto.randomUUID(),
-          tenantId: context.tenantId,
-          title: targetJobPosting.title || 'Target Role',
-          companyName: targetJobPosting.company || 'Target Company',
-          level: targetJobPosting.level || 'MID',
-          requirements: extractedRequirements,
-          skills: targetJobPosting.skills || [],
-          description: targetJobPosting.description || '',
-          provider: targetJobPosting.provider || targetJobPosting.source || 'EXTERNAL',
-          sourceUrl: targetJobPosting.sourceUrl || null,
-          applicationUrl: targetJobPosting.applicationUrl || null,
-        };
+        let extractedRequirements = [];
+        let jobDescription = null;
+
+        if (descriptionText.length >= 20) {
+          // Parse targetJobPosting.description with existing JobDescriptionParser to produce
+          // the exact same atomic requirement representation as Analyze (Section 8 Fallback Parity)
+          const classification = await JobDescriptionParser.parse(
+            {
+              rawText: descriptionText,
+              title: targetJobPosting.title || 'Target Role',
+              company: targetJobPosting.company || targetJobPosting.companyName || 'Target Company',
+              source: 'MANUAL',
+            },
+            {
+              tenantId: context.tenantId,
+              userId: context.userId,
+            }
+          );
+          extractedRequirements = classification.requirements || [];
+
+          const isJobIdUuid =
+            targetJobPosting.id &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
+
+          jobDescription = {
+            id: isJobIdUuid ? targetJobPosting.id : classification.jobDescription?.id || crypto.randomUUID(),
+            tenantId: context.tenantId,
+            title: targetJobPosting.title || classification.jobDescription?.title || 'Target Role',
+            companyName:
+              targetJobPosting.company ||
+              targetJobPosting.companyName ||
+              classification.jobDescription?.company ||
+              'Target Company',
+            level: targetJobPosting.level || classification.jobDescription?.level || 'MID',
+            requirements: extractedRequirements,
+            skills: targetJobPosting.skills || [],
+            description: descriptionText,
+            provider: targetJobPosting.provider || targetJobPosting.source || 'EXTERNAL',
+            sourceUrl: targetJobPosting.sourceUrl || null,
+            applicationUrl: targetJobPosting.applicationUrl || null,
+          };
+        } else {
+          const rawReqs = Array.isArray(targetJobPosting.requirements)
+            ? targetJobPosting.requirements
+            : [];
+          extractedRequirements = rawReqs.map((req) => {
+            const text = typeof req === 'string' ? req : req.extractedValue || req.originalText || '';
+            return {
+              id: crypto.randomUUID(),
+              category: 'SKILL',
+              importance: 'REQUIRED',
+              weight: 1.0,
+              skillSlug: null,
+              rawSnippet: text.slice(0, 450),
+              extractedValue: text,
+              originalText: text,
+              normalizedCriteria: {},
+              confidenceScore: 0.85,
+              sourceSpan: { section: 'RAW_REQUIREMENT', snippet: text.slice(0, 450) },
+              createdAt: new Date().toISOString(),
+            };
+          });
+
+          const isJobIdUuid =
+            targetJobPosting.id &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
+          jobDescription = {
+            id: isJobIdUuid ? targetJobPosting.id : crypto.randomUUID(),
+            tenantId: context.tenantId,
+            title: targetJobPosting.title || 'Target Role',
+            companyName: targetJobPosting.company || 'Target Company',
+            level: targetJobPosting.level || 'MID',
+            requirements: extractedRequirements,
+            skills: targetJobPosting.skills || [],
+            description: descriptionText,
+            provider: targetJobPosting.provider || targetJobPosting.source || 'EXTERNAL',
+            sourceUrl: targetJobPosting.sourceUrl || null,
+            applicationUrl: targetJobPosting.applicationUrl || null,
+          };
+        }
 
         const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
           context,
@@ -631,6 +727,17 @@ export class JobApplicationWorkflowService {
     const derivedRecommended = eligibleProjects.map((p) => p.projectName || p.name);
 
     const targetJobPosting = {
+      id: jobPosting?.id || jobPosting?.canonicalJobId || crypto.randomUUID(),
+      canonicalJobId: jobPosting?.canonicalJobId || jobPosting?.id,
+      source: jobPosting?.source || 'MANUAL',
+      provider: jobPosting?.provider || jobPosting?.source || 'MANUAL',
+      applicationUrl: jobPosting?.applicationUrl || jobPosting?.sourceUrl || 'https://example.com/apply',
+      retrievedAt: jobPosting?.retrievedAt || new Date().toISOString(),
+      location: jobPosting?.location || 'Remote',
+      workplaceType: jobPosting?.workplaceType || jobPosting?.workplace || 'REMOTE',
+      employmentType: jobPosting?.employmentType || 'FULL_TIME',
+      requirements: jobPosting?.requirements || [],
+      skills: jobPosting?.skills || [],
       ...jobPosting,
       recommendedProjects:
         jobPosting?.recommendedProjects ||
@@ -833,6 +940,9 @@ export class JobApplicationWorkflowService {
         structuredResume: safeStructuredResume,
         tailoringPlan: safeTailoringPlan,
         evidenceValidationReceipt: safeEvidenceReceipt,
+        generationContractVersion: RESUME_GENERATION_CONTRACT_VERSION,
+        structuredResumeSchemaVersion:
+          safeStructuredResume?.schemaVersion || DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
       },
       coverLetter: {
         documentId: coverLetterResult.documentId || undefined,
@@ -851,6 +961,9 @@ export class JobApplicationWorkflowService {
       structuredResume: safeStructuredResume,
       tailoringPlan: safeTailoringPlan,
       evidenceValidationReceipt: safeEvidenceReceipt,
+      generationContractVersion: RESUME_GENERATION_CONTRACT_VERSION,
+      structuredResumeSchemaVersion:
+        safeStructuredResume?.schemaVersion || DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
       packageHash: '',
       preparedAt: new Date().toISOString(),
     };
@@ -936,6 +1049,14 @@ export class JobApplicationWorkflowService {
             qaPassed: resumeQaPassed,
             resumeQuality: handoffKit.resume.resumeQuality || undefined,
             layoutDiagnostics: handoffKit.resume.layoutDiagnostics || undefined,
+            generationContractVersion:
+              handoffKit.generationContractVersion ||
+              handoffKit.resume.generationContractVersion ||
+              undefined,
+            structuredResumeSchemaVersion:
+              handoffKit.structuredResumeSchemaVersion ||
+              handoffKit.resume.structuredResumeSchemaVersion ||
+              undefined,
           };
         }
 
@@ -951,6 +1072,14 @@ export class JobApplicationWorkflowService {
             downloadUrl: handoffKit.coverLetter.downloadUrl,
             qaScore: handoffKit.coverLetter.qaAudit?.score,
             qaPassed: clQaPassed,
+            generationContractVersion:
+              handoffKit.generationContractVersion ||
+              handoffKit.coverLetter.generationContractVersion ||
+              undefined,
+            structuredResumeSchemaVersion:
+              handoffKit.structuredResumeSchemaVersion ||
+              handoffKit.coverLetter.structuredResumeSchemaVersion ||
+              undefined,
           };
         }
       } catch (err) {
@@ -977,6 +1106,8 @@ export class JobApplicationWorkflowService {
       packageStatus: persisted?.packageStatus ?? 'SAVED',
       artifactStatus: artifactsReady ? 'READY' : 'BLOCKED',
       lifecycleAction: persisted?.lifecycleAction ?? 'CREATED',
+      generationContractVersion: validatedPackage.generationContractVersion,
+      structuredResumeSchemaVersion: validatedPackage.structuredResumeSchemaVersion,
       resumeQuality: handoffKit?.resume?.resumeQuality || undefined,
       layoutDiagnostics: handoffKit?.resume?.layoutDiagnostics || undefined,
       tailoredResume: {
@@ -1349,6 +1480,9 @@ export class JobApplicationWorkflowService {
         structuredResume: safeStructuredResume,
         tailoringPlan: safeTailoringPlan,
         evidenceValidationReceipt: safeEvidenceReceipt,
+        generationContractVersion: RESUME_GENERATION_CONTRACT_VERSION,
+        structuredResumeSchemaVersion:
+          safeStructuredResume?.schemaVersion || DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
       },
       coverLetter: {
         documentId: coverLetterResult.documentId || undefined,
@@ -1366,6 +1500,9 @@ export class JobApplicationWorkflowService {
       structuredResume: safeStructuredResume,
       tailoringPlan: safeTailoringPlan,
       evidenceValidationReceipt: safeEvidenceReceipt,
+      generationContractVersion: RESUME_GENERATION_CONTRACT_VERSION,
+      structuredResumeSchemaVersion:
+        safeStructuredResume?.schemaVersion || DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
       packageHash: '',
       preparedAt: new Date().toISOString(),
     };

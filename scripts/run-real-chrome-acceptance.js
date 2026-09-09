@@ -351,51 +351,60 @@ async function main() {
 
   // Helper to resolve the numeric Chrome tab ID for a CDP target
   // Uses direct CDP target attachment to query chrome.tabs in the service worker
-  async function resolveNumericTabId(urlFragment) {
-    try {
-      const targetsRes = await browserCdp.send('Target.getTargets');
-      const swInfo = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
-      if (swInfo) {
-        const { sessionId } = await browserCdp.send('Target.attachToTarget', { targetId: swInfo.targetId, flatten: true });
-        const evalRes = await browserCdp.send(
-          'Runtime.evaluate',
-          {
-            expression: `chrome.tabs.query({}).then(tabs => tabs.map(t => ({id: t.id, url: t.url})))`,
-            awaitPromise: true,
-            returnByValue: true,
-          },
-          sessionId
-        );
-        await browserCdp.send('Target.detachFromTarget', { sessionId }).catch(() => null);
-        const tabs = evalRes?.result?.value;
-        if (Array.isArray(tabs)) {
-          const match = tabs.find((t) => t.url && t.url.includes(urlFragment));
-          if (match) {
-            console.log(`[resolveNumericTabId] Resolved tab ID ${match.id} for "${urlFragment}" (url: ${match.url})`);
-            return match.id;
+  async function resolveNumericTabId(urlFragment, maxAttempts = 10) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        let tabs = null;
+        const targetsRes = await browserCdp.send('Target.getTargets');
+        const swInfo = targetsRes.targetInfos.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
+
+        if (swInfo) {
+          try {
+            const { sessionId } = await browserCdp.send('Target.attachToTarget', { targetId: swInfo.targetId, flatten: true });
+            const evalRes = await browserCdp.send(
+              'Runtime.evaluate',
+              {
+                expression: `chrome.tabs.query({}).then(tabs => tabs.map(t => ({id: t.id, url: t.url, title: t.title})))`,
+                awaitPromise: true,
+                returnByValue: true,
+              },
+              sessionId
+            );
+            await browserCdp.send('Target.detachFromTarget', { sessionId }).catch(() => null);
+            if (Array.isArray(evalRes?.result?.value)) {
+              tabs = evalRes.result.value;
+            }
+          } catch { /* fall through to extension page fallback */ }
+        }
+
+        // If SW wasn't found or evaluate failed, query tabs through a quick extension page
+        if (!tabs && extensionId) {
+          try {
+            const extTab = await openTab(`chrome-extension://${extensionId}/popup/popup.html`);
+            tabs = await extTab.evaluate(`chrome.tabs.query({}).then(tabs => tabs.map(t => ({id: t.id, url: t.url, title: t.title})))`, true);
+            await extTab.close();
+          } catch (err) {
+            console.warn(`[resolveNumericTabId] Extension page query error on attempt ${attempt}: ${err.message}`);
           }
         }
-      }
-    } catch (err) {
-      console.warn(`[resolveNumericTabId] CDP query error: ${err.message}`);
-    }
 
-    // Fallback: try /json/list
-    try {
-      const list = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json/list`)).json();
-      const swEntry = list.find((t) => t.type === 'service_worker' && t.url.includes('service-worker.js'));
-      if (swEntry?.webSocketDebuggerUrl) {
-        const swCdp = new CDPConnection(swEntry.webSocketDebuggerUrl);
-        await swCdp.connect();
-        await swCdp.send('Runtime.enable');
-        const tabs = await swCdp.evaluate(`chrome.tabs.query({}).then(tabs => tabs.map(t => ({id: t.id, url: t.url})))`);
-        swCdp.close();
         if (Array.isArray(tabs)) {
-          const match = tabs.find((t) => t.url && t.url.includes(urlFragment));
-          if (match) return match.id;
+          const match = tabs.find((t) => (t.url && t.url.includes(urlFragment)) || (t.title && t.title.toLowerCase().includes(urlFragment.toLowerCase())));
+          if (match) {
+            console.log(`[resolveNumericTabId] Resolved tab ID ${match.id} for "${urlFragment}" (url: ${match.url}) on attempt ${attempt}`);
+            return match.id;
+          } else if (attempt === maxAttempts) {
+            console.warn(`[resolveNumericTabId] No tab matched "${urlFragment}" among:`, tabs);
+          }
         }
+      } catch (err) {
+        console.warn(`[resolveNumericTabId] Query error on attempt ${attempt}: ${err.message}`);
       }
-    } catch { /* fallback below */ }
+
+      if (attempt < maxAttempts) {
+        await sleep(1000);
+      }
+    }
 
     return null;
   }
@@ -489,6 +498,9 @@ async function main() {
     console.log(`1. Navigating tab to live Greenhouse job: ${jobUrl1}`);
     const jobTab = await openTab(jobUrl1);
     await sleep(5000); // Allow live page DOM to settle and potential redirects
+    const curTabUrl = await jobTab.evaluate('window.location.href').catch(() => 'unknown');
+    const curTabTitle = await jobTab.evaluate('document.title').catch(() => 'unknown');
+    console.log(`[JobTab Loaded] URL: ${curTabUrl}, Title: "${curTabTitle}"`);
 
     // Resolve numeric Chrome tab ID for the job tab so the popup can target it.
     // P15-002 Batch 3: REQUIRED — the popup no longer guesses among tabs via

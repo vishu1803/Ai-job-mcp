@@ -255,6 +255,7 @@ export function buildApp(opts = {}) {
     db: opts.db,
     jobApplicationWorkflowService: opts.jobApplicationWorkflowService,
     applicationTrackingService: opts.applicationTrackingService,
+    snapshotService: opts.snapshotService,
     careerReadToolsOverride: opts.careerReadToolsOverride,
     careerArtifactToolsOverride: opts.careerArtifactToolsOverride,
   });

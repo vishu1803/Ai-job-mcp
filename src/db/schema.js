@@ -1179,6 +1179,44 @@ export const skillCatalog = pgTable('skill_catalog', {
 ]);
 
 // ---------------------------------------------------------------------------
+// 25. Job Analysis Snapshots Table (Authoritative Passthrough - P16-001F-3B)
+// ---------------------------------------------------------------------------
+
+export const jobAnalysisSnapshots = pgTable(
+  'job_analysis_snapshots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    contractVersion: text('contract_version').notNull().default('P16-001F'),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => candidates.id, { onDelete: 'cascade' }),
+    canonicalJobId: text('canonical_job_id').notNull(),
+    normalizedJobUrl: text('normalized_job_url'),
+    jobContentHash: text('job_content_hash').notNull(),
+    analyzedAt: timestamp('analyzed_at', { withTimezone: true }).notNull().defaultNow(),
+    overallFit: jsonb('overall_fit').notNull().default('{}'),
+    matchAnalysis: jsonb('match_analysis').notNull().default('{}'),
+    projectRankings: jsonb('project_rankings').notNull().default('[]'),
+    parsedJobDescription: jsonb('parsed_job_description').notNull().default('{}'),
+    metadata: jsonb('metadata').notNull().default('{}'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_job_analysis_snapshots_lookup').on(
+      table.tenantId,
+      table.candidateId,
+      table.canonicalJobId
+    ),
+    index('idx_job_analysis_snapshots_tenant_candidate').on(table.tenantId, table.candidateId),
+    index('idx_job_analysis_snapshots_hash').on(table.jobContentHash),
+  ]
+);
+
+// ---------------------------------------------------------------------------
 // Consolidated Schema Export
 // ---------------------------------------------------------------------------
 
@@ -1231,4 +1269,5 @@ export const schema = {
   resumeSections,
   candidateClaims,
   skillCatalog,
+  jobAnalysisSnapshots,
 };

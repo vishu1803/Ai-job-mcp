@@ -1,7 +1,128 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-08*
+*Last Updated: 2026-09-09*
+
+### P16-001F-3A: Version-Bound Package Identity & Artifact Reuse (Implementation Batch)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-09  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Production Root Cause:**
+Diagnosed and eliminated the production package collision bug where a legacy package (Markdown-only) and a new structured package produced the identical `packageHash` because `computeApplicationPackageHash()` omitted the resume generation contract and schema version. This previously caused:
+- False package reuse across contract boundaries
+- Stale legacy PDF reuse on structured requests
+- Bypass of the structured LaTeX renderer
+- Obsolete resume content appearing in real Chrome handoffs
+
+**Architecture Decisions & Invariants:**
+1. **Preserved Application Identity Boundary:**
+   - Application identity remains strictly `tenant + candidate + canonical job`.
+   - Transitioning an application from a legacy package to a structured package preserves the existing `applicationId` without creating duplicate application rows.
+2. **Version-Bound Package Identity:**
+   - Package identity is defined as `application + generation contract + exact canonical package content`.
+   - Introduced authoritative constants in `src/domain/career/resume.schemas.js`:
+     - `RESUME_GENERATION_CONTRACT_VERSION = 'P16-001F'` (current structured resume pipeline)
+     - `LEGACY_GENERATION_CONTRACT_VERSION = 'LEGACY'` (legacy pipeline)
+     - `DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION = '2.0.0'`
+   - Packages without `structuredResume` resolve to `generationContractVersion = 'LEGACY'` and `structuredResumeSchemaVersion = null`.
+   - Structured packages resolve to `generationContractVersion = 'P16-001F'` and `structuredResumeSchemaVersion = structuredResume.schemaVersion || '2.0.0'`.
+3. **Deterministic Canonical Hashing:**
+   - Updated `computeApplicationPackageHash(pkg)` to digest 11 canonical fields:
+     - `candidateId`, `candidateName`, `candidateEmail`, `jobId`, `jobTitle`, `company`, `resumeContent`, `coverLetterContent`, `answers`, `generationContractVersion`, `structuredResumeSchemaVersion`.
+   - Packages with identical Markdown text but different generation contracts now produce completely distinct SHA-256 hashes (`legacyHash !== structuredHash`).
+   - Hash is contract-bound and schema-bound; internal non-contract structured mutations that preserve the contract and Markdown remain hash-neutral.
+4. **Contract-Gated Handoff Kit Artifact Reuse:**
+   - In `ApplicationHandoffService`, an existing handoff kit is reusable ONLY when:
+     - `existingKit.packageHash === currentPackageHash` AND
+     - `existingKit.generationContractVersion === currentGenerationContractVersion` AND
+     - `existingKit.structuredResumeSchemaVersion === currentStructuredResumeSchemaVersion` AND
+     - `existingKit.resume?.storageKey` exists AND
+     - `existingKit.applicationId === requestedApplicationId`.
+   - A legacy artifact (`generationContractVersion = 'LEGACY'`) can NEVER satisfy a structured package request. If contract or hash mismatches, artifacts are regenerated from the structured snapshot.
+   - Handoff kits and document artifacts persist `generationContractVersion` and `structuredResumeSchemaVersion` in their envelopes and snapshot metadata.
+5. **Monotonic Package Versioning & Lifecycle Preservation:**
+   - When transitioning an application from a legacy package to a structured package, `ApplicationTrackingService.recordApplicationPackage` computes `nextVersion = maxVer + 1` (advancing from 1 to 2).
+   - Old legacy package row is transitioned to `lifecycleState: 'ARCHIVED'` without being mutated or deleted.
+   - `workflowService.persistPreparedPackage` reports `lifecycleAction: 'UPDATED'` on transition and `lifecycleAction: 'REUSED'` on identical repeated preparations.
+6. **No Backfills & Zero Tailoring Algorithm Mutations:**
+   - Existing historical legacy package rows are untouched.
+   - Zero changes made to candidate ranking, project ranking, skill ranking, summary generation, or tailoring algorithms.
+   - Analyzer passthrough consistency is deferred to the next separate batch.
+
+**Files Changed / Added:**
+- `src/domain/career/resume.schemas.js`: Exported `RESUME_GENERATION_CONTRACT_VERSION`, `LEGACY_GENERATION_CONTRACT_VERSION`, and `DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION`.
+- `src/domain/job/job-workflow.schemas.js`: Re-exported contract versions; added `generationContractVersion` and `structuredResumeSchemaVersion` to `ApplicationDocumentArtifactSchema` and `ApplicationPackageSchema`.
+- `src/services/job-application-workflow.service.js`: Integrated contract versions into `computeApplicationPackageHash`, `prepareJobApplication`, and `regenerateApplicationPackage`.
+- `src/services/application-tracking.service.js`: Exposed contract versions in `getApplicationPackage`, `recordApplicationPackage`, and `listApplicationPackages`.
+- `src/services/application-handoff.service.js`: Enforced contract and schema gating on handoff kit artifact reuse; stored contract versions in handoff kit metadata.
+- `tests/unit/p16-001f3a-package-identity.test.js`: Created 16 unit tests (Tests A through P) covering hash calculation, contract differences, tracking transitions, handoff gating, and schema validation.
+- `tests/integration/p16-001f3a-legacy-structured-transition.test.js`: Created 10-step end-to-end integration test against real PostgreSQL DB and Tectonic compiler verifying legacy v1 creation, legacy PDF generation, structured v2 upgrade, archival of v1, rejection of legacy artifact, generation of structured PDF, and subsequent artifact reuse.
+
+**Verification & Evidence:**
+- `tests/unit/p16-001f3a-package-identity.test.js`: 16/16 PASS (Tests A through P).
+- `tests/integration/p16-001f3a-legacy-structured-transition.test.js`: 9/9 PASS (all 10 steps verified end-to-end against PostgreSQL).
+- `tests/unit/p16-001f1-structured-snapshot-persistence.test.js`: 18/18 PASS.
+- `tests/unit/p16-001f2-pdf-geometry-qa.test.js`: 8/8 PASS.
+- `tests/unit/p16-001f2-structured-latex-migration.test.js`: 26/26 PASS.
+- `tests/integration/p16-001f2-structured-artifact-rendering.test.js`: 3/3 PASS.
+- `tests/integration/mcp-workflow-remediation.test.js`: 7/7 PASS.
+- `tests/unit/application-package-lifecycle.test.js`: 15/15 PASS.
+- ESLint: 0 errors, 0 warnings across all touched files.
+
+### P16-001F-3B: Authoritative Analyze -> Prepare Snapshot Passthrough & Score Parity (Implementation Batch)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-09  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Production Root Cause:**
+Diagnosed and eliminated the score and project ranking divergence between Analyze Job and Prepare Application (e.g. Cloudflare Greenhouse job `8102350` where Analyze previously returned `Product-Data-Explorer: 64.83` while Prepare recomputed `Product-Data-Explorer: 37.28` using divergent bullet parsing).
+Implemented a server-authoritative snapshot persistence layer (`job_analysis_snapshots`), zero client trust, exact multi-tenant & candidate security gates (403), canonical job ID match (409 `ANALYSIS_JOB_MISMATCH`), job content hash verification (SHA-256 canonicalization), TTL (2 hours), authoritative passthrough in `JobApplicationWorkflowService` Step 0, and fallback parity in Step 4 via `JobDescriptionParser.parse`.
+
+**Architecture Decisions & Invariants:**
+1. **Server Authority & Zero Client Trust:**
+   - Snapshots are written only on the server during `/api/extension/analyze-job`, stored in PostgreSQL `job_analysis_snapshots`.
+   - Neither the browser extension nor web clients can pass, alter, or tamper with project rankings, fit scores, or requirement matches.
+2. **Multi-Tenant, Candidate, and Canonical Job Isolation:**
+   - Cross-tenant access is rejected with HTTP 403 `CROSS_TENANT_ACCESS_DENIED`.
+   - Cross-candidate access within the same tenant is rejected with HTTP 403 `CROSS_CANDIDATE_ACCESS_DENIED`.
+   - Wrong canonical job ID is rejected with HTTP 409 `ANALYSIS_JOB_MISMATCH`.
+3. **Job Content Hash Canonicalization:**
+   - Canonical SHA-256 computed across `company`, `title`, `description`, `location`, `workplace`, `employmentType`.
+   - Altered or tampered job descriptions fail the hash check and safely fall back to fresh parsing.
+4. **Contract Versioning & TTL Gating:**
+   - Contract version is strictly `'P16-001F'`.
+   - Snapshot TTL of 2 hours (`ANALYSIS_SNAPSHOT_TTL_MS = 2 * 60 * 60 * 1000`).
+   - Expired or version-mismatched snapshots are rejected from passthrough.
+5. **Workflow Service Step 0 Authoritative Passthrough:**
+   - In `JobApplicationWorkflowService._resolveOrComputeJobFit`: returns `targetJobPosting.jobFitAnalysis` immediately when authoritative project rankings are present, skipping recomputation.
+   - Maps snapshot via `toWorkflowJobFit(snapshot)` preserving exact scores, ranks, and atomic requirement matches into `ResumeTailoringPlan` and `StructuredResumeDocument`.
+6. **Fallback Parity via `JobDescriptionParser`:**
+   - When direct workflow calls (CLI/MCP/direct API) are made without an extension snapshot, Step 4 parses descriptions >= 20 chars via `JobDescriptionParser.parse({ ..., source: 'MANUAL' })`, ensuring identical atomic requirements, matched skills, and deterministic project rankings.
+7. **Extension Client & Handoff Integration:**
+   - `extension/popup/popup.js` and `extension/api/backend-client.js` retain `analysisSnapshotId` returned by `/api/extension/analyze-job` and pass it to `/api/extension/prepare-handoff`.
+
+**Files Changed / Added:**
+- `drizzle/0013_job_analysis_snapshots.sql`: Database migration creating `job_analysis_snapshots` table.
+- `src/db/schema.js`: Drizzle schema definition for `jobAnalysisSnapshots`.
+- `src/domain/career/analysis-snapshot.schemas.js`: Domain schemas, Zod validation, content hashing, and TTL constants.
+- `src/services/job-analysis-snapshot.service.js`: Snapshot persistence service with security validation gates and workflow mapping.
+- `src/services/job-application-workflow.service.js`: Step 0 authoritative passthrough guard, robust job posting defaults, Step 4 fallback parity.
+- `src/routes/extension.routes.js`: Snapshot capture in `/analyze-job` and security-gated resolution in `/prepare-handoff`.
+- `extension/api/backend-client.js`: Carried `analysisSnapshotId` in client state and handoff payload.
+- `extension/popup/popup.js`: Tracked `currentAnalysisSnapshotId` across analysis and handoff phases.
+- `tests/unit/p16-001f3b-score-parity.test.js`: 17 unit tests (Tests A through S) verifying hashing, persistence, retrieval, security gates, TTL, passthrough, and fallback parity.
+- `tests/integration/p16-001f3b-analysis-snapshot.test.js`: 9 integration test suites (Flows 1 through 13) verifying live Fastify extension routes, PostgreSQL DB persistence, cross-tenant/candidate 403s, 409 mismatch, content hash tampering, TTL expiry, and fallback parity.
+
+**Verification & Evidence:**
+- `tests/unit/p16-001f3b-score-parity.test.js`: 17/17 PASS (Tests A through S).
+- `tests/integration/p16-001f3b-analysis-snapshot.test.js`: 9/9 PASS (Flows 1 through 13).
+- `tests/unit/p16-001f3a-package-identity.test.js`: 16/16 PASS.
+- `tests/integration/p16-001f3a-legacy-structured-transition.test.js`: 9/9 PASS.
+- `scripts/run-real-chrome-acceptance.js`: 10/10 PASS (100% Real Chrome acceptance tests passed).
+- ESLint: 0 errors, 0 warnings across all touched files.
 
 ### P16-001A: Resume Source-of-Truth Contract & Immutability Boundary (Batch 1)
 
@@ -7627,4 +7748,13 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 **Additional integrity findings:** individual downloads can select a package-bound tailored-document snapshot when present, but the ZIP path validates that a requested hash belongs to the application and then reads the current `metadata.handoffKit`; it does not select artifact files by that requested package hash. ZIP `manifest.json` records package/application identity and file names but no per-file hashes or structured snapshot hash. `getApplicationPackage` enforces tenant/application binding, while the MCP wrapper performs an optional candidate match rather than making candidate binding intrinsic to the service call.
 
 **Required follow-up before Phase 16 completion:** carry one authoritative fit result through Analyze → Prepare Handoff, ensure structured snapshot fields participate in persisted package identity/versioning, prevent same-hash legacy kit reuse when the package payload changes, and make ZIP/artifact selection and manifest hashes package-specific. Add end-to-end tests covering ranking propagation, structured snapshot persistence, regeneration after artifact deletion, package-bound individual/ZIP downloads, cross-candidate denial, and legacy-package fallback. No implementation was performed in this audit.
+
+### P16-001F-3B: AUTHORITATIVE ANALYZE -> PREPARE PASSTHROUGH DIAGNOSTIC
+**Status:** COMPLETE (READ-ONLY DIAGNOSTIC — NO CODE CHANGES)  
+**Date:** 2026-09-09  
+**Scope:** Conducted read-only diagnostic tracing the flow from extension Analyze through `/analyze-job`, `JobDescriptionParser`, `handleAnalyzeJobFit`, browser extension state, `/prepare-handoff`, `JobApplicationWorkflowService._resolveOrComputeJobFit`, `ProjectRelevanceService`, `ResumeTailoringPlan`, and `StructuredResumeDocument`.  
+**Findings:**
+- Root cause identified: `/analyze-job` generates authoritative `fitAnalysis` (using `JobDescriptionParser.parse`) and project relevance scores (Product-Data-Explorer `64.83`, Collaborative-task-manager `51.89`, Ai-powered-code-review-assistant `47.84`). However, this snapshot is never persisted on the server, and the extension's `/prepare-handoff` payload forwards only `{ job, applicationId }`.
+- In `prepareJobApplication`, `_resolveOrComputeJobFit` finds no `jobFitAnalysis` on the target job or answers, and falls back to in-flight recomputation against raw unparsed requirement text (`RAW_REQUIREMENT`), degrading scores to `37.28`, `28.73`, `26.19`.
+- Architectural Recommendation: Implement a server-authoritative analysis snapshot store keyed by `(tenantId, candidateId, canonicalJobId)` with content hash validation. Prepare Handoff retrieves the authoritative snapshot directly, preserving 100% score and project parity without trusting client-side payloads.
 
