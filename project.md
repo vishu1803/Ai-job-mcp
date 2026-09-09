@@ -3,6 +3,334 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-08*
 
+### P16-001A: Resume Source-of-Truth Contract & Immutability Boundary (Batch 1)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Objective:**
+Establish the authoritative structured contract and candidate-owned boundary for job-tailored resume generation (Batch 1) with **zero visible behavior change** to current resume output. Distinguish permanent, immutable candidate facts (identity, professional experience, education, certifications, DSA records, verified/corroborated skills, project records, project evidence) from dynamic tailored presentation (heading, summary, skill selection/ordering, project selection/ordering, bullets, section ordering).
+
+**Architecture Decisions & Invariants:**
+1. **Authoritative Candidate-Owned Data Immutability:**
+   - Candidate identity, experience, education, certifications, DSA, skills, and projects are strictly immutable source facts.
+   - Dynamic tailoring services deep-clone inputs and never mutate candidate source records.
+2. **Zero Synthetic Default Injection:**
+   - Forbids synthetic placeholder tokens (`'2022-01-01'`, `'2024-01-01'`, `'University'`, `'Bachelor of Science'`, `'Professional Certification'`, `'Issuing Authority'`, fabricated DSA bullets) when candidate data is missing.
+   - Missing fields preserve `null`/`undefined`/`[]` state; rendering/validation determines downstream section eligibility.
+3. **Structured Resume Contracts (Zod Production Schemas):**
+   - Implemented `ResumeTailoringPlanSchema`, `StructuredResumeDocumentSchema`, `EvidenceReferenceSchema`, and `EvidenceValidationReceiptSchema` in `src/domain/career/resume.schemas.js`.
+   - Snapshot boundary defined: packages store exact tailored headings, summary, selected skills, selected projects with bullets, and source experience/education/certification/DSA snapshots without re-reading the candidate profile during rendering.
+4. **Machine-Readable Dynamic Provenance & Validation Receipts:**
+   - Every tailored claim links to machine-readable provenance (`VERIFIED`, `CORROBORATED`, `USER_PROVIDED`, `CLAIMED`).
+   - `validateStructuredResumeIntegrity` generates an `EvidenceValidationReceipt` auditing claims and detecting any forbidden synthetic placeholders.
+5. **Deterministic & Snapshot-Safe Application Package Boundary:**
+   - Added optional `structuredResume`, `tailoringPlan`, and `evidenceValidationReceipt` to `ApplicationPackageSchema` in `src/domain/job/job-workflow.schemas.js`.
+   - Preserves 100% hash invariance in `computeApplicationPackageHash`.
+   - Implemented `StructuredResumeService` (`src/services/structured-resume.service.js`) with snapshot creation, integrity validation, and plan generation.
+
+**Verification & Evidence:**
+- `tests/unit/p16-structured-resume-contract.test.js`: 10/10 PASS across 5 suites (Zod conformance, immutability boundary, zero synthetic default injection, synthetic placeholder detection, snapshot determinism).
+- `tests/unit/resume-tailoring.service.test.js`: 28/28 PASS.
+- `tests/integration/resume-tailoring.service.test.js`: 3/3 PASS.
+- `tests/unit/resume-content-strategy.test.js`: 15/15 PASS.
+- `tests/unit/resume-quality-assessment.test.js`: 17/17 PASS.
+- `tests/unit/job-application-submission-truth.test.js`: 8/8 PASS.
+- `tests/unit/job-application-workflow-corroborated.test.js`: 9/9 PASS.
+- `tests/unit/application-document-pipeline-fixes.test.js`: 25/25 PASS.
+- `tests/unit/job-application-email-integrity.test.js`: 10/10 PASS.
+- `tests/integration/mcp-application-artifact-tools.test.js`: 9/9 PASS.
+- `tests/integration/mcp-job-workflow.test.js`: 15/15 PASS.
+- `tests/integration/extension-api.test.js`: 12/12 PASS.
+- `tests/acceptance/full-acceptance.test.js`: 6/6 PASS.
+- ESLint: 0 errors, 0 warnings across all touched files.
+
+### P16-001B: Authoritative Analyzer -> Project Selection (Batch 2)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Objective:**
+Replace hardcoded project fallback rankings and static project selections with authoritative `ProjectRelevanceService` / `PortfolioRecommendationService` analyzer results. Ensure the resume's projects section genuinely tailors to the specific target job posting while strictly preserving candidate-owned repository bullets and immutable provenance.
+
+**Architecture Decisions & Invariants:**
+1. **Zero Hardcoded Project Fallback:**
+   - Completely eliminated static fallback project lists.
+   - Project selection is driven exclusively by authoritative recommendation/relevance analyses (`recommendPortfolioProjects` / `ProjectRelevanceService`).
+2. **Analyzer Order Preservation:**
+   - Downstream resume building consumes authoritative project rankings directly and does not re-sort or re-rank selected projects.
+   - Project selection budget strictly preserves analyzer ordering.
+3. **Target Job Differentiation & Rejection of Irrelevant Projects:**
+   - Contrasting target jobs (e.g. distributed backend vs frontend UI) select distinctly different projects according to candidate evidence.
+   - For genuinely irrelevant jobs where no candidate project meets relevance criteria, the system prefers selecting NO project over fabricating or forcing the WRONG project.
+4. **Structured Plan Integration:**
+   - Selected project IDs, relevance scores, and ranks are explicitly recorded in `ResumeTailoringPlan.selectedProjectIds` and mirrored in `StructuredResumeDocument.projects`.
+
+**Verification & Evidence:**
+- `tests/unit/p16-001b-authoritative-project-selection.test.js`: 12/12 PASS across Tests A through L.
+
+### P16-001C: Authoritative Job -> Skill Selection (Batch 3)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Objective:**
+Replace hardcoded skill exclusions (including arbitrary "flask" exclusions), hardcoded tooling-noise lists, rigid category caps (`3/3/4/4/3`), and fixed category sequences in the resume pipeline with authoritative candidate-evidence and job-requirement relevance matching. Ensure the resume's technical skills section is genuinely job-tailored while preserving 1-page resume space constraints and candidate truth invariants.
+
+**Architecture Decisions & Invariants:**
+1. **Radical Truth Invariant (Immutable Candidate Facts & Provenance):**
+   - Candidate-owned facts and trust levels are strictly immutable: `CLAIMED`, `USER_PROVIDED`, and `SELF_DECLARED` skills are NEVER upgraded to `VERIFIED` merely because a job posting requests the skill.
+   - Job requirements never fabricate candidate skills; missing requirements are strictly omitted from the skills section.
+   - VERIFIED and CORROBORATED evidence references (`evidenceId`, `evidenceRef`) are preserved bit-for-bit into the structured resume representation.
+2. **Authoritative Relevance-Driven Skill Ranking:**
+   - Replaced static keyword matching and hardcoded tooling exclusion lists with authoritative requirement match analysis (`jobFitAnalysis.matchAnalysis`).
+   - Skills matching required/preferred job requirements with high confidence and verified evidence are ranked top.
+   - Candidate-wide skills irrelevant to the target job are naturally de-prioritized rather than using ad-hoc blocklists.
+3. **Dynamic Category Ordering & Flexible Capacity:**
+   - Replaced rigid hardcoded category caps (`3/3/4/4/3`) with dynamic per-category limits up to `maxPerCategory` (default 6), allowing strong categories (e.g., Languages or Frameworks) to populate relevant skills to fit a 1-page budget.
+   - Replaced fixed category sequences with dynamic ordering derived from aggregate relevance scores of selected skills in each category.
+4. **Removal of Arbitrary Filters:**
+   - Completely removed hardcoded `if (name.toLowerCase() === 'flask')` exclusions across `CandidateArtifactContentService` and `JobApplicationWorkflowService`.
+   - Flask and any other candidate-owned technologies are selected legitimately when relevant to the job, and properly audited.
+5. **Structured Resume Tailoring Plan & Document Integration:**
+   - Defined `TailoredSelectedSkillSchema` and extended `ResumeTailoringPlanSchema` with `selectedSkills`, `selectedSkillSlugs`, and `skillCategoryOrder`.
+   - `StructuredResumeService` and `CandidateArtifactContentService` derive and output aligned skill sets, categories, and item-level evidence references into `StructuredResumeDocument.skills.categories`.
+
+**Files Changed:**
+- `src/domain/career/resume.schemas.js`: Added `TailoredSelectedSkillSchema` and extended `ResumeTailoringPlanSchema`.
+- `src/services/candidate-artifact-content.service.js`: Refactored `selectAndCategorizeSkillsForJob`, removed hardcoded Flask filters and static category caps, added dynamic category ordering and audit telemetry.
+- `src/services/job-application-workflow.service.js`: Removed hardcoded Flask filters in `prepareJobApplication` and `prepareJobApplicationDraft`, forwarded `matchAnalysis` to document generation.
+- `src/services/structured-resume.service.js`: Integrated authoritative skill selection and ordering into `ResumeTailoringPlan` and `StructuredResumeDocument`.
+- `tests/unit/p16-001c-authoritative-skill-selection.test.js`: 14 focused unit tests covering Tests A through N.
+- `tests/acceptance/full-acceptance.test.js`: Added `closeDatabase()` to `after` hook to ensure clean test exit.
+
+**Verification & Evidence:**
+- `tests/unit/p16-001c-authoritative-skill-selection.test.js`: 14/14 PASS (Tests A through N).
+- `tests/unit/p16-001b-authoritative-project-selection.test.js`: 12/12 PASS.
+- `tests/unit/p16-structured-resume-contract.test.js`: 10/10 PASS.
+- `tests/unit/resume-content-strategy.test.js`: 15/15 PASS.
+- `tests/unit/application-document-pipeline-fixes.test.js`: 25/25 PASS.
+- `tests/unit/evidence-matching.service.test.js`: 40/40 PASS.
+- `tests/unit/resume-tailoring.service.test.js`: 28/28 PASS.
+- `tests/integration/mcp-application-artifact-tools.test.js`: 9/9 PASS.
+- `tests/integration/mcp-job-workflow.test.js`: 15/15 PASS.
+- `tests/integration/extension-api.test.js`: 12/12 PASS.
+- `tests/acceptance/full-acceptance.test.js`: 6/6 PASS.
+- `node scripts/run-real-chrome-acceptance.js`: 10/10 PASS (100% browser E2E).
+- ESLint: 0 errors, 0 warnings across all modified files.
+
+### P16-001D: Job-Tailored Summary & Evidence-Grounded Bullets (Batch 4)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Objective:**
+Implement job-tailored professional summary generation and evidence-grounded project bullet selection and rephrasing (Implementation Batch 4). Ground summary content strictly in candidate-owned verified/corroborated evidence and target job requirements (2-3 sentences, <350 characters, zero unbacked tenure, years, employers, scale, or metrics). Select project bullets prioritizing alignment with matched job requirements and candidate evidence. Enforce radical truth invariants with metric safety guards (rejecting quantitative claims like "40% reduction", "1000 users", "99.9% availability", "10M requests", "5-person team" without corroborating evidence), unbacked technology injection guards, item-level provenance attachment (`evidenceRefs`, `matchedRequirementIds`, `provenanceStatus`), deterministic generation, and candidate source record immutability.
+
+**Architecture Decisions & Invariants:**
+1. **Evidence-Grounded Professional Summary:**
+   - Summaries are synthesized from verified candidate-owned skills and top relevant projects matching target job requirements.
+   - Emphasizes target domain (backend, frontend, full-stack, distributed systems) while strictly preserving candidate truth.
+   - Zero fabrication of years of experience, scale, executive titles, or unbacked technologies.
+   - Attaches `evidenceRefs`, `matchedRequirementIds`, `referencedSkillSlugs`, and `referencedProjectIds`.
+2. **Authoritative Project Bullet Selection & Grounded Rephrasing:**
+   - Project bullets are scored and selected based on matched requirement IDs, evidence depth, and relevance to target job requirements.
+   - Rephrasing transforms passive or repetitive source descriptions into active, professional impact statements while preserving factual scope.
+   - Forbids injecting ungrounded technologies (e.g. Kubernetes, Rust) or inflated scale ("serving millions of users").
+   - Attaches item-level `evidenceRefs` (with normalized file paths) and `matchedRequirementIds` to every selected bullet.
+3. **Metric Safety Guard (Zero Ungrounded Quantitative Claims):**
+   - Enforces `assertMetricSafety`: quantitative achievements (percentages, user counts, availability metrics, request volumes, team sizes, dollar figures, tenure claims) are blocked unless corroborated by explicit evidence records or candidate source text.
+   - Audit integration in `validateStructuredResumeIntegrity`: detects unbacked metrics as `UNGROUNDED_METRIC_DETECTED` violations and fails closed (`overallStatus: 'FAIL'`).
+4. **Radical Truth & Immutability:**
+   - Source candidate objects remain strictly immutable.
+   - Output generation is 100% deterministic across multiple runs with identical inputs.
+
+**Files Changed / Added:**
+- `src/domain/career/resume.schemas.js`: Extended `TailoredSummarySchema` with `evidenceRefs` and `matchedRequirementIds`.
+- `src/services/resume-content-strategy.service.js`: Created dedicated content strategy service implementing `generateGroundedSummary`, `selectAndRephraseProjectBullets`, `assertMetricSafety`, and `validateRephrasingSafety`.
+- `src/services/structured-resume.service.js`: Integrated grounded summary and bullet selection/rephrasing into `buildStructuredResumeDocument` and added metric safety assertions into `validateStructuredResumeIntegrity`.
+- `src/services/candidate-artifact-content.service.js`: Updated `buildTailoredResumeMarkdown` to consume grounded project bullets.
+- `tests/unit/p16-001d-summary-bullet-grounding.test.js`: Created 15 comprehensive unit tests (Tests A through O) validating all summary, bullet, metric, and provenance requirements.
+
+**Verification & Evidence:**
+- `tests/unit/p16-001d-summary-bullet-grounding.test.js`: 15/15 PASS (Tests A through O).
+- `tests/unit/p16-001c-authoritative-skill-selection.test.js`: 14/14 PASS.
+- `tests/unit/p16-001b-authoritative-project-selection.test.js`: 12/12 PASS.
+- `tests/unit/p16-structured-resume-contract.test.js`: 10/10 PASS.
+- `tests/unit/resume-content-strategy.test.js`: 15/15 PASS.
+- `tests/unit/application-document-pipeline-fixes.test.js`: 25/25 PASS.
+- `tests/unit/evidence-matching.service.test.js`: 40/40 PASS.
+- `tests/unit/resume-tailoring.service.test.js`: 28/28 PASS.
+- `tests/integration/mcp-application-artifact-tools.test.js`: 9/9 PASS.
+- `tests/integration/mcp-job-workflow.test.js`: 15/15 PASS.
+- `tests/integration/extension-api.test.js`: 12/12 PASS.
+- `tests/acceptance/full-acceptance.test.js`: 6/6 PASS.
+- `node scripts/run-real-chrome-acceptance.js`: 10/10 PASS (100% real Chrome E2E).
+- ESLint: 0 errors, 0 warnings across all modified and created files.
+
+### P16-001E: Job-Tailored Heading & Dynamic Section Ordering (Batch 5)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Objective:**
+Implement dynamic target-role resume heading derivation and dynamic section ordering governed authoritatively by `ResumeTailoringPlan` (Implementation Batch 5). Derives professional resume headings tailored to the target job while enforcing strict seniority inflation protection (stripping Senior, Principal, Lead, Staff for entry-level/fresher candidates lacking senior evidence). Governs section ordering authoritatively according to candidate archetype (e.g., fresher/project-heavy: Projects before Experience; experienced: Experience before Projects) and omits empty optional sections. Updates `PdfGeometryAnalyzer` to validate against package-specific `expectedSectionOrder` with duplicate section detection and missing/unexpected section reporting. Refactors LaTeX renderer to consume `document.sectionOrder` and `document.candidateIdentity.headline`, and eliminates hardcoded candidate link fallbacks (`vishu1803`).
+
+**Architecture Decisions & Invariants:**
+1. **Dynamic Target Role Heading Derivation:**
+   - Heading derived from target job title, job requirements, candidate evidence, and candidate seniority/archetype.
+   - Normalizes titles, strips extraneous employer/location suffixes ("Hybrid", "Remote", department names).
+   - Retains meaningful specialization (e.g., "Backend Engineer", "Frontend Developer", "Full-Stack Engineer") when substantiated by candidate skills and projects.
+2. **Strict Seniority Inflation Protection:**
+   - Entry-level, fresher, or junior candidates applying for senior/lead/principal/staff positions receive evidence-grounded non-inflated titles (e.g., "Senior Python Engineer" -> "Python Engineer").
+   - Experienced candidates with senior work history, senior titles, or architectural evidence retain their qualified titles without artificial demotion.
+3. **Authoritative Dynamic Section Ordering:**
+   - Governed authoritatively by `ResumeTailoringPlan.sectionOrder` and mirrored in `StructuredResumeDocument.sectionOrder`.
+   - Archetype-driven: Fresher/Career-Changer places `PROJECTS` ahead of `EXPERIENCE`; Experienced places `EXPERIENCE` ahead of `PROJECTS`.
+   - Optional sections (`DSA`, `CERTIFICATIONS`, `COURSEWORK`, `PUBLICATIONS`) are included ONLY when authentic non-empty candidate records exist.
+4. **Package-Aware PdfGeometryAnalyzer:**
+   - `analyze({ buffer, targetPages, expectedSectionOrder, sectionOrder })` validates against the package-specific `expectedSectionOrder` instead of a static canonical list.
+   - Added duplicate section detection (`DUPLICATE_SECTIONS_DETECTED`) flagging duplicate headings in the rendered text layer.
+   - Detects missing expected sections and unexpected extra sections.
+   - `ResumeQualityAssessmentService.isSectionOrderValid` accepts package-defined `expectedOrder`.
+5. **Renderer Modernization & Fallback Cleanup:**
+   - `LatexDocumentGenerator` assembles body sections strictly based on `authoritativeOrder` (`structuredResume.sectionOrder`).
+   - Removed hardcoded candidate link fallbacks (eliminated `vishu1803` fallback).
+   - Preserves candidate source record immutability and guarantees 100% deterministic output.
+
+**Files Changed / Added:**
+- `src/services/resume-content-strategy.service.js`: Added `normalizeTargetRoleTitle`, `deriveTargetRoleHeading`, and `deriveSectionOrdering`.
+- `src/services/structured-resume.service.js`: Integrated heading derivation and dynamic section ordering into `buildStructuredResumeDocument` and `ResumeTailoringPlan`.
+- `src/services/pdf-geometry-analyzer.service.js`: Supported `expectedSectionOrder`, duplicate section detection, and dynamic section ordering verification.
+- `src/services/latex-document-generator.service.js`: Consumed `document.sectionOrder`, prioritized structured headline, and eliminated hardcoded candidate fallbacks.
+- `src/services/application-handoff.service.js`: Forwarded package section order to `PdfGeometryAnalyzer`.
+- `src/services/resume-quality-assessment.service.js`: Supported package-defined `expectedOrder` in `isSectionOrderValid`.
+- `tests/unit/p16-001e-heading-section-order.test.js`: Created 17 unit tests (Tests A through Q) validating heading derivation, seniority protection, dynamic ordering, geometry validation, duplicate detection, and link fallback cleanliness.
+
+**Verification & Evidence:**
+- `tests/unit/p16-001e-heading-section-order.test.js`: 17/17 PASS (Tests A through Q).
+- `tests/unit/p16-001d-summary-bullet-grounding.test.js`: 15/15 PASS.
+- `tests/unit/p16-001c-authoritative-skill-selection.test.js`: 14/14 PASS.
+- `tests/unit/p16-001b-authoritative-project-selection.test.js`: 12/12 PASS.
+- `tests/unit/p16-structured-resume-contract.test.js`: 10/10 PASS.
+- `tests/unit/pdf-geometry-analyzer.test.js`: 15/15 PASS.
+- `tests/unit/resume-quality-assessment.test.js`: 22/22 PASS.
+- `tests/unit/resume-content-strategy.test.js`: 15/15 PASS.
+- `tests/unit/application-document-pipeline-fixes.test.js`: 25/25 PASS.
+- `tests/unit/evidence-matching.service.test.js`: 40/40 PASS.
+- `tests/unit/resume-tailoring.service.test.js`: 28/28 PASS.
+- `tests/integration/mcp-application-artifact-tools.test.js`: 9/9 PASS.
+- `tests/integration/mcp-job-workflow.test.js`: 15/15 PASS.
+- `tests/integration/extension-api.test.js`: 12/12 PASS.
+- `tests/acceptance/full-acceptance.test.js`: 6/6 PASS.
+- `node scripts/run-real-chrome-acceptance.js`: 10/10 PASS (100% real Chrome E2E).
+- ESLint: 0 errors, 0 warnings across all modified and created files.
+
+### P16-001F-1: Structured Resume Snapshot Persistence Boundary
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Objective:**
+Establish the structured resume snapshot persistence boundary in `JobApplicationWorkflowService` (Batch P16-001F-1). The P16-001F audit revealed that while structured resume contracts existed, production application packages only persisted Markdown resumes and later renderers re-read the live candidate profile. This batch embeds `structuredResume`, `tailoringPlan`, and `evidenceValidationReceipt` directly into `applicationPackage.tailoredResume` and `package_payload`, enforcing fail-closed validation and strict immutability before database persistence, while preserving 100% hash neutrality, legacy compatibility, and leaving the LaTeX renderer untouched for Batch F-2.
+
+**Architecture Decisions & Invariants:**
+1. **Authoritative Snapshot Creation & Persistence:**
+   - In `JobApplicationWorkflowService.prepareJobApplication` and `prepareJobApplicationDraft`, builds the snapshot via `StructuredResumeService.buildStructuredResumeSnapshot` using the identical candidate, job, and fit analysis inputs already consumed by the production document generation pipeline.
+   - Persists `structuredResume`, `tailoringPlan`, and `evidenceValidationReceipt` into `applicationPackage.tailoredResume` (and `preparedPackage.tailoredResume`), which is stored into `application_packages.package_payload`.
+   - Preserves all legacy Markdown fields in `tailoredResume` for backward compatibility.
+2. **Fail-Closed Integrity Gate:**
+   - Validates `structuredResume` against `StructuredResumeDocumentSchema`, `tailoringPlan` against `ResumeTailoringPlanSchema`, and `evidenceValidationReceipt` against `EvidenceValidationReceiptSchema`.
+   - Requires `receipt.overallStatus === 'PASS'`.
+   - On validation failure or ungrounded synthetic placeholders/metrics, throws `ValidationError` and immediately aborts package persistence.
+3. **Strict Immutability & Zero In-Memory Aliasing:**
+   - Stored structured snapshot is deep-cloned (`JSON.parse(JSON.stringify(...))`) to guarantee it holds no references to mutable live in-memory candidate objects.
+   - Candidate source records are not mutated. Subsequent in-memory mutations to candidate profile objects do not affect stored package payloads.
+4. **100% Package Hash & Idempotency Invariance:**
+   - `computeApplicationPackageHash` strictly digests `{ candidateId, candidateName, candidateEmail, jobId, jobTitle, company, resumeContent, coverLetterContent, answers }`.
+   - Adding `structuredResume`, `tailoringPlan`, and `evidenceValidationReceipt` is completely hash-neutral, preserving all idempotency, approval ticket signatures, and submission guards without modification.
+5. **Legacy Package Compatibility:**
+   - Older application packages lacking `structuredResume` continue to function without migration or database backfills.
+   - The boundary strictly governs newly prepared application packages.
+6. **Isolated Scope (Zero Renderer Mutation in Batch F-1):**
+   - LaTeX rendering, `LatexDocumentGenerator`, `ApplicationHandoffService`, `PdfGeometryAnalyzer`, `ResumeLayoutEngine`, and browser extension were NOT modified. Batch F-2 will migrate the LaTeX renderer to consume the stored snapshot.
+
+**Files Changed / Added:**
+- `src/services/structured-resume.service.js`: Added support for DSA fallback aliases and passed options to `buildStructuredResumeDocument`.
+- `src/services/candidate-artifact-content.service.js`: Exposed `candidateData` in `generateApplicationDocuments` return object; added LeetCode profile URL fallback.
+- `src/services/job-application-workflow.service.js`: Wired `buildStructuredResumeSnapshot`, fail-closed validation against Zod schemas and `receipt.overallStatus === 'PASS'`, deep-cloning, and persistence to `tailoredResume` and `preparedPackage`.
+- `tests/unit/p16-001f1-structured-snapshot-persistence.test.js`: Created 18-test unit suite (Tests A through R) covering snapshot persistence, ordering, immutability, fail-closed validation, and hash neutrality.
+- `tests/integration/p16-001f1-snapshot-roundtrip.test.js`: Created end-to-end integration test proving preparation, DB persistence, retrieval, and exact snapshot roundtrip survival.
+
+**Verification & Evidence:**
+- `tests/unit/p16-001f1-structured-snapshot-persistence.test.js`: 18/18 PASS (Tests A through R).
+- `tests/integration/p16-001f1-snapshot-roundtrip.test.js`: 1/1 PASS.
+- `tests/unit/p16-*.test.js` (Full Phase 16 suite: A, B, C, D, E, F1): 86/86 PASS.
+- `tests/unit/job-application-submission-truth.test.js`: 8/8 PASS.
+- `tests/unit/resume-content-strategy.test.js`, `tests/unit/pdf-geometry-analyzer.test.js`, `tests/unit/resume-quality-assessment.test.js`: 52/52 PASS.
+- `tests/integration/mcp-job-workflow.test.js`, `tests/integration/mcp-application-artifact-tools.test.js`, `tests/integration/extension-api.test.js`: 36/36 PASS.
+- `tests/acceptance/full-acceptance.test.js`: 6/6 PASS.
+- `node scripts/run-real-chrome-acceptance.js`: 10/10 PASS (100% real Chrome E2E).
+- ESLint: 0 errors, 0 warnings across all touched files.
+
+### P16-001F-2: Structured Resume -> Controlled LaTeX Renderer Migration
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Objective:**
+Migrate the production PDF renderer `LatexDocumentGenerator` (`src/services/latex-document-generator.service.js`) to render resumes exclusively from the validated immutable `applicationPackage.tailoredResume.structuredResume` snapshot created in P16-001F-1 (Implementation Batch P16-001F-2, No New Tailoring Features). Guarantees zero live candidate-profile reads, zero Markdown regex parsing, zero in-memory content reconstruction, zero hardcoded candidate fallbacks, and 100% deterministic compilation. Introduces comprehensive and centralized LaTeX text escaping (`escapeLatex`) and URL escaping (`escapeLatexUrl`), audits all `\href` calls, decouples `ResumeLayoutEngine` and `ApplicationHandoffService` from live candidate profiles for structured packages, and maintains full backward compatibility for legacy packages without a structured snapshot.
+
+**Architecture Decisions & Invariants:**
+1. **Authoritative Snapshot Rendering & Zero Profile Reads:**
+   - For any application package containing `applicationPackage.tailoredResume.structuredResume`, `LatexDocumentGenerator.generateTailoredResumeLatex` branches to `_generateFromStructuredResume`.
+   - Never queries `candidateProfileService`, database, or candidate state. All rendered data (identity, headline, phone, location, links, summary, categorized skills, selected projects with verified bullets, experience, education, certifications, DSA, section order) is sourced exclusively from the snapshot.
+2. **Zero Markdown Regex Parsing & Zero Re-Ranking:**
+   - Markdown resume content can be empty or omitted; structured renderer does not scrape or regex-parse Markdown text.
+   - Preserves exact skill selection, category groupings, project ordering, and bullet text as recorded in the snapshot without re-sorting or re-filtering.
+3. **Centralized & Robust LaTeX Escaping:**
+   - `escapeLatex(text)`: Fully neutralizes all LaTeX reserved and dangerous characters (`\`, `{`, `}`, `$`, `&`, `#`, `%`, `_`, `~`, `^`, `<`, `>`), normalizes typographic quotes/dashes, and neutralizes macro injections (e.g., `\textbf`, `\input`, `\write18`, `\def`).
+   - `escapeLatexUrl(url)`: Preserves valid URL syntax (`%`, `#`, `_`, `&`, `?`, `=`, `:`, `/`, `-`) while percent-encoding dangerous characters (`{`, `}`, `\`, `"`, `'`, whitespace, newlines).
+   - Audited all `\href{url}{label}` invocations across resume header, projects, DSA, and cover letter, ensuring targets use `escapeLatexUrl` and labels use `escapeLatex`.
+4. **Resilient Downstream Decoupling:**
+   - `ResumeLayoutEngine.buildSemanticModel`: Directly consumes `structuredResume` fields without invoking live profile methods.
+   - `ApplicationHandoffService`: Made `candidateProfileService.getProfile()` non-fatal when `structuredResume` is present. Replaced candidate profile tokens with structured snapshot tokens for real data leakage audits.
+   - `ResumeQualityAssessmentService`: Evaluates structured resume fields directly for quality verification.
+5. **Legacy Package Backward Compatibility:**
+   - Application packages lacking `structuredResume` transparently route to `_generateFromLegacyPackage`, maintaining full backward compatibility for older packages without database migrations.
+6. **Defensive Immutability:**
+   - Deeply freezes or defensively copies candidate inputs in workflow and handoff services, preventing mutations of frozen objects or candidate profiles.
+
+**Files Changed / Added:**
+- `src/services/latex-document-generator.service.js`: Added `escapeLatex` and `escapeLatexUrl`; refactored `generateTailoredResumeLatex` into `_generateFromStructuredResume` and `_generateFromLegacyPackage` sharing `_assembleLatexDocument`; audited all `\href` calls; rendered all sections strictly from snapshot.
+- `src/services/resume-layout-engine.service.js`: Updated `buildSemanticModel` to use `structuredResume` directly.
+- `src/services/application-handoff.service.js`: Made candidate profile fetch non-fatal for structured packages; extracted tokens from `structuredResume`.
+- `src/services/resume-quality-assessment.service.js`: Evaluated structured resume fields when available.
+- `src/services/structured-resume.service.js`: Supported phone and location in snapshot identity.
+- `src/services/job-application-workflow.service.js`: Defensively cloned candidate profile inputs to avoid mutating frozen objects.
+- `tests/unit/p16-001f2-structured-latex-migration.test.js`: Created 26 unit tests (Tests A through Z) covering structured rendering, error resilience, section grounding, link/url escaping, macro neutralization, legacy compatibility, and determinism.
+- `tests/integration/p16-001f2-structured-artifact-rendering.test.js`: Created 3 integration tests verifying live package preparation, snapshot retrieval, candidate profile DB tampering survival, PDF compilation, and throwing profile service resilience.
+
+**Verification & Evidence:**
+- `tests/unit/p16-001f2-structured-latex-migration.test.js`: 26/26 PASS (Tests A through Z).
+- `tests/integration/p16-001f2-structured-artifact-rendering.test.js`: 3/3 PASS.
+- `tests/unit/p16-*.test.js` (Full Phase 16 suite: A, B, C, D, E, F1, F2): 112/112 PASS.
+- `tests/unit/resume-content-strategy.test.js`, `tests/unit/pdf-geometry-analyzer.test.js`, `tests/unit/resume-quality-assessment.test.js`: 52/52 PASS.
+- `tests/unit/application-handoff.test.js`, `tests/unit/application-package-lifecycle.test.js`: 16/16 PASS.
+- `tests/integration/mcp-job-workflow.test.js`: 15/15 PASS.
+- `tests/integration/mcp-application-artifact-tools.test.js`: 9/9 PASS.
+- `tests/integration/extension-api.test.js`: 12/12 PASS.
+- `tests/acceptance/full-acceptance.test.js`: 6/6 PASS.
+- `node scripts/run-real-chrome-acceptance.js`: 10/10 PASS (100% real Chrome E2E).
+- ESLint: 0 errors, 0 warnings across all modified and created files.
+
 ### P15-001: aicareershub Browser Extension Foundation + Authenticated Job-Page Workflow
 
 **Status:** COMPLETE  
@@ -5418,6 +5746,9 @@ All Remote MCP Server tasks have been implemented, tested, and verified:
 | **P14-005AX** | `validate_job_application` CORROBORATED Provenance Contract & Application Package Email Integrity | P14-005AW | **COMPLETE & VERIFIED** | Fixed contract defect where `ValidateJobApplicationInputSchema` and `ApplicationPackageSchema` rejected valid candidate skills having `CORROBORATED` truthCategory. Expanded `TruthCategoryEnum` in `src/domain/job/job-workflow.schemas.js` to include `'CORROBORATED'`. Updated `prepareJobApplication` to classify `CORROBORATED` skills into `verifiedSkills` with truthful provenance and updated `createApplicationPreview` with `*(CORROBORATED)*` badge. Identified that `packageHash: 85641297f80a...` was an immutable historical artifact from a prior ChatGPT turn; verified that fresh calls to `prepare_job_application` generate clean packages with authentic email (`v***@gmail.com`) and fresh hashes with zero database mutations. 9/9 unit tests PASS in `tests/unit/job-application-workflow-corroborated.test.js`, 42/42 regression tests PASS, 12/12 integration tests PASS in `tests/integration/mcp-job-workflow.test.js`, 0 ESLint errors, 100% Prettier compliant. |
 | **P14-005AY** | `get_application_submission_status` Tracking Service Method Alignment & Submission Status Resolution | P14-005AX | **COMPLETE & VERIFIED** | Fixed runtime crash `trackingService.getApplication is not a function` in `src/mcp/tools/job-workflow-tools.js` by invoking existing `trackingService.getApplicationDetails(context, applicationId)`. Formatted response to surface `applicationId`, `candidateId`, `companyName`, `jobTitle`, `jobUrl`, `status` (`'SUBMITTED'` when `'APPLIED'`), `trackingStatus` (`'APPLIED'`), `externalReference` (from metadata/notes), `packageHash`, `appliedAt`, `notes`, `stages`, and `tailoredDocuments`. Verified existing PostgreSQL record `0fe0cce0-dd5f-43e8-91fb-e8e8b2b4158a` remained intact with 0 mutations. 6/6 unit tests PASS in `tests/unit/mcp-application-submission-status.test.js`, 13/13 integration tests PASS in `tests/integration/mcp-job-workflow.test.js`, 0 ESLint errors, 100% Prettier compliant, 0 exposed secrets. |
 | **P14-005AZ** | `submit_job_application` Truthful Submission Semantics, Anti-Simulation & Manual Handoff Kit Enforcement | P14-005AY | **COMPLETE & VERIFIED** | Eliminated false Greenhouse/Lever in-memory simulation in `src/services/job-application-workflow.service.js`. Enforced truthful `HANDOFF_READY` submission state for portals without direct API transmission, providing the official job URL, tailored resume, cover letter, suggested answers, and checklist in `manualHandoffKit`. Prohibited local fabrication of pseudo `SUB-*` references. Added extensible `submissionAdapters` interface capable of returning `SUBMITTED` when real ATS integration succeeds. Distinguish internal tracking (`status: 'SAVED'` vs `'APPLIED'`) from external submission state (`status: 'HANDOFF_READY'` vs `'SUBMITTED'`) across tool responses. Preserved historical application `0fe0cce0-dd5f-43e8-91fb-e8e8b2b4158a` with 0 mutations. 8/8 regression tests PASS in `tests/unit/job-application-submission-truth.test.js`, 14/14 integration tests PASS in `tests/integration/mcp-job-workflow.test.js`, 39/39 unit tests PASS across 5 suites, 0 ESLint errors, 100% Prettier compliant, 0 exposed secrets. |
+| **P15-001** | `aicareershub` Browser Extension Foundation & Authenticated Job-Page Workflow | P14-005AZ | **COMPLETE & VERIFIED** | Implemented official Chrome extension Manifest V3 with thin-client architecture, canonical job identification, ATS job analysis, LaTeX-compiled handoff package preparation, and secure ZIP bundle download. 12/12 integration tests in `tests/integration/extension-api.test.js`, 13/13 in `tests/integration/extension-matrix.test.js`, 10/10 real Chrome acceptance tests. 0 ESLint errors. |
+| **P16-001** | Job-Tailored Resume Architecture Assessment (Read-Only) | P15-001 | **COMPLETE & VERIFIED** | Completed comprehensive architectural assessment of resume pipelines. Identified divergence between `ResumeTailoringService` (legacy P6) and `CandidateArtifactContentService` (production P14). Documented 8 hardcoded and non-job-tailored patterns, established permanent candidate truth boundary vs dynamic presentation, defined 4 core structured contracts and LaTeX compilation/rendering targets. |
+| **P16-001A** | Resume Source-of-Truth Contract & Immutability Boundary (Batch 1) | P16-001 | **COMPLETE & VERIFIED** | Established authoritative structured resume contracts (`ResumeTailoringPlanSchema`, `StructuredResumeDocumentSchema`, `EvidenceReferenceSchema`, `EvidenceValidationReceiptSchema`) and candidate-owned immutability boundary with zero visible behavior change to current output. Sourced facts are permanent and immutable; dynamic claims have machine-readable provenance. Forbids synthetic defaults ('2022-01-01', 'University', etc.) preserving null/empty state. Built `StructuredResumeService` (`src/services/structured-resume.service.js`) and comprehensive tests in `tests/unit/p16-structured-resume-contract.test.js` (10/10 PASS). 0 ESLint errors. |
 | **P14-006** | Conduct Final Production Readiness Review against Success Criteria | All prior | NOT_STARTED | Signed-off audit report against `goal.md` requirements. |
 
 ---
@@ -7204,3 +7535,96 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 - ESLint (all touched files): **0 errors, 0 warnings**
 
 **Program status:** P15-002 hardening COMPLETE across Batches 1–3 (all 15 assessment areas addressed: 2 MUST-FIX + 13 SHOULD-FIX).
+
+---
+
+## PHASE 16: Job-Tailored Resume Architecture
+
+### P16-001: Job-Tailored Resume Architecture Assessment
+**Status:** COMPLETE & APPROVED  
+**Date:** 2026-09-08  
+**Scope:** Read-only architectural assessment of the dual resume pipelines (Markdown vs LaTeX/Tectonic), identification of immutable candidate-owned boundaries vs dynamic job-tailored content, and formulation of an incremental 6-batch execution roadmap.
+
+### P16-001A: Resume Source-of-Truth Contract & Candidate-Owned Immutability Boundary
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Scope:** Core data model contracts, Zod schemas (`StructuredResumeDocumentSchema`, `ResumeTailoringPlanSchema`, `EvidenceValidationReceiptSchema`), and the `StructuredResumeService` immutability boundary.
+**Deliverables:**
+- `src/domain/career/resume.schemas.js`: Structured schemas defining canonical candidate snapshots, tailoring plans, and evidence validation receipts.
+- `src/domain/job/job-workflow.schemas.js`: Attached `structuredResumeDocument` and `evidenceValidationReceipt` to application packages.
+- `src/services/structured-resume.service.js`: Provider-neutral service enforcing candidate-owned fact immutability, zero synthetic placeholder injection, and deterministic document construction.
+- `tests/unit/p16-structured-resume-contract.test.js`: Comprehensive 10-test suite verifying immutability, schema conformance, zero synthetic defaults, receipt auditing, and serialization stability.
+
+### P16-001B: Authoritative Analyzer → Project Selection
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-08  
+**Scope:** Projects only. Eliminated the production hardcoded project fallback (`['Product-Data-Explorer', 'Collaborative-task-manager', 'Ai-powered-code-review-assistant']`) and duplicate scoring, driving project selection exclusively through the authoritative `ProjectRelevanceService` / `analyze_job_fit` engine.
+
+**Items Implemented:**
+1. **Workflow Integration (`JobApplicationWorkflowService`)**:
+   - In `prepareJobApplication`, resolved/computed job fit *before* document generation.
+   - Completely eliminated the hardcoded 3-project fallback list.
+   - Sourced recommended projects directly from `projectRankings` meeting relevance criteria (`score >= 25` or positive coverage).
+   - Injected authoritative `projectRankings` directly into `generateApplicationDocuments` options and target job posting payload.
+2. **Artifact Content Integration (`CandidateArtifactContentService`)**:
+   - Integrated `ProjectRelevanceService` to consume authoritative rankings directly.
+   - Deduplicated candidate projects while prioritizing active repositories over archived ones, preserving authentic bullets, repository URLs, and provenance status.
+   - Sliced selected projects strictly to the 1-page budget (`projectBudget` = 2 with DSA practice, 3 without) in exact analyzer rank order without secondary re-sorting by name/slug/position.
+   - Enforced fail-closed zero-relevance rejection: irrelevant projects are rejected rather than fabricating relevance (prefers NO project over WRONG project).
+   - Preserved `rankProjectsForJob` on the class for backward compatibility with isolated unit tests.
+3. **Structured Resume Service Integration (`StructuredResumeService`)**:
+   - `buildStructuredResumeDocument` maps authoritative analyzer rankings directly into `ResumeTailoringPlan.selectedProjectIds`.
+   - `StructuredResumeDocument.projects` contains only projects in `selectedProjectIds` in exact analyzer order, attaching `relevanceScore`, `rank`, and matched requirements.
+   - Supported minimal job postings without requirements by preserving raw candidate projects sliced to budget.
+4. **Comprehensive Unit & Acceptance Test Suite**:
+   - Created `tests/unit/p16-001b-authoritative-project-selection.test.js` covering Tests A through L:
+     - Test A: Hardcoded project fallback list is never used.
+     - Test B: Authoritative analyzer top project is selected.
+     - Test C: Authoritative analyzer ordering is preserved without re-sorting.
+     - Test D: Project budget truncates rankings without changing relative order.
+     - Test E: Contrasting job profiles (Python backend vs React frontend) dynamically select distinct projects.
+     - Test F: Genuinely irrelevant jobs yield empty project selection (prefers NO project over WRONG project).
+     - Test G: Relevance scores, ranks, and matched criteria are preserved into structured representation.
+     - Test H: Selected project IDs are placed into `ResumeTailoringPlan`.
+     - Test I: `StructuredResumeDocument` project order matches `ResumeTailoringPlan`.
+     - Test J: Deterministic output across repeated executions.
+     - Test K: Candidate-owned bullets and provenance remain intact.
+     - Test L: `CandidateArtifactContentService` consumes authoritative rankings directly.
+
+**Verification Evidence:**
+- `tests/unit/p16-001b-authoritative-project-selection.test.js`: **12/12 PASS**
+- `tests/unit/p16-structured-resume-contract.test.js`: **10/10 PASS**
+- `tests/unit/resume-content-strategy.test.js`: **15/15 PASS**
+- `tests/unit/project-relevance.service.test.js`: **33/33 PASS**
+- `tests/integration/resume-tailoring.service.test.js`: **3/3 PASS**
+- `tests/integration/mcp-job-workflow.test.js`: **15/15 PASS**
+- `tests/integration/extension-api.test.js`: **12/12 PASS**
+- `tests/integration/mcp-application-artifact-tools.test.js`: **9/9 PASS**
+- `scripts/run-real-chrome-acceptance.js`: **10/10 PASS (100%)**
+- `npx eslint` across touched files: **0 errors, 0 warnings**
+
+### P16 REAL-CHROME INTEGRATION GAP — DEBUG AUDIT
+**Status:** DIAGNOSED; IMPLEMENTATION DEFERRED (READ-ONLY AUDIT)  
+**Date:** 2026-09-09  
+**Scope:** Traced the persisted Cloudflare Greenhouse job/application/package/artifact chain after a real-Chrome discrepancy. No product code, tailoring algorithm, database row, or stored artifact was modified.
+
+**Confirmed identity:**
+- Canonical job ID: `d14f0683-a8ec-4230-8836-91157ecc87e9`
+- Normalized URL: `https://boards.greenhouse.io/cloudflare/jobs/8102350`
+- Stored source URL: `https://job-boards.greenhouse.io/cloudflare/jobs/8102350?gh_jid=8102350`
+- Title/company/provider: `Principal Software Engineer, DataHybrid` / `Cloudflare` / `GREENHOUSE`
+- Application: `2f71f4cf-0f86-43eb-b1c0-687e2e2d2d1c`
+- CURRENT package: v1, hash `a705b15c3fa11b16bcc59d2a074e0572c6258db20bfa47c2b78f3c81d5146066`
+
+**Observed ranking divergence:**
+- Analyze Job portfolio result: Product-Data-Explorer `64.83` (rank 1), Collaborative-task-manager `51.89` (rank 2), Ai-powered-code-review-assistant `47.84` (rank 3), with project IDs preserved in the audit output.
+- Fresh Prepare Handoff backend recomputation: the same three projects remain ranks 1–3 but scores are independently recomputed as `37.28`, `28.73`, and `26.19`. The extension request body contains only `{ job, applicationId }`; it does not send analyzer output or project selections.
+- Persisted CURRENT package is legacy: no `structuredResume`, `tailoringPlan`, or `evidenceValidationReceipt`; selected projects are only Collaborative Task Manager and AI-Powered Code Review Assistant; its Markdown contains the candidate-wide `Full-Stack & Backend Developer` heading and generic summary.
+- The downloaded CURRENT resume PDF hash is `4ac91f6b9f720ff30af76540f8e2a8d80d9534af6aac0657dc20eeeaa607cf8a`; extracted text renders exactly those two legacy projects and the old heading/summary. Product-Data-Explorer is absent.
+
+**Root cause:** Prepare Handoff is a separate backend fit computation because analyzer output is not carried through the extension request. Independently, the package hash excludes the P16 structured snapshot fields, so the new in-memory structured package remains hash-equivalent to the old legacy package. Persistence re-promotes the existing package row without replacing its non-empty payload, and `ApplicationHandoffService` returns the existing handoff kit when the package hash matches before invoking the LaTeX renderer. Therefore this PDF was not rendered from a StructuredResumeDocument at all.
+
+**Additional integrity findings:** individual downloads can select a package-bound tailored-document snapshot when present, but the ZIP path validates that a requested hash belongs to the application and then reads the current `metadata.handoffKit`; it does not select artifact files by that requested package hash. ZIP `manifest.json` records package/application identity and file names but no per-file hashes or structured snapshot hash. `getApplicationPackage` enforces tenant/application binding, while the MCP wrapper performs an optional candidate match rather than making candidate binding intrinsic to the service call.
+
+**Required follow-up before Phase 16 completion:** carry one authoritative fit result through Analyze → Prepare Handoff, ensure structured snapshot fields participate in persisted package identity/versioning, prevent same-hash legacy kit reuse when the package payload changes, and make ZIP/artifact selection and manifest hashes package-specific. Add end-to-end tests covering ranking propagation, structured snapshot persistence, regeneration after artifact deletion, package-bound individual/ZIP downloads, cross-candidate denial, and legacy-package fallback. No implementation was performed in this audit.
+

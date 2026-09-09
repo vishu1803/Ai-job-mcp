@@ -28,6 +28,12 @@ import {
   ApplicationApprovalTicketSchema,
   SubmissionResultSchema,
 } from '../domain/job/job-workflow.schemas.js';
+import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
+import {
+  StructuredResumeDocumentSchema,
+  ResumeTailoringPlanSchema,
+  EvidenceValidationReceiptSchema,
+} from '../domain/career/resume.schemas.js';
 import {
   ValidationError,
   NotFoundError,
@@ -294,31 +300,30 @@ export class JobApplicationWorkflowService {
    * @returns {Promise<object|null>}
    */
   async _resolveOrComputeJobFit({ context, candidateId, targetJobPosting, answers }) {
+    let resolvedFit = null;
+
     // 1. Direct properties on targetJobPosting
     if (
       targetJobPosting?.jobFitAnalysis &&
       typeof targetJobPosting.jobFitAnalysis.overallFit?.atsScore === 'number'
     ) {
-      return targetJobPosting.jobFitAnalysis;
-    }
-    if (
+      resolvedFit = targetJobPosting.jobFitAnalysis;
+    } else if (
       targetJobPosting?.jobFit &&
       typeof targetJobPosting.jobFit.overallFit?.atsScore === 'number'
     ) {
-      return targetJobPosting.jobFit;
-    }
-    if (
+      resolvedFit = targetJobPosting.jobFit;
+    } else if (
       targetJobPosting?.overallFit &&
       typeof targetJobPosting.overallFit.atsScore === 'number'
     ) {
-      return { overallFit: targetJobPosting.overallFit, source: 'analyze_job_fit' };
-    }
-    if (targetJobPosting?.atsFitSnapshot && typeof targetJobPosting.atsFitSnapshot === 'object') {
+      resolvedFit = { overallFit: targetJobPosting.overallFit, source: 'analyze_job_fit' };
+    } else if (targetJobPosting?.atsFitSnapshot && typeof targetJobPosting.atsFitSnapshot === 'object') {
       const atsScore =
         targetJobPosting.atsFitSnapshot.overallScore ??
         targetJobPosting.atsFitSnapshot.atsScore;
       if (typeof atsScore === 'number') {
-        return {
+        resolvedFit = {
           overallFit: {
             atsScore,
             fitBand: targetJobPosting.atsFitSnapshot.fitBand || 'MODERATE',
@@ -329,61 +334,73 @@ export class JobApplicationWorkflowService {
     }
 
     // 2. Answers payload overrides
-    if (
-      answers?.jobFitAnalysis &&
-      typeof answers.jobFitAnalysis.overallFit?.atsScore === 'number'
-    ) {
-      return answers.jobFitAnalysis;
-    }
-    if (answers?.atsFitSnapshot && typeof answers.atsFitSnapshot === 'object') {
-      const atsScore =
-        answers.atsFitSnapshot.overallScore ?? answers.atsFitSnapshot.atsScore;
-      if (typeof atsScore === 'number') {
-        return {
-          overallFit: {
-            atsScore,
-            fitBand: answers.atsFitSnapshot.fitBand || 'MODERATE',
-          },
-          source: 'analyze_job_fit',
-        };
-      }
-    }
-
-    // 3. Check existing application for atsFitSnapshot
-    try {
-      const [existingApp] = await this.db
-        .select({
-          atsFitSnapshot: jobApplications.atsFitSnapshot,
-        })
-        .from(jobApplications)
-        .where(
-          and(
-            eq(jobApplications.tenantId, context.tenantId),
-            eq(jobApplications.candidateId, candidateId),
-            sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
-          )
-        )
-        .limit(1);
-
-      if (existingApp?.atsFitSnapshot && typeof existingApp.atsFitSnapshot === 'object') {
+    if (!resolvedFit) {
+      if (
+        answers?.jobFitAnalysis &&
+        typeof answers.jobFitAnalysis.overallFit?.atsScore === 'number'
+      ) {
+        resolvedFit = answers.jobFitAnalysis;
+      } else if (answers?.atsFitSnapshot && typeof answers.atsFitSnapshot === 'object') {
         const atsScore =
-          existingApp.atsFitSnapshot.overallScore ??
-          existingApp.atsFitSnapshot.atsScore;
+          answers.atsFitSnapshot.overallScore ?? answers.atsFitSnapshot.atsScore;
         if (typeof atsScore === 'number') {
-          return {
+          resolvedFit = {
             overallFit: {
               atsScore,
-              fitBand: existingApp.atsFitSnapshot.fitBand || 'MODERATE',
+              fitBand: answers.atsFitSnapshot.fitBand || 'MODERATE',
             },
             source: 'analyze_job_fit',
           };
         }
       }
-    } catch {
-      // Best-effort check
     }
 
-    // 4. In-flight computation via AtsFitScoreService
+    // 3. Check existing application for atsFitSnapshot
+    if (!resolvedFit) {
+      try {
+        const [existingApp] = await this.db
+          .select({
+            atsFitSnapshot: jobApplications.atsFitSnapshot,
+          })
+          .from(jobApplications)
+          .where(
+            and(
+              eq(jobApplications.tenantId, context.tenantId),
+              eq(jobApplications.candidateId, candidateId),
+              sql`${jobApplications.status} NOT IN ('REJECTED', 'WITHDRAWN', 'ARCHIVED')`
+            )
+          )
+          .limit(1);
+
+        if (existingApp?.atsFitSnapshot && typeof existingApp.atsFitSnapshot === 'object') {
+          const atsScore =
+            existingApp.atsFitSnapshot.overallScore ??
+            existingApp.atsFitSnapshot.atsScore;
+          if (typeof atsScore === 'number') {
+            resolvedFit = {
+              overallFit: {
+                atsScore,
+                fitBand: existingApp.atsFitSnapshot.fitBand || 'MODERATE',
+              },
+              source: 'analyze_job_fit',
+            };
+          }
+        }
+      } catch {
+        // Best-effort check
+      }
+    }
+
+    // If resolvedFit already has projectRankings or topRelevantProjects, return it directly
+    if (
+      resolvedFit &&
+      ((Array.isArray(resolvedFit.projectRankings) && resolvedFit.projectRankings.length > 0) ||
+        (Array.isArray(resolvedFit.topRelevantProjects) && resolvedFit.topRelevantProjects.length > 0))
+    ) {
+      return resolvedFit;
+    }
+
+    // 4. In-flight computation via AtsFitScoreService and ProjectRelevanceService
     try {
       const profileView = await this.candidateProfileService.getProfile(context, candidateId);
       if (profileView) {
@@ -461,21 +478,43 @@ export class JobApplicationWorkflowService {
           candidateProfileObj
         );
 
-        if (fitScoreAnalysis && typeof fitScoreAnalysis.overallScore === 'number') {
-          return {
-            overallFit: {
-              atsScore: fitScoreAnalysis.overallScore,
-              fitBand: fitScoreAnalysis.fitBand,
-            },
-            source: 'analyze_job_fit',
-          };
-        }
+        const projectRankings = projectAnalysis.projectRankings || [];
+        const topRelevantProjects = projectRankings.map((p, idx) => ({
+          projectId: p.projectId,
+          projectName: p.projectName,
+          relevanceScore: p.relevanceScore,
+          relevanceRank: idx + 1,
+          matchedRequirements: p.matchedRequirementIds || [],
+          matchedArchitecturalDimensions: p.architecturalSignals || [],
+          scoreBreakdown: p.scoreBreakdown || null,
+          supportingEvidence: p.supportingEvidence || [],
+        }));
+
+        const atsScore =
+          fitScoreAnalysis && typeof fitScoreAnalysis.overallScore === 'number'
+            ? fitScoreAnalysis.overallScore
+            : resolvedFit?.overallFit?.atsScore ?? 85;
+        const fitBand =
+          fitScoreAnalysis && fitScoreAnalysis.fitBand
+            ? fitScoreAnalysis.fitBand
+            : resolvedFit?.overallFit?.fitBand ?? 'MODERATE';
+
+        return {
+          overallFit: {
+            atsScore,
+            fitBand,
+          },
+          projectRankings,
+          topRelevantProjects,
+          matchAnalysis,
+          source: 'analyze_job_fit',
+        };
       }
     } catch (err) {
       this.logger.debug({ error: err.message }, 'In-flight ATS fit score calculation skipped');
     }
 
-    return null;
+    return resolvedFit;
   }
 
   /**
@@ -547,7 +586,6 @@ export class JobApplicationWorkflowService {
 
     const verifiedSkills = candidateSkillsList
       .filter((s) => s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED')
-      .filter((s) => s.skillName.toLowerCase() !== 'flask')
       .map((s) => ({
         name: s.skillName,
         truthCategory: s.provenanceStatus === 'CORROBORATED' ? 'CORROBORATED' : 'VERIFIED',
@@ -560,22 +598,46 @@ export class JobApplicationWorkflowService {
 
     const claimedSkills = candidateSkillsList
       .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
-      .filter((s) => s.skillName.toLowerCase() !== 'flask')
       .map((s) => ({
         name: s.skillName,
         truthCategory: s.provenanceStatus === 'SELF_DECLARED' ? 'USER_PROVIDED' : 'CLAIMED',
         notes: 'Self-reported in candidate resume / profile',
       }));
 
+    // Resolve or compute Job Fit Analysis upfront (strictly analyze_job_fit passthrough)
+    const jobFitAnalysis = await this._resolveOrComputeJobFit({
+      context: { tenantId, userId: cand.userId, role: 'MEMBER' },
+      candidateId,
+      targetJobPosting: jobPosting,
+      answers,
+    });
+
+    const authoritativeRankings =
+      jobFitAnalysis?.projectRankings || jobFitAnalysis?.topRelevantProjects || [];
+
+    // Filter to projects meeting analyzer selection criteria
+    const eligibleProjects = authoritativeRankings.filter((p) => {
+      const score = typeof p.relevanceScore === 'number' ? p.relevanceScore : 0;
+      if (score <= 0) return false;
+      const hasMatchedReqs =
+        (Array.isArray(p.matchedRequirementIds) && p.matchedRequirementIds.length > 0) ||
+        (Array.isArray(p.matchedRequirements) && p.matchedRequirements.length > 0);
+      const hasContributingSkills =
+        Array.isArray(p.contributingSkills) && p.contributingSkills.length > 0;
+      const isNotMinimal = p.relevanceBand && p.relevanceBand !== 'MINIMAL';
+      return hasMatchedReqs || hasContributingSkills || isNotMinimal || score >= 25.0;
+    });
+
+    const derivedRecommended = eligibleProjects.map((p) => p.projectName || p.name);
+
     const targetJobPosting = {
       ...jobPosting,
       recommendedProjects:
         jobPosting?.recommendedProjects ||
-        answers?.recommendedProjects || [
-          'Product-Data-Explorer',
-          'Collaborative-task-manager',
-          'Ai-powered-code-review-assistant',
-        ],
+        answers?.recommendedProjects ||
+        derivedRecommended,
+      projectRankings: authoritativeRankings,
+      jobFitAnalysis,
     };
 
     // 3-5. Generate real document content from canonical candidate data.
@@ -588,7 +650,11 @@ export class JobApplicationWorkflowService {
         candidateId,
         jobPosting: targetJobPosting,
         candidateEmail,
-        candidatePhone: cand.phone || undefined,
+        candidatePhone: cand.phone || cand.profileMetadata?.identity?.phone || undefined,
+        options: {
+          projectRankings: authoritativeRankings,
+          matchAnalysis: jobFitAnalysis?.matchAnalysis,
+        },
       }
     );
 
@@ -647,25 +713,112 @@ export class JobApplicationWorkflowService {
       );
     }
 
-    // Resolve or compute Job Fit Analysis (strictly analyze_job_fit passthrough - Section 9 Option A)
-    const jobFitAnalysis = await this._resolveOrComputeJobFit({
-      context: { tenantId, userId: cand.userId, role: 'MEMBER' },
-      candidateId,
-      targetJobPosting,
-      answers,
-    });
-
     const effectiveFitScore =
       jobFitAnalysis && typeof jobFitAnalysis.overallFit?.atsScore === 'number'
         ? jobFitAnalysis.overallFit.atsScore
         : tailoredResumeResult.fitScore || 85;
+
+    // 5b. Build and Validate Structured Resume Snapshot (P16-001F-1)
+    let candidateProfileInput = documentContent.candidateData
+      ? {
+          ...documentContent.candidateData,
+          phone:
+            documentContent.candidateData.phone ||
+            cand.phone ||
+            cand.profileMetadata?.identity?.phone ||
+            null,
+          location:
+            documentContent.candidateData.location ||
+            cand.location ||
+            cand.profileMetadata?.identity?.location ||
+            null,
+        }
+      : null;
+    if (!candidateProfileInput) {
+      try {
+        const profileView = await this.candidateProfileService.getProfile(
+          { tenantId, userId: cand.userId, role: 'MEMBER' },
+          candidateId
+        );
+        if (profileView) {
+          candidateProfileInput = {
+            ...profileView.candidate,
+            phone:
+              profileView.candidate?.phone ||
+              profileView.candidate?.profileMetadata?.identity?.phone ||
+              profileView.candidate?.profileMetadata?.phone ||
+              cand.phone ||
+              cand.profileMetadata?.identity?.phone ||
+              null,
+            location:
+              profileView.candidate?.location ||
+              profileView.candidate?.profileMetadata?.identity?.location ||
+              profileView.candidate?.profileMetadata?.location ||
+              cand.location ||
+              cand.profileMetadata?.identity?.location ||
+              null,
+            skills: profileView.skills || [],
+            projects: profileView.projects || [],
+            experience: profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
+            education: profileView.candidate?.profileMetadata?.education || profileView.education || [],
+            certifications: profileView.candidate?.profileMetadata?.certifications || profileView.certifications || [],
+            dsa: profileView.candidate?.profileMetadata?.dsa || profileView.dsa || null,
+            links: profileView.candidate?.profileMetadata?.portfolioLinks || profileView.links || [],
+          };
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    if (!candidateProfileInput) {
+      candidateProfileInput = {
+        ...cand,
+        userId: cand.userId,
+        displayName: cand.displayName || 'Candidate',
+        canonicalEmail: candidateEmail,
+        email: candidateEmail,
+        phone: cand.phone || cand.profileMetadata?.identity?.phone || undefined,
+        skills: verifiedSkills.concat(claimedSkills),
+        projects: selectedProjectsList,
+        profileMetadata: cand.profileMetadata || {},
+      };
+    }
+
+    const structuredSnapshot = buildStructuredResumeSnapshot({
+      candidateProfile: candidateProfileInput,
+      jobPosting: targetJobPosting,
+      options: {
+        projectRankings: authoritativeRankings,
+        matchAnalysis: jobFitAnalysis?.matchAnalysis,
+      },
+    });
+
+    // Integrity Validation Gate (Fail-Closed)
+    StructuredResumeDocumentSchema.parse(structuredSnapshot.structuredResume);
+    ResumeTailoringPlanSchema.parse(structuredSnapshot.tailoringPlan);
+    EvidenceValidationReceiptSchema.parse(structuredSnapshot.evidenceValidationReceipt);
+
+    if (structuredSnapshot.evidenceValidationReceipt.overallStatus !== 'PASS') {
+      const violations = (structuredSnapshot.evidenceValidationReceipt.violations || [])
+        .map((v) => `${v.section || 'DOCUMENT'}: ${v.message || v.violationType}`)
+        .join('; ');
+      throw new ValidationError(
+        `Structured resume document failed evidence integrity validation: ${violations || 'receipt status is not PASS'}`,
+        'STRUCTURED_RESUME_INTEGRITY_FAILED'
+      );
+    }
+
+    const safeStructuredResume = JSON.parse(JSON.stringify(structuredSnapshot.structuredResume));
+    const safeTailoringPlan = JSON.parse(JSON.stringify(structuredSnapshot.tailoringPlan));
+    const safeEvidenceReceipt = JSON.parse(JSON.stringify(structuredSnapshot.evidenceValidationReceipt));
 
     // 6. Build Unhashed Package
     const preparedPackage = {
       candidateId,
       candidateName: cand.displayName || 'Candidate',
       candidateEmail,
-      candidatePhone: cand.phone || undefined,
+      candidatePhone: cand.phone || cand.profileMetadata?.identity?.phone || undefined,
       targetJob: targetJobPosting,
       tailoredResume: {
         documentId: tailoredResumeResult.documentId || undefined,
@@ -677,6 +830,9 @@ export class JobApplicationWorkflowService {
         selectedProjects: selectedProjectsList,
         selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
         sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
+        structuredResume: safeStructuredResume,
+        tailoringPlan: safeTailoringPlan,
+        evidenceValidationReceipt: safeEvidenceReceipt,
       },
       coverLetter: {
         documentId: coverLetterResult.documentId || undefined,
@@ -692,6 +848,9 @@ export class JobApplicationWorkflowService {
       sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
       answers: answers || {},
       jobFitAnalysis: jobFitAnalysis || undefined,
+      structuredResume: safeStructuredResume,
+      tailoringPlan: safeTailoringPlan,
+      evidenceValidationReceipt: safeEvidenceReceipt,
       packageHash: '',
       preparedAt: new Date().toISOString(),
     };
@@ -923,7 +1082,6 @@ export class JobApplicationWorkflowService {
 
     const verifiedSkills = candidateSkillsList
       .filter((s) => s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED')
-      .filter((s) => s.skillName.toLowerCase() !== 'flask')
       .map((s) => ({
         name: s.skillName,
         truthCategory: s.provenanceStatus === 'CORROBORATED' ? 'CORROBORATED' : 'VERIFIED',
@@ -936,7 +1094,6 @@ export class JobApplicationWorkflowService {
 
     const claimedSkills = candidateSkillsList
       .filter((s) => s.provenanceStatus !== 'VERIFIED' && s.provenanceStatus !== 'CORROBORATED')
-      .filter((s) => s.skillName.toLowerCase() !== 'flask')
       .map((s) => ({
         name: s.skillName,
         truthCategory: s.provenanceStatus === 'SELF_DECLARED' ? 'USER_PROVIDED' : 'CLAIMED',
@@ -1102,6 +1259,77 @@ export class JobApplicationWorkflowService {
       regenerationTimestamp: new Date().toISOString(),
     };
 
+    // 7b. Build and Validate Structured Resume Snapshot for Draft (P16-001F-1)
+    let candidateProfileInput = documentContent.candidateData;
+    if (!candidateProfileInput) {
+      try {
+        const profileView = await this.candidateProfileService.getProfile(
+          { tenantId, userId: cand.userId, role: 'MEMBER' },
+          candidateId
+        );
+        if (profileView) {
+          candidateProfileInput = {
+            ...profileView.candidate,
+            skills: profileView.skills || [],
+            projects: profileView.projects || [],
+            experience: profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
+            education: profileView.candidate?.profileMetadata?.education || profileView.education || [],
+            certifications: profileView.candidate?.profileMetadata?.certifications || profileView.certifications || [],
+            dsa: profileView.candidate?.profileMetadata?.dsa || profileView.dsa || null,
+            links: profileView.candidate?.profileMetadata?.portfolioLinks || profileView.links || [],
+          };
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    if (!candidateProfileInput) {
+      candidateProfileInput = {
+        ...cand,
+        userId: cand.userId,
+        displayName: cand.displayName || 'Candidate',
+        canonicalEmail: candidateEmail,
+        email: candidateEmail,
+        phone: cand.phone || undefined,
+        skills: verifiedSkills.concat(claimedSkills),
+        projects: selectedProjectsList,
+        profileMetadata: cand.profileMetadata || {},
+      };
+    }
+
+    const authoritativeDraftRankings =
+      currentPkg?.jobFitAnalysis?.projectRankings ||
+      currentPkg?.jobFitAnalysis?.topRelevantProjects ||
+      [];
+
+    const structuredSnapshot = buildStructuredResumeSnapshot({
+      candidateProfile: candidateProfileInput,
+      jobPosting,
+      options: {
+        projectRankings: authoritativeDraftRankings,
+        matchAnalysis: currentPkg?.jobFitAnalysis?.matchAnalysis,
+      },
+    });
+
+    StructuredResumeDocumentSchema.parse(structuredSnapshot.structuredResume);
+    ResumeTailoringPlanSchema.parse(structuredSnapshot.tailoringPlan);
+    EvidenceValidationReceiptSchema.parse(structuredSnapshot.evidenceValidationReceipt);
+
+    if (structuredSnapshot.evidenceValidationReceipt.overallStatus !== 'PASS') {
+      const violations = (structuredSnapshot.evidenceValidationReceipt.violations || [])
+        .map((v) => `${v.section || 'DOCUMENT'}: ${v.message || v.violationType}`)
+        .join('; ');
+      throw new ValidationError(
+        `Structured resume document failed evidence integrity validation during regeneration: ${violations || 'receipt status is not PASS'}`,
+        'STRUCTURED_RESUME_INTEGRITY_FAILED'
+      );
+    }
+
+    const safeStructuredResume = JSON.parse(JSON.stringify(structuredSnapshot.structuredResume));
+    const safeTailoringPlan = JSON.parse(JSON.stringify(structuredSnapshot.tailoringPlan));
+    const safeEvidenceReceipt = JSON.parse(JSON.stringify(structuredSnapshot.evidenceValidationReceipt));
+
     const preparedPackage = {
       candidateId,
       candidateName: cand.displayName || 'Candidate',
@@ -1118,6 +1346,9 @@ export class JobApplicationWorkflowService {
         selectedProjects: selectedProjectsList,
         selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
         sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
+        structuredResume: safeStructuredResume,
+        tailoringPlan: safeTailoringPlan,
+        evidenceValidationReceipt: safeEvidenceReceipt,
       },
       coverLetter: {
         documentId: coverLetterResult.documentId || undefined,
@@ -1132,6 +1363,9 @@ export class JobApplicationWorkflowService {
       selectedSections: tailoredResumeResult.selectedSections || tailoredResumeResult.sections || undefined,
       sectionSnapshots: tailoredResumeResult.sectionSnapshots || undefined,
       answers,
+      structuredResume: safeStructuredResume,
+      tailoringPlan: safeTailoringPlan,
+      evidenceValidationReceipt: safeEvidenceReceipt,
       packageHash: '',
       preparedAt: new Date().toISOString(),
     };

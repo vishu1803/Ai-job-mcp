@@ -10,6 +10,11 @@
  */
 
 import { z } from 'zod';
+import {
+  StructuredResumeDocumentSchema,
+  ResumeTailoringPlanSchema,
+  EvidenceValidationReceiptSchema,
+} from '../career/resume.schemas.js';
 
 // -----------------------------------------------------------------------------
 // 1. Job Discovery & Posting Schemas
@@ -132,6 +137,9 @@ export const ApplicationPackageSchema = z.object({
     selectedSections: z.array(z.string()).optional(),
     sectionSnapshots: z.record(z.string(), z.any()).optional(),
     artifact: ApplicationDocumentArtifactSchema.optional(),
+    structuredResume: StructuredResumeDocumentSchema.optional().nullable(),
+    tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
+    evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
   }),
   coverLetter: z.object({
     documentId: z.string().optional(),
@@ -170,6 +178,9 @@ export const ApplicationPackageSchema = z.object({
   artifactFailureReason: z.string().optional(),
   jobFitAnalysis: z.record(z.unknown()).optional(),
   atsFitSnapshot: z.record(z.unknown()).optional(),
+  structuredResume: StructuredResumeDocumentSchema.optional().nullable(),
+  tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
+  evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
 });
 
 // -----------------------------------------------------------------------------

@@ -176,11 +176,14 @@ function detectSections(lines) {
  * @param {string[]} order Detected section types in document order
  * @returns {boolean}
  */
-function isSectionOrderValid(order) {
+function isSectionOrderValid(order, expectedOrder = null) {
+  const reference = Array.isArray(expectedOrder) && expectedOrder.length > 0
+    ? expectedOrder.map((s) => String(s).toUpperCase()).filter((s) => s !== 'HEADER')
+    : EXPECTED_SECTION_ORDER;
   // DSA/Problem Solving and Certifications are optional interleaves and may
   // appear anywhere after SKILLS without breaking canonical ordering.
   const relevant = order.filter((s) => s !== 'DSA' && s !== 'CERTIFICATIONS');
-  const present = EXPECTED_SECTION_ORDER.filter((s) => relevant.includes(s));
+  const present = reference.filter((s) => relevant.includes(s));
   if (present.length < 2) return relevant.length > 0;
   const positions = present.map((s) => relevant.indexOf(s));
   for (let i = 1; i < positions.length; i++) {
@@ -391,8 +394,17 @@ export class ResumeQualityAssessmentService {
       )
     );
 
+    const structuredResume =
+      pkg.structuredResume ||
+      pkg.tailoredResume?.structuredResume ||
+      null;
+
     // 2. Identity checks
-    const candidateName = pkg.candidateName || candidateProfile?.displayName || '';
+    const candidateName =
+      structuredResume?.candidateIdentity?.displayName ||
+      pkg.candidateName ||
+      candidateProfile?.displayName ||
+      '';
     const nameOk = Boolean(candidateName) && textContains(lowerText, candidateName);
     checks.push(
       buildCheck(
@@ -403,6 +415,7 @@ export class ResumeQualityAssessmentService {
     );
 
     const email =
+      structuredResume?.candidateIdentity?.email ||
       pkg.candidateEmail ||
       candidateProfile?.canonicalEmail ||
       candidateProfile?.primaryEmail ||
@@ -416,7 +429,11 @@ export class ResumeQualityAssessmentService {
       )
     );
 
-    const phone = pkg.candidatePhone || candidateProfile?.candidatePhone || '';
+    const phone =
+      structuredResume?.candidateIdentity?.phone ||
+      pkg.candidatePhone ||
+      candidateProfile?.candidatePhone ||
+      '';
     const phoneDigits = String(phone).replace(/\D/g, '');
     const phoneOk = phoneDigits.length >= 7 && phoneDigits.split('').some((d) => d !== '0')
       ? lowerText.replace(/\D/g, '').includes(phoneDigits)
@@ -478,11 +495,13 @@ export class ResumeQualityAssessmentService {
     // truthful omission (no stored records) both keep the document parseable;
     // the check records which case applied.
     const experienceRecords =
+      structuredResume?.experience ||
       candidateProfile?.experience ||
       candidateProfile?.profileMetadata?.experience ||
       candidateProfile?.candidate?.profileMetadata?.userCustom?.experience ||
       [];
     const educationRecords =
+      structuredResume?.education ||
       candidateProfile?.education ||
       candidateProfile?.profileMetadata?.education ||
       candidateProfile?.candidate?.profileMetadata?.userCustom?.education ||
@@ -515,7 +534,12 @@ export class ResumeQualityAssessmentService {
     );
 
     // 5. SECTION_ORDER_VALID
-    const orderOk = isSectionOrderValid(order);
+    const packageOrder =
+      pkg.structuredResume?.sectionOrder ||
+      pkg.tailoringPlan?.sectionOrder ||
+      pkg.tailoredResume?.sectionOrder ||
+      null;
+    const orderOk = isSectionOrderValid(order, packageOrder);
     checks.push(
       buildCheck(
         'SECTION_ORDER_VALID',
@@ -527,7 +551,11 @@ export class ResumeQualityAssessmentService {
     );
 
     // 6. Count consistency checks against the package contract
-    const selectedProjects = pkg.tailoredResume?.selectedProjects || pkg.selectedProjects || [];
+    const selectedProjects =
+      structuredResume?.projects ||
+      pkg.tailoredResume?.selectedProjects ||
+      pkg.selectedProjects ||
+      [];
     const _projectHeadingCount = (lowerText.match(/\bprojects?\b/g) || []).length; // not used for counting; headings only
     const renderedProjectNames = selectedProjects.map(
       (p) => String(p.name || p.projectName || p.title || '')

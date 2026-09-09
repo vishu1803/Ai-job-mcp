@@ -168,15 +168,22 @@ export class ResumeLayoutEngine {
       actualPkg = pkg || {};
     }
     const resume = actualPkg.tailoredResume || actualPkg.resume || actualPkg;
+    const structuredResume = resume.structuredResume || actualPkg.structuredResume || null;
     const selectedSections = resume.selectedSections || actualPkg.selectedSections || [];
 
     // -- Header --
-    const linkCount = this._countProfileLinks(actualPkg, profile);
-    const hasHeadline = Boolean(profile.headline || actualPkg.headline);
+    const linkCount = structuredResume
+      ? (Array.isArray(structuredResume.candidateIdentity?.links) ? structuredResume.candidateIdentity.links.length : 0)
+      : this._countProfileLinks(actualPkg, profile);
+    const hasHeadline = structuredResume
+      ? Boolean(structuredResume.candidateIdentity?.headline)
+      : Boolean(profile.headline || actualPkg.headline);
     const headerLines = 1 + (hasHeadline ? 1 : 0) + (linkCount > 0 ? 1 : 0);
 
     // -- Summary --
-    const summaryText = this._extractSummaryText(actualPkg, profile);
+    const summaryText = structuredResume
+      ? (structuredResume.summary?.text || '')
+      : this._extractSummaryText(actualPkg, profile);
     const summaryCharCount = summaryText ? summaryText.length : 0;
     const summaryWordCount = summaryText ? summaryText.split(/\s+/).length : 0;
     const summaryLines = summaryWordCount > 0
@@ -184,21 +191,42 @@ export class ResumeLayoutEngine {
       : 0;
 
     // ── Skills ──
-    const categorizedSkills = resume.categorizedSkills || actualPkg.categorizedSkills || {};
-    const skillCategoryCount = Object.keys(categorizedSkills).filter(
-      k => Array.isArray(categorizedSkills[k]) && categorizedSkills[k].length > 0
-    ).length;
-    let totalSkillLines = skillCategoryCount;
-    for (const [catName, list] of Object.entries(categorizedSkills)) {
-      if (Array.isArray(list) && list.length > 0) {
-        const lineStr = `${catName}: ${list.join(', ')}`;
-        if (lineStr.length > 85) totalSkillLines += Math.ceil(lineStr.length / 85) - 1;
+    let skillCategoryCount = 0;
+    let totalSkillLines = 0;
+    if (structuredResume && Array.isArray(structuredResume.skills?.categories)) {
+      const cats = structuredResume.skills.categories;
+      skillCategoryCount = cats.length;
+      totalSkillLines = skillCategoryCount;
+      for (const cat of cats) {
+        const catName = cat.categoryName || cat.name || cat.category || '';
+        const items = Array.isArray(cat.skills) ? cat.skills : [];
+        const names = items
+          .map(s => (typeof s === 'string' ? s : s.displayName || s.name || s.slug))
+          .filter(Boolean);
+        if (names.length > 0) {
+          const lineStr = `${catName}: ${names.join(', ')}`;
+          if (lineStr.length > 85) totalSkillLines += Math.ceil(lineStr.length / 85) - 1;
+        }
+      }
+    } else {
+      const categorizedSkills = resume.categorizedSkills || actualPkg.categorizedSkills || {};
+      skillCategoryCount = Object.keys(categorizedSkills).filter(
+        k => Array.isArray(categorizedSkills[k]) && categorizedSkills[k].length > 0
+      ).length;
+      totalSkillLines = skillCategoryCount;
+      for (const [catName, list] of Object.entries(categorizedSkills)) {
+        if (Array.isArray(list) && list.length > 0) {
+          const lineStr = `${catName}: ${list.join(', ')}`;
+          if (lineStr.length > 85) totalSkillLines += Math.ceil(lineStr.length / 85) - 1;
+        }
       }
     }
     const skillsLines = skillCategoryCount > 0 ? totalSkillLines + 1 : 0;
 
     // ── Projects ──
-    const selectedProjects = resume.selectedProjects || actualPkg.selectedProjects || [];
+    const selectedProjects = structuredResume
+      ? (Array.isArray(structuredResume.projects) ? structuredResume.projects : [])
+      : (resume.selectedProjects || actualPkg.selectedProjects || []);
     const projectComponents = selectedProjects.map(p => {
       const rawBullets = Array.isArray(p.bullets) ? p.bullets : (Array.isArray(p.highlights) ? p.highlights : []);
       const bulletStrings = rawBullets.map(b => typeof b === 'string' ? b : (b?.text || '')).filter(Boolean);
@@ -212,7 +240,7 @@ export class ResumeLayoutEngine {
       const estimatedLines = 1 + techLines + bulletLines;
       return {
         type: COMPONENT_TYPE.PROJECT,
-        name: p.name || p.projectName || p.title || 'Project',
+        name: p.name || p.displayName || p.projectName || p.title || 'Project',
         bulletCount,
         bulletLengths: bulletLengths.slice(0, 3),
         techCount,
@@ -223,11 +251,10 @@ export class ResumeLayoutEngine {
     });
 
     // ── Optional: DSA ──
-    // Invariant: Layout engine NEVER decides whether optional sections exist.
-    // Content Strategy is strictly authoritative: if selectedSections is defined, it governs.
-    // Renderer never infers selection from available whitespace, LeetCode presence, or summary.
     let hasDSA = false;
-    if (Array.isArray(selectedSections) && selectedSections.length > 0) {
+    if (structuredResume) {
+      hasDSA = Boolean(structuredResume.dsa?.hasSection);
+    } else if (Array.isArray(selectedSections) && selectedSections.length > 0) {
       hasDSA = selectedSections.some(s =>
         ['PROBLEM_SOLVING', 'DSA', 'LEETCODE', 'ALGORITHMIC_PRACTICE'].includes(String(s).toUpperCase())
       );
@@ -242,7 +269,9 @@ export class ResumeLayoutEngine {
     } : null;
 
     // ── Experience ──
-    const experienceRecords = this._resolveExperience(profile);
+    const experienceRecords = structuredResume
+      ? (Array.isArray(structuredResume.experience) ? structuredResume.experience : [])
+      : this._resolveExperience(profile);
     const experienceComponents = experienceRecords.map(exp => {
       const rawBullets = Array.isArray(exp.bullets || exp.highlights)
         ? (Array.isArray(exp.bullets) ? exp.bullets : exp.highlights)
@@ -262,7 +291,9 @@ export class ResumeLayoutEngine {
     });
 
     // ── Education ──
-    const educationRecords = this._resolveEducation(profile);
+    const educationRecords = structuredResume
+      ? (Array.isArray(structuredResume.education) ? structuredResume.education : [])
+      : this._resolveEducation(profile);
     const educationComponents = educationRecords.map(edu => {
       const hasCoursework = Array.isArray(edu.coursework) && edu.coursework.length > 0;
       const estimatedLines = 2 + (hasCoursework ? 1 : 0);
@@ -275,11 +306,15 @@ export class ResumeLayoutEngine {
     });
 
     // ── Certifications ──
-    const certRecords = this._resolveCertifications(profile, resume);
+    const certRecords = structuredResume
+      ? (Array.isArray(structuredResume.certifications) ? structuredResume.certifications : [])
+      : this._resolveCertifications(profile, resume);
     const hasCertifications = certRecords.length > 0 && (
-      (Array.isArray(selectedSections) && selectedSections.length > 0)
-        ? selectedSections.some(s => ['CERTIFICATIONS', 'CERTIFICATION'].includes(String(s).toUpperCase()))
-        : /## (?:Certifications|Certificates)/i.test(resume.markdownContent || '')
+      structuredResume
+        ? true
+        : (Array.isArray(selectedSections) && selectedSections.length > 0)
+          ? selectedSections.some(s => ['CERTIFICATIONS', 'CERTIFICATION'].includes(String(s).toUpperCase()))
+          : /## (?:Certifications|Certificates)/i.test(resume.markdownContent || '')
     );
 
     // ── Assemble Model ──

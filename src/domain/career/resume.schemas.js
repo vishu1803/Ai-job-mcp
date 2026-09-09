@@ -30,7 +30,7 @@ import {
   DateOrIsoStringSchema,
   SkillCategoryEnum,
 } from '../candidate/candidate.schemas.js';
-import { EvidenceRefSchema } from './evidence-matching.schemas.js';
+import { EvidenceRefSchema, EvidenceTrustClassEnum } from './evidence-matching.schemas.js';
 import { ProjectTypeEnum, ProjectRelevanceBandEnum } from './project-relevance.schemas.js';
 import { CareerAssertionStatusEnum, IntegrityStatusEnum } from './integrity-gate.schemas.js';
 
@@ -363,3 +363,328 @@ export const TailoredResumeSchema = z
     metadata: TailoredResumeMetadataSchema,
   })
   .strict();
+
+// ===========================================================================
+// P16-001A: Authoritative Structured Resume Contracts
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// 12. Provenance & Truth Category Enumerations
+// ---------------------------------------------------------------------------
+
+export const StructuredTruthCategoryEnum = z.enum([
+  'VERIFIED',
+  'CORROBORATED',
+  'CLAIMED',
+  'USER_PROVIDED',
+  'INFERRED',
+]);
+
+export const StructuredResumeSectionTypeEnum = z.enum([
+  'HEADER',
+  'SUMMARY',
+  'SKILLS',
+  'EXPERIENCE',
+  'PROJECTS',
+  'DSA',
+  'EDUCATION',
+  'CERTIFICATIONS',
+  'COURSEWORK',
+  'PUBLICATIONS',
+  'ACHIEVEMENTS',
+  'ADDITIONAL_SKILLS',
+  'AWARDS',
+]);
+
+// ---------------------------------------------------------------------------
+// 13. Evidence Reference Contract
+// ---------------------------------------------------------------------------
+
+export const EvidenceReferenceSchema = z
+  .object({
+    sourceType: StructuredTruthCategoryEnum.default('USER_PROVIDED'),
+    evidenceId: z.string().uuid().optional().nullable(),
+    resourceId: z.string().optional().nullable(),
+    resourceName: z.string().trim().max(255).optional().nullable(),
+    filePath: z.string().trim().max(1000).optional().nullable(),
+    commitSha: z.string().trim().max(100).optional().nullable(),
+    evidenceType: z.string().trim().max(100).optional().nullable(),
+    matchedRequirementId: z.string().optional().nullable(),
+    confidenceScore: z.number().min(0).max(1).default(1.0),
+    provenanceTrustClass: EvidenceTrustClassEnum.optional().nullable(),
+    notes: z.string().trim().max(1000).optional().nullable(),
+  })
+  .strict();
+
+export const EvidenceReference = EvidenceReferenceSchema;
+
+// ---------------------------------------------------------------------------
+// 14. Resume Tailoring Plan Contract
+// ---------------------------------------------------------------------------
+
+export const TailoredSelectedSkillSchema = z
+  .object({
+    slug: z.string().trim().min(1).max(255),
+    name: z.string().trim().min(1).max(255),
+    category: z.string().trim().min(1).max(100),
+    provenanceStatus: StructuredTruthCategoryEnum,
+    evidenceId: z.string().uuid().optional().nullable(),
+    evidenceRef: EvidenceReferenceSchema.optional().nullable(),
+    relevanceScore: z.number().min(0).max(100).default(0),
+    matchedRequirementId: z.string().optional().nullable(),
+    confidenceScore: z.number().min(0).max(1).default(1.0),
+    order: z.number().int().nonnegative().optional(),
+  })
+  .strict();
+
+export const ResumeTailoringPlanSchema = z
+  .object({
+    planId: z.string().uuid({ message: 'Plan ID must be a valid UUID' }),
+    targetJobId: z.string().trim().optional().nullable(),
+    targetRoleTitle: z.string().trim().min(1).max(255),
+    targetCompany: z.string().trim().max(255).optional().nullable(),
+    candidateArchetype: z.enum(['FRESHER', 'EXPERIENCED', 'CAREER_CHANGER']).default('EXPERIENCED'),
+    pageTarget: z.enum(['ONE_PAGE_STRICT', 'TWO_PAGE_ALLOWED']).default('ONE_PAGE_STRICT'),
+    sectionOrder: z.array(z.string().trim().min(1)).min(1),
+    selectedProjectIds: z.array(z.string().trim()).default([]),
+    selectedSkillSlugs: z.array(z.string().trim()).default([]),
+    selectedSkills: z.array(TailoredSelectedSkillSchema).default([]),
+    skillCategoryOrder: z.array(z.string().trim()).default([]),
+    optionalSections: z
+      .object({
+        includeDsa: z.boolean().default(false),
+        includeCertifications: z.boolean().default(false),
+        includeCoursework: z.boolean().default(false),
+        includePublications: z.boolean().default(false),
+        includeAchievements: z.boolean().default(false),
+        includeAdditionalSkills: z.boolean().default(false),
+        includeAwards: z.boolean().default(false),
+      })
+      .default({}),
+    summaryDirectives: z
+      .object({
+        focusAreas: z.array(z.string().trim()).default([]),
+        keyHighlightedProjectIds: z.array(z.string().trim()).default([]),
+        keyMatchedSkillSlugs: z.array(z.string().trim()).default([]),
+      })
+      .optional()
+      .nullable(),
+    createdAt: DateOrIsoStringSchema.optional(),
+  })
+  .strict();
+
+export const ResumeTailoringPlan = ResumeTailoringPlanSchema;
+
+// ---------------------------------------------------------------------------
+// 15. Structured Tailored Resume Document Sub-Schemas
+// ---------------------------------------------------------------------------
+
+export const CandidateIdentitySnapshotSchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(255),
+    headline: z.string().trim().min(1).max(500),
+    email: z.string().trim().email(),
+    phone: z.string().trim().max(50).nullable().optional(),
+    location: z.string().trim().max(255).nullable().optional(),
+    links: z
+      .array(
+        z.object({
+          label: z.string().trim().min(1).max(100),
+          url: z.string().trim().url(),
+          platform: z.enum(['LINKEDIN', 'GITHUB', 'PORTFOLIO', 'LEETCODE', 'OTHER']).default('OTHER'),
+        })
+      )
+      .default([]),
+  })
+  .strict();
+
+export const TailoredSummarySchema = z
+  .object({
+    text: z.string().trim().min(1).max(5000),
+    referencedSkillSlugs: z.array(z.string().trim()).default([]),
+    referencedProjectIds: z.array(z.string().trim()).default([]),
+    evidenceRefs: z.array(EvidenceReferenceSchema).default([]),
+    matchedRequirementIds: z.array(z.string().trim()).default([]),
+    provenanceStatus: StructuredTruthCategoryEnum.default('CLAIMED'),
+    provenance: EvidenceReferenceSchema.optional().nullable(),
+  })
+  .strict();
+
+export const TailoredSkillItemSchema = z
+  .object({
+    name: z.string().trim().min(1).max(255),
+    slug: z.string().trim().min(1).max(255),
+    provenanceStatus: StructuredTruthCategoryEnum,
+    evidenceId: z.string().uuid().optional().nullable(),
+    sourceSkillId: z.string().optional().nullable(),
+    confidenceScore: z.number().min(0).max(1).default(1.0),
+    relevanceScore: z.number().min(0).max(100).default(0),
+    matchedRequirementId: z.string().optional().nullable(),
+  })
+  .strict();
+
+export const TailoredSkillsCategorySchema = z
+  .object({
+    categoryName: z.string().trim().min(1).max(100),
+    skills: z.array(TailoredSkillItemSchema).default([]),
+  })
+  .strict();
+
+export const TailoredProjectBulletSchema = z
+  .object({
+    text: z.string().trim().min(1).max(1000),
+    evidenceRefs: z.array(EvidenceReferenceSchema).default([]),
+    matchedRequirementIds: z.array(z.string().trim()).default([]),
+    provenanceStatus: StructuredTruthCategoryEnum.default('VERIFIED'),
+  })
+  .strict();
+
+export const TailoredProjectEntrySchema = z
+  .object({
+    projectId: z.string().trim().min(1),
+    name: z.string().trim().min(1).max(255),
+    displayName: z.string().trim().min(1).max(255),
+    repositoryUrl: z.string().trim().url().nullable().optional(),
+    liveUrl: z.string().trim().url().nullable().optional(),
+    technologies: z.array(z.string().trim()).default([]),
+    bullets: z.array(TailoredProjectBulletSchema).default([]),
+    relevanceScore: z.number().min(0).max(100).default(0),
+    rank: z.number().int().positive().optional().nullable(),
+  })
+  .strict();
+
+export const SourceExperienceSnapshotSchema = z
+  .object({
+    id: z.string().trim().optional().nullable(),
+    company: z.string().trim().min(1).max(255).nullable().optional(),
+    title: z.string().trim().min(1).max(255).nullable().optional(),
+    startDate: z.string().trim().max(50).nullable().optional(),
+    endDate: z.string().trim().max(50).nullable().optional(),
+    isCurrent: z.boolean().default(false),
+    location: z.string().trim().max(255).nullable().optional(),
+    bullets: z.array(z.string().trim().min(1)).default([]),
+    provenanceStatus: z.literal('USER_PROVIDED').default('USER_PROVIDED'),
+  })
+  .strict();
+
+export const SourceEducationSnapshotSchema = z
+  .object({
+    id: z.string().trim().optional().nullable(),
+    institution: z.string().trim().min(1).max(255).nullable().optional(),
+    degree: z.string().trim().min(1).max(255).nullable().optional(),
+    fieldOfStudy: z.string().trim().max(255).nullable().optional(),
+    startDate: z.string().trim().max(50).nullable().optional(),
+    endDate: z.string().trim().max(50).nullable().optional(),
+    grade: z.string().trim().max(50).nullable().optional(),
+    coursework: z.array(z.string().trim()).default([]),
+    provenanceStatus: z.literal('USER_PROVIDED').default('USER_PROVIDED'),
+  })
+  .strict();
+
+export const SourceCertificationSnapshotSchema = z
+  .object({
+    id: z.string().trim().optional().nullable(),
+    name: z.string().trim().min(1).max(255).nullable().optional(),
+    issuingOrganization: z.string().trim().max(255).nullable().optional(),
+    issueDate: z.string().trim().max(50).nullable().optional(),
+    expirationDate: z.string().trim().max(50).nullable().optional(),
+    credentialId: z.string().trim().max(255).nullable().optional(),
+    credentialUrl: z.string().trim().url().nullable().optional(),
+    provenanceStatus: z.literal('USER_PROVIDED').default('USER_PROVIDED'),
+  })
+  .strict();
+
+export const SourceDsaSnapshotSchema = z
+  .object({
+    hasSection: z.boolean().default(false),
+    profileUrl: z.string().trim().url().nullable().optional(),
+    bullets: z.array(z.string().trim().min(1)).default([]),
+    provenanceStatus: z.literal('CLAIMED').default('CLAIMED'),
+  })
+  .strict();
+
+export const SourceOptionalSectionsSnapshotSchema = z
+  .object({
+    coursework: z.array(z.record(z.unknown())).default([]),
+    publications: z.array(z.record(z.unknown())).default([]),
+    achievements: z.array(z.record(z.unknown())).default([]),
+    additionalSkills: z.array(z.record(z.unknown())).default([]),
+    awards: z.array(z.record(z.unknown())).default([]),
+  })
+  .strict();
+
+// ---------------------------------------------------------------------------
+// 16. Root Structured Tailored Resume Document Schema
+// ---------------------------------------------------------------------------
+
+export const StructuredResumeDocumentSchema = z
+  .object({
+    documentId: z.string().uuid({ message: 'Document ID must be a valid UUID' }),
+    schemaVersion: z.literal('2.0.0').default('2.0.0'),
+    targetRole: z.string().trim().min(1).max(255),
+    sectionOrder: z.array(z.string().trim().min(1)).min(1),
+    candidateIdentity: CandidateIdentitySnapshotSchema,
+    summary: TailoredSummarySchema,
+    skills: z.object({
+      categories: z.array(TailoredSkillsCategorySchema).default([]),
+    }),
+    projects: z.array(TailoredProjectEntrySchema).default([]),
+    experience: z.array(SourceExperienceSnapshotSchema).default([]),
+    education: z.array(SourceEducationSnapshotSchema).default([]),
+    certifications: z.array(SourceCertificationSnapshotSchema).default([]),
+    dsa: SourceDsaSnapshotSchema.nullable().optional(),
+    optionalSections: SourceOptionalSectionsSnapshotSchema.default({}),
+    tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
+    createdAt: DateOrIsoStringSchema.optional(),
+  })
+  .strict();
+
+export const StructuredResumeDocument = StructuredResumeDocumentSchema;
+
+// ---------------------------------------------------------------------------
+// 17. Evidence Validation Receipt Schema
+// ---------------------------------------------------------------------------
+
+export const EvidenceViolationTypeEnum = z.enum([
+  'SYNTHETIC_PLACEHOLDER_DETECTED',
+  'UNBACKED_CLAIM',
+  'FABRICATED_SKILL',
+  'FABRICATED_PROJECT',
+  'UNSUPPORTED_METRIC',
+  'SENIORITY_INFLATION',
+  'MISSING_REQUIRED_SOURCE',
+  'SCHEMA_VALIDATION_ERROR',
+]);
+
+export const EvidenceViolationSchema = z
+  .object({
+    section: z.string().trim().min(1),
+    field: z.string().trim().min(1),
+    claimText: z.string().trim(),
+    violationType: EvidenceViolationTypeEnum,
+    message: z.string().trim().min(1),
+  })
+  .strict();
+
+export const EvidenceValidationReceiptSchema = z
+  .object({
+    receiptId: z.string().uuid({ message: 'Receipt ID must be a valid UUID' }),
+    documentId: z.string().uuid({ message: 'Document ID must be a valid UUID' }),
+    packageHash: z.string().trim().optional().nullable(),
+    overallStatus: z.enum(['PASS', 'FAIL', 'BLOCKED']),
+    auditedAt: DateOrIsoStringSchema,
+    summary: z.object({
+      totalClaimsAudited: z.number().int().nonnegative(),
+      verifiedClaimsCount: z.number().int().nonnegative(),
+      corroboratedClaimsCount: z.number().int().nonnegative(),
+      userProvidedClaimsCount: z.number().int().nonnegative(),
+      claimedClaimsCount: z.number().int().nonnegative(),
+      unbackedClaimsCount: z.number().int().nonnegative(),
+    }),
+    violations: z.array(EvidenceViolationSchema).default([]),
+    provenanceIndex: z.record(z.array(z.string())).default({}),
+  })
+  .strict();
+
+export const EvidenceValidationReceipt = EvidenceValidationReceiptSchema;
+

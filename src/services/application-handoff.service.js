@@ -237,9 +237,16 @@ export class ApplicationHandoffService {
     const packageHash = applicationPackage.packageHash;
     const directPortalUrl = destinationUrl || applicationPackage.targetJob?.applicationUrl || '';
 
+    const structuredResume =
+      applicationPackage.tailoredResume?.structuredResume ||
+      applicationPackage.structuredResume ||
+      null;
+
     // 1. Fetch Candidate Profile for canonical metadata.
-    // Fail-closed: without the real candidate profile the generator would fall
+    // For legacy packages, without the real candidate profile the generator would fall
     // back to placeholder content, so a profile failure aborts kit generation.
+    // For structured packages, the snapshot is authoritative and self-contained;
+    // we attempt profile loading for screening evaluation but do not fail kit generation if it fails.
     let candidateProfile = null;
     try {
       candidateProfile = await this.candidateProfileService.getProfile(
@@ -247,12 +254,18 @@ export class ApplicationHandoffService {
         candidateId
       );
     } catch (err) {
-      this.logger.error(
-        { error: err.message, candidateId },
-        'Canonical candidate profile could not be loaded; aborting handoff kit generation (fail-closed, zero placeholder fallback)'
-      );
-      throw new ValidationError(
-        `Cannot generate handoff kit without a loadable canonical candidate profile: ${err.message}`
+      if (!structuredResume) {
+        this.logger.error(
+          { error: err.message, candidateId },
+          'Canonical candidate profile could not be loaded; aborting handoff kit generation (fail-closed, zero placeholder fallback)'
+        );
+        throw new ValidationError(
+          `Cannot generate handoff kit without a loadable canonical candidate profile: ${err.message}`
+        );
+      }
+      this.logger.info(
+        { candidateId, error: err.message },
+        'Candidate profile fetch failed; proceeding with authoritative structuredResume snapshot'
       );
     }
 
@@ -329,19 +342,36 @@ export class ApplicationHandoffService {
     });
 
     // 3b. Content Audit: real candidate data present, generic placeholders absent
-    const userCustomMeta =
-      candidateProfile?.candidate?.profileMetadata?.userCustom ||
-      candidateProfile?.profileMetadata?.userCustom ||
-      {};
-    const realDataTokens = [
-      applicationPackage.candidateName,
-      ...(Array.isArray(userCustomMeta.education)
-        ? userCustomMeta.education.map((edu) => edu.institution).filter(Boolean)
-        : []),
-      ...(Array.isArray(userCustomMeta.experience) && userCustomMeta.experience[0]?.company
-        ? [userCustomMeta.experience[0].company]
-        : []),
-    ].filter(Boolean);
+    const realDataTokens = [];
+    if (structuredResume) {
+      const candidateDisplayName =
+        structuredResume.candidateIdentity?.displayName ||
+        structuredResume.candidateIdentity?.fullName ||
+        applicationPackage.candidateName;
+      if (candidateDisplayName) realDataTokens.push(candidateDisplayName);
+      if (Array.isArray(structuredResume.education)) {
+        for (const edu of structuredResume.education) {
+          if (edu.institution) realDataTokens.push(edu.institution);
+        }
+      }
+      if (Array.isArray(structuredResume.experience) && structuredResume.experience[0]?.company) {
+        realDataTokens.push(structuredResume.experience[0].company);
+      }
+    } else {
+      const userCustomMeta =
+        candidateProfile?.candidate?.profileMetadata?.userCustom ||
+        candidateProfile?.profileMetadata?.userCustom ||
+        {};
+      realDataTokens.push(
+        applicationPackage.candidateName,
+        ...(Array.isArray(userCustomMeta.education)
+          ? userCustomMeta.education.map((edu) => edu.institution).filter(Boolean)
+          : []),
+        ...(Array.isArray(userCustomMeta.experience) && userCustomMeta.experience[0]?.company
+          ? [userCustomMeta.experience[0].company]
+          : [])
+      );
+    }
     const resumeContentAudit = LatexDocumentGenerator.auditLatexContent(
       resumeLatexResult.texContent,
       { requiredTokens: realDataTokens }
@@ -398,19 +428,30 @@ export class ApplicationHandoffService {
     // 4c. PDF Geometry Analysis (P14-026): measure actual compiled PDF layout
     let layoutDiagnostics = null;
     try {
+      const packageSectionOrder =
+        applicationPackage.structuredResume?.sectionOrder ||
+        applicationPackage.tailoringPlan?.sectionOrder ||
+        applicationPackage.tailoredResume?.sectionOrder ||
+        null;
+
       const selectedSections = applicationPackage.tailoredResume?.selectedSections ||
         applicationPackage.selectedSections || [];
-      const expectedSections = ['SUMMARY', 'SKILLS', 'PROJECTS'];
-      if (selectedSections.includes('PROBLEM_SOLVING') ||
-          selectedSections.includes('LEETCODE') ||
-          selectedSections.includes('ALGORITHMIC_PRACTICE')) {
-        expectedSections.push('DSA');
+      const expectedSections = packageSectionOrder && packageSectionOrder.length > 0
+        ? packageSectionOrder.filter((s) => s !== 'HEADER')
+        : ['SUMMARY', 'SKILLS', 'PROJECTS'];
+      if (!packageSectionOrder) {
+        if (selectedSections.includes('PROBLEM_SOLVING') ||
+            selectedSections.includes('LEETCODE') ||
+            selectedSections.includes('ALGORITHMIC_PRACTICE')) {
+          expectedSections.push('DSA');
+        }
+        expectedSections.push('EXPERIENCE', 'EDUCATION');
       }
-      expectedSections.push('EXPERIENCE', 'EDUCATION');
 
       const geometryReport = this.geometryAnalyzer.analyze({
         pdfBuffer: resumePdfResult.pdfBuffer,
         expectedSections,
+        expectedSectionOrder: packageSectionOrder,
       });
       layoutDiagnostics = geometryReport.layoutDiagnostics;
     } catch (geoErr) {

@@ -66,7 +66,13 @@ export class PdfGeometryAnalyzer {
    * @param {string} [params.pageStrategy] Expected page strategy
    * @returns {object} PdfGeometryReport
    */
-  analyze({ pdfBuffer, expectedSections = [], pageStrategy = PAGE_STRATEGY.ONE_PAGE_TARGET }) {
+  analyze({
+    pdfBuffer,
+    expectedSections = [],
+    pageStrategy = PAGE_STRATEGY.ONE_PAGE_TARGET,
+    expectedSectionOrder = null,
+    sectionOrder = null,
+  }) {
     if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length < 50) {
       return this._failureReport('Invalid or empty PDF buffer');
     }
@@ -86,8 +92,9 @@ export class PdfGeometryAnalyzer {
     // 3. Detect sections and their approximate positions
     const detectedSections = this._detectSections(extractedText);
 
-    // 4. Verify section ordering
-    const orderingResult = this._verifySectionOrdering(detectedSections);
+    // 4. Verify section ordering against package-specific or canonical order
+    const targetOrder = expectedSectionOrder || sectionOrder || null;
+    const orderingResult = this._verifySectionOrdering(detectedSections, targetOrder);
 
     // 5. Content utilization estimation
     const utilizationResult = this._estimateContentUtilization(extractedText, pageCount);
@@ -363,24 +370,39 @@ export class PdfGeometryAnalyzer {
   // ───────────────────────────────────────────────────────────────────────────
 
   /**
-   * Verifies that detected sections appear in the expected canonical order.
+   * Verifies that detected sections appear in the expected canonical or package-defined order.
    *
    * @private
    * @param {Array<{type: string, position: number}>} detectedSections
+   * @param {string[]} [expectedSectionOrder=null] Package-defined section order
    * @returns {{valid: boolean, order: string[], violations: string[]}}
    */
-  _verifySectionOrdering(detectedSections) {
+  _verifySectionOrdering(detectedSections, expectedSectionOrder = null) {
     const actualOrder = detectedSections.map(s => s.type);
     const violations = [];
 
-    // Check pairwise ordering against canonical order
+    // 1. Detect duplicate section occurrences
+    const seen = new Set();
+    for (const sec of actualOrder) {
+      if (seen.has(sec)) {
+        violations.push(`Duplicate section detected: ${sec}`);
+      }
+      seen.add(sec);
+    }
+
+    // 2. Resolve reference ordering (package-specific or canonical fallback)
+    const referenceOrder = Array.isArray(expectedSectionOrder) && expectedSectionOrder.length > 0
+      ? expectedSectionOrder.map(s => String(s).toUpperCase()).filter(s => s !== 'HEADER')
+      : CANONICAL_SECTION_ORDER;
+
+    // 3. Check pairwise ordering against reference order
     for (let i = 0; i < actualOrder.length; i++) {
       for (let j = i + 1; j < actualOrder.length; j++) {
-        const idxA = CANONICAL_SECTION_ORDER.indexOf(actualOrder[i]);
-        const idxB = CANONICAL_SECTION_ORDER.indexOf(actualOrder[j]);
+        const idxA = referenceOrder.indexOf(actualOrder[i]);
+        const idxB = referenceOrder.indexOf(actualOrder[j]);
         if (idxA >= 0 && idxB >= 0 && idxA > idxB) {
           violations.push(
-            `${actualOrder[i]} appears before ${actualOrder[j]} but canonical order expects the reverse`
+            `${actualOrder[i]} appears before ${actualOrder[j]} but expected order is ${referenceOrder.join(' -> ')}`
           );
         }
       }
@@ -520,12 +542,15 @@ export class PdfGeometryAnalyzer {
    * @returns {{allPresent: boolean, present: string[], missing: string[], extra: string[]}}
    */
   _validateSectionPresence(detectedSections, expectedSections) {
-    const detectedTypes = new Set(detectedSections.map(s => s.type));
-    const expectedSet = new Set(expectedSections);
+    const effectiveExpected = (expectedSections || [])
+      .map((s) => (typeof s === 'string' ? s.toUpperCase() : s))
+      .filter((s) => s !== 'HEADER');
+    const detectedTypes = new Set(detectedSections.map((s) => s.type));
+    const expectedSet = new Set(effectiveExpected);
 
-    const present = expectedSections.filter(s => detectedTypes.has(s));
-    const missing = expectedSections.filter(s => !detectedTypes.has(s));
-    const extra = [...detectedTypes].filter(s => !expectedSet.has(s));
+    const present = effectiveExpected.filter((s) => detectedTypes.has(s));
+    const missing = effectiveExpected.filter((s) => !detectedTypes.has(s));
+    const extra = [...detectedTypes].filter((s) => !expectedSet.has(s));
 
     return {
       allPresent: missing.length === 0,

@@ -1,7 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { db } from '../../src/db/index.js';
+import { db, closeDatabase } from '../../src/db/index.js';
 import { skillCatalog } from '../../src/db/schema.js';
 import { sql } from 'drizzle-orm';
 import { SKILL_CATALOG_SEED } from '../../src/services/skill-catalog.seed.js';
@@ -33,6 +33,7 @@ describe('Full Acceptance Test (dedicated E2E fixture)', () => {
   after(async () => {
     await cleanupFixtureCandidateSkills(db, candidateId);
     console.log('  ✅ Fixture candidate skills cleaned up (stable MCP candidate untouched).');
+    await closeDatabase();
   });
 
   // STEP 1: Seed catalog

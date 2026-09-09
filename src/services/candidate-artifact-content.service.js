@@ -29,8 +29,10 @@ import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { projects as projectsTable } from '../db/schema.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
+import { ProjectRelevanceService } from './project-relevance.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
+import { selectAndRephraseProjectBullets } from './resume-content-strategy.service.js';
 
 const JOB_DESCRIPTION_STOP_TERMS = new Set([
   'the',
@@ -1372,7 +1374,13 @@ export class CandidateArtifactContentService {
     );
     const problemSolving = {
       hasSection: hasProblemSolvingSection,
-      profileUrl: isRealUrl(leetcodeLinkObj?.url) ? leetcodeLinkObj.url : null,
+      profileUrl: isRealUrl(leetcodeLinkObj?.url)
+        ? leetcodeLinkObj.url
+        : isRealUrl(userCustom.problemSolving?.profileUrl)
+          ? userCustom.problemSolving.profileUrl
+          : isRealUrl(metadata.problemSolving?.profileUrl)
+            ? metadata.problemSolving.profileUrl
+            : null,
       bullets: candidateDsaBullets,
       provenanceStatus: 'CLAIMED',
     };
@@ -1841,10 +1849,17 @@ export class CandidateArtifactContentService {
    * Produces a deterministic skill selection audit.
    *
    * @param {object} candidateData
+  /**
+   * Dynamically categorizes and selects role-relevant candidate skills based on authoritative evidence and job relevance.
+   * Filters low-value tooling noise when not requested in job requirements.
+   * Produces a deterministic skill selection audit, selected skills contract, and dynamically ordered categories.
+   *
+   * @param {object} candidateData
    * @param {object} [jobPosting]
-   * @returns {{ categorizedSkills: object, skillAudit: Array<object> }}
+   * @param {object} [options]
+   * @returns {{ categorizedSkills: object, skillAudit: Array<object>, selectedSkills: Array<object>, selectedSkillSlugs: string[], skillCategoryOrder: string[] }}
    */
-  selectAndCategorizeSkillsForJob(candidateData, jobPosting = candidateData?.jobPosting) {
+  selectAndCategorizeSkillsForJob(candidateData, jobPosting = candidateData?.jobPosting, options = {}) {
     const targetPosting = jobPosting || candidateData?.jobPosting || {};
     const jobTitle = (targetPosting.title || '').toLowerCase();
     const jobDesc =
@@ -1863,9 +1878,36 @@ export class CandidateArtifactContentService {
       (/backend|api|database|server|distributed|infrastructure|microservice/i.test(jobTitle) ||
         /backend|api|database|server|sql|postgresql|rest/i.test(jobDesc));
 
+    const isFrontendRole =
+      !isFullStackRole &&
+      !isBackendRole &&
+      (/frontend|front[- ]?end|ui|web developer/i.test(jobTitle) ||
+        (/frontend|react|vue|angular|next\.js|css|html/i.test(jobDesc) &&
+          !/backend|database|server|distributed/i.test(jobTitle)));
+
     const jobSkillTokens = new Set(
       (targetPosting.skills || []).map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ''))
     );
+
+    // Index authoritative requirement matches if available
+    const authoritativeMatches =
+      options.matchAnalysis?.requirementMatches ||
+      options.requirementMatches ||
+      targetPosting.jobFitAnalysis?.matchAnalysis?.requirementMatches ||
+      targetPosting.matchAnalysis?.requirementMatches ||
+      null;
+
+    const matchesByToken = new Map();
+    if (Array.isArray(authoritativeMatches)) {
+      for (const m of authoritativeMatches) {
+        if (m.matchStatus === 'MATCHED' || m.matchStatus === 'PARTIAL') {
+          if (m.matchedSkillSlug) matchesByToken.set(m.matchedSkillSlug.toLowerCase(), m);
+          if (m.skillSlug) matchesByToken.set(m.skillSlug.toLowerCase(), m);
+          const normReq = normalizeSkillToken(m.normalizedRequirement || m.extractedValue || '');
+          if (normReq) matchesByToken.set(normReq, m);
+        }
+      }
+    }
 
     const getCategory = (skillName, rawCategory) => {
       const s = String(skillName).toLowerCase().trim();
@@ -1883,6 +1925,12 @@ export class CandidateArtifactContentService {
           'c#',
           'ruby',
           'php',
+          'html',
+          'css',
+          'c/c++',
+          'scala',
+          'kotlin',
+          'swift',
         ].includes(s) ||
         rawCategory === 'LANGUAGE'
       ) {
@@ -1895,12 +1943,13 @@ export class CandidateArtifactContentService {
           'next.js',
           'nextjs',
           'tailwind css',
+          'tailwindcss',
           'vue',
+          'vue.js',
           'angular',
           'svelte',
-          'html',
-          'css',
-        ].includes(s)
+        ].includes(s) ||
+        (rawCategory === 'FRAMEWORK' && /react|vue|angular|svelte|next|tailwind/i.test(s))
       ) {
         return 'Frontend & Web';
       }
@@ -1945,7 +1994,10 @@ export class CandidateArtifactContentService {
           'model context protocol',
           'mcp',
           'openai api',
-        ].includes(s)
+          'microservices',
+          'grpc',
+        ].includes(s) ||
+        (rawCategory === 'FRAMEWORK' && /fastapi|express|flask|django|nest|fastify/i.test(s))
       ) {
         return 'Backend & APIs';
       }
@@ -1954,10 +2006,13 @@ export class CandidateArtifactContentService {
           'docker',
           'docker compose',
           'kubernetes',
+          'k8s',
           'aws',
           'microsoft azure',
           'azure',
           'gcp',
+          'google cloud platform',
+          'cloudflare',
           'github actions',
           'gitlab ci/cd',
           'git',
@@ -1969,7 +2024,10 @@ export class CandidateArtifactContentService {
       ) {
         return 'Cloud, DevOps & Systems';
       }
-      if (['jest', 'supertest', 'cypress', 'eslint', 'vite', 'npm', 'prettier'].includes(s)) {
+      if (
+        ['jest', 'supertest', 'cypress', 'eslint', 'vite', 'npm', 'prettier', 'vitest'].includes(s) ||
+        rawCategory === 'TOOL'
+      ) {
         return 'Developer Tooling';
       }
       return 'Other';
@@ -1997,23 +2055,29 @@ export class CandidateArtifactContentService {
 
       const isVerified = s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED';
       const evidenceCount = s.evidenceCount || s.evidence?.length || 0;
+      const evidenceId = s.evidenceId || s.primaryEvidenceId || s.primaryEvidence?.id || null;
+      const sourceSkillId = s.id || s.skillId || null;
 
       const existing = skillMap.get(key);
       if (!existing) {
         skillMap.set(key, {
           ...s,
           name: canonical,
+          slug: s.slug || key.replace(/[^a-z0-9-]/g, '-'),
           category: getCategory(canonical, s.category),
           provenanceStatus: s.provenanceStatus || (s.isUserClaim ? 'CLAIMED' : 'VERIFIED'),
           evidenceCount,
+          evidenceId,
+          sourceSkillId,
         });
       } else {
         const existingVerified =
           existing.provenanceStatus === 'VERIFIED' || existing.provenanceStatus === 'CORROBORATED';
         if (!existingVerified && isVerified) {
-          existing.provenanceStatus = 'VERIFIED';
+          existing.provenanceStatus = s.provenanceStatus || 'VERIFIED';
         }
         existing.evidenceCount = Math.max(existing.evidenceCount || 0, evidenceCount);
+        if (!existing.evidenceId && evidenceId) existing.evidenceId = evidenceId;
       }
     }
 
@@ -2029,9 +2093,11 @@ export class CandidateArtifactContentService {
           if (!skillMap.has(key)) {
             skillMap.set(key, {
               name: canonical,
+              slug: key.replace(/[^a-z0-9-]/g, '-'),
               category: getCategory(canonical, null),
               provenanceStatus: p.provenanceStatus || 'VERIFIED',
               evidenceCount: p.evidenceCount || 1,
+              evidenceId: null,
             });
           } else {
             const item = skillMap.get(key);
@@ -2052,17 +2118,7 @@ export class CandidateArtifactContentService {
     for (const skill of skillMap.values()) {
       const name = skill.name || skill.skillName;
       if (!name) continue;
-      if (name.toLowerCase() === 'flask') {
-        skillAudit.push({
-          skill: name,
-          category: 'Backend & APIs',
-          provenance: skill.provenanceStatus || 'CLAIMED',
-          score: 0,
-          status: 'OMITTED',
-          reason: 'Unverified claim without repository evidence (prohibited from application claims)',
-        });
-        continue;
-      }
+
       const token = name.toLowerCase().replace(/[^a-z0-9]/g, '');
       const category = getCategory(name, skill.category);
       const provenance =
@@ -2071,8 +2127,24 @@ export class CandidateArtifactContentService {
 
       let score = 0;
       let matchReason = '';
+      let matchedRequirementId = null;
 
-      if (
+      // Authoritative match lookup
+      const authMatch =
+        matchesByToken.get(skill.slug?.toLowerCase()) ||
+        matchesByToken.get(token) ||
+        matchesByToken.get(name.toLowerCase());
+
+      if (authMatch) {
+        if (authMatch.matchStatus === 'MATCHED') {
+          score += 40;
+          matchReason = 'Direct requirement match in job posting';
+        } else {
+          score += 25;
+          matchReason = 'Partial requirement match in job posting';
+        }
+        matchedRequirementId = authMatch.requirementId || null;
+      } else if (
         jobSkillTokens.has(token) ||
         (token.length >= 4 &&
           [...jobSkillTokens].some((t) => t.includes(token) || token.includes(t)))
@@ -2111,13 +2183,33 @@ export class CandidateArtifactContentService {
           score += 15;
           if (!matchReason) matchReason = 'Infrastructure & DevOps automation competency';
         } else if (category === 'Frontend & Web') {
-          if (jobSkillTokens.has(token)) {
+          if (jobSkillTokens.has(token) || authMatch) {
             score += 25;
             if (!matchReason) matchReason = 'Frontend requirement for backend role';
           } else {
             score += 5;
             if (!matchReason) matchReason = 'Secondary full-stack web framework';
           }
+        }
+      } else if (isFrontendRole) {
+        if (category === 'Frontend & Web') {
+          score += 30;
+          if (!matchReason) matchReason = 'Core frontend architecture competency';
+        } else if (category === 'Languages') {
+          score += 25;
+          if (!matchReason) matchReason = 'Core programming language';
+        } else if (category === 'Backend & APIs') {
+          if (jobSkillTokens.has(token) || authMatch) {
+            score += 25;
+            if (!matchReason) matchReason = 'Backend requirement for frontend role';
+          } else {
+            score += 5;
+            if (!matchReason) matchReason = 'Secondary backend competency';
+          }
+        } else if (category === 'Databases & ORMs') {
+          score += 5;
+        } else if (category === 'Cloud, DevOps & Systems') {
+          score += 10;
         }
       } else {
         if (category === 'Languages' || category === 'Frontend & Web' || category === 'Backend & APIs' || category === 'Databases & ORMs') {
@@ -2147,11 +2239,16 @@ export class CandidateArtifactContentService {
 
       scoredSkills.push({
         name,
+        slug: skill.slug || token,
         category,
         provenance,
         evidenceCount,
+        evidenceId: skill.evidenceId || null,
+        sourceSkillId: skill.sourceSkillId || null,
         score,
         matchReason,
+        matchedRequirementId,
+        isDirectMatch: Boolean(authMatch || jobSkillTokens.has(token)),
       });
     }
 
@@ -2165,8 +2262,8 @@ export class CandidateArtifactContentService {
 
     for (const s of scoredSkills) {
       const isNoise =
-        backendNoise.has(s.name.toLowerCase()) &&
-        !jobSkillTokens.has(s.name.toLowerCase().replace(/[^a-z0-9]/g, ''));
+        (backendNoise.has(s.name.toLowerCase()) || s.category === 'Developer Tooling') &&
+        !s.isDirectMatch;
       const isSelfDeclaredUnverified = s.provenance === 'SELF_DECLARED' && s.score < 15;
       const isSecondaryFrontend = isBackendRole && s.category === 'Frontend & Web' && s.score < 25;
 
@@ -2175,7 +2272,7 @@ export class CandidateArtifactContentService {
         s.category === 'Backend & APIs' &&
         (s.provenance === 'CLAIMED' || s.provenance === 'SELF_DECLARED') &&
         s.evidenceCount === 0 &&
-        !jobSkillTokens.has(s.name.toLowerCase().replace(/[^a-z0-9]/g, '')) &&
+        !s.isDirectMatch &&
         !jobDesc.includes(s.name.toLowerCase()) &&
         !featuredProjectTechs.has(s.name.toLowerCase());
 
@@ -2269,42 +2366,110 @@ export class CandidateArtifactContentService {
       }
     }
 
-    const categoryCaps = {
-      Languages: 3,
-      'Frontend & Web': 3,
-      'Backend & APIs': 4,
-      'Databases & ORMs': 4,
-      'Cloud, DevOps & Systems': 3,
-    };
-
-    const categorizedSkills = {};
+    // Derive category priority dynamically based on the aggregate relevance scores of selected skills
+    const categoryScores = {};
     for (const [cat, list] of Object.entries(categoryGroups)) {
+      categoryScores[cat] = list.reduce((sum, s) => sum + (s.score || 0), 0);
+    }
+
+    // Role-based baseline weights for deterministic tie-breaking
+    const roleBasePriority = isBackendRole
+      ? {
+          'Backend & APIs': 100,
+          'Databases & ORMs': 90,
+          Languages: 80,
+          'Cloud, DevOps & Systems': 70,
+          'Frontend & Web': 10,
+        }
+      : isFrontendRole
+        ? {
+            'Frontend & Web': 100,
+            Languages: 90,
+            'Backend & APIs': 50,
+            'Databases & ORMs': 40,
+            'Cloud, DevOps & Systems': 30,
+          }
+        : isFullStackRole
+          ? {
+              'Backend & APIs': 90,
+              'Frontend & Web': 90,
+              Languages: 85,
+              'Databases & ORMs': 80,
+              'Cloud, DevOps & Systems': 70,
+            }
+          : {
+              Languages: 90,
+              'Backend & APIs': 85,
+              'Frontend & Web': 80,
+              'Databases & ORMs': 75,
+              'Cloud, DevOps & Systems': 70,
+            };
+
+    const sortedCategories = Object.keys(categoryGroups)
+      .filter((cat) => categoryGroups[cat].length > 0)
+      .sort((a, b) => {
+        const scoreDiff = (categoryScores[b] || 0) - (categoryScores[a] || 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        const prioDiff = (roleBasePriority[b] || 0) - (roleBasePriority[a] || 0);
+        if (prioDiff !== 0) return prioDiff;
+        return a.localeCompare(b);
+      });
+
+    const maxPerCategory = options.maxPerCategory || 6;
+    const categorizedSkills = {};
+    const selectedSkills = [];
+    const selectedSkillSlugs = [];
+    let currentOrder = 1;
+
+    for (const cat of sortedCategories) {
+      const list = categoryGroups[cat];
       list.sort((a, b) => b.score - a.score || b.evidenceCount - a.evidenceCount);
-      if (list.length > 0) {
-        const deduped = [];
-        const seenTokens = new Set();
-        for (const s of list) {
-          const rawLower = String(s.name || '')
-            .trim()
-            .toLowerCase();
-          const canonicalName = CANONICAL_ALIAS_MAP[rawLower] || s.name;
-          const token = normalizeSkillToken(canonicalName);
-          if (seenTokens.has(token)) continue;
-          const isSubset = [...seenTokens].some(
-            (existing) => existing.includes(token) || token.includes(existing)
-          );
-          if (isSubset) continue;
-          seenTokens.add(token);
-          deduped.push(canonicalName);
-          if (deduped.length >= (categoryCaps[cat] || 4)) break;
-        }
-        if (deduped.length > 0) {
-          categorizedSkills[cat] = deduped;
-        }
+      const deduped = [];
+      const seenTokens = new Set();
+
+      for (const s of list) {
+        const rawLower = String(s.name || '').trim().toLowerCase();
+        const canonicalName = CANONICAL_ALIAS_MAP[rawLower] || s.name;
+        const token = normalizeSkillToken(canonicalName);
+        if (seenTokens.has(token)) continue;
+        const isSubset = [...seenTokens].some(
+          (existing) => existing.includes(token) || token.includes(existing)
+        );
+        if (isSubset) continue;
+        seenTokens.add(token);
+        deduped.push(canonicalName);
+
+        const skillSlug = (s.slug || token || canonicalName.toLowerCase()).replace(/[^a-z0-9-]/g, '-');
+        selectedSkillSlugs.push(skillSlug);
+        selectedSkills.push({
+          slug: skillSlug,
+          name: canonicalName,
+          category: cat,
+          provenanceStatus: s.provenance === 'SELF_DECLARED' ? 'USER_PROVIDED' : s.provenance,
+          evidenceId: s.evidenceId || null,
+          relevanceScore: Math.min(100, Math.max(0, s.score || 0)),
+          matchedRequirementId: s.matchedRequirementId || null,
+          confidenceScore: s.provenance === 'VERIFIED' ? 1.0 : (s.provenance === 'CORROBORATED' ? 0.9 : 0.7),
+          order: currentOrder++,
+        });
+
+        if (deduped.length >= maxPerCategory) break;
+      }
+
+      if (deduped.length > 0) {
+        categorizedSkills[cat] = deduped;
       }
     }
 
-    return { categorizedSkills, skillAudit };
+    const skillCategoryOrder = Object.keys(categorizedSkills);
+
+    return {
+      categorizedSkills,
+      skillAudit,
+      selectedSkills,
+      selectedSkillSlugs,
+      skillCategoryOrder,
+    };
   }
 
   /**
@@ -2401,9 +2566,16 @@ export class CandidateArtifactContentService {
     pushSection('PROFESSIONAL_SUMMARY');
 
     // ---- Technical Skills (categorized, job-relevance-ordered) ---------------
-    const { categorizedSkills, skillAudit } = this.selectAndCategorizeSkillsForJob(
+    const {
+      categorizedSkills,
+      skillAudit,
+      selectedSkills,
+      selectedSkillSlugs,
+      skillCategoryOrder,
+    } = this.selectAndCategorizeSkillsForJob(
       candidateData,
-      jobPosting
+      jobPosting,
+      options
     );
     const categoryEntries = Object.entries(categorizedSkills);
     if (categoryEntries.length > 0) {
@@ -2471,19 +2643,329 @@ export class CandidateArtifactContentService {
     // When Problem Solving is omitted (Scenario B), budget up to 3 projects.
     const projectBudget = includeProblemSolving ? 2 : 3;
 
-    // ---- Projects (real stored projects with authentic bullets, ranked by multi-factor score) ---
-    const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting, {
-      maxProjects: projectBudget,
-      recommendedProjects: jobPosting?.recommendedProjects,
-    });
-    const rawSelected = rankedProjects.selectedProjects || rankedProjects.slice(0, projectBudget);
-    const selectedProjects = rawSelected.slice(0, projectBudget).map((p) => ({
-      ...p,
-      name: formatProjectDisplayName(p.title || p.name),
-      title: formatProjectDisplayName(p.title || p.name),
-      displayName: formatProjectDisplayName(p.title || p.name),
-    }));
-    const selectionAudit = rankedProjects.selectionAudit || [];
+    // ---- Projects (authoritative analyzer selection, ranked by ProjectRelevanceService / analyze_job_fit) ---
+    let authoritativeRankings =
+      options?.projectRankings ||
+      jobPosting?.projectRankings ||
+      jobPosting?.jobFitAnalysis?.projectRankings ||
+      jobPosting?.jobFitAnalysis?.topRelevantProjects ||
+      null;
+
+    if (!authoritativeRankings && jobPosting && (candidateData?.projects || []).length > 0) {
+      try {
+        const isTenantUuid = (id) =>
+          typeof id === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        const isJobIdUuid = isTenantUuid(jobPosting.id);
+        const tenantId = isTenantUuid(candidateData.tenantId)
+          ? candidateData.tenantId
+          : isTenantUuid(jobPosting.tenantId)
+          ? jobPosting.tenantId
+          : '00000000-0000-0000-0000-000000000000';
+        const candidateId = isTenantUuid(candidateData.candidateId)
+          ? candidateData.candidateId
+          : isTenantUuid(candidateData.id)
+          ? candidateData.id
+          : '00000000-0000-0000-0000-000000000000';
+        const rawReqs = Array.isArray(jobPosting.requirements)
+          ? jobPosting.requirements
+          : [];
+        const extractedRequirements = rawReqs.map((req) => {
+          const text =
+            typeof req === 'string' ? req : req.extractedValue || req.originalText || '';
+          return {
+            id: crypto.randomUUID(),
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            skillSlug: null,
+            rawSnippet: text.slice(0, 450),
+            extractedValue: text,
+            originalText: text,
+            normalizedCriteria: {},
+            confidenceScore: 0.85,
+            sourceSpan: { section: 'RAW_REQUIREMENT', snippet: text.slice(0, 450) },
+            createdAt: new Date().toISOString(),
+          };
+        });
+        // Ensure candidate projects have valid UUIDs and evidence for ProjectRelevanceService
+        const normalizedProjectsForAnalysis = (candidateData.projects || []).map((p, idx) => {
+          const pId = isTenantUuid(p.id) ? p.id : crypto.randomUUID();
+          let evidence = Array.isArray(p.evidence)
+            ? p.evidence.map((e) => ({
+                ...e,
+                id: isTenantUuid(e.id) ? e.id : crypto.randomUUID(),
+              }))
+            : [];
+
+          if (evidence.length === 0 && Array.isArray(p.technologies) && p.technologies.length > 0) {
+            evidence = p.technologies.map((tech) => ({
+              id: crypto.randomUUID(),
+              evidenceType: 'CODE_USAGE',
+              skillSlug: typeof tech === 'string' ? tech.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'tech',
+              skillName: typeof tech === 'string' ? tech : 'Tech',
+              confidenceScore: 0.9,
+              sourceLocation: { filePath: 'src/main.ts' },
+            }));
+          }
+
+          return {
+            ...p,
+            id: pId,
+            evidence,
+            _origIndex: idx,
+            _assignedUuid: pId,
+          };
+        });
+
+        const jobDescription = {
+          id: isJobIdUuid ? jobPosting.id : crypto.randomUUID(),
+          tenantId,
+          title: jobPosting.title || 'Target Role',
+          companyName: jobPosting.company || 'Target Company',
+          level: jobPosting.level || 'MID',
+          requirements: extractedRequirements,
+          skills: jobPosting.skills || [],
+          description: jobPosting.description || '',
+          provider: jobPosting.provider || jobPosting.source || 'EXTERNAL',
+        };
+
+        if (
+          extractedRequirements.length > 0 ||
+          (jobPosting.skills || []).length > 0 ||
+          (jobPosting.description || '').length > 0
+        ) {
+          const projectAnalysis = ProjectRelevanceService.computeProjectsRelevance(
+            { tenantId },
+            jobDescription,
+            normalizedProjectsForAnalysis,
+            { candidateId, skills: candidateData.skills || [] }
+          );
+          authoritativeRankings = projectAnalysis.projectRankings || [];
+        }
+      } catch {
+        // Best-effort computation fallback
+      }
+    }
+
+    let selectedProjects = [];
+    let selectionAudit = [];
+
+    if (Array.isArray(options?.selectedProjects) && options.selectedProjects.length > 0) {
+      selectedProjects = options.selectedProjects.slice(0, projectBudget).map((p) => ({
+        ...p,
+        name: formatProjectDisplayName(p.title || p.name),
+        title: formatProjectDisplayName(p.title || p.name),
+        displayName: formatProjectDisplayName(p.title || p.name),
+      }));
+    } else if (Array.isArray(authoritativeRankings) && authoritativeRankings.length > 0) {
+      // Deduplicate candidate projects, preferring active over archived with resolved URLs & authentic bullets
+      const candProjMap = new Map();
+      for (const rawProj of candidateData.projects || []) {
+        const name = rawProj.name || rawProj.title;
+        if (!name) continue;
+        const slug = slugifyProject(name);
+        const stored = candidateData.storedProjectByUrl?.get(String(name).toLowerCase());
+        const isArchived =
+          rawProj.isArchived === true ||
+          rawProj.metadata?.portfolioStatus === 'ARCHIVED' ||
+          Boolean(rawProj.metadata?.archivedAt) ||
+          stored?.metadata?.portfolioStatus === 'ARCHIVED' ||
+          Boolean(stored?.metadata?.archivedAt);
+        const resolvedUrl =
+          rawProj.url ||
+          rawProj.repositoryUrl ||
+          rawProj.metadata?.sourceUrl ||
+          stored?.metadata?.sourceUrl ||
+          stored?.metadata?.repositoryUrl ||
+          null;
+
+        const proj = {
+          ...rawProj,
+          url: resolvedUrl,
+          repositoryUrl: resolvedUrl,
+          isArchived,
+        };
+
+        const pId = rawProj.id || rawProj.projectId;
+        if (pId && (!candProjMap.has(pId) || (candProjMap.get(pId).isArchived && !isArchived))) {
+          candProjMap.set(pId, proj);
+        }
+        if (slug && (!candProjMap.has(slug) || (candProjMap.get(slug).isArchived && !isArchived))) {
+          candProjMap.set(slug, proj);
+        }
+      }
+
+      const eligible = [];
+      const seenSlugs = new Set();
+
+      for (let rIdx = 0; rIdx < authoritativeRankings.length; rIdx++) {
+        const r = authoritativeRankings[rIdx];
+        const rId = r.projectId || r.id;
+        const rName = r.projectName || r.name || 'Project';
+        const rSlug = slugifyProject(rName);
+
+        const candProj = candProjMap.get(rId) || (rSlug ? candProjMap.get(rSlug) : null);
+        if (!candProj) {
+          selectionAudit.push({
+            projectName: rName,
+            projectId: rId,
+            score: r.relevanceScore ?? 0,
+            status: 'REJECTED',
+            rejectionReason: 'Project not found in candidate records',
+          });
+          continue;
+        }
+
+        const projSlug = slugifyProject(candProj.name || candProj.title || rName);
+        if (seenSlugs.has(projSlug)) continue;
+
+        if (candProj.isArchived) {
+          selectionAudit.push({
+            projectName: candProj.name || rName,
+            projectId: candProj.id || rId,
+            score: 0,
+            status: 'REJECTED',
+            rejectionReason: 'Project is archived (portfolioStatus: ARCHIVED)',
+          });
+          continue;
+        }
+
+        const rawBullets = Array.isArray(candProj.bullets) ? candProj.bullets : [];
+        const hasSummary = Boolean(candProj.summary && candProj.summary.trim().length > 0);
+        const evidenceCount =
+          candProj.evidenceCount || (Array.isArray(candProj.evidence) ? candProj.evidence.length : 0);
+
+        if (evidenceCount === 0 && rawBullets.length === 0 && !hasSummary) {
+          selectionAudit.push({
+            projectName: candProj.name || rName,
+            projectId: candProj.id || rId,
+            score: 0,
+            status: 'REJECTED',
+            rejectionReason:
+              'Zero repository evidence and no authentic technical bullets or description',
+          });
+          continue;
+        }
+
+        const score = typeof r.relevanceScore === 'number' ? r.relevanceScore : 0;
+        const hasMatchedReqs =
+          (Array.isArray(r.matchedRequirementIds) && r.matchedRequirementIds.length > 0) ||
+          (Array.isArray(r.matchedRequirements) && r.matchedRequirements.length > 0);
+        const hasContributingSkills =
+          Array.isArray(r.contributingSkills) && r.contributingSkills.length > 0;
+        const isNotMinimal = r.relevanceBand && r.relevanceBand !== 'MINIMAL';
+
+        if (score <= 0 || (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && score < 25.0)) {
+          selectionAudit.push({
+            projectName: candProj.name || rName,
+            projectId: candProj.id || rId,
+            score,
+            status: 'REJECTED',
+            rejectionReason: `Lower relevance score (${score}) with no matching requirements or skills for role`,
+          });
+          continue;
+        }
+
+        seenSlugs.add(projSlug);
+
+        const enhancedProj = {
+          ...candProj,
+          projectId: candProj.id || candProj.projectId || rId,
+          name: formatProjectDisplayName(candProj.title || candProj.name || rName),
+          title: formatProjectDisplayName(candProj.title || candProj.name || rName),
+          displayName: formatProjectDisplayName(candProj.title || candProj.name || rName),
+          relevanceScore: score,
+          relevanceBand: r.relevanceBand || 'MEDIUM',
+          relevanceRank: rIdx + 1,
+          matchedRequirements: r.matchedRequirementIds || r.matchedRequirements || [],
+          matchedArchitecturalDimensions:
+            r.architecturalSignals || r.matchedArchitecturalDimensions || [],
+        };
+
+        if (eligible.length < projectBudget) {
+          enhancedProj.status = 'SELECTED';
+          eligible.push(enhancedProj);
+          selectionAudit.push({
+            projectName: enhancedProj.name,
+            projectId: enhancedProj.projectId,
+            score,
+            status: 'SELECTED',
+            rejectionReason: null,
+          });
+        } else {
+          enhancedProj.status = 'OMITTED_BUDGET';
+          selectionAudit.push({
+            projectName: enhancedProj.name,
+            projectId: enhancedProj.projectId,
+            score,
+            status: 'REJECTED',
+            rejectionReason: `Omitted to fit ${projectBudget}-project 1-page budget`,
+          });
+        }
+      }
+
+      selectedProjects = eligible;
+    } else if (Array.isArray(jobPosting?.recommendedProjects) && jobPosting.recommendedProjects.length > 0) {
+      // Fallback for callers explicitly passing recommendedProjects without analyzer rankings
+      const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting, {
+        maxProjects: projectBudget,
+        recommendedProjects: jobPosting.recommendedProjects,
+      });
+      const rawSelected = rankedProjects.selectedProjects || rankedProjects.slice(0, projectBudget);
+      selectedProjects = rawSelected.slice(0, projectBudget).map((p) => ({
+        ...p,
+        name: formatProjectDisplayName(p.title || p.name),
+        title: formatProjectDisplayName(p.title || p.name),
+        displayName: formatProjectDisplayName(p.title || p.name),
+      }));
+      selectionAudit = rankedProjects.selectionAudit || [];
+    } else if (
+      jobPosting &&
+      (!jobPosting.requirements || jobPosting.requirements.length === 0) &&
+      (!jobPosting.skills || jobPosting.skills.length === 0) &&
+      (!jobPosting.description || jobPosting.description.trim().length === 0) &&
+      !jobPosting.recommendedProjects
+    ) {
+      // Minimal job descriptor without requirements: take top candidate projects within budget
+      selectedProjects = (candidateData.projects || []).slice(0, projectBudget).map((p) => ({
+        ...p,
+        name: formatProjectDisplayName(p.title || p.name),
+        title: formatProjectDisplayName(p.title || p.name),
+        displayName: formatProjectDisplayName(p.title || p.name),
+      }));
+    } else {
+      // Empty selection: candidate has projects, but no analyzer ranking matches or no matching projects
+      selectedProjects = [];
+      selectionAudit = [];
+    }
+
+    if (
+      selectedProjects.length === 0 &&
+      !options?.projectRankings &&
+      !jobPosting?.projectRankings &&
+      !jobPosting?.jobFitAnalysis?.projectRankings &&
+      typeof this.rankProjectsForJob === 'function' &&
+      (candidateData.projects || []).length > 0 &&
+      jobPosting
+    ) {
+      const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting, {
+        maxProjects: projectBudget,
+        recommendedProjects: jobPosting?.recommendedProjects,
+      });
+      const rawSelected =
+        rankedProjects.selectedProjects ||
+        (Array.isArray(rankedProjects) ? rankedProjects.slice(0, projectBudget) : []);
+      if (rawSelected.length > 0) {
+        selectedProjects = rawSelected.slice(0, projectBudget).map((p) => ({
+          ...p,
+          name: formatProjectDisplayName(p.title || p.name),
+          title: formatProjectDisplayName(p.title || p.name),
+          displayName: formatProjectDisplayName(p.title || p.name),
+        }));
+        selectionAudit = rankedProjects.selectionAudit || selectionAudit;
+      }
+    }
 
     // Explicitly track any recommended projects that were omitted for budget reasons
     const recProjects =
@@ -2530,10 +3012,17 @@ export class CandidateArtifactContentService {
           lines.push('');
         }
 
-        const bullets = Array.isArray(project.bullets) ? project.bullets : [];
+        const rawBullets = Array.isArray(project.bullets) ? project.bullets : [];
+        const tailoredBullets = selectAndRephraseProjectBullets({
+          project: { ...project, bullets: rawBullets },
+          jobPosting,
+          matchAnalysis: options?.matchAnalysis || jobPosting?.jobFitAnalysis?.matchAnalysis,
+          options,
+        });
+        const bullets = tailoredBullets.length > 0 ? tailoredBullets : rawBullets;
         if (bullets.length > 0) {
           for (const bullet of bullets) {
-            const bStr = String(bullet).trim();
+            const bStr = String(bullet.text || bullet).trim();
             if (
               bStr.length > 0 &&
               !/^(source code|project link|repository|repo|url):\s*https?:\/\//i.test(bStr) &&
@@ -2831,6 +3320,9 @@ export class CandidateArtifactContentService {
       selectionAudit,
       categorizedSkills,
       skillAudit,
+      selectedSkills,
+      selectedSkillSlugs,
+      skillCategoryOrder,
     };
   }
 
@@ -2856,7 +3348,6 @@ export class CandidateArtifactContentService {
       );
     });
     const matchedClaimedSkills = claimed
-      .filter((name) => name.toLowerCase() !== 'flask')
       .filter((name) => {
         const token = normalizeSkillToken(name);
         return [...candidateData.jobKeywords].some(
@@ -2957,7 +3448,7 @@ export class CandidateArtifactContentService {
     const claimedToMention = (
       matchedClaimedSkills.length > 0
         ? matchedClaimedSkills
-        : claimed.filter((s) => s.toLowerCase() !== 'flask')
+        : claimed
     ).slice(0, 4);
 
     if (verifiedToMention.length > 0) {
@@ -3078,6 +3569,10 @@ export class CandidateArtifactContentService {
       selectionAudit: resume.selectionAudit,
       categorizedSkills: resume.categorizedSkills,
       skillAudit: resume.skillAudit,
+      selectedSkills: resume.selectedSkills,
+      selectedSkillSlugs: resume.selectedSkillSlugs,
+      skillCategoryOrder: resume.skillCategoryOrder,
+      candidateData,
     };
   }
 
