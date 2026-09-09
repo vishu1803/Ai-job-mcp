@@ -12,7 +12,11 @@
  * edge://, about:), devtools, and blank tabs.
  */
 
-/** Known ATS / job-board host fragments, most specific first. */
+/**
+ * Known ATS / job-board host fragments, most specific first.
+ * P16-001F-5: Indian job boards added (Naukri, Shine, Foundit, iimjobs,
+ * TimesJobs, Hirect, Cutshort, Instahyre) alongside global ATS providers.
+ */
 export const ATS_HOST_PATTERNS = Object.freeze([
   'boards.greenhouse.io',
   'job-boards.greenhouse.io',
@@ -24,6 +28,17 @@ export const ATS_HOST_PATTERNS = Object.freeze([
   'workday',
   'linkedin.com/jobs',
   'indeed.com',
+  // Indian job boards
+  'naukri.com',
+  'shine.com',
+  'foundit.in',
+  'monsterindia.com',
+  'iimjobs.com',
+  'timesjobs.com',
+  'hirect.in',
+  'hirect.com',
+  'cutshort.io',
+  'instahyre.com',
 ]);
 
 /** Returns true when a tab URL is eligible for job detection. */

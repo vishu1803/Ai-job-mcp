@@ -11,12 +11,22 @@ import { LeverAdapter } from './adapters/lever.adapter.js';
 import { WorkdayAdapter } from './adapters/workday.adapter.js';
 import { LinkedInAdapter } from './adapters/linkedin.adapter.js';
 import { IndeedAdapter } from './adapters/indeed.adapter.js';
+import { NaukriAdapter } from './adapters/naukri.adapter.js';
+import { IimjobsAdapter } from './adapters/iimjobs.adapter.js';
+import { ShineAdapter } from './adapters/shine.adapter.js';
+import { FounditAdapter } from './adapters/foundit.adapter.js';
+import { TimesJobsAdapter } from './adapters/timesjobs.adapter.js';
+import { HirectAdapter } from './adapters/hirect.adapter.js';
+import { CutshortAdapter } from './adapters/cutshort.adapter.js';
+import { InstahyreAdapter } from './adapters/instahyre.adapter.js';
 import { GenericCareerPageAdapter } from './adapters/generic-career.adapter.js';
 
 export class JobPageDetector {
   /**
    * Ordered list of registered provider adapters.
-   * Specific ATS adapters take precedence over the generic fallback.
+   * Specific ATS/job-board adapters take precedence over the generic fallback.
+   * P16-001F-5: Indian job boards (Naukri, iimjobs, Shine, Foundit, TimesJobs,
+   * Hirect, Cutshort, Instahyre) registered ahead of the generic adapter.
    */
   static adapters = [
     GreenhouseAdapter,
@@ -24,6 +34,14 @@ export class JobPageDetector {
     WorkdayAdapter,
     LinkedInAdapter,
     IndeedAdapter,
+    NaukriAdapter,
+    IimjobsAdapter,
+    ShineAdapter,
+    FounditAdapter,
+    TimesJobsAdapter,
+    HirectAdapter,
+    CutshortAdapter,
+    InstahyreAdapter,
     GenericCareerPageAdapter,
   ];
 
@@ -100,7 +118,22 @@ export class JobPageDetector {
     const provider = String(rawPayload.provider || '').toUpperCase();
     const isStructuredProvider =
       provider === 'GENERIC_JSONLD' ||
-      ['GREENHOUSE', 'LEVER', 'WORKDAY', 'LINKEDIN', 'INDEED'].includes(provider);
+      [
+        'GREENHOUSE',
+        'LEVER',
+        'WORKDAY',
+        'LINKEDIN',
+        'INDEED',
+        // P16-001F-5: Indian job-board providers are structured providers.
+        'NAUKRI',
+        'IIMJOBS',
+        'SHINE',
+        'FOUNDIT',
+        'TIMESJOBS',
+        'HIRECT',
+        'CUTSHORT',
+        'INSTAHYRE',
+      ].includes(provider);
 
     const JOB_SIGNAL_REGEX =
       /\b(?:we[' ]?re hiring|apply now|submit (?:your )?(?:application|resume)|join our team|about the (?:role|opportunity)|job description|qualifications|responsibilities include|years of experience|full[- ]time|part[- ]time|contract(?:or)? position|benefits(?: package)?|equity|open role|open position|careers?)\b/i;

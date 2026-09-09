@@ -56,6 +56,30 @@ export function stripHtml(html) {
 }
 
 /**
+ * Extracts requirement/responsibility bullet texts from a JSON-LD description
+ * field that carries HTML `<li>` items. Many ATS/boards (Indeed, LinkedIn,
+ * iimjobs, Hirect, Cutshort, Foundit, Instahyre) embed the full HTML
+ * description in JSON-LD — discarding the list structure loses the very
+ * requirements the matching pipeline needs.
+ *
+ * @param {string} html Raw JSON-LD description (may be HTML)
+ * @returns {string[]} Bounded list of bullet texts (max 30)
+ */
+export function extractListItemsFromHtml(html) {
+  if (!html || typeof html !== 'string') return [];
+  const items = [];
+  const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let match;
+  while ((match = liRegex.exec(html)) !== null && items.length < 30) {
+    const text = stripHtml(match[1]);
+    if (text.length >= 10 && text.length <= 500) {
+      items.push(text);
+    }
+  }
+  return items;
+}
+
+/**
  * Maps a JSON-LD JobPosting to a normalized job payload fragment, preserving
  * the calling adapter's provider identity.
  *
@@ -87,10 +111,20 @@ export function jsonLdToJobPayload(jsonLd, url, provider) {
 
   const description = stripHtml(jsonLd.description || '');
 
+  // P16-001F-5: requirements/responsibilities from the HTML description's
+  // list items instead of always [].
+  const listItems = extractListItemsFromHtml(jsonLd.description || '');
+
   let workplace = 'UNKNOWN';
-  if (jsonLd.jobLocationType === 'TELECOMMUTE' || description.toLowerCase().includes('remote')) {
+  const lowerDesc = description.toLowerCase();
+  if (
+    jsonLd.jobLocationType === 'TELECOMMUTE' ||
+    lowerDesc.includes('remote') ||
+    lowerDesc.includes('work from home') ||
+    lowerDesc.includes('wfh')
+  ) {
     workplace = 'REMOTE';
-  } else if (description.toLowerCase().includes('hybrid')) {
+  } else if (lowerDesc.includes('hybrid')) {
     workplace = 'HYBRID';
   } else if (location) {
     workplace = 'ON_SITE';
@@ -105,7 +139,7 @@ export function jsonLdToJobPayload(jsonLd, url, provider) {
     workplace,
     employmentType: jsonLd.employmentType || 'FULL_TIME',
     description,
-    requirements: [],
+    requirements: listItems,
     responsibilities: [],
     compensation: jsonLd.baseSalary ? JSON.stringify(jsonLd.baseSalary) : null,
     rawText: description,

@@ -107,6 +107,18 @@ async function persistPreparedPackage({
       'RECRUITER',
       'MANUAL',
       'OTHER',
+      // P16-001F-5: Indian job-board providers detected by the extension.
+      'GREENHOUSE',
+      'LEVER',
+      'WORKDAY',
+      'NAUKRI',
+      'IIMJOBS',
+      'SHINE',
+      'FOUNDIT',
+      'TIMESJOBS',
+      'HIRECT',
+      'CUTSHORT',
+      'INSTAHYRE',
     ].includes(String(targetJob.source || '').toUpperCase())
       ? String(targetJob.source).toUpperCase()
       : 'COMPANY_CAREERS';
@@ -1232,7 +1244,23 @@ export class JobApplicationWorkflowService {
       }));
 
     // 4. Construct normalized job posting
-    const validSources = ['GREENHOUSE', 'LEVER', 'REMOTE_OK', 'STRUCTURED_FEED', 'MANUAL'];
+    // P16-001F-5: accept provider sources detected by the extension's
+    // job-board adapters; unknown sources fall back to MANUAL.
+    const validSources = [
+      'GREENHOUSE',
+      'LEVER',
+      'REMOTE_OK',
+      'STRUCTURED_FEED',
+      'MANUAL',
+      'NAUKRI',
+      'IIMJOBS',
+      'SHINE',
+      'FOUNDIT',
+      'TIMESJOBS',
+      'HIRECT',
+      'CUTSHORT',
+      'INSTAHYRE',
+    ];
     const jobSource = validSources.includes(application.source) ? application.source : 'MANUAL';
 
     const jobPosting = {
@@ -1724,6 +1752,22 @@ export class JobApplicationWorkflowService {
     }
 
     // Portal Type Identification
+    // P16-001F-5: Indian job boards are recognized portals with browser
+    // handoff (no API submission path); URL patterns match the extension's
+    // adapter host coverage.
+    const INDIAN_PORTAL_PATTERNS = [
+      ['naukri.com', 'NAUKRI'],
+      ['shine.com', 'SHINE'],
+      ['foundit.in', 'FOUNDIT'],
+      ['monsterindia.com', 'FOUNDIT'],
+      ['iimjobs.com', 'IIMJOBS'],
+      ['timesjobs.com', 'TIMESJOBS'],
+      ['hirect.in', 'HIRECT'],
+      ['hirect.com', 'HIRECT'],
+      ['cutshort.io', 'CUTSHORT'],
+      ['instahyre.com', 'INSTAHYRE'],
+    ];
+
     let portalType = 'GENERIC_WEB';
     let submissionMethod = 'BROWSER_HANDOFF_REQUIRED';
 
@@ -1740,6 +1784,11 @@ export class JobApplicationWorkflowService {
       warnings.push(
         'Workday portals enforce corporate SSO/CAPTCHA; Career Hub provides prepared submission assets for manual handoff.'
       );
+    } else {
+      const indianPortal = INDIAN_PORTAL_PATTERNS.find(([pattern]) => urlLower.includes(pattern));
+      if (indianPortal) {
+        portalType = indianPortal[1];
+      }
     }
 
     // Resume Validation

@@ -37,6 +37,15 @@ export const JobSourceEnum = z.enum([
   'REMOTE_OK',
   'STRUCTURED_FEED',
   'MANUAL',
+  // P16-001F-5: Indian job-board providers detected by the extension.
+  'NAUKRI',
+  'IIMJOBS',
+  'SHINE',
+  'FOUNDIT',
+  'TIMESJOBS',
+  'HIRECT',
+  'CUTSHORT',
+  'INSTAHYRE',
 ]);
 
 export const SearchJobsInputSchema = z.object({
@@ -267,7 +276,22 @@ export const ApplicationValidationResultSchema = z.object({
       issues: z.array(z.string()).default([]),
     })
     .optional(),
-  portalType: z.enum(['GREENHOUSE', 'LEVER', 'WORKDAY', 'GENERIC_WEB', 'UNSUPPORTED']),
+  // P16-001F-5: Indian job boards recognized as browser-handoff portals.
+  portalType: z.enum([
+    'GREENHOUSE',
+    'LEVER',
+    'WORKDAY',
+    'GENERIC_WEB',
+    'UNSUPPORTED',
+    'NAUKRI',
+    'SHINE',
+    'FOUNDIT',
+    'IIMJOBS',
+    'TIMESJOBS',
+    'HIRECT',
+    'CUTSHORT',
+    'INSTAHYRE',
+  ]),
   submissionMethod: z.enum(['API_DIRECT', 'BROWSER_HANDOFF_REQUIRED']),
   validatedAt: z.string(),
 });

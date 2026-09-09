@@ -42,6 +42,16 @@
     "*://*.myworkdayjobs.com/*",
     "*://*.linkedin.com/*",
     "*://*.indeed.com/*",
+    "*://*.naukri.com/*",
+    "*://*.shine.com/*",
+    "*://*.foundit.in/*",
+    "*://*.monsterindia.com/*",
+    "*://*.iimjobs.com/*",
+    "*://*.timesjobs.com/*",
+    "*://*.hirect.in/*",
+    "*://*.hirect.com/*",
+    "*://*.cutshort.io/*",
+    "*://*.instahyre.com/*",
     "<all_urls>"
   ],
   "web_accessible_resources": [
