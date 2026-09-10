@@ -25,6 +25,7 @@ import {
   EvidenceValidationReceiptSchema,
 } from '../domain/career/resume.schemas.js';
 import { CandidateArtifactContentService } from './candidate-artifact-content.service.js';
+import { composeStructuredResumeDocument } from './resume-professional-composition.service.js';
 import {
   generateGroundedSummary,
   selectAndRephraseProjectBullets,
@@ -740,12 +741,20 @@ export function buildStructuredResumeSnapshot({
   tailoringPlan = null,
   options = {},
 }) {
-  const structuredResume = buildStructuredResumeDocument({
+  const builtResume = buildStructuredResumeDocument({
     candidateProfile,
     jobPosting,
     tailoringPlan,
     options,
   });
+
+  // P16-001G: deterministic professional composition (summary polish, bullet
+  // compression, skill presentation cleanup, section-order integrity).
+  // Candidate-owned Experience/Education/DSA/Certifications are preserved
+  // verbatim and verified fail-closed inside the composition layer.
+  // Composition runs BEFORE receipt validation so the EvidenceValidationReceipt
+  // audits the exact final text that will be rendered.
+  const structuredResume = composeStructuredResumeDocument(builtResume);
 
   const evidenceValidationReceipt = validateStructuredResumeIntegrity(structuredResume);
 
