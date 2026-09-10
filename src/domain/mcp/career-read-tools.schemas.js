@@ -746,7 +746,20 @@ export const AnalyzeJobFitOutputSchema = z
           matchStatus: z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN']),
           candidateSkills: z.array(z.string()).default([]),
           candidateProvenance: z
-            .enum(['VERIFIED', 'CORROBORATED', 'CLAIMED', 'NONE', 'INFERRED', 'USER_PROVIDED'])
+            .enum([
+              'VERIFIED',
+              'CORROBORATED',
+              'CLAIMED',
+              'NONE',
+              'INFERRED',
+              'USER_PROVIDED',
+              // Canonical provenance states carried from candidate_skills
+              // (db provenance_status enum). The producer deliberately preserves
+              // SELF_DECLARED / LEARNING — never flattened to CLAIMED — matching
+              // CandidateRequirementMatchSchema (evidence-matching.schemas.js).
+              'SELF_DECLARED',
+              'LEARNING',
+            ])
             .default('NONE'),
           provenanceTrustClass: z.string().optional(),
           matchConfidence: z.number().min(0).max(1).optional(),
