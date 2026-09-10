@@ -19,6 +19,7 @@ import {
   JobDescriptionInputSchema,
   JobClassificationResultSchema,
   MAX_RAW_JD_BYTES,
+  boundRequirementText,
 } from './index.js';
 
 /**
@@ -609,7 +610,7 @@ export class JobDescriptionParser {
               weight,
               skillSlug: skill.slug,
               rawSnippet: cleanLine.slice(0, 450),
-              originalText: cleanLine,
+              originalText: boundRequirementText(cleanLine),
               extractedValue: skill.name,
               normalizedCriteria: {
                 skillSlug: skill.slug,
@@ -653,7 +654,7 @@ export class JobDescriptionParser {
                 weight,
                 skillSlug: associatedSkillSlug || null,
                 rawSnippet: cleanLine.slice(0, 450),
-                originalText: cleanLine,
+                originalText: boundRequirementText(cleanLine),
                 extractedValue: `${minYears}+ years experience${target ? ` in ${target}` : ''}`,
                 normalizedCriteria: {
                   minYears,
@@ -688,7 +689,7 @@ export class JobDescriptionParser {
                     weight,
                     skillSlug: skill.slug,
                     rawSnippet: cleanLine.slice(0, 450),
-                    originalText: cleanLine,
+                    originalText: boundRequirementText(cleanLine),
                     extractedValue: `${skill.name} Application Development Experience`,
                     normalizedCriteria: {
                       technology: skill.name,
@@ -716,7 +717,7 @@ export class JobDescriptionParser {
                   weight,
                   skillSlug: null,
                   rawSnippet: cleanLine.slice(0, 450),
-                  originalText: cleanLine,
+                  originalText: boundRequirementText(cleanLine),
                   extractedValue: `Experience in ${target.slice(0, 50)}`,
                   normalizedCriteria: {
                     experienceType: 'PRACTICAL_DEVELOPMENT',
@@ -747,7 +748,7 @@ export class JobDescriptionParser {
               weight: importance === 'REQUIRED' ? 0.75 : 0.4,
               skillSlug: null,
               rawSnippet: cleanLine.slice(0, 450),
-              originalText: cleanLine,
+              originalText: boundRequirementText(cleanLine),
               extractedValue: `${eduMatch.degreeLevel} degree${eduMatch.field ? ` in ${eduMatch.field}` : ''}`,
               normalizedCriteria: eduMatch,
               confidenceScore: 0.9,
@@ -772,7 +773,7 @@ export class JobDescriptionParser {
                 weight: 0.5,
                 skillSlug: null,
                 rawSnippet: cleanLine.slice(0, 450),
-                originalText: cleanLine,
+                originalText: boundRequirementText(cleanLine),
                 extractedValue: domain.name,
                 normalizedCriteria: {
                   domainSlug: domain.slug,
@@ -822,9 +823,9 @@ export class JobDescriptionParser {
           importance: 'REQUIRED',
           weight: 1.0,
           skillSlug: null,
-          rawSnippet: locStr,
-          originalText: locStr,
-          extractedValue: locStr,
+          rawSnippet: boundRequirementText(locStr),
+          originalText: boundRequirementText(locStr),
+          extractedValue: boundRequirementText(locStr, 255),
           normalizedCriteria: {
             country,
             workplaceType,
@@ -832,7 +833,7 @@ export class JobDescriptionParser {
           confidenceScore: 0.95,
           sourceSpan: {
             section: 'LOCATION',
-            snippet: locStr,
+            snippet: boundRequirementText(locStr),
           },
           createdAt: new Date().toISOString(),
         });

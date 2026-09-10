@@ -35,6 +35,51 @@ export const RequirementCategoryEnum = z.enum([
 
 export const RequirementImportanceEnum = z.enum(['REQUIRED', 'PREFERRED', 'OPTIONAL']);
 
+// ---------------------------------------------------------------------------
+// 1b. Canonical Bounded-Text Helper (requirement producer contract)
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum persisted length for bounded requirement text fields.
+ * Must stay in sync with the max(500) constraints on
+ * JobRequirementSchema.rawSnippet / originalText and
+ * JobRequirementSourceSpanSchema.snippet below.
+ */
+export const REQUIREMENT_TEXT_MAX = 500;
+
+/**
+ * Canonical bounder for JobRequirement text fields (rawSnippet, originalText,
+ * sourceSpan.snippet). Guarantees the producer-side contract enforced by
+ * JobRequirementSchema so that no producer can ever emit text longer than the
+ * schema permits (which would fail validation and 503 the analyze_job_fit /
+ * portfolio recommendation flows).
+ *
+ * Semantics:
+ * - Trims surrounding whitespace (mirrors the schema's `.trim()`).
+ * - Hard-caps at `max` characters, measured in UTF-8 bytes so multi-byte
+ *   content (emoji, non-ASCII) can never exceed the persisted limit.
+ * - Never splits inside a UTF-8 multi-byte sequence: the cap is pulled back
+ *   to the nearest code-point boundary before slicing.
+ * - Deterministic: identical input always yields identical output.
+ *
+ * @param {string} text - Full source text (never fabricated, only bounded).
+ * @param {number} [max=REQUIREMENT_TEXT_MAX] - Upper bound (schema contract).
+ * @returns {string} Trimmed, byte-bounded text safe for the schema contract.
+ */
+export function boundRequirementText(text, max = REQUIREMENT_TEXT_MAX) {
+  if (typeof text !== 'string') return '';
+  const trimmed = text.trim();
+  if (Buffer.byteLength(trimmed, 'utf8') <= max) return trimmed;
+
+  // Pull the cut index back so the byte footprint fits within `max` without
+  // splitting a multi-byte UTF-8 sequence mid-way.
+  let end = trimmed.length;
+  while (end > 0 && Buffer.byteLength(trimmed.slice(0, end), 'utf8') > max) {
+    end -= 1;
+  }
+  return trimmed.slice(0, end);
+}
+
 export const EducationDegreeLevelEnum = z.enum([
   'HIGH_SCHOOL',
   'ASSOCIATE',

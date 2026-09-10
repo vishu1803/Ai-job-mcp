@@ -28,6 +28,7 @@ import crypto from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import { db as defaultDb } from '../db/index.js';
 import { projects as projectsTable } from '../db/schema.js';
+import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
 import { ValidationError } from '../errors/index.js';
@@ -2712,12 +2713,12 @@ export class CandidateArtifactContentService {
             importance: 'REQUIRED',
             weight: 1.0,
             skillSlug: null,
-            rawSnippet: text.slice(0, 450),
+            rawSnippet: boundRequirementText(text),
             extractedValue: text,
-            originalText: text,
+            originalText: boundRequirementText(text),
             normalizedCriteria: {},
             confidenceScore: 0.85,
-            sourceSpan: { section: 'RAW_REQUIREMENT', snippet: text.slice(0, 450) },
+            sourceSpan: { section: 'RAW_REQUIREMENT', snippet: boundRequirementText(text) },
             createdAt: new Date().toISOString(),
           };
         });

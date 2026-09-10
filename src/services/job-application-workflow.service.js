@@ -22,6 +22,7 @@ import { AtsFitScoreService } from './ats-fit-score.service.js';
 import { EvidenceMatchingService } from './evidence-matching.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
 import { JobDescriptionParser } from '../domain/career/job-parser.js';
+import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 import {
   ApplicationPackageSchema,
@@ -539,12 +540,12 @@ export class JobApplicationWorkflowService {
               importance: 'REQUIRED',
               weight: 1.0,
               skillSlug: null,
-              rawSnippet: text.slice(0, 450),
+              rawSnippet: boundRequirementText(text),
               extractedValue: text,
-              originalText: text,
+              originalText: boundRequirementText(text),
               normalizedCriteria: {},
               confidenceScore: 0.85,
-              sourceSpan: { section: 'RAW_REQUIREMENT', snippet: text.slice(0, 450) },
+              sourceSpan: { section: 'RAW_REQUIREMENT', snippet: boundRequirementText(text) },
               createdAt: new Date().toISOString(),
             };
           });

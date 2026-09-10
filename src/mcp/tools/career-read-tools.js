@@ -32,6 +32,7 @@ import {
 import { NotFoundError, ValidationError } from '../../errors/index.js';
 import { CandidateProfileService } from '../../services/candidate-profile.service.js';
 import { JobDescriptionParser } from '../../domain/career/job-parser.js';
+import { boundRequirementText } from '../../domain/career/job-requirement.schemas.js';
 import { EvidenceMatchingService } from '../../services/evidence-matching.service.js';
 import {
   ProjectRelevanceService,
@@ -1276,12 +1277,12 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
               importance: 'REQUIRED',
               weight: 1.0,
               skillSlug: null,
-              rawSnippet: rawReq.slice(0, 450),
+              rawSnippet: boundRequirementText(rawReq),
               extractedValue: skill,
-              originalText: rawReq,
+              originalText: boundRequirementText(rawReq),
               normalizedCriteria: {},
               confidenceScore: 0.85,
-              sourceSpan: { section: 'RAW_REQUIREMENT', snippet: rawReq.slice(0, 450) },
+              sourceSpan: { section: 'RAW_REQUIREMENT', snippet: boundRequirementText(rawReq) },
               createdAt: new Date().toISOString(),
             });
           }
