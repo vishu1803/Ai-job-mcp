@@ -257,8 +257,9 @@ export class LegacyLatexGenerator {
 
     const portfolioLink = customLinks.find(
       (l) =>
-        /portfolio/i.test(l.label || l.platform || '') ||
-        (l.url && /vercel\.app|portfolio/i.test(l.url) && !/task-manager/i.test(l.url))
+        /portfolio|website|personal/i.test(l.label || l.platform || '') ||
+        (l.type === 'PORTFOLIO' || l.type === 'WEBSITE') ||
+        (l.url && !/github\.com|linkedin\.com|leetcode\.com/i.test(l.url))
     );
     if (portfolioLink?.url && isRealUrl(portfolioLink.url)) {
       profileLinkElements.push(`\\href{${escapeLatexUrl(portfolioLink.url)}}{Portfolio}`);

@@ -33,7 +33,52 @@ import {
   assertMetricSafety,
   deriveTargetRoleHeading,
   deriveSectionOrdering,
+  isMeaningfulDsa,
 } from './resume-content-strategy.service.js';
+import {
+  formatTechnologyStack,
+} from '../utils/technology-normalizer.js';
+
+/**
+ * Capacity-aware dynamic project budgeting strategy (Req H & 21).
+ * Calculates project budget based on total document vertical height demand.
+ *
+ * @param {object} params
+ * @param {Array<object>} [params.experience]
+ * @param {boolean} [params.hasMeaningfulDsa]
+ * @param {Array<object>} [params.education]
+ * @param {number} [params.explicitBudget]
+ * @returns {number} Allowed project count
+ */
+export function estimateProjectCapacity({
+  experience = [],
+  hasMeaningfulDsa = false,
+  education = [],
+  explicitBudget = null,
+}) {
+  if (typeof explicitBudget === 'number' && explicitBudget > 0) {
+    return explicitBudget;
+  }
+
+  const expCount = Array.isArray(experience) ? experience.length : 0;
+  const expBullets = Array.isArray(experience)
+    ? experience.reduce((acc, e) => acc + (Array.isArray(e.bullets) ? e.bullets.length : 1), 0)
+    : 0;
+
+  // Heavy professional experience: allocate 2 projects to leave room for experience
+  if (expCount >= 2 || expBullets >= 4) {
+    return 2;
+  }
+
+  // Moderate experience: 1 role
+  if (expCount === 1) {
+    return hasMeaningfulDsa ? 2 : 3;
+  }
+
+  // Fresher / 0 experience entries:
+  // Dynamically expand project slots up to 4 if space permits and no heavy DSA footprint
+  return hasMeaningfulDsa ? 3 : 4;
+}
 
 /**
  * Forbidden synthetic placeholder tokens that must NEVER be injected when source data is missing.
@@ -222,28 +267,22 @@ export function buildStructuredResumeDocument({
   const rawProjects = meta.projects || source.projects || [];
   const includeProblemSolving = Boolean(dsa?.bullets?.length || dsa?.profileUrl);
 
-  // Phase 4 — Dynamic, content-aware project budget (generic domain rule).
-  // Replaces the fixed "DSA present → 2 projects, else 3" rule. The maximum
-  // budget still respects the optional-section footprint (DSA occupies page
-  // space), but the *selected* count is driven by per-project content strength:  // relevance band/score, evidence volume, and authored-bullet availability.
-  const MAX_PROJECTS_ONE_PAGE = 3;
-  const projectBudgetCap =
-    options?.projectBudget ||
-    options?.maxProjects ||
-    incomingPlan?.projectBudget ||
-    (includeProblemSolving ? MAX_PROJECTS_ONE_PAGE - 1 : MAX_PROJECTS_ONE_PAGE);
+  // Phase 4 — Dynamic, content-aware project budget (Req H & 21).
+  // Dynamically computes project capacity based on candidate experience, DSA, and education footprint.
+  const hasMeaningfulDsaContent = isMeaningfulDsa(dsa);
+
+  const dynamicProjectBudget = estimateProjectCapacity({
+    experience: meta.experience || source.experience || [],
+    hasMeaningfulDsa: hasMeaningfulDsaContent,
+    education: meta.education || source.education || [],
+    explicitBudget: options?.projectBudget || options?.maxProjects || incomingPlan?.projectBudget || null,
+  });
 
   // Minimum authoritative-strength thresholds a project must meet to earn a slot.
   // Projects below these bars are omitted rather than padding the page (fail-sparse).
   const STRONG_RELEVANCE_FLOOR = 30;      // ranking relevanceScore ≥ 30, or
   const MIN_EVIDENCE_COUNT = 5;           // ≥ 5 evidence records, or
   const MIN_AUTHORED_BULLETS = 2;         // ≥ 2 authored technical bullets
-
-  const hasMeaningfulDsaContent = Boolean(
-    dsa &&
-      (Array.isArray(dsa.bullets) && dsa.bullets.some((b) => String(b).trim().length > 40)) &&
-      (dsa.profileUrl || (Array.isArray(dsa.bullets) && dsa.bullets.length >= 2))
-  );
 
   /**
    * Evaluates whether a ranked candidate project has enough authentic content
@@ -260,20 +299,16 @@ export function buildStructuredResumeDocument({
     const band = ranking?.relevanceBand;
 
     return (
-      score >= STRONG_RELEVANCE_FLOOR ||
+      (score >= STRONG_RELEVANCE_FLOOR ||
       hasMatchedReqs ||
       band === 'HIGH' ||
       band === 'MEDIUM' ||
       evidenceCount >= MIN_EVIDENCE_COUNT ||
-      authoredBullets >= MIN_AUTHORED_BULLETS
-    ) &&
+      authoredBullets >= MIN_AUTHORED_BULLETS) &&
       // A slot-worth project must carry at least SOME renderable content.
       (evidenceCount > 0 || authoredBullets > 0 || (candProj.summary && String(candProj.summary).trim()))
+    );
   };
-
-  const dynamicProjectBudget = hasMeaningfulDsaContent && !options?.allowDsaPlusThreeProjects
-    ? Math.min(projectBudgetCap, MAX_PROJECTS_ONE_PAGE - 1)
-    : projectBudgetCap;
 
   let selectedProjectIds = [];
 
@@ -492,7 +527,7 @@ export function buildStructuredResumeDocument({
       displayName: proj.displayName || proj.name || proj.title || `Project ${idx + 1}`,
       repositoryUrl: proj.repositoryUrl || proj.url || null,
       liveUrl: proj.liveUrl || null,
-      technologies: Array.isArray(proj.technologies) ? [...proj.technologies.map(String)] : [],
+      technologies: Array.isArray(proj.technologies) ? formatTechnologyStack(proj.technologies) : [],
       bullets: pBullets,
       relevanceScore,
       rank: idx + 1,
@@ -813,22 +848,10 @@ export function buildStructuredResumeSnapshot({
 
   // P16-001G: deterministic professional composition (summary polish, bullet
   // compression, skill presentation cleanup, section-order integrity).
-  // Candidate-owned Experience/Education/DSA/Certifications are preserved
-  // verbatim and verified fail-closed inside the composition layer.
-  // Composition runs BEFORE receipt validation so the EvidenceValidationReceipt
-  // audits the exact final text that will be rendered.
   const structuredResume = composeStructuredResumeDocument(builtResume);
 
-  const evidenceValidationReceipt = validateStructuredResumeIntegrity(structuredResume);
-
-  // Phase 12: generic pre-render content quality gate. Content-architecture
-  // findings (weak optional sections, contradictory positioning, duplicates,
-  // low-information bullets, sparse-with-available-evidence) are attached to
-  // the bundle for downstream gating/diagnostics. Structural invariants only —
-  // no candidate/project/job-specific logic. A FAIL-severity finding (weak
-  // optional section) is corrected here (omit the section) rather than
-  // rendered as boilerplate; the recorded gate report reflects the corrected
-  // document that would actually be rendered.
+  // Phase 12: generic pre-render content quality gate & remediation (Req K).
+  // Weak optional sections are remediated (omitted) prior to generating the receipt.
   let contentQualityGate = assessPreRenderQuality({
     structuredResume,
     targetRole: structuredResume.targetRole || jobPosting?.title || null,
@@ -838,7 +861,7 @@ export function buildStructuredResumeSnapshot({
       (f) => f.code === 'WEAK_OPTIONAL_SECTION' && f.suggestion === 'OMIT_SECTION'
     );
     if (weakOptional.length > 0) {
-      structuredResume.dsa = { ...structuredResume.dsa, hasSection: false };
+      structuredResume.dsa = { ...(structuredResume.dsa || {}), hasSection: false };
       if (Array.isArray(structuredResume.sectionOrder) && structuredResume.sectionOrder.includes('DSA')) {
         structuredResume.sectionOrder = structuredResume.sectionOrder.filter((s) => s !== 'DSA');
       }
@@ -848,6 +871,9 @@ export function buildStructuredResumeSnapshot({
       });
     }
   }
+
+  // Audits the exact FINAL text and structure that will be rendered (Req K & Req 15).
+  const evidenceValidationReceipt = validateStructuredResumeIntegrity(structuredResume);
 
   return {
     structuredResume,

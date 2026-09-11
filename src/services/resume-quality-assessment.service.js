@@ -36,6 +36,7 @@
  */
 
 import zlib from 'node:zlib';
+export { isMeaningfulDsa } from './resume-content-strategy.service.js';
 
 const ASSESSMENT_VERSION = '1.0.0';
 
@@ -831,11 +832,13 @@ export class ResumeQualityAssessmentService {
    * @param {number} [params.tailoredResumeFitScore] Legacy package fitScore fallback
    * @returns {object} resumeQuality payload for the handoff kit
    */
-  buildResumeQuality({ atsParseability, evidenceCoverage, jobFit = null, tailoredResumeFitScore: _tailoredResumeFitScore = null }) {
+  buildResumeQuality({ atsParseability, evidenceCoverage, jobFit = null, tailoredResumeFitScore = null }) {
     const jobMatchScore =
       jobFit && typeof jobFit.overallFit?.atsScore === 'number'
         ? jobFit.overallFit.atsScore
-        : null;
+        : typeof tailoredResumeFitScore === 'number'
+          ? tailoredResumeFitScore
+          : null;
 
     return {
       atsParseability: {
@@ -851,11 +854,17 @@ export class ResumeQualityAssessmentService {
       },
       jobMatch: {
         score: jobMatchScore,
-        source: jobFit ? 'analyze_job_fit' : 'unavailable',
+        source: jobFit
+          ? 'analyze_job_fit'
+          : typeof tailoredResumeFitScore === 'number'
+            ? 'tailored_resume_fit_score'
+            : 'unavailable',
         fitBand: jobFit?.overallFit?.fitBand || null,
         note: jobFit
           ? 'Candidate/job alignment from the existing evidence-aware fit engine (analyze_job_fit). Independent of resume formatting quality.'
-          : 'No analyze_job_fit assessment available for this application.',
+          : typeof tailoredResumeFitScore === 'number'
+            ? 'Candidate/job fit score provided by tailoring plan.'
+            : 'No analyze_job_fit assessment available for this application.',
       },
       evidenceBackedCoverage: {
         score: evidenceCoverage.score,

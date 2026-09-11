@@ -268,6 +268,24 @@ export class PdfQaValidatorService {
       }
     }
 
+    // Check 2C-sexties: Semantic leakage & fake bullet template detection (Req 2, 3, 5, 28)
+    const semanticLeakagePatterns = [
+      /\b(?:src|app|lib|components|utils|routes|services)\/[a-zA-Z0-9_\-\/]+\.(?:js|ts|jsx|tsx|py|go|rs|java|rb)\b/i,
+      /\b(?:package\.json|dockerfile|tsconfig\.json|\.env|\.github\/workflows)\b/i,
+      /\bDeveloped\s+(?:the\s+)?[a-zA-Z0-9_\-]+\s+functionality\s+in\s+[a-zA-Z0-9_\-\/.]+/i,
+      /\bImplemented\s+feature\s+across\s+[a-zA-Z0-9_\-\/.]+/i,
+      /\b(?:Defined|Engineered)\s+in\s+repository\s+[a-zA-Z0-9_\-\/.]+/i,
+      /\bEngineered\s+[a-zA-Z0-9_\-]+\s+system\s+with\s+tested\s+reliability\s+and\s+maintainable\s+code\b/i,
+    ];
+    for (const pattern of semanticLeakagePatterns) {
+      if (pattern.test(cleanText) || pattern.test(normalizedText)) {
+        contentIntegrity -= 35;
+        criticalFailures.push(`Semantic leakage or synthetic bullet template detected: ${pattern}`);
+        findings.push(`Semantic leakage pattern detected in PDF text: ${pattern}`);
+        break;
+      }
+    }
+
     // Check 2D: Target Job Context & Internal Metadata Integrity
     if (documentType === 'COVER_LETTER') {
       if (targetJob.company && !cleanText.toLowerCase().includes(targetJob.company.toLowerCase())) {
@@ -349,8 +367,10 @@ export class PdfQaValidatorService {
 
       // Token expectation groups: every selected element must survive extraction.
       const expectationGroups = [
+        { label: 'candidate name', tokens: expectedContent.candidateName ? [expectedContent.candidateName] : [] },
         { label: 'project name', tokens: expectedContent.projectNames },
         { label: 'project bullet', tokens: expectedContent.projectBullets },
+        { label: 'experience role', tokens: expectedContent.experienceRoles },
         { label: 'experience bullet', tokens: expectedContent.experienceBullets },
         { label: 'education record', tokens: expectedContent.educationTokens },
         { label: 'link', tokens: expectedContent.links },

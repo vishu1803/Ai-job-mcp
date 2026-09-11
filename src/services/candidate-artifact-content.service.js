@@ -34,6 +34,12 @@ import { ProjectRelevanceService } from './project-relevance.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
 import { selectAndRephraseProjectBullets } from './resume-content-strategy.service.js';
+import {
+  CANONICAL_TECH_MAP,
+  NOISY_TECH_SET as CENTRAL_NOISY_TECH_SET,
+  normalizeTechnologyName,
+  isNoisyTechnology,
+} from '../utils/technology-normalizer.js';
 
 const JOB_DESCRIPTION_STOP_TERMS = new Set([
   'the',
@@ -237,9 +243,6 @@ export function isRealUrl(url) {
   ) {
     return false;
   }
-  if (/(?:task-manager|my-app|demo-app)\.example\.com/i.test(trimmed)) {
-    return false;
-  }
 
   try {
     const parsed = new URL(trimmed);
@@ -276,104 +279,8 @@ export function displayUrlForLink(url) {
     .replace(/\/$/, '');
 }
 
-export const NOISY_TECH_SET = new Set([
-  'fs',
-  'path',
-  'crypto',
-  'os',
-  'stream',
-  'events',
-  'util',
-  'buffer',
-  'globals',
-  'cache manager',
-  'cache manager redis store',
-  'class transformer',
-  'class validator',
-  'reflect metadata',
-  'ts node',
-  'ts loader',
-  'source map support',
-  'schematics',
-  'throttler',
-  'platform express',
-  'swagger ui express',
-  'eslint',
-  'eslintrc',
-  'prettier',
-  'typescript eslint',
-  'nodemon',
-  'jest dom',
-  'jest environment jsdom',
-  'user event',
-  'swr',
-  'testing',
-  'helper',
-  'helpers',
-  'adapter',
-  'store',
-  'npm',
-  'yarn',
-  'pnpm',
-  'joi',
-  'cheerio',
-]);
-
-export const CANONICAL_TECH_LABEL_MAP = {
-  nestjs: 'NestJS',
-  nest: 'NestJS',
-  'next.js': 'Next.js',
-  nextjs: 'Next.js',
-  next: 'Next.js',
-  react: 'React',
-  'react.js': 'React',
-  reactjs: 'React',
-  'node.js': 'Node.js',
-  nodejs: 'Node.js',
-  node: 'Node.js',
-  typescript: 'TypeScript',
-  javascript: 'JavaScript',
-  python: 'Python',
-  fastapi: 'FastAPI',
-  fastify: 'Fastify',
-  express: 'Express.js',
-  'express.js': 'Express.js',
-  expressjs: 'Express.js',
-  postgresql: 'PostgreSQL',
-  postgres: 'PostgreSQL',
-  'postgresql (sql)': 'PostgreSQL',
-  redis: 'Redis',
-  typeorm: 'TypeORM',
-  prisma: 'Prisma ORM',
-  'prisma orm': 'Prisma ORM',
-  'drizzle orm': 'Drizzle ORM',
-  drizzle: 'Drizzle ORM',
-  docker: 'Docker',
-  'docker compose': 'Docker Compose',
-  'docker-compose': 'Docker Compose',
-  'openai api': 'OpenAI API',
-  openai: 'OpenAI API',
-  'socket.io': 'Socket.io',
-  'socket io': 'Socket.io',
-  'tailwind css': 'Tailwind CSS',
-  tailwindcss: 'Tailwind CSS',
-  'role-based access control': 'Role-Based Access Control (RBAC)',
-  rbac: 'Role-Based Access Control (RBAC)',
-  'github actions': 'GitHub Actions',
-  git: 'Git',
-  github: 'GitHub',
-  jwt: 'JWT',
-  'restful apis': 'RESTful APIs',
-  'rest api': 'RESTful APIs',
-  'rest apis': 'RESTful APIs',
-  graphql: 'GraphQL',
-  mongodb: 'MongoDB',
-  'c/c++': 'C/C++',
-  c: 'C',
-  'c++': 'C++',
-  'model context protocol': 'Model Context Protocol (MCP)',
-};
-
+export const NOISY_TECH_SET = CENTRAL_NOISY_TECH_SET;
+export const CANONICAL_TECH_LABEL_MAP = CANONICAL_TECH_MAP;
 export const CANONICAL_ALIAS_MAP = CANONICAL_TECH_LABEL_MAP;
 
 /**
@@ -402,28 +309,10 @@ export function cleanResumeFacingTechnologies(technologies, maxCount = 6) {
   for (const raw of technologies) {
     if (!raw || typeof raw !== 'string') continue;
     const trimmed = raw.trim();
-    if (!trimmed) continue;
-    const lower = trimmed.toLowerCase();
-    const normalizedKey = lower.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!trimmed || isNoisyTechnology(trimmed)) continue;
 
-    if (NOISY_TECH_SET.has(normalizedKey) || NOISY_TECH_SET.has(lower)) {
-      continue;
-    }
-    if (
-      /^(cache[- ]?manager|class[- ]?(transformer|validator)|reflect[- ]?metadata|ts[- ]?(node|loader)|source[- ]?map|schematics|throttler|platform[- ]?express|swagger[- ]?ui|jest[- ]?(dom|environment)|user[- ]?event)/i.test(
-        lower
-      )
-    ) {
-      continue;
-    }
-    if (['fs', 'path', 'crypto', 'os', 'stream', 'events', 'util', 'buffer'].includes(lower)) {
-      continue;
-    }
-
-    const canonical =
-      CANONICAL_TECH_LABEL_MAP[lower] ||
-      CANONICAL_TECH_LABEL_MAP[normalizedKey] ||
-      trimmed;
+    const canonical = normalizeTechnologyName(trimmed);
+    if (!canonical) continue;
 
     const token = canonical.toLowerCase().replace(/[^a-z0-9]/g, '');
     if (seen.has(token)) continue;

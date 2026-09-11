@@ -1,7 +1,44 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-09*
+*Last Updated: 2026-09-11*
+
+### P16-003: Resume Content Integrity & Professional One-Page Composition
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-11  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Core Invariants:**
+Executed comprehensive remediation of resume prose and presentation layer to guarantee radical truthfulness, provenance enforcement, and consistent one-page professional output:
+1. **Candidate-Authored Primacy:** Candidate-authored accomplishment content is primary resume prose. Repository evidence acts strictly as supporting verification; evidence presence alone never manufactures accomplishment prose (no synthetic "Developed X functionality in file Y..." bullets).
+2. **Zero Semantic Leakage:** Eliminated all file-path leakage (`src/`, `.js`, `Dockerfile`) and generic template prose ("verified by repository evidence") from rendered documents and extracted PDF text.
+3. **Canonical Technology Vocabulary:** Centralized normalization in `src/utils/technology-normalizer.js` covering canonical aliases (`NestJS`, `PostgreSQL`, `Tailwind CSS`, `RESTful APIs`) while preserving unknown/new technologies safely without code changes (Requirement 26).
+4. **Dynamic Capacity-Aware One-Page Budgeting:** Project capacity is dynamically determined from candidate experience density (freshers: up to 4 projects; 1 role: 2-3 projects; heavy experience: 2 projects) to guarantee single-page fit.
+5. **Quality Gate & Receipt Synchronization:** Pre-render quality assessment and weak optional section remediation run prior to final integrity validation; the validation receipt reflects the exact post-remediation snapshot (Requirements K & 15).
+6. **Compiled PDF Verification:** Exact one-page fit is validated by compiled PDF page count (`pages === 1`) rather than estimated height heuristics alone (Requirement 27).
+
+**Files Added / Changed:**
+- `src/utils/technology-normalizer.js` [NEW]: Centralized authority for canonical technology name normalization, taxonomy mapping, noisy package filtering, and safe LaTeX formatting.
+- `src/services/resume-content-strategy.service.js`: Added `EVIDENCE_SEMANTIC_CLASS`, `classifyEvidenceSemanticType`, `isClaimSafeToRender`, `isMeaningfulDsa`; eliminated synthetic bullet generation and file-path leakage; grounded professional summaries; fixed unused parameter bindings.
+- `src/services/structured-resume.service.js`: Implemented `estimateProjectCapacity` for experience-aware project budgeting; applied technology normalization; reordered quality gate execution to validate final post-remediation snapshot.
+- `src/services/resume-content-quality-gate.service.js`: Unified Check 2 with `isMeaningfulDsa`; added Check 7 for semantic leakage detection in pre-render snapshots.
+- `src/services/resume-quality-assessment.service.js`: Fixed unused `_tailoredResumeFitScore` parameter in `buildResumeQuality`.
+- `src/services/candidate-artifact-content.service.js`: Integrated centralized technology normalizer and removed hardcoded URL blacklist patterns.
+- `src/services/latex-document-generator.service.js`: Removed leftover legacy parsing methods, unifying renderer with structured document snapshot.
+- `src/services/legacy-latex-generator.service.js`: Removed hardcoded project URL heuristics.
+- `src/services/application-handoff.service.js`: Expanded `buildExpectedContent` traceability matrix to cover candidate identity, target role, experience roles, project technologies, and DSA tokens.
+- `src/services/pdf-qa-validator.service.js`: Added Check 2C-sexties scanning extracted PDF text for file paths and synthetic templates; expanded traceability expectation groups.
+- `tests/unit/p16-002-resume-pipeline-quality.test.js`: Updated Phase 3 tests to assert candidate-authored integrity and fixed typo in ligature extraction test (30/30 PASS).
+- `tests/unit/p16-003-content-integrity.test.js` [NEW]: Comprehensive suite covering technology normalization, evidence classification, dynamic budgeting, quality gate synchronization, and summary grounding (12/12 PASS).
+- `tests/unit/p16-003-pdf-acceptance.test.js` [NEW]: Real PDF compilation across 10 diverse candidate/job archetypes verifying exact one-page fit (`pages === 1`), zero leakage, and full extraction fidelity with Tectonic (10/10 PASS).
+
+**Verification & Evidence:**
+- `tests/unit/p16-003-content-integrity.test.js`: 12/12 PASS.
+- `tests/unit/p16-003-pdf-acceptance.test.js`: 10/10 PASS (all 10 compiled PDFs verified at `pages === 1`).
+- `tests/unit/p16-002-resume-pipeline-quality.test.js`: 30/30 PASS.
+- Combined regression run (`p16-003-content-integrity` + `p16-003-pdf-acceptance`): 22/22 PASS (exit code 0).
+- Zero secrets introduced, no hardcoded identity heuristics, full compliance with AGENTS.md and goal.md.
 
 ### P16-001F-3A: Version-Bound Package Identity & Artifact Reuse (Implementation Batch)
 

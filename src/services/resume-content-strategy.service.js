@@ -17,6 +17,138 @@
 import { ValidationError } from '../errors/index.js';
 import { CareerStatusDerivation } from '../utils/career-status-derivation.js';
 import { TenureCalculator } from '../utils/tenure-calculator.js';
+import {
+  normalizeTechnologyName,
+  normalizeTechnologySlug,
+  isNoisyTechnology,
+  formatTechnologyStack,
+} from '../utils/technology-normalizer.js';
+
+/**
+ * Explicit semantic classification for evidence records (Req B).
+ * Distinguishes presence evidence from authentic candidate claims.
+ */
+export const EVIDENCE_SEMANTIC_CLASS = {
+  PRESENCE_EVIDENCE: 'PRESENCE_EVIDENCE',
+  IMPLEMENTATION_EVIDENCE: 'IMPLEMENTATION_EVIDENCE',
+  FEATURE_EVIDENCE: 'FEATURE_EVIDENCE',
+  OUTCOME_EVIDENCE: 'OUTCOME_EVIDENCE',
+  CANDIDATE_AUTHORED_CLAIM: 'CANDIDATE_AUTHORED_CLAIM',
+};
+
+/**
+ * Classifies an evidence record into its semantic category.
+ *
+ * Hard Rule: PRESENCE_EVIDENCE alone can NEVER generate accomplishment prose.
+ *
+ * @param {object} ev Evidence record
+ * @returns {string} One of EVIDENCE_SEMANTIC_CLASS values
+ */
+export function classifyEvidenceSemanticType(ev) {
+  if (!ev || typeof ev !== 'object') return EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE;
+
+  const type = String(ev.evidenceType || ev.type || '').toUpperCase();
+  const hasAuthoredText = Boolean(ev.candidateAuthored || ev.claimText || ev.sourceType === 'CANDIDATE_PROFILE');
+
+  if (hasAuthoredText) {
+    return EVIDENCE_SEMANTIC_CLASS.CANDIDATE_AUTHORED_CLAIM;
+  }
+
+  if (['OUTCOME', 'BENCHMARK', 'METRIC'].includes(type)) {
+    return EVIDENCE_SEMANTIC_CLASS.OUTCOME_EVIDENCE;
+  }
+
+  if (['FEATURE_SPEC', 'FEATURE_IMPLEMENTATION', 'FEATURE'].includes(type) && (ev.description || ev.featureSummary)) {
+    return EVIDENCE_SEMANTIC_CLASS.FEATURE_EVIDENCE;
+  }
+
+  if (['COMMIT_MESSAGE', 'PULL_REQUEST_BODY'].includes(type) && (ev.message || ev.body)) {
+    return EVIDENCE_SEMANTIC_CLASS.IMPLEMENTATION_EVIDENCE;
+  }
+
+  // All dependencies, packages, imports, file paths, and syntax usages are PRESENCE_EVIDENCE
+  return EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE;
+}
+
+/**
+ * Reusable helper determining whether a claim is safe to render as resume prose (Req C).
+ *
+ * Rejects:
+ * - Presence evidence alone
+ * - File-path leakage into user-facing text
+ * - Generic template prose ("Developed X functionality", "verified by repository evidence")
+ * - Unsubstantiated claims
+ *
+ * @param {string} claimText
+ * @param {string} [semanticClass=EVIDENCE_SEMANTIC_CLASS.CANDIDATE_AUTHORED_CLAIM]
+ * @returns {boolean}
+ */
+export function isClaimSafeToRender(claimText, semanticClass = EVIDENCE_SEMANTIC_CLASS.CANDIDATE_AUTHORED_CLAIM) {
+  if (!claimText || typeof claimText !== 'string') return false;
+  const trimmed = claimText.trim();
+  if (trimmed.length < 15) return false;
+
+  // PRESENCE_EVIDENCE alone can NEVER generate accomplishment prose
+  if (semanticClass === EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE) return false;
+
+  // File path leakage detection:
+  if (
+    /(?:^|\s)(?:src\/|lib\/|app\/|components\/|controllers\/|routes\/|services\/|utils\/|models\/|dockerfile|\S+\.(?:js|ts|jsx|tsx|py|go|rs|json|yaml|yml|sql|html|css|dockerfile))\b/i.test(
+      trimmed
+    )
+  ) {
+    return false;
+  }
+
+  // Generic template prose detection:
+  if (
+    /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality)\b/i.test(
+      trimmed
+    )
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Canonical helper for determining whether DSA content is meaningful and authentic (Req G).
+ *
+ * @param {object} dsa
+ * @returns {boolean}
+ */
+export function isMeaningfulDsa(dsa) {
+  if (!dsa || typeof dsa !== 'object') return false;
+  if (dsa.hasSection === false) return false;
+
+  const validUrl = typeof dsa.profileUrl === 'string' && /^https?:\/\//i.test(dsa.profileUrl.trim());
+  const rawBullets = Array.isArray(dsa.bullets) ? dsa.bullets : [];
+  const cleanBullets = rawBullets
+    .map((b) => (typeof b === 'string' ? b.trim() : String(b?.text || '').trim()))
+    .filter(Boolean);
+
+  const nonFillerBullets = cleanBullets.filter((b) => {
+    if (b.length < 25) return false;
+    if (
+      /^(?:engaged in problem solving|built foundational analytical complexity|practiced coding problems|solved questions online)\b/i.test(
+        b
+      )
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const hasStats = Boolean(
+    (typeof dsa.problemsSolved === 'number' && dsa.problemsSolved > 0) ||
+      (Array.isArray(dsa.topics) && dsa.topics.length > 0) ||
+      (Array.isArray(dsa.topicCoverage) && dsa.topicCoverage.length > 0) ||
+      (typeof dsa.score === 'number' && dsa.score > 0)
+  );
+
+  return validUrl || nonFillerBullets.length > 0 || hasStats;
+}
 
 /**
  * Metric detection regex to enforce quantitative claim safety.
@@ -272,40 +404,17 @@ export function validateRephrasingSafety(sourceText, rephrasedText, candidateCon
 const EVIDENCE_DERIVED_BULLET_MIN_CONFIDENCE = 0.6;
 
 /**
- * Evidence types that describe passive/declarative records only.
- * Evidence-derived bullets require source-level implementation evidence.
- */
-const NON_SOURCE_EVIDENCE_TYPES = new Set([
-  'DOCUMENT_CLAIM',
-  'PACKAGE_MANIFEST_DEPENDENCY',
-]);
-
-/**
- * Capitalizes the first letter of a technology display name.
- *
- * @param {string} slugOrName
- * @returns {string}
- */
-function toDisplayName(slugOrName) {
-  const raw = String(slugOrName || '').trim();
-  if (!raw) return '';
-  return raw
-    .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
-/**
  * Builds an evidence-backed candidate-owned bullet pool for a project.
  *
- * Generic composition rule (no candidate/project/job-specific logic):
+ * Core Architectural Rules (P16-003):
  * 1. Candidate-authored bullets are always the primary pool entries.
- * 2. When the authored pool is thin (< 2 bullets), additional bullets may be
- *    derived STRICTLY from source-level evidence records already attached to
- *    the project (skill usage verified in real files). Each derived bullet
- *    states only: the technology, the verified file count, and example paths.
- * 3. Derived bullets never introduce metrics, scale, employers, or outcomes.
+ * 2. PRESENCE_EVIDENCE (dependencies, imports, file paths, syntax usage) alone
+ *    must NEVER generate accomplishment prose.
+ * 3. Never manufacture template prose ("Developed X functionality in file Y...").
+ * 4. Bullets can only be derived if candidate-authored claims or verified
+ *    FEATURE_EVIDENCE with authentic descriptive prose exists.
+ * 5. If no truthful candidate-authored accomplishment can be constructed from
+ *    supported evidence, OMIT THE CLAIM rather than inventing prose.
  *
  * @param {object} project Candidate project record with evidence
  * @param {Array<object>} authoredBullets Scored authored bullets
@@ -318,95 +427,30 @@ function deriveEvidenceBackedBullets(project, authoredBullets, jobTerms, targetT
   const deficit = targetTotal - authoredBullets.length;
   if (deficit <= 0) return derived;
 
-  // Technologies already named in authored bullets must not be duplicated.
-  const coveredSlugs = new Set();
-  for (const b of authoredBullets) {
-    const lower = String(b.text || '').toLowerCase();
-    for (const tech of project.technologies || []) {
-      const techSlug = slugifyTerm(tech);
-      if (techSlug && lower.includes(techSlug.replace(/-/g, ''))) coveredSlugs.add(techSlug);
-    }
-    for (const ev of b.evidenceRefs || []) {
-      const s = ev.skillSlug || slugifyTerm(ev.skillName || '');
-      if (s) coveredSlugs.add(s);
-    }
-  }
-
-  // Group source-level evidence records by skill slug.
-  const evidenceBySlug = new Map();
+  // HARD ARCHITECTURAL INVARIANT (Req B & C):
+  // Candidate-authored accomplishment content is the primary resume prose.
+  // PRESENCE_EVIDENCE (packages, imports, file paths, framework presence) alone
+  // can NEVER manufacture accomplishment bullets or "Developed X functionality" prose.
   for (const ev of Array.isArray(project.evidence) ? project.evidence : []) {
-    if (!ev || typeof ev !== 'object') continue;
-    if (NON_SOURCE_EVIDENCE_TYPES.has(ev.evidenceType)) continue;
-    const confidence = typeof ev.confidenceScore === 'number' ? ev.confidenceScore : 1.0;
-    if (confidence < EVIDENCE_DERIVED_BULLET_MIN_CONFIDENCE) continue;
-    const slug = slugifyTerm(ev.skillSlug || ev.skillName || '');
-    if (!slug) continue;
-    if (coveredSlugs.has(slug)) continue;
-    if (!evidenceBySlug.has(slug)) evidenceBySlug.set(slug, []);
-    evidenceBySlug.get(slug).push({ ev, confidence });
-  }
-
-  // Rank candidate skills: job relevance first, then evidence volume/confidence.
-  const rankedSlugs = [...evidenceBySlug.entries()].sort((a, b) => {
-    const jobA = jobTerms.has(a[0]) || [...jobTerms].some((t) => a[0].includes(t) && t.length > 3) ? 1 : 0;
-    const jobB = jobTerms.has(b[0]) || [...jobTerms].some((t) => b[0].includes(t) && t.length > 3) ? 1 : 0;
-    if (jobB !== jobA) return jobB - jobA;
-    const volA = a[1].length;
-    const volB = b[1].length;
-    if (volB !== volA) return volB - volA;
-    const confA = Math.max(...a[1].map((x) => x.confidence));
-    const confB = Math.max(...b[1].map((x) => x.confidence));
-    return confB - confA;
-  });
-
-  for (const [slug, records] of rankedSlugs) {
     if (derived.length >= deficit) break;
-    const display = toDisplayName(slug);
-    if (!display) continue;
-
-    const filePaths = [
-      ...new Set(
-        records
-          .map((r) => r.ev.sourceLocation?.filePath || r.ev.filePath || null)
-          .filter((p) => typeof p === 'string' && p.trim())
-      ),
-    ].slice(0, 2);
-    const fileCount = new Set(
-      records
-        .map((r) => r.ev.sourceLocation?.filePath || r.ev.filePath || null)
-        .filter(Boolean)
-    ).size;
-
-    let text;
-    if (filePaths.length === 1) {
-      text = `Developed ${display} functionality in ${filePaths[0]}, verified by repository evidence.`;
-    } else if (filePaths.length > 1) {
-      text = `Developed ${display} functionality across ${filePaths[0]} and ${filePaths[1]}, verified by repository evidence.`;
-    } else {
-      text = `Applied ${display} in verified project implementation work.`;
+    const semClass = classifyEvidenceSemanticType(ev);
+    if (semClass === EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE) {
+      continue; // Strictly omit: presence evidence cannot become prose
     }
 
-    // Guard: derived bullets never add quantitative metrics.
-    if (QUANTITATIVE_METRIC_REGEX.test(text) && !QUANTITATIVE_METRIC_REGEX.test(project.summary || '')) {
-      text = `Developed ${display} functionality, verified by repository evidence.`;
+    const claimText = ev.description || ev.featureSummary || ev.claimText || ev.message || null;
+    if (claimText && isClaimSafeToRender(claimText, semClass)) {
+      derived.push({
+        text: claimText.trim(),
+        origText: claimText.trim(),
+        evidenceRefs: [toEvidenceReference(ev, 'VERIFIED')].filter(Boolean),
+        matchedRequirementIds: ev.matchedRequirementId ? [ev.matchedRequirementId] : [],
+        provenanceStatus: 'VERIFIED',
+        relevanceScore: 25,
+        origIndex: Number.MAX_SAFE_INTEGER - derived.length,
+        isEvidenceDerived: true,
+      });
     }
-
-    const normalizedRefs = records
-      .slice(0, 5)
-      .map((r) => toEvidenceReference(r.ev, 'VERIFIED'))
-      .filter(Boolean);
-
-    derived.push({
-      text,
-      origText: null,
-      evidenceRefs: normalizedRefs,
-      matchedRequirementIds: [],
-      provenanceStatus: 'VERIFIED',
-      relevanceScore: jobTerms.has(slug) ? 30 : 10,
-      origIndex: Number.MAX_SAFE_INTEGER - derived.length,
-      isEvidenceDerived: true,
-      _evidenceFileCount: fileCount,
-    });
   }
 
   return derived;
@@ -509,7 +553,7 @@ export function generateGroundedSummary({
   selectedSkills = null,
   selectedProjects = null,
   matchAnalysis = null,
-  _options = {},
+  options = {},
 }) {
   if (!candidateProfile || typeof candidateProfile !== 'object') {
     throw new ValidationError('candidateProfile must be a valid object');
@@ -519,6 +563,7 @@ export function generateGroundedSummary({
   const targetRoleTitle =
     jobPosting?.title ||
     tailoringPlan?.targetRoleTitle ||
+    options.targetRoleTitle ||
     candidateProfile.headline ||
     'Software Engineer';
 
@@ -541,9 +586,10 @@ export function generateGroundedSummary({
       (jobPosting?.skills || []).join(' ')
   ).toLowerCase();
 
-  // 2. Identify role focus (generic taxonomy over job text — used for skill
-  //    relevance alignment, never to force an archetype label onto identity)
-  const roleFocus = deriveRoleFocus(targetRoleTitle, jobDescText);
+  // 2. Identify role focus (generic taxonomy over job text or options overrides)
+  const roleFocus = options.roleFocus && typeof options.roleFocus === 'object'
+    ? options.roleFocus
+    : deriveRoleFocus(targetRoleTitle, jobDescText);
   const isBackendFocus = roleFocus.isBackendFocus;
   const isFrontendFocus = roleFocus.isFrontendFocus;
 
@@ -592,9 +638,7 @@ export function generateGroundedSummary({
   const topSkills = filteredSkills.slice(0, 3);
   const referencedSkillSlugs = topSkills.map((s) => s.slug || slugifyTerm(s.name));
 
-  // 4. Select Grounded Project Highlight — relevance-driven, not name-driven:
-  // rank candidate projects by (a) authoritative relevanceScore when present,
-  // (b) overlap between project technologies and top summary skills/job text.
+  // 4. Select Grounded Project Highlight — relevance-driven, not name-driven
   let topProject = null;
   if (rawProjects.length > 0) {
     const topSkillSlugs = new Set(topSkills.map((s) => s.slug || slugifyTerm(s.name)));
@@ -607,7 +651,6 @@ export function generateGroundedSummary({
         else if (jobDescText.includes(ts)) overlap += 0.5;
       }
       score += overlap * 10;
-      // Projects with authentic content outrank empty shells.
       const bulletCount = Array.isArray(p.bullets) ? p.bullets.length : 0;
       score += Math.min(10, bulletCount * 3);
       score += Math.min(10, (p.evidenceCount || (Array.isArray(p.evidence) ? p.evidence.length : 0)) * 0.5);
@@ -647,10 +690,7 @@ export function generateGroundedSummary({
     }
   }
 
-  // 6. Synthesize Concise Text (2-3 sentences, <350 chars) strictly from
-  //    candidate-owned facts: the canonical role heading, top candidate-owned
-  //    skills, and the top-ranked candidate-owned project. No archetype-specific
-  //    boilerplate, no forced positioning, no unsupported seniority.
+  // 6. Synthesize Concise Text (2-3 sentences, <350 chars) strictly from candidate-owned facts
   const candidateExperience = candidateProfile.experience || meta.experience || [];
   const hasWorkHistory = Array.isArray(candidateExperience) && candidateExperience.length > 0;
   const isFresher = !hasWorkHistory || candidateProfile.careerStatus === 'FRESHER';
@@ -663,11 +703,19 @@ export function generateGroundedSummary({
   const projectDisplayName = topProject ? (topProject.displayName || topProject.name || topProject.title) : null;
 
   if (topSkills.length === 0 && !topProject) {
-    // Fail-closed safe fallback: use authentic candidate summary or safe baseline
+    // Fail-closed safe fallback: use authentic candidate summary or grounded academic/background facts
     const existingSummary = candidateProfile.summary || meta.summary;
-    summaryText = existingSummary && existingSummary.trim().length > 0
-      ? existingSummary.trim()
-      : `Software professional offering technical capabilities aligned with ${targetRoleTitle}.`;
+    if (existingSummary && existingSummary.trim().length > 0) {
+      summaryText = existingSummary.trim();
+    } else {
+      const degree = candidateProfile.education?.[0]?.degree || meta.education?.[0]?.degree;
+      const field = candidateProfile.education?.[0]?.fieldOfStudy || meta.education?.[0]?.fieldOfStudy;
+      if (degree) {
+        summaryText = `${targetRoleTitle} with academic foundation in ${field || degree}.`;
+      } else {
+        summaryText = `${targetRoleTitle} with verified technical background.`;
+      }
+    }
   } else {
     // Canonical role headline (seniority-adjusted, evidence-compatible) anchors the summary.
     const headingInfo = deriveTargetRoleHeading({ candidateProfile, jobPosting, matchAnalysis });
@@ -921,11 +969,10 @@ export function normalizeTargetRoleTitle(rawTitle) {
   let title = rawTitle.trim();
   if (!title) return 'Software Engineer';
 
-  // 1. Remove parenthetical or trailing location/work arrangement indicators
+  // 1. Remove parenthetical or trailing location/work arrangement indicators (generic regex)
   title = title.replace(/\s*\((?:remote|hybrid|onsite|on-site)\)/gi, '');
   title = title.replace(/\s*[-–—,|]?\s*(?:remote|hybrid|onsite|on-site)\s*$/gi, '');
-  title = title.replace(/,\s*datahybrid\b/gi, '');
-  title = title.replace(/datahybrid\b/gi, '');
+  title = title.replace(/,\s*[^,]*\b(?:hybrid|remote|onsite|on-site)\b[^,]*$/gi, '');
 
   // 2. Remove trailing department / team specifiers
   title = title.replace(/,\s*(?:growth|core team|product team|engineering team|us|uk|emea|apac)\b.*$/gi, '');
@@ -969,7 +1016,7 @@ export function normalizeTargetRoleTitle(rawTitle) {
  * @param {object} [params.matchAnalysis]
  * @returns {{ heading: string, rawTitle: string, seniorityAdjusted: boolean, candidateSeniority: string, candidateArchetype: string }}
  */
-export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, _matchAnalysis = null }) {
+export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, matchAnalysis = null }) {
   const profile = candidateProfile || {};
   const meta = profile.profileMetadata || {};
   const experiences = meta.experience || profile.experience || profile.workExperience || [];
@@ -1012,6 +1059,13 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, _
   const candidateSkills = new Set(
     (profile.skills || []).map((s) => (typeof s === 'string' ? slugifyTerm(s) : slugifyTerm(s.slug || s.name)))
   );
+  if (matchAnalysis?.skillMatches) {
+    for (const m of matchAnalysis.skillMatches) {
+      const slug = slugifyTerm(m.skillName || m.skillSlug);
+      if (slug) candidateSkills.add(slug);
+    }
+  }
+
   const candidateProjects = profile.projects || [];
   const projectTechs = new Set(
     candidateProjects.flatMap((p) => (p.technologies || []).map((t) => slugifyTerm(t)))
@@ -1086,7 +1140,7 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, _
   }
 
   const candidateArchetype =
-    profile.careerStatus === 'CAREER_CHANGER' || meta.careerStatus === 'CAREER_CHANGER' || profile.archetype === 'CAREER_CHANGER'
+    profile.careerStatus === 'CAREER_CHANGER' || meta.careerStatus === 'CAREER_CHANGER'
       ? 'CAREER_CHANGER'
       : isFresher
         ? 'FRESHER'
@@ -1102,11 +1156,11 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, _
 }
 
 /**
- * Derives the dynamic section ordering based on candidate archetype and section content:
+ * Derives section ordering based on candidate archetype and available evidence:
  * - Entry-level / Fresher: SUMMARY -> SKILLS -> PROJECTS -> (DSA) -> EXPERIENCE -> EDUCATION
  * - Experienced: SUMMARY -> SKILLS -> EXPERIENCE -> PROJECTS -> (DSA) -> EDUCATION
  * - Career Changer: SUMMARY -> SKILLS -> PROJECTS -> EXPERIENCE -> EDUCATION
- * - Optional sections (DSA, CERTIFICATIONS, COURSEWORK, PUBLICATIONS) are included ONLY if non-empty
+ * - Optional sections (DSA, CERTIFICATIONS, COURSEWORK, PUBLICATIONS) are included ONLY if non-empty and meaningful
  *
  * @param {object} params
  * @param {object} params.candidateProfile
@@ -1114,7 +1168,7 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, _
  * @param {object} [params.options]
  * @returns {{ sectionOrder: string[], candidateArchetype: string }}
  */
-export function deriveSectionOrdering({ candidateProfile, _jobPosting = null, options = {} }) {
+export function deriveSectionOrdering({ candidateProfile, jobPosting = null, options = {} }) {
   const profile = candidateProfile || {};
   const meta = profile.profileMetadata || {};
   const experiences = meta.experience || profile.experience || profile.workExperience || [];
@@ -1154,7 +1208,7 @@ export function deriveSectionOrdering({ candidateProfile, _jobPosting = null, op
     profile.headline || meta.headline || ''
   );
 
-  const isFresher =
+  let isFresher =
     !hasSeniorWorkHistory &&
     !hasSeniorHeadline &&
     (careerStatus === 'FRESHER' ||
@@ -1164,7 +1218,15 @@ export function deriveSectionOrdering({ candidateProfile, _jobPosting = null, op
       candidateSeniority === 'INTERN' ||
       (tenureMetrics.professionalTenureYears < 1.0 && experiences.length === 0));
 
-  const candidateArchetype =
+  // Role hint evaluation from jobPosting
+  if (jobPosting?.title && !hasSeniorWorkHistory) {
+    const jobTitle = String(jobPosting.title).toLowerCase();
+    if (/\b(intern|internship|graduate|junior|entry|associate)\b/i.test(jobTitle)) {
+      isFresher = true;
+    }
+  }
+
+  let candidateArchetype =
     options.candidateArchetype ||
     (profile.careerStatus === 'CAREER_CHANGER' || meta.careerStatus === 'CAREER_CHANGER' || profile.archetype === 'CAREER_CHANGER'
       ? 'CAREER_CHANGER'
@@ -1172,12 +1234,8 @@ export function deriveSectionOrdering({ candidateProfile, _jobPosting = null, op
         ? 'FRESHER'
         : 'EXPERIENCED');
 
-  // Check optional sections: ONLY include if non-empty
-  const hasDsa = Boolean(
-    dsa?.hasSection ||
-    (Array.isArray(dsa?.bullets) && dsa.bullets.length > 0) ||
-    dsa?.profileUrl
-  );
+  // Check optional sections: ONLY include if non-empty and meaningful (Req G)
+  const hasDsa = isMeaningfulDsa(dsa);
   const hasCertifications = Boolean(Array.isArray(certifications) && certifications.length > 0);
   const hasCoursework = Boolean(
     (Array.isArray(education) && education.some((e) => Array.isArray(e.coursework) && e.coursework.length > 0)) ||

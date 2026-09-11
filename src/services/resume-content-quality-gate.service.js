@@ -25,6 +25,8 @@
  * content. `passed` is false only for hard (FAIL-severity) defects.
  */
 
+import { isMeaningfulDsa } from './resume-content-strategy.service.js';
+
 export const GATE_SEVERITY = Object.freeze({
   OK: 'OK',
   WARN: 'WARN',
@@ -38,6 +40,7 @@ export const GATE_FINDING_CODES = Object.freeze({
   SPARSE_WITH_AVAILABLE_EVIDENCE: 'SPARSE_WITH_AVAILABLE_EVIDENCE',
   DUPLICATE_SKILLS: 'DUPLICATE_SKILLS',
   LOW_INFORMATION_BULLET: 'LOW_INFORMATION_BULLET',
+  SEMANTIC_LEAKAGE: 'SEMANTIC_LEAKAGE',
 });
 
 /** Minimum informative length (chars) for a rendered bullet. */
@@ -159,21 +162,14 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
 
   // ── Check 2: Weak/generic optional sections (DSA without real evidence) ──
   const dsa = doc.dsa;
-  if (dsa && dsa.hasSection) {
-    const dsaBullets = (Array.isArray(dsa.bullets) ? dsa.bullets : [])
-      .map((b) => String(b || '').trim())
-      .filter(Boolean);
-    const hasSubstantive = dsaBullets.some((b) => b.length >= MIN_OPTIONAL_BULLET_LENGTH);
-    const hasUrl = Boolean(dsa.profileUrl && typeof dsa.profileUrl === 'string' && dsa.profileUrl.startsWith('http'));
-    if (!hasSubstantive && !hasUrl) {
-      findings.push({
-        code: GATE_FINDING_CODES.WEAK_OPTIONAL_SECTION,
-        severity: GATE_SEVERITY.FAIL,
-        remediable: true,
-        suggestion: 'OMIT_SECTION',
-        message: 'Optional problem-solving section is present but carries no substantive candidate-owned evidence; omit it instead of rendering boilerplate.',
-      });
-    }
+  if (dsa && dsa.hasSection && !isMeaningfulDsa(dsa)) {
+    findings.push({
+      code: GATE_FINDING_CODES.WEAK_OPTIONAL_SECTION,
+      severity: GATE_SEVERITY.FAIL,
+      remediable: true,
+      suggestion: 'OMIT_SECTION',
+      message: 'Optional problem-solving section is present but carries no substantive candidate-owned evidence; omit it instead of rendering boilerplate.',
+    });
   }
 
   // ── Check 3: Contradictory role positioning (generic taxonomy only) ──
@@ -276,6 +272,32 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
       remediable: false,
       count: lowInfoBullets.length,
       message: `${lowInfoBullets.length} bullet(s) fall below the minimum informative length (${MIN_BULLET_LENGTH} chars); prefer merging with richer bullets or omitting over thin content.`,
+    });
+  }
+
+  // ── Check 7: Semantic leakage (Req B & C) ──
+  const allProse = [
+    summaryText,
+    ...projects.flatMap((p) => (Array.isArray(p.bullets) ? p.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || ''))),
+    ...experience.flatMap((e) => (Array.isArray(e.bullets) ? e.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || ''))),
+  ].filter(Boolean);
+
+  const leakedPhrases = [];
+  for (const text of allProse) {
+    if (
+      /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality)\b/i.test(text) ||
+      /(?:^|\s)(?:src\/|components\/|controllers\/|routes\/|\S+\.(?:js|ts|jsx|tsx|py|go|dockerfile))\b/i.test(text)
+    ) {
+      leakedPhrases.push(text);
+    }
+  }
+  if (leakedPhrases.length > 0) {
+    findings.push({
+      code: GATE_FINDING_CODES.SEMANTIC_LEAKAGE,
+      severity: GATE_SEVERITY.FAIL,
+      remediable: false,
+      count: leakedPhrases.length,
+      message: `Detected ${leakedPhrases.length} instance(s) of raw implementation paths or synthetic evidence templates leaking into resume prose.`,
     });
   }
 

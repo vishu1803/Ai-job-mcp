@@ -460,14 +460,47 @@ export class ApplicationHandoffService {
     const buildExpectedContent = (snapshot, appliedMaxBulletsPerProject) => {
       if (!snapshot || typeof snapshot !== 'object') return null;
       const expected = {
+        candidateName: null,
+        targetRole: null,
         projectNames: [],
         projectBullets: [],
+        experienceRoles: [],
         experienceBullets: [],
         educationTokens: [],
         links: [],
         sectionHeadings: [],
+        skillsTokens: [],
+        projectTechnologies: [],
+        dsaTokens: [],
       };
       const clean = (s) => String(s || '').trim();
+
+      if (snapshot.candidateIdentity?.name) {
+        expected.candidateName = clean(snapshot.candidateIdentity.name);
+      }
+      if (snapshot.candidateIdentity?.headline || snapshot.targetRole) {
+        expected.targetRole = clean(snapshot.candidateIdentity?.headline || snapshot.targetRole);
+      }
+
+      // Skills tokens
+      if (snapshot.skills) {
+        if (Array.isArray(snapshot.skills)) {
+          for (const s of snapshot.skills) {
+            const name = clean(typeof s === 'string' ? s : s?.name || s?.skill);
+            if (name) expected.skillsTokens.push(name);
+          }
+        } else if (typeof snapshot.skills === 'object') {
+          for (const list of Object.values(snapshot.skills)) {
+            if (Array.isArray(list)) {
+              for (const s of list) {
+                const name = clean(typeof s === 'string' ? s : s?.name || s?.skill);
+                if (name) expected.skillsTokens.push(name);
+              }
+            }
+          }
+        }
+      }
+
       // The renderer caps visible bullets per project; the expectation must
       // describe the same render contract, not an idealized superset.
       const bulletCap =
@@ -483,6 +516,10 @@ export class ApplicationHandoffService {
           .filter(Boolean)
           .slice(0, bulletCap);
         expected.projectBullets.push(...bullets);
+        for (const tech of Array.isArray(p.technologies) ? p.technologies : []) {
+          const t = clean(typeof tech === 'string' ? tech : tech?.name);
+          if (t) expected.projectTechnologies.push(t);
+        }
         for (const urlKey of ['repositoryUrl', 'liveUrl']) {
           if (p[urlKey] && typeof p[urlKey] === 'string') {
             expected.links.push(
@@ -492,6 +529,8 @@ export class ApplicationHandoffService {
         }
       }
       for (const e of Array.isArray(snapshot.experience) ? snapshot.experience : []) {
+        if (e.company) expected.experienceRoles.push(clean(e.company));
+        if (e.role || e.title) expected.experienceRoles.push(clean(e.role || e.title));
         for (const b of Array.isArray(e.bullets) ? e.bullets : []) {
           const t = clean(typeof b === 'string' ? b : b?.text);
           if (t) expected.experienceBullets.push(t);
@@ -509,6 +548,12 @@ export class ApplicationHandoffService {
           if (url) {
             expected.links.push(url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''));
           }
+        }
+      }
+      if (snapshot.dsa && Array.isArray(snapshot.dsa.bullets)) {
+        for (const b of snapshot.dsa.bullets) {
+          const t = clean(typeof b === 'string' ? b : b?.text);
+          if (t) expected.dsaTokens.push(t);
         }
       }
       // Expected section headings in canonical document order (generic label map).
