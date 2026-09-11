@@ -169,7 +169,7 @@ export class LegacyLatexGenerator {
       '';
 
     // Disallow forbidden placeholder tokens
-    if (/vishw@example\.com|example\.com/i.test(candidateEmail)) {
+    if (/example\.com/i.test(candidateEmail)) {
       throw new ValidationError(
         `Authoritative candidate email required; detected synthetic email '${candidateEmail}'`
       );

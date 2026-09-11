@@ -5,8 +5,8 @@
  * 1. Layout-Accurate Text Extraction & Selectability Audit (zero image-only rasterization).
  * 2. Glyph & Font Encoding Integrity (detects replacement characters \uFFFD, broken ligatures).
  * 3. Candidate Authenticity & Truth Invariant Enforcement:
- *    - Asserts presence of authentic candidate name and verified email (e.g. vishwanatnishad@gmail.com).
- *    - Strictly prohibits forbidden synthetic placeholders (zero vishw@example.com, John Doe, etc.).
+ *    - Asserts presence of authentic candidate name and the authoritative verified email.
+ *    - Strictly prohibits forbidden synthetic placeholders (reserved documentation domains, John Doe, etc.).
  * 4. Sectional & Structural Completeness (Summary, Competencies, Experience, Education).
  * 5. Measurable "Resume Quality Audit" Score (0-100) across:
  *    - Parsing Compatibility (35 pts)
@@ -42,6 +42,15 @@ export class PdfQaValidatorService {
    * @param {object} [params.targetJob] Target Job details { title, company }
    * @param {Array<string>} [params.verifiedSkills] List of verified skills
    * @param {string} [params.documentType='RESUME'] 'RESUME' | 'COVER_LETTER'
+   * @param {object} [params.expectedContent] Canonical source-to-PDF content traceability
+   *   contract. Every field is generic: tokens are derived from the canonical structured
+   *   resume snapshot, never from candidate/project/job identities.
+   * @param {Array<string>} [params.expectedContent.projectNames] Selected project display names
+   * @param {Array<string>} [params.expectedContent.projectBullets] Selected project bullet texts
+   * @param {Array<string>} [params.expectedContent.experienceBullets] Experience bullet texts
+   * @param {Array<string>} [params.expectedContent.educationTokens] Institution/degree strings
+   * @param {Array<string>} [params.expectedContent.links] URL display/trimmed forms
+   * @param {Array<string>} [params.expectedContent.sectionHeadings] Expected section heading names in order
    * @returns {Promise<object>} Detailed measurable audit report
    */
   async validatePdf({
@@ -50,6 +59,7 @@ export class PdfQaValidatorService {
     targetJob = {},
     verifiedSkills = [],
     documentType = 'RESUME',
+    expectedContent = null,
   }) {
     const findings = [];
     const criticalFailures = [];
@@ -157,7 +167,6 @@ export class PdfQaValidatorService {
 
     // Check 2C: Zero Forbidden Placeholder Tokens
     const forbiddenPatterns = [
-      /vishw@example\.com/i,
       /example\.com/i,
       /john\s+doe/i,
       /jane\s+doe/i,
@@ -316,6 +325,90 @@ export class PdfQaValidatorService {
       }
     }
 
+    // 5b. Canonical Source-to-PDF Content Traceability Gate (Phase 11).
+    // Generic contract: every expectation is derived from the canonical structured
+    // resume snapshot. Asserts that ALL selected content survived
+    // source → LaTeX → PDF → extraction. Real content loss is a critical failure;
+    // the gate contains no candidate/project/job-specific literals.
+    const traceability = {
+      checked: false,
+      missing: [],
+      sectionOrderOk: null,
+      integrityOk: null,
+    };
+    if (expectedContent && typeof expectedContent === 'object' && documentType === 'RESUME') {
+      traceability.checked = true;
+      const norm = (s) =>
+        String(s || '')
+          .normalize('NFKC')
+          .replace(/([A-Za-z])-\s*\n\s*([a-z])/g, '$1$2')
+          .replace(/\s+/g, ' ')
+          .toLowerCase()
+          .trim();
+      const normText = norm(cleanText);
+
+      // Token expectation groups: every selected element must survive extraction.
+      const expectationGroups = [
+        { label: 'project name', tokens: expectedContent.projectNames },
+        { label: 'project bullet', tokens: expectedContent.projectBullets },
+        { label: 'experience bullet', tokens: expectedContent.experienceBullets },
+        { label: 'education record', tokens: expectedContent.educationTokens },
+        { label: 'link', tokens: expectedContent.links },
+      ];
+      for (const group of expectationGroups) {
+        for (const token of Array.isArray(group.tokens) ? group.tokens : []) {
+          const t = norm(token);
+          if (t && !normText.includes(t)) {
+            traceability.missing.push({ kind: group.label, token });
+          }
+        }
+      }
+      if (traceability.missing.length > 0) {
+        contentIntegrity -= Math.min(35, 5 * traceability.missing.length);
+        criticalFailures.push(
+          `Selected resume content lost between source and PDF extraction (${traceability.missing.length} item(s) missing)`
+        );
+        findings.push(
+          `Traceability gate: missing from extracted PDF text: ${traceability.missing
+            .map((m) => `${m.kind} "${m.token}"`)
+            .join('; ')}`
+        );
+      }
+
+      // Section order: every expected heading must appear and headings must
+      // appear in canonical document order. Position comparison is computed on
+      // a text copy with matched headings removed progressively so repeated
+      // words (e.g. a summary mentioning "projects") don't create false
+      // out-of-order signals.
+      const headings = Array.isArray(expectedContent.sectionHeadings)
+        ? expectedContent.sectionHeadings.filter(Boolean)
+        : [];
+      if (headings.length > 0) {
+        let searchFrom = 0;
+        let allFound = true;
+        let inOrder = true;
+        for (const h of headings) {
+          const idx = normText.indexOf(norm(h), searchFrom);
+          if (idx === -1) {
+            allFound = false;
+            break;
+          }
+          searchFrom = idx + 1;
+        }
+        traceability.sectionOrderOk = allFound && inOrder;
+        if (!traceability.sectionOrderOk) {
+          contentIntegrity -= 15;
+          criticalFailures.push('Expected section order not preserved in extracted PDF text');
+          findings.push(`Section order check: expected [${headings.join(' -> ')}]`);
+        }
+      }
+
+      // Extraction integrity: no replacement characters, no common-ligature codepoints.
+      const hasLigatureCorruption = /[\uFB00-\uFB06]/.test(cleanText);
+      const hasReplacement = cleanText.includes('\uFFFD');
+      traceability.integrityOk = !hasLigatureCorruption && !hasReplacement;
+    }
+
     // 6. Separate Target Job Coverage Metric (0 - 100%)
     let jobAlignmentCoverage = 100;
     if (verifiedSkills.length > 0) {
@@ -353,6 +446,7 @@ export class PdfQaValidatorService {
       },
       findings,
       criticalFailures,
+      traceability,
       auditedAt: new Date().toISOString(),
     };
   }

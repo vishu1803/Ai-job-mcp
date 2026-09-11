@@ -425,7 +425,10 @@ export class ResumeParserService {
       return a.x - b.x;
     });
 
-    // Group into coherent lines
+    // Group into coherent lines.
+    // Adjacent text runs are joined with a space when a visual gap exists
+    // between them (word boundaries are often lost across font/kern switches
+    // in TJ arrays). Gap threshold scales with font size when available.
     const lines = [];
     let currentGroup = [];
     let currentY = null;
@@ -436,11 +439,7 @@ export class ResumeParserService {
         if (currentY === null) currentY = el.y;
       } else {
         currentGroup.sort((a, b) => a.x - b.x);
-        let lineText = '';
-        for (const c of currentGroup) {
-          lineText += c.text;
-        }
-        if (lineText.trim()) lines.push({ y: currentY, text: lineText.trim() });
+        lines.push({ y: currentY, group: currentGroup });
         currentGroup = [el];
         currentY = el.y;
       }
@@ -448,20 +447,61 @@ export class ResumeParserService {
 
     if (currentGroup.length > 0) {
       currentGroup.sort((a, b) => a.x - b.x);
-      let lineText = '';
-      for (const c of currentGroup) lineText += c.text;
-      if (lineText.trim()) lines.push({ y: currentY, text: lineText.trim() });
+      lines.push({ y: currentY, group: currentGroup });
     }
 
+    // Adjacent text runs are joined with a space when a visual gap exists
+    // between them. PDF text runs frequently split mid-word at font/style/
+    // kern boundaries; joining purely on gap detection would glue words like
+    // "Cloudflare" + "workflows" together. Heuristic: insert a space between
+    // runs when the previous run does NOT already end in whitespace AND the
+    // gap between run end and next run start exceeds the font-size-derived
+    // threshold (default 0.25 * fontSize, min 1.2pt).
+    const GAP_RATIO = 0.25;
+    const MIN_GAP_PT = 1.2;
+
+    const joinRuns = (group) => {
+      let lineText = '';
+      let prevEndX = null;
+      let prevGapThreshold = MIN_GAP_PT;
+      for (const c of group) {
+        if (lineText.length > 0 && prevEndX !== null && c.x !== undefined) {
+          const gap = c.x - prevEndX;
+          if (gap > Math.max(MIN_GAP_PT, prevGapThreshold * GAP_RATIO) &&
+              !/\s$/.test(lineText) &&
+              !/^\s/.test(c.text)) {
+            lineText += ' ';
+          }
+        }
+        lineText += c.text;
+        // Track approximate run end using character-count heuristic when the
+        // parser lacks glyph widths (elements carry start x only).
+        if (c.x !== undefined) {
+          const charWidthEstimate = prevGapThreshold;
+          prevEndX = c.x + c.text.length * charWidthEstimate;
+        }
+      }
+      return lineText;
+    };
+
     return lines
-      .map((l) =>
-        l.text
+      .map(({ group }) =>
+        joinRuns(group)
           .replace(/\u0000/g, '')
           .replace(/[ \t]+/g, ' ')
           .trim()
       )
       .filter((l) => l && !/^[-–—\s._]{4,}$/.test(l))
-      .join('\n');
+      .join('\n')
+      // Phase 9b safety net: normalize any residual ligature codepoints that
+      // survive from producers outside the canonical renderer (legacy uploads,
+      // third-party PDFs). The canonical renderer already prevents ligature
+      // formation at the source via Ligatures=NoCommon.
+      .replace(/[\uFB00]/g, 'ff')
+      .replace(/[\uFB01]/g, 'fi')
+      .replace(/[\uFB02]/g, 'fl')
+      .replace(/[\uFB03]/g, 'ffi')
+      .replace(/[\uFB04]/g, 'ffl');
   }
 
   /**

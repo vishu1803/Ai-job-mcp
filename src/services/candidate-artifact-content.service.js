@@ -258,6 +258,24 @@ export function isRealUrl(url) {
   }
 }
 
+/**
+ * Produces the human/ATS-visible display text for a link: the URL with its
+ * scheme (and any www. prefix) and trailing slash removed. Used so that
+ * rendered hyperlinks carry their real URL as visible text (ATS link parity):
+ * PDF text extraction then preserves the URL identity instead of a bare
+ * "GitHub"/"Live Demo" label. Generic URL normalization — no domain-specific
+ * logic.
+ *
+ * @param {string} url
+ * @returns {string}
+ */
+export function displayUrlForLink(url) {
+  const trimmed = String(url || '').trim();
+  return trimmed
+    .replace(/^https?:\/\/(www\.)?/i, '')
+    .replace(/\/$/, '');
+}
+
 export const NOISY_TECH_SET = new Set([
   'fs',
   'path',

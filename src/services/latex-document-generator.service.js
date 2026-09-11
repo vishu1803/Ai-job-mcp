@@ -10,7 +10,7 @@
  * - Radical Truth Provenance: Strictly separates VERIFIED, CORROBORATED, CLAIMED,
  *   USER_PROVIDED, and LEARNING skills. Never promotes uncorroborated skills.
  * - Zero Synthetic/Fabricated Data: Strictly uses authentic stored candidate data.
- *   Never introduces synthetic emails (zero vishw@example.com) or fake phone numbers.
+ *   Never introduces synthetic emails (reserved documentation domains) or fake phone numbers.
  * - Zero Placeholder Sections: Sections without real stored records are OMITTED.
  *   The historical placeholder blocks ("Software Development Experience Verified",
  *   "Independent / Open Source Engineering", "Academic / Technical Foundation
@@ -25,6 +25,7 @@ import {
   curateProfessionalSummary,
   curateCandidateHeadline,
   isRealUrl,
+  displayUrlForLink,
   cleanResumeFacingTechnologies,
   formatProjectDisplayName,
   groundAndSanitizeProject,
@@ -265,7 +266,7 @@ export class LatexDocumentGenerator {
         'Authoritative candidate email is required in structured resume; refusing to render placeholder contact'
       );
     }
-    if (/vishw@example\.com|example\.com/i.test(candidateEmail)) {
+    if (/example\.com/i.test(candidateEmail)) {
       throw new ValidationError(
         `Authoritative candidate email required; detected synthetic email '${candidateEmail}'`
       );
@@ -284,7 +285,7 @@ export class LatexDocumentGenerator {
         `\\href{mailto:${escapeLatexUrl(candidateEmail)}}{${escapeLatex(candidateEmail)}}`
       );
     }
-    const contactLine = contactElements.join(' $\\cdot$ ');
+    const contactLine = contactElements.join(' \\textbullet{} ');
 
     // Profile links directly from snapshot (zero hardcoded fallbacks)
     const profileLinkElements = [];
@@ -295,7 +296,7 @@ export class LatexDocumentGenerator {
         profileLinkElements.push(`\\href{${escapeLatexUrl(link.url)}}{${escapeLatex(label)}}`);
       }
     }
-    const profileLinksLine = profileLinkElements.join(' $\\cdot$ ');
+    const profileLinksLine = profileLinkElements.join(' \\textbullet{} ');
 
     // 2. Summary
     const summaryText = structuredResume.summary?.text || '';
@@ -337,13 +338,16 @@ export class LatexDocumentGenerator {
         const techs = cleanTechs.map((t) => escapeLatex(t)).join(', ');
 
         const linkParts = [];
+        // ATS link parity: link text MUST be the real URL (visible, extractable)
+        // rather than a bare "GitHub" label so URL identity survives PDF text
+        // extraction. Clickable target preserved via \href.
         if (repoUrl && isRealUrl(repoUrl)) {
-          linkParts.push(`\\href{${escapeLatexUrl(repoUrl)}}{\\small\\textbf{GitHub}}`);
+          linkParts.push(`\\href{${escapeLatexUrl(repoUrl)}}{\\small\\textbf{${escapeLatex(displayUrlForLink(repoUrl))}}}`);
         }
         if (liveUrl && isRealUrl(liveUrl)) {
-          linkParts.push(`\\href{${escapeLatexUrl(liveUrl)}}{\\small\\textbf{Live Demo}}`);
+          linkParts.push(`\\href{${escapeLatexUrl(liveUrl)}}{\\small\\textbf{${escapeLatex(displayUrlForLink(liveUrl))}}}`);
         }
-        const linksStr = linkParts.join(' $\\cdot$ ');
+        const linksStr = linkParts.join(' \\textbullet{} ');
 
         let headerLine = `\\textbf{${pName}}`;
         if (linksStr) headerLine += ` \\hfill ${linksStr}`;
@@ -374,29 +378,35 @@ export class LatexDocumentGenerator {
       projectsLatexSection = `\\atssection{Technical Projects}\n${projectEntries.join('\n')}`;
     }
 
-    // 5. DSA
+    // 5. DSA — included ONLY when meaningful candidate-owned evidence exists.
+    // Generic strength rule: ≥1 substantive bullet (≥ 30 chars) or a real profile
+    // URL. No synthesized subtitles or scaffolding labels are generated; only
+    // candidate-provided title/subtitle fields are honored verbatim.
     let dsaLatexSection = '';
     const dsa = structuredResume.dsa;
     if (dsa && dsa.hasSection) {
-      const dsaBullets = Array.isArray(dsa.bullets) ? dsa.bullets.filter(Boolean) : [];
+      const dsaBullets = Array.isArray(dsa.bullets)
+        ? dsa.bullets.map((b) => String(b || '').trim()).filter(Boolean)
+        : [];
       const dsaUrl = dsa.profileUrl && isRealUrl(dsa.profileUrl) ? dsa.profileUrl : null;
       const dsaTitle = dsa.title || 'Problem Solving & Algorithmic Practice';
-      const dsaSubtitle = dsa.subtitle || 'Candidate-Reported Problem Solving';
+      const dsaSubtitle = typeof dsa.subtitle === 'string' ? dsa.subtitle.trim() : '';
 
-      if (dsaBullets.length > 0 || dsaUrl) {
+      const hasSubstantiveBullet = dsaBullets.some((b) => b.length >= 30);
+      if (hasSubstantiveBullet || dsaUrl) {
         const cleanLeetcodeDisplay = dsaUrl ? dsaUrl.replace(/^https?:\/\/(www\.)?/, '') : '';
         const headerRight = dsaUrl
           ? `\\href{${escapeLatexUrl(dsaUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}`
-          : `{\\small\\textit{Candidate-Reported}}`;
+          : '';
 
         const bulletTex = formatLatexBullets(dsaBullets);
 
         dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
-\\textbf{${escapeLatex(dsaTitle)}} \\hfill ${headerRight}\\par
+\\textbf{${escapeLatex(dsaTitle)}}${headerRight ? ` \\hfill ${headerRight}` : ''}\\par
 \\vspace{\\atsRoleToMetadata}
-{\\small\\textit{${escapeLatex(dsaSubtitle)}}}\\par
+${dsaSubtitle ? `{\\small\\textit{${escapeLatex(dsaSubtitle)}}}\\par
 \\vspace{\\atsMetadataToBullets}
-${bulletTex}`;
+` : ''}${bulletTex}`;
       }
     }
 
@@ -564,9 +574,18 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
       AWARDS: awardsLatexSection,
     };
 
+    // Generic content-aware fallback (used only when the canonical snapshot lacks
+    // an explicit sectionOrder — the snapshot builder normally derives one via
+    // deriveSectionOrdering). Candidates with real professional experience get
+    // experience-first reading order; project-first remains for profiles where
+    // experience is absent. Decision is based on document content, never identity.
+    const hasRealExperience =
+      experienceLatexSection && typeof experienceLatexSection === 'string' && experienceLatexSection.trim().length > 0;
     const rawOrder = Array.isArray(structuredResume.sectionOrder)
       ? structuredResume.sectionOrder
-      : ['SUMMARY', 'SKILLS', 'PROJECTS', 'EXPERIENCE', 'EDUCATION'];
+      : hasRealExperience
+        ? ['SUMMARY', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'EDUCATION']
+        : ['SUMMARY', 'SKILLS', 'PROJECTS', 'EDUCATION'];
 
     const authoritativeOrder = rawOrder
       .map((s) => String(s).toUpperCase())
@@ -634,6 +653,11 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
       candidateEmail,
       targetRole,
       targetCompany,
+      // Render contract: the per-project bullet cap actually applied by this
+      // renderer run. Snapshot/QA layers (e.g. the Phase 11 traceability
+      // expectation builder) must mirror this cap so expected-vs-extracted
+      // comparisons describe the same document contract.
+      appliedMaxBulletsPerProject: maxBulletsPerProject,
     };
   }
   /**
@@ -680,7 +704,7 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
       '';
 
     // Disallow forbidden placeholder tokens
-    if (/vishw@example\.com|example\.com/i.test(candidateEmail)) {
+    if (/example\.com/i.test(candidateEmail)) {
       throw new ValidationError(
         `Authoritative candidate email required; detected synthetic email '${candidateEmail}'`
       );
@@ -699,7 +723,7 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
         `\\href{mailto:${escapeLatexUrl(candidateEmail)}}{${escapeLatex(candidateEmail)}}`
       );
     }
-    const contactLine = contactElements.join(' $\\cdot$ ');
+    const contactLine = contactElements.join(' \\textbullet{} ');
 
     // Build profile links (Tier 4: LinkedIn, GitHub, Portfolio, LeetCode)
     const profileLinkElements = [];
@@ -783,7 +807,7 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
       profileLinkElements.push(`\\href{${escapeLatexUrl(leetcodeLink.url)}}{LeetCode}`);
     }
 
-    const profileLinksLine = profileLinkElements.join(' $\\cdot$ ');
+    const profileLinksLine = profileLinkElements.join(' \\textbullet{} ');
 
     // Resolve professional headline (curated to strip seniority inflation for freshers)
     const structuredHeadline =
@@ -1160,15 +1184,16 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
         const cleanTechs = cleanResumeFacingTechnologies(rawTechs);
         const techs = cleanTechs.map((t) => escapeLatex(t)).join(', ');
 
-        // Build clean action links: \href{repoUrl}{GitHub} · \href{liveUrl}{Live Demo}
+        // Build clean action links: visible URL text with click-through target.
+        // ATS link parity: display the real URL so it survives text extraction.
         const linkParts = [];
         if (repoUrl && isRealUrl(repoUrl)) {
-          linkParts.push(`\\href{${escapeLatexUrl(repoUrl)}}{\\small\\textbf{GitHub}}`);
+          linkParts.push(`\\href{${escapeLatexUrl(repoUrl)}}{\\small\\textbf{${escapeLatex(displayUrlForLink(repoUrl))}}}`);
         }
         if (liveUrl && isRealUrl(liveUrl)) {
-          linkParts.push(`\\href{${escapeLatexUrl(liveUrl)}}{\\small\\textbf{Live Demo}}`);
+          linkParts.push(`\\href{${escapeLatexUrl(liveUrl)}}{\\small\\textbf{${escapeLatex(displayUrlForLink(liveUrl))}}}`);
         }
-        const linksStr = linkParts.join(' $\\cdot$ ');
+        const linksStr = linkParts.join(' \\textbullet{} ');
 
         // Project header: bold title + right-aligned action links on line 1;
         // technologies render on their own compact line beneath
@@ -1623,11 +1648,41 @@ ${awRecords.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.tit
     bodyLatex,
     layoutProfile,
   }) {
+    // Phase 8/9 — Canonical ATS template configuration (single source of truth):
+    // - single column, linear order, no tables/textboxes/icons (unchanged)
+    // - margins 0.6in (within the 0.55–0.65in spec window; parser-safe)
+    // - candidate name ≈17pt (\LARGE ≈ 17.28pt), section headings ≈12pt via
+    //   \large (≈12pt at 10pt base), body 10pt
+    // - Unicode-safe font path: XeTeX/fontspec renders TeX Gyre Heros (Arial
+    //   metrics, matching the ATS_FOCUSED template metadata) with common
+    //   ligatures DISABLED so "fi"/"fl" extract as real letters (Cloudflare,
+    //   workflows), and fontspec's OpenType font writes correct ToUnicode CMaps
+    //   for full-text extraction fidelity
+    // - pdfLaTeX fallback keeps T1 + glyphtounicode so ligatures still map
+    //   to correct Unicode codepoints when the fallback engine is used
     return `\\documentclass[10pt,letterpaper]{article}
-\\usepackage[utf8]{inputenc}
-\\usepackage[T1]{fontenc}
-\\renewcommand{\\familydefault}{\\sfdefault}
-\\usepackage[margin=0.5in]{geometry}
+\\usepackage{iftex}    \\ifxetex
+  \\usepackage{fontspec}
+  % File-based loading: resolves via the TeX bundle regardless of system
+  % fontconfig availability (Tectonic on CI/minimal hosts).
+  \\setmainfont{texgyreheros-regular.otf}[
+    BoldFont=texgyreheros-bold.otf,
+    Ligatures=NoCommon
+  ]
+  \\setsansfont{texgyreheros-regular.otf}[
+    BoldFont=texgyreheros-bold.otf,
+    Ligatures=NoCommon
+  ]
+  \\renewcommand{\\familydefault}{\\sfdefault}
+\\else
+  \\usepackage[utf8]{inputenc}
+  \\usepackage[T1]{fontenc}
+  \\usepackage{lmodern}
+  \\renewcommand{\\familydefault}{\\sfdefault}
+  \\input{glyphtounicode.tex}
+  \\pdfgentounicode=1
+\\fi
+\\usepackage[margin=0.6in]{geometry}
 \\usepackage{hyperref}
 \\pagestyle{empty}
 \\setlength{\\parindent}{0pt}
@@ -1661,15 +1716,15 @@ ${awRecords.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a : a.tit
 \\newcommand{\\atsentrygap}{\\vspace{\\atsEntryToEntry}}
 \\newcommand{\\atsentryheadgap}{\\vspace{\\atsProjectTechToBullets}}
 
-% Clean, ATS-Compliant Section Dividers
+% Clean, ATS-Compliant Section Dividers (heading size \u224812pt via \large at 10pt base)
 \\newcommand{\\atssection}[1]{%
   \\vspace{\\atsSectionToSection}%
-  {\\noindent\\normalsize\\bfseries\\uppercase{#1}}\\par
+  {\\noindent\\large\\bfseries\\uppercase{#1}}\\par
   \\vspace{1pt}\\hrule height 0.6pt\\vspace{\\atsHeadingToContent}%
 }
 \\newcommand{\\atsfirstsection}[1]{%
   \\vspace{\\atsHeaderToSection}%
-  {\\noindent\\normalsize\\bfseries\\uppercase{#1}}\\par
+  {\\noindent\\large\\bfseries\\uppercase{#1}}\\par
   \\vspace{1pt}\\hrule height 0.6pt\\vspace{\\atsHeadingToContent}%
 }
 
@@ -1738,7 +1793,7 @@ ${bodyLatex}
       '';
 
     // Disallow forbidden placeholder tokens
-    if (/vishw@example\.com|example\.com/i.test(candidateEmail)) {
+    if (/example\.com/i.test(candidateEmail)) {
       throw new ValidationError(
         `Authoritative candidate email required; detected synthetic email '${candidateEmail}'`
       );
@@ -1756,7 +1811,7 @@ ${bodyLatex}
     if (candidateLocation) {
       contactElements.push(escapeLatex(candidateLocation));
     }
-    const contactLine = contactElements.join(' $\\cdot$ ');
+    const contactLine = contactElements.join(' \\textbullet{} ');
 
     // Extract cover letter body paragraphs from the REAL package content.
     // The historical generic fallback letter ("verified technical achievements…

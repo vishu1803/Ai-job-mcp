@@ -26,6 +26,7 @@ import {
 } from '../domain/career/resume.schemas.js';
 import { CandidateArtifactContentService } from './candidate-artifact-content.service.js';
 import { composeStructuredResumeDocument } from './resume-professional-composition.service.js';
+import { assessPreRenderQuality } from './resume-content-quality-gate.service.js';
 import {
   generateGroundedSummary,
   selectAndRephraseProjectBullets,
@@ -220,16 +221,67 @@ export function buildStructuredResumeDocument({
   // 6. Tailoring Plan
   const rawProjects = meta.projects || source.projects || [];
   const includeProblemSolving = Boolean(dsa?.bullets?.length || dsa?.profileUrl);
-  const projectBudget =
+
+  // Phase 4 — Dynamic, content-aware project budget (generic domain rule).
+  // Replaces the fixed "DSA present → 2 projects, else 3" rule. The maximum
+  // budget still respects the optional-section footprint (DSA occupies page
+  // space), but the *selected* count is driven by per-project content strength:  // relevance band/score, evidence volume, and authored-bullet availability.
+  const MAX_PROJECTS_ONE_PAGE = 3;
+  const projectBudgetCap =
     options?.projectBudget ||
     options?.maxProjects ||
     incomingPlan?.projectBudget ||
-    (includeProblemSolving ? 2 : 3);
+    (includeProblemSolving ? MAX_PROJECTS_ONE_PAGE - 1 : MAX_PROJECTS_ONE_PAGE);
+
+  // Minimum authoritative-strength thresholds a project must meet to earn a slot.
+  // Projects below these bars are omitted rather than padding the page (fail-sparse).
+  const STRONG_RELEVANCE_FLOOR = 30;      // ranking relevanceScore ≥ 30, or
+  const MIN_EVIDENCE_COUNT = 5;           // ≥ 5 evidence records, or
+  const MIN_AUTHORED_BULLETS = 2;         // ≥ 2 authored technical bullets
+
+  const hasMeaningfulDsaContent = Boolean(
+    dsa &&
+      (Array.isArray(dsa.bullets) && dsa.bullets.some((b) => String(b).trim().length > 40)) &&
+      (dsa.profileUrl || (Array.isArray(dsa.bullets) && dsa.bullets.length >= 2))
+  );
+
+  /**
+   * Evaluates whether a ranked candidate project has enough authentic content
+   * strength to justify occupying page budget. Purely data-driven.
+   */
+  const isProjectStrongEnough = (candProj, ranking) => {
+    const score = typeof ranking?.relevanceScore === 'number' ? ranking.relevanceScore : 0;
+    const evidenceCount =
+      candProj.evidenceCount ?? (Array.isArray(candProj.evidence) ? candProj.evidence.length : 0);
+    const authoredBullets = Array.isArray(candProj.bullets) ? candProj.bullets.length : 0;
+    const hasMatchedReqs =
+      (Array.isArray(ranking?.matchedRequirementIds) && ranking.matchedRequirementIds.length > 0) ||
+      (Array.isArray(ranking?.matchedRequirements) && ranking.matchedRequirements.length > 0);
+    const band = ranking?.relevanceBand;
+
+    return (
+      score >= STRONG_RELEVANCE_FLOOR ||
+      hasMatchedReqs ||
+      band === 'HIGH' ||
+      band === 'MEDIUM' ||
+      evidenceCount >= MIN_EVIDENCE_COUNT ||
+      authoredBullets >= MIN_AUTHORED_BULLETS
+    ) &&
+      // A slot-worth project must carry at least SOME renderable content.
+      (evidenceCount > 0 || authoredBullets > 0 || (candProj.summary && String(candProj.summary).trim()))
+  };
+
+  const dynamicProjectBudget = hasMeaningfulDsaContent && !options?.allowDsaPlusThreeProjects
+    ? Math.min(projectBudgetCap, MAX_PROJECTS_ONE_PAGE - 1)
+    : projectBudgetCap;
 
   let selectedProjectIds = [];
 
   if (Array.isArray(incomingPlan?.selectedProjectIds)) {
-    selectedProjectIds = incomingPlan.selectedProjectIds.slice(0, projectBudget);
+    // An explicit incoming plan's project selection is authoritative; it is only
+    // capped by the dynamic page budget (no strength filtering — explicit selection
+    // is the tailoring system's decision).
+    selectedProjectIds = incomingPlan.selectedProjectIds.slice(0, dynamicProjectBudget);
   } else {
     // Check for authoritative rankings on jobPosting or options
     const authoritativeRankings =
@@ -272,11 +324,17 @@ export function buildStructuredResumeDocument({
           continue;
         }
 
+        // Phase 4 strength gate: a slot is granted only when the project carries
+        // enough authentic content to justify page space (fail-sparse, never pad).
+        if (!isProjectStrongEnough(candProj, r)) {
+          continue;
+        }
+
         const candProjId = candProj.id || candProj.projectId || rId;
         if (!selectedProjectIds.includes(candProjId)) {
           selectedProjectIds.push(candProjId);
         }
-        if (selectedProjectIds.length >= projectBudget) break;
+        if (selectedProjectIds.length >= dynamicProjectBudget) break;
       }
     } else if (Array.isArray(jobPosting?.recommendedProjects) && jobPosting.recommendedProjects.length > 0) {
       // Explicit recommended projects passed on jobPosting
@@ -289,12 +347,17 @@ export function buildStructuredResumeDocument({
         const recSlug = slugifyProject(typeof rec === 'string' ? rec : rec.name || rec.slug || '');
         const candProj = candProjMap.get(recSlug);
         if (candProj) {
+          const isArchived =
+            candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
+          if (isArchived) continue;
+          // Phase 4 strength gate applies to recommendation-driven selection too.
+          if (!isProjectStrongEnough(candProj, null)) continue;
           const candProjId = candProj.id || candProj.projectId;
           if (candProjId && !selectedProjectIds.includes(candProjId)) {
             selectedProjectIds.push(candProjId);
           }
         }
-        if (selectedProjectIds.length >= projectBudget) break;
+        if (selectedProjectIds.length >= dynamicProjectBudget) break;
       }
     } else if (
       !jobPosting ||
@@ -308,7 +371,7 @@ export function buildStructuredResumeDocument({
       // Standalone tests without jobPosting or minimal jobPosting without requirements/description/rankings:
       // use raw candidate projects sliced to budget
       selectedProjectIds = Array.isArray(rawProjects)
-        ? rawProjects.slice(0, projectBudget).map((p, i) => p.id || p.projectId || `proj-${i + 1}`)
+        ? rawProjects.slice(0, dynamicProjectBudget).map((p, i) => p.id || p.projectId || `proj-${i + 1}`)
         : [];
     } else {
       // Job posting with requirements/description provided, but zero projects met the relevance criteria:
@@ -758,9 +821,38 @@ export function buildStructuredResumeSnapshot({
 
   const evidenceValidationReceipt = validateStructuredResumeIntegrity(structuredResume);
 
+  // Phase 12: generic pre-render content quality gate. Content-architecture
+  // findings (weak optional sections, contradictory positioning, duplicates,
+  // low-information bullets, sparse-with-available-evidence) are attached to
+  // the bundle for downstream gating/diagnostics. Structural invariants only —
+  // no candidate/project/job-specific logic. A FAIL-severity finding (weak
+  // optional section) is corrected here (omit the section) rather than
+  // rendered as boilerplate; the recorded gate report reflects the corrected
+  // document that would actually be rendered.
+  let contentQualityGate = assessPreRenderQuality({
+    structuredResume,
+    targetRole: structuredResume.targetRole || jobPosting?.title || null,
+  });
+  if (!contentQualityGate.passed) {
+    const weakOptional = contentQualityGate.findings.filter(
+      (f) => f.code === 'WEAK_OPTIONAL_SECTION' && f.suggestion === 'OMIT_SECTION'
+    );
+    if (weakOptional.length > 0) {
+      structuredResume.dsa = { ...structuredResume.dsa, hasSection: false };
+      if (Array.isArray(structuredResume.sectionOrder) && structuredResume.sectionOrder.includes('DSA')) {
+        structuredResume.sectionOrder = structuredResume.sectionOrder.filter((s) => s !== 'DSA');
+      }
+      contentQualityGate = assessPreRenderQuality({
+        structuredResume,
+        targetRole: structuredResume.targetRole || jobPosting?.title || null,
+      });
+    }
+  }
+
   return {
     structuredResume,
     tailoringPlan: structuredResume.tailoringPlan,
     evidenceValidationReceipt,
+    contentQualityGate,
   };
 }

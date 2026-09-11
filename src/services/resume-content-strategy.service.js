@@ -32,6 +32,71 @@ export const TENURE_CLAIM_PATTERN =
   /\b(\d+|\b(?:one|two|three|four|five|six|seven|eight|nine|ten)\b)\+?\s*years?\s+(?:of\s+)?(?:experience|working|tenure|employment|professional|industry)\b/i;
 
 /**
+ * Builds a generic project highlight clause for the professional summary from
+ * candidate-owned project facts only (summary text or evidenced technologies).
+ * Never invents metrics, scale, or technologies.
+ *
+ * @param {object} project Candidate-owned project record
+ * @returns {string|null} Clause fragment (always starts with ', ') or null
+ */
+function buildProjectHighlightClause(project, roleFocus = { isBackendFocus: false, isFrontendFocus: false }) {
+  if (!project || typeof project !== 'object') return null;
+  const summary = typeof project.summary === 'string' ? project.summary.trim() : '';
+  if (summary.length > 0 && summary.length <= 120) {
+    const clause = summary.replace(/[.\s]+$/, '');
+    if (clause) {
+      return `, ${clause.charAt(0).toLowerCase()}${clause.slice(1)}`;
+    }
+  }
+  const techs = roleAlignTechnologies(
+    Array.isArray(project.technologies)
+      ? project.technologies.filter((t) => typeof t === 'string' && t.trim())
+      : [],
+    roleFocus
+  ).slice(0, 3);
+  if (techs.length >= 2) {
+    return `, built with ${techs.join(', ')}`;
+  }
+  return null;
+}
+
+/**
+ * Role focus taxonomy derived generically from the target job text.
+ * Used only to keep summary/project highlights role-aligned — never to force
+ * a specific archetype label onto the candidate identity.
+ */
+function deriveRoleFocus(targetRoleTitle, jobDescText) {
+  const titleLower = String(targetRoleTitle || '').toLowerCase();
+  const descLower = String(jobDescText || '').toLowerCase();
+  const isBackendFocus =
+    /\b(backend|server|api|distributed|microservice|python|fastapi|django|node|database|sql|postgres)\b/i.test(titleLower) ||
+    (/\b(backend|server|api|database)\b/i.test(descLower) &&
+      !/\b(frontend|ui|react|vue|angular)\b/i.test(titleLower));
+  const isFrontendFocus =
+    /\b(frontend|ui|ux|web|client|react|typescript|javascript|next\.js|angular|vue)\b/i.test(titleLower) ||
+    (/\b(frontend|react|ui)\b/i.test(descLower) &&
+      !/\b(backend|database|infra)\b/i.test(titleLower));
+  return { isBackendFocus, isFrontendFocus };
+}
+
+/**
+ * Role-aligned technology filter for summary clauses: keeps only technologies
+ * consistent with the detected role focus (or all when focus is mixed/unclear).
+ *
+ * @param {Array<string>} techs
+ * @param {{isBackendFocus: boolean, isFrontendFocus: boolean}} roleFocus
+ * @returns {Array<string>}
+ */
+function roleAlignTechnologies(techs, roleFocus) {
+  const BACKEND_MARKERS = ['python', 'fastapi', 'django', 'flask', 'postgres', 'postgresql', 'mysql', 'node', 'nodejs', 'express', 'sql', 'redis', 'mongodb', 'graphql', 'api', 'rest', 'kafka', 'docker', 'kubernetes'];
+  const FRONTEND_MARKERS = ['react', 'typescript', 'javascript', 'nextjs', 'next-js', 'vue', 'angular', 'html', 'css', 'tailwind', 'tailwindcss', 'ui', 'frontend'];
+  if (!roleFocus.isBackendFocus && !roleFocus.isFrontendFocus) return techs;
+  const markers = roleFocus.isBackendFocus && !roleFocus.isFrontendFocus ? BACKEND_MARKERS : FRONTEND_MARKERS;
+  const aligned = techs.filter((t) => markers.includes(slugifyTerm(t)));
+  return aligned.length >= 2 ? aligned : techs;
+}
+
+/**
  * Normalizes a text slug for comparison.
  *
  * @param {string} text
@@ -201,6 +266,153 @@ export function validateRephrasingSafety(sourceText, rephrasedText, candidateCon
 }
 
 /**
+ * Minimum evidence confidence for an evidence record to back a synthesized
+ * evidence-derived project bullet. Generic domain constant, not fixture-tuned.
+ */
+const EVIDENCE_DERIVED_BULLET_MIN_CONFIDENCE = 0.6;
+
+/**
+ * Evidence types that describe passive/declarative records only.
+ * Evidence-derived bullets require source-level implementation evidence.
+ */
+const NON_SOURCE_EVIDENCE_TYPES = new Set([
+  'DOCUMENT_CLAIM',
+  'PACKAGE_MANIFEST_DEPENDENCY',
+]);
+
+/**
+ * Capitalizes the first letter of a technology display name.
+ *
+ * @param {string} slugOrName
+ * @returns {string}
+ */
+function toDisplayName(slugOrName) {
+  const raw = String(slugOrName || '').trim();
+  if (!raw) return '';
+  return raw
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+/**
+ * Builds an evidence-backed candidate-owned bullet pool for a project.
+ *
+ * Generic composition rule (no candidate/project/job-specific logic):
+ * 1. Candidate-authored bullets are always the primary pool entries.
+ * 2. When the authored pool is thin (< 2 bullets), additional bullets may be
+ *    derived STRICTLY from source-level evidence records already attached to
+ *    the project (skill usage verified in real files). Each derived bullet
+ *    states only: the technology, the verified file count, and example paths.
+ * 3. Derived bullets never introduce metrics, scale, employers, or outcomes.
+ *
+ * @param {object} project Candidate project record with evidence
+ * @param {Array<object>} authoredBullets Scored authored bullets
+ * @param {Set<string>} jobTerms Lowercased job keyword terms
+ * @param {number} targetTotal Desired total bullet count for this project
+ * @returns {Array<object>} Additional bullet objects (same shape as scored authored bullets)
+ */
+function deriveEvidenceBackedBullets(project, authoredBullets, jobTerms, targetTotal) {
+  const derived = [];
+  const deficit = targetTotal - authoredBullets.length;
+  if (deficit <= 0) return derived;
+
+  // Technologies already named in authored bullets must not be duplicated.
+  const coveredSlugs = new Set();
+  for (const b of authoredBullets) {
+    const lower = String(b.text || '').toLowerCase();
+    for (const tech of project.technologies || []) {
+      const techSlug = slugifyTerm(tech);
+      if (techSlug && lower.includes(techSlug.replace(/-/g, ''))) coveredSlugs.add(techSlug);
+    }
+    for (const ev of b.evidenceRefs || []) {
+      const s = ev.skillSlug || slugifyTerm(ev.skillName || '');
+      if (s) coveredSlugs.add(s);
+    }
+  }
+
+  // Group source-level evidence records by skill slug.
+  const evidenceBySlug = new Map();
+  for (const ev of Array.isArray(project.evidence) ? project.evidence : []) {
+    if (!ev || typeof ev !== 'object') continue;
+    if (NON_SOURCE_EVIDENCE_TYPES.has(ev.evidenceType)) continue;
+    const confidence = typeof ev.confidenceScore === 'number' ? ev.confidenceScore : 1.0;
+    if (confidence < EVIDENCE_DERIVED_BULLET_MIN_CONFIDENCE) continue;
+    const slug = slugifyTerm(ev.skillSlug || ev.skillName || '');
+    if (!slug) continue;
+    if (coveredSlugs.has(slug)) continue;
+    if (!evidenceBySlug.has(slug)) evidenceBySlug.set(slug, []);
+    evidenceBySlug.get(slug).push({ ev, confidence });
+  }
+
+  // Rank candidate skills: job relevance first, then evidence volume/confidence.
+  const rankedSlugs = [...evidenceBySlug.entries()].sort((a, b) => {
+    const jobA = jobTerms.has(a[0]) || [...jobTerms].some((t) => a[0].includes(t) && t.length > 3) ? 1 : 0;
+    const jobB = jobTerms.has(b[0]) || [...jobTerms].some((t) => b[0].includes(t) && t.length > 3) ? 1 : 0;
+    if (jobB !== jobA) return jobB - jobA;
+    const volA = a[1].length;
+    const volB = b[1].length;
+    if (volB !== volA) return volB - volA;
+    const confA = Math.max(...a[1].map((x) => x.confidence));
+    const confB = Math.max(...b[1].map((x) => x.confidence));
+    return confB - confA;
+  });
+
+  for (const [slug, records] of rankedSlugs) {
+    if (derived.length >= deficit) break;
+    const display = toDisplayName(slug);
+    if (!display) continue;
+
+    const filePaths = [
+      ...new Set(
+        records
+          .map((r) => r.ev.sourceLocation?.filePath || r.ev.filePath || null)
+          .filter((p) => typeof p === 'string' && p.trim())
+      ),
+    ].slice(0, 2);
+    const fileCount = new Set(
+      records
+        .map((r) => r.ev.sourceLocation?.filePath || r.ev.filePath || null)
+        .filter(Boolean)
+    ).size;
+
+    let text;
+    if (filePaths.length === 1) {
+      text = `Developed ${display} functionality in ${filePaths[0]}, verified by repository evidence.`;
+    } else if (filePaths.length > 1) {
+      text = `Developed ${display} functionality across ${filePaths[0]} and ${filePaths[1]}, verified by repository evidence.`;
+    } else {
+      text = `Applied ${display} in verified project implementation work.`;
+    }
+
+    // Guard: derived bullets never add quantitative metrics.
+    if (QUANTITATIVE_METRIC_REGEX.test(text) && !QUANTITATIVE_METRIC_REGEX.test(project.summary || '')) {
+      text = `Developed ${display} functionality, verified by repository evidence.`;
+    }
+
+    const normalizedRefs = records
+      .slice(0, 5)
+      .map((r) => toEvidenceReference(r.ev, 'VERIFIED'))
+      .filter(Boolean);
+
+    derived.push({
+      text,
+      origText: null,
+      evidenceRefs: normalizedRefs,
+      matchedRequirementIds: [],
+      provenanceStatus: 'VERIFIED',
+      relevanceScore: jobTerms.has(slug) ? 30 : 10,
+      origIndex: Number.MAX_SAFE_INTEGER - derived.length,
+      isEvidenceDerived: true,
+      _evidenceFileCount: fileCount,
+    });
+  }
+
+  return derived;
+}
+
+/**
  * Extracts and classifies candidate skills by job relevance.
  *
  * @param {object} candidateProfile
@@ -329,20 +541,11 @@ export function generateGroundedSummary({
       (jobPosting?.skills || []).join(' ')
   ).toLowerCase();
 
-  // 2. Identify Role Archetype / Focus
-  const isBackendFocus =
-    /\b(backend|server|api|distributed|microservice|python|fastapi|django|node|database|sql|postgres)\b/i.test(
-      targetRoleTitle
-    ) ||
-    (/\b(backend|server|api|database)\b/i.test(jobDescText) &&
-      !/\b(frontend|ui|react|vue|angular)\b/i.test(targetRoleTitle));
-
-  const isFrontendFocus =
-    /\b(frontend|ui|ux|web|client|react|typescript|javascript|next\.js|angular|vue)\b/i.test(
-      targetRoleTitle
-    ) ||
-    (/\b(frontend|react|ui)\b/i.test(jobDescText) &&
-      !/\b(backend|database|infra)\b/i.test(targetRoleTitle));
+  // 2. Identify role focus (generic taxonomy over job text — used for skill
+  //    relevance alignment, never to force an archetype label onto identity)
+  const roleFocus = deriveRoleFocus(targetRoleTitle, jobDescText);
+  const isBackendFocus = roleFocus.isBackendFocus;
+  const isFrontendFocus = roleFocus.isFrontendFocus;
 
   // 3. Filter Candidate-Owned Relevant Skills
   let filteredSkills = [];
@@ -389,28 +592,28 @@ export function generateGroundedSummary({
   const topSkills = filteredSkills.slice(0, 3);
   const referencedSkillSlugs = topSkills.map((s) => s.slug || slugifyTerm(s.name));
 
-  // 4. Select Grounded Project Highlight
+  // 4. Select Grounded Project Highlight — relevance-driven, not name-driven:
+  // rank candidate projects by (a) authoritative relevanceScore when present,
+  // (b) overlap between project technologies and top summary skills/job text.
   let topProject = null;
   if (rawProjects.length > 0) {
-    if (isBackendFocus) {
-      topProject = rawProjects.find((p) => {
-        const techs = (p.technologies || []).map((t) => String(t).toLowerCase());
-        return (
-          techs.some((t) => t.includes('python') || t.includes('fastapi') || t.includes('postgres') || t.includes('node')) ||
-          p.relevanceScore >= 30
-        );
-      }) || rawProjects[0];
-    } else if (isFrontendFocus) {
-      topProject = rawProjects.find((p) => {
-        const techs = (p.technologies || []).map((t) => String(t).toLowerCase());
-        return (
-          techs.some((t) => t.includes('react') || t.includes('typescript') || t.includes('next') || t.includes('ui')) ||
-          p.relevanceScore >= 30
-        );
-      }) || rawProjects[0];
-    } else {
-      topProject = rawProjects[0];
-    }
+    const topSkillSlugs = new Set(topSkills.map((s) => s.slug || slugifyTerm(s.name)));
+    const projectScore = (p) => {
+      let score = typeof p.relevanceScore === 'number' ? p.relevanceScore : 0;
+      const techSlugs = (p.technologies || []).map((t) => slugifyTerm(t));
+      let overlap = 0;
+      for (const ts of techSlugs) {
+        if (topSkillSlugs.has(ts)) overlap += 1;
+        else if (jobDescText.includes(ts)) overlap += 0.5;
+      }
+      score += overlap * 10;
+      // Projects with authentic content outrank empty shells.
+      const bulletCount = Array.isArray(p.bullets) ? p.bullets.length : 0;
+      score += Math.min(10, bulletCount * 3);
+      score += Math.min(10, (p.evidenceCount || (Array.isArray(p.evidence) ? p.evidence.length : 0)) * 0.5);
+      return score;
+    };
+    topProject = [...rawProjects].sort((a, b) => projectScore(b) - projectScore(a))[0] || rawProjects[0];
   }
 
   const referencedProjectIds = [];
@@ -444,14 +647,19 @@ export function generateGroundedSummary({
     }
   }
 
-  // 6. Synthesize Concise Text (<300 characters, 2-3 sentences)
+  // 6. Synthesize Concise Text (2-3 sentences, <350 chars) strictly from
+  //    candidate-owned facts: the canonical role heading, top candidate-owned
+  //    skills, and the top-ranked candidate-owned project. No archetype-specific
+  //    boilerplate, no forced positioning, no unsupported seniority.
   const candidateExperience = candidateProfile.experience || meta.experience || [];
   const hasWorkHistory = Array.isArray(candidateExperience) && candidateExperience.length > 0;
   const isFresher = !hasWorkHistory || candidateProfile.careerStatus === 'FRESHER';
 
   let summaryText = '';
   const skillNames = topSkills.map((s) => s.name).filter(Boolean);
-  const skillPhrase = skillNames.length > 0 ? skillNames.join(', ') : 'software engineering';
+  const skillPhrase = skillNames.length > 0
+    ? skillNames.slice(0, 3).join(', ')
+    : null;
   const projectDisplayName = topProject ? (topProject.displayName || topProject.name || topProject.title) : null;
 
   if (topSkills.length === 0 && !topProject) {
@@ -460,23 +668,25 @@ export function generateGroundedSummary({
     summaryText = existingSummary && existingSummary.trim().length > 0
       ? existingSummary.trim()
       : `Software professional offering technical capabilities aligned with ${targetRoleTitle}.`;
-  } else if (isBackendFocus) {
-    if (projectDisplayName) {
-      summaryText = `Backend Software Engineer specializing in scalable API design and backend architecture using ${skillPhrase}. Demonstrated practical execution in ${projectDisplayName} alongside evidence-backed database and modular service implementation.`;
-    } else {
-      summaryText = `Backend Software Engineer specializing in scalable API design and backend architecture using ${skillPhrase}. Proven track record of architecting reliable, test-backed software services aligned with technical requirements.`;
-    }
-  } else if (isFrontendFocus) {
-    if (projectDisplayName) {
-      summaryText = `Frontend & Full-Stack Developer specializing in responsive interfaces and modern web applications using ${skillPhrase}. Demonstrated practical delivery in ${projectDisplayName} with a commitment to clean code and robust user experiences.`;
-    } else {
-      summaryText = `Frontend & Full-Stack Developer specializing in responsive interfaces and modern web applications using ${skillPhrase}. Committed to architecting accessible, performant user interfaces with verified component architecture.`;
-    }
   } else {
+    // Canonical role headline (seniority-adjusted, evidence-compatible) anchors the summary.
+    const headingInfo = deriveTargetRoleHeading({ candidateProfile, jobPosting, matchAnalysis });
+    const rolePhrase = headingInfo.heading || targetRoleTitle;
+    summaryText = skillPhrase
+      ? `${rolePhrase} with hands-on experience in ${skillPhrase}.`
+      : `${rolePhrase} with hands-on project delivery.`;
+
     if (projectDisplayName) {
-      summaryText = `Software Engineer proficient in ${skillPhrase}, with hands-on technical execution in ${projectDisplayName}. Focused on delivering reliable, maintainable code aligned with modern engineering standards.`;
-    } else {
-      summaryText = `Software Engineer proficient in ${skillPhrase}. Focused on delivering reliable, maintainable code aligned with modern engineering standards.`;
+      const projectClause = buildProjectHighlightClause(topProject, roleFocus);
+      summaryText += projectClause
+        ? ` Recent work includes ${projectDisplayName}${projectClause}.`
+        : ` Recent work includes ${projectDisplayName}.`;
+    } else if (hasWorkHistory) {
+      const latest = candidateExperience[0] || {};
+      const latestRole = latest.title || latest.role || null;
+      if (latestRole) {
+        summaryText += ` Professional experience includes work as ${latestRole}.`;
+      }
     }
   }
 
@@ -621,9 +831,40 @@ export function selectAndRephraseProjectBullets({
   // 2. Sort by relevance score descending, preserving relative order on ties
   scoredBullets.sort((a, b) => b.relevanceScore - a.relevanceScore || a.origIndex - b.origIndex);
 
-  // 3. Optional Rephrasing & Metric Safety Enforcement
+  // 2b. Evidence-grounded pool expansion: when the authored bullet pool is
+  // thin (< 2 bullets) and the project carries richer source-level evidence
+  // than the authored bullets express, synthesize additional candidate-owned
+  // bullets strictly from verified evidence records. Selection stays within
+  // the caller-supplied budget (options.maxBullets, default 4).
+  //
+  // INVARIANT (Phase 3): candidate-authored bullets are the primary pool and
+  // are NEVER displaced by evidence-derived bullets. Derived bullets fill only
+  // the remaining budget. This prevents the historical content-starvation bug
+  // where generic derived wording crowded authentic bullets out of the
+  // renderer's per-project bullet cap.
   const maxBullets = options.maxBullets || 4;
-  const selected = scoredBullets.slice(0, maxBullets);
+  const targetPoolSize = Math.max(maxBullets, 2);
+  if (scoredBullets.length < Math.min(2, targetPoolSize)) {
+    const derivedBullets = deriveEvidenceBackedBullets(
+      project,
+      scoredBullets,
+      jobTerms,
+      targetPoolSize
+    );
+    scoredBullets.push(...derivedBullets);
+  }
+
+  const authoredScored = scoredBullets
+    .filter((b) => !b.isEvidenceDerived)
+    .sort((a, b) => b.relevanceScore - a.relevanceScore || a.origIndex - b.origIndex);
+  const derivedScored = scoredBullets
+    .filter((b) => b.isEvidenceDerived)
+    .sort((a, b) => b.relevanceScore - a.relevanceScore || a.origIndex - b.origIndex);
+
+  // 3. Optional Rephrasing & Metric Safety Enforcement
+  // Selection order: all authored bullets first (up to budget), then the
+  // strongest evidence-derived fillers for any remaining budget slots.
+  const selected = [...authoredScored, ...derivedScored].slice(0, maxBullets);
 
   const resultBullets = [];
   for (const item of selected) {
@@ -641,8 +882,14 @@ export function selectAndRephraseProjectBullets({
       }
     }
 
-    // Assert metric safety on each final bullet
-    assertMetricSafety(bulletText, item.evidenceRefs, { sourceText: item.origText });
+    // Assert metric safety on each final bullet. Evidence-derived bullets
+    // (origText === null) are exempt from the source-text pass-through because
+    // their text is constructed purely from evidence-verified facts.
+    assertMetricSafety(
+      bulletText,
+      item.evidenceRefs,
+      item.origText !== null ? { sourceText: item.origText } : {}
+    );
 
     const normalizedRefs = (item.evidenceRefs || [])
       .map((r) => toEvidenceReference(r, item.provenanceStatus))
@@ -684,10 +931,20 @@ export function normalizeTargetRoleTitle(rawTitle) {
   title = title.replace(/,\s*(?:growth|core team|product team|engineering team|us|uk|emea|apac)\b.*$/gi, '');
   title = title.replace(/\s*[-–—]\s*(?:growth|core team|product team|engineering team|us|uk|emea|apac)\s*$/gi, '');
 
-  // 3. Remove employer-specific hyphen attachments like " - Data Infrastructure"
-  title = title.replace(/\s*[-–—]\s*(?:data infrastructure|growth|infrastructure|platform|core team).*$/gi, '');
+  // 2b. Generic canonical-role rule: strip ANY remaining trailing qualification
+  // clause (", <Team/Domain/Specialty>"). The canonical headline must be a
+  // concise role title, not the full employer posting string. Specializations
+  // that survive the core-title simplification are expressed through the
+  // evidence-compatibility logic in deriveTargetRoleHeading, not by copying
+  // posting qualifiers verbatim.
+  title = title.replace(/,\s*[^,]+$/, '').trim();
 
-  // 4. Clean trailing punctuation / dashes
+  // 4. Strip generic employer-attachment patterns: ", <Team> at <Company>" and " at <Company>"
+  // (canonical role text must not carry employer-specific attachments)
+  title = title.replace(/,\s*[^,]+?\s+at\s+[^,]+$/, '');
+  title = title.replace(/\s+at\s+[^,\s][^,]*$/, '');
+
+  // 4b. Clean trailing punctuation / dashes
   title = title.replace(/\s*[-–—,]\s*$/, '').trim();
 
   // 5. Normalize spacing and common role terminology

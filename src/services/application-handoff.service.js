@@ -454,6 +454,90 @@ export class ApplicationHandoffService {
     }
 
     // 4. Document QA Audit: Resume Pre-Exposure Gating
+    // 4a. Canonical source-to-PDF traceability contract (Phase 11): expectations
+    // are derived strictly from the canonical structured snapshot — never from
+    // candidate/project/job identities — so the gate is generic for all inputs.
+    const buildExpectedContent = (snapshot, appliedMaxBulletsPerProject) => {
+      if (!snapshot || typeof snapshot !== 'object') return null;
+      const expected = {
+        projectNames: [],
+        projectBullets: [],
+        experienceBullets: [],
+        educationTokens: [],
+        links: [],
+        sectionHeadings: [],
+      };
+      const clean = (s) => String(s || '').trim();
+      // The renderer caps visible bullets per project; the expectation must
+      // describe the same render contract, not an idealized superset.
+      const bulletCap =
+        Number.isInteger(appliedMaxBulletsPerProject) && appliedMaxBulletsPerProject > 0
+          ? appliedMaxBulletsPerProject
+          : 3;
+
+      for (const p of Array.isArray(snapshot.projects) ? snapshot.projects : []) {
+        const name = clean(p.displayName || p.name);
+        if (name) expected.projectNames.push(name);
+        const bullets = (Array.isArray(p.bullets) ? p.bullets : [])
+          .map((b) => clean(typeof b === 'string' ? b : b?.text))
+          .filter(Boolean)
+          .slice(0, bulletCap);
+        expected.projectBullets.push(...bullets);
+        for (const urlKey of ['repositoryUrl', 'liveUrl']) {
+          if (p[urlKey] && typeof p[urlKey] === 'string') {
+            expected.links.push(
+              p[urlKey].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
+            );
+          }
+        }
+      }
+      for (const e of Array.isArray(snapshot.experience) ? snapshot.experience : []) {
+        for (const b of Array.isArray(e.bullets) ? e.bullets : []) {
+          const t = clean(typeof b === 'string' ? b : b?.text);
+          if (t) expected.experienceBullets.push(t);
+        }
+      }
+      for (const e of Array.isArray(snapshot.education) ? snapshot.education : []) {
+        for (const key of ['institution', 'degree']) {
+          const t = clean(e[key]);
+          if (t) expected.educationTokens.push(t);
+        }
+      }
+      if (snapshot.contact?.links) {
+        for (const link of Array.isArray(snapshot.contact.links) ? snapshot.contact.links : []) {
+          const url = clean(typeof link === 'string' ? link : link?.url);
+          if (url) {
+            expected.links.push(url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''));
+          }
+        }
+      }
+      // Expected section headings in canonical document order (generic label map).
+      const headingLabels = {
+        SUMMARY: 'Summary',
+        SKILLS: 'Skills',
+        EXPERIENCE: 'Experience',
+        PROJECTS: 'Projects',
+        EDUCATION: 'Education',
+        DSA: 'Problem Solving',
+        CERTIFICATIONS: 'Certifications',
+        COURSEWORK: 'Coursework',
+        PUBLICATIONS: 'Publications',
+      };
+      const order = Array.isArray(snapshot.sectionOrder) ? snapshot.sectionOrder : [];
+      for (const key of order) {
+        if (key === 'HEADER') continue;
+        if (headingLabels[key]) expected.sectionHeadings.push(headingLabels[key]);
+      }
+
+      return expected.projectNames.length > 0 ||
+        expected.projectBullets.length > 0 ||
+        expected.experienceBullets.length > 0 ||
+        expected.educationTokens.length > 0
+        ? expected
+        : null;
+    };
+    const expectedContent = buildExpectedContent(structuredResume, resumeLatexResult.appliedMaxBulletsPerProject);
+
     const verifiedSkillNames = (applicationPackage.verifiedSkills || []).map((s) => s.name);
     const resumeQaAudit = await this.qaValidator.validatePdf({
       pdfBuffer: resumePdfResult.pdfBuffer,
@@ -465,6 +549,7 @@ export class ApplicationHandoffService {
       targetJob: applicationPackage.targetJob,
       verifiedSkills: verifiedSkillNames,
       documentType: 'RESUME',
+      expectedContent,
     });
 
     // 4b. Deterministic Resume-Quality Assessment (P14-024).
@@ -622,6 +707,7 @@ export class ApplicationHandoffService {
           breakdown: resumeQaAudit.breakdown,
           metrics: resumeQaAudit.metrics,
           findings: resumeQaAudit.findings,
+          traceability: resumeQaAudit.traceability,
         },
         resumeQuality,
         layoutDiagnostics,
