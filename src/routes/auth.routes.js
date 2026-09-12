@@ -404,12 +404,15 @@ export default async function authRoutes(app, opts = {}) {
   if (config.NODE_ENV !== 'production') {
     app.get('/auth/dev-login', async (req, reply) => {
       const database = req.db || db;
-      const devUserName = process.env.DEV_USER_NAME || 'Vishwanath Nishad';
-      let [user] = await database
-        .select()
-        .from(users)
-        .where(eq(users.displayName, devUserName))
-        .limit(1);
+      const devUserName = process.env.DEV_USER_NAME;
+      let user;
+      if (devUserName) {
+        [user] = await database
+          .select()
+          .from(users)
+          .where(eq(users.displayName, devUserName))
+          .limit(1);
+      }
 
       if (!user) {
         [user] = await database

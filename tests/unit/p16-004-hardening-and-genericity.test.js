@@ -389,4 +389,114 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
     assert.strictEqual(bulletText, authoredBullet);
   });
 
+  // 16. contrasting job requirements cause genuine project switching
+  it('16. contrasting job requirements cause genuine project switching (Job A selects Project X, Job B selects Project Y)', async () => {
+    const { ProjectRelevanceService } = await import('../../src/services/project-relevance.service.js');
+
+    const projAlphaId = '33333333-3333-4333-8333-333333333301';
+    const projBetaId = '33333333-3333-4333-8333-333333333302';
+    const tenantId = '44444444-4444-4444-8444-444444444444';
+
+    const cand = {
+      displayName: 'Multi-Skilled Engineer',
+      email: 'dev@test.org',
+      skills: [
+        { name: 'Python', provenanceStatus: 'VERIFIED' },
+        { name: 'FastAPI', provenanceStatus: 'VERIFIED' },
+        { name: 'TypeScript', provenanceStatus: 'VERIFIED' },
+        { name: 'Express', provenanceStatus: 'VERIFIED' },
+      ],
+      projects: [
+        {
+          id: projAlphaId,
+          projectId: projAlphaId,
+          name: 'Python Asynchronous API Engine',
+          technologies: ['Python', 'FastAPI', 'PostgreSQL'],
+          bullets: [
+            'Engineered high-throughput asynchronous REST APIs using FastAPI and PostgreSQL.',
+            'Optimized relational database queries reducing latency across services.',
+          ],
+          evidenceCount: 15,
+          provenanceStatus: 'CORROBORATED',
+          evidence: [
+            { id: '11111111-1111-4111-8111-111111111111', evidenceType: 'CODE_USAGE', skillSlug: 'python', confidenceScore: 0.95, sourceLocation: { filePath: 'app/main.py' } },
+            { id: '11111111-1111-4111-8111-111111111112', evidenceType: 'CODE_USAGE', skillSlug: 'fastapi', confidenceScore: 0.95, sourceLocation: { filePath: 'app/api.py' } },
+          ],
+        },
+        {
+          id: projBetaId,
+          projectId: projBetaId,
+          name: 'TypeScript Collaborative Workspace',
+          technologies: ['TypeScript', 'Express', 'Prisma'],
+          bullets: [
+            'Developed real-time collaboration backend using Express, TypeScript, and Prisma ORM.',
+            'Architected distributed event messaging layer for simultaneous active users.',
+          ],
+          evidenceCount: 15,
+          provenanceStatus: 'CORROBORATED',
+          evidence: [
+            { id: '22222222-2222-4222-8222-222222222211', evidenceType: 'CODE_USAGE', skillSlug: 'typescript', confidenceScore: 0.95, sourceLocation: { filePath: 'src/index.ts' } },
+            { id: '22222222-2222-4222-8222-222222222212', evidenceType: 'CODE_USAGE', skillSlug: 'express', confidenceScore: 0.95, sourceLocation: { filePath: 'src/server.ts' } },
+          ],
+        },
+      ],
+      experience: [],
+      education: [{ institution: 'Tech Inst', degree: 'B.S.' }],
+    };
+
+    const pythonJob = {
+      id: '55555555-5555-4555-8555-555555555501',
+      tenantId,
+      title: 'Python Backend Engineer',
+      company: 'Python Corp',
+      description: 'Building async APIs with Python and FastAPI.',
+      requirements: [
+        { id: '66666666-6666-4666-8666-666666666601', category: 'SKILL', skillSlug: 'python', importance: 'REQUIRED', weight: 1.0 },
+        { id: '66666666-6666-4666-8666-666666666602', category: 'SKILL', skillSlug: 'fastapi', importance: 'REQUIRED', weight: 1.0 },
+      ],
+      skills: ['python', 'fastapi'],
+    };
+
+    const tsJob = {
+      id: '55555555-5555-4555-8555-555555555502',
+      tenantId,
+      title: 'TypeScript Full Stack Engineer',
+      company: 'TS Systems',
+      description: 'Building web services with TypeScript and Express.',
+      requirements: [
+        { id: '77777777-7777-4777-8777-777777777701', category: 'SKILL', skillSlug: 'typescript', importance: 'REQUIRED', weight: 1.0 },
+        { id: '77777777-7777-4777-8777-777777777702', category: 'SKILL', skillSlug: 'express', importance: 'REQUIRED', weight: 1.0 },
+      ],
+      skills: ['typescript', 'express'],
+    };
+
+    const analysisPy = ProjectRelevanceService.computeProjectsRelevance(
+      { tenantId },
+      pythonJob,
+      cand.projects
+    );
+
+    const analysisTs = ProjectRelevanceService.computeProjectsRelevance(
+      { tenantId },
+      tsJob,
+      cand.projects
+    );
+
+    const docPy = buildStructuredResumeDocument({
+      candidateProfile: cand,
+      jobPosting: { ...pythonJob, projectRankings: analysisPy.projectRankings },
+    });
+
+    const docTs = buildStructuredResumeDocument({
+      candidateProfile: cand,
+      jobPosting: { ...tsJob, projectRankings: analysisTs.projectRankings },
+    });
+
+    assert.strictEqual(docPy.projects[0].projectId, projAlphaId);
+    assert.strictEqual(docTs.projects[0].projectId, projBetaId);
+    assert.notStrictEqual(docPy.projects[0].projectId, docTs.projects[0].projectId);
+    assert.strictEqual(docPy.projects[0].displayName || docPy.projects[0].name, 'Python Asynchronous API Engine');
+    assert.strictEqual(docTs.projects[0].displayName || docTs.projects[0].name, 'TypeScript Collaborative Workspace');
+  });
+
 });

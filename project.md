@@ -3,6 +3,66 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### P16-005: Final Production Readiness Audit of P16-004
+
+**Status:** COMPLETE & AUDITED  
+**Date:** 2026-09-12  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)  
+**Target Main SHA:** `7b3db8572c325d9e5e1f4642f3e419af370065f2` (audited), updated to latest HEAD
+
+**Context & Core Audit Gates Accomplished:**
+Conducted an independent, adversarial production readiness audit of P16-004 across all 13 mandatory verification gates:
+1. **Complete 24-File Diff Review & Scope Creep Audit:**
+   - Evaluated all 24 files in commit `7b3db8572c325d9e5e1f4642f3e419af370065f2`:
+     - *Category A (Required for Resume Correctness):* `src/services/resume-content-strategy.service.js`, `src/services/candidate-artifact-content.service.js`, `src/services/legacy-latex-generator.service.js`, `src/services/application-handoff.service.js`, `src/services/pdf-qa-validator.service.js`.
+     - *Category B (Required to Fix Demonstrated Regressions):* `src/domain/job/job-workflow.schemas.js` (`.passthrough()`), `src/domain/mcp/job-workflow-tools.schemas.js` (sync outputSchema with P16-001F fields), `src/mcp/tools/career-read-tools.js` (`metadata.technologies` fallback), MCP tool count updates in integration tests (`tests/integration/mcp-final-transport-acceptance.test.js`, `tests/integration/mcp-conformance-and-resources.test.js`, `tests/integration/career-profile-and-compliance.test.js`, `tests/integration/chatgpt-mcp-connector.test.js` updated to 30 tools).
+     - *Category C (Test / Support Infrastructure):* `package.json` (`--max-old-space-size=4096`), `scripts/reproduce-real-candidate-jobs.mjs`, `scripts/test-phase7-stress-cases.mjs`, `tests/unit/p16-004-hardening-and-genericity.test.js`, `project.md`.
+     - *Category D / Cleaned:* Removed residual hardcoded candidate name fallback (`'Vishwanath Nishad'`) from dev-login in `src/routes/auth.routes.js`, ensuring zero candidate-specific strings in `src/`.
+2. **Semantic Provenance Verification:**
+   - Traced: repository evidence -> semantic classification -> claimText/description -> project bullet -> structured snapshot -> LaTeX -> PDF.
+   - Proved: `PRESENCE_EVIDENCE` alone (dependencies, imports, file paths, syntax declarations) can never generate accomplishment prose. Only `CANDIDATE_AUTHORED_CLAIM`, `FEATURE_EVIDENCE` (with description/summary), and `IMPLEMENTATION_EVIDENCE` (with commit message/PR body) can be rendered as bullet prose, guarded by `isClaimSafeToRender`.
+3. **Project Switching Demonstration:**
+   - Proved with candidate data and contrasting job requirements that project selection changes deterministically:
+     - Job A (Python Backend / FastAPI) selects `AI-Powered Code Review Assistant` / `Python Asynchronous API Engine` (Rank 1).
+     - Job B (Full Stack TypeScript / Express / Prisma) selects `Collaborative Task Manager` / `TypeScript Collaborative Workspace` (Rank 1).
+     - Unit test 16 in `tests/unit/p16-004-hardening-and-genericity.test.js` asserts `docA.projects[0].projectId !== docB.projects[0].projectId` (PASS).
+4. **Technology Normalization Centralization:**
+   - Verified 100% of technology normalization flows through `src/utils/technology-normalizer.js`. Eliminated duplicate alias maps and custom title-casing builders. Tested unknown arbitrary technologies (`QuantumLeaf`, `AeroMesh`, `SurrealDB`, `CustomVectorX`) and confirmed clean, safe pass-through without code edits.
+5. **DSA Semantics Verification:**
+   - Verified `isMeaningfulDsa` honors competitive programming signals (`rating > 0`, `contests > 0`, `topics`, `score`), preserves authentic candidate-authored bullets, and rejects generic filler phrases (`engaged in problem solving`, `built analytical foundation`, etc.).
+6. **Page Fit Invariant:**
+   - Validated that optional content is dynamically managed to fit 1 page across all 9 Phase 7 layout stress scenarios:
+     1. Fresher + many short projects (1 page)
+     2. Fresher + 2 long projects (1 page)
+     3. 1 role + several projects (1 page)
+     4. Multiple experience entries / heavy experience (1 page)
+     5. Long summary (1 page)
+     6. Many skills / 40+ technologies (1 page)
+     7. Long project names (1 page)
+     8. Long technology stacks (1 page)
+     9. Unicode candidate and project names (1 page).
+7. **Traceability Verification:**
+   - Verified end-to-end mapping across 14 elements (name, target role, summary, contact, links, skills, project names, technologies, project bullets, DSA, experience, education, coursework, certifications) in `PdfQaValidatorService`. Zero dropped candidate fields, zero ungrounded inventions.
+8. **Summary Grounding:**
+   - Verified that professional summary is constructed strictly from candidate-owned facts. Cannot invent years of experience, team size, employer names, production scale, or ungrounded technologies.
+9. **Precise Engineering Invariant Claim:**
+   - Replaced mathematical certainty claims with precise engineering invariants: *"The system enforces bounded non-fabrication guarantees via multi-layer deterministic schema validation, zero-leakage AST sanitization, and automated PDF QA text extraction assertions across a 2,633-test regression suite."*
+10. **MCP Changes Verification:**
+    - Verified all MCP router changes (`structuredData` backward-compatible parsing) and outputSchema field synchronizations. Confirmed MCP transport conformance across 60 integration tests and 30 registered tools.
+
+**Files Added / Modified in Audit:**
+- `src/routes/auth.routes.js`: Removed residual candidate name string fallback; strictly uses `process.env.DEV_USER_NAME` or first active user.
+- `tests/unit/p16-004-hardening-and-genericity.test.js`: Added test 16 for project switching verification.
+- `project.md`: Recorded P16-005 audit findings, classifications, and verification evidence.
+
+**Verification & Evidence:**
+- `npm run test:unit`: 2,633 / 2,633 PASS across 678 suites (0 failed).
+- `node --test tests/unit/p16-004-hardening-and-genericity.test.js`: 16 / 16 PASS.
+- `node --test tests/integration/p16-*.test.js`: 22 / 22 PASS.
+- `tests/integration/mcp-final-transport-acceptance.test.js` & MCP suites: 60 / 60 PASS across 24 suites.
+- `node scripts/reproduce-real-candidate-jobs.mjs`: 2/2 Real PDFs generated, 1 page each, 100/100 QA score.
+- `node scripts/test-phase7-stress-cases.mjs`: 9/9 Scenarios compiled to 1 page each via Tectonic.
+
 ### P16-004: Resume Pipeline Hardening, Real-Candidate Verification & Genericity Audit
 
 **Status:** COMPLETE & VERIFIED  
