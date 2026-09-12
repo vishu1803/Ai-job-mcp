@@ -25,7 +25,7 @@
  * content. `passed` is false only for hard (FAIL-severity) defects.
  */
 
-import { isMeaningfulDsa } from './resume-content-strategy.service.js';
+import { isMeaningfulDsa, calculateTokenOverlap } from './resume-content-strategy.service.js';
 
 export const GATE_SEVERITY = Object.freeze({
   OK: 'OK',
@@ -41,6 +41,8 @@ export const GATE_FINDING_CODES = Object.freeze({
   DUPLICATE_SKILLS: 'DUPLICATE_SKILLS',
   LOW_INFORMATION_BULLET: 'LOW_INFORMATION_BULLET',
   SEMANTIC_LEAKAGE: 'SEMANTIC_LEAKAGE',
+  SEMANTICALLY_REDUNDANT_BULLETS: 'SEMANTICALLY_REDUNDANT_BULLETS',
+  UNSUPPORTED_METRIC_CLAIM: 'UNSUPPORTED_METRIC_CLAIM',
 });
 
 /** Minimum informative length (chars) for a rendered bullet. */
@@ -284,10 +286,17 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
 
   const leakedPhrases = [];
   for (const text of allProse) {
-    if (
-      /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality)\b/i.test(text) ||
-      /(?:^|\s)(?:src\/|components\/|controllers\/|routes\/|\S+\.(?:js|ts|jsx|tsx|py|go|dockerfile))\b/i.test(text)
-    ) {
+    // Technology names (e.g. Node.js, Vue.js, D3.js) must not be mistaken for
+    // file-path leakage: require a path segment (slash or leading token) or a
+    // lowercase filename (file-naming convention), not a CamelCase technology
+    // token. The filename clause is case-sensitive on purpose: source files are
+    // conventionally lowercase, while technology names are CamelCase.
+    const filePathLeak = /(?:^|\s)(?:src\/|components\/|controllers\/|routes\/)[\w.-]+/i.test(text) ||
+      /(?:^|\s)\S*(?:src|lib|app|components|controllers|routes|services|utils|models)\/\S+/i.test(text) ||
+      /(?:^|\s)(?:dockerfile|makefile|package\.json)(?:\s|$|[,;])/i.test(text) ||
+      /(?:^|\s)[a-z][a-z0-9_.-]*\.(?:js|ts|jsx|tsx|py|go|rs|json|yaml|yml|sql|html|css)(?:\s|$|[,;])/.test(text);
+    const templateLeak = /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality)\b/i.test(text);
+    if (filePathLeak || templateLeak) {
       leakedPhrases.push(text);
     }
   }
@@ -298,6 +307,62 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
       remediable: false,
       count: leakedPhrases.length,
       message: `Detected ${leakedPhrases.length} instance(s) of raw implementation paths or synthetic evidence templates leaking into resume prose.`,
+    });
+  }
+
+  // ── Check 7.5: Semantically redundant bullets across sections (P16-009) ─
+  // Two rendered bullets must not substantially express the same fact
+  // (pairwise token overlap >= 0.55). Cross-section so a project bullet can
+  // never duplicate an experience bullet either.
+  const allBulletTexts = [
+    ...projects.flatMap((p) => (Array.isArray(p.bullets) ? p.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || '').trim()).filter(Boolean)),
+    ...experience.flatMap((e) => (Array.isArray(e.bullets) ? e.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || '').trim()).filter(Boolean)),
+  ];
+  const redundantPairs = [];
+  for (let i = 0; i < allBulletTexts.length; i++) {
+    for (let j = i + 1; j < allBulletTexts.length; j++) {
+      if (calculateTokenOverlap(allBulletTexts[i], allBulletTexts[j]) >= 0.55) {
+        redundantPairs.push([allBulletTexts[i], allBulletTexts[j]]);
+      }
+    }
+  }
+  if (redundantPairs.length > 0) {
+    findings.push({
+      code: GATE_FINDING_CODES.SEMANTICALLY_REDUNDANT_BULLETS,
+      severity: GATE_SEVERITY.FAIL,
+      remediable: false,
+      count: redundantPairs.length,
+      message: `${redundantPairs.length} bullet pair(s) express the same fact (token overlap >= 0.55); merge or drop one before rendering.`,
+    });
+  }
+
+  // ── Check 7.6: Unsupported numeric metric claims (P16-009) ──────────────
+  const METRIC_RX = /(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers)|\$\s?\d)/i;
+  const CONTEXT_RX = /\b(?:across|within|in)\b.{0,60}(?:tests?|benchmarks?|profiling|load|local|sandbox|staging|dataset)\b/i;
+  const bulletsWithRefs = new Set(
+    projects.flatMap((p) =>
+      (Array.isArray(p.bullets) ? p.bullets : [])
+        .filter((b) => typeof b === 'object' && b && Array.isArray(b.evidenceRefs) && b.evidenceRefs.length > 0)
+        .map((b) => (typeof b === 'string' ? b : b.text || ''))
+    )
+  );
+  const unsupportedMetrics = [
+    ...projects.flatMap((p) => (Array.isArray(p.bullets) ? p.bullets : []).map((b) => (typeof b === 'string' ? b : b?.text || ''))),
+    summaryText,
+  ].filter(
+    (t) =>
+      t &&
+      METRIC_RX.test(t) &&
+      !bulletsWithRefs.has(t) &&
+      !CONTEXT_RX.test(t)
+  );
+  if (unsupportedMetrics.length > 0) {
+    findings.push({
+      code: GATE_FINDING_CODES.UNSUPPORTED_METRIC_CLAIM,
+      severity: GATE_SEVERITY.FAIL,
+      remediable: false,
+      count: unsupportedMetrics.length,
+      message: `${unsupportedMetrics.length} quantified claim(s) carry no evidence reference; drop the number or back it with candidate-owned evidence before rendering.`,
     });
   }
 

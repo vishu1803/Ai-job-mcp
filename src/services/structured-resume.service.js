@@ -41,6 +41,8 @@ import {
 import {
   formatTechnologyStack,
 } from '../utils/technology-normalizer.js';
+import { buildCanonicalFactInventory, scoreFactsForJob, PROBLEM_SOLVING_PROJECT_KEY } from './candidate-fact-inventory.service.js';
+import { composeProfessionalProjectBullets, determineProjectBulletCapacity } from './resume-accomplishment-composer.service.js';
 
 /**
  * Capacity-aware dynamic project budgeting strategy (Req H & 21).
@@ -265,19 +267,32 @@ export function buildStructuredResumeDocument({
   }));
 
   // 5. DSA Snapshot (Authoritative source facts; never inject synthetic bullets)
+  // P16-009: a valid candidate-owned problem-solving profile URL is sufficient
+  // for a compact section (URL-only DSA must not disappear). Authored bullets
+  // or real stats also qualify. Fabricated counts/ratings remain forbidden.
   const rawDsa = meta.dsa || source.dsa || source.problemSolving || meta.problemSolving || null;
   let dsa = null;
   if (rawDsa && typeof rawDsa === 'object') {
+    const dsaUrl = typeof rawDsa.profileUrl === 'string' && /^https?:\/\//i.test(rawDsa.profileUrl.trim())
+      ? rawDsa.profileUrl.trim()
+      : null;
+    const dsaBullets = Array.isArray(rawDsa.bullets) ? rawDsa.bullets.map(String).filter(Boolean) : [];
     dsa = {
-      hasSection: Boolean(rawDsa.hasSection ?? (rawDsa.bullets?.length || rawDsa.profileUrl)),
-      profileUrl: rawDsa.profileUrl || null,
-      bullets: Array.isArray(rawDsa.bullets) ? [...rawDsa.bullets.map(String)] : [],
+      // P16-009: an explicit upstream hasSection=true is honored, and a valid
+      // profile URL or authored bullets make the section renderable even when
+      // the upstream flag was computed as false (URL-only DSA must not vanish).
+      hasSection: Boolean(rawDsa.hasSection || dsaBullets.length > 0 || dsaUrl),
+      profileUrl: dsaUrl,
+      bullets: dsaBullets,
       provenanceStatus: 'CLAIMED',
     };
   }
 
   // 6. Tailoring Plan
   const rawProjects = meta.projects || source.projects || [];
+  // P16-009: URL-only DSA must render. The renderer inserts DSA after PROJECTS
+  // when dsa content exists; the ordering derivation only sees authored-bullet
+  // DSA, so a URL-only DSA is appended to the order here.
   const includeProblemSolving = Boolean(dsa?.bullets?.length || dsa?.profileUrl);
 
   // Phase 4 — Dynamic, content-aware project budget (Req H & 21).
@@ -472,6 +487,18 @@ export function buildStructuredResumeDocument({
     options,
   });
 
+  // P16-009: URL-only DSA ordering fix — deriveSectionOrdering only pushes DSA
+  // when isMeaningfulDsa sees authored bullets; when the profile carries a valid
+  // problem-solving URL, append DSA after PROJECTS explicitly.
+  if (dsa?.hasSection && !derivedOrdering.sectionOrder.includes('DSA')) {
+    const projIdx = derivedOrdering.sectionOrder.indexOf('PROJECTS');
+    if (projIdx !== -1) {
+      derivedOrdering.sectionOrder.splice(projIdx + 1, 0, 'DSA');
+    } else {
+      derivedOrdering.sectionOrder.push('DSA');
+    }
+  }
+
   const basePlan = {
     planId: crypto.randomUUID(),
     targetJobId: jobPosting?.id || null,
@@ -500,6 +527,38 @@ export function buildStructuredResumeDocument({
     },
   };
 
+  // P16-009: optimizer-driven project expansion — resolved BEFORE plan parsing
+  // so the added projects flow into parsedPlan.selectedProjectIds. Each must
+  // still pass the strength gate (authentic content, not archived);
+  // relevance-zero projects are still excluded. Total projects capped at 4.
+  const additionalProjectIds = Array.isArray(options?.additionalProjectIds)
+    ? options.additionalProjectIds
+    : [];
+  if (additionalProjectIds.length > 0) {
+    const candProjMapForExtras = new Map();
+    for (const p of rawProjects) {
+      const pId = p.id || p.projectId;
+      if (pId) candProjMapForExtras.set(pId, p);
+      const slug = slugifyProject(p.name || p.title || '');
+      if (slug) candProjMapForExtras.set(slug, p);
+    }
+    for (const extraId of additionalProjectIds) {
+      if (selectedProjectIds.length >= 4) break;
+      const candProj =
+        candProjMapForExtras.get(extraId) ||
+        candProjMapForExtras.get(slugifyProject(extraId));
+      if (!candProj) continue;
+      const isArchived =
+        candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
+      if (isArchived) continue;
+      if (!isProjectStrongEnough(candProj, null)) continue;
+      const candProjId = candProj.id || candProj.projectId || extraId;
+      if (!selectedProjectIds.includes(candProjId)) {
+        selectedProjectIds.push(candProjId);
+      }
+    }
+  }
+
   const planToParse = incomingPlan ? { ...basePlan, ...incomingPlan, selectedProjectIds } : basePlan;
   const parsedPlan = ResumeTailoringPlanSchema.parse(planToParse);
 
@@ -526,15 +585,36 @@ export function buildStructuredResumeDocument({
     if (rSlug) rankingByProjId.set(rSlug, r);
   }
 
-  const projects = [];
-  for (let idx = 0; idx < parsedPlan.selectedProjectIds.length; idx++) {
-    const selectedId = parsedPlan.selectedProjectIds[idx];
-    const proj = candProjMap.get(selectedId);
-    if (!proj) continue;
+  // P16-009: canonical fact inventory — ONE authoritative fact model consumed
+  // by professional composition. Built once from the deep-cloned candidate
+  // snapshot; downstream composition NEVER re-discovers facts from raw arrays.
+  const useFactComposition = options?.useFactComposition !== false;
+  const factInventory = useFactComposition
+    ? buildCanonicalFactInventory(source, jobPosting, options?.factInventoryOptions)
+    : null;
+  const scoredFactsByProject = new Map();
+  if (factInventory) {
+    const allScored = scoreFactsForJob(factInventory.facts, jobPosting);
+    for (const f of allScored) {
+      const key = f.association?.projectId || '';
+      if (!scoredFactsByProject.has(key)) scoredFactsByProject.set(key, []);
+      scoredFactsByProject.get(key).push(f);
+    }
+  }
+  const factCompositionTrace = [];
+  const factCompositionOmissions = [];
 
-    const ranking =
-      rankingByProjId.get(selectedId) ||
-      (proj.name ? rankingByProjId.get(slugifyProject(proj.name)) : null);
+  const projects = [];
+  // P16-009: a selected project whose claim facts are all ambiguous duplicates
+  // (dropped at cross-project attribution) composes 0 bullets and would render
+  // an empty entry. Such entries are skipped and the freed slot is backfilled
+  // from the next ranked strong project that composes at least one bullet.
+  // Explicit incoming-plan selections remain authoritative (no drops).
+  const allowZeroBulletDrop = useFactComposition && !incomingPlan?.selectedProjectIds;
+  const skippedProjectIds = new Set();
+
+  /** Composes one project entry; returns null when it renders empty and drops are allowed. */
+  const buildProjectEntry = (selectedId, proj, idx, ranking) => {
     const relevanceScore =
       ranking && typeof ranking.relevanceScore === 'number'
         ? ranking.relevanceScore
@@ -552,14 +632,51 @@ export function buildStructuredResumeDocument({
         options?.projectBulletOverrides?.[proj.title] ??
         options?.maxBullets,
     };
-    const pBullets = selectAndRephraseProjectBullets({
-      project: enrichedProj,
-      jobPosting,
-      matchAnalysis: options?.matchAnalysis || jobPosting?.jobFitAnalysis?.matchAnalysis,
-      options: projectOptions,
-    });
 
-    projects.push({
+    // P16-009: professional composition from the canonical fact inventory.
+    const factKey = proj.id || proj.projectId || String(proj.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const projectFacts = scoredFactsByProject.get(factKey) || [];
+    let pBullets = [];
+    let bulletCapacityInfo = null;
+    let projectOmittedFacts = [];
+    if (useFactComposition && projectFacts.length > 0) {
+      const composed = composeProfessionalProjectBullets({
+        facts: projectFacts,
+        project: enrichedProj,
+        jobPosting,
+        explicitBudget: projectOptions.maxBullets ?? null,
+      });
+      // Strip the internal traceability field: the canonical bullet schema is
+      // strict. Traceability is preserved in factCompositionReport below.
+      pBullets = composed.bullets.map(({ composedFromFactIds, ...schemaBullet }) => {
+        factCompositionTrace.push({
+          projectId: selectedId,
+          projectName: proj.name || proj.title || '',
+          composedFromFactIds: composedFromFactIds || [],
+        });
+        return schemaBullet;
+      });
+      bulletCapacityInfo = composed.capacity;
+      projectOmittedFacts = composed.omittedFacts;
+      if (Array.isArray(projectOmittedFacts) && projectOmittedFacts.length > 0) {
+        factCompositionOmissions.push(...projectOmittedFacts.map((o) => ({ projectId: selectedId, ...o })));
+      }
+    } else {
+      // Legacy path: preserved verbatim for explicit-plan-driven flows and
+      // as the migration adapter when fact composition is disabled.
+      pBullets = selectAndRephraseProjectBullets({
+        project: enrichedProj,
+        jobPosting,
+        matchAnalysis: options?.matchAnalysis || jobPosting?.jobFitAnalysis?.matchAnalysis,
+        options: projectOptions,
+      });
+    }
+
+    if (pBullets.length === 0 && allowZeroBulletDrop) {
+      return null; // empty entry — skip and backfill
+    }
+
+    return {
       projectId: selectedId,
       name: proj.name || proj.title || `Project ${idx + 1}`,
       displayName: proj.displayName || proj.name || proj.title || `Project ${idx + 1}`,
@@ -569,7 +686,73 @@ export function buildStructuredResumeDocument({
       bullets: pBullets,
       relevanceScore,
       rank: idx + 1,
-    });
+    };
+  };
+
+  // Rendered-identity guard: a record may already have been rendered under a
+  // different key (uuid vs name-slug vs ranking alias). Identity is the
+  // candidate record itself (uuid when present, else the name slug), so the
+  // same candidate project can never render twice regardless of which key
+  // space the selection list or a ranking record used.
+  const renderedProjectIds = new Set();
+  const markRendered = (proj) => {
+    const pid = proj?.id || proj?.projectId;
+    if (pid) renderedProjectIds.add(pid);
+    const slug = proj?.name || proj?.title ? slugifyProject(proj.name || proj.title) : null;
+    if (slug) renderedProjectIds.add(slug);
+  };
+  const isAlreadyRendered = (proj) => {
+    const pid = proj?.id || proj?.projectId;
+    if (pid && renderedProjectIds.has(pid)) return true;
+    const slug = proj?.name || proj?.title ? slugifyProject(proj.name || proj.title) : null;
+    return slug ? renderedProjectIds.has(slug) : false;
+  };
+
+  for (let idx = 0; idx < parsedPlan.selectedProjectIds.length; idx++) {
+    const selectedId = parsedPlan.selectedProjectIds[idx];
+    const proj = candProjMap.get(selectedId);
+    if (!proj) continue;
+    if (skippedProjectIds.has(selectedId)) continue;
+    if (isAlreadyRendered(proj)) continue;
+
+    const ranking =
+      rankingByProjId.get(selectedId) ||
+      (proj.name ? rankingByProjId.get(slugifyProject(proj.name)) : null);
+
+    const entry = buildProjectEntry(selectedId, proj, projects.length, ranking);
+    if (entry) {
+      projects.push(entry);
+      markRendered(proj);
+    } else {
+      skippedProjectIds.add(selectedId);
+      // Backfill: next ranked strong project not already selected/skipped
+      if (Array.isArray(authoritativeRankings)) {
+        for (const r of authoritativeRankings) {
+          if (projects.length >= parsedPlan.selectedProjectIds.length) break;
+          const rId = r.projectId || r.id;
+          if (!rId || parsedPlan.selectedProjectIds.includes(rId) || skippedProjectIds.has(rId)) continue;
+          const candProj = candProjMap.get(rId) || candProjMap.get(slugifyProject(r.projectName || r.name || ''));
+          if (!candProj) continue;
+          if (isAlreadyRendered(candProj)) continue; // same-record guard (uuid/slug identity)
+          if (candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED') continue;
+          if (!isProjectStrongEnough(candProj, r)) continue;
+          const backfillRanking = rankingByProjId.get(rId) || r;
+          const backfillEntry = buildProjectEntry(
+            candProj.id || candProj.projectId || rId,
+            candProj,
+            projects.length,
+            backfillRanking
+          );
+          if (backfillEntry) {
+            projects.push(backfillEntry);
+            markRendered(candProj);
+            skippedProjectIds.add(backfillEntry.projectId);
+          } else {
+            skippedProjectIds.add(candProj.id || candProj.projectId || rId);
+          }
+        }
+      }
+    }
   }
 
   // 8. Skills Categorization (strictly aligned with parsedPlan.skillCategoryOrder & parsedPlan.selectedSkills)
@@ -681,7 +864,30 @@ export function buildStructuredResumeDocument({
     createdAt: new Date().toISOString(),
   };
 
-  return StructuredResumeDocumentSchema.parse(doc);
+  const built = StructuredResumeDocumentSchema.parse(doc);
+
+  // P16-009: fact-composition traceability report. The canonical document
+  // schema is strict — the report is delivered ONLY via options.reportSink
+  // (an explicit out-parameter) or via the snapshot bundle. It must never
+  // travel on the document itself: downstream validation, persistence and
+  // hashing all assume a schema-clean document.
+  if (useFactComposition && typeof options?.reportSink === 'function') {
+    options.reportSink({
+      usedFactComposition: true,
+      totalFacts: factInventory?.stats?.totalFacts ?? 0,
+      distinctFacts: factInventory?.stats?.distinctFacts ?? 0,
+      factsByType: factInventory?.stats?.byType ?? {},
+      composedBullets: factCompositionTrace,
+      omittedFacts: factCompositionOmissions,
+      perProjectCapacity: projects.map((p) => ({
+        projectId: p.projectId,
+        projectName: p.name,
+        bulletCount: Array.isArray(p.bullets) ? p.bullets.length : 0,
+      })),
+    });
+  }
+
+  return built;
 }
 
 /**
@@ -877,12 +1083,24 @@ export function buildStructuredResumeSnapshot({
   tailoringPlan = null,
   options = {},
 }) {
+  // Capture the traceability report via an internal out-parameter; mirror it
+  // to a caller-provided sink if one was supplied. The document itself stays
+  // schema-clean.
+  const _capturedReport = { value: null };
+  const callerSink = typeof options?.reportSink === 'function' ? options.reportSink : null;
   const builtResume = buildStructuredResumeDocument({
     candidateProfile,
     jobPosting,
     tailoringPlan,
-    options,
+    options: {
+      ...options,
+      reportSink: (r) => {
+        _capturedReport.value = r;
+        if (callerSink) callerSink(r);
+      },
+    },
   });
+  const factCompositionReport = _capturedReport.value;
 
   // P16-001G: deterministic professional composition (summary polish, bullet
   // compression, skill presentation cleanup, section-order integrity).
@@ -918,5 +1136,6 @@ export function buildStructuredResumeSnapshot({
     tailoringPlan: structuredResume.tailoringPlan,
     evidenceValidationReceipt,
     contentQualityGate,
+    factCompositionReport,
   };
 }

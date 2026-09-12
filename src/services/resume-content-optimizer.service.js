@@ -31,6 +31,8 @@ import { ResumeQualityAssessmentService } from './resume-quality-assessment.serv
 import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
 import { countDistinctCanonicalFacts } from './candidate-artifact-content.service.js';
 import { compressCandidateBullet } from './resume-content-strategy.service.js';
+import { buildCanonicalFactInventory, scoreFactsForJob } from './candidate-fact-inventory.service.js';
+import { determineProjectBulletCapacity } from './resume-accomplishment-composer.service.js';
 import { logger as defaultLogger } from '../utils/logger.js';
 
 export const OPTIMIZER_MAX_ITERATIONS = 5;
@@ -88,6 +90,25 @@ export class ResumeContentOptimizer {
     // Track per-project bullet count overrides: { [projectId | projectName]: count }
     const projectBulletOverrides = { ...(options.projectBulletOverrides || {}) };
 
+    // P16-009: canonical fact inventory — the optimizer consumes ONE
+    // authoritative fact model (never re-discovers facts from raw arrays).
+    // Also tracks optimizer-added projects and supplies the snapshot builder
+    // with the single fact inventory for professional composition.
+    const factInventory = candidateProfile
+      ? buildCanonicalFactInventory(candidateProfile, jobPosting)
+      : null;
+    const scoredInventoryFacts = factInventory
+      ? scoreFactsForJob(factInventory.facts, jobPosting)
+      : [];
+    const inventoryFactCountByProject = new Map();
+    for (const f of scoredInventoryFacts) {
+      if (f.factType === 'technology' || f.factType === 'external-corroboration') continue;
+      const key = f.association?.projectId || '';
+      if (!key) continue;
+      inventoryFactCountByProject.set(key, (inventoryFactCountByProject.get(key) || 0) + 1);
+    }
+    const additionalProjectIds = [];
+
     // Deep copy structured resume if provided, otherwise build initial snapshot
     let currentStructuredResume = null;
     if (structuredResume) {
@@ -115,6 +136,7 @@ export class ResumeContentOptimizer {
             ...initialOptions,
             projectBulletOverrides,
             layoutOverrides: currentLayoutOverrides,
+            additionalProjectIds: [...additionalProjectIds],
           },
         });
         currentStructuredResume = snap.structuredResume || snap;
@@ -201,30 +223,43 @@ export class ResumeContentOptimizer {
           break;
         }
 
-        // Check if layout is overly sparse and unused candidate facts exist for expansion
+        // P16-009: capacity-aware section-level expansion. Expand only while
+        // the physical measurement says the page can hold more high-value
+        // content AND the canonical inventory says strong evidence remains
+        // unused. Priority: (1) more bullets for a strong selected project,
+        // (2) an additional strong project from the inventory.
         const isSparse = geometry.bottomWhitespacePt > 50 || geometry.pageOccupancyRatio < 0.85;
 
-        // Find highest-priority project with unused candidate-owned facts
-        const expandableProject = this._findExpandableProject(
-          currentStructuredResume,
-          candidateProfile,
-          projectBulletOverrides
-        );
+        const expansion = isSparse
+          ? this._findBestExpansion({
+              structuredResume: currentStructuredResume,
+              projectBulletOverrides,
+              additionalProjectIds,
+              inventoryFactCountByProject,
+              crossProjectDuplicateFacts: factInventory?.crossProjectDuplicateFacts || [],
+              jobPosting,
+              candidateProfile,
+            })
+          : null;
 
-        if (isSparse && expandableProject) {
-          // Increase bullet budget for this project by 1
+        if (expansion?.type === 'BULLETS') {
           const currentCount =
-            projectBulletOverrides[expandableProject.id] ??
-            expandableProject.bulletsCount;
-          projectBulletOverrides[expandableProject.id] = currentCount + 1;
-          if (expandableProject.name) {
-            projectBulletOverrides[expandableProject.name] = currentCount + 1;
+            projectBulletOverrides[expansion.id] ?? expansion.currentCount;
+          projectBulletOverrides[expansion.id] = currentCount + 1;
+          if (expansion.name) {
+            projectBulletOverrides[expansion.name] = currentCount + 1;
           }
-
-          iterationRecord.action = `EXPAND_PROJECT_BULLETS: ${expandableProject.name} (${currentCount} -> ${currentCount + 1})`;
+          iterationRecord.action = `EXPAND_PROJECT_BULLETS: ${expansion.name} (${currentCount} -> ${currentCount + 1})`;
           this.logger.info(
-            { project: expandableProject.name, newCount: currentCount + 1, iteration },
-            'Optimizer expanding project bullets from available candidate facts'
+            { project: expansion.name, newCount: currentCount + 1, iteration },
+            'Optimizer expanding project bullets from canonical fact inventory'
+          );
+        } else if (expansion?.type === 'PROJECT') {
+          additionalProjectIds.push(expansion.id);
+          iterationRecord.action = `ADD_PROJECT: ${expansion.name}`;
+          this.logger.info(
+            { project: expansion.name, iteration },
+            'Optimizer adding a strong under-utilized project from the canonical fact inventory'
           );
         } else {
           // Optimal one-page occupancy achieved or no more unused candidate facts available
@@ -311,54 +346,105 @@ export class ResumeContentOptimizer {
   }
 
   /**
-   * Finds the highest-priority project that has unused candidate-authored facts.
+   * P16-009: finds the best section-level content expansion using the
+   * canonical fact inventory (never raw candidate arrays). Decisions are
+   * driven by per-project fact capacity, not page fill alone.
+   *
+   * Priority 1: a selected project whose canonical fact capacity exceeds its
+   * current bullet count (strongest evidence earns the next bullet).
+   * Priority 2: a strong unselected project whose facts are unused while the
+   * page can hold another entry.
    *
    * @private
-   * @param {object} structuredResume Current structured resume snapshot
-   * @param {object} candidateProfile Full candidate profile
-   * @param {object} overrides Current project bullet overrides
-   * @returns {{ id: string, name: string, bulletsCount: number } | null}
+   * @param {object} params
+   * @param {object} params.structuredResume Current structured resume snapshot
+   * @param {object} params.projectBulletOverrides Bullet overrides
+   * @param {Array<string>} params.additionalProjectIds Projects already added by the optimizer
+   * @param {Map<string,number>} params.inventoryFactCountByProject Canonical claim-fact count per project id
+   * @param {object|null} params.jobPosting Target job
+   * @param {object|null} params.candidateProfile Canonical candidate profile
+   * @returns {{ type: 'BULLETS'|'PROJECT', id: string, name: string, currentCount?: number } | null}
    */
-  _findExpandableProject(structuredResume, candidateProfile, overrides) {
+  _findBestExpansion({ structuredResume, projectBulletOverrides, additionalProjectIds, inventoryFactCountByProject, crossProjectDuplicateFacts = [], jobPosting, candidateProfile }) {
     const projects = Array.isArray(structuredResume?.projects) ? structuredResume.projects : [];
-    if (projects.length === 0) return null;
 
+    // ── Priority 1: more bullets for a selected project ─────────────────
+    let best = null;
     for (const p of projects) {
       const pId = p.projectId || p.name;
-      const currentBulletsCount = Array.isArray(p.bullets) ? p.bullets.length : 0;
-      const currentOverride = overrides[pId] ?? overrides[p.name] ?? currentBulletsCount;
+      const currentCount = Array.isArray(p.bullets) ? p.bullets.length : 0;
+      if (currentCount >= 3) continue; // universal professional ceiling
 
-      // Cannot exceed 3 bullets per project (universal quality ceiling)
-      if (currentOverride >= 3) continue;
+      const factCount =
+        inventoryFactCountByProject.get(pId) ??
+        inventoryFactCountByProject.get(String(p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')) ??
+        0;
+      if (factCount <= currentCount) continue; // no unused canonical facts
 
-      // Find original project in candidateProfile to count total available facts
-      let candProj = null;
-      if (candidateProfile && Array.isArray(candidateProfile.projects)) {
-        candProj = candidateProfile.projects.find(
-          (cp) =>
-            (cp.id && cp.id === p.projectId) ||
-            (cp.name && cp.name.toLowerCase() === (p.name || '').toLowerCase())
-        );
+      if (!best || factCount - currentCount > best.gain) {
+        best = { type: 'BULLETS', id: pId, name: p.name || p.displayName, currentCount, gain: factCount - currentCount };
       }
+    }
+    if (best) return best;
 
-      const items = [
-        ...(Array.isArray(p.bullets) ? p.bullets : []),
-        ...(Array.isArray(candProj?.bullets) ? candProj.bullets : []),
-        ...(Array.isArray(candProj?.highlights) ? candProj.highlights : []),
-        ...(Array.isArray(candProj?.features) ? candProj.features : []),
-        ...(Array.isArray(candProj?.featureDescriptions) ? candProj.featureDescriptions : []),
-        ...(Array.isArray(candProj?.responsibilities) ? candProj.responsibilities : []),
-        ...(candProj?.description ? [candProj.description] : []),
-      ];
+    // ── Priority 2: add a strong unselected project ─────────────────────
+    if (projects.length >= 4) return null; // project-count ceiling
 
-      const distinctFacts = countDistinctCanonicalFacts(items);
-      if (distinctFacts > currentOverride) {
-        return {
-          id: pId,
-          name: p.name || p.displayName,
-          bulletsCount: currentOverride,
-        };
-      }
+    const rawProjects = Array.isArray(candidateProfile?.projects) ? candidateProfile.projects : [];
+    for (const candProj of rawProjects) {
+      const cId = candProj.id || candProj.projectId;
+      if (!cId) continue;
+      if (projects.some((p) => p.projectId === cId)) continue;
+      if (additionalProjectIds.includes(cId)) continue;
+      const isArchived =
+        candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
+      if (isArchived) continue;
+
+      const factCount = inventoryFactCountByProject.get(cId) || 0;
+      const evidenceCount = candProj.evidenceCount ?? (Array.isArray(candProj.evidence) ? candProj.evidence.length : 0);
+      // Mirror the snapshot builder's strength gate (MIN_AUTHORED_BULLETS=2 or
+      // MIN_EVIDENCE_COUNT=5) so the optimizer never wastes an iteration on a
+      // project the builder would reject.
+      const hasRenderableContent =
+        factCount >= 2 ||
+        evidenceCount >= 5 ||
+        (Array.isArray(candProj.highlights) && candProj.highlights.length > 0);
+      if (!hasRenderableContent) continue;
+
+      // Align with the inventory's cross-project duplicate attribution: claim
+      // surfaces identical (after generic normalization) to a surface owned by
+      // another project were dropped at inventory build time — they can never
+      // compose here. Distinct-surface count, not raw surface count, predicts
+      // whether an added project renders at least one bullet.
+      const claimTexts = [
+        ...(Array.isArray(candProj.bullets) ? candProj.bullets : []),
+        ...(Array.isArray(candProj.highlights) ? candProj.highlights : []),
+        ...(Array.isArray(candProj.features) ? candProj.features : []),
+        ...(Array.isArray(candProj.featureDescriptions) ? candProj.featureDescriptions : []),
+      ]
+        .map((t) => String(typeof t === 'object' && t !== null ? t?.text || t?.description || '' : t || '').trim())
+        .filter((t) => t.length >= 15);
+      const crossProjectTextKeys = new Set(
+        (crossProjectDuplicateFacts || [])
+          .filter((d) => d.attributedTo !== cId)
+          .map((d) => String(d.text || '').toLowerCase().replace(/[^a-z0-9]/g, ''))
+          .filter(Boolean)
+      );
+      const distinctClaimTexts = claimTexts.filter(
+        (t) => !crossProjectTextKeys.has(t.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      );
+      const claimFacts = distinctClaimTexts.map((text, i) => ({ factId: `${cId}-claim-${i}`, text, factType: 'candidate-authored', provenance: candProj.provenanceStatus || 'USER_PROVIDED', confidence: 0.8, semanticTopic: 'capability', measurable: false, evidenceRefs: [], association: { projectId: cId } }));
+      const { capacity } = determineProjectBulletCapacity({
+        claimFacts,
+        evidenceCount,
+      });
+      // A slot-worth addition must yield at least one composed bullet; a
+      // project whose claim facts are all ambiguous duplicates (dropped at
+      // attribution) or tech-only renders with zero bullets and wastes page
+      // capacity.
+      if (capacity < 1 || claimFacts.length < 1) continue;
+
+      return { type: 'PROJECT', id: cId, name: candProj.name || candProj.title || cId };
     }
 
     return null;
