@@ -1,25 +1,33 @@
 /**
- * @file Canonical Candidate Fact Inventory Service (P16-009).
+ * @file Canonical Candidate Fact Inventory Service (P16-009 / Part 2 Architecture).
  *
  * Builds ONE authoritative canonical fact inventory from raw candidate sources.
  * The inventory is the single source of truth consumed by professional bullet
- * composition, project bullet capacity, section composition and the bounded
- * optimizer. Downstream layers MUST NOT re-discover facts from raw
+ * composition, project bullet capacity, section planning and the bounded
+ * document optimizer. Downstream layers MUST NOT re-discover facts from raw
  * candidateProfile/project arrays.
  *
  * Fact model — every fact carries:
- *   - factId            deterministic fingerprint (sha256 of source-class + normalized text + project slug)
+ *   - id                deterministic fingerprint (sha256 of source-class + normalized text + association)
+ *   - factId            backward-compatible alias for id
+ *   - ownerType         'PROJECT' | 'EXPERIENCE' | 'EDUCATION' | 'DSA' | 'CERTIFICATION' | 'CANDIDATE'
+ *   - ownerId           string identifier of the owning entity
+ *   - sourceType        bullet | highlight | feature | feature-description | responsibility | description | summary | evidence | link | education | certification
+ *   - sourceRef         object | null
+ *   - provenanceStatus  VERIFIED | CORROBORATED | USER_PROVIDED | SELF_DECLARED | CLAIMED
+ *   - confidence        [0, 1]
  *   - text              normalized candidate-owned statement (never altered semantically)
- *   - factType          candidate-authored | implementation | feature | technology | architecture | outcome | metric | responsibility | project-description | external-corroboration
- *   - sourceType        bullet | highlight | feature | feature-description | responsibility | description | summary | evidence | link
- *   - provenance        VERIFIED | CORROBORATED | USER_PROVIDED | SELF_DECLARED | CLAIMED
- *   - confidence        [0,1]
- *   - semanticTopic     generic domain taxonomy: architecture | implementation | capability | integration | reliability | outcome | tooling | problem-solving
- *   - association       { projectId?, projectName?, experienceId? }
+ *   - factType          IDENTITY | ROLE | RESPONSIBILITY | IMPLEMENTATION | ARCHITECTURE | FEATURE | INTEGRATION | PERFORMANCE | RELIABILITY | SECURITY | OUTCOME | METRIC | TECHNOLOGY | DSA | EDUCATION | CERTIFICATION | LINK
+ *   - projectId         associated project ID or null
+ *   - experienceId      associated experience ID or null
+ *   - educationId       associated education ID or null
  *   - technologies      canonical technology names associated with the fact
- *   - measurable        whether the fact asserts a quantified value (gated for unsupported-claim detection)
- *   - evidenceRefs      EvidenceReference objects (empty for pure authored facts)
- *   - jobRelevance      [0,∞] relevance score assigned by scoreFactsForJob()
+ *   - metrics           extracted authentic quantitative values
+ *   - semanticTopics    array of semantic domain topics (architecture, reliability, outcome, etc.)
+ *   - jobRelevance      [0, ∞] relevance score assigned by scoreFactsForJob()
+ *   - candidateAuthored whether authored by candidate or derived from repo metadata
+ *   - corroborated      whether corroborated by verified source evidence
+ *   - renderable        whether eligible to anchor or participate in claim prose
  *
  * Invariants:
  * 1. Source-order invariance: the same facts in any input order produce the
@@ -35,6 +43,29 @@ import crypto from 'node:crypto';
 import { calculateFactSemanticOverlap, countDistinctCanonicalFacts } from './candidate-artifact-content.service.js';
 import { classifyEvidenceSemanticType, EVIDENCE_SEMANTIC_CLASS, toEvidenceReference } from './resume-content-strategy.service.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
+
+/** Canonical Fact Types Taxonomy (Part 2 Specification). */
+export const CANONICAL_FACT_TYPES = Object.freeze({
+  IDENTITY: 'IDENTITY',
+  ROLE: 'ROLE',
+  RESPONSIBILITY: 'RESPONSIBILITY',
+  IMPLEMENTATION: 'IMPLEMENTATION',
+  ARCHITECTURE: 'ARCHITECTURE',
+  FEATURE: 'FEATURE',
+  INTEGRATION: 'INTEGRATION',
+  PERFORMANCE: 'PERFORMANCE',
+  RELIABILITY: 'RELIABILITY',
+  SECURITY: 'SECURITY',
+  OUTCOME: 'OUTCOME',
+  METRIC: 'METRIC',
+  TECHNOLOGY: 'TECHNOLOGY',
+  DSA: 'DSA',
+  EDUCATION: 'EDUCATION',
+  CERTIFICATION: 'CERTIFICATION',
+  LINK: 'LINK',
+});
+
+export const FACT_TYPES = CANONICAL_FACT_TYPES;
 
 /** Provenance confidence weights (generic schema semantics, not identity rules). */
 const PROVENANCE_CONFIDENCE = Object.freeze({
@@ -95,6 +126,26 @@ export function classifyFactTopic(text) {
 }
 
 /**
+ * Classifies a text statement into its canonical fact type.
+ *
+ * @param {string} text
+ * @param {string} defaultType
+ * @returns {string}
+ */
+export function classifyCanonicalFactType(text, defaultType = 'IMPLEMENTATION') {
+  const lower = String(text || '').toLowerCase();
+  if (/(?:reduced|increased|improved|resulting|achieved|saved|by \d+)/i.test(lower)) return CANONICAL_FACT_TYPES.OUTCOME;
+  if (/(?:distributed|microservices|architecture|consensus|raft|sharding|pipeline|system design)/i.test(lower)) return CANONICAL_FACT_TYPES.ARCHITECTURE;
+  if (/(?:latency|throughput|rps|qps|speed|benchmark|memory allocation|cpu utilization)/i.test(lower)) return CANONICAL_FACT_TYPES.PERFORMANCE;
+  if (/(?:fault-tolerant|resilient|retry|backoff|idempotent|recovery|monitoring|telemetry)/i.test(lower)) return CANONICAL_FACT_TYPES.RELIABILITY;
+  if (/(?:oauth|rbac|security|auth|jwt|encryption|permission)/i.test(lower)) return CANONICAL_FACT_TYPES.SECURITY;
+  if (/(?:integrated|integration|api|rest|graphql|websocket|connector|webhook)/i.test(lower)) return CANONICAL_FACT_TYPES.INTEGRATION;
+  if (/(?:implemented|built|engineered|developed|coded|designed)/i.test(lower)) return CANONICAL_FACT_TYPES.IMPLEMENTATION;
+  if (/(?:feature|component|module|dashboard|portal)/i.test(lower)) return CANONICAL_FACT_TYPES.FEATURE;
+  return defaultType;
+}
+
+/**
  * Detects whether a fact text asserts a quantified value (metric-like).
  *
  * @param {string} text
@@ -104,6 +155,18 @@ export function isMeasurableFact(text) {
   return /(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers|problems)|\$\s?\d|\bteam\s+of\s+\d+|\b\d+\s*(?:ms|s)\s+(?:latency|p\d))/i.test(
     String(text || '')
   );
+}
+
+/**
+ * Extracts authentic metric descriptors from factual text.
+ *
+ * @param {string} text
+ * @returns {Array<object>}
+ */
+export function extractAuthenticMetrics(text) {
+  if (!isMeasurableFact(text)) return [];
+  const matches = String(text).match(/(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers|problems)|\$\s?\d|\bteam\s+of\s+\d+|\b\d+\s*(?:ms|s)\s+(?:latency|p\d))/gi) || [];
+  return matches.map((m) => ({ raw: m, context: text.slice(0, 100) }));
 }
 
 /**
@@ -122,11 +185,10 @@ export function factFingerprint(normalizedText, associationKey = '') {
  * Builds the canonical fact inventory from a canonical candidate data snapshot
  * (the shape returned by CandidateArtifactContentService.buildCandidateData).
  *
- * @param {object} params
- * @param {object} params.candidateProfile Canonical candidate data snapshot
- * @param {object|null} [params.jobPosting] Target job (optional; relevance scored separately)
- * @param {object} [params.options] { factClusterThreshold }
- * @returns {{ facts: Array<object>, byProject: Map<string, Array<object>>, stats: object }}
+ * @param {object} candidateProfile Canonical candidate data snapshot
+ * @param {object|null} [jobPosting] Target job (optional; relevance scored separately)
+ * @param {object} [options] { factClusterThreshold }
+ * @returns {{ facts: Array<object>, byProject: Map<string, Array<object>>, crossProjectDuplicateFacts: Array<object>, stats: object }}
  */
 export function buildCanonicalFactInventory(candidateProfile, jobPosting = null, options = {}) {
   const clusterThreshold = options.factClusterThreshold ?? 0.55;
@@ -143,13 +205,17 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     // Technology facts are short by construction ("Uses Redis") and are kept:
     // they feed stats/traceability and are structurally barred from becoming
     // claim bullets. All other facts require substantive length.
-    const minLen = candidate.factType === 'technology' ? 4 : 15;
+    const isTechFact =
+      candidate.factType === 'technology' ||
+      candidate.factType === CANONICAL_FACT_TYPES.TECHNOLOGY;
+    const minLen = isTechFact ? 4 : 15;
     if (!text || text.length < minLen) return;
 
     const assocKey =
       candidate.association?.projectId ||
       (candidate.association?.projectName ? String(candidate.association.projectName).toLowerCase().replace(/[^a-z0-9]/g, '') : '') ||
       candidate.association?.experienceId ||
+      candidate.association?.educationId ||
       '';
 
     const factId = factFingerprint(text, assocKey);
@@ -170,22 +236,75 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       return;
     }
 
+    const rawFactType = candidate.factType || 'candidate-authored';
+    const canonicalFactType = isTechFact
+      ? CANONICAL_FACT_TYPES.TECHNOLOGY
+      : candidate.canonicalFactType || classifyCanonicalFactType(text, CANONICAL_FACT_TYPES.IMPLEMENTATION);
+
+    const topic = candidate.semanticTopic || classifyFactTopic(text);
+    const provenance = candidate.provenance || 'USER_PROVIDED';
+    const confidence =
+      typeof candidate.confidence === 'number'
+        ? candidate.confidence
+        : PROVENANCE_CONFIDENCE[provenance] ?? 0.8;
+
+    const ownerType =
+      candidate.ownerType ||
+      (candidate.association?.projectId
+        ? 'PROJECT'
+        : candidate.association?.experienceId
+          ? 'EXPERIENCE'
+          : candidate.association?.educationId
+            ? 'EDUCATION'
+            : 'CANDIDATE');
+
+    const ownerId =
+      candidate.ownerId ||
+      candidate.association?.projectId ||
+      candidate.association?.experienceId ||
+      candidate.association?.educationId ||
+      profile.id ||
+      '';
+
+    const isRenderable =
+      candidate.renderable ??
+      (!isTechFact &&
+        candidate.factType !== 'external-corroboration' &&
+        candidate.factType !== CANONICAL_FACT_TYPES.LINK);
+
     facts.push({
+      id: factId,
       factId,
-      text,
-      factType: candidate.factType || 'candidate-authored',
+      ownerType,
+      ownerId,
       sourceType: candidate.sourceType || 'bullet',
-      provenance: candidate.provenance || 'USER_PROVIDED',
-      confidence: typeof candidate.confidence === 'number' ? candidate.confidence : PROVENANCE_CONFIDENCE[candidate.provenance || 'USER_PROVIDED'] ?? 0.8,
-      semanticTopic: classifyFactTopic(text),
+      sourceRef: candidate.sourceRef || null,
+      provenanceStatus: provenance,
+      provenance,
+      confidence,
+      text,
+      factType: rawFactType,
+      canonicalFactType,
+      projectId: candidate.association?.projectId || null,
+      experienceId: candidate.association?.experienceId || null,
+      educationId: candidate.association?.educationId || null,
       association: candidate.association || {},
-      technologies: Array.isArray(candidate.technologies) ? candidate.technologies.map(normalizeTechnologyName).filter(Boolean) : [],
+      technologies: Array.isArray(candidate.technologies)
+        ? candidate.technologies.map(normalizeTechnologyName).filter(Boolean)
+        : [],
+      metrics: candidate.metrics || extractAuthenticMetrics(text),
+      semanticTopics: [topic],
+      semanticTopic: topic,
+      jobRelevance: candidate.jobRelevance ?? 0,
+      candidateAuthored: candidate.candidateAuthored ?? (candidate.sourceType !== 'evidence'),
+      corroborated: candidate.corroborated ?? (provenance === 'VERIFIED' || provenance === 'CORROBORATED'),
+      renderable: isRenderable,
       measurable: candidate.measurable ?? isMeasurableFact(text),
       evidenceRefs: Array.isArray(candidate.evidenceRefs) ? candidate.evidenceRefs : [],
     });
   };
 
-  // ── Project facts ────────────────────────────────────────────────────────
+  // ── 1. Project facts ──────────────────────────────────────────────────────
   for (const p of Array.isArray(rawProjects) ? rawProjects : []) {
     const projKey = p.id || p.projectId || p.name;
     const association = { projectId: projKey, projectName: p.name || p.title || '' };
@@ -193,12 +312,12 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
 
     const projectLevelProvenance = p.provenanceStatus || 'USER_PROVIDED';
     const surfaces = [
-      { items: p.bullets, sourceType: 'bullet', factType: 'candidate-authored' },
-      { items: p.highlights, sourceType: 'highlight', factType: 'candidate-authored' },
-      { items: p.features, sourceType: 'feature', factType: 'feature' },
-      { items: p.featureDescriptions, sourceType: 'feature-description', factType: 'feature' },
-      { items: p.responsibilities, sourceType: 'responsibility', factType: 'responsibility' },
-      { items: p.implementationDescriptions, sourceType: 'responsibility', factType: 'implementation' },
+      { items: p.bullets, sourceType: 'bullet', factType: 'candidate-authored', canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION },
+      { items: p.highlights, sourceType: 'highlight', factType: 'candidate-authored', canonicalFactType: CANONICAL_FACT_TYPES.FEATURE },
+      { items: p.features, sourceType: 'feature', factType: 'feature', canonicalFactType: CANONICAL_FACT_TYPES.FEATURE },
+      { items: p.featureDescriptions, sourceType: 'feature-description', factType: 'feature', canonicalFactType: CANONICAL_FACT_TYPES.FEATURE },
+      { items: p.responsibilities, sourceType: 'responsibility', factType: 'responsibility', canonicalFactType: CANONICAL_FACT_TYPES.RESPONSIBILITY },
+      { items: p.implementationDescriptions, sourceType: 'responsibility', factType: 'implementation', canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION },
     ];
     for (const surf of surfaces) {
       for (const item of Array.isArray(surf.items) ? surf.items : []) {
@@ -212,8 +331,12 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
           association,
           sourceType: surf.sourceType,
           factType: surf.factType,
+          canonicalFactType: surf.canonicalFactType,
           provenance,
           technologies: projTech,
+          ownerType: 'PROJECT',
+          ownerId: projKey,
+          candidateAuthored: true,
           evidenceRefs: typeof item === 'object' && item !== null && Array.isArray(item.evidenceRefs) ? item.evidenceRefs : [],
         });
       }
@@ -226,18 +349,20 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
         association,
         sourceType: 'description',
         factType: 'project-description',
+        canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
         provenance: projectLevelProvenance,
         technologies: projTech,
+        ownerType: 'PROJECT',
+        ownerId: projKey,
+        candidateAuthored: true,
       });
     }
 
     // Evidence-derived facts: presence evidence contributes technology facts
-    // only (HARD INVARIANT: presence evidence can never become accomplishment
-    // prose); claim-bearing evidence becomes claim facts gated by safety checks.
+    // only (HARD INVARIANT: presence evidence can never become accomplishment prose)
     for (const ev of Array.isArray(p.evidence) ? p.evidence : []) {
       const semClass = classifyEvidenceSemanticType(ev);
       if (semClass === EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE) {
-        // Technology fact: the skill is provably used in this project
         const techName = ev.skillName || ev.skillSlug;
         if (techName) {
           addFact({
@@ -245,10 +370,16 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
             association,
             sourceType: 'evidence',
             factType: 'technology',
+            canonicalFactType: CANONICAL_FACT_TYPES.TECHNOLOGY,
             provenance: 'VERIFIED',
             confidence: typeof ev.confidenceScore === 'number' ? ev.confidenceScore : 1,
             technologies: [normalizeTechnologyName(techName)],
             measurable: false,
+            ownerType: 'PROJECT',
+            ownerId: projKey,
+            candidateAuthored: false,
+            corroborated: true,
+            renderable: false,
             evidenceRefs: [],
             _evidenceRefPayload: ev,
           });
@@ -263,9 +394,15 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
           association,
           sourceType: 'evidence',
           factType: semClass === EVIDENCE_SEMANTIC_CLASS.OUTCOME_EVIDENCE ? 'outcome' : 'implementation',
+          canonicalFactType: semClass === EVIDENCE_SEMANTIC_CLASS.OUTCOME_EVIDENCE ? CANONICAL_FACT_TYPES.OUTCOME : CANONICAL_FACT_TYPES.IMPLEMENTATION,
           provenance: 'VERIFIED',
           confidence: typeof ev.confidenceScore === 'number' ? ev.confidenceScore : 0.9,
           technologies: ev.skillName ? [normalizeTechnologyName(ev.skillName)] : projTech,
+          ownerType: 'PROJECT',
+          ownerId: projKey,
+          candidateAuthored: false,
+          corroborated: true,
+          renderable: true,
           evidenceRefs: [],
           _evidenceRefPayload: ev,
         });
@@ -273,32 +410,103 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     }
   }
 
-  // ── Experience facts ─────────────────────────────────────────────────────
+  // ── 2. Experience facts ───────────────────────────────────────────────────
   const rawExperience = meta.experience || profile.experience || profile.workExperience || [];
   for (const [idx, exp] of (Array.isArray(rawExperience) ? rawExperience : []).entries()) {
-    const association = { experienceId: exp.id || `exp-${idx + 1}` };
+    const expId = exp.id || `exp-${idx + 1}`;
+    const association = { experienceId: expId, company: exp.company || '' };
     for (const b of Array.isArray(exp.bullets) ? exp.bullets : []) {
+      const rawText = typeof b === 'object' && b !== null ? b.text || b.description : b;
       addFact({
-        text: b,
+        text: rawText,
         association,
         sourceType: 'bullet',
         factType: 'candidate-authored',
+        canonicalFactType: CANONICAL_FACT_TYPES.RESPONSIBILITY,
         provenance: 'USER_PROVIDED',
+        ownerType: 'EXPERIENCE',
+        ownerId: expId,
+        candidateAuthored: true,
       });
     }
   }
 
-  // ── Profile-level problem-solving facts (DSA) ────────────────────────────
+  // ── 3. Education facts ────────────────────────────────────────────────────
+  const rawEducation = meta.education || profile.education || [];
+  for (const [idx, edu] of (Array.isArray(rawEducation) ? rawEducation : []).entries()) {
+    const eduId = edu.id || `edu-${idx + 1}`;
+    const association = { educationId: eduId, institution: edu.institution || '' };
+    const degreeText = [edu.degree, edu.fieldOfStudy].filter(Boolean).join(' in ');
+    const institutionText = edu.institution || '';
+    const fullEduText = [degreeText, institutionText].filter(Boolean).join(', ');
+    if (fullEduText) {
+      addFact({
+        text: fullEduText,
+        association,
+        sourceType: 'education',
+        factType: 'education',
+        canonicalFactType: CANONICAL_FACT_TYPES.EDUCATION,
+        ownerType: 'EDUCATION',
+        ownerId: eduId,
+        provenance: 'USER_PROVIDED',
+        candidateAuthored: true,
+        renderable: true,
+      });
+    }
+    for (const c of Array.isArray(edu.coursework) ? edu.coursework : []) {
+      addFact({
+        text: `Completed coursework in ${c}`,
+        association,
+        sourceType: 'coursework',
+        factType: 'education',
+        canonicalFactType: CANONICAL_FACT_TYPES.EDUCATION,
+        ownerType: 'EDUCATION',
+        ownerId: eduId,
+        provenance: 'USER_PROVIDED',
+        candidateAuthored: true,
+        renderable: true,
+      });
+    }
+  }
+
+  // ── 4. Certification facts ────────────────────────────────────────────────
+  const rawCerts = meta.certifications || profile.certifications || [];
+  for (const [idx, cert] of (Array.isArray(rawCerts) ? rawCerts : []).entries()) {
+    const certId = cert.id || `cert-${idx + 1}`;
+    const certName = typeof cert === 'string' ? cert : cert.name || cert.title;
+    if (certName) {
+      addFact({
+        text: certName,
+        association: { certificationId: certId },
+        sourceType: 'certification',
+        factType: 'certification',
+        canonicalFactType: CANONICAL_FACT_TYPES.CERTIFICATION,
+        ownerType: 'CERTIFICATION',
+        ownerId: certId,
+        provenance: 'USER_PROVIDED',
+        candidateAuthored: true,
+        renderable: true,
+      });
+    }
+  }
+
+  // ── 5. Profile-level problem-solving facts (DSA) ──────────────────────────
   const dsa = profile.problemSolving || profile.dsa || meta.dsa || meta.problemSolving || meta.resumeData?.problemSolving || null;
   if (dsa && typeof dsa === 'object') {
     const association = { projectId: PROBLEM_SOLVING_PROJECT_KEY, projectName: 'Problem Solving' };
     for (const b of Array.isArray(dsa.bullets) ? dsa.bullets : []) {
+      const rawText = typeof b === 'object' && b !== null ? b.text || b.description : b;
       addFact({
-        text: b,
+        text: rawText,
         association,
         sourceType: 'summary',
         factType: 'candidate-authored',
+        canonicalFactType: CANONICAL_FACT_TYPES.DSA,
         provenance: 'CLAIMED',
+        ownerType: 'DSA',
+        ownerId: PROBLEM_SOLVING_PROJECT_KEY,
+        candidateAuthored: true,
+        renderable: true,
       });
     }
     const url = typeof dsa.profileUrl === 'string' ? dsa.profileUrl.trim() : '';
@@ -307,27 +515,35 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       if (!seenFingerprints.has(linkFactId)) {
         seenFingerprints.add(linkFactId);
         facts.push({
+          id: linkFactId,
           factId: linkFactId,
+          ownerType: 'DSA',
+          ownerId: PROBLEM_SOLVING_PROJECT_KEY,
           text: `Problem-solving profile: ${url}`,
           factType: 'external-corroboration',
+          canonicalFactType: CANONICAL_FACT_TYPES.LINK,
           sourceType: 'link',
+          sourceRef: { url },
+          provenanceStatus: 'CLAIMED',
           provenance: 'CLAIMED',
           confidence: 0.7,
+          semanticTopics: ['problem-solving'],
           semanticTopic: 'problem-solving',
           association,
           technologies: [],
+          metrics: [],
           measurable: false,
+          candidateAuthored: true,
+          corroborated: false,
+          renderable: true,
           evidenceRefs: [],
+          jobRelevance: 0,
         });
       }
     }
   }
 
-  // ── Evidence-ref normalization (schema-clean boundary) ───────────────────
-  // Raw surfaces may carry non-schema keys (e.g. `id`, `sourceLocation`).
-  // Every fact exposes only canonical EvidenceReference-shaped objects so all
-  // downstream consumers (composer, renderer, receipt, strict schema parse)
-  // receive schema-clean refs from one choke point.
+  // ── 6. Evidence-ref normalization (schema-clean boundary) ─────────────────
   for (const f of facts) {
     if (Array.isArray(f.evidenceRefs) && f.evidenceRefs.length > 0) {
       f.evidenceRefs = f.evidenceRefs
@@ -336,10 +552,10 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     }
   }
 
-  // ── Order-invariant final ordering (by factId) ───────────────────────────
+  // ── 7. Order-invariant final ordering (by factId) ─────────────────────────
   facts.sort((a, b) => (a.factId < b.factId ? -1 : a.factId > b.factId ? 1 : 0));
 
-  // ── Index by project ─────────────────────────────────────────────────────
+  // ── 8. Index by project ───────────────────────────────────────────────────
   const byProject = new Map();
   for (const f of facts) {
     const key = f.association?.projectId || '';
@@ -347,13 +563,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     byProject.get(key).push(f);
   }
 
-  // ── Cross-project duplicate attribution (P16-009) ────────────────────────
-  // The same claim text appearing under two different projects can only come
-  // from an ambiguous upstream merge; a candidate does not author identical
-  // sentences for two distinct projects. Attribute the fact to the project
-  // with the stronger evidence backing (evidenceCount; tie-break: smallest
-  // project id) and drop the ambiguous copy with a traceable reason. Fully
-  // order-invariant: decisions depend only on evidence counts and ids.
+  // ── 9. Cross-project duplicate attribution (P16-009) ──────────────────────
   const evidenceCountByProject = new Map();
   for (const p of Array.isArray(rawProjects) ? rawProjects : []) {
     const key = p.id || p.projectId || (p.name ? String(p.name).toLowerCase().replace(/[^a-z0-9]/g, '') : '');
@@ -406,6 +616,13 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     }
   }
 
+  // Pre-score facts if jobPosting was passed
+  if (jobPosting) {
+    const scored = scoreFactsForJob(facts, jobPosting);
+    facts.length = 0;
+    facts.push(...scored);
+  }
+
   return {
     facts,
     byProject,
@@ -442,7 +659,6 @@ export function scoreFactsForJob(facts, jobPosting) {
   for (const w of jobText.split(/[^a-z0-9+#.]+/)) {
     if (w.length >= 3) jobTerms.add(w);
   }
-  // Weight key terms (requirements/title terms get a bonus via position text)
   const keyTerms = new Set(
     String(`${jp.title || ''} ${(Array.isArray(jp.requirements) ? jp.requirements : []).join(' ')} ${(Array.isArray(jp.skills) ? jp.skills : []).map((s) => (typeof s === 'string' ? s : s?.name || '')).join(' ')}`)
       .toLowerCase()
@@ -450,7 +666,7 @@ export function scoreFactsForJob(facts, jobPosting) {
       .filter((w) => w.length >= 3)
   );
 
-  return facts.map((f) => {
+  return (Array.isArray(facts) ? facts : []).map((f) => {
     const lower = f.text.toLowerCase();
     let relevance = 0;
     for (const term of jobTerms) {

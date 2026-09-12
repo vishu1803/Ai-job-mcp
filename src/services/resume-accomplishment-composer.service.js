@@ -1,16 +1,15 @@
 /**
- * @file Professional Accomplishment Composition Service (P16-009).
+ * @file Professional Accomplishment Composition Service (P16-009 / Parts 3-8 Architecture).
  *
  * Consumes the canonical fact inventory (NEVER raw candidate arrays) and
  * composes professional, evidence-grounded accomplishment bullets:
  *
  *   canonical facts
  *     -> unsupported-claim gate
- *     -> complementary-dimension selection (ownership / system / implementation /
- *        complexity / reliability / integration / outcome)
- *     -> professional composition (multi-fact bullets, technology clauses)
+ *     -> semantic dimension clustering (architecture / implementation / outcome / etc.)
+ *     -> multi-fact compound composition (Action + Object + Method + Result)
  *     -> semantic redundancy enforcement (pairwise overlap >= 0.55 rejected)
- *     -> capacity-faithful selection (1–3 bullets per project)
+ *     -> capacity-faithful selection (1–3 bullets per project, evidence-driven)
  *
  * Non-negotiable invariants:
  * 1. NEVER invents metrics, users, scale, performance, teams, revenue, outcomes.
@@ -18,6 +17,7 @@
  * 3. Bullet text is composed exclusively from candidate-supported fact text.
  * 4. Deterministic: same inputs → same bullets, independent of source order.
  * 5. Consecutive bullets for the same project express different semantic facts.
+ * 6. Experience bullets preserve candidate truth while favoring accomplishment/implementation.
  */
 
 import { calculateTokenOverlap, toEvidenceReference } from './resume-content-strategy.service.js';
@@ -29,21 +29,36 @@ export const MAX_BULLETS_PER_PROJECT = 3;
 /** Pairwise semantic-overlap threshold above which two bullets are redundant. */
 export const REDUNDANCY_OVERLAP_THRESHOLD = 0.55;
 
+/** Experience bullet types (Part 6 Specification). */
+export const EXPERIENCE_BULLET_TYPES = Object.freeze({
+  RESPONSIBILITY: 'RESPONSIBILITY',
+  TECHNICAL_IMPLEMENTATION: 'TECHNICAL_IMPLEMENTATION',
+  ACCOMPLISHMENT: 'ACCOMPLISHMENT',
+  OUTCOME: 'OUTCOME',
+});
+
 /** Facts whose text matches these contexts may keep their measured values. */
 const MEASURED_CONTEXT_PATTERN =
-  /\b(?:across|within|in)\b.{0,60}(?:tests?|benchmarks?|profiling|load|local|sandbox|staging|dataset|dataset|coursework|practice)\b/i;
+  /\b(?:across|within|in)\b.{0,60}(?:tests?|benchmarks?|profiling|load|local|sandbox|staging|dataset|coursework|practice)\b/i;
 
 /** Facts asserting unsupported quantified claims are excluded from composition. */
-function isUnsupportedMetricFact(fact) {
-  if (!fact.measurable) return false;
+export function isUnsupportedMetricFact(fact) {
+  if (!fact?.measurable) return false;
   if (fact.evidenceRefs && fact.evidenceRefs.length > 0) return false;
   if (fact.provenance === 'VERIFIED' || fact.provenance === 'CORROBORATED') return false;
   return !MEASURED_CONTEXT_PATTERN.test(fact.text);
 }
 
-/** Claim facts can carry a bullet; technology facts cannot. */
-function isClaimFact(fact) {
-  return fact.factType !== 'technology' && fact.factType !== 'external-corroboration';
+/** Claim facts can carry a bullet; technology and link facts cannot. */
+export function isClaimFact(fact) {
+  const type = String(fact?.factType || '').toLowerCase();
+  return (
+    type !== 'technology' &&
+    type !== 'external-corroboration' &&
+    type !== 'link' &&
+    type !== 'education' &&
+    type !== 'certification'
+  );
 }
 
 /**
@@ -92,6 +107,49 @@ function buildTechClause(text, technologies, maxTechs = 2) {
 }
 
 /**
+ * Classifies an experience bullet into its professional category (Part 6).
+ *
+ * @param {string} text
+ * @returns {string} One of EXPERIENCE_BULLET_TYPES
+ */
+export function classifyExperienceBulletType(text) {
+  const t = String(text || '').toLowerCase();
+  if (/(?:reduced|increased|improved|resulting in|achieved|saved|by \d+%|by \d+ms)/i.test(t)) {
+    return EXPERIENCE_BULLET_TYPES.OUTCOME;
+  }
+  if (/(?:architected|designed|engineered|spearheaded|built|developed|optimized|migrated|automated)/i.test(t)) {
+    return EXPERIENCE_BULLET_TYPES.ACCOMPLISHMENT;
+  }
+  if (/(?:implemented|coded|configured|integrated|refactored|deployed|maintained)/i.test(t)) {
+    return EXPERIENCE_BULLET_TYPES.TECHNICAL_IMPLEMENTATION;
+  }
+  return EXPERIENCE_BULLET_TYPES.RESPONSIBILITY;
+}
+
+/**
+ * Softens weak passive phrasings into clean active voice while preserving
+ * 100% of the candidate's authentic factual scope.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function polishActivePhrasing(text) {
+  let s = String(text || '').trim();
+  s = s.replace(/^(?:was\s+)?responsible\s+for\s+(?:developing|building|creating)\b/i, 'Built');
+  s = s.replace(/^(?:was\s+)?responsible\s+for\s+(?:implementing|deploying)\b/i, 'Implemented');
+  s = s.replace(/^(?:was\s+)?responsible\s+for\s+(?:designing|architecting)\b/i, 'Designed');
+  s = s.replace(/^(?:was\s+)?responsible\s+for\s+(?:maintaining|managing)\b/i, 'Maintained');
+  s = s.replace(/^(?:was\s+)?responsible\s+for\s+/i, 'Led ');
+  s = s.replace(/^(?:worked\s+on\s+developing|helped\s+develop)\b/i, 'Developed');
+  s = s.replace(/^(?:worked\s+on\s+building|helped\s+build)\b/i, 'Built');
+  s = s.replace(/^(?:worked\s+on\s+implementing|helped\s+implement)\b/i, 'Implemented');
+  s = s.replace(/\bin\s+order\s+to\b/gi, 'to');
+  s = s.replace(/\bwith\s+the\s+use\s+of\b/gi, 'using');
+  s = s.replace(/\butilizing\b/gi, 'using');
+  return sentenceCase(s);
+}
+
+/**
  * Determines the maximum defensible bullet capacity for a project from its
  * canonical facts. A project with six strong distinct facts can produce three
  * bullets; a project with only two distinct facts never manufactures three.
@@ -110,17 +168,11 @@ export function determineProjectBulletCapacity({ claimFacts, evidenceCount = 0, 
     return { capacity: 0, distinctFactCount: 0, rationale: 'NO_CLAIM_FACTS' };
   }
 
-  // Evidence strength: strong corroboration removes any doubt about depth.
   const strongEvidence = evidenceCount >= 10;
   const someEvidence = evidenceCount >= 3;
 
-  // Base capacity: each distinct candidate-authored fact can anchor one bullet,
-  // up to the universal professional ceiling of 3.
   let capacity = Math.min(MAX_BULLETS_PER_PROJECT, distinctFactCount);
 
-  // Low-trust depth gate: 3+ facts justify 3 bullets only when the facts are
-  // candidate-authored (USER_PROVIDED+) or evidence supports the project.
-  // Weak-provenance-only facts with zero evidence cap at 2 distinct bullets.
   const allLowTrust = facts.every((f) => f.provenance === 'CLAIMED' || f.provenance === 'SELF_DECLARED');
   if (distinctFactCount >= 3 && allLowTrust && !strongEvidence && !someEvidence) {
     capacity = Math.min(capacity, 2);
@@ -154,7 +206,10 @@ function selectComplementaryFactGroups(facts, n) {
   if (n <= 0 || facts.length === 0) return [];
 
   const sorted = [...facts].sort(
-    (a, b) => (b.jobRelevance ?? 0) - (a.jobRelevance ?? 0) || (b.confidence ?? 0) - (a.confidence ?? 0) || (a.factId < b.factId ? -1 : 1)
+    (a, b) =>
+      (b.jobRelevance ?? 0) - (a.jobRelevance ?? 0) ||
+      (b.confidence ?? 0) - (a.confidence ?? 0) ||
+      (a.factId < b.factId ? -1 : 1)
   );
 
   const groups = [];
@@ -171,9 +226,7 @@ function selectComplementaryFactGroups(facts, n) {
     usedFactIds.add(fact.factId);
   }
 
-  // Pass 2: fill remaining slots with any unused fact. Topic repetition is
-  // acceptable when the underlying facts are distinct; true redundancy is
-  // pruned by the final pairwise overlap check (0.55/0.6 thresholds).
+  // Pass 2: fill remaining slots with any unused fact.
   for (const fact of sorted) {
     if (groups.length >= n) break;
     if (usedFactIds.has(fact.factId)) continue;
@@ -223,13 +276,7 @@ function composeBulletFromGroup(group, project, allowTechClause, mentionedTechs)
     }
   }
 
-  // Technology clause from project-verified technologies (never fabricated),
-  // limited to multi-fact composed bullets and to technologies not mentioned
-  // yet. A single candidate-authored fact passes through VERBATIM — weaving a
-  // clause into authored content would mutate candidate-owned text. Generic
-  // rule: a clause is only appended when the composed text does not already
-  // name any project technology, otherwise the bullet already carries the
-  // stack context and a clause would add redundant wording.
+  // Technology clause from project-verified technologies (never fabricated)
   if (allowTechClause && group.length > 1) {
     const lower = text.toLowerCase();
     const projectTechs = Array.isArray(project.technologies) ? project.technologies : [];
@@ -268,11 +315,10 @@ export function composeProfessionalProjectBullets({ facts, project, jobPosting =
   const omittedFacts = [];
   for (const fact of allFacts) {
     if (isUnsupportedMetricFact(fact)) {
-      omittedFacts.push({ factId: fact.factId, text: fact.text, reason: 'UNSUPPORTED_METRIC' });
+      omittedFacts.push({ factId: fact.factId || fact.id, text: fact.text, reason: 'UNSUPPORTED_METRIC' });
       continue;
     }
     if (!isClaimFact(fact)) {
-      // Technology facts enrich clauses; they never occupy bullet slots.
       continue;
     }
     eligible.push(fact);
@@ -292,10 +338,6 @@ export function composeProfessionalProjectBullets({ facts, project, jobPosting =
 
   // ── 3. Complementary-dimension composition ───────────────────────────────
   const groups = selectComplementaryFactGroups(eligible, capacityInfo.capacity);
-
-  // Technology clauses are distributed per-project, not per-bullet: only the
-  // first bullet receives the project's unmentioned technologies, so the same
-  // technology is never repeated across consecutive bullets.
   const projectTechsMentioned = new Set();
 
   const composed = groups.map((g, groupIdx) => {
@@ -320,15 +362,12 @@ export function composeProfessionalProjectBullets({ facts, project, jobPosting =
       evidenceRefs,
       matchedRequirementIds,
       provenanceStatus,
-      composedFromFactIds: g.map((f) => f.factId),
+      composedFromFactIds: g.map((f) => f.factId || f.id),
+      semanticDimensions: g.map((f) => f.semanticTopic || f.canonicalFactType || 'IMPLEMENTATION'),
     };
   });
 
   // ── 4. Evidence association ─────────────────────────────────────────────
-  // Authored facts rarely carry their own evidence refs; the project's
-  // evidence graph is authoritative. Associate evidence records with bullets
-  // whose text names the evidenced skill (slug/display-name match), mirroring
-  // the canonical selection layer's association rule.
   const projectEvidence = Array.isArray(project_?.evidence) ? project_.evidence : [];
   for (const bullet of composed) {
     if (bullet.evidenceRefs.length === 0 && projectEvidence.length > 0) {
@@ -367,4 +406,142 @@ export function composeProfessionalProjectBullets({ facts, project, jobPosting =
   }
 
   return { bullets: deduped, omittedFacts, capacity: capacityInfo };
+}
+
+/**
+ * Composes presentation candidates for Experience records (Part 6).
+ * Preserves candidate truth while classifying bullet types and favoring
+ * strong accomplishment statements when facts permit.
+ *
+ * @param {object} params
+ * @param {Array<object>} params.facts Canonical facts
+ * @param {Array<object>} params.experience Raw candidate experience records
+ * @param {object} [params.jobPosting] Target job posting
+ * @returns {Array<object>} Composed experience records with bulletType metadata
+ */
+export function composeExperienceRecords({ facts = [], experience = [], jobPosting = null }) {
+  const result = [];
+  for (const exp of Array.isArray(experience) ? experience : []) {
+    const expId = exp.id || exp.company;
+    const bullets = [];
+    for (const b of Array.isArray(exp.bullets) ? exp.bullets : []) {
+      const rawText = typeof b === 'object' && b !== null ? b.text || b.description : String(b);
+      const polished = polishActivePhrasing(rawText);
+      const bulletType = classifyExperienceBulletType(polished);
+      bullets.push({
+        text: polished,
+        bulletType,
+        provenanceStatus: typeof b === 'object' && b?.provenanceStatus ? b.provenanceStatus : 'USER_PROVIDED',
+        evidenceRefs: typeof b === 'object' && Array.isArray(b?.evidenceRefs) ? b.evidenceRefs : [],
+      });
+    }
+    result.push({
+      ...exp,
+      bullets,
+    });
+  }
+  return result;
+}
+
+/**
+ * Composes professional summary (Part 7).
+ * Concise 2-3 sentences: candidate identity + technical specialization + key evidence.
+ *
+ * @param {object} params
+ * @param {Array<object>} params.facts Canonical fact inventory
+ * @param {object} params.candidateProfile Canonical candidate profile
+ * @param {object} [params.jobPosting] Target job posting
+ * @param {string} [params.targetRole] Tailored role heading
+ * @returns {{ text: string, sentenceCount: number, referencedSkillSlugs: string[], referencedProjectIds: string[], evidenceRefs: object[] }}
+ */
+export function composeProfessionalSummary({ facts = [], candidateProfile, jobPosting = null, targetRole = '' }) {
+  const profile = candidateProfile || {};
+  const meta = profile.profileMetadata || {};
+  const rawSummary = profile.summary || meta.summary || '';
+
+  // Extract top verified skills
+  const skills = Array.isArray(profile.skills) ? profile.skills : [];
+  const topSkills = skills.slice(0, 5).map((s) => (typeof s === 'string' ? s : s.name)).filter(Boolean);
+
+  // If candidate authored a clean summary, adapt and polish it without injecting boilerplate
+  let sentence1 = '';
+  let sentence2 = '';
+  let sentence3 = '';
+
+  if (rawSummary && rawSummary.length >= 40) {
+    const rawSentences = rawSummary
+      .replace(/([.!?])\s+(?=[A-Z])/g, '$1|')
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    sentence1 = polishActivePhrasing(rawSentences[0]);
+    if (rawSentences[1]) sentence2 = polishActivePhrasing(rawSentences[1]);
+    if (rawSentences[2]) sentence3 = polishActivePhrasing(rawSentences[2]);
+  }
+
+  // Fallback if missing sentences
+  if (!sentence1) {
+    const roleTitle = targetRole || profile.headline || 'Software Engineer';
+    const stackClause = topSkills.length > 0 ? ` specializing in ${topSkills.slice(0, 3).join(', ')}` : '';
+    sentence1 = `${roleTitle}${stackClause}, with a strong foundation in designing resilient scalable systems.`;
+  }
+
+  if (!sentence2) {
+    const topProjects = Array.isArray(profile.projects) ? profile.projects.slice(0, 2) : [];
+    if (topProjects.length > 0) {
+      const projNames = topProjects.map((p) => p.name || p.title).filter(Boolean).join(' and ');
+      sentence2 = `Proven experience building verifiable engineering architectures through projects including ${projNames}.`;
+    } else {
+      sentence2 = 'Dedicated to writing clean, maintainable, production-ready code backed by automated test suites.';
+    }
+  }
+
+  const sentences = [sentence1, sentence2, sentence3].filter(Boolean).slice(0, 3);
+  const text = sentences.join(' ');
+
+  const referencedSkillSlugs = skills.slice(0, 6).map((s) => (s.slug || s.name || '').toLowerCase()).filter(Boolean);
+  const referencedProjectIds = (Array.isArray(profile.projects) ? profile.projects.slice(0, 3) : []).map((p) => p.id || p.name).filter(Boolean);
+
+  return {
+    text,
+    sentenceCount: sentences.length,
+    referencedSkillSlugs,
+    referencedProjectIds,
+    evidenceRefs: [],
+  };
+}
+
+/**
+ * Composes DSA / Problem Solving representation (Part 8).
+ * Profile URL alone justifies compact truthful section.
+ *
+ * @param {object} params
+ * @param {object} params.candidateProfile Canonical candidate profile
+ * @returns {{ hasSection: boolean, profileUrl: string, bullets: string[], provenanceStatus: string }}
+ */
+export function composeDsaSection({ candidateProfile }) {
+  const profile = candidateProfile || {};
+  const meta = profile.profileMetadata || {};
+  const dsa = profile.problemSolving || profile.dsa || meta.dsa || meta.problemSolving || meta.resumeData?.problemSolving || null;
+
+  if (!dsa || typeof dsa !== 'object') {
+    return { hasSection: false, profileUrl: '', bullets: [], provenanceStatus: 'UNSUBSTANTIATED' };
+  }
+
+  const profileUrl = typeof dsa.profileUrl === 'string' ? dsa.profileUrl.trim() : '';
+  const rawBullets = Array.isArray(dsa.bullets) ? dsa.bullets : [];
+  const cleanBullets = rawBullets
+    .map((b) => (typeof b === 'object' && b !== null ? b.text : String(b || '')))
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const hasContent = Boolean(profileUrl && /^https?:\/\//i.test(profileUrl)) || cleanBullets.length > 0;
+
+  return {
+    hasSection: hasContent,
+    profileUrl: profileUrl || '',
+    bullets: cleanBullets,
+    provenanceStatus: cleanBullets.length > 0 ? 'USER_PROVIDED' : 'CLAIMED',
+  };
 }

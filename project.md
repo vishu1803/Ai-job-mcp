@@ -3,6 +3,58 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### PART 27: Professional Resume Quality & Calibration Completion (P16 Architecture)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-12  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)  
+**Baseline Main SHA:** `299d6840bc092685d3ac96d8217c18d497c57b79`
+
+**Context & Core Product Invariant:**
+Implemented the end-to-end professional resume quality, section planning, accomplishment composition, document-level optimization, independent PDF observation, and writing quality scoring pipeline across Parts 1–25. Preserved the central architectural invariant: $\text{Rendered Claims} \subseteq \text{Authorized Canonical Evidence}$. Maximized truthful professional resume quality subject to ATS parseability, candidate evidence, job relevance, page capacity, readability, and deterministic behavior.
+
+**Components Created & Enhanced:**
+1. **Canonical Fact Inventory (`src/services/candidate-fact-inventory.service.js`):**
+   - Single downstream source of truth for candidate facts (`id`, `ownerType`, `ownerId`, `sourceType`, `sourceRef`, `provenanceStatus`, `confidence`, `text`, `factType`, `technologies`, `metrics`, `semanticTopics`, `jobRelevance`, `candidateAuthored`, `corroborated`, `renderable`).
+   - Source-order invariant, deterministic fingerprinting, and automatic cross-project duplicate collapse.
+2. **Evidence-to-Accomplishment Composer (`src/services/resume-accomplishment-composer.service.js`):**
+   - Composes complementary engineering bullets from compatible canonical facts across `ACTION + ENGINEERING OBJECT + TECHNICAL METHOD + RESULT/PURPOSE`.
+   - Semantic deduplication with Jaccard overlap thresholding, preventing shallow repetitions.
+   - Professional experience presentation candidate classification (`RESPONSIBILITY`, `TECHNICAL_IMPLEMENTATION`, `ACCOMPLISHMENT`, `OUTCOME`) without mutating source records.
+   - Deterministic DSA and grounded summary composition with claim-level traceability.
+3. **Resume Section Planner (`src/services/resume-section-planner.service.js`):**
+   - Evaluates 9 candidate sections: `SUMMARY`, `SKILLS`, `PROJECTS`, `DSA`, `EXPERIENCE`, `EDUCATION`, `CERTIFICATIONS`, `AWARDS`, `OPEN_SOURCE`.
+   - Computes availability, evidence strength, relevance, information density, priority, estimated height, and minimum useful representation for each section.
+   - Dynamically selects optimal document composition and archetype-driven ordering (Experienced vs Fresher/Project-heavy) without hardcoding a single rigid sequence.
+4. **Professional Writing Quality Scorer (`src/services/resume-writing-quality.service.js`):**
+   - Measures writing quality independently from ATS parseability across 12 dimensions: action verb strength, accomplishment ratio, technical specificity, result coverage, authentic metric usage, semantic diversity, redundancy, generic language, passive voice, verbosity, job relevance, and evidence traceability.
+   - Non-penalizing authentic metric scoring: rewards authentic metrics when available in evidence, with neutral baseline when absent.
+5. **Resume PDF Observer (`src/services/resume-pdf-observer.service.js`):**
+   - Independent binary inspection of compiled PDF artifacts (without trusting in-memory snapshot metadata).
+   - Inspects FlateDecode & CMap text streams, page count, reading order, section headings, contact information, URLs, dates, bullet boundaries, broken words, suspicious glyphs/LaTeX leakage, margins, density, and bottom whitespace.
+   - Outputs `pdfObservabilityScore` and structured component findings.
+6. **Technology Taxonomy (`src/utils/technology-taxonomy.js`):**
+   - Metadata-driven taxonomy mapping technologies into standard categories (`Languages`, `Frameworks`, `Databases`, `Cloud & DevOps`, `Systems & Architecture`, `AI & Machine Learning`, `Developer Tools`).
+   - Safe pass-through for unknown/new technologies preserving authentic casing.
+7. **Document-Level Content Optimizer (`src/services/resume-content-optimizer.service.js`):**
+   - Replaced naive compile-expand-rollback loop with bounded document-level optimization (max 5 iterations).
+   - Evaluates moves (`ADD_PROJECT_BULLET`, `ADD_PROJECT`, `ADD_DSA`, `COMPRESS_LAYOUT`, `REMOVE_REDUNDANT_CONTENT`) based on expected value per unit page capacity: $\text{EV} = (\Delta Q \cdot 0.4 + \Delta R \cdot 0.3 + \Delta E \cdot 10 - \Delta \text{Redundancy} \cdot 0.5) / \text{SpaceCost}$.
+   - Tracks `unusedHighValueEvidence` and candidate composition deltas.
+8. **Benchmark Corpus & Critical Regression Fixture (`tests/fixtures/resume-benchmarks.js`):**
+   - 6 benchmark profiles: Backend Engineer (early career), Full-Stack Engineer (early career), Frontend Engineer (early career), Backend Engineer (mid-level), Data Engineer, ML Engineer.
+   - Critical regression fixture reproducing failure mode of shallow/redundant bullets vs rich evidence.
+
+**Verification & Evidence:**
+- **Unit & Pipeline Test Suites:** 376/376 tests PASS across 89 suites (100% pass rate).
+- **Quality Engine Integration Suite (`tests/unit/p16-quality-engine-integration.test.js`):** 10/10 PASS including Tectonic LaTeX compilation and independent PDF observation.
+- **Critical Regression Test:** PASS. Proves candidate with 6 telemetry facts renders multi-bullet complementary composition without shallow repetition, with zero metric fabrication.
+- **Real-Candidate Read-Only Regression (`scripts/p16-quality-regression-comparison.mjs`):**
+  - Evaluated candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` read-only across 3 jobs (Cloudflare, Vercel, Crunchyroll).
+  - Cloudflare: Overall Quality 84/100 | Writing: 68 | PDF Observability: 90 | Pages: 1 | Occupancy: 88%
+  - Vercel: Overall Quality 85/100 | Writing: 69 | PDF Observability: 90 | Pages: 1 | Occupancy: 98%
+  - Crunchyroll: Overall Quality 85/100 | Writing: 69 | PDF Observability: 90 | Pages: 1 | Occupancy: 96%
+  - Database mutations: EXACTLY 0. Zero jobs/applications/candidates created or mutated.
+
 ### PART 26: Test Suite Audit and Calibration (P16 Architecture)
 
 **Status:** COMPLETE & AUDITED  

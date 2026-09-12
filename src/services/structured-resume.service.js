@@ -646,13 +646,14 @@ export function buildStructuredResumeDocument({
         jobPosting,
         explicitBudget: projectOptions.maxBullets ?? null,
       });
-      // Strip the internal traceability field: the canonical bullet schema is
+      // Strip internal composition fields: the canonical bullet schema is
       // strict. Traceability is preserved in factCompositionReport below.
-      pBullets = composed.bullets.map(({ composedFromFactIds, ...schemaBullet }) => {
+      pBullets = composed.bullets.map(({ composedFromFactIds, semanticDimensions, ...schemaBullet }) => {
         factCompositionTrace.push({
           projectId: selectedId,
           projectName: proj.name || proj.title || '',
           composedFromFactIds: composedFromFactIds || [],
+          semanticDimensions: semanticDimensions || [],
         });
         return schemaBullet;
       });
