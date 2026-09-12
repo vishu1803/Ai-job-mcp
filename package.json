@@ -48,7 +48,7 @@
     "@modelcontextprotocol/core": "^2.0.0",
     "@modelcontextprotocol/ext-apps": "^1.7.5",
     "@modelcontextprotocol/server": "^2.0.0",
-    "dotenv": "^16.4.7",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "fastify": "^5.2.1",
     "pg": "^8.23.0",
