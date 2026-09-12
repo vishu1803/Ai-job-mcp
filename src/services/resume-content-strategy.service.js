@@ -17,218 +17,30 @@
 import { ValidationError } from '../errors/index.js';
 import { CareerStatusDerivation } from '../utils/career-status-derivation.js';
 import { TenureCalculator } from '../utils/tenure-calculator.js';
+
 import {
-  normalizeTechnologyName,
-  normalizeTechnologySlug,
-  isNoisyTechnology,
-  formatTechnologyStack,
-} from '../utils/technology-normalizer.js';
+  composeProfessionalSummary,
+  composeProfessionalProjectBullets,
+} from './resume-accomplishment-composer.service.js';
+import { scoreFactsForJob } from './candidate-fact-inventory.service.js';
 
-/**
- * Explicit semantic classification for evidence records (Req B).
- * Distinguishes presence evidence from authentic candidate claims.
- */
-export const EVIDENCE_SEMANTIC_CLASS = {
-  PRESENCE_EVIDENCE: 'PRESENCE_EVIDENCE',
-  IMPLEMENTATION_EVIDENCE: 'IMPLEMENTATION_EVIDENCE',
-  FEATURE_EVIDENCE: 'FEATURE_EVIDENCE',
-  OUTCOME_EVIDENCE: 'OUTCOME_EVIDENCE',
-  CANDIDATE_AUTHORED_CLAIM: 'CANDIDATE_AUTHORED_CLAIM',
+import {
+  EVIDENCE_SEMANTIC_CLASS,
+  classifyEvidenceSemanticType,
+  isClaimSafeToRender,
+  isMeaningfulDsa,
+  QUANTITATIVE_METRIC_REGEX,
+  TENURE_CLAIM_PATTERN,
+} from './resume-composition-primitives.js';
+
+export {
+  EVIDENCE_SEMANTIC_CLASS,
+  classifyEvidenceSemanticType,
+  isClaimSafeToRender,
+  isMeaningfulDsa,
+  QUANTITATIVE_METRIC_REGEX,
+  TENURE_CLAIM_PATTERN,
 };
-
-/**
- * Classifies an evidence record into its semantic category.
- *
- * Hard Rule: PRESENCE_EVIDENCE alone can NEVER generate accomplishment prose.
- *
- * @param {object} ev Evidence record
- * @returns {string} One of EVIDENCE_SEMANTIC_CLASS values
- */
-export function classifyEvidenceSemanticType(ev) {
-  if (!ev || typeof ev !== 'object') return EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE;
-
-  const type = String(ev.evidenceType || ev.type || '').toUpperCase();
-  const hasAuthoredText = Boolean(ev.candidateAuthored || ev.claimText || ev.sourceType === 'CANDIDATE_PROFILE');
-
-  if (hasAuthoredText) {
-    return EVIDENCE_SEMANTIC_CLASS.CANDIDATE_AUTHORED_CLAIM;
-  }
-
-  if (['OUTCOME', 'BENCHMARK', 'METRIC'].includes(type)) {
-    return EVIDENCE_SEMANTIC_CLASS.OUTCOME_EVIDENCE;
-  }
-
-  if (['FEATURE_SPEC', 'FEATURE_IMPLEMENTATION', 'FEATURE'].includes(type) && (ev.description || ev.featureSummary)) {
-    return EVIDENCE_SEMANTIC_CLASS.FEATURE_EVIDENCE;
-  }
-
-  if (['COMMIT_MESSAGE', 'PULL_REQUEST_BODY'].includes(type) && (ev.message || ev.body)) {
-    return EVIDENCE_SEMANTIC_CLASS.IMPLEMENTATION_EVIDENCE;
-  }
-
-  // All dependencies, packages, imports, file paths, and syntax usages are PRESENCE_EVIDENCE
-  return EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE;
-}
-
-/**
- * Reusable helper determining whether a claim is safe to render as resume prose (Req C).
- *
- * Rejects:
- * - Presence evidence alone
- * - File-path leakage into user-facing text
- * - Generic template prose ("Developed X functionality", "verified by repository evidence")
- * - Unsubstantiated claims
- *
- * @param {string} claimText
- * @param {string} [semanticClass=EVIDENCE_SEMANTIC_CLASS.CANDIDATE_AUTHORED_CLAIM]
- * @returns {boolean}
- */
-export function isClaimSafeToRender(claimText, semanticClass = EVIDENCE_SEMANTIC_CLASS.CANDIDATE_AUTHORED_CLAIM) {
-  if (!claimText || typeof claimText !== 'string') return false;
-  const trimmed = claimText.trim();
-  if (trimmed.length < 15) return false;
-
-  // PRESENCE_EVIDENCE alone can NEVER generate accomplishment prose
-  if (semanticClass === EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE) return false;
-
-  // File path leakage detection:
-  if (
-    /(?:^|\s)(?:src\/|lib\/|app\/|components\/|controllers\/|routes\/|services\/|utils\/|models\/|dockerfile|\S+\.(?:js|ts|jsx|tsx|py|go|rs|json|yaml|yml|sql|html|css|dockerfile))\b/i.test(
-      trimmed
-    )
-  ) {
-    return false;
-  }
-
-  // Generic template prose & synthetic leakage detection:
-  if (
-    /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality|implemented feature across|defined in repository|engineered .* system with tested reliability and maintainable code)\b/i.test(
-      trimmed
-    )
-  ) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Canonical helper for determining whether DSA content is meaningful and authentic (Req G).
- *
- * @param {object} dsa
- * @returns {boolean}
- */
-export function isMeaningfulDsa(dsa) {
-  if (!dsa || typeof dsa !== 'object') return false;
-  if (dsa.hasSection === false) return false;
-
-  const validUrl = typeof dsa.profileUrl === 'string' && /^https?:\/\//i.test(dsa.profileUrl.trim());
-  const rawBullets = Array.isArray(dsa.bullets) ? dsa.bullets : [];
-  const cleanBullets = rawBullets
-    .map((b) => (typeof b === 'string' ? b.trim() : String(b?.text || '').trim()))
-    .filter(Boolean);
-
-  const nonFillerBullets = cleanBullets.filter((b) => {
-    if (b.length < 25) return false;
-    if (
-      /^(?:engaged in problem solving|built foundational analytical complexity|practiced coding problems|solved questions online|daily problem solving practice|problem solving enthusiast|built analytical foundation)\b/i.test(
-        b
-      )
-    ) {
-      return false;
-    }
-    return true;
-  });
-
-  const hasStats = Boolean(
-    (typeof dsa.problemsSolved === 'number' && dsa.problemsSolved > 0) ||
-      (typeof dsa.rating === 'number' && dsa.rating > 0) ||
-      (typeof dsa.contests === 'number' && dsa.contests > 0) ||
-      (Array.isArray(dsa.topics) && dsa.topics.length > 0) ||
-      (Array.isArray(dsa.topicCoverage) && dsa.topicCoverage.length > 0) ||
-      (typeof dsa.score === 'number' && dsa.score > 0)
-  );
-
-  return validUrl || nonFillerBullets.length > 0 || hasStats;
-}
-
-/**
- * Metric detection regex to enforce quantitative claim safety.
- * Matches percentages, high-count units, user scale, team size, financial values, and throughput claims.
- */
-export const QUANTITATIVE_METRIC_REGEX =
-  /(?:\b\d+(?:\.\d+)?%\s*(?:reduction|increase|improvement|availability|uptime|latency|cost|performance|throughput|load|memory|time)?|\b\d+\s*(?:million|m|k|billion)\s+(?:users|requests|events|queries|rps|calls)|\b\d+\+?\s*(?:users|requests|events|queries|clients|customers)|\b\d+-person\s+team|\bteam\s+of\s+\d+|\$\d+[\d,.]*(?:k|m|b|kilo|million)?)/i;
-
-/**
- * Regex patterns for detecting unsupported employment tenure assertions.
- */
-export const TENURE_CLAIM_PATTERN =
-  /\b(\d+|\b(?:one|two|three|four|five|six|seven|eight|nine|ten)\b)\+?\s*years?\s+(?:of\s+)?(?:experience|working|tenure|employment|professional|industry)\b/i;
-
-/**
- * Builds a generic project highlight clause for the professional summary from
- * candidate-owned project facts only (summary text or evidenced technologies).
- * Never invents metrics, scale, or technologies.
- *
- * @param {object} project Candidate-owned project record
- * @returns {string|null} Clause fragment (always starts with ', ') or null
- */
-function buildProjectHighlightClause(project, roleFocus = { isBackendFocus: false, isFrontendFocus: false }) {
-  if (!project || typeof project !== 'object') return null;
-  const summary = typeof project.summary === 'string' ? project.summary.trim() : '';
-  if (summary.length > 0 && summary.length <= 120) {
-    const clause = summary.replace(/[.\s]+$/, '');
-    if (clause) {
-      return `, ${clause.charAt(0).toLowerCase()}${clause.slice(1)}`;
-    }
-  }
-  const techs = roleAlignTechnologies(
-    Array.isArray(project.technologies)
-      ? project.technologies.filter((t) => typeof t === 'string' && t.trim())
-      : [],
-    roleFocus
-  ).slice(0, 3);
-  if (techs.length >= 2) {
-    return `, built with ${techs.join(', ')}`;
-  }
-  return null;
-}
-
-/**
- * Role focus taxonomy derived generically from the target job text.
- * Used only to keep summary/project highlights role-aligned — never to force
- * a specific archetype label onto the candidate identity.
- */
-function deriveRoleFocus(targetRoleTitle, jobDescText) {
-  const titleLower = String(targetRoleTitle || '').toLowerCase();
-  const descLower = String(jobDescText || '').toLowerCase();
-  const isBackendFocus =
-    /\b(backend|server|api|distributed|microservice|python|fastapi|django|node|database|sql|postgres)\b/i.test(titleLower) ||
-    (/\b(backend|server|api|database)\b/i.test(descLower) &&
-      !/\b(frontend|ui|react|vue|angular)\b/i.test(titleLower));
-  const isFrontendFocus =
-    /\b(frontend|ui|ux|web|client|react|typescript|javascript|next\.js|angular|vue)\b/i.test(titleLower) ||
-    (/\b(frontend|react|ui)\b/i.test(descLower) &&
-      !/\b(backend|database|infra)\b/i.test(titleLower));
-  return { isBackendFocus, isFrontendFocus };
-}
-
-/**
- * Role-aligned technology filter for summary clauses: keeps only technologies
- * consistent with the detected role focus (or all when focus is mixed/unclear).
- *
- * @param {Array<string>} techs
- * @param {{isBackendFocus: boolean, isFrontendFocus: boolean}} roleFocus
- * @returns {Array<string>}
- */
-function roleAlignTechnologies(techs, roleFocus) {
-  const BACKEND_MARKERS = ['python', 'fastapi', 'django', 'flask', 'postgres', 'postgresql', 'mysql', 'node', 'nodejs', 'express', 'sql', 'redis', 'mongodb', 'graphql', 'api', 'rest', 'kafka', 'docker', 'kubernetes'];
-  const FRONTEND_MARKERS = ['react', 'typescript', 'javascript', 'nextjs', 'next-js', 'vue', 'angular', 'html', 'css', 'tailwind', 'tailwindcss', 'ui', 'frontend'];
-  if (!roleFocus.isBackendFocus && !roleFocus.isFrontendFocus) return techs;
-  const markers = roleFocus.isBackendFocus && !roleFocus.isFrontendFocus ? BACKEND_MARKERS : FRONTEND_MARKERS;
-  const aligned = techs.filter((t) => markers.includes(slugifyTerm(t)));
-  return aligned.length >= 2 ? aligned : techs;
-}
 
 /**
  * Normalizes a text slug for comparison.
@@ -262,10 +74,7 @@ export function toEvidenceReference(rawRef, defaultSourceType = 'VERIFIED') {
       ? rawRef.id
       : null;
 
-  const filePath =
-    rawRef.filePath ||
-    rawRef.sourceLocation?.filePath ||
-    null;
+  const filePath = rawRef.filePath || rawRef.sourceLocation?.filePath || null;
 
   return {
     sourceType: rawRef.sourceType || defaultSourceType,
@@ -297,13 +106,20 @@ export function assertMetricSafety(text, evidenceRefs = [], options = {}) {
   const hasQuantitative = QUANTITATIVE_METRIC_REGEX.test(text);
   if (hasQuantitative) {
     // If the exact metric is present in the authentic source text or evidence, it is permitted
-    const sourceHasMetric = options.sourceText && QUANTITATIVE_METRIC_REGEX.test(options.sourceText);
-    const evidenceHasMetric = Array.isArray(evidenceRefs) && evidenceRefs.some((ref) => {
-      const snippet = ref.contextSnippet || ref.snippet || ref.sourceLocation?.snippet || '';
-      return QUANTITATIVE_METRIC_REGEX.test(snippet);
-    });
+    const sourceHasMetric =
+      options.sourceText && QUANTITATIVE_METRIC_REGEX.test(options.sourceText);
+    const evidenceHasMetric =
+      Array.isArray(evidenceRefs) &&
+      evidenceRefs.some((ref) => {
+        const snippet = ref.contextSnippet || ref.snippet || ref.sourceLocation?.snippet || '';
+        return QUANTITATIVE_METRIC_REGEX.test(snippet);
+      });
 
-    if (!sourceHasMetric && !evidenceHasMetric && (!Array.isArray(evidenceRefs) || evidenceRefs.length === 0)) {
+    if (
+      !sourceHasMetric &&
+      !evidenceHasMetric &&
+      (!Array.isArray(evidenceRefs) || evidenceRefs.length === 0)
+    ) {
       throw new ValidationError(
         `Ungrounded quantitative claim detected in tailored resume text without corroborating evidence: "${text}". Claims containing metrics, performance gains, team sizes, or scale require explicit source evidence.`
       );
@@ -334,7 +150,10 @@ export function validateRephrasingSafety(sourceText, rephrasedText, candidateCon
   if (!sourceText || !rephrasedText) return;
 
   // 1. Metric safety: Rephrased text must not introduce new quantitative metrics
-  if (QUANTITATIVE_METRIC_REGEX.test(rephrasedText) && !QUANTITATIVE_METRIC_REGEX.test(sourceText)) {
+  if (
+    QUANTITATIVE_METRIC_REGEX.test(rephrasedText) &&
+    !QUANTITATIVE_METRIC_REGEX.test(sourceText)
+  ) {
     throw new ValidationError(
       `Rephrased bullet injected ungrounded quantitative metric not present in source bullet: "${rephrasedText}". Source: "${sourceText}".`
     );
@@ -366,7 +185,8 @@ export function validateRephrasingSafety(sourceText, rephrasedText, candidateCon
   const knownTechSlugs = new Set();
   const rawCandidateSkills = candidateContext.skills || candidateContext.technologies || [];
   for (const s of rawCandidateSkills) {
-    const slug = typeof s === 'string' ? slugifyTerm(s) : s.slug || slugifyTerm(s.name || s.skillName);
+    const slug =
+      typeof s === 'string' ? slugifyTerm(s) : s.slug || slugifyTerm(s.name || s.skillName);
     if (slug) knownTechSlugs.add(slug);
   }
   if (Array.isArray(candidateContext.projects)) {
@@ -378,9 +198,26 @@ export function validateRephrasingSafety(sourceText, rephrasedText, candidateCon
   }
 
   const KNOWN_TECHNOLOGY_TERMS = [
-    'kubernetes', 'docker', 'aws', 'gcp', 'azure', 'rust', 'golang', 'go',
-    'kafka', 'graphql', 'redis', 'spark', 'hadoop', 'terraform', 'elasticsearch',
-    'solr', 'rabbitmq', 'microservices', 'serverless', 'lambda',
+    'kubernetes',
+    'docker',
+    'aws',
+    'gcp',
+    'azure',
+    'rust',
+    'golang',
+    'go',
+    'kafka',
+    'graphql',
+    'redis',
+    'spark',
+    'hadoop',
+    'terraform',
+    'elasticsearch',
+    'solr',
+    'rabbitmq',
+    'microservices',
+    'serverless',
+    'lambda',
   ];
 
   const sourceLower = sourceText.toLowerCase();
@@ -400,140 +237,6 @@ export function validateRephrasingSafety(sourceText, rephrasedText, candidateCon
 }
 
 /**
- * Minimum evidence confidence for an evidence record to back a synthesized
- * evidence-derived project bullet. Generic domain constant, not fixture-tuned.
- */
-const EVIDENCE_DERIVED_BULLET_MIN_CONFIDENCE = 0.6;
-
-/**
- * Builds an evidence-backed candidate-owned bullet pool for a project.
- *
- * Core Architectural Rules (P16-003):
- * 1. Candidate-authored bullets are always the primary pool entries.
- * 2. PRESENCE_EVIDENCE (dependencies, imports, file paths, syntax usage) alone
- *    must NEVER generate accomplishment prose.
- * 3. Never manufacture template prose ("Developed X functionality in file Y...").
- * 4. Bullets can only be derived if candidate-authored claims or verified
- *    FEATURE_EVIDENCE with authentic descriptive prose exists.
- * 5. If no truthful candidate-authored accomplishment can be constructed from
- *    supported evidence, OMIT THE CLAIM rather than inventing prose.
- *
- * @param {object} project Candidate project record with evidence
- * @param {Array<object>} authoredBullets Scored authored bullets
- * @param {Set<string>} jobTerms Lowercased job keyword terms
- * @param {number} targetTotal Desired total bullet count for this project
- * @returns {Array<object>} Additional bullet objects (same shape as scored authored bullets)
- */
-function deriveEvidenceBackedBullets(project, authoredBullets, jobTerms, targetTotal) {
-  const derived = [];
-  const deficit = targetTotal - authoredBullets.length;
-  if (deficit <= 0) return derived;
-
-  // HARD ARCHITECTURAL INVARIANT (Req B & C):
-  // Candidate-authored accomplishment content is the primary resume prose.
-  // PRESENCE_EVIDENCE (packages, imports, file paths, framework presence) alone
-  // can NEVER manufacture accomplishment bullets or "Developed X functionality" prose.
-  for (const ev of Array.isArray(project.evidence) ? project.evidence : []) {
-    if (derived.length >= deficit) break;
-    const semClass = classifyEvidenceSemanticType(ev);
-    if (semClass === EVIDENCE_SEMANTIC_CLASS.PRESENCE_EVIDENCE) {
-      continue; // Strictly omit: presence evidence cannot become prose
-    }
-
-    const claimText = ev.description || ev.featureSummary || ev.claimText || ev.message || null;
-    if (claimText && isClaimSafeToRender(claimText, semClass)) {
-      derived.push({
-        text: claimText.trim(),
-        origText: claimText.trim(),
-        evidenceRefs: [toEvidenceReference(ev, 'VERIFIED')].filter(Boolean),
-        matchedRequirementIds: ev.matchedRequirementId ? [ev.matchedRequirementId] : [],
-        provenanceStatus: 'VERIFIED',
-        relevanceScore: 25,
-        origIndex: Number.MAX_SAFE_INTEGER - derived.length,
-        isEvidenceDerived: true,
-      });
-    }
-  }
-
-  return derived;
-}
-
-/**
- * Extracts and classifies candidate skills by job relevance.
- *
- * @param {object} candidateProfile
- * @param {object} jobPosting
- * @param {object} [matchAnalysis]
- * @returns {Array<object>} Candidate skills ranked by relevance to job
- */
-function extractRankedCandidateSkills(candidateProfile, jobPosting, matchAnalysis) {
-  const meta = candidateProfile?.profileMetadata || {};
-  const rawSkills = meta.skills || candidateProfile?.skills || [];
-  const candidateSkills = [];
-
-  const jobDescText = String(
-    (jobPosting?.title || '') +
-      ' ' +
-      (jobPosting?.description || '') +
-      ' ' +
-      (jobPosting?.requirements || []).join(' ') +
-      ' ' +
-      (jobPosting?.skills || []).join(' ')
-  ).toLowerCase();
-
-  const matchedReqMap = new Map();
-  if (matchAnalysis?.skillMatches && Array.isArray(matchAnalysis.skillMatches)) {
-    for (const m of matchAnalysis.skillMatches) {
-      const slug = slugifyTerm(m.skillName || m.skillSlug || m.extractedValue);
-      if (slug) matchedReqMap.set(slug, m);
-    }
-  }
-
-  for (const s of rawSkills) {
-    const name = typeof s === 'string' ? s : s.name || s.skillName;
-    if (!name) continue;
-    const slug = slugifyTerm(typeof s === 'string' ? s : s.slug || name);
-    const provenanceStatus = typeof s === 'object' && s.provenanceStatus
-      ? s.provenanceStatus
-      : (s.verified ? 'VERIFIED' : 'CLAIMED');
-    const evidenceCount = s.evidenceCount || (Array.isArray(s.evidence) ? s.evidence.length : 0);
-    const evidenceId = s.evidenceId || (Array.isArray(s.evidence) && s.evidence[0]?.id) || null;
-
-    let relevanceScore = 0;
-    const matchedReq = matchedReqMap.get(slug);
-
-    if (matchedReq) {
-      relevanceScore += 50;
-      if (matchedReq.importance === 'REQUIRED') relevanceScore += 30;
-      else if (matchedReq.importance === 'PREFERRED') relevanceScore += 20;
-    } else if (jobDescText.includes(name.toLowerCase()) || jobDescText.includes(slug)) {
-      relevanceScore += 30;
-    }
-
-    if (provenanceStatus === 'VERIFIED') relevanceScore += 20;
-    else if (provenanceStatus === 'CORROBORATED') relevanceScore += 15;
-    else if (provenanceStatus === 'USER_PROVIDED') relevanceScore += 10;
-    else if (provenanceStatus === 'CLAIMED') relevanceScore += 5;
-
-    relevanceScore += Math.min(10, evidenceCount);
-
-    candidateSkills.push({
-      name,
-      slug,
-      provenanceStatus,
-      evidenceId,
-      evidenceRef: s.evidenceRef || (s.evidence && s.evidence[0]) || null,
-      evidenceCount,
-      relevanceScore,
-      matchedRequirementId: matchedReq?.requirementId || null,
-    });
-  }
-
-  candidateSkills.sort((a, b) => b.relevanceScore - a.relevanceScore || b.evidenceCount - a.evidenceCount);
-  return candidateSkills;
-}
-
-/**
  * Splits text into sentences while protecting technology names (Node.js, Next.js, etc.)
  * and abbreviations with embedded periods from false sentence breaks.
  *
@@ -544,12 +247,12 @@ export function splitSentences(text) {
   if (!text || typeof text !== 'string') return [];
   const protectedText = text
     .replace(/\b([Nn]ode|[Nn]ext|[Vv]ue|[Ee]xpress)\.js\b/g, '$1__DOT__js')
-    .replace(/\b(e\.g\.|i\.e\.|etc\.|vs\.|dept\.|dr\.|mr\.|ms\.)/gi, (m) => m.replace(/\./g, '__DOT__'));
+    .replace(/\b(e\.g\.|i\.e\.|etc\.|vs\.|dept\.|dr\.|mr\.|ms\.)/gi, (m) =>
+      m.replace(/\./g, '__DOT__')
+    );
 
   const rawMatches = protectedText.match(/[^.!?]+[.!?]+/g) || [protectedText];
-  return rawMatches
-    .map((s) => s.replace(/__DOT__/g, '.').trim())
-    .filter(Boolean);
+  return rawMatches.map((s) => s.replace(/__DOT__/g, '.').trim()).filter(Boolean);
 }
 
 /**
@@ -580,291 +283,31 @@ export function generateGroundedSummary({
     throw new ValidationError('candidateProfile must be a valid object');
   }
 
-  const meta = candidateProfile.profileMetadata || {};
-  const targetRoleTitle =
-    jobPosting?.title ||
-    tailoringPlan?.targetRoleTitle ||
-    options.targetRoleTitle ||
-    candidateProfile.headline ||
-    'Software Engineer';
-
-  // 1. Gather Candidate-Owned Skills & Projects
-  const rankedSkills = Array.isArray(selectedSkills) && selectedSkills.length > 0
-    ? selectedSkills
-    : extractRankedCandidateSkills(candidateProfile, jobPosting, matchAnalysis);
-
-  const rawProjects = Array.isArray(selectedProjects) && selectedProjects.length > 0
-    ? selectedProjects
-    : (meta.projects || candidateProfile.projects || []);
-
-  const jobDescText = String(
-    (jobPosting?.title || '') +
-      ' ' +
-      (jobPosting?.description || '') +
-      ' ' +
-      (jobPosting?.requirements || []).join(' ') +
-      ' ' +
-      (jobPosting?.skills || []).join(' ')
-  ).toLowerCase();
-
-  // 2. Identify role focus (generic taxonomy over job text or options overrides)
-  const roleFocus = options.roleFocus && typeof options.roleFocus === 'object'
-    ? options.roleFocus
-    : deriveRoleFocus(targetRoleTitle, jobDescText);
-  const isBackendFocus = roleFocus.isBackendFocus;
-  const isFrontendFocus = roleFocus.isFrontendFocus;
-
-  // 3. Filter Candidate-Owned Relevant Skills
-  let filteredSkills = [];
-  if (isBackendFocus) {
-    filteredSkills = rankedSkills.filter((s) => {
-      const slug = s.slug.toLowerCase();
-      return (
-        slug.includes('python') ||
-        slug.includes('fastapi') ||
-        slug.includes('postgres') ||
-        slug.includes('node') ||
-        slug.includes('express') ||
-        slug.includes('sql') ||
-        slug.includes('api') ||
-        slug.includes('rest') ||
-        slug.includes('django') ||
-        slug.includes('flask') ||
-        s.relevanceScore > 40
-      );
-    });
-  } else if (isFrontendFocus) {
-    filteredSkills = rankedSkills.filter((s) => {
-      const slug = s.slug.toLowerCase();
-      return (
-        slug.includes('react') ||
-        slug.includes('typescript') ||
-        slug.includes('next') ||
-        slug.includes('javascript') ||
-        slug.includes('html') ||
-        slug.includes('css') ||
-        slug.includes('ui') ||
-        slug.includes('web') ||
-        slug.includes('tailwind') ||
-        s.relevanceScore > 40
-      );
-    });
-  }
-
-  if (filteredSkills.length === 0) {
-    filteredSkills = rankedSkills.slice(0, 4);
-  }
-
-  // Pick top 3 distinct candidate-owned skills for summary
-  const topSkills = filteredSkills.slice(0, 3);
-  const referencedSkillSlugs = topSkills.map((s) => s.slug || slugifyTerm(s.name));
-
-  // 4. Select Grounded Project Highlight — relevance-driven, not name-driven
-  let topProject = null;
-  if (rawProjects.length > 0) {
-    const topSkillSlugs = new Set(topSkills.map((s) => s.slug || slugifyTerm(s.name)));
-    const projectScore = (p) => {
-      let score = typeof p.relevanceScore === 'number' ? p.relevanceScore : 0;
-      const techSlugs = (p.technologies || []).map((t) => slugifyTerm(t));
-      let overlap = 0;
-      for (const ts of techSlugs) {
-        if (topSkillSlugs.has(ts)) overlap += 1;
-        else if (jobDescText.includes(ts)) overlap += 0.5;
-      }
-      score += overlap * 10;
-      const bulletCount = Array.isArray(p.bullets) ? p.bullets.length : 0;
-      score += Math.min(10, bulletCount * 3);
-      score += Math.min(10, (p.evidenceCount || (Array.isArray(p.evidence) ? p.evidence.length : 0)) * 0.5);
-      return score;
-    };
-    topProject = [...rawProjects].sort((a, b) => projectScore(b) - projectScore(a))[0] || rawProjects[0];
-  }
-
-  const referencedProjectIds = [];
-  if (topProject) {
-    const pId = topProject.id || topProject.projectId || topProject.name;
-    if (pId) referencedProjectIds.push(String(pId));
-  }
-
-  // 5. Gather Evidence References & Requirement IDs
-  const evidenceRefs = [];
-  const matchedRequirementIds = [];
-
-  for (const s of topSkills) {
-    if (s.matchedRequirementId && !matchedRequirementIds.includes(s.matchedRequirementId)) {
-      matchedRequirementIds.push(s.matchedRequirementId);
-    }
-    const ref = toEvidenceReference(
-      s.evidenceRef || {
-        evidenceId: s.evidenceId,
-        filePath: 'skills/verified.json',
-      },
-      s.provenanceStatus
-    );
-    if (ref) evidenceRefs.push(ref);
-  }
-
-  if (topProject && Array.isArray(topProject.evidence) && topProject.evidence.length > 0) {
-    for (const e of topProject.evidence.slice(0, 2)) {
-      const ref = toEvidenceReference(e, topProject.provenanceStatus || 'VERIFIED');
-      if (ref) evidenceRefs.push(ref);
-    }
-  }
-
-  // 6. Synthesize High-Density Professional Summary (P16-006)
-  // 2-3 dense sentences strictly from candidate-owned facts.
-  // Priority: authentic candidate summary → synthesized from verified skills/projects/experience.
-  const candidateExperience = candidateProfile.experience || meta.experience || [];
-  const hasWorkHistory = Array.isArray(candidateExperience) && candidateExperience.length > 0;
-  const isFresher = !hasWorkHistory || candidateProfile.careerStatus === 'FRESHER';
-
-  // Check for authentic candidate-authored summary
-  const authenticSummary = candidateProfile.summary || meta.summary || null;
-
-  let summaryText = '';
-  const skillNames = topSkills.map((s) => s.name).filter(Boolean);
-  const skillPhrase = skillNames.length > 0
-    ? skillNames.slice(0, 4).join(', ')
-    : null;
-  const projectDisplayName = topProject ? (topProject.displayName || topProject.name || topProject.title) : null;
-
-  if (authenticSummary && typeof authenticSummary === 'string' && authenticSummary.trim().length >= 30) {
-    // P16-006 / P16-007: Anchor on authentic candidate-authored summary.
-    // Adapt for target role while preserving authentic facts and 3-sentence professional density.
-    const headingInfo = deriveTargetRoleHeading({ candidateProfile, jobPosting, matchAnalysis });
-    const rolePhrase = headingInfo.heading || targetRoleTitle;
-
-    let adapted = authenticSummary.trim();
-
-    // Role-align candidate summary if roleFocus is specialized
-    if (isBackendFocus) {
-      adapted = adapted
-        .replace(/\s*and\s+(?:modern\s+)?frontend\s+(?:interfaces|applications|development|systems|components)(?=[.!?]|\b)/gi, '')
-        .replace(/\b(?:frontend\s+and\s+)/gi, '')
-        .replace(/\bfull-stack\b/gi, 'Backend');
-    } else if (isFrontendFocus) {
-      adapted = adapted
-        .replace(/\bbuilding\s+backend\s+(?:apis|systems|applications|services)\s+and\s+/gi, 'building ')
-        .replace(/\s*and\s+(?:robust\s+)?backend\s+(?:apis|systems|applications|services)(?=[.!?]|\b)/gi, '')
-        .replace(/\b(?:backend\s+and\s+)/gi, '')
-        .replace(/\bfull-stack\b/gi, 'Frontend');
-    }
-
-    // Split into sentences and preserve authentic 3-sentence structure (up to 450 chars)
-    const rawSentences = splitSentences(adapted);
-
-    if (rawSentences.length >= 3) {
-      const threeSentences = rawSentences.slice(0, 3).join(' ');
-      if (threeSentences.length <= 450) {
-        adapted = threeSentences;
-      } else {
-        const twoSentences = rawSentences.slice(0, 2).join(' ');
-        adapted = twoSentences.length <= 450 ? twoSentences : twoSentences.substring(0, 447) + '...';
-      }
-    } else if (rawSentences.length === 2) {
-      adapted = rawSentences.slice(0, 2).join(' ');
-    } else if (rawSentences.length === 1) {
-      adapted = rawSentences[0];
-    }
-
-    if (!/[.!?]$/.test(adapted.trim())) {
-      adapted = adapted.trim() + '.';
-    }
-
-    // If the authentic summary doesn't mention the target role, prefix with role context
-    const roleLower = rolePhrase.toLowerCase();
-    const summaryLower = adapted.toLowerCase();
-    if (!summaryLower.includes('engineer') && !summaryLower.includes('developer') && !summaryLower.includes(roleLower)) {
-      summaryText = `${rolePhrase}. ${adapted}`;
-    } else {
-      summaryText = adapted;
-    }
-
-    // Append a skills sentence only if summary is short AND does not already mention the skills
-    const summaryMentionsSkills = skillNames.some((sk) => summaryLower.includes(sk.toLowerCase()));
-    if (summaryText.length < 200 && skillPhrase && !summaryMentionsSkills) {
-      summaryText += ` Proficient in ${skillPhrase}.`;
-    }
-  } else if (topSkills.length === 0 && !topProject) {
-    // Fail-closed safe fallback: grounded academic/background facts
-    const degree = candidateProfile.education?.[0]?.degree || meta.education?.[0]?.degree;
-    const field = candidateProfile.education?.[0]?.fieldOfStudy || meta.education?.[0]?.fieldOfStudy;
-    if (degree) {
-      summaryText = `${targetRoleTitle} with academic foundation in ${field || degree}.`;
-    } else {
-      summaryText = `${targetRoleTitle} with verified technical background.`;
-    }
-  } else {
-    // P16-006: Synthesize 2-3 dense professional sentences from verified candidate facts.
-    const headingInfo = deriveTargetRoleHeading({ candidateProfile, jobPosting, matchAnalysis });
-    const rolePhrase = headingInfo.heading || targetRoleTitle;
-
-    // Sentence 1: Role title + technical specialization + top verified skills
-    summaryText = skillPhrase
-      ? `${rolePhrase} with hands-on experience in ${skillPhrase}.`
-      : `${rolePhrase} with hands-on project delivery and engineering practice.`;
-
-    // Sentence 2: Key engineering strengths from verified projects
-    if (projectDisplayName) {
-      const projectClause = buildProjectHighlightClause(topProject, roleFocus);
-      if (projectClause) {
-        summaryText += ` Built ${projectDisplayName}${projectClause}.`;
-      } else {
-        const techStack = (topProject.technologies || []).slice(0, 3).join(', ');
-        if (techStack) {
-          summaryText += ` Built ${projectDisplayName} using ${techStack}.`;
-        } else {
-          summaryText += ` Built ${projectDisplayName}.`;
-        }
-      }
-    } else if (hasWorkHistory) {
-      const latest = candidateExperience[0] || {};
-      const latestRole = latest.title || latest.role || null;
-      const latestCompany = latest.company || latest.organization || null;
-      if (latestRole && latestCompany) {
-        summaryText += ` Professional experience as ${latestRole} at ${latestCompany}.`;
-      } else if (latestRole) {
-        summaryText += ` Professional experience as ${latestRole}.`;
-      }
-    }
-
-    // Sentence 3: Engineering foundation (DSA, academic, or additional skills context)
-    const dsa = candidateProfile.problemSolving || meta.problemSolving;
-    const dsaUrl = dsa?.profileUrl;
-    const hasDsaPractice = dsaUrl || (Array.isArray(dsa?.bullets) && dsa.bullets.length > 0);
-    const degree = candidateProfile.education?.[0]?.degree || meta.education?.[0]?.degree;
-    const field = candidateProfile.education?.[0]?.fieldOfStudy || meta.education?.[0]?.fieldOfStudy;
-
-    if (summaryText.length < 280) {
-      if (hasDsaPractice && degree) {
-        summaryText += ` Strong foundation in data structures, algorithms, and ${field || degree}.`;
-      } else if (degree && field) {
-        summaryText += ` Academic foundation in ${field}.`;
-      } else if (hasDsaPractice) {
-        summaryText += ` Strong problem-solving foundation in data structures and algorithms.`;
-      }
-    }
-  }
-
-  // Ensure metric safety on synthesized summary
-  assertMetricSafety(summaryText, evidenceRefs, {
-    hasWorkHistoryTenure: !isFresher,
-    sourceText: candidateProfile.summary || meta.summary || '',
+  const result = composeProfessionalSummary({
+    candidateProfile,
+    jobPosting,
+    selectedSkills,
+    selectedProjects,
+    options: {
+      ...options,
+      matchAnalysis,
+      targetRoleTitle: tailoringPlan?.targetRoleTitle || options.targetRoleTitle,
+    },
   });
 
-  // Determine overall provenance status
-  const allVerified = topSkills.length > 0 && topSkills.every((s) => s.provenanceStatus === 'VERIFIED');
-  const anyCorroborated = topSkills.some((s) => s.provenanceStatus === 'CORROBORATED');
-  const provenanceStatus = allVerified ? 'VERIFIED' : anyCorroborated ? 'CORROBORATED' : 'CLAIMED';
-
   return {
-    text: summaryText,
-    referencedSkillSlugs,
-    referencedProjectIds,
-    evidenceRefs: evidenceRefs.slice(0, 5),
-    matchedRequirementIds,
-    provenanceStatus,
-    provenance: evidenceRefs[0] || null,
+    text: result.text,
+    referencedSkillSlugs: result.referencedSkillSlugs || [],
+    referencedProjectIds: result.referencedProjectIds || [],
+    evidenceRefs: result.evidenceRefs || [],
+    matchedRequirementIds: result.matchedRequirementIds || [],
+    provenanceStatus: 'VERIFIED',
+    provenance: null,
+    composedFromFactIds: result.composedFromFactIds || [],
+    targetRole: result.targetRole,
+    topRelevantTechnicalDomains: result.topRelevantTechnicalDomains,
+    topRelevantTechnologies: result.topRelevantTechnologies,
+    differentiator: result.differentiator,
   };
 }
 
@@ -930,7 +373,23 @@ export function calculateTokenOverlap(textA, textB) {
         .toLowerCase()
         .replace(/[^a-z0-9\s]/g, ' ')
         .split(/\s+/)
-        .filter((w) => w.length > 2 && !['and', 'the', 'with', 'for', 'from', 'using', 'into', 'that', 'this', 'built', 'developed'].includes(w))
+        .filter(
+          (w) =>
+            w.length > 2 &&
+            ![
+              'and',
+              'the',
+              'with',
+              'for',
+              'from',
+              'using',
+              'into',
+              'that',
+              'this',
+              'built',
+              'developed',
+            ].includes(w)
+        )
     );
   const setA = getTokens(textA);
   const setB = getTokens(textB);
@@ -970,7 +429,11 @@ export function composeCandidateProjectBullets(items) {
         const itemB = items[j];
         const textB = String(itemB.text || '').trim();
 
-        if (textB.length < 65 && !textB.includes(';') && calculateTokenOverlap(textA, textB) < 0.4) {
+        if (
+          textB.length < 65 &&
+          !textB.includes(';') &&
+          calculateTokenOverlap(textA, textB) < 0.4
+        ) {
           const cleanA = textA.replace(/[.!?]+$/, '');
           let cleanB = textB.replace(/[.!?]+$/, '');
           cleanB = cleanB.charAt(0).toLowerCase() + cleanB.slice(1);
@@ -982,7 +445,10 @@ export function composeCandidateProjectBullets(items) {
             origText: `${itemA.origText || textA} / ${itemB.origText || textB}`,
             evidenceRefs: [...(itemA.evidenceRefs || []), ...(itemB.evidenceRefs || [])],
             matchedRequirementIds: [
-              ...new Set([...(itemA.matchedRequirementIds || []), ...(itemB.matchedRequirementIds || [])]),
+              ...new Set([
+                ...(itemA.matchedRequirementIds || []),
+                ...(itemB.matchedRequirementIds || []),
+              ]),
             ],
             isComposed: true,
           });
@@ -1019,242 +485,77 @@ export function composeCandidateProjectBullets(items) {
 export function selectAndRephraseProjectBullets({
   project,
   jobPosting = null,
-  matchAnalysis = null,
+  matchAnalysis: _matchAnalysis = null,
   options = {},
 }) {
-  if (!project || typeof project !== 'object') {
-    return [];
-  }
-
-  // P16-006: Multi-source candidate bullet collection with provenance
-  const candidateItems = [];
-  const seenTexts = new Set();
-  const addCandidateSource = (item, sourceType) => {
-    if (!item) return;
-    const text = typeof item === 'object' && item !== null ? (item.text || item.description || '') : String(item);
-    const trimmed = text.trim();
-    if (!trimmed || trimmed.length < 15) return;
-    if (
-      /^(?:source code|project link|repository|repo|url):\s*https?:\/\//i.test(trimmed) ||
-      /^https?:\/\//i.test(trimmed)
-    ) {
-      return;
-    }
-    const compressed = compressCandidateBullet(trimmed);
-    const norm = compressed.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (seenTexts.has(norm)) return;
-    seenTexts.add(norm);
-    candidateItems.push(
-      typeof item === 'object' && item !== null
-        ? { ...item, text: compressed, origText: trimmed, sourceType: item.sourceType || sourceType }
-        : { text: compressed, origText: trimmed, sourceType }
-    );
-  };
-
-  // Priority 1: Authored bullets
-  if (Array.isArray(project.bullets)) {
-    for (const b of project.bullets) addCandidateSource(b, 'CANDIDATE_AUTHORED_BULLET');
-  }
-  // Priority 2: Authored highlights
-  if (Array.isArray(project.highlights)) {
-    for (const h of project.highlights) addCandidateSource(h, 'CANDIDATE_AUTHORED_HIGHLIGHT');
-  }
-  // Priority 3: Authored features / feature descriptions
-  if (Array.isArray(project.features)) {
-    for (const f of project.features) addCandidateSource(f, 'CANDIDATE_AUTHORED_FEATURE');
-  }
-  if (Array.isArray(project.featureDescriptions)) {
-    for (const fd of project.featureDescriptions) addCandidateSource(fd, 'CANDIDATE_AUTHORED_FEATURE');
-  }
-  // Priority 4: Authored responsibilities / implementation descriptions
-  if (Array.isArray(project.responsibilities)) {
-    for (const r of project.responsibilities) addCandidateSource(r, 'CANDIDATE_AUTHORED_RESPONSIBILITY');
-  }
-  if (Array.isArray(project.implementationDescriptions)) {
-    for (const id of project.implementationDescriptions) addCandidateSource(id, 'CANDIDATE_AUTHORED_RESPONSIBILITY');
-  }
-  // Priority 5: Candidate description (fallback if < 2 items)
-  if (candidateItems.length < 2 && project.description && typeof project.description === 'string') {
-    addCandidateSource(project.description, 'CANDIDATE_AUTHORED_DESCRIPTION');
-  }
-  // Priority 6: Candidate summary (fallback if 0 items)
-  if (candidateItems.length === 0 && project.summary && typeof project.summary === 'string') {
-    addCandidateSource(project.summary, 'CANDIDATE_AUTHORED_SUMMARY');
-  }
-
-  // P16-007: Redundancy reduction (threshold >= 0.55) to eliminate duplicate/near-duplicate formulations
-  const distinctCandidateItems = [];
-  for (const item of candidateItems) {
-    const isDuplicate = distinctCandidateItems.some(
-      (accepted) => calculateTokenOverlap(item.text, accepted.text) >= 0.55
-    );
-    if (!isDuplicate) {
-      distinctCandidateItems.push(item);
-    }
-  }
-
-  // P16-007: Grounded composition of short complementary fragments (< 60 chars)
-  const composedCandidateItems = composeCandidateProjectBullets(distinctCandidateItems);
-
-  if (composedCandidateItems.length === 0) {
-    return [];
-  }
-
-  // P16-007 Rule 5: Content richness thresholds are conditional:
-  // - 3 substantive source-backed facts -> up to 3 bullets
-  // - 2 -> up to 2 bullets
-  // - 1 -> 1
-  // - 0 -> no accomplishment bullet
-  const substantiveCount = composedCandidateItems.length;
-  const maxAllowedByRichness = Math.min(3, substantiveCount);
-  const maxBullets = typeof options.maxBullets === 'number'
-    ? Math.min(options.maxBullets, maxAllowedByRichness)
-    : maxAllowedByRichness;
-
-  const jobTerms = new Set();
-  if (jobPosting) {
-    const jobText = String(
-      (jobPosting.title || '') +
-        ' ' +
-        (jobPosting.description || '') +
-        ' ' +
-        (jobPosting.requirements || []).join(' ') +
-        ' ' +
-        (jobPosting.skills || []).join(' ')
-    ).toLowerCase();
-
-    for (const word of jobText.split(/[^a-z0-9+#.]+/)) {
-      if (word.length >= 3) jobTerms.add(word);
-    }
-  }
+  const rawItems = [
+    ...(Array.isArray(project.bullets) ? project.bullets : []),
+    ...(Array.isArray(project.highlights) ? project.highlights : []),
+    ...(Array.isArray(project.features) ? project.features : []),
+  ];
 
   const projectEvidence = Array.isArray(project.evidence) ? project.evidence : [];
+  const projectTechs = Array.isArray(project.technologies) ? project.technologies : [];
 
-  // 1. Score each bullet for relevance to target job
-  const scoredBullets = composedCandidateItems.map((bulletObj, idx) => {
-    const text = String(bulletObj.text || '').trim();
+  const pId = project.id || project.projectId || 'proj';
+  const facts = rawItems
+    .map((item, i) => {
+      const text =
+        typeof item === 'object' && item !== null
+          ? item.text || item.description || ''
+          : String(item || '');
+      const bulletLower = text.toLowerCase();
+      const bEvidenceRefs =
+        Array.isArray(item?.evidenceRefs) && item.evidenceRefs.length > 0
+          ? item.evidenceRefs
+          : projectEvidence.filter((e) => {
+              const slug = e.skillSlug || slugifyTerm(e.skillName || '');
+              return slug && bulletLower.includes(slug.replace(/-/g, ' '));
+            });
+      const matchedRequirementIds = Array.isArray(item?.matchedRequirementIds)
+        ? [...item.matchedRequirementIds]
+        : [];
 
-    let relevanceScore = 0;
-    const bulletLower = text.toLowerCase();
+      const techs = projectTechs.filter((t) => bulletLower.includes(String(t).toLowerCase()));
 
-    // Check overlap with job keywords
-    for (const term of jobTerms) {
-      if (bulletLower.includes(term)) {
-        relevanceScore += 10;
-      }
-    }
+      return {
+        factId: `${pId}-claim-${i}`,
+        id: `${pId}-claim-${i}`,
+        renderable: true,
+        text,
+        factType: 'candidate-authored',
+        provenance: item?.provenanceStatus || project.provenanceStatus || 'USER_PROVIDED',
+        confidence: 0.85,
+        semanticTopic: 'implementation',
+        measurable: false,
+        technologies: techs,
+        evidenceRefs: bEvidenceRefs,
+        matchedRequirementIds,
+        association: { projectId: pId },
+      };
+    })
+    .filter((f) => Boolean(f.text));
 
-    // Check project technology alignment
-    for (const tech of project.technologies || []) {
-      const techLower = String(tech).toLowerCase();
-      if (bulletLower.includes(techLower)) {
-        if (jobTerms.has(techLower)) relevanceScore += 25;
-        else relevanceScore += 5;
-      }
-    }
+  const scoredFacts = jobPosting ? scoreFactsForJob(facts, jobPosting) : facts;
 
-    // Prefer bullets with code-backed evidence
-    const bEvidenceRefs = Array.isArray(bulletObj.evidenceRefs) && bulletObj.evidenceRefs.length > 0
-      ? bulletObj.evidenceRefs
-      : projectEvidence.filter((e) => {
-          const slug = e.skillSlug || slugifyTerm(e.skillName);
-          return slug && bulletLower.includes(slug.replace(/-/g, ' '));
-        });
-
-    if (bEvidenceRefs.length > 0) {
-      relevanceScore += 15;
-    }
-
-    // Preserve matched requirement IDs if present or derive from matchAnalysis
-    const matchedRequirementIds = Array.isArray(bulletObj.matchedRequirementIds)
-      ? [...bulletObj.matchedRequirementIds]
-      : [];
-
-    if (matchAnalysis?.skillMatches) {
-      for (const m of matchAnalysis.skillMatches) {
-        const name = (m.skillName || m.skillSlug || '').toLowerCase();
-        if (name && bulletLower.includes(name) && m.requirementId && !matchedRequirementIds.includes(m.requirementId)) {
-          matchedRequirementIds.push(m.requirementId);
-        }
-      }
-    }
-
-    return {
-      text,
-      origText: text,
-      evidenceRefs: bEvidenceRefs.slice(0, 5),
-      matchedRequirementIds,
-      provenanceStatus: bulletObj.provenanceStatus || project.provenanceStatus || 'VERIFIED',
-      relevanceScore,
-      origIndex: idx,
-    };
+  const composed = composeProfessionalProjectBullets({
+    facts: scoredFacts,
+    project,
+    jobPosting,
+    explicitBudget: options?.maxBullets ?? null,
+    options,
   });
 
-  // 2. Sort by relevance score descending, preserving relative order on ties
-  scoredBullets.sort((a, b) => b.relevanceScore - a.relevanceScore || a.origIndex - b.origIndex);
-
-  // 2b. Evidence-grounded pool expansion: only when explicitly permitted and space exists
-  const targetPoolSize = Math.max(maxBullets, 1);
-  if (scoredBullets.length < targetPoolSize && options.allowEvidenceDerived) {
-    const derivedBullets = deriveEvidenceBackedBullets(
-      project,
-      scoredBullets,
-      jobTerms,
-      targetPoolSize
-    );
-    scoredBullets.push(...derivedBullets);
-  }
-
-  const authoredScored = scoredBullets
-    .filter((b) => !b.isEvidenceDerived)
-    .sort((a, b) => b.relevanceScore - a.relevanceScore || a.origIndex - b.origIndex);
-  const derivedScored = scoredBullets
-    .filter((b) => b.isEvidenceDerived)
-    .sort((a, b) => b.relevanceScore - a.relevanceScore || a.origIndex - b.origIndex);
-
-  // 3. Optional Rephrasing & Metric Safety Enforcement
-  // Selection order: all authored bullets first (up to budget), then the
-  // strongest evidence-derived fillers for any remaining budget slots.
-  const selected = [...authoredScored, ...derivedScored].slice(0, maxBullets);
-
-  const resultBullets = [];
-  for (const item of selected) {
-    let bulletText = item.text;
-
-    if (options.rephrase && typeof options.rephraseFn === 'function') {
-      try {
-        const proposed = options.rephraseFn(item.text);
-        validateRephrasingSafety(item.text, proposed, project);
-        bulletText = proposed;
-      } catch (err) {
-        if (err instanceof ValidationError) throw err;
-        // Fall back to original authentic bullet on rephrasing failure
-        bulletText = item.text;
-      }
-    }
-
-    // Assert metric safety on each final bullet. Evidence-derived bullets
-    // (origText === null) are exempt from the source-text pass-through because
-    // their text is constructed purely from evidence-verified facts.
-    assertMetricSafety(
-      bulletText,
-      item.evidenceRefs,
-      item.origText !== null ? { sourceText: item.origText } : {}
-    );
-
-    const normalizedRefs = (item.evidenceRefs || [])
-      .map((r) => toEvidenceReference(r, item.provenanceStatus))
-      .filter(Boolean);
-
-    resultBullets.push({
-      text: bulletText,
-      evidenceRefs: normalizedRefs,
-      matchedRequirementIds: item.matchedRequirementIds,
-      provenanceStatus: item.provenanceStatus,
-    });
-  }
-
-  return resultBullets;
+  return (composed.bullets || []).map((b) => {
+    const prov = b.provenanceStatus;
+    const normalizedProv = prov === 'VERIFIED' || prov === 'CORROBORATED' ? 'VERIFIED' : 'CLAIMED';
+    return {
+      text: b.text,
+      evidenceRefs: b.evidenceRefs || [],
+      matchedRequirementIds: b.matchedRequirementIds || [],
+      provenanceStatus: normalizedProv,
+    };
+  });
 }
 
 /**
@@ -1278,8 +579,14 @@ export function normalizeTargetRoleTitle(rawTitle) {
   title = title.replace(/,\s*[^,]*\b(?:hybrid|remote|onsite|on-site)\b[^,]*$/gi, '');
 
   // 2. Remove trailing department / team specifiers
-  title = title.replace(/,\s*(?:growth|core team|product team|engineering team|us|uk|emea|apac)\b.*$/gi, '');
-  title = title.replace(/\s*[-–—]\s*(?:growth|core team|product team|engineering team|us|uk|emea|apac)\s*$/gi, '');
+  title = title.replace(
+    /,\s*(?:growth|core team|product team|engineering team|us|uk|emea|apac)\b.*$/gi,
+    ''
+  );
+  title = title.replace(
+    /\s*[-–—]\s*(?:growth|core team|product team|engineering team|us|uk|emea|apac)\s*$/gi,
+    ''
+  );
 
   // 2b. Generic canonical-role rule: strip ANY remaining trailing qualification
   // clause (", <Team/Domain/Specialty>"). The canonical headline must be a
@@ -1319,7 +626,11 @@ export function normalizeTargetRoleTitle(rawTitle) {
  * @param {object} [params.matchAnalysis]
  * @returns {{ heading: string, rawTitle: string, seniorityAdjusted: boolean, candidateSeniority: string, candidateArchetype: string }}
  */
-export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, matchAnalysis = null }) {
+export function deriveTargetRoleHeading({
+  candidateProfile,
+  jobPosting = null,
+  matchAnalysis = null,
+}) {
   const profile = candidateProfile || {};
   const meta = profile.profileMetadata || {};
   const experiences = meta.experience || profile.experience || profile.workExperience || [];
@@ -1342,7 +653,9 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, m
   });
 
   const hasSeniorWorkHistory = experiences.some((e) =>
-    /\b(senior|sr\.?|principal|lead|staff|architect|director|manager)\b/i.test(e.title || e.role || '')
+    /\b(senior|sr\.?|principal|lead|staff|architect|director|manager)\b/i.test(
+      e.title || e.role || ''
+    )
   );
   const hasSeniorHeadline = /\b(senior|sr\.?|principal|lead|staff|architect|director)\b/i.test(
     profile.headline || meta.headline || ''
@@ -1360,7 +673,9 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, m
 
   // 2. Candidate evidence capabilities
   const candidateSkills = new Set(
-    (profile.skills || []).map((s) => (typeof s === 'string' ? slugifyTerm(s) : slugifyTerm(s.slug || s.name)))
+    (profile.skills || []).map((s) =>
+      typeof s === 'string' ? slugifyTerm(s) : slugifyTerm(s.slug || s.name)
+    )
   );
   if (matchAnalysis?.skillMatches) {
     for (const m of matchAnalysis.skillMatches) {
@@ -1374,14 +689,41 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, m
     candidateProjects.flatMap((p) => (p.technologies || []).map((t) => slugifyTerm(t)))
   );
 
-  const hasBackendEvidence =
-    [...candidateSkills, ...projectTechs].some((s) =>
-      ['python', 'fastapi', 'node', 'nodejs', 'postgres', 'postgresql', 'backend', 'api', 'apis', 'django', 'flask', 'express', 'sql', 'rest', 'graphql'].includes(s)
-    );
-  const hasFrontendEvidence =
-    [...candidateSkills, ...projectTechs].some((s) =>
-      ['react', 'typescript', 'javascript', 'nextjs', 'next.js', 'vue', 'angular', 'html', 'css', 'tailwind', 'ui', 'frontend'].includes(s)
-    );
+  const hasBackendEvidence = [...candidateSkills, ...projectTechs].some((s) =>
+    [
+      'python',
+      'fastapi',
+      'node',
+      'nodejs',
+      'postgres',
+      'postgresql',
+      'backend',
+      'api',
+      'apis',
+      'django',
+      'flask',
+      'express',
+      'sql',
+      'rest',
+      'graphql',
+    ].includes(s)
+  );
+  const hasFrontendEvidence = [...candidateSkills, ...projectTechs].some((s) =>
+    [
+      'react',
+      'typescript',
+      'javascript',
+      'nextjs',
+      'next.js',
+      'vue',
+      'angular',
+      'html',
+      'css',
+      'tailwind',
+      'ui',
+      'frontend',
+    ].includes(s)
+  );
   const hasFullStackEvidence = hasBackendEvidence && hasFrontendEvidence;
 
   // 3. Raw target title from job posting
@@ -1395,9 +737,13 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, m
 
     // Seniority inflation protection:
     // If candidate is a fresher / entry-level / intern, disallow Senior, Principal, Lead, Staff, etc.
-    const isSeniorJobTitle = /\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b/i.test(normalized);
+    const isSeniorJobTitle = /\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b/i.test(
+      normalized
+    );
     if (isFresher && isSeniorJobTitle) {
-      normalized = normalized.replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '').trim();
+      normalized = normalized
+        .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
+        .trim();
       seniorityAdjusted = true;
     }
 
@@ -1428,7 +774,9 @@ export function deriveTargetRoleHeading({ candidateProfile, jobPosting = null, m
     if (profileHeadline && typeof profileHeadline === 'string' && profileHeadline.trim()) {
       let curated = profileHeadline.trim();
       if (isFresher) {
-        curated = curated.replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '').trim();
+        curated = curated
+          .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
+          .trim();
       }
       heading = curated;
     } else if (hasFullStackEvidence) {
@@ -1505,7 +853,9 @@ export function deriveSectionOrdering({ candidateProfile, jobPosting = null, opt
   });
 
   const hasSeniorWorkHistory = experiences.some((e) =>
-    /\b(senior|sr\.?|principal|lead|staff|architect|director|manager)\b/i.test(e.title || e.role || '')
+    /\b(senior|sr\.?|principal|lead|staff|architect|director|manager)\b/i.test(
+      e.title || e.role || ''
+    )
   );
   const hasSeniorHeadline = /\b(senior|sr\.?|principal|lead|staff|architect|director)\b/i.test(
     profile.headline || meta.headline || ''
@@ -1529,9 +879,11 @@ export function deriveSectionOrdering({ candidateProfile, jobPosting = null, opt
     }
   }
 
-  let candidateArchetype =
+  const candidateArchetype =
     options.candidateArchetype ||
-    (profile.careerStatus === 'CAREER_CHANGER' || meta.careerStatus === 'CAREER_CHANGER' || profile.archetype === 'CAREER_CHANGER'
+    (profile.careerStatus === 'CAREER_CHANGER' ||
+    meta.careerStatus === 'CAREER_CHANGER' ||
+    profile.archetype === 'CAREER_CHANGER'
       ? 'CAREER_CHANGER'
       : isFresher
         ? 'FRESHER'
@@ -1541,10 +893,13 @@ export function deriveSectionOrdering({ candidateProfile, jobPosting = null, opt
   const hasDsa = isMeaningfulDsa(dsa);
   const hasCertifications = Boolean(Array.isArray(certifications) && certifications.length > 0);
   const hasCoursework = Boolean(
-    (Array.isArray(education) && education.some((e) => Array.isArray(e.coursework) && e.coursework.length > 0)) ||
+    (Array.isArray(education) &&
+      education.some((e) => Array.isArray(e.coursework) && e.coursework.length > 0)) ||
     (Array.isArray(profile.coursework) && profile.coursework.length > 0)
   );
-  const hasPublications = Boolean(Array.isArray(profile.publications) && profile.publications.length > 0);
+  const hasPublications = Boolean(
+    Array.isArray(profile.publications) && profile.publications.length > 0
+  );
 
   const sectionOrder = ['HEADER', 'SUMMARY', 'SKILLS'];
 

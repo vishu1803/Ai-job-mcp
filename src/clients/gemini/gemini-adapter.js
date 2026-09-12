@@ -129,7 +129,15 @@ export class GeminiProviderAdapter extends AiProvider {
           ...(options.configOverride || {}),
         };
 
-        if (execConfig.modelMeta?.supportsThinking) {
+        if (execConfig.modelMeta?.supportsThinkingLevel || activeModelId.includes('3.8')) {
+          genConfig.thinkingConfig = options.thinkingConfig || {
+            thinkingLevel: options.thinkingLevel || 'low',
+          };
+          delete genConfig.temperature;
+          delete genConfig.topP;
+          delete genConfig.topK;
+          delete genConfig.candidateCount;
+        } else if (execConfig.modelMeta?.supportsThinking) {
           if (options.thinkingConfig) {
             genConfig.thinkingConfig = options.thinkingConfig;
           } else if (options.thinkingBudget !== undefined) {

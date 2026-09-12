@@ -16,19 +16,47 @@
  * 12. Evidence Traceability
  */
 
-import { CATEGORY_MAP, TECH_CATEGORIES } from '../utils/technology-taxonomy.js';
-import { CANONICAL_TECH_MAP, normalizeTechnologyName } from '../utils/technology-normalizer.js';
+import { CATEGORY_MAP } from '../utils/technology-taxonomy.js';
+import { CANONICAL_TECH_MAP } from '../utils/technology-normalizer.js';
 import { defaultAtsParseabilityService } from './resume-ats-parseability.service.js';
-import { computeFactUtilizationStats } from './candidate-fact-inventory.service.js';
-import { calculateFactSemanticOverlap } from './candidate-artifact-content.service.js';
+import {
+  computeFactUtilizationStats,
+  OMISSION_REASONS,
+} from './candidate-fact-inventory.service.js';
+import { calculateFactSemanticOverlap } from './resume-composition-primitives.js';
 
 // Strong active engineering verbs
 const STRONG_ACTION_VERBS = new Set([
-  'architected', 'engineered', 'implemented', 'designed', 'built', 'developed',
-  'optimized', 'automated', 'orchestrated', 'spearheaded', 'refactored', 'deployed',
-  'containerized', 'configured', 'integrated', 'migrated', 'scaled', 'benchmarked',
-  'debugged', 'reduced', 'eliminated', 'standardized', 'secured', 'streamlined',
-  'published', 'authored', 'established', 'maintained', 'analyzed', 'profiled',
+  'architected',
+  'engineered',
+  'implemented',
+  'designed',
+  'built',
+  'developed',
+  'optimized',
+  'automated',
+  'orchestrated',
+  'spearheaded',
+  'refactored',
+  'deployed',
+  'containerized',
+  'configured',
+  'integrated',
+  'migrated',
+  'scaled',
+  'benchmarked',
+  'debugged',
+  'reduced',
+  'eliminated',
+  'standardized',
+  'secured',
+  'streamlined',
+  'published',
+  'authored',
+  'established',
+  'maintained',
+  'analyzed',
+  'profiled',
 ]);
 
 const WEAK_VERB_PATTERNS = [
@@ -73,7 +101,7 @@ export function evaluateResumeWritingQuality({
   // Collect all bullets
   const projectBullets = [];
   for (const p of projects) {
-    for (const b of (p.bullets || [])) {
+    for (const b of p.bullets || []) {
       const text = typeof b === 'string' ? b : b.text;
       if (text) {
         projectBullets.push({
@@ -90,7 +118,7 @@ export function evaluateResumeWritingQuality({
 
   const experienceBullets = [];
   for (const e of experiences) {
-    for (const b of (e.bullets || [])) {
+    for (const b of e.bullets || []) {
       const text = typeof b === 'string' ? b : b.text;
       if (text) {
         experienceBullets.push({
@@ -133,42 +161,108 @@ export function evaluateResumeWritingQuality({
     }
   }
   const actionVerbRatio = strongVerbCount / totalBullets;
-  const actionVerbStrength = Math.round(Math.min(100, Math.max(30, (actionVerbRatio * 80) + 20 - (weakVerbCount * 15))));
+  const actionVerbStrength = Math.round(
+    Math.min(100, Math.max(30, actionVerbRatio * 80 + 20 - weakVerbCount * 15))
+  );
   if (actionVerbRatio >= 0.75) strengths.push('Strong action verb usage across bullet openers');
-  if (weakVerbCount > 0) findings.push({ code: 'WEAK_VERB', severity: 'WARN', message: `Found ${weakVerbCount} bullet(s) using passive/weak verb openers` });
+  if (weakVerbCount > 0)
+    findings.push({
+      code: 'WEAK_VERB',
+      severity: 'WARN',
+      message: `Found ${weakVerbCount} bullet(s) using passive/weak verb openers`,
+    });
 
   // 2. Accomplishment Ratio
   // Bullets that articulate what was built/engineered + technical method
   let accomplishmentCount = 0;
   for (const b of allBullets) {
-    const hasTechnicalMethod = /\b(using|via|with|by|through|leveraging|incorporating)\b/i.test(b.text);
-    const hasAction = STRONG_ACTION_VERBS.has((b.text.trim().split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, ''));
+    const hasTechnicalMethod = /\b(using|via|with|by|through|leveraging|incorporating)\b/i.test(
+      b.text
+    );
+    const hasAction = STRONG_ACTION_VERBS.has(
+      (b.text.trim().split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, '')
+    );
     if (hasAction && hasTechnicalMethod) {
       accomplishmentCount++;
     }
   }
   const accomplishmentRatio = Math.round((accomplishmentCount / totalBullets) * 100);
-  if (accomplishmentRatio >= 50) strengths.push('High ratio of accomplishment-oriented bullets with technical methods');
+  if (accomplishmentRatio >= 50)
+    strengths.push('High ratio of accomplishment-oriented bullets with technical methods');
+
+  // 2b. Candidate Contribution vs Description-Only Detection
+  const DESCRIPTION_OPENERS =
+    /^(an?|the|this)\s+(application|system|service|platform|project|tool|engine|database|api|dashboard|library|framework)\b/i;
+  const PASSIVE_DESCRIPTIONS =
+    /\b(features\s+include|supports\s+both|provides\s+capabilities|designed\s+to\s+be)\b/i;
+
+  let descriptionOnlyCount = 0;
+  let candidateContributionCount = 0;
+  let totalNarrativeParScore = 0;
+
+  for (const b of allBullets) {
+    const textTrimmed = b.text.trim();
+    const firstWord = (textTrimmed.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, '');
+    const isAction = STRONG_ACTION_VERBS.has(firstWord);
+    const isDescription =
+      DESCRIPTION_OPENERS.test(textTrimmed) ||
+      (!isAction && PASSIVE_DESCRIPTIONS.test(textTrimmed));
+
+    if (isDescription) {
+      descriptionOnlyCount++;
+    } else if (
+      isAction ||
+      /\b(built|engineered|architected|implemented|optimized|developed|created|scaled)\b/i.test(
+        textTrimmed
+      )
+    ) {
+      candidateContributionCount++;
+    }
+
+    // PAR completeness check: Action (25) + Object (25) + Method/Tech (25) + Purpose/Result (25)
+    let parScore = 0;
+    if (isAction) parScore += 25;
+    if (textTrimmed.length >= 35) parScore += 25;
+    if (/\b(using|via|with|by|through|leveraging|incorporating)\b/i.test(textTrimmed))
+      parScore += 25;
+    if (RESULT_PURPOSE_MARKERS.some((p) => p.test(textTrimmed))) parScore += 25;
+    totalNarrativeParScore += parScore;
+  }
+
+  const descriptionOnlyRatio = Math.round((descriptionOnlyCount / totalBullets) * 100);
+  const candidateContributionRatio = Math.round((candidateContributionCount / totalBullets) * 100);
+  const narrativeCompleteness = Math.round(totalNarrativeParScore / totalBullets);
+
+  if (descriptionOnlyCount > 0) {
+    findings.push({
+      code: 'DESCRIPTION_ONLY_BULLET',
+      severity: 'WARN',
+      message: `Found ${descriptionOnlyCount} bullet(s) that describe software rather than candidate contributions`,
+    });
+  }
+  if (candidateContributionRatio >= 80) {
+    strengths.push('High candidate contribution ratio with active engineering accomplishments');
+  }
 
   // 3. Technical Specificity (Taxonomy-driven)
   const knownTechs = new Set(Object.keys(CATEGORY_MAP).map((k) => k.toLowerCase()));
   for (const k of Object.keys(CANONICAL_TECH_MAP)) knownTechs.add(k.toLowerCase());
   if (doc.skills?.categories) {
     for (const c of doc.skills.categories) {
-      for (const s of (c.skills || [])) {
+      for (const s of c.skills || []) {
         const name = typeof s === 'string' ? s : s.name || s.slug;
         if (name) knownTechs.add(name.toLowerCase());
       }
     }
   }
   for (const p of projects) {
-    for (const t of (p.technologies || [])) {
+    for (const t of p.technologies || []) {
       if (t) knownTechs.add(String(t).toLowerCase());
     }
   }
   if (factInventory && Array.isArray(factInventory.facts)) {
     for (const f of factInventory.facts) {
-      for (const t of (f.technologies || [])) {
+      for (const t of f.technologies || []) {
         if (t) knownTechs.add(String(t).toLowerCase());
       }
     }
@@ -178,12 +272,14 @@ export function evaluateResumeWritingQuality({
   for (const b of allBullets) {
     const textLower = b.text.toLowerCase();
     const words = textLower.split(/[^a-z0-9#+.]+/).filter(Boolean);
-    const hasKnownTech = words.some((w) => knownTechs.has(w)) ||
+    const hasKnownTech =
+      words.some((w) => knownTechs.has(w)) ||
       Array.from(knownTechs).some((t) => t.length >= 3 && textLower.includes(t));
     if (hasKnownTech) specificCount++;
   }
   const technicalSpecificity = Math.round(Math.min(100, (specificCount / totalBullets) * 100));
-  if (technicalSpecificity >= 70) strengths.push('High technical specificity naming concrete tools and architectures');
+  if (technicalSpecificity >= 70)
+    strengths.push('High technical specificity naming concrete tools and architectures');
 
   // 4. Result / Purpose Coverage
   let resultCount = 0;
@@ -194,7 +290,8 @@ export function evaluateResumeWritingQuality({
 
   // 5. Authentic Metric Usage
   // INVARIANT: Do NOT penalize a candidate merely because they lack metrics. Reward authentic metrics only when available.
-  const METRIC_PATTERN = /\b(\d+(?:\.\d+)?%|\d+ms|\d+x|\d+\+?\s*(?:users|qps|rps|requests|queries|stars|commits))\b/i;
+  const METRIC_PATTERN =
+    /\b(\d+(?:\.\d+)?%|\d+ms|\d+x|\d+\+?\s*(?:users|qps|rps|requests|queries|stars|commits))\b/i;
   let bulletsWithMetrics = 0;
   for (const b of allBullets) {
     if (METRIC_PATTERN.test(b.text)) bulletsWithMetrics++;
@@ -232,20 +329,38 @@ export function evaluateResumeWritingQuality({
   let redundantPairCount = 0;
   for (let i = 0; i < allBullets.length; i++) {
     for (let j = i + 1; j < allBullets.length; j++) {
-      const wordsA = new Set(allBullets[i].text.toLowerCase().split(/\s+/).filter((w) => w.length > 4));
-      const wordsB = new Set(allBullets[j].text.toLowerCase().split(/\s+/).filter((w) => w.length > 4));
+      const wordsA = new Set(
+        allBullets[i].text
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 4)
+      );
+      const wordsB = new Set(
+        allBullets[j].text
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 4)
+      );
       const intersection = [...wordsA].filter((w) => wordsB.has(w));
-      const jaccard = intersection.length / Math.max(1, (wordsA.size + wordsB.size - intersection.length));
+      const jaccard =
+        intersection.length / Math.max(1, wordsA.size + wordsB.size - intersection.length);
       if (jaccard > 0.65) {
         redundantPairCount++;
       }
     }
   }
 
-  const redundancyScore = Math.max(20, 100 - (redundantPairCount * 25) - openerDiversityPenalty);
-  const semanticDiversity = Math.max(25, 100 - (redundantPairCount * 20) - (openerDiversityPenalty * 1.5));
+  const redundancyScore = Math.max(20, 100 - redundantPairCount * 25 - openerDiversityPenalty);
+  const semanticDiversity = Math.max(
+    25,
+    100 - redundantPairCount * 20 - openerDiversityPenalty * 1.5
+  );
   if (redundantPairCount > 0) {
-    findings.push({ code: 'SEMANTIC_REDUNDANCY', severity: 'WARN', message: `Found ${redundantPairCount} semantically overlapping bullet pairs` });
+    findings.push({
+      code: 'SEMANTIC_REDUNDANCY',
+      severity: 'WARN',
+      message: `Found ${redundantPairCount} semantically overlapping bullet pairs`,
+    });
   }
 
   // 7. Generic Language / Cliché Detection
@@ -254,9 +369,13 @@ export function evaluateResumeWritingQuality({
     if (GENERIC_CLICHE_PATTERNS.some((p) => p.test(b.text))) genericCount++;
   }
   if (GENERIC_CLICHE_PATTERNS.some((p) => p.test(summary))) genericCount++;
-  const genericLanguageScore = Math.max(20, 100 - (genericCount * 30));
+  const genericLanguageScore = Math.max(20, 100 - genericCount * 30);
   if (genericCount > 0) {
-    findings.push({ code: 'CLICHE_DETECTED', severity: 'WARN', message: `Detected ${genericCount} generic resume clichés` });
+    findings.push({
+      code: 'CLICHE_DETECTED',
+      severity: 'WARN',
+      message: `Detected ${genericCount} generic resume clichés`,
+    });
   }
 
   // 8. Passive Voice
@@ -264,7 +383,7 @@ export function evaluateResumeWritingQuality({
   for (const b of allBullets) {
     if (PASSIVE_VOICE_PATTERNS.some((p) => p.test(b.text))) passiveCount++;
   }
-  const passiveVoiceScore = Math.max(20, 100 - (passiveCount * 25));
+  const passiveVoiceScore = Math.max(20, 100 - passiveCount * 25);
 
   // 9. Verbosity & Conciseness
   let tooLong = 0;
@@ -274,7 +393,7 @@ export function evaluateResumeWritingQuality({
     if (len > 240) tooLong++;
     if (len < 35) tooShort++;
   }
-  const verbosityScore = Math.max(30, 100 - (tooLong * 20) - (tooShort * 15));
+  const verbosityScore = Math.max(30, 100 - tooLong * 20 - tooShort * 15);
 
   // 10. Job Relevance & Evidence-Derived Evaluation
   let jobRelevanceScore = 80;
@@ -288,7 +407,9 @@ export function evaluateResumeWritingQuality({
     });
     jobRelevanceScore = evidenceDerived.jobRelevanceScore;
   } else if (jobPosting?.requirements && Array.isArray(jobPosting.requirements)) {
-    const reqKeywords = jobPosting.requirements.map((r) => String(r.keyword || r.title || '').toLowerCase()).filter(Boolean);
+    const reqKeywords = jobPosting.requirements
+      .map((r) => String(r.keyword || r.title || '').toLowerCase())
+      .filter(Boolean);
     if (reqKeywords.length > 0) {
       let matchedReqs = 0;
       const fullText = (summary + ' ' + allBullets.map((b) => b.text).join(' ')).toLowerCase();
@@ -301,12 +422,20 @@ export function evaluateResumeWritingQuality({
 
   // 11. Evidence Traceability
   let tracedBullets = 0;
-  const inventoryFacts = factInventory?.facts || (Array.isArray(factInventory) ? factInventory : []);
+  const inventoryFacts =
+    factInventory?.facts || (Array.isArray(factInventory) ? factInventory : []);
   for (const b of allBullets) {
-    const hasRefs = (b.evidenceRefs && b.evidenceRefs.length > 0) || (b.composedFromFactIds && b.composedFromFactIds.length > 0);
-    const matchesInventory = inventoryFacts.length > 0 && inventoryFacts.some(
-      (f) => calculateFactSemanticOverlap(f.text, b.text) >= 0.50 || f.text.includes(b.text) || b.text.includes(f.text)
-    );
+    const hasRefs =
+      (b.evidenceRefs && b.evidenceRefs.length > 0) ||
+      (b.composedFromFactIds && b.composedFromFactIds.length > 0);
+    const matchesInventory =
+      inventoryFacts.length > 0 &&
+      inventoryFacts.some(
+        (f) =>
+          calculateFactSemanticOverlap(f.text, b.text) >= 0.5 ||
+          f.text.includes(b.text) ||
+          b.text.includes(f.text)
+      );
     if (hasRefs || matchesInventory) {
       tracedBullets++;
     }
@@ -316,7 +445,8 @@ export function evaluateResumeWritingQuality({
   // Summary Quality Check
   const summaryLength = summary.length;
   const summarySentenceCount = (summary.match(/[^.!?]+[.!?]+/g) || []).length;
-  const summaryGrounded = summaryLength > 40 && summarySentenceCount >= 1 && summarySentenceCount <= 4;
+  const summaryGrounded =
+    summaryLength > 40 && summarySentenceCount >= 1 && summarySentenceCount <= 4;
 
   const dimensions = {
     actionVerbStrength,
@@ -333,24 +463,29 @@ export function evaluateResumeWritingQuality({
     evidenceTraceability,
     summaryQuality: summaryGrounded ? 90 : 60,
     atsParseability: evidenceDerived ? evidenceDerived.atsParseabilityScore : 90,
-    factUtilizationIntegrity: evidenceDerived?.factUtilization ? Math.round((evidenceDerived.factUtilization.utilizationRate || 0) * 100) : 90,
-    sectionCoherence: 95,
+    factUtilizationIntegrity: evidenceDerived?.factUtilization
+      ? Math.round((evidenceDerived.factUtilization.utilizationRate || 0) * 100)
+      : 90,
+    sectionCoherence: descriptionOnlyRatio > 25 ? 70 : 95,
+    descriptionOnlyRatio,
+    candidateContributionRatio,
+    narrativeCompleteness,
   };
 
   // Weighted composite score
   const writingQualityScore = Math.round(
     actionVerbStrength * 0.12 +
-    accomplishmentRatio * 0.12 +
-    technicalSpecificity * 0.14 +
-    resultCoverage * 0.08 +
-    authenticMetricScore * 0.08 +
-    dimensions.semanticDiversity * 0.10 +
-    dimensions.redundancy * 0.10 +
-    genericLanguageScore * 0.06 +
-    passiveVoiceScore * 0.06 +
-    verbosityScore * 0.04 +
-    jobRelevanceScore * 0.05 +
-    evidenceTraceability * 0.05
+      accomplishmentRatio * 0.12 +
+      technicalSpecificity * 0.14 +
+      resultCoverage * 0.08 +
+      authenticMetricScore * 0.08 +
+      dimensions.semanticDiversity * 0.1 +
+      dimensions.redundancy * 0.1 +
+      genericLanguageScore * 0.06 +
+      passiveVoiceScore * 0.06 +
+      verbosityScore * 0.04 +
+      jobRelevanceScore * 0.05 +
+      evidenceTraceability * 0.05
   );
 
   return {
@@ -364,7 +499,8 @@ export function evaluateResumeWritingQuality({
   };
 }
 
-export const OMISSION_REASON_CODES = {
+export const OMISSION_REASON_CODES = Object.freeze({
+  ...OMISSION_REASONS,
   CAPACITY_LIMIT: 'CAPACITY_LIMIT',
   PHYSICAL_CAPACITY: 'PHYSICAL_CAPACITY',
   LOW_RELEVANCE: 'LOW_RELEVANCE',
@@ -381,7 +517,7 @@ export const OMISSION_REASON_CODES = {
   SUPERSEDED_BY_RICHER_FACT: 'SUPERSEDED_BY_RICHER_FACT',
   UNSUPPORTED_ROLE_CLAIM: 'UNSUPPORTED_ROLE_CLAIM',
   UNAUTHORIZED_TECHNOLOGY: 'UNAUTHORIZED_TECHNOLOGY',
-};
+});
 
 /**
  * Evaluates evidence-derived quality metrics:
@@ -411,7 +547,7 @@ export function evaluateEvidenceDerivedQuality({
   if (Array.isArray(doc.projects)) {
     for (const p of doc.projects) {
       if (p.name) allRenderedTexts.push(p.name);
-      for (const b of (p.bullets || [])) {
+      for (const b of p.bullets || []) {
         allRenderedTexts.push(typeof b === 'string' ? b : b.text || '');
       }
     }
@@ -420,14 +556,14 @@ export function evaluateEvidenceDerivedQuality({
     for (const e of doc.experience) {
       if (e.company) allRenderedTexts.push(e.company);
       if (e.title) allRenderedTexts.push(e.title);
-      for (const b of (e.bullets || [])) {
+      for (const b of e.bullets || []) {
         allRenderedTexts.push(typeof b === 'string' ? b : b.text || '');
       }
     }
   }
   if (doc.skills?.categories) {
     for (const cat of doc.skills.categories) {
-      for (const s of (cat.skills || [])) {
+      for (const s of cat.skills || []) {
         allRenderedTexts.push(s.name || s.slug || '');
       }
     }
@@ -446,15 +582,24 @@ export function evaluateEvidenceDerivedQuality({
   if (pdfObservationResult) {
     if (pdfObservationResult.brokenWordsCount > 0) {
       atsParseabilityScore -= Math.min(20, pdfObservationResult.brokenWordsCount * 5);
-      atsFindings.push({ code: 'ATS_BROKEN_WORDS', message: `Detected ${pdfObservationResult.brokenWordsCount} hyphenated or broken words` });
+      atsFindings.push({
+        code: 'ATS_BROKEN_WORDS',
+        message: `Detected ${pdfObservationResult.brokenWordsCount} hyphenated or broken words`,
+      });
     }
     if (pdfObservationResult.suspiciousGlyphs?.length > 0) {
       atsParseabilityScore -= Math.min(20, pdfObservationResult.suspiciousGlyphs.length * 5);
-      atsFindings.push({ code: 'ATS_SUSPICIOUS_GLYPHS', message: 'Detected suspicious glyphs or escape artifacts' });
+      atsFindings.push({
+        code: 'ATS_SUSPICIOUS_GLYPHS',
+        message: 'Detected suspicious glyphs or escape artifacts',
+      });
     }
     if (pdfObservationResult.readingOrderLinearity === false) {
       atsParseabilityScore -= 15;
-      atsFindings.push({ code: 'ATS_NONLINEAR_READING', message: 'Reading order linearity failure' });
+      atsFindings.push({
+        code: 'ATS_NONLINEAR_READING',
+        message: 'Reading order linearity failure',
+      });
     }
   }
   atsParseabilityScore = Math.max(0, Math.min(100, Math.round(atsParseabilityScore)));
@@ -472,7 +617,9 @@ export function evaluateEvidenceDerivedQuality({
     }
   }
   if (reqKeywords.length === 0 && jobPosting?.title) {
-    const titleTokens = String(jobPosting.title).split(/\s+/).filter((w) => w.length > 3);
+    const titleTokens = String(jobPosting.title)
+      .split(/\s+/)
+      .filter((w) => w.length > 3);
     reqKeywords.push(...titleTokens);
   }
 
@@ -485,7 +632,9 @@ export function evaluateEvidenceDerivedQuality({
       const matchingFacts = inv
         ? inv.facts.filter((f) => {
             const factText = String(f.text || '').toLowerCase();
-            const techMatch = (f.technologies || []).some((t) => String(t).toLowerCase() === lowerKw);
+            const techMatch = (f.technologies || []).some(
+              (t) => String(t).toLowerCase() === lowerKw
+            );
             return factText.includes(lowerKw) || techMatch;
           })
         : [];
@@ -533,7 +682,7 @@ export function evaluateEvidenceDerivedQuality({
   if (Array.isArray(doc.projects)) {
     for (const p of doc.projects) {
       collectFactIds(p.evidenceRefs, p.composedFromFactIds);
-      for (const b of (p.bullets || [])) {
+      for (const b of p.bullets || []) {
         if (typeof b === 'object' && b !== null) {
           collectFactIds(b.evidenceRefs, b.composedFromFactIds);
         }
@@ -543,7 +692,7 @@ export function evaluateEvidenceDerivedQuality({
   if (Array.isArray(doc.experience)) {
     for (const e of doc.experience) {
       collectFactIds(e.evidenceRefs, e.composedFromFactIds);
-      for (const b of (e.bullets || [])) {
+      for (const b of e.bullets || []) {
         if (typeof b === 'object' && b !== null) {
           collectFactIds(b.evidenceRefs, b.composedFromFactIds);
         }
@@ -557,7 +706,9 @@ export function evaluateEvidenceDerivedQuality({
       if (fact.renderable === false) continue;
       if (renderedFactIds.has(String(fact.id))) continue;
 
-      const fText = String(fact.text || '').toLowerCase().trim();
+      const fText = String(fact.text || '')
+        .toLowerCase()
+        .trim();
       if (!fText || fText.length < 15) continue;
 
       if (fullDocumentText.includes(fText)) {
@@ -568,7 +719,7 @@ export function evaluateEvidenceDerivedQuality({
       const factWords = fText.split(/\s+/).filter((w) => w.length > 3);
       if (factWords.length >= 3) {
         const matchedWords = factWords.filter((w) => fullDocumentText.includes(w));
-        if (matchedWords.length / factWords.length >= 0.60) {
+        if (matchedWords.length / factWords.length >= 0.6) {
           renderedFactIds.add(String(fact.id));
         }
       }
@@ -591,7 +742,10 @@ export function evaluateEvidenceDerivedQuality({
         factsOmitted: 0,
         factsReused: 0,
         redundantFactUse: 0,
-        utilizationRate: totalAvailableFacts > 0 ? parseFloat((renderedFactIds.size / totalAvailableFacts).toFixed(2)) : 1.0,
+        utilizationRate:
+          totalAvailableFacts > 0
+            ? parseFloat((renderedFactIds.size / totalAvailableFacts).toFixed(2))
+            : 1.0,
         highValueUtilizationRate: 1.0,
         omissionReasons: {},
       };

@@ -23,17 +23,47 @@
  */
 
 import { extractAuthenticMetrics, isMeasurableFact } from './candidate-fact-inventory.service.js';
-import { calculateTokenOverlap } from './resume-content-strategy.service.js';
+import { calculateTokenOverlap } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
 
 // Recognized active engineering verbs
 const ACTIVE_OPENER_VERBS = new Set([
-  'architected', 'engineered', 'implemented', 'designed', 'built', 'developed',
-  'optimized', 'automated', 'orchestrated', 'spearheaded', 'refactored', 'deployed',
-  'containerized', 'configured', 'integrated', 'migrated', 'scaled', 'benchmarked',
-  'debugged', 'reduced', 'standardized', 'secured', 'streamlined', 'published',
-  'authored', 'established', 'maintained', 'analyzed', 'profiled', 'constructed',
-  'accelerated', 'formulated', 'synthesized', 'created', 'resolved', 'monitored',
+  'architected',
+  'engineered',
+  'implemented',
+  'designed',
+  'built',
+  'developed',
+  'optimized',
+  'automated',
+  'orchestrated',
+  'spearheaded',
+  'refactored',
+  'deployed',
+  'containerized',
+  'configured',
+  'integrated',
+  'migrated',
+  'scaled',
+  'benchmarked',
+  'debugged',
+  'reduced',
+  'standardized',
+  'secured',
+  'streamlined',
+  'published',
+  'authored',
+  'established',
+  'maintained',
+  'analyzed',
+  'profiled',
+  'constructed',
+  'accelerated',
+  'formulated',
+  'synthesized',
+  'created',
+  'resolved',
+  'monitored',
 ]);
 
 const WEAK_OPENERS = [
@@ -71,7 +101,9 @@ export class ResumeClaimValidationService {
       return {
         valid: false,
         rejected: true,
-        violations: [{ code: 'INVALID_CLAIM_PAYLOAD', message: 'Claim must contain non-empty text' }],
+        violations: [
+          { code: 'INVALID_CLAIM_PAYLOAD', message: 'Claim must contain non-empty text' },
+        ],
       };
     }
 
@@ -92,13 +124,19 @@ export class ResumeClaimValidationService {
 
     // ── 1. Every factId exists ────────────────────────────────────────────────
     if (factIds.length === 0) {
-      violations.push({ code: 'EMPTY_FACT_IDS', message: 'Claim does not reference any canonical factId' });
+      violations.push({
+        code: 'EMPTY_FACT_IDS',
+        message: 'Claim does not reference any canonical factId',
+      });
     }
     const contributingFacts = [];
     for (const fid of factIds) {
       const fact = factMap.get(fid);
       if (!fact) {
-        violations.push({ code: 'UNKNOWN_FACT_ID', message: `Referenced factId "${fid}" does not exist in inventory` });
+        violations.push({
+          code: 'UNKNOWN_FACT_ID',
+          message: `Referenced factId "${fid}" does not exist in inventory`,
+        });
       } else {
         contributingFacts.push(fact);
       }
@@ -108,7 +146,10 @@ export class ResumeClaimValidationService {
     const candId = context.candidateProfile?.id;
     for (const fact of contributingFacts) {
       if (fact.candidateId && candId && fact.candidateId !== candId) {
-        violations.push({ code: 'FOREIGN_CANDIDATE_FACT', message: `Fact "${fact.factId}" does not belong to candidate "${candId}"` });
+        violations.push({
+          code: 'FOREIGN_CANDIDATE_FACT',
+          message: `Fact "${fact.factId}" does not belong to candidate "${candId}"`,
+        });
       }
     }
 
@@ -135,7 +176,11 @@ export class ResumeClaimValidationService {
       for (const fact of contributingFacts) {
         if (Array.isArray(fact.metrics)) {
           for (const m of fact.metrics) {
-            authorizedMetrics.add(String(m.raw || m.value || m).toLowerCase().replace(/\s+/g, ''));
+            authorizedMetrics.add(
+              String(m.raw || m.value || m)
+                .toLowerCase()
+                .replace(/\s+/g, '')
+            );
           }
         }
         // Check raw fact text for the metric tokens
@@ -160,7 +205,8 @@ export class ResumeClaimValidationService {
 
     // ── 5. Every technology in text is authorized ─────────────────────────────
     const candidateTechSet = this._buildAuthorizedTechSet(context, contributingFacts);
-    const techRegex = /\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git)\b/gi;
+    const techRegex =
+      /\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git)\b/gi;
     const techMatches = text.match(techRegex) || [];
     for (const t of techMatches) {
       const normT = normalizeTechnologyName(t);
@@ -186,7 +232,8 @@ export class ResumeClaimValidationService {
     }
 
     // ── 7. No unsupported outcome claims ──────────────────────────────────────
-    const outcomePattern = /\b(?:resulting in|yielding|saved \$|decreased by \d+|increased revenue by)\b/i;
+    const outcomePattern =
+      /\b(?:resulting in|yielding|saved \$|decreased by \d+|increased revenue by)\b/i;
     if (outcomePattern.test(text)) {
       const supportedInFacts = contributingFacts.some(
         (f) => f.canonicalFactType === 'OUTCOME' || outcomePattern.test(f.text)
@@ -194,13 +241,15 @@ export class ResumeClaimValidationService {
       if (!supportedInFacts) {
         violations.push({
           code: 'UNSUPPORTED_OUTCOME',
-          message: 'Claim asserts an outcome clause not substantiated by contributing canonical facts',
+          message:
+            'Claim asserts an outcome clause not substantiated by contributing canonical facts',
         });
       }
     }
 
     // ── 8. No unsupported performance statement ──────────────────────────────
-    const perfPattern = /\b(?:\d+x\s+faster|reduced\s+latency\s+to\s+\d+|lowered\s+memory\s+by\s+\d+)\b/i;
+    const perfPattern =
+      /\b(?:\d+x\s+faster|reduced\s+latency\s+to\s+\d+|lowered\s+memory\s+by\s+\d+)\b/i;
     if (perfPattern.test(text)) {
       const supported = contributingFacts.some((f) => perfPattern.test(f.text));
       if (!supported) {
@@ -214,7 +263,9 @@ export class ResumeClaimValidationService {
     // ── 9. No employer/title/date modifications ──────────────────────────────
     if (context.sectionOwnerType === 'EXPERIENCE' && context.sectionOwnerId) {
       // Experience bullets cannot redefine company or role title
-      if (/\b(?:at|for)\s+[A-Z][a-zA-Z0-9\s]+(?:Inc|LLC|Corp|Technologies|Solutions)\b/.test(text)) {
+      if (
+        /\b(?:at|for)\s+[A-Z][a-zA-Z0-9\s]+(?:Inc|LLC|Corp|Technologies|Solutions)\b/.test(text)
+      ) {
         violations.push({
           code: 'UNAUTHORIZED_EMPLOYER_MENTION',
           message: 'Experience bullet cannot alter or inject alternative employer names',
@@ -225,14 +276,18 @@ export class ResumeClaimValidationService {
     // ── 10. Semantic dimensions match fact set ────────────────────────────────
     if (Array.isArray(claim.semanticDimensions) && claim.semanticDimensions.length > 0) {
       const authorizedTopics = new Set(
-        contributingFacts.flatMap((f) => [
-          f.semanticTopic,
-          ...(f.semanticTopics || []),
-          f.canonicalFactType?.toLowerCase(),
-          f.evidenceRole?.toLowerCase(),
-        ]).filter(Boolean)
+        contributingFacts
+          .flatMap((f) => [
+            f.semanticTopic,
+            ...(f.semanticTopics || []),
+            f.canonicalFactType?.toLowerCase(),
+            f.evidenceRole?.toLowerCase(),
+          ])
+          .filter(Boolean)
       );
-      const hasOverlap = claim.semanticDimensions.some((d) => authorizedTopics.has(d.toLowerCase()));
+      const hasOverlap = claim.semanticDimensions.some((d) =>
+        authorizedTopics.has(d.toLowerCase())
+      );
       if (!hasOverlap && contributingFacts.length > 0) {
         violations.push({
           code: 'SEMANTIC_DIMENSION_MISMATCH',
@@ -245,7 +300,7 @@ export class ResumeClaimValidationService {
     if (contributingFacts.length > 0) {
       const combinedFactText = contributingFacts.map((f) => f.text).join(' ');
       const overlap = calculateTokenOverlap(text, combinedFactText);
-      if (overlap < 0.20 && text.length > 50) {
+      if (overlap < 0.2 && text.length > 50) {
         violations.push({
           code: 'EVIDENCE_SCOPE_EXCEEDED',
           message: `Claim text deviates substantially from underlying source facts (overlap: ${overlap})`,
@@ -259,7 +314,7 @@ export class ResumeClaimValidationService {
       const renderedText = typeof rendered === 'string' ? rendered : rendered.text || '';
       if (!renderedText) continue;
       const pairwiseOverlap = calculateTokenOverlap(text, renderedText);
-      if (pairwiseOverlap >= 0.50) {
+      if (pairwiseOverlap >= 0.5) {
         violations.push({
           code: 'DUPLICATE_RENDERED_CLAIM',
           message: `Claim is semantically redundant with an already accepted claim (overlap: ${pairwiseOverlap.toFixed(2)})`,
@@ -270,12 +325,130 @@ export class ResumeClaimValidationService {
 
     // ── 13. Professional grammar and active voice opener ──────────────────────
     const firstWord = (text.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, '');
-    if (!ACTIVE_OPENER_VERBS.has(firstWord) && !ACTIVE_OPENER_VERBS.has(firstWord.replace(/ed$/, ''))) {
+    if (
+      !ACTIVE_OPENER_VERBS.has(firstWord) &&
+      !ACTIVE_OPENER_VERBS.has(firstWord.replace(/ed$/, ''))
+    ) {
       if (WEAK_OPENERS.some((p) => p.test(text.slice(0, 30)))) {
         violations.push({
           code: 'WEAK_VERB_OPENER',
           message: `Claim starts with weak or passive opener: "${text.slice(0, 25)}..."`,
         });
+      }
+    }
+
+    // ── 14. Unsupported causal implication ───────────────────────────────────
+    const causalPatterns = [
+      /\b(?:causing|which led to|directly resulting in|attributable to|consequently driving)\b/i,
+    ];
+    for (const pat of causalPatterns) {
+      if (pat.test(text)) {
+        const supported = contributingFacts.some((f) => pat.test(f.text));
+        if (!supported) {
+          violations.push({
+            code: 'UNSUPPORTED_CAUSAL_IMPLICATION',
+            message: `Claim asserts an unverified causal relationship: "${text.slice(0, 60)}..."`,
+          });
+        }
+      }
+    }
+
+    // ── 15. Unsupported comparative implication ──────────────────────────────
+    const comparativePatterns = [
+      /\b(?:better than|superior to|outperforming|faster than|more efficient than|unmatched by|industry-leading)\b/i,
+    ];
+    for (const pat of comparativePatterns) {
+      if (pat.test(text)) {
+        const supported = contributingFacts.some((f) => pat.test(f.text));
+        if (!supported) {
+          violations.push({
+            code: 'UNSUPPORTED_COMPARATIVE_IMPLICATION',
+            message: `Claim asserts an unverified comparative claim: "${text.slice(0, 60)}..."`,
+          });
+        }
+      }
+    }
+
+    // ── 16. Unsupported superlative ──────────────────────────────────────────
+    const superlativePatterns = [
+      /\b(?:the best|best-in-class|leading-edge|world-class|premier|top-tier|state-of-the-art|peerless|ultra-reliable)\b/i,
+    ];
+    for (const pat of superlativePatterns) {
+      if (pat.test(text)) {
+        const supported = contributingFacts.some((f) => pat.test(f.text));
+        if (!supported) {
+          violations.push({
+            code: 'UNSUPPORTED_SUPERLATIVE',
+            message: `Claim contains unverified superlative language: "${text.slice(0, 60)}..."`,
+          });
+        }
+      }
+    }
+
+    // ── 17. Unsupported production adjective ─────────────────────────────────
+    const productionPatterns = [
+      /\b(?:commercial production|enterprise-grade|production-grade|in (?:global )?production|deployed in production|live traffic)\b/i,
+    ];
+    for (const pat of productionPatterns) {
+      if (pat.test(text)) {
+        const supported = contributingFacts.some(
+          (f) =>
+            pat.test(f.text) && (f.provenance === 'VERIFIED' || f.provenance === 'CORROBORATED')
+        );
+        if (!supported) {
+          violations.push({
+            code: 'UNSUPPORTED_PRODUCTION_CLAIM',
+            message: `Claim asserts uncorroborated enterprise/production status: "${text.slice(0, 60)}..."`,
+          });
+        }
+      }
+    }
+
+    // ── 18. Unsupported scale adjective ──────────────────────────────────────
+    const scalePatterns = [
+      /\b(?:massive scale|millions of|global deployment|hundreds of thousands of)\b/i,
+    ];
+    for (const pat of scalePatterns) {
+      if (pat.test(text)) {
+        const supported = contributingFacts.some((f) => pat.test(f.text));
+        if (!supported) {
+          violations.push({
+            code: 'UNSUPPORTED_SCALE_ADJECTIVE',
+            message: `Claim asserts unbacked large-scale adjectives: "${text.slice(0, 60)}..."`,
+          });
+        }
+      }
+    }
+
+    // ── 19. Unsupported customer/user implication ────────────────────────────
+    const customerPatterns = [
+      /\b(?:paying customers|enterprise (?:clients|customers)|commercial accounts|client base|fortune 500)\b/i,
+    ];
+    for (const pat of customerPatterns) {
+      if (pat.test(text)) {
+        const supported = contributingFacts.some((f) => pat.test(f.text));
+        if (!supported) {
+          violations.push({
+            code: 'UNSUPPORTED_CUSTOMER_IMPLICATION',
+            message: `Claim asserts unbacked customer/commercial user relationships: "${text.slice(0, 60)}..."`,
+          });
+        }
+      }
+    }
+
+    // ── 20. Unsupported team/leadership implication ──────────────────────────
+    const leadershipPatterns = [
+      /\b(?:led\s+(?:cross-functional\s+)?team|directed\s+(?:a\s+)?team|supervised\s+(?:a\s+)?team|managed\s+cross-functional|headed\s+the\s+engineering\s+department)\b/i,
+    ];
+    for (const pat of leadershipPatterns) {
+      if (pat.test(text)) {
+        const supported = contributingFacts.some((f) => pat.test(f.text));
+        if (!supported) {
+          violations.push({
+            code: 'UNSUPPORTED_LEADERSHIP_IMPLICATION',
+            message: `Claim asserts unbacked team management or organizational leadership: "${text.slice(0, 60)}..."`,
+          });
+        }
       }
     }
 
@@ -288,9 +461,15 @@ export class ResumeClaimValidationService {
     }
 
     if (text.length < 25) {
-      violations.push({ code: 'CLAIM_TOO_SHORT', message: `Claim length (${text.length} chars) is below minimal professional threshold` });
+      violations.push({
+        code: 'CLAIM_TOO_SHORT',
+        message: `Claim length (${text.length} chars) is below minimal professional threshold`,
+      });
     } else if (text.length > 350) {
-      violations.push({ code: 'CLAIM_TOO_LONG', message: `Claim length (${text.length} chars) exceeds maximum bullet length` });
+      violations.push({
+        code: 'CLAIM_TOO_LONG',
+        message: `Claim length (${text.length} chars) exceeds maximum bullet length`,
+      });
     }
 
     return {
@@ -324,7 +503,7 @@ export class ResumeClaimValidationService {
       }
     } else if (profile.skills && Array.isArray(profile.skills.categories)) {
       for (const cat of profile.skills.categories) {
-        for (const s of (cat.skills || [])) {
+        for (const s of cat.skills || []) {
           const name = typeof s === 'string' ? s : s.name || s.slug || '';
           if (name) techSet.add(normalizeTechnologyName(name).toLowerCase());
         }
@@ -341,7 +520,9 @@ export class ResumeClaimValidationService {
     // Project technologies from profile
     if (context.sectionOwnerType === 'PROJECT' && context.sectionOwnerId) {
       const rawProjects = profile.profileMetadata?.projects || profile.projects || [];
-      const proj = rawProjects.find((p) => (p.id || p.projectId || p.name) === context.sectionOwnerId);
+      const proj = rawProjects.find(
+        (p) => (p.id || p.projectId || p.name) === context.sectionOwnerId
+      );
       if (proj && Array.isArray(proj.technologies)) {
         for (const t of proj.technologies) {
           if (t) techSet.add(normalizeTechnologyName(t).toLowerCase());
@@ -356,11 +537,14 @@ export class ResumeClaimValidationService {
       ...(context.factInventory?.facts || []),
     ];
     for (const f of factsToCheck) {
-      for (const t of (f.technologies || [])) {
+      for (const t of f.technologies || []) {
         if (t) techSet.add(normalizeTechnologyName(t).toLowerCase());
       }
       if (f.text) {
-        const matches = f.text.match(/\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git|Alembic|Prometheus|Grafana)\b/gi) || [];
+        const matches =
+          f.text.match(
+            /\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git|Alembic|Prometheus|Grafana)\b/gi
+          ) || [];
         for (const m of matches) {
           techSet.add(normalizeTechnologyName(m).toLowerCase());
         }

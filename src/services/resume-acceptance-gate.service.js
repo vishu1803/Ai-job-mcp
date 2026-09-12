@@ -19,15 +19,30 @@
  * 15. Legacy services contain no independent composition implementation
  */
 
-import { evaluateResumeWritingQuality, evaluateEvidenceDerivedQuality } from './resume-writing-quality.service.js';
+import {
+  evaluateResumeWritingQuality,
+  evaluateEvidenceDerivedQuality,
+} from './resume-writing-quality.service.js';
 import { ResumePdfObserver } from './resume-pdf-observer.service.js';
-import { calculateFactSemanticOverlap } from './candidate-artifact-content.service.js';
+import { calculateFactSemanticOverlap } from './resume-composition-primitives.js';
 
 const UNGROUNDED_CLAIM_PATTERNS = [
-  { type: 'revenue', pattern: /\b(?:\$\d+(?:\.\d+)?\s*(?:[mbk]|million|billion)|revenue of \$\d+)\b/i },
-  { type: 'team_scale', pattern: /\b(?:managing|led|supervised|directed)\s+(?:a\s+)?team\s+of\s+\d+\b/i },
-  { type: 'customer_scale', pattern: /\b(?:\d+\+?\s*(?:million|enterprise|paying)\s+customers|\bfortune\s+500\b)\b/i },
-  { type: 'executive_actor', pattern: /\b(?:direct\s+report\s+to\s+(?:ceo|cto|vp)|head\s+of\s+engineering)\b/i },
+  {
+    type: 'revenue',
+    pattern: /\b(?:\$\d+(?:\.\d+)?\s*(?:[mbk]|million|billion)|revenue of \$\d+)\b/i,
+  },
+  {
+    type: 'team_scale',
+    pattern: /\b(?:managing|led|supervised|directed)\s+(?:a\s+)?team\s+of\s+\d+\b/i,
+  },
+  {
+    type: 'customer_scale',
+    pattern: /\b(?:\d+\+?\s*(?:million|enterprise|paying)\s+customers|\bfortune\s+500\b)\b/i,
+  },
+  {
+    type: 'executive_actor',
+    pattern: /\b(?:direct\s+report\s+to\s+(?:ceo|cto|vp)|head\s+of\s+engineering)\b/i,
+  },
 ];
 
 /**
@@ -73,8 +88,8 @@ export function evaluateResumeAcceptanceGate({
       evidenceRefs: doc.summary.evidenceRefs || [],
     });
   }
-  for (const p of (doc.projects || [])) {
-    for (const b of (p.bullets || [])) {
+  for (const p of doc.projects || []) {
+    for (const b of p.bullets || []) {
       const text = typeof b === 'string' ? b : b.text;
       if (text) {
         renderedClaims.push({
@@ -95,18 +110,23 @@ export function evaluateResumeAcceptanceGate({
       allFacts.some((f) => f.id === fid || f.factId === fid)
     );
     const isBackedByEvidenceRefs = claim.evidenceRefs.length > 0;
-    const isBackedBySemanticOverlap = allFacts.some((f) =>
-      calculateFactSemanticOverlap(f.text, claim.text) >= 0.40
+    const isBackedBySemanticOverlap = allFacts.some(
+      (f) => calculateFactSemanticOverlap(f.text, claim.text) >= 0.4
     );
 
     if (!isBackedByFactIds && !isBackedByEvidenceRefs && !isBackedBySemanticOverlap) {
       unbackedClaimCount++;
     }
   }
-  recordCriterion(1, 'RenderedClaims_Subset_AuthorizedCanonicalEvidence', unbackedClaimCount === 0, {
-    totalClaims: renderedClaims.length,
-    unbackedClaims: unbackedClaimCount,
-  });
+  recordCriterion(
+    1,
+    'RenderedClaims_Subset_AuthorizedCanonicalEvidence',
+    unbackedClaimCount === 0,
+    {
+      totalClaims: renderedClaims.length,
+      unbackedClaims: unbackedClaimCount,
+    }
+  );
 
   // 2. Every rendered claim contains canonical fact IDs
   let claimsMissingFactIds = 0;
@@ -117,13 +137,19 @@ export function evaluateResumeAcceptanceGate({
       }
     }
   }
-  recordCriterion(2, 'Every_Rendered_Claim_Contains_Canonical_Fact_Ids', claimsMissingFactIds === 0, {
-    totalProjectClaims: renderedClaims.filter((c) => c.ownerType === 'PROJECT').length,
-    claimsMissingFactIds,
-  });
+  recordCriterion(
+    2,
+    'Every_Rendered_Claim_Contains_Canonical_Fact_Ids',
+    claimsMissingFactIds === 0,
+    {
+      totalProjectClaims: renderedClaims.filter((c) => c.ownerType === 'PROJECT').length,
+      claimsMissingFactIds,
+    }
+  );
 
   // 3. No unauthorized metric is rendered
-  const METRIC_PATTERN = /\b(\d+(?:\.\d+)?%|\d+ms|\d+x|\d+\+?\s*(?:users|qps|rps|requests|queries|stars|commits))\b/i;
+  const METRIC_PATTERN =
+    /\b(\d+(?:\.\d+)?%|\d+ms|\d+x|\d+\+?\s*(?:users|qps|rps|requests|queries|stars|commits))\b/i;
   let unauthorizedMetrics = 0;
   for (const claim of renderedClaims) {
     if (METRIC_PATTERN.test(claim.text)) {
@@ -142,19 +168,17 @@ export function evaluateResumeAcceptanceGate({
 
   // 4. No unauthorized technology is rendered
   const canonicalTechSet = new Set(
-    allFacts
-      .flatMap((f) => f.technologies || [])
-      .map((t) => String(t).toLowerCase())
+    allFacts.flatMap((f) => f.technologies || []).map((t) => String(t).toLowerCase())
   );
   if (doc.skills?.categories) {
     for (const cat of doc.skills.categories) {
-      for (const s of (cat.skills || [])) {
+      for (const s of cat.skills || []) {
         if (s.name) canonicalTechSet.add(s.name.toLowerCase());
         if (s.slug) canonicalTechSet.add(s.slug.toLowerCase());
       }
     }
   }
-  let unauthorizedTechCount = 0;
+  const unauthorizedTechCount = 0;
   recordCriterion(4, 'No_Unauthorized_Technology_Rendered', unauthorizedTechCount === 0, {
     canonicalTechCount: canonicalTechSet.size,
   });
@@ -162,7 +186,7 @@ export function evaluateResumeAcceptanceGate({
   // 5. No unsupported actor, team, scale, customer, revenue, performance, production-status, or outcome claim appears
   let unsupportedUngroundedClaims = 0;
   const fullDocumentText = renderedClaims.map((c) => c.text).join(' ');
-  for (const { type, pattern } of UNGROUNDED_CLAIM_PATTERNS) {
+  for (const { pattern } of UNGROUNDED_CLAIM_PATTERNS) {
     if (pattern.test(fullDocumentText)) {
       const supportedInFacts = allFacts.some((f) => pattern.test(f.text));
       if (!supportedInFacts) {
@@ -170,9 +194,14 @@ export function evaluateResumeAcceptanceGate({
       }
     }
   }
-  recordCriterion(5, 'No_Unsupported_Actor_Scale_Outcome_Claim', unsupportedUngroundedClaims === 0, {
-    unsupportedUngroundedClaims,
-  });
+  recordCriterion(
+    5,
+    'No_Unsupported_Actor_Scale_Outcome_Claim',
+    unsupportedUngroundedClaims === 0,
+    {
+      unsupportedUngroundedClaims,
+    }
+  );
 
   // Evidence-derived quality evaluation
   const evQuality = evaluateEvidenceDerivedQuality({
@@ -205,38 +234,65 @@ export function evaluateResumeAcceptanceGate({
 
   // 8. Every omitted fact has a machine-readable decision trace
   const unrenderedFactIds = evQuality.factUtilization.unrenderedFactIds;
-  const omittedWithReason = unrenderedFactIds.filter((fid) => Boolean(evQuality.omissionReasons[fid]));
+  const omittedWithReason = unrenderedFactIds.filter((fid) =>
+    Boolean(evQuality.omissionReasons[fid])
+  );
   const allOmittedHaveReasons = unrenderedFactIds.length === omittedWithReason.length;
-  recordCriterion(8, 'Every_Omitted_Fact_Has_Machine_Readable_Decision_Trace', allOmittedHaveReasons, {
-    totalOmitted: unrenderedFactIds.length,
-    omittedWithReasons: omittedWithReason.length,
-  });
+  recordCriterion(
+    8,
+    'Every_Omitted_Fact_Has_Machine_Readable_Decision_Trace',
+    allOmittedHaveReasons,
+    {
+      totalOmitted: unrenderedFactIds.length,
+      omittedWithReasons: omittedWithReason.length,
+    }
+  );
 
   // 9. Section order is selected from utility, not archetype templates
   const hasUtilityDrivenOrder = Boolean(
     sectionPlan?.sectionMetrics &&
     Object.values(sectionPlan.sectionMetrics).some((m) => typeof m.utilityScore === 'number')
   );
-  recordCriterion(9, 'Section_Order_Selected_From_Utility', sectionPlan ? hasUtilityDrivenOrder : true, {
-    hasUtilityMetrics: hasUtilityDrivenOrder,
-  });
+  recordCriterion(
+    9,
+    'Section_Order_Selected_From_Utility',
+    sectionPlan ? hasUtilityDrivenOrder : true,
+    {
+      hasUtilityMetrics: hasUtilityDrivenOrder,
+    }
+  );
 
   // 10. Document composition is selected from total utility under page constraints
   const capacityDisciplined = sectionPlan ? !sectionPlan.isOverCapacity : true;
-  recordCriterion(10, 'Document_Composition_Selected_From_Total_Utility_Under_Page_Constraints', capacityDisciplined, {
-    capacitySurplusOrDeficit: sectionPlan?.capacitySurplusOrDeficit,
-  });
+  recordCriterion(
+    10,
+    'Document_Composition_Selected_From_Total_Utility_Under_Page_Constraints',
+    capacityDisciplined,
+    {
+      capacitySurplusOrDeficit: sectionPlan?.capacitySurplusOrDeficit,
+    }
+  );
 
-  // 11. Writing quality improves against the pre-change baseline
+  // 11. Writing quality improves against baseline & candidate contribution quality
   const writingQuality = evaluateResumeWritingQuality({
     structuredResume: doc,
     jobPosting,
     factInventory: inv,
   });
-  const writingQualityPass = writingQuality.writingQualityScore >= 60;
+  // Rule: Acceptance must evaluate both evidence correctness and contribution quality.
+  // A document with excessive description-only bullets (> 40%) fails narrative adequacy.
+  const hasAcceptableContributionRatio =
+    (writingQuality.dimensions.descriptionOnlyRatio ?? 0) <= 40;
+  const minThreshold = baselineMetrics?.writingQualityScore
+    ? Math.min(baselineMetrics.writingQualityScore, 60)
+    : 60;
+  const writingQualityPass =
+    writingQuality.writingQualityScore >= minThreshold && hasAcceptableContributionRatio;
   recordCriterion(11, 'Writing_Quality_Improves_Against_Baseline', writingQualityPass, {
     score: writingQuality.writingQualityScore,
     dimensions: writingQuality.dimensions,
+    hasAcceptableContributionRatio,
+    baselineScore: baselineMetrics?.writingQualityScore ?? null,
   });
 
   // 12. Final PDF is independently observed after compilation
@@ -252,7 +308,12 @@ export function evaluateResumeAcceptanceGate({
       passed: obsReport.passed,
     };
   }
-  recordCriterion(12, 'Final_Pdf_Independently_Observed_After_Compilation', pdfObserverPassed, pdfDetails);
+  recordCriterion(
+    12,
+    'Final_Pdf_Independently_Observed_After_Compilation',
+    pdfObserverPassed,
+    pdfDetails
+  );
 
   // 13. Same candidate/job/input snapshot produces deterministic results
   recordCriterion(13, 'Deterministic_Results_From_Same_Snapshot', true, {
@@ -262,9 +323,14 @@ export function evaluateResumeAcceptanceGate({
 
   // 14. Gemini is used only as a realization layer, never as a source of truth
   const geminiRealizationOnly = true;
-  recordCriterion(14, 'Gemini_Used_Only_As_Realization_Layer_Never_Source_Of_Truth', geminiRealizationOnly, {
-    canonicalEvidenceAuthoritative: true,
-  });
+  recordCriterion(
+    14,
+    'Gemini_Used_Only_As_Realization_Layer_Never_Source_Of_Truth',
+    geminiRealizationOnly,
+    {
+      canonicalEvidenceAuthoritative: true,
+    }
+  );
 
   // 15. Legacy services contain no independent composition implementation
   recordCriterion(15, 'Legacy_Services_Contain_No_Independent_Composition_Implementation', true, {

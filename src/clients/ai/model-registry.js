@@ -14,6 +14,30 @@ import { AiInvalidRequestError } from '../../errors/ai.errors.js';
  */
 const CANONICAL_MODELS = Object.freeze([
   {
+    modelId: 'gemini-3.8-flash',
+    displayName: 'Google Gemini 3.8 Flash',
+    provider: 'gemini',
+    stability: 'STABLE',
+    status: 'ACTIVE',
+    capabilities: [
+      'reasoning',
+      'coding',
+      'agentic',
+      'structured_output',
+      'function_calling',
+      'caching',
+      'thinking_level',
+    ],
+    maxInputTokens: 1048576,
+    maxOutputTokens: 65536,
+    supportsStructuredOutput: true,
+    supportsFunctionCalling: true,
+    supportsCaching: true,
+    supportsThinking: true,
+    supportsThinkingLevel: true,
+    isProductionDefault: true,
+  },
+  {
     modelId: 'gemini-3.7-flash',
     displayName: 'Google Gemini 3.7 Flash',
     provider: 'gemini',
@@ -33,7 +57,8 @@ const CANONICAL_MODELS = Object.freeze([
     supportsFunctionCalling: true,
     supportsCaching: true,
     supportsThinking: true,
-    isProductionDefault: true,
+    supportsThinkingLevel: false,
+    isProductionDefault: false,
   },
   {
     modelId: 'gemini-3.6-flash',

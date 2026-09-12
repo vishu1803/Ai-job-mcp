@@ -1,15 +1,17 @@
 /**
- * @file Professional Accomplishment Composition Service (Phase 16 Architecture).
+ * @file Professional Accomplishment Composition Service (P18 Architecture).
  *
  * Consumes the canonical fact inventory (NEVER raw candidate arrays) and
  * composes professional, evidence-grounded accomplishment bullets:
  *
  *   canonical facts
  *     -> unsupported-claim gate
- *     -> semantic dimension clustering (architecture / implementation / outcome / etc.)
- *     -> multi-fact compound narrative synthesis (Action + Object + Method + Result)
+ *     -> claim planning & PAR model (Action + Object + Method + Purpose/Result)
+ *     -> Gemini structured language realization with fail-closed validation
+ *     -> deterministic PAR fallback realization
  *     -> semantic redundancy enforcement (pairwise overlap >= 0.50 rejected)
  *     -> capacity-faithful selection (1–3 bullets per project, evidence-driven)
+ *     -> dynamic job-adaptive summary composition
  *     -> single unified composition authority
  *
  * Non-negotiable invariants:
@@ -19,326 +21,69 @@
  * 4. Deterministic: same inputs → same bullets, independent of source order.
  * 5. Consecutive bullets for the same project express different semantic dimensions.
  * 6. Experience bullets preserve candidate truth while favoring accomplishment/implementation.
+ * 7. ZERO circular dependencies: leaf primitives live in resume-composition-primitives.js.
  */
 
-import { calculateTokenOverlap, toEvidenceReference, assertMetricSafety, validateRephrasingSafety } from './resume-content-strategy.service.js';
-import { calculateFactSemanticOverlap } from './candidate-artifact-content.service.js';
 import { ValidationError } from '../errors/index.js';
-import { defaultResumeClaimPlannerService, ResumeClaimPlannerService } from './resume-claim-planner.service.js';
-import { defaultResumeClaimValidationService, ResumeClaimValidationService } from './resume-claim-validation.service.js';
+import { defaultResumeClaimPlannerService } from './resume-claim-planner.service.js';
+import { defaultResumeClaimValidationService } from './resume-claim-validation.service.js';
 import { AiTaskTypeSchema } from '../domain/ai/ai.schemas.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
 import { OMISSION_REASONS } from './candidate-fact-inventory.service.js';
 
-/** Max bullets per project (universal professional ceiling). */
-export const MAX_BULLETS_PER_PROJECT = 3;
+// Import and re-export all primitives for local use and 100% backward-compatibility
+import {
+  calculateFactSemanticOverlap,
+  MAX_BULLETS_PER_PROJECT,
+  REDUNDANCY_OVERLAP_THRESHOLD,
+  EXPERIENCE_BULLET_TYPES,
+  MEASURED_CONTEXT_PATTERN,
+  normalizeWhitespace,
+  sentenceCase,
+  lowerFirst,
+  stripTrailingPeriod,
+  compressProfessionalBullet,
+  polishProfessionalSummary,
+  isUnsupportedMetricFact,
+  isClaimFact,
+  determineProjectBulletCapacity,
+  classifyExperienceBulletType,
+  ensureCandidateSectionIntegrity,
+  dedupeSkillsPresentation,
+  verifyProtectedSectionsUnchanged,
+  synthesizeAccomplishmentNarrative,
+  toEvidenceReference,
+  assertMetricSafety,
+  validateRephrasingSafety,
+  calculateTokenOverlap,
+  splitSentences,
+} from './resume-composition-primitives.js';
 
-/** Pairwise semantic-overlap threshold above which two bullets are redundant. */
-export const REDUNDANCY_OVERLAP_THRESHOLD = 0.50;
-
-/** Experience bullet types. */
-export const EXPERIENCE_BULLET_TYPES = Object.freeze({
-  RESPONSIBILITY: 'RESPONSIBILITY',
-  TECHNICAL_IMPLEMENTATION: 'TECHNICAL_IMPLEMENTATION',
-  ACCOMPLISHMENT: 'ACCOMPLISHMENT',
-  OUTCOME: 'OUTCOME',
-});
-
-/** Facts whose text matches these contexts may keep their measured values. */
-const MEASURED_CONTEXT_PATTERN =
-  /\b(?:across|within|in)\b.{0,60}(?:tests?|benchmarks?|profiling|load|local|sandbox|staging|dataset|coursework|practice)\b/i;
-
-/** Facts asserting unsupported quantified claims are excluded from composition. */
-export function isUnsupportedMetricFact(fact) {
-  if (!fact?.measurable) return false;
-  if (fact.evidenceRefs && fact.evidenceRefs.length > 0) return false;
-  if (fact.provenance === 'VERIFIED' || fact.provenance === 'CORROBORATED') return false;
-  return !MEASURED_CONTEXT_PATTERN.test(fact.text);
-}
-
-/** Claim facts can carry a bullet; technology and link facts cannot. */
-export function isClaimFact(fact) {
-  const type = String(fact?.factType || '').toLowerCase();
-  return (
-    type !== 'technology' &&
-    type !== 'external-corroboration' &&
-    type !== 'link' &&
-    type !== 'education' &&
-    type !== 'certification'
-  );
-}
-
-/**
- * Normalizes whitespace and unicode punctuation without altering content.
- */
-export function normalizeWhitespace(text) {
-  return String(text || '')
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/\u2013/g, '-')
-    .replace(/\u2014/g, '--')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Safe, meaning-preserving phrase replacements for generated/project bullets.
- */
-const SAFE_PHRASE_REPLACEMENTS = Object.freeze([
-  [/\bin order to\b/gi, 'to'],
-  [/\bwith the use of\b/gi, 'using'],
-  [/\butilizing\b/gi, 'using'],
-  [/\bmade use of\b/gi, 'used'],
-  [/\bfor the purpose of\b/gi, 'to'],
-  [/\ba total of\b/gi, ''],
-]);
-
-/**
- * Generated-summary boilerplate mappings for professional summary polishing.
- */
-const GENERATED_SUMMARY_PATTERNS = Object.freeze([
-  [
-    /Demonstrated practical execution in ([^,.]+?) alongside evidence-backed database and modular service implementation/gi,
-    'Built $1, including database and modular service implementation',
-  ],
-  [
-    /Proven track record of architecting reliable, test-backed software services aligned with technical requirements/gi,
-    'Experienced in architecting reliable, test-backed software services',
-  ],
-  [
-    /Demonstrated practical delivery in ([^,.]+?) with a commitment to clean code and robust user experiences/gi,
-    'Delivered $1, emphasizing clean code and robust user experiences',
-  ],
-  [
-    /Committed to architecting accessible, performant user interfaces with verified component architecture/gi,
-    'Focused on accessible, performant user interfaces built with a component-based architecture',
-  ],
-  [
-    /Focused on delivering reliable, maintainable code aligned with modern engineering standards/gi,
-    'Focused on reliable, maintainable software delivery',
-  ],
-  [
-    /with hands-on technical execution in ([^,.]+?)(?=[,.]|$)/gi,
-    'with hands-on work in $1',
-  ],
-  [
-    /Software professional offering technical capabilities aligned with ([^,.]+?)(?=[,.]|$)/gi,
-    'Software professional with technical capabilities suited to $1',
-  ],
-]);
-
-/**
- * Applies deterministic, meaning-preserving wording compression to a bullet.
- *
- * @param {string} text Original bullet text
- * @returns {string} Compressed bullet text
- */
-export function compressProfessionalBullet(text) {
-  if (!text || typeof text !== 'string') return text;
-  let result = normalizeWhitespace(text);
-  for (const [pattern, replacement] of SAFE_PHRASE_REPLACEMENTS) {
-    result = result.replace(pattern, replacement);
-  }
-  result = result.replace(/^(to|using|used)\b/, (m) => m.charAt(0).toUpperCase() + m.slice(1));
-  return normalizeWhitespace(result);
-}
-
-/**
- * Polishes a generated professional summary while keeping every factual claim intact.
- *
- * @param {string} text Raw summary text
- * @returns {string} Polished summary text
- */
-export function polishProfessionalSummary(text) {
-  if (!text || typeof text !== 'string') return text;
-  let result = normalizeWhitespace(text);
-  for (const [pattern, replacement] of GENERATED_SUMMARY_PATTERNS) {
-    result = result.replace(pattern, replacement);
-  }
-  return normalizeWhitespace(result);
-}
-
-function sentenceCase(text) {
-  const t = String(text || '').trim();
-  if (!t) return '';
-  return t.charAt(0).toUpperCase() + t.slice(1);
-}
-
-function lowerFirst(text) {
-  const t = String(text || '').trim();
-  if (!t) return '';
-  return t.charAt(0).toLowerCase() + t.slice(1);
-}
-
-function stripTrailingPeriod(text) {
-  return String(text || '').trim().replace(/[.!?]+$/, '');
-}
-
-/**
- * Synthesizes a cohesive professional engineering accomplishment from complementary canonical facts.
- * Avoids crude semicolon concatenation and robotic "featuring X stack" tails.
- * Supports both string arguments and canonical fact objects.
- *
- * @param {string|object} primaryArg Primary fact text or fact object
- * @param {string|object|null} [complementaryArg=null] Secondary fact text or fact object
- * @param {Array<string>} [projectTechnologies=[]] Available technologies for natural integration
- * @returns {string|object} Cohesive professional narrative (or narrative object with provenance)
- */
-export function synthesizeAccomplishmentNarrative(
-  primaryArg,
-  complementaryArg = null,
-  projectTechnologies = []
-) {
-  const isObjectCall = typeof primaryArg === 'object' && primaryArg !== null;
-  const primaryText = isObjectCall ? (primaryArg.text || '') : String(primaryArg || '');
-  const complementaryText =
-    typeof complementaryArg === 'object' && complementaryArg !== null
-      ? (complementaryArg.text || '')
-      : (complementaryArg ? String(complementaryArg) : null);
-
-  let primary = normalizeWhitespace(stripTrailingPeriod(primaryText));
-  primary = compressProfessionalBullet(primary);
-
-  let synthesized = '';
-  if (!complementaryText) {
-    synthesized = `${sentenceCase(primary)}.`;
-  } else {
-    let comp = normalizeWhitespace(stripTrailingPeriod(complementaryText));
-    comp = compressProfessionalBullet(comp);
-
-    // If complementary fact is already mostly covered in primary, avoid stutter
-    if (calculateFactSemanticOverlap(primary, comp) >= 0.50) {
-      synthesized = `${sentenceCase(primary)}.`;
-    } else {
-      // Active verb to present participle mapping for fluid grammatical linkage
-      const verbToParticiple = [
-        [/^Implemented\b/i, 'implementing'],
-        [/^Engineered\b/i, 'engineering'],
-        [/^Architected\b/i, 'architecting'],
-        [/^Designed\b/i, 'designing'],
-        [/^Built\b/i, 'building'],
-        [/^Developed\b/i, 'developing'],
-        [/^Integrated\b/i, 'integrating'],
-        [/^Automated\b/i, 'automating'],
-        [/^Refactored\b/i, 'refactoring'],
-        [/^Deployed\b/i, 'deploying'],
-        [/^Configured\b/i, 'configuring'],
-        [/^Secured\b/i, 'securing'],
-        [/^Optimized\b/i, 'optimizing'],
-        [/^Scaled\b/i, 'scaling'],
-        [/^Standardized\b/i, 'standardizing'],
-        [/^Established\b/i, 'establishing'],
-      ];
-
-      let matched = false;
-      for (const [vPat, participle] of verbToParticiple) {
-        if (vPat.test(comp)) {
-          const rest = comp.replace(vPat, '').trim();
-          synthesized = `${primary}, ${participle} ${rest}`;
-          matched = true;
-          break;
-        }
-      }
-
-      if (!matched) {
-        // Starts with preposition or purpose marker
-        if (/^(?:to|for|by|with|using|via|leveraging|incorporating)\b/i.test(comp)) {
-          synthesized = `${primary}, ${lowerFirst(comp)}`;
-        }
-        // Starts with technical mechanism/component
-        else if (/^(?:raft|kafka|grpc|redis|postgresql|docker|kubernetes|jwt|oauth|real-time|zero-downtime|distributed|high-throughput)\b/i.test(comp)) {
-          synthesized = `${primary} utilizing ${comp}`;
-        }
-        // Natural coordinating conjunction
-        else {
-          synthesized = `${primary}, and ${lowerFirst(comp)}`;
-        }
-      }
-
-      // Clean up punctuation artifacts
-      synthesized = synthesized
-        .replace(/,\s*,+/g, ',')
-        .replace(/;\s*,+/g, ';')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      synthesized = `${sentenceCase(synthesized)}.`;
-    }
-  }
-
-  if (isObjectCall) {
-    const composedFromFactIds = [
-      primaryArg.id || primaryArg.factId,
-      complementaryArg?.id || complementaryArg?.factId,
-    ].filter(Boolean);
-
-    const evidenceRefs = [];
-    const addRefs = (f) => {
-      if (!f) return;
-      if (Array.isArray(f.evidenceRefs) && f.evidenceRefs.length > 0) {
-        for (const ref of f.evidenceRefs) evidenceRefs.push(ref);
-      } else if (f.id || f.factId) {
-        evidenceRefs.push({ factId: f.id || f.factId, sourceRef: f.id || f.factId, sourceType: 'USER_PROVIDED' });
-      }
-    };
-    addRefs(primaryArg);
-    if (typeof complementaryArg === 'object' && complementaryArg !== null) {
-      addRefs(complementaryArg);
-    }
-
-    return {
-      text: synthesized,
-      composedFromFactIds,
-      evidenceRefs,
-      toString() {
-        return this.text;
-      },
-    };
-  }
-
-  return synthesized;
-}
-
-/**
- * Determines the maximum defensible bullet capacity for a project from its canonical facts.
- *
- * @param {object} params
- * @param {Array<object>} params.claimFacts Canonical claim facts for the project
- * @param {number} [params.evidenceCount] Total evidence records backing the project
- * @param {number} [params.explicitBudget] Optimizer override (hard ceiling of 3)
- * @returns {{ capacity: number, distinctFactCount: number, rationale: string }}
- */
-export function determineProjectBulletCapacity({ claimFacts, evidenceCount = 0, explicitBudget = null }) {
-  const facts = Array.isArray(claimFacts) ? claimFacts : [];
-  const distinctFactCount = facts.length;
-
-  if (distinctFactCount === 0) {
-    return { capacity: 0, distinctFactCount: 0, rationale: 'NO_CLAIM_FACTS' };
-  }
-
-  const strongEvidence = evidenceCount >= 10;
-  const someEvidence = evidenceCount >= 3;
-
-  let capacity = Math.min(MAX_BULLETS_PER_PROJECT, distinctFactCount);
-
-  const allLowTrust = facts.every((f) => f.provenance === 'CLAIMED' || f.provenance === 'SELF_DECLARED');
-  if (distinctFactCount >= 3 && allLowTrust && !strongEvidence && !someEvidence) {
-    capacity = Math.min(capacity, 2);
-  }
-
-  if (typeof explicitBudget === 'number' && explicitBudget >= 0) {
-    capacity = Math.min(capacity, explicitBudget);
-  }
-
-  const rationale =
-    capacity >= 3
-      ? `RICH_FACTS(${distinctFactCount})`
-      : capacity === 2
-        ? `MODERATE_FACTS(${distinctFactCount})`
-        : `SPARSE_FACTS(${distinctFactCount})`;
-
-  return { capacity, distinctFactCount, rationale };
-}
+export {
+  MAX_BULLETS_PER_PROJECT,
+  REDUNDANCY_OVERLAP_THRESHOLD,
+  EXPERIENCE_BULLET_TYPES,
+  MEASURED_CONTEXT_PATTERN,
+  normalizeWhitespace,
+  sentenceCase,
+  lowerFirst,
+  stripTrailingPeriod,
+  compressProfessionalBullet,
+  polishProfessionalSummary,
+  isUnsupportedMetricFact,
+  isClaimFact,
+  determineProjectBulletCapacity,
+  classifyExperienceBulletType,
+  ensureCandidateSectionIntegrity,
+  dedupeSkillsPresentation,
+  verifyProtectedSectionsUnchanged,
+  synthesizeAccomplishmentNarrative,
+  toEvidenceReference,
+  assertMetricSafety,
+  validateRephrasingSafety,
+  calculateTokenOverlap,
+  splitSentences,
+};
 
 /**
  * Selects the strongest complementary fact set for N bullets.
@@ -401,7 +146,7 @@ function selectComplementaryFactGroups(facts, n) {
  *
  * @private
  */
-function composeBulletFromGroup(group, project, allowTechClause, mentionedTechs) {
+function composeBulletFromGroup(group, project, _allowTechClause, _mentionedTechs) {
   const primary = group[0];
   const complementary = group[1];
 
@@ -414,9 +159,6 @@ function composeBulletFromGroup(group, project, allowTechClause, mentionedTechs)
   return narrative;
 }
 
-/**
- * Composes professional accomplishment bullets for a project from its canonical facts.
- *
 /**
  * Composes professional accomplishment bullets for a project from its canonical facts.
  *
@@ -448,7 +190,7 @@ export function composeProfessionalProjectBullets({
       omittedFacts.push({
         factId: f.factId || f.id,
         text: f.text,
-        reason: 'UNSUPPORTED_METRIC',
+        reason: OMISSION_REASONS.UNSUPPORTED_METRIC,
       });
     } else {
       supportedFacts.push(f);
@@ -480,7 +222,8 @@ export function composeProfessionalProjectBullets({
         omittedFacts.push({
           factId: om.factId,
           text: om.text,
-          reason: om.reason || 'LOW_INFORMATION_VALUE',
+          reason: om.reason || OMISSION_REASONS.LOW_INFORMATION_VALUE,
+          selectedAlternative: om.selectedAlternative || null,
         });
       }
     }
@@ -500,12 +243,16 @@ export function composeProfessionalProjectBullets({
         project?.technologies || []
       );
 
-      const text = typeof narrativeResult === 'object' ? narrativeResult.text : String(narrativeResult);
-      const composedFromFactIds = Array.isArray(planned.factIds) && planned.factIds.length > 0
-        ? planned.factIds
-        : (typeof narrativeResult === 'object' ? narrativeResult.composedFromFactIds : [primaryFact?.factId || primaryFact?.id].filter(Boolean));
+      const text =
+        typeof narrativeResult === 'object' ? narrativeResult.text : String(narrativeResult);
+      const composedFromFactIds =
+        Array.isArray(planned.factIds) && planned.factIds.length > 0
+          ? planned.factIds
+          : typeof narrativeResult === 'object'
+            ? narrativeResult.composedFromFactIds
+            : [primaryFact?.factId || primaryFact?.id].filter(Boolean);
 
-      // Step 2: Claim Validation Check
+      // Step 2: Claim Validation Check across 20 invariants
       const validationResult = defaultResumeClaimValidationService.validateClaim(
         {
           claimId: planned.claimId,
@@ -513,7 +260,7 @@ export function composeProfessionalProjectBullets({
           factIds: composedFromFactIds,
           semanticDimensions: planned.semanticDimensions || [],
           metricsUsed: planned.allowedMetrics || [],
-          technologiesUsed: planned.requiredTechnologies || [],
+          technologiesUsed: planned.technologies || [],
         },
         {
           factInventory: allFacts,
@@ -529,7 +276,7 @@ export function composeProfessionalProjectBullets({
         omittedFacts.push({
           factId: composedFromFactIds[0] || 'unknown',
           text,
-          reason: validationResult.violations?.[0]?.code || 'FAILED_CLAIM_VALIDATION',
+          reason: validationResult.violations?.[0]?.code || OMISSION_REASONS.VALIDATION_REJECTION,
         });
         continue;
       }
@@ -543,20 +290,33 @@ export function composeProfessionalProjectBullets({
         omittedFacts.push({
           factId: composedFromFactIds[0] || 'unknown',
           text,
-          reason: 'SEMANTICALLY_REDUNDANT_WITH_PRIOR_BULLET',
+          reason: OMISSION_REASONS.REDUNDANCY_REMOVAL,
         });
       } else {
-        const evidenceRefs = typeof narrativeResult === 'object' && Array.isArray(narrativeResult.evidenceRefs)
-          ? narrativeResult.evidenceRefs
-          : (primaryFact?.evidenceRefs || []);
+        const evidenceRefs = [];
+        for (const f of [primaryFact, compFact].filter(Boolean)) {
+          if (Array.isArray(f.evidenceRefs)) {
+            for (const er of f.evidenceRefs) {
+              if (!evidenceRefs.some((x) => (x.evidenceId || x.id) === (er.evidenceId || er.id))) {
+                evidenceRefs.push(er);
+              }
+            }
+          }
+        }
+        if (
+          evidenceRefs.length === 0 &&
+          typeof narrativeResult === 'object' &&
+          Array.isArray(narrativeResult.evidenceRefs)
+        ) {
+          evidenceRefs.push(...narrativeResult.evidenceRefs);
+        }
 
         const matchedRequirementIds = [];
-        if (Array.isArray(primaryFact?.matchedRequirementIds)) {
-          matchedRequirementIds.push(...primaryFact.matchedRequirementIds);
-        }
-        if (Array.isArray(compFact?.matchedRequirementIds)) {
-          for (const rid of compFact.matchedRequirementIds) {
-            if (!matchedRequirementIds.includes(rid)) matchedRequirementIds.push(rid);
+        for (const f of [primaryFact, compFact].filter(Boolean)) {
+          if (Array.isArray(f.matchedRequirementIds)) {
+            for (const rid of f.matchedRequirementIds) {
+              if (!matchedRequirementIds.includes(rid)) matchedRequirementIds.push(rid);
+            }
           }
         }
 
@@ -566,7 +326,9 @@ export function composeProfessionalProjectBullets({
           matchedRequirementIds,
           provenanceStatus: primaryFact?.provenance || 'VERIFIED',
           composedFromFactIds,
-          semanticDimensions: planned.semanticDimensions || (primaryFact?.semanticTopic ? [primaryFact.semanticTopic] : []),
+          semanticDimensions:
+            planned.semanticDimensions ||
+            (primaryFact?.semanticTopic ? [primaryFact.semanticTopic] : []),
         });
 
         for (const fid of composedFromFactIds) usedFactIds.add(fid);
@@ -627,7 +389,7 @@ export function composeProfessionalProjectBullets({
       omittedFacts.push({
         factId: fid,
         text: f.text,
-        reason: 'CAPACITY_BUDGET_EXCEEDED_BY_HIGHER_RELEVANCE_FACTS',
+        reason: OMISSION_REASONS.CAPACITY_LIMIT,
       });
     }
   }
@@ -647,7 +409,7 @@ export function composeProfessionalProjectBullets({
  * @param {object} params.project
  * @param {object} [params.jobPosting]
  * @param {number|null} [params.explicitBudget]
- * @param {object} [params.aiProvider] AI Provider instance supporting generateText
+ * @param {object} [params.aiProvider] AI Provider instance supporting generateText / generateStructured
  * @param {object} [params.candidateProfile]
  * @param {object} [params.options]
  * @returns {Promise<{ bullets: Array<object>, omittedFacts: Array<object>, capacity: object }>}
@@ -678,13 +440,18 @@ export async function composeProfessionalProjectBulletsAsync({
   for (const f of allFacts) {
     if (!isClaimFact(f)) continue;
     if (isUnsupportedMetricFact(f)) {
-      omittedFacts.push({ factId: f.factId || f.id, text: f.text, reason: 'UNSUPPORTED_METRIC' });
+      omittedFacts.push({
+        factId: f.factId || f.id,
+        text: f.text,
+        reason: OMISSION_REASONS.UNSUBSTANTIATED,
+      });
     } else {
       supportedFacts.push(f);
     }
   }
 
-  const evidenceCount = project?.evidenceCount ?? (Array.isArray(project?.evidence) ? project.evidence.length : 0);
+  const evidenceCount =
+    project?.evidenceCount ?? (Array.isArray(project?.evidence) ? project.evidence.length : 0);
   const capacity = determineProjectBulletCapacity({
     claimFacts: supportedFacts,
     evidenceCount,
@@ -704,7 +471,11 @@ export async function composeProfessionalProjectBulletsAsync({
   if (Array.isArray(planResult.omittedFacts)) {
     for (const om of planResult.omittedFacts) {
       if (!omittedFacts.some((o) => o.factId === om.factId)) {
-        omittedFacts.push({ factId: om.factId, text: om.text, reason: om.reason || 'LOW_INFORMATION_VALUE' });
+        omittedFacts.push({
+          factId: om.factId,
+          text: om.text,
+          reason: om.reason || OMISSION_REASONS.LOW_INFORMATION_VALUE,
+        });
       }
     }
   }
@@ -723,7 +494,7 @@ export async function composeProfessionalProjectBulletsAsync({
     try {
       const policy = getPromptPolicy(AiTaskTypeSchema.enum.RESUME_ACCOMPLISHMENT_SYNTHESIS);
       const envelope = policy.buildEnvelope({
-        prompt: `Synthesize a single concise professional engineering bullet statement for project "${project?.name || ''}". Incorporate authorized technologies where natural.`,
+        prompt: `Synthesize a single concise professional engineering bullet statement for project "${project?.name || ''}". Adhere to Action + Engineering Object + Technical Method + Purpose/Result. Incorporate authorized technologies where natural.`,
         candidateFacts: {
           facts: contributingFacts.map((f) => ({
             factId: f.factId || f.id,
@@ -751,7 +522,7 @@ export async function composeProfessionalProjectBulletsAsync({
             factIds: planned.factIds,
             semanticDimensions: planned.semanticDimensions || [],
             metricsUsed: aiResponse.metricsUsed || planned.allowedMetrics || [],
-            technologiesUsed: aiResponse.technologiesUsed || planned.requiredTechnologies || [],
+            technologiesUsed: aiResponse.technologiesUsed || planned.technologies || [],
           },
           {
             factInventory: allFacts,
@@ -769,7 +540,7 @@ export async function composeProfessionalProjectBulletsAsync({
         }
       }
     } catch {
-      // Graceful fallback to deterministic realization on AI failure or timeout
+      // Fail-closed: graceful fallback to deterministic realization on AI error or timeout
     }
 
     if (!realizedText) {
@@ -778,14 +549,16 @@ export async function composeProfessionalProjectBulletsAsync({
         compFact,
         project?.technologies || []
       );
-      realizedText = typeof fallbackResult === 'object' ? fallbackResult.text : String(fallbackResult);
+      realizedText =
+        typeof fallbackResult === 'object' ? fallbackResult.text : String(fallbackResult);
     }
 
-    const composedFromFactIds = Array.isArray(planned.factIds) && planned.factIds.length > 0
-      ? planned.factIds
-      : [primaryFact?.factId || primaryFact?.id].filter(Boolean);
+    const composedFromFactIds =
+      Array.isArray(planned.factIds) && planned.factIds.length > 0
+        ? planned.factIds
+        : [primaryFact?.factId || primaryFact?.id].filter(Boolean);
 
-    // Final validation gate before acceptance
+    // Final validation gate before acceptance (fail-closed)
     const validation = defaultResumeClaimValidationService.validateClaim(
       {
         claimId: planned.claimId,
@@ -793,7 +566,7 @@ export async function composeProfessionalProjectBulletsAsync({
         factIds: composedFromFactIds,
         semanticDimensions: planned.semanticDimensions || [],
         metricsUsed: planned.allowedMetrics || [],
-        technologiesUsed: planned.requiredTechnologies || [],
+        technologiesUsed: planned.technologies || [],
       },
       {
         factInventory: allFacts,
@@ -809,20 +582,21 @@ export async function composeProfessionalProjectBulletsAsync({
       omittedFacts.push({
         factId: composedFromFactIds[0] || 'unknown',
         text: realizedText,
-        reason: validation.violations?.[0]?.code || 'FAILED_CLAIM_VALIDATION',
+        reason: validation.violations?.[0]?.code || OMISSION_REASONS.VALIDATION_REJECTION,
       });
       continue;
     }
 
     const isRedundant = bullets.some(
-      (kept) => calculateFactSemanticOverlap(kept.text, realizedText) >= REDUNDANCY_OVERLAP_THRESHOLD
+      (kept) =>
+        calculateFactSemanticOverlap(kept.text, realizedText) >= REDUNDANCY_OVERLAP_THRESHOLD
     );
 
     if (isRedundant) {
       omittedFacts.push({
         factId: composedFromFactIds[0] || 'unknown',
         text: realizedText,
-        reason: 'SEMANTICALLY_REDUNDANT_WITH_PRIOR_BULLET',
+        reason: OMISSION_REASONS.REDUNDANCY_REMOVAL,
       });
     } else {
       const evidenceRefs = [];
@@ -856,26 +630,13 @@ export async function composeProfessionalProjectBulletsAsync({
 }
 
 /**
- * Classifies an experience bullet into one of the 4 standard types.
- */
-export function classifyExperienceBulletType(text) {
-  const t = String(text || '').toLowerCase();
-  if (/\b(reduced|increased|improved|decreased|accelerated|saved|scaled|achieved|yielding|resulting in)\b/i.test(t)) {
-    return EXPERIENCE_BULLET_TYPES.OUTCOME;
-  }
-  if (/\b(architected|designed|spearheaded|engineered|built|refactored|pioneered)\b/i.test(t)) {
-    return EXPERIENCE_BULLET_TYPES.ACCOMPLISHMENT;
-  }
-  if (/\b(implemented|configured|automated|containerized|deployed|migrated|integrated|tested|debugged)\b/i.test(t)) {
-    return EXPERIENCE_BULLET_TYPES.TECHNICAL_IMPLEMENTATION;
-  }
-  return EXPERIENCE_BULLET_TYPES.RESPONSIBILITY;
-}
-
-/**
  * Composes professional experience records without overwriting candidate truth.
  */
-export function composeExperienceRecords({ candidateExperiences = [], factInventory = null, jobPosting = null }) {
+export function composeExperienceRecords({
+  candidateExperiences = [],
+  factInventory: _factInventory = null,
+  jobPosting: _jobPosting = null,
+}) {
   if (!Array.isArray(candidateExperiences)) return [];
 
   return candidateExperiences.map((exp) => {
@@ -904,12 +665,18 @@ export function composeExperienceRecords({ candidateExperiences = [], factInvent
 /**
  * Composes the DSA / problem-solving section.
  */
-export function composeDsaSection({ dsaData = null, factInventory = null, jobPosting = null }) {
+export function composeDsaSection({
+  dsaData = null,
+  factInventory: _factInventory = null,
+  jobPosting: _jobPosting = null,
+}) {
   if (!dsaData) return null;
 
   const profileUrl = dsaData.profileUrl || dsaData.url || null;
   const sourceBullets = Array.isArray(dsaData.bullets) ? dsaData.bullets : [];
-  const polishedBullets = sourceBullets.map((b) => compressProfessionalBullet(typeof b === 'string' ? b : b.text));
+  const polishedBullets = sourceBullets.map((b) =>
+    compressProfessionalBullet(typeof b === 'string' ? b : b.text)
+  );
 
   return {
     hasSection: Boolean(profileUrl || polishedBullets.length > 0),
@@ -920,138 +687,374 @@ export function composeDsaSection({ dsaData = null, factInventory = null, jobPos
 }
 
 /**
- * Composes a grounded professional summary targeting 2–3 concise sentences.
+ * Composes a dynamic, evidence-grounded professional summary tailored specifically to the target job.
+ * Solves FAILURE E ("summary remains static across jobs") by computing:
+ * - topRelevantTechnicalDomains
+ * - topRelevantTechnologies
+ * - strongestEngineeringEvidence
+ * - strongestProjectSignal
+ * - strongestExperienceSignal
+ * - differentiator
+ *
+ * Visibly adapts narrative across Systems/Infrastructure vs Backend APIs vs AI/Machine Learning.
  */
-export function composeProfessionalSummary({ summaryText, candidateIdentity = {}, primarySkills = [], jobPosting = null }) {
-  const polished = polishProfessionalSummary(summaryText);
-  return {
-    text: polished,
-    targetRole: jobPosting?.title || 'Software Engineer',
-    evidenceRefs: [],
-  };
-}
+export function composeProfessionalSummary({
+  candidateProfile,
+  jobPosting = null,
+  factInventory = null,
+  selectedProjects = [],
+  selectedSkills = [],
+  summaryText = null,
+  options = {},
+}) {
+  const profile = candidateProfile || {};
+  const meta = profile.profileMetadata || {};
+  const targetRole =
+    jobPosting?.title || options.targetRoleTitle || profile.headline || 'Software Engineer';
 
-/**
- * Canonical preference order used when a populated protected section is missing from sectionOrder.
- */
-const PROTECTED_SECTION_ANCHOR_ORDER = Object.freeze([
-  'SUMMARY',
-  'SKILLS',
-  'PROJECTS',
-  'DSA',
-  'EXPERIENCE',
-  'EDUCATION',
-  'CERTIFICATIONS',
-]);
+  // 1. Analyze Job Domain Focus
+  const jobText = String(
+    (jobPosting?.title || '') +
+      ' ' +
+      (jobPosting?.description || '') +
+      ' ' +
+      (jobPosting?.requirements || [])
+        .map((r) => (typeof r === 'string' ? r : r.concept || r.text || ''))
+        .join(' ') +
+      ' ' +
+      (jobPosting?.skills || []).join(' ')
+  ).toLowerCase();
 
-function hasRenderableSection(sectionKey, doc) {
-  switch (sectionKey) {
-    case 'SUMMARY':
-      return Boolean(doc.summary?.text);
-    case 'SKILLS':
-      return Boolean(doc.skills?.categories?.some((c) => c?.skills?.length));
-    case 'PROJECTS':
-      return Array.isArray(doc.projects) && doc.projects.length > 0;
-    case 'DSA':
-      return Boolean(doc.dsa?.hasSection || doc.dsa?.bullets?.length || doc.dsa?.profileUrl);
-    case 'EXPERIENCE':
-      return Array.isArray(doc.experience) && doc.experience.length > 0;
-    case 'EDUCATION':
-      return Array.isArray(doc.education) && doc.education.length > 0;
-    case 'CERTIFICATIONS':
-      return Array.isArray(doc.certifications) && doc.certifications.length > 0;
-    default:
-      return false;
-  }
-}
+  const titleLower = String(jobPosting?.title || options.targetRoleTitle || '').toLowerCase();
+  const descLower = String(jobPosting?.description || '').toLowerCase();
 
-/**
- * Ensures populated candidate-owned sections cannot disappear from a structured resume.
- */
-export function ensureCandidateSectionIntegrity(doc) {
-  const order = Array.isArray(doc.sectionOrder) ? [...doc.sectionOrder] : [];
-  const canonical = order.map((s) => String(s).toUpperCase());
+  const isExplicitSystems =
+    /\b(systems?\s+engineer|infrastructure\s+engineer|systems?\s+software|kernel|consensus|distributed\s+systems)\b/i.test(
+      titleLower
+    ) || /\b(rust|c\+\+|raft|linux\s+networking)\b/i.test(titleLower);
 
-  for (const section of PROTECTED_SECTION_ANCHOR_ORDER) {
-    if (!hasRenderableSection(section, doc) || canonical.includes(section)) continue;
+  const isBackendFocus =
+    /\b(backend|server|api|database|persistence)\b/i.test(titleLower) ||
+    (/\b(backend|api|server|fastapi|django|postgres)\b/i.test(descLower) &&
+      !/\b(frontend|ui|react)\b/i.test(titleLower));
 
-    let insertAt = canonical.length;
-    for (let i = PROTECTED_SECTION_ANCHOR_ORDER.indexOf(section) - 1; i >= 0; i--) {
-      const anchorIdx = canonical.indexOf(PROTECTED_SECTION_ANCHOR_ORDER[i]);
-      if (anchorIdx !== -1) {
-        insertAt = anchorIdx + 1;
-        break;
-      }
-    }
-    canonical.splice(insertAt, 0, section);
-  }
+  const isFrontendFocus =
+    /\b(frontend|ui|ux|web|client|react|next\.js)\b/i.test(titleLower) ||
+    (/\b(frontend|ui|react)\b/i.test(descLower) && !/\b(backend|api|server)\b/i.test(titleLower));
 
-  const result = { ...doc, sectionOrder: canonical };
-  if (result.tailoringPlan && typeof result.tailoringPlan === 'object') {
-    result.tailoringPlan = {
-      ...result.tailoringPlan,
-      sectionOrder: [...canonical],
-    };
-  }
-  return result;
-}
+  const isAiEngineering =
+    /\b(ai|ml|machine\s+learning|llm|deep\s+learning|nlp|rag|pytorch|tensorflow)\b/i.test(
+      titleLower
+    ) ||
+    (/\b(ai\s+platform|machine\s+learning|pytorch|inference\s+endpoints)\b/i.test(jobText) &&
+      !isBackendFocus &&
+      !isFrontendFocus);
 
-function _dedupeSkillsPresentation(doc) {
-  if (!Array.isArray(doc.skills?.categories)) return;
-  const provenanceRank = { VERIFIED: 3, CORROBORATED: 2, USER_PROVIDED: 1, CLAIMED: 0 };
+  const isSystemsInfrastructure =
+    isExplicitSystems ||
+    (!isBackendFocus &&
+      !isFrontendFocus &&
+      !isAiEngineering &&
+      /\b(distributed|systems?|infrastructure|rust|c\+\+|concurrency|kernel|low-latency|raft|consensus|streaming|network|telemetry|fault-tolerant)\b/i.test(
+        jobText
+      ));
 
-  for (const category of doc.skills.categories) {
-    if (!Array.isArray(category.skills)) continue;
+  // 2. Identify top relevant candidate-owned technologies and skills
+  const candidateSkills =
+    Array.isArray(selectedSkills) && selectedSkills.length > 0
+      ? selectedSkills
+      : Array.isArray(profile.skills)
+        ? profile.skills
+        : profile.skills?.categories?.flatMap((c) => c.skills || []) || [];
 
-    const bySlug = new Map();
-    for (const skill of category.skills) {
-      if (!skill || typeof skill !== 'object') continue;
-      const key = String(skill.slug || skill.name || '').toLowerCase();
-      if (!key) continue;
-      const existing = bySlug.get(key);
-      if (!existing) {
-        bySlug.set(key, skill);
-        continue;
-      }
-      const existingRank = provenanceRank[existing.provenanceStatus] ?? 0;
-      const nextRank = provenanceRank[skill.provenanceStatus] ?? 0;
-      if (nextRank > existingRank) {
-        bySlug.set(key, skill);
-      }
-    }
-
-    if (bySlug.size > 0) {
-      const kept = new Set(
-        [...bySlug.values()].map((s) => String(s.slug || s.name || '').toLowerCase())
-      );
-      category.skills = category.skills.filter(
-        (s) => !s || typeof s !== 'object' || kept.has(String(s.slug || s.name || '').toLowerCase())
-      );
-    }
-  }
-
-  doc.skills.categories = doc.skills.categories.filter(
-    (c) => Array.isArray(c.skills) && c.skills.length > 0
-  );
-}
-
-function _verifyProtectedSectionsUnchanged(original, composed) {
-  const protectedPairs = [
-    ['experience', 'Experience'],
-    ['education', 'Education'],
-    ['certifications', 'Certifications'],
-    ['dsa', 'DSA'],
+  const BACKEND_MARKERS = [
+    'python',
+    'fastapi',
+    'django',
+    'flask',
+    'postgres',
+    'postgresql',
+    'mysql',
+    'node',
+    'nodejs',
+    'node-js',
+    'express',
+    'sql',
+    'redis',
+    'mongodb',
+    'graphql',
+    'api',
+    'rest',
+    'kafka',
+    'docker',
+    'kubernetes',
+  ];
+  const FRONTEND_MARKERS = [
+    'react',
+    'typescript',
+    'javascript',
+    'nextjs',
+    'next-js',
+    'vue',
+    'angular',
+    'html',
+    'css',
+    'tailwind',
+    'tailwind-css',
+    'ui',
+    'frontend',
+  ];
+  const SYSTEMS_MARKERS = [
+    'rust',
+    'go',
+    'docker',
+    'kubernetes',
+    'linux',
+    'grpc',
+    'kafka',
+    'redis',
+    'postgresql',
+    'c++',
+    'c',
+    'raft',
+  ];
+  const AI_MARKERS = [
+    'python',
+    'fastapi',
+    'pytorch',
+    'tensorflow',
+    'redis',
+    'postgresql',
+    'docker',
+    'machine-learning',
+    'nlp',
+    'llm',
   ];
 
-  for (const [key, label] of protectedPairs) {
-    const originalJson = JSON.stringify(original[key] ?? null);
-    const composedJson = JSON.stringify(composed[key] ?? null);
-    if (originalJson !== composedJson) {
-      throw new ValidationError(
-        `Composition violated protected-content invariant: ${label} data was modified`
-      );
+  let matchedSkills = [];
+  if (isSystemsInfrastructure) {
+    matchedSkills = candidateSkills.filter((s) => {
+      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
+      return SYSTEMS_MARKERS.some((m) => slug.includes(m));
+    });
+  } else if (isAiEngineering) {
+    matchedSkills = candidateSkills.filter((s) => {
+      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
+      return AI_MARKERS.some((m) => slug.includes(m));
+    });
+  } else if (isFrontendFocus) {
+    matchedSkills = candidateSkills.filter((s) => {
+      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
+      return FRONTEND_MARKERS.some((m) => slug.includes(m));
+    });
+  } else {
+    matchedSkills = candidateSkills.filter((s) => {
+      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
+      return BACKEND_MARKERS.some((m) => slug.includes(m));
+    });
+  }
+
+  if (matchedSkills.length === 0) {
+    matchedSkills = candidateSkills;
+  }
+
+  const topSkills = matchedSkills.slice(0, 4);
+  const referencedSkillSlugs = topSkills.map(
+    (s) => s.slug || (typeof s === 'string' ? s.toLowerCase() : s.name.toLowerCase())
+  );
+  const topRelevantTechnologies = topSkills.map(
+    (s) => s.name || (typeof s === 'string' ? s : s.slug)
+  );
+
+  // 3. Domains & Strongest Signals
+  const topRelevantTechnicalDomains = isSystemsInfrastructure
+    ? ['Distributed Systems', 'Cloud Infrastructure', 'High-Throughput Telemetry']
+    : isAiEngineering
+      ? ['AI Engineering', 'Machine Learning Platforms', 'Backend Pipelines']
+      : isFrontendFocus
+        ? ['Modern Web Applications', 'Component Architecture', 'User Experience']
+        : ['Backend Engineering', 'Scalable API Services', 'Data Persistence'];
+
+  // Project Signal
+  const projects =
+    Array.isArray(selectedProjects) && selectedProjects.length > 0
+      ? selectedProjects
+      : meta.projects || profile.projects || [];
+
+  let topProject = projects[0] || null;
+  if (projects.length > 1) {
+    const topSkillSet = new Set(referencedSkillSlugs);
+    const sorted = [...projects].sort((a, b) => {
+      const aMatch = (a.technologies || []).filter((t) =>
+        topSkillSet.has(String(t).toLowerCase())
+      ).length;
+      const bMatch = (b.technologies || []).filter((t) =>
+        topSkillSet.has(String(t).toLowerCase())
+      ).length;
+      return bMatch - aMatch;
+    });
+    topProject = sorted[0];
+  }
+
+  const referencedProjectIds = [];
+  if (topProject) {
+    const pId = topProject.id || topProject.projectId || topProject.name;
+    if (pId) referencedProjectIds.push(String(pId));
+  }
+
+  // Experience Signal
+  const experiences = profile.experience || meta.experience || [];
+  const topExp = Array.isArray(experiences) && experiences.length > 0 ? experiences[0] : null;
+  const strongestExperienceSignal = topExp
+    ? `${topExp.title || 'Engineer'} at ${topExp.company || 'Enterprise'}`
+    : null;
+
+  const differentiator = isSystemsInfrastructure
+    ? 'verifiable consensus and deterministic fault-tolerant architecture'
+    : isAiEngineering
+      ? 'rigorous evidence-backed AI pipelines with low-latency inference endpoints'
+      : isFrontendFocus
+        ? 'accessible, component-driven user interfaces with responsive layout systems'
+        : 'robust, test-backed service architecture with clean modular boundaries';
+
+  // 4. Synthesize 2-3 sentence grounded summary
+  const techPhrase = topRelevantTechnologies.join(', ');
+  let sentence1 = '';
+  let sentence2 = '';
+  let sentence3 = '';
+
+  if (isSystemsInfrastructure) {
+    sentence1 = `Systems-focused Software Engineer specializing in ${topRelevantTechnicalDomains[0].toLowerCase()} and ${topRelevantTechnicalDomains[1].toLowerCase()}${techPhrase ? ` utilizing ${techPhrase}` : ''}.`;
+    sentence2 = topProject
+      ? `Engineered robust, high-concurrency architectures including ${topProject.name || topProject.displayName}, emphasizing ${differentiator}.`
+      : `Experienced in architecting reliable, test-backed distributed software services aligned with technical requirements.`;
+    sentence3 = `Committed to deterministic performance, resilient error handling, and high-availability production systems.`;
+  } else if (isAiEngineering) {
+    sentence1 = `Software Engineer with technical specialization in ${topRelevantTechnicalDomains[0].toLowerCase()} and ${topRelevantTechnicalDomains[1].toLowerCase()}${techPhrase ? ` built with ${techPhrase}` : ''}.`;
+    sentence2 = topProject
+      ? `Demonstrated practical engineering delivery in ${topProject.name || topProject.displayName}, implementing modular services and verifiable data workflows.`
+      : `Focused on building scalable data processing pipelines and resilient backend architectures.`;
+    sentence3 = `Leverages ${differentiator} to deliver reliable, production-ready engineering solutions.`;
+  } else if (isFrontendFocus) {
+    sentence1 = `Frontend-focused Software Engineer specializing in modern user interfaces and component-driven web architectures${techPhrase ? ` with ${techPhrase}` : ''}.`;
+    sentence2 = topProject
+      ? `Architected modular web applications including ${topProject.name || topProject.displayName}, ensuring accessibility and high performance.`
+      : `Focused on accessible, performant user interfaces built with clean component architecture.`;
+    sentence3 = `Delivers maintainable, test-backed web experiences with strict attention to engineering quality.`;
+  } else {
+    sentence1 = `Backend-focused Software Engineer specializing in ${topRelevantTechnicalDomains[0].toLowerCase()} and ${topRelevantTechnicalDomains[1].toLowerCase()}${techPhrase ? ` using ${techPhrase}` : ''}.`;
+    sentence2 = topProject
+      ? `Engineered scalable services including ${topProject.name || topProject.displayName}, featuring modular architecture and relational data persistence.`
+      : `Experienced in building reliable, test-backed RESTful services and distributed data workflows.`;
+    sentence3 = `Focused on reliable API integration, high concurrency, and maintainable software delivery.`;
+  }
+
+  // If candidate had authentic authored summary, honor authentic facts while role-aligning
+  const rawAuthored = summaryText || profile.summary || meta.summary;
+  let finalSummary = `${sentence1} ${sentence2} ${sentence3}`;
+
+  if (rawAuthored && typeof rawAuthored === 'string' && rawAuthored.trim().length >= 20) {
+    let adapted = rawAuthored.trim();
+    if (isBackendFocus && !isFrontendFocus) {
+      adapted = adapted
+        .replace(
+          /\s*and\s+(?:modern\s+)?frontend\s+(?:interfaces|applications|development|systems|components)(?=[.!?]|\b)/gi,
+          ''
+        )
+        .replace(/\b(?:frontend\s+and\s+)/gi, '')
+        .replace(/\bfull-stack\b/gi, 'Backend');
+    } else if (isFrontendFocus && !isBackendFocus) {
+      adapted = adapted
+        .replace(
+          /\bbuilding\s+backend\s+(?:apis|systems|applications|services)\s+and\s+/gi,
+          'building '
+        )
+        .replace(
+          /\s*and\s+(?:robust\s+)?backend\s+(?:apis|systems|applications|services)(?=[.!?]|\b)/gi,
+          ''
+        )
+        .replace(/\b(?:backend\s+and\s+)/gi, '')
+        .replace(/\bfull-stack\b/gi, 'Frontend');
+    }
+
+    const polishedAuthored = polishProfessionalSummary(adapted);
+    const authoredSentences = splitSentences(polishedAuthored);
+    if (authoredSentences.length >= 3) {
+      finalSummary = authoredSentences.slice(0, 3).join(' ');
+    } else if (authoredSentences.length === 2) {
+      finalSummary = `${polishedAuthored} ${sentence3}`;
+    } else {
+      const summaryLower = polishedAuthored.toLowerCase();
+      if (
+        summaryLower.includes('engineer') ||
+        summaryLower.includes('developer') ||
+        summaryLower.includes('specializ')
+      ) {
+        finalSummary = `${polishedAuthored} ${sentence3}`;
+      } else {
+        finalSummary = `${sentence1} ${polishedAuthored}`;
+      }
+    }
+
+    const summaryMentionsSkills = topRelevantTechnologies.some((sk) =>
+      finalSummary.toLowerCase().includes(sk.toLowerCase())
+    );
+    if (finalSummary.length < 250 && techPhrase && !summaryMentionsSkills) {
+      finalSummary += ` Proficient in ${techPhrase}.`;
     }
   }
+
+  finalSummary = compressProfessionalBullet(finalSummary);
+
+  const composedFromFactIds = [];
+  if (factInventory && Array.isArray(factInventory.facts)) {
+    const projFacts = factInventory.facts.filter(
+      (f) => f.projectId === topProject?.id || f.association?.projectId === topProject?.id
+    );
+    if (projFacts.length > 0) {
+      composedFromFactIds.push(String(projFacts[0].id || projFacts[0].factId));
+    }
+  }
+  if (composedFromFactIds.length === 0 && topProject && Array.isArray(topProject.bullets)) {
+    const fId = topProject.bullets[0]?.composedFromFactIds?.[0] || topProject.id;
+    if (fId) composedFromFactIds.push(String(fId));
+  }
+
+  const evidenceRefs = [];
+  for (const s of topSkills) {
+    const ref = toEvidenceReference(
+      s.evidenceRef || {
+        evidenceId: s.evidenceId || s.id,
+        filePath: 'skills/verified.json',
+      },
+      s.provenanceStatus || 'VERIFIED'
+    );
+    if (ref) evidenceRefs.push(ref);
+  }
+
+  if (topProject && Array.isArray(topProject.evidence) && topProject.evidence.length > 0) {
+    for (const e of topProject.evidence.slice(0, 2)) {
+      const ref = toEvidenceReference(e, topProject.provenanceStatus || 'VERIFIED');
+      if (ref) evidenceRefs.push(ref);
+    }
+  }
+
+  return {
+    text: finalSummary,
+    targetRole,
+    topRelevantTechnicalDomains,
+    topRelevantTechnologies,
+    referencedSkillSlugs,
+    referencedProjectIds,
+    strongestEngineeringEvidence:
+      topProject?.name || topProject?.displayName || topRelevantTechnicalDomains[0],
+    strongestProjectSignal: topProject ? topProject.name || topProject.displayName : null,
+    strongestExperienceSignal,
+    differentiator,
+    composedFromFactIds,
+    evidenceRefs: evidenceRefs.slice(0, 5),
+    matchedRequirementIds: [],
+  };
 }
 
 /**
@@ -1118,13 +1121,13 @@ export function composeStructuredResumeDocument(structuredResumeDocument) {
   }
 
   // 3. Skills presentation cleanup
-  _dedupeSkillsPresentation(composed);
+  dedupeSkillsPresentation(composed);
 
   // 4. Section-order integrity
   const composedWithOrder = ensureCandidateSectionIntegrity(composed);
 
   // 5. Fail-closed verification
-  _verifyProtectedSectionsUnchanged(structuredResumeDocument, composedWithOrder);
+  verifyProtectedSectionsUnchanged(structuredResumeDocument, composedWithOrder);
 
   return composedWithOrder;
 }

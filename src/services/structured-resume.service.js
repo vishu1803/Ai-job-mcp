@@ -28,29 +28,23 @@ import {
   CandidateArtifactContentService,
   countDistinctCanonicalFacts,
 } from './candidate-artifact-content.service.js';
-import { composeStructuredResumeDocument } from './resume-professional-composition.service.js';
+import {
+  composeStructuredResumeDocument,
+  composeProfessionalSummary,
+  composeProfessionalProjectBullets,
+} from './resume-accomplishment-composer.service.js';
 import { assessPreRenderQuality } from './resume-content-quality-gate.service.js';
 import {
-  generateGroundedSummary,
-  selectAndRephraseProjectBullets,
   assertMetricSafety,
   deriveTargetRoleHeading,
   deriveSectionOrdering,
   isMeaningfulDsa,
 } from './resume-content-strategy.service.js';
-import {
-  formatTechnologyStack,
-} from '../utils/technology-normalizer.js';
+import { formatTechnologyStack } from '../utils/technology-normalizer.js';
 import {
   buildCanonicalFactInventory,
   scoreFactsForJob,
-  PROBLEM_SOLVING_PROJECT_KEY,
 } from './candidate-fact-inventory.service.js';
-import {
-  composeProfessionalProjectBullets,
-  composeProfessionalProjectBulletsAsync,
-  determineProjectBulletCapacity,
-} from './resume-accomplishment-composer.service.js';
 
 /**
  * Capacity-aware dynamic project budgeting strategy (Req H & 21).
@@ -66,7 +60,7 @@ import {
 export function estimateProjectCapacity({
   experience = [],
   hasMeaningfulDsa = false,
-  education = [],
+  education: _education = [],
   explicitBudget = null,
 }) {
   if (typeof explicitBudget === 'number' && explicitBudget > 0) {
@@ -225,11 +219,32 @@ export function buildStructuredResumeDocument({
 
   // 1. Candidate Identity Snapshot (Immutable Source Data)
   const candidateIdentity = {
-    displayName: source.displayName || source.name || source.candidate?.displayName || source.candidate?.name || 'Candidate',
+    displayName:
+      source.displayName ||
+      source.name ||
+      source.candidate?.displayName ||
+      source.candidate?.name ||
+      'Candidate',
     headline: incomingPlan?.targetRoleTitle || tailoredHeadingInfo.heading,
-    email: source.canonicalEmail || source.email || source.userEmail || source.candidate?.canonicalEmail || source.candidate?.email,
-    phone: source.phone || source.phoneNumber || source.candidate?.phone || meta.identity?.phone || meta.phone || null,
-    location: source.location || source.candidate?.location || meta.identity?.location || meta.location || null,
+    email:
+      source.canonicalEmail ||
+      source.email ||
+      source.userEmail ||
+      source.candidate?.canonicalEmail ||
+      source.candidate?.email,
+    phone:
+      source.phone ||
+      source.phoneNumber ||
+      source.candidate?.phone ||
+      meta.identity?.phone ||
+      meta.phone ||
+      null,
+    location:
+      source.location ||
+      source.candidate?.location ||
+      meta.identity?.location ||
+      meta.location ||
+      null,
     links: extractCandidateLinks(source),
   };
 
@@ -263,16 +278,18 @@ export function buildStructuredResumeDocument({
 
   // 4. Certifications Snapshot (Authoritative source facts; no synthetic names/issuers)
   const rawCertifications = meta.certifications || source.certifications || [];
-  const certifications = (Array.isArray(rawCertifications) ? rawCertifications : []).map((cert, idx) => ({
-    id: cert.id || `cert-${idx + 1}`,
-    name: cert.name || cert.title || null,
-    issuingOrganization: cert.issuingOrganization || cert.issuer || null,
-    issueDate: cert.issueDate || null,
-    expirationDate: cert.expirationDate || null,
-    credentialId: cert.credentialId || null,
-    credentialUrl: cert.credentialUrl || null,
-    provenanceStatus: 'USER_PROVIDED',
-  }));
+  const certifications = (Array.isArray(rawCertifications) ? rawCertifications : []).map(
+    (cert, idx) => ({
+      id: cert.id || `cert-${idx + 1}`,
+      name: cert.name || cert.title || null,
+      issuingOrganization: cert.issuingOrganization || cert.issuer || null,
+      issueDate: cert.issueDate || null,
+      expirationDate: cert.expirationDate || null,
+      credentialId: cert.credentialId || null,
+      credentialUrl: cert.credentialUrl || null,
+      provenanceStatus: 'USER_PROVIDED',
+    })
+  );
 
   // 5. DSA Snapshot (Authoritative source facts; never inject synthetic bullets)
   // P16-009: a valid candidate-owned problem-solving profile URL is sufficient
@@ -281,10 +298,13 @@ export function buildStructuredResumeDocument({
   const rawDsa = meta.dsa || source.dsa || source.problemSolving || meta.problemSolving || null;
   let dsa = null;
   if (rawDsa && typeof rawDsa === 'object') {
-    const dsaUrl = typeof rawDsa.profileUrl === 'string' && /^https?:\/\//i.test(rawDsa.profileUrl.trim())
-      ? rawDsa.profileUrl.trim()
-      : null;
-    const dsaBullets = Array.isArray(rawDsa.bullets) ? rawDsa.bullets.map(String).filter(Boolean) : [];
+    const dsaUrl =
+      typeof rawDsa.profileUrl === 'string' && /^https?:\/\//i.test(rawDsa.profileUrl.trim())
+        ? rawDsa.profileUrl.trim()
+        : null;
+    const dsaBullets = Array.isArray(rawDsa.bullets)
+      ? rawDsa.bullets.map(String).filter(Boolean)
+      : [];
     dsa = {
       // P16-009: an explicit upstream hasSection=true is honored, and a valid
       // profile URL or authored bullets make the section renderable even when
@@ -301,7 +321,7 @@ export function buildStructuredResumeDocument({
   // P16-009: URL-only DSA must render. The renderer inserts DSA after PROJECTS
   // when dsa content exists; the ordering derivation only sees authored-bullet
   // DSA, so a URL-only DSA is appended to the order here.
-  const includeProblemSolving = Boolean(dsa?.bullets?.length || dsa?.profileUrl);
+  const _includeProblemSolving = Boolean(dsa?.bullets?.length || dsa?.profileUrl);
 
   // Phase 4 — Dynamic, content-aware project budget (Req H & 21).
   // Dynamically computes project capacity based on candidate experience, DSA, and education footprint.
@@ -311,14 +331,15 @@ export function buildStructuredResumeDocument({
     experience: meta.experience || source.experience || [],
     hasMeaningfulDsa: hasMeaningfulDsaContent,
     education: meta.education || source.education || [],
-    explicitBudget: options?.projectBudget || options?.maxProjects || incomingPlan?.projectBudget || null,
+    explicitBudget:
+      options?.projectBudget || options?.maxProjects || incomingPlan?.projectBudget || null,
   });
 
   // Minimum authoritative-strength thresholds a project must meet to earn a slot.
   // Projects below these bars are omitted rather than padding the page (fail-sparse).
-  const STRONG_RELEVANCE_FLOOR = 30;      // ranking relevanceScore ≥ 30, or
-  const MIN_EVIDENCE_COUNT = 5;           // ≥ 5 evidence records, or
-  const MIN_AUTHORED_BULLETS = 2;         // ≥ 2 authored technical bullets
+  const STRONG_RELEVANCE_FLOOR = 30; // ranking relevanceScore ≥ 30, or
+  const MIN_EVIDENCE_COUNT = 5; // ≥ 5 evidence records, or
+  const MIN_AUTHORED_BULLETS = 2; // ≥ 2 authored technical bullets
 
   /**
    * Evaluates whether a ranked candidate project has enough authentic content
@@ -328,15 +349,15 @@ export function buildStructuredResumeDocument({
     const score = typeof ranking?.relevanceScore === 'number' ? ranking.relevanceScore : 0;
     const evidenceCount =
       candProj.evidenceCount ?? (Array.isArray(candProj.evidence) ? candProj.evidence.length : 0);
-    const authoredBullets = Array.isArray(candProj.bullets) ? candProj.bullets.length : 0;
     const hasMatchedReqs =
       (Array.isArray(ranking?.matchedRequirementIds) && ranking.matchedRequirementIds.length > 0) ||
       (Array.isArray(ranking?.matchedRequirements) && ranking.matchedRequirements.length > 0);
     const band = ranking?.relevanceBand;
 
-    const hasHighlights = Array.isArray(candProj.highlights) && candProj.highlights.length > 0;
-    const hasFeatures = Array.isArray(candProj.features) && candProj.features.length > 0;
-    const hasDescription = candProj.description && typeof candProj.description === 'string' && candProj.description.trim().length >= 20;
+    const hasDescription =
+      candProj.description &&
+      typeof candProj.description === 'string' &&
+      candProj.description.trim().length >= 20;
 
     // P16-008: Count total distinct canonical facts across all candidate content surfaces
     const allCandidateItems = [
@@ -351,17 +372,17 @@ export function buildStructuredResumeDocument({
 
     return (
       (score >= STRONG_RELEVANCE_FLOOR ||
-      hasMatchedReqs ||
-      band === 'HIGH' ||
-      band === 'MEDIUM' ||
-      evidenceCount >= MIN_EVIDENCE_COUNT ||
-      totalCandidateFacts >= MIN_AUTHORED_BULLETS) &&
+        hasMatchedReqs ||
+        band === 'HIGH' ||
+        band === 'MEDIUM' ||
+        evidenceCount >= MIN_EVIDENCE_COUNT ||
+        totalCandidateFacts >= MIN_AUTHORED_BULLETS) &&
       // A slot-worth project must carry at least SOME renderable content.
-      (evidenceCount > 0 || totalCandidateFacts > 0 ||
-       (candProj.summary && String(candProj.summary).trim()))
+      (evidenceCount > 0 ||
+        totalCandidateFacts > 0 ||
+        (candProj.summary && String(candProj.summary).trim()))
     );
   };
-
 
   let selectedProjectIds = [];
 
@@ -396,8 +417,7 @@ export function buildStructuredResumeDocument({
         if (!candProj) continue;
 
         const isArchived =
-          candProj.isArchived === true ||
-          candProj.metadata?.portfolioStatus === 'ARCHIVED';
+          candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
         if (isArchived) continue;
 
         const score = typeof r.relevanceScore === 'number' ? r.relevanceScore : 0;
@@ -408,7 +428,10 @@ export function buildStructuredResumeDocument({
           Array.isArray(r.contributingSkills) && r.contributingSkills.length > 0;
         const isNotMinimal = r.relevanceBand && r.relevanceBand !== 'MINIMAL';
 
-        if (score <= 0 || (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && score < 25.0)) {
+        if (
+          score <= 0 ||
+          (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && score < 25.0)
+        ) {
           continue;
         }
 
@@ -424,7 +447,10 @@ export function buildStructuredResumeDocument({
         }
         if (selectedProjectIds.length >= dynamicProjectBudget) break;
       }
-    } else if (Array.isArray(jobPosting?.recommendedProjects) && jobPosting.recommendedProjects.length > 0) {
+    } else if (
+      Array.isArray(jobPosting?.recommendedProjects) &&
+      jobPosting.recommendedProjects.length > 0
+    ) {
       // Explicit recommended projects passed on jobPosting
       const candProjMap = new Map();
       for (const p of rawProjects) {
@@ -459,7 +485,9 @@ export function buildStructuredResumeDocument({
       // Standalone tests without jobPosting or minimal jobPosting without requirements/description/rankings:
       // use raw candidate projects sliced to budget
       selectedProjectIds = Array.isArray(rawProjects)
-        ? rawProjects.slice(0, dynamicProjectBudget).map((p, i) => p.id || p.projectId || `proj-${i + 1}`)
+        ? rawProjects
+            .slice(0, dynamicProjectBudget)
+            .map((p, i) => p.id || p.projectId || `proj-${i + 1}`)
         : [];
     } else {
       // Job posting with requirements/description provided, but zero projects met the relevance criteria:
@@ -477,17 +505,28 @@ export function buildStructuredResumeDocument({
     options
   );
 
-  const selectedSkillSlugs = Array.isArray(incomingPlan?.selectedSkillSlugs) && incomingPlan.selectedSkillSlugs.length > 0
-    ? incomingPlan.selectedSkillSlugs
-    : skillSelectionResult.selectedSkillSlugs;
+  const selectedSkillSlugs =
+    Array.isArray(incomingPlan?.selectedSkillSlugs) && incomingPlan.selectedSkillSlugs.length > 0
+      ? incomingPlan.selectedSkillSlugs
+      : skillSelectionResult.selectedSkillSlugs;
 
-  const selectedSkills = Array.isArray(incomingPlan?.selectedSkills) && incomingPlan.selectedSkills.length > 0
-    ? incomingPlan.selectedSkills
-    : skillSelectionResult.selectedSkills;
+  const selectedSkills =
+    Array.isArray(incomingPlan?.selectedSkills) && incomingPlan.selectedSkills.length > 0
+      ? incomingPlan.selectedSkills
+      : skillSelectionResult.selectedSkills;
 
-  const skillCategoryOrder = Array.isArray(incomingPlan?.skillCategoryOrder) && incomingPlan.skillCategoryOrder.length > 0
-    ? incomingPlan.skillCategoryOrder
-    : (skillSelectionResult.skillCategoryOrder?.length ? skillSelectionResult.skillCategoryOrder : ['Languages', 'Backend & APIs', 'Databases & ORMs', 'Cloud, DevOps & Systems', 'Frontend & Web']);
+  const skillCategoryOrder =
+    Array.isArray(incomingPlan?.skillCategoryOrder) && incomingPlan.skillCategoryOrder.length > 0
+      ? incomingPlan.skillCategoryOrder
+      : skillSelectionResult.skillCategoryOrder?.length
+        ? skillSelectionResult.skillCategoryOrder
+        : [
+            'Languages',
+            'Backend & APIs',
+            'Databases & ORMs',
+            'Cloud, DevOps & Systems',
+            'Frontend & Web',
+          ];
 
   const derivedOrdering = deriveSectionOrdering({
     candidateProfile: source,
@@ -512,7 +551,8 @@ export function buildStructuredResumeDocument({
     targetJobId: jobPosting?.id || null,
     targetRoleTitle: tailoredHeadingInfo.heading,
     targetCompany: jobPosting?.company || null,
-    candidateArchetype: tailoredHeadingInfo.candidateArchetype || derivedOrdering.candidateArchetype,
+    candidateArchetype:
+      tailoredHeadingInfo.candidateArchetype || derivedOrdering.candidateArchetype,
     pageTarget: 'ONE_PAGE_STRICT',
     sectionOrder: derivedOrdering.sectionOrder,
     selectedProjectIds,
@@ -553,8 +593,7 @@ export function buildStructuredResumeDocument({
     for (const extraId of additionalProjectIds) {
       if (selectedProjectIds.length >= 4) break;
       const candProj =
-        candProjMapForExtras.get(extraId) ||
-        candProjMapForExtras.get(slugifyProject(extraId));
+        candProjMapForExtras.get(extraId) || candProjMapForExtras.get(slugifyProject(extraId));
       if (!candProj) continue;
       const isArchived =
         candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
@@ -567,7 +606,9 @@ export function buildStructuredResumeDocument({
     }
   }
 
-  const planToParse = incomingPlan ? { ...basePlan, ...incomingPlan, selectedProjectIds } : basePlan;
+  const planToParse = incomingPlan
+    ? { ...basePlan, ...incomingPlan, selectedProjectIds }
+    : basePlan;
   const parsedPlan = ResumeTailoringPlanSchema.parse(planToParse);
 
   // 7. Projects (Mapped with evidence & provenance, ordered strictly by parsedPlan.selectedProjectIds)
@@ -626,7 +667,7 @@ export function buildStructuredResumeDocument({
     const relevanceScore =
       ranking && typeof ranking.relevanceScore === 'number'
         ? ranking.relevanceScore
-        : proj.relevanceScore ?? 0;
+        : (proj.relevanceScore ?? 0);
 
     const enrichedProj = {
       ...proj,
@@ -642,13 +683,25 @@ export function buildStructuredResumeDocument({
     };
 
     // Unified authoritative accomplishment composition from the canonical fact inventory.
-    const factKey = proj.id || proj.projectId || String(proj.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const factKey =
+      proj.id ||
+      proj.projectId ||
+      String(proj.name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
     let projectFacts = scoredFactsByProject.get(factKey) || [];
-    if (projectFacts.length === 0 && (Array.isArray(enrichedProj.bullets) || Array.isArray(enrichedProj.highlights))) {
+    if (
+      projectFacts.length === 0 &&
+      (Array.isArray(enrichedProj.bullets) || Array.isArray(enrichedProj.highlights))
+    ) {
       const rawClaims = [
         ...(Array.isArray(enrichedProj.bullets) ? enrichedProj.bullets : []),
         ...(Array.isArray(enrichedProj.highlights) ? enrichedProj.highlights : []),
-      ].map((t) => typeof t === 'object' && t !== null ? t.text || t.description || '' : String(t || '')).filter(Boolean);
+      ]
+        .map((t) =>
+          typeof t === 'object' && t !== null ? t.text || t.description || '' : String(t || '')
+        )
+        .filter(Boolean);
       projectFacts = rawClaims.map((text, i) => ({
         factId: `${selectedId}-claim-${i}`,
         id: `${selectedId}-claim-${i}`,
@@ -664,7 +717,7 @@ export function buildStructuredResumeDocument({
     }
 
     let pBullets = [];
-    let bulletCapacityInfo = null;
+    let _bulletCapacityInfo = null;
     let projectOmittedFacts = [];
     if (useFactComposition && projectFacts.length > 0) {
       const composed = composeProfessionalProjectBullets({
@@ -674,7 +727,9 @@ export function buildStructuredResumeDocument({
         explicitBudget: projectOptions.maxBullets ?? null,
         candidateProfile: source,
         options: {
-          globallyUsedFactIds: new Set(factCompositionTrace.flatMap((t) => t.composedFromFactIds || [])),
+          globallyUsedFactIds: new Set(
+            factCompositionTrace.flatMap((t) => t.composedFromFactIds || [])
+          ),
         },
       });
       // Preserve canonical fact IDs directly on schemaBullet for end-to-end evidence traceability
@@ -693,19 +748,23 @@ export function buildStructuredResumeDocument({
           composedFromFactIds: factIds,
         };
       });
-      bulletCapacityInfo = composed.capacity;
+      _bulletCapacityInfo = composed.capacity;
       projectOmittedFacts = composed.omittedFacts;
       if (Array.isArray(projectOmittedFacts) && projectOmittedFacts.length > 0) {
-        factCompositionOmissions.push(...projectOmittedFacts.map((o) => ({ projectId: selectedId, ...o })));
+        factCompositionOmissions.push(
+          ...projectOmittedFacts.map((o) => ({ projectId: selectedId, ...o }))
+        );
       }
     } else {
-      // Migration fallback when fact composition is explicitly disabled
-      pBullets = selectAndRephraseProjectBullets({
+      const composed = composeProfessionalProjectBullets({
+        facts: projectFacts,
         project: enrichedProj,
         jobPosting,
-        matchAnalysis: options?.matchAnalysis || jobPosting?.jobFitAnalysis?.matchAnalysis,
-        options: projectOptions,
+        explicitBudget: projectOptions.maxBullets ?? null,
+        candidateProfile: source,
       });
+      pBullets = composed.bullets;
+      _bulletCapacityInfo = composed.capacity;
     }
 
     if (pBullets.length === 0 && allowZeroBulletDrop) {
@@ -718,7 +777,9 @@ export function buildStructuredResumeDocument({
       displayName: proj.displayName || proj.name || proj.title || `Project ${idx + 1}`,
       repositoryUrl: proj.repositoryUrl || proj.url || null,
       liveUrl: proj.liveUrl || null,
-      technologies: Array.isArray(proj.technologies) ? formatTechnologyStack(proj.technologies) : [],
+      technologies: Array.isArray(proj.technologies)
+        ? formatTechnologyStack(proj.technologies)
+        : [],
       bullets: pBullets,
       relevanceScore,
       rank: idx + 1,
@@ -766,11 +827,14 @@ export function buildStructuredResumeDocument({
         for (const r of authoritativeRankings) {
           if (projects.length >= parsedPlan.selectedProjectIds.length) break;
           const rId = r.projectId || r.id;
-          if (!rId || parsedPlan.selectedProjectIds.includes(rId) || skippedProjectIds.has(rId)) continue;
-          const candProj = candProjMap.get(rId) || candProjMap.get(slugifyProject(r.projectName || r.name || ''));
+          if (!rId || parsedPlan.selectedProjectIds.includes(rId) || skippedProjectIds.has(rId))
+            continue;
+          const candProj =
+            candProjMap.get(rId) || candProjMap.get(slugifyProject(r.projectName || r.name || ''));
           if (!candProj) continue;
           if (isAlreadyRendered(candProj)) continue; // same-record guard (uuid/slug identity)
-          if (candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED') continue;
+          if (candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED')
+            continue;
           if (!isProjectStrongEnough(candProj, r)) continue;
           const backfillRanking = rankingByProjId.get(rId) || r;
           const backfillEntry = buildProjectEntry(
@@ -825,10 +889,15 @@ export function buildStructuredResumeDocument({
   if (categorizedSkills.length === 0 && Array.isArray(rawSkills) && rawSkills.length > 0) {
     const skillsList = rawSkills.map((s, idx) => {
       const name = typeof s === 'string' ? s : s.name;
-      const slug = (typeof s === 'string' ? s : s.slug || s.name || `skill-${idx}`).toLowerCase().replace(/\s+/g, '-');
-      const provenanceStatus = typeof s === 'object' && s.provenanceStatus
-        ? s.provenanceStatus
-        : (s.verified ? 'VERIFIED' : 'USER_PROVIDED');
+      const slug = (typeof s === 'string' ? s : s.slug || s.name || `skill-${idx}`)
+        .toLowerCase()
+        .replace(/\s+/g, '-');
+      const provenanceStatus =
+        typeof s === 'object' && s.provenanceStatus
+          ? s.provenanceStatus
+          : s.verified
+            ? 'VERIFIED'
+            : 'USER_PROVIDED';
       return {
         name,
         slug,
@@ -849,7 +918,11 @@ export function buildStructuredResumeDocument({
 
   // 9. Grounded Tailored Summary
   let summary = null;
-  if (incomingPlan?.summary && typeof incomingPlan.summary === 'object' && incomingPlan.summary.text) {
+  if (
+    incomingPlan?.summary &&
+    typeof incomingPlan.summary === 'object' &&
+    incomingPlan.summary.text
+  ) {
     summary = {
       text: incomingPlan.summary.text,
       referencedSkillSlugs: incomingPlan.summary.referencedSkillSlugs || [],
@@ -860,15 +933,24 @@ export function buildStructuredResumeDocument({
       provenance: incomingPlan.summary.provenance || null,
     };
   } else {
-    summary = generateGroundedSummary({
+    const compSummary = composeProfessionalSummary({
       candidateProfile: source,
       jobPosting,
-      tailoringPlan: parsedPlan,
       selectedSkills: parsedPlan.selectedSkills,
       selectedProjects: projects,
-      matchAnalysis: options?.matchAnalysis || jobPosting?.jobFitAnalysis?.matchAnalysis,
       options,
     });
+    summary = {
+      text: compSummary.text,
+      referencedSkillSlugs:
+        compSummary.referencedSkillSlugs || compSummary.topRelevantTechnologies || [],
+      referencedProjectIds: compSummary.referencedProjectIds || [],
+      evidenceRefs: compSummary.evidenceRefs || [],
+      matchedRequirementIds: compSummary.matchedRequirementIds || [],
+      composedFromFactIds: compSummary.composedFromFactIds || [],
+      provenanceStatus: 'VERIFIED',
+      provenance: null,
+    };
   }
 
   if (summary && typeof summary === 'object' && !Array.isArray(summary.composedFromFactIds)) {
@@ -975,8 +1057,8 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
     scanForForbiddenStrings(exp.title, 'EXPERIENCE', 'title');
     scanForForbiddenStrings(exp.startDate, 'EXPERIENCE', 'startDate');
     scanForForbiddenStrings(exp.endDate, 'EXPERIENCE', 'endDate');
-    userProvidedClaimsCount += (exp.bullets?.length || 0);
-    totalClaimsAudited += (exp.bullets?.length || 0);
+    userProvidedClaimsCount += exp.bullets?.length || 0;
+    totalClaimsAudited += exp.bullets?.length || 0;
     if (exp.id) {
       provenanceIndex[`experience:${exp.id}`] = ['USER_PROVIDED'];
     }
@@ -1048,7 +1130,8 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
       else claimedClaimsCount += 1;
 
       const evidenceIds = (bullet.evidenceRefs || []).map((e) => e.evidenceId).filter(Boolean);
-      provenanceIndex[`project:${proj.projectId}:bullet`] = evidenceIds.length > 0 ? evidenceIds : [bullet.provenanceStatus];
+      provenanceIndex[`project:${proj.projectId}:bullet`] =
+        evidenceIds.length > 0 ? evidenceIds : [bullet.provenanceStatus];
 
       try {
         assertMetricSafety(bullet.text, bullet.evidenceRefs || []);
@@ -1158,7 +1241,10 @@ export function buildStructuredResumeSnapshot({
     );
     if (weakOptional.length > 0) {
       structuredResume.dsa = { ...(structuredResume.dsa || {}), hasSection: false };
-      if (Array.isArray(structuredResume.sectionOrder) && structuredResume.sectionOrder.includes('DSA')) {
+      if (
+        Array.isArray(structuredResume.sectionOrder) &&
+        structuredResume.sectionOrder.includes('DSA')
+      ) {
         structuredResume.sectionOrder = structuredResume.sectionOrder.filter((s) => s !== 'DSA');
       }
       contentQualityGate = assessPreRenderQuality({
@@ -1212,4 +1298,3 @@ export async function buildStructuredResumeSnapshotAsync({
     options: enhancedOptions,
   });
 }
-

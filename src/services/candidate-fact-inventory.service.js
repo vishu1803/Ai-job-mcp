@@ -40,8 +40,13 @@
  */
 
 import crypto from 'node:crypto';
-import { calculateFactSemanticOverlap, countDistinctCanonicalFacts } from './candidate-artifact-content.service.js';
-import { classifyEvidenceSemanticType, EVIDENCE_SEMANTIC_CLASS, toEvidenceReference } from './resume-content-strategy.service.js';
+import {
+  calculateFactSemanticOverlap,
+  countDistinctCanonicalFacts,
+  classifyEvidenceSemanticType,
+  EVIDENCE_SEMANTIC_CLASS,
+  toEvidenceReference,
+} from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
 
 /** Canonical Fact Types Taxonomy (Part 2 Specification). */
@@ -88,18 +93,30 @@ export const EVIDENCE_ROLES = Object.freeze({
   LINK: 'LINK',
 });
 
-/** Fact-Specific Omission Reasons Taxonomy (P17 Architecture). */
+/** Fact-Specific Omission Reasons Taxonomy (P18 Architecture). */
 export const OMISSION_REASONS = Object.freeze({
-  DUPLICATE: 'DUPLICATE',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  UNSUBSTANTIATED: 'UNSUBSTANTIATED',
+  UNSUPPORTED_METRIC: 'UNSUPPORTED_METRIC',
+  UNSUBSTANTIATED_METRIC: 'UNSUPPORTED_METRIC',
+  DESCRIPTION_ONLY: 'DESCRIPTION_ONLY',
+  BELOW_RELEVANCE_FLOOR: 'BELOW_RELEVANCE_FLOOR',
+  SEMANTIC_DUPLICATE: 'SEMANTIC_DUPLICATE',
+  SUPERSEDED_BY_STRONGER_FACT: 'SUPERSEDED_BY_STRONGER_FACT',
+  CAPACITY_LIMIT: 'CAPACITY_LIMIT',
+  SECTION_NOT_SELECTED: 'SECTION_NOT_SELECTED',
+  REDUNDANCY_REMOVAL: 'REDUNDANCY_REMOVAL',
+  LOW_INFORMATION_VALUE: 'LOW_INFORMATION_VALUE',
+  PROFESSIONAL_QUALITY_REJECTION: 'PROFESSIONAL_QUALITY_REJECTION',
+  VALIDATION_REJECTION: 'VALIDATION_REJECTION',
+  // Backward-compatible aliases
+  DUPLICATE: 'SEMANTIC_DUPLICATE',
   SEMANTIC_REDUNDANCY: 'SEMANTIC_REDUNDANCY',
   LOW_JOB_RELEVANCE: 'LOW_JOB_RELEVANCE',
   LOW_EVIDENCE_CONFIDENCE: 'LOW_EVIDENCE_CONFIDENCE',
-  DESCRIPTION_ONLY: 'DESCRIPTION_ONLY',
   PHYSICAL_CAPACITY: 'PHYSICAL_CAPACITY',
-  SECTION_NOT_SELECTED: 'SECTION_NOT_SELECTED',
-  LOWER_MARGINAL_VALUE: 'LOWER_MARGINAL_VALUE',
-  UNSUPPORTED_METRIC: 'UNSUPPORTED_METRIC',
-  INVALID_ASSOCIATION: 'INVALID_ASSOCIATION',
+  LOWER_MARGINAL_VALUE: 'SUPERSEDED_BY_STRONGER_FACT',
+  INVALID_ASSOCIATION: 'UNAUTHORIZED',
 });
 
 /** Provenance confidence weights (generic schema semantics, not identity rules). */
@@ -113,13 +130,115 @@ const PROVENANCE_CONFIDENCE = Object.freeze({
 
 /** Generic semantic-topic keyword taxonomy (domain rule, not identity rules). */
 const TOPIC_RULES = Object.freeze([
-  { topic: 'architecture', tokens: ['architecture', 'architected', 'distributed', 'consensus', 'raft', 'microservices', 'event-driven', 'queue', 'streaming', 'pipeline', 'sharding', 'replication', 'worker pool', 'system design'] },
-  { topic: 'reliability', tokens: ['reliability', 'fault-tolerant', 'resilient', 'retry', 'backoff', 'idempotent', 'recovery', 'observability', 'monitoring', 'telemetry', 'logging', 'tracing', 'availability'] },
-  { topic: 'integration', tokens: ['integrated', 'integration', 'api', 'rest', 'graphql', 'websocket', 'oauth', 'webhook', 'sdk', 'connector', 'third-party'] },
-  { topic: 'implementation', tokens: ['implemented', 'built', 'engineered', 'developed', 'designed', 'coded', 'wrote', 'refactored', 'migrated', 'optimized', 'automated'] },
-  { topic: 'outcome', tokens: ['reduced', 'increased', 'improved', 'resulting', 'achieved', 'delivered', 'saved', 'faster', 'latency', 'throughput'] },
-  { topic: 'tooling', tokens: ['docker', 'containerized', 'ci/cd', 'github actions', 'terraform', 'kubernetes', 'tooling', 'deployed'] },
-  { topic: 'problem-solving', tokens: ['data structures', 'algorithms', 'leetcode', 'problem solving', 'competitive programming', 'dynamic programming', 'graph theory'] },
+  {
+    topic: 'architecture',
+    tokens: [
+      'architecture',
+      'architected',
+      'distributed',
+      'consensus',
+      'raft',
+      'microservices',
+      'event-driven',
+      'queue',
+      'streaming',
+      'pipeline',
+      'sharding',
+      'replication',
+      'worker pool',
+      'system design',
+    ],
+  },
+  {
+    topic: 'reliability',
+    tokens: [
+      'reliability',
+      'fault-tolerant',
+      'resilient',
+      'retry',
+      'backoff',
+      'idempotent',
+      'recovery',
+      'observability',
+      'monitoring',
+      'telemetry',
+      'logging',
+      'tracing',
+      'availability',
+    ],
+  },
+  {
+    topic: 'integration',
+    tokens: [
+      'integrated',
+      'integration',
+      'api',
+      'rest',
+      'graphql',
+      'websocket',
+      'oauth',
+      'webhook',
+      'sdk',
+      'connector',
+      'third-party',
+    ],
+  },
+  {
+    topic: 'implementation',
+    tokens: [
+      'implemented',
+      'built',
+      'engineered',
+      'developed',
+      'designed',
+      'coded',
+      'wrote',
+      'refactored',
+      'migrated',
+      'optimized',
+      'automated',
+    ],
+  },
+  {
+    topic: 'outcome',
+    tokens: [
+      'reduced',
+      'increased',
+      'improved',
+      'resulting',
+      'achieved',
+      'delivered',
+      'saved',
+      'faster',
+      'latency',
+      'throughput',
+    ],
+  },
+  {
+    topic: 'tooling',
+    tokens: [
+      'docker',
+      'containerized',
+      'ci/cd',
+      'github actions',
+      'terraform',
+      'kubernetes',
+      'tooling',
+      'deployed',
+    ],
+  },
+  {
+    topic: 'problem-solving',
+    tokens: [
+      'data structures',
+      'algorithms',
+      'leetcode',
+      'problem solving',
+      'competitive programming',
+      'dynamic programming',
+      'graph theory',
+    ],
+  },
 ]);
 
 /**
@@ -131,7 +250,11 @@ const TOPIC_RULES = Object.freeze([
  * @param {string} canonicalFactType
  * @returns {string} One of EVIDENCE_ROLES
  */
-export function classifyEvidenceRole(text, sourceType = 'bullet', canonicalFactType = 'IMPLEMENTATION') {
+export function classifyEvidenceRole(
+  text,
+  sourceType = 'bullet',
+  canonicalFactType = 'IMPLEMENTATION'
+) {
   const norm = String(text || '').trim();
   const lower = norm.toLowerCase();
 
@@ -149,12 +272,24 @@ export function classifyEvidenceRole(text, sourceType = 'bullet', canonicalFactT
   }
 
   // Active engineering verbs that indicate an accomplishment even if source is description
-  const hasStrongAccomplishmentVerb = /^(?:designed|implemented|architected|engineered|built|optimized|developed|created|refactored|automated|scaled|migrated|containerized|deployed)\b/i.test(norm) ||
-    /\b(?:designed and implemented|architected and deployed|optimized\s+[\w\s]+\s+for|decreasing\s+|reducing\s+|increasing\s+|resulting in)\b/i.test(lower);
+  const hasStrongAccomplishmentVerb =
+    /^(?:designed|implemented|architected|engineered|built|optimized|developed|created|refactored|automated|scaled|migrated|containerized|deployed)\b/i.test(
+      norm
+    ) ||
+    /\b(?:designed and implemented|architected and deployed|optimized\s+[\w\s]+\s+for|decreasing\s+|reducing\s+|increasing\s+|resulting in)\b/i.test(
+      lower
+    );
 
-  // Passive description patterns (e.g. "A real-time task manager built with TypeScript and PostgreSQL")
-  const isPassiveDescriptionPattern = /^(?:a|an|the)\s+[\w-]+\s+(?:application|app|service|tool|platform|library|framework|cli|manager|dashboard|assistant|system|bot|extension)\b/i.test(norm) ||
-    /^(?:real-time|lightweight|full-stack|distributed|web-based|interactive)\s+[\w-]+\s+(?:application|app|service|tool|platform|manager)\b/i.test(norm) ||
+  // Passive description patterns (e.g. "The API Portal is an administrative web dashboard...", "Features include...")
+  const isPassiveDescriptionPattern =
+    /^(?:a|an|the)\s+(?:[\w-]+\s+){0,3}(?:is\s+(?:an?|the)\s+)?(?:application|app|service|tool|platform|library|framework|cli|manager|dashboard|assistant|system|bot|extension|web dashboard)\b/i.test(
+      norm
+    ) ||
+    /^(?:a|an|the)\s+(?:[\w-]+\s+){1,3}is\b/i.test(norm) ||
+    /^(?:features\s+include|capabilities\s+include|supported\s+features)\b/i.test(norm) ||
+    /^(?:real-time|lightweight|full-stack|distributed|web-based|interactive)\s+[\w-]+\s+(?:application|app|service|tool|platform|manager)\b/i.test(
+      norm
+    ) ||
     (sourceType === 'description' && !hasStrongAccomplishmentVerb);
 
   if (isPassiveDescriptionPattern && !hasStrongAccomplishmentVerb) {
@@ -167,7 +302,8 @@ export function classifyEvidenceRole(text, sourceType = 'bullet', canonicalFactT
   if (canonicalFactType === CANONICAL_FACT_TYPES.INTEGRATION) return EVIDENCE_ROLES.INTEGRATION;
   if (canonicalFactType === CANONICAL_FACT_TYPES.SECURITY) return EVIDENCE_ROLES.SECURITY;
   if (canonicalFactType === CANONICAL_FACT_TYPES.OUTCOME) return EVIDENCE_ROLES.OUTCOME;
-  if (canonicalFactType === CANONICAL_FACT_TYPES.RESPONSIBILITY) return EVIDENCE_ROLES.RESPONSIBILITY;
+  if (canonicalFactType === CANONICAL_FACT_TYPES.RESPONSIBILITY)
+    return EVIDENCE_ROLES.RESPONSIBILITY;
 
   return EVIDENCE_ROLES.IMPLEMENTATION;
 }
@@ -180,7 +316,8 @@ export function classifyEvidenceRole(text, sourceType = 'bullet', canonicalFactT
  */
 export function isAccomplishmentCandidate(fact) {
   if (!fact || !fact.renderable) return false;
-  const role = fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
+  const role =
+    fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
   return (
     role !== EVIDENCE_ROLES.PROJECT_DESCRIPTION &&
     role !== EVIDENCE_ROLES.CONTEXT &&
@@ -197,7 +334,8 @@ export function isAccomplishmentCandidate(fact) {
  */
 export function isProjectDescriptionFact(fact) {
   if (!fact) return false;
-  const role = fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
+  const role =
+    fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
   return role === EVIDENCE_ROLES.PROJECT_DESCRIPTION || role === EVIDENCE_ROLES.CONTEXT;
 }
 
@@ -248,14 +386,32 @@ export function classifyFactTopic(text) {
  */
 export function classifyCanonicalFactType(text, defaultType = 'IMPLEMENTATION') {
   const lower = String(text || '').toLowerCase();
-  if (/(?:reduced|increased|improved|resulting|achieved|saved|by \d+)/i.test(lower)) return CANONICAL_FACT_TYPES.OUTCOME;
-  if (/(?:distributed|microservices|architecture|consensus|raft|sharding|pipeline|system design)/i.test(lower)) return CANONICAL_FACT_TYPES.ARCHITECTURE;
-  if (/(?:latency|throughput|rps|qps|speed|benchmark|memory allocation|cpu utilization)/i.test(lower)) return CANONICAL_FACT_TYPES.PERFORMANCE;
-  if (/(?:fault-tolerant|resilient|retry|backoff|idempotent|recovery|monitoring|telemetry)/i.test(lower)) return CANONICAL_FACT_TYPES.RELIABILITY;
-  if (/(?:oauth|rbac|security|auth|jwt|encryption|permission)/i.test(lower)) return CANONICAL_FACT_TYPES.SECURITY;
-  if (/(?:integrated|integration|api|rest|graphql|websocket|connector|webhook)/i.test(lower)) return CANONICAL_FACT_TYPES.INTEGRATION;
-  if (/(?:implemented|built|engineered|developed|coded|designed)/i.test(lower)) return CANONICAL_FACT_TYPES.IMPLEMENTATION;
-  if (/(?:feature|component|module|dashboard|portal)/i.test(lower)) return CANONICAL_FACT_TYPES.FEATURE;
+  if (/(?:reduced|increased|improved|resulting|achieved|saved|by \d+)/i.test(lower))
+    return CANONICAL_FACT_TYPES.OUTCOME;
+  if (
+    /(?:distributed|microservices|architecture|consensus|raft|sharding|pipeline|system design)/i.test(
+      lower
+    )
+  )
+    return CANONICAL_FACT_TYPES.ARCHITECTURE;
+  if (
+    /(?:latency|throughput|rps|qps|speed|benchmark|memory allocation|cpu utilization)/i.test(lower)
+  )
+    return CANONICAL_FACT_TYPES.PERFORMANCE;
+  if (
+    /(?:fault-tolerant|resilient|retry|backoff|idempotent|recovery|monitoring|telemetry)/i.test(
+      lower
+    )
+  )
+    return CANONICAL_FACT_TYPES.RELIABILITY;
+  if (/(?:oauth|rbac|security|auth|jwt|encryption|permission)/i.test(lower))
+    return CANONICAL_FACT_TYPES.SECURITY;
+  if (/(?:integrated|integration|api|rest|graphql|websocket|connector|webhook)/i.test(lower))
+    return CANONICAL_FACT_TYPES.INTEGRATION;
+  if (/(?:implemented|built|engineered|developed|coded|designed)/i.test(lower))
+    return CANONICAL_FACT_TYPES.IMPLEMENTATION;
+  if (/(?:feature|component|module|dashboard|portal)/i.test(lower))
+    return CANONICAL_FACT_TYPES.FEATURE;
   return defaultType;
 }
 
@@ -279,7 +435,10 @@ export function isMeasurableFact(text) {
  */
 export function extractAuthenticMetrics(text) {
   if (!isMeasurableFact(text)) return [];
-  const matches = String(text).match(/(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers|problems)|\$\s?\d|\bteam\s+of\s+\d+|\b\d+\s*(?:ms|s)\s+(?:latency|p\d))/gi) || [];
+  const matches =
+    String(text).match(
+      /(?:\b\d+(?:\.\d+)?%|\b\d+\s*(?:million|billion)|\b\d{2,}\+?\s*(?:users|requests|rps|qps|customers|problems)|\$\s?\d|\bteam\s+of\s+\d+|\b\d+\s*(?:ms|s)\s+(?:latency|p\d))/gi
+    ) || [];
   return matches.map((m) => ({ raw: m, context: text.slice(0, 100) }));
 }
 
@@ -291,8 +450,16 @@ export function extractAuthenticMetrics(text) {
  * @returns {string} factId (sha256, hex, 24 chars)
  */
 export function factFingerprint(normalizedText, associationKey = '') {
-  const norm = String(normalizedText || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
-  return crypto.createHash('sha256').update(`${associationKey}::${norm}`).digest('hex').slice(0, 24);
+  const norm = String(normalizedText || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return crypto
+    .createHash('sha256')
+    .update(`${associationKey}::${norm}`)
+    .digest('hex')
+    .slice(0, 24);
 }
 
 /**
@@ -320,14 +487,17 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     // they feed stats/traceability and are structurally barred from becoming
     // claim bullets. All other facts require substantive length.
     const isTechFact =
-      candidate.factType === 'technology' ||
-      candidate.factType === CANONICAL_FACT_TYPES.TECHNOLOGY;
+      candidate.factType === 'technology' || candidate.factType === CANONICAL_FACT_TYPES.TECHNOLOGY;
     const minLen = isTechFact ? 4 : 15;
     if (!text || text.length < minLen) return;
 
     const assocKey =
       candidate.association?.projectId ||
-      (candidate.association?.projectName ? String(candidate.association.projectName).toLowerCase().replace(/[^a-z0-9]/g, '') : '') ||
+      (candidate.association?.projectName
+        ? String(candidate.association.projectName)
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '')
+        : '') ||
       candidate.association?.experienceId ||
       candidate.association?.educationId ||
       '';
@@ -343,8 +513,12 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     seenFingerprints.add(factId);
 
     // Semantic near-duplicate merge (redundant descriptions across surfaces)
-    const assocFacts = facts.filter((f) => (f.association?.projectId || '') === (candidate.association?.projectId || ''));
-    const dup = assocFacts.find((f) => calculateFactSemanticOverlap(text, f.text) >= clusterThreshold);
+    const assocFacts = facts.filter(
+      (f) => (f.association?.projectId || '') === (candidate.association?.projectId || '')
+    );
+    const dup = assocFacts.find(
+      (f) => calculateFactSemanticOverlap(text, f.text) >= clusterThreshold
+    );
     if (dup) {
       mergeSources(dup, candidate);
       return;
@@ -353,14 +527,15 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     const rawFactType = candidate.factType || 'candidate-authored';
     const canonicalFactType = isTechFact
       ? CANONICAL_FACT_TYPES.TECHNOLOGY
-      : candidate.canonicalFactType || classifyCanonicalFactType(text, CANONICAL_FACT_TYPES.IMPLEMENTATION);
+      : candidate.canonicalFactType ||
+        classifyCanonicalFactType(text, CANONICAL_FACT_TYPES.IMPLEMENTATION);
 
     const topic = candidate.semanticTopic || classifyFactTopic(text);
     const provenance = candidate.provenance || 'USER_PROVIDED';
     const confidence =
       typeof candidate.confidence === 'number'
         ? candidate.confidence
-        : PROVENANCE_CONFIDENCE[provenance] ?? 0.8;
+        : (PROVENANCE_CONFIDENCE[provenance] ?? 0.8);
 
     const ownerType =
       candidate.ownerType ||
@@ -386,7 +561,9 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
         candidate.factType !== 'external-corroboration' &&
         candidate.factType !== CANONICAL_FACT_TYPES.LINK);
 
-    const evidenceRole = candidate.evidenceRole || classifyEvidenceRole(text, candidate.sourceType || 'bullet', canonicalFactType);
+    const evidenceRole =
+      candidate.evidenceRole ||
+      classifyEvidenceRole(text, candidate.sourceType || 'bullet', canonicalFactType);
     const semanticDimensions = candidate.semanticDimensions || [topic];
 
     facts.push({
@@ -419,8 +596,9 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       importance: candidate.importance ?? 0,
       omissionReason: candidate.omissionReason || null,
       usedByClaimIds: candidate.usedByClaimIds || [],
-      candidateAuthored: candidate.candidateAuthored ?? (candidate.sourceType !== 'evidence'),
-      corroborated: candidate.corroborated ?? (provenance === 'VERIFIED' || provenance === 'CORROBORATED'),
+      candidateAuthored: candidate.candidateAuthored ?? candidate.sourceType !== 'evidence',
+      corroborated:
+        candidate.corroborated ?? (provenance === 'VERIFIED' || provenance === 'CORROBORATED'),
       renderable: isRenderable,
       measurable: candidate.measurable ?? isMeasurableFact(text),
       evidenceRefs: Array.isArray(candidate.evidenceRefs) ? candidate.evidenceRefs : [],
@@ -435,16 +613,47 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
 
     const projectLevelProvenance = p.provenanceStatus || 'USER_PROVIDED';
     const surfaces = [
-      { items: p.bullets, sourceType: 'bullet', factType: 'candidate-authored', canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION },
-      { items: p.highlights, sourceType: 'highlight', factType: 'candidate-authored', canonicalFactType: CANONICAL_FACT_TYPES.FEATURE },
-      { items: p.features, sourceType: 'feature', factType: 'feature', canonicalFactType: CANONICAL_FACT_TYPES.FEATURE },
-      { items: p.featureDescriptions, sourceType: 'feature-description', factType: 'feature', canonicalFactType: CANONICAL_FACT_TYPES.FEATURE },
-      { items: p.responsibilities, sourceType: 'responsibility', factType: 'responsibility', canonicalFactType: CANONICAL_FACT_TYPES.RESPONSIBILITY },
-      { items: p.implementationDescriptions, sourceType: 'responsibility', factType: 'implementation', canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION },
+      {
+        items: p.bullets,
+        sourceType: 'bullet',
+        factType: 'candidate-authored',
+        canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION,
+      },
+      {
+        items: p.highlights,
+        sourceType: 'highlight',
+        factType: 'candidate-authored',
+        canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
+      },
+      {
+        items: p.features,
+        sourceType: 'feature',
+        factType: 'feature',
+        canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
+      },
+      {
+        items: p.featureDescriptions,
+        sourceType: 'feature-description',
+        factType: 'feature',
+        canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
+      },
+      {
+        items: p.responsibilities,
+        sourceType: 'responsibility',
+        factType: 'responsibility',
+        canonicalFactType: CANONICAL_FACT_TYPES.RESPONSIBILITY,
+      },
+      {
+        items: p.implementationDescriptions,
+        sourceType: 'responsibility',
+        factType: 'implementation',
+        canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION,
+      },
     ];
     for (const surf of surfaces) {
       for (const item of Array.isArray(surf.items) ? surf.items : []) {
-        const rawText = typeof item === 'object' && item !== null ? item.text || item.description : item;
+        const rawText =
+          typeof item === 'object' && item !== null ? item.text || item.description : item;
         const provenance =
           typeof item === 'object' && item !== null && item.provenanceStatus
             ? item.provenanceStatus
@@ -460,7 +669,10 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
           ownerType: 'PROJECT',
           ownerId: projKey,
           candidateAuthored: true,
-          evidenceRefs: typeof item === 'object' && item !== null && Array.isArray(item.evidenceRefs) ? item.evidenceRefs : [],
+          evidenceRefs:
+            typeof item === 'object' && item !== null && Array.isArray(item.evidenceRefs)
+              ? item.evidenceRefs
+              : [],
         });
       }
     }
@@ -516,8 +728,12 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
           text: claimText,
           association,
           sourceType: 'evidence',
-          factType: semClass === EVIDENCE_SEMANTIC_CLASS.OUTCOME_EVIDENCE ? 'outcome' : 'implementation',
-          canonicalFactType: semClass === EVIDENCE_SEMANTIC_CLASS.OUTCOME_EVIDENCE ? CANONICAL_FACT_TYPES.OUTCOME : CANONICAL_FACT_TYPES.IMPLEMENTATION,
+          factType:
+            semClass === EVIDENCE_SEMANTIC_CLASS.OUTCOME_EVIDENCE ? 'outcome' : 'implementation',
+          canonicalFactType:
+            semClass === EVIDENCE_SEMANTIC_CLASS.OUTCOME_EVIDENCE
+              ? CANONICAL_FACT_TYPES.OUTCOME
+              : CANONICAL_FACT_TYPES.IMPLEMENTATION,
           provenance: 'VERIFIED',
           confidence: typeof ev.confidenceScore === 'number' ? ev.confidenceScore : 0.9,
           technologies: ev.skillName ? [normalizeTechnologyName(ev.skillName)] : projTech,
@@ -614,7 +830,13 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
   }
 
   // ── 5. Profile-level problem-solving facts (DSA) ──────────────────────────
-  const dsa = profile.problemSolving || profile.dsa || meta.dsa || meta.problemSolving || meta.resumeData?.problemSolving || null;
+  const dsa =
+    profile.problemSolving ||
+    profile.dsa ||
+    meta.dsa ||
+    meta.problemSolving ||
+    meta.resumeData?.problemSolving ||
+    null;
   if (dsa && typeof dsa === 'object') {
     const association = { projectId: PROBLEM_SOLVING_PROJECT_KEY, projectName: 'Problem Solving' };
     for (const b of Array.isArray(dsa.bullets) ? dsa.bullets : []) {
@@ -634,7 +856,10 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     }
     const url = typeof dsa.profileUrl === 'string' ? dsa.profileUrl.trim() : '';
     if (url && /^https?:\/\//i.test(url)) {
-      const linkFactId = factFingerprint(`problem-solving-profile: ${url}`, PROBLEM_SOLVING_PROJECT_KEY);
+      const linkFactId = factFingerprint(
+        `problem-solving-profile: ${url}`,
+        PROBLEM_SOLVING_PROJECT_KEY
+      );
       if (!seenFingerprints.has(linkFactId)) {
         seenFingerprints.add(linkFactId);
         facts.push({
@@ -689,7 +914,14 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
   // ── 9. Cross-project duplicate attribution (P16-009) ──────────────────────
   const evidenceCountByProject = new Map();
   for (const p of Array.isArray(rawProjects) ? rawProjects : []) {
-    const key = p.id || p.projectId || (p.name ? String(p.name).toLowerCase().replace(/[^a-z0-9]/g, '') : '');
+    const key =
+      p.id ||
+      p.projectId ||
+      (p.name
+        ? String(p.name)
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '')
+        : '');
     if (!key) continue;
     const count = p.evidenceCount ?? (Array.isArray(p.evidence) ? p.evidence.length : 0);
     evidenceCountByProject.set(key, count);
@@ -714,7 +946,11 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       const pid = f.association?.projectId || '';
       const evc = evidenceCountByProject.get(pid) ?? 0;
       const ownerEvc = evidenceCountByProject.get(owner?.association?.projectId || '') ?? 0;
-      if (!owner || evc > ownerEvc || (evc === ownerEvc && pid < (owner.association?.projectId || ''))) {
+      if (
+        !owner ||
+        evc > ownerEvc ||
+        (evc === ownerEvc && pid < (owner.association?.projectId || ''))
+      ) {
         owner = f;
       }
     }
@@ -735,7 +971,10 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     facts.length = 0;
     facts.push(...kept);
     for (const [key, list] of byProject) {
-      byProject.set(key, list.filter((f) => !dropFactIds.has(f.factId)));
+      byProject.set(
+        key,
+        list.filter((f) => !dropFactIds.has(f.factId))
+      );
     }
   }
 
@@ -801,8 +1040,12 @@ export function normalizeJobRequirementString(req) {
  */
 export function scoreFactsForJob(facts, jobPosting) {
   const jp = jobPosting || {};
-  const reqStrings = (Array.isArray(jp.requirements) ? jp.requirements : []).map(normalizeJobRequirementString).filter(Boolean);
-  const skillStrings = (Array.isArray(jp.skills) ? jp.skills : []).map((s) => (typeof s === 'string' ? s : s?.name || s?.keyword || '')).filter(Boolean);
+  const reqStrings = (Array.isArray(jp.requirements) ? jp.requirements : [])
+    .map(normalizeJobRequirementString)
+    .filter(Boolean);
+  const skillStrings = (Array.isArray(jp.skills) ? jp.skills : [])
+    .map((s) => (typeof s === 'string' ? s : s?.name || s?.keyword || ''))
+    .filter(Boolean);
 
   const jobText = String(
     `${jp.title || ''} ${reqStrings.join(' ')} ${skillStrings.join(' ')} ${jp.description || ''}`
@@ -829,19 +1072,30 @@ export function scoreFactsForJob(facts, jobPosting) {
     if (f.evidenceRefs?.length || f.sourceType === 'evidence') relevance += 5;
     // Topic alignment: implementation/architecture/outcome facts are
     // intrinsically more bullet-worthy than tooling-only facts.
-    const topicBonus = { architecture: 6, implementation: 5, outcome: 6, reliability: 4, integration: 3, capability: 2, tooling: 1, 'problem-solving': 2 };
+    const topicBonus = {
+      architecture: 6,
+      implementation: 5,
+      outcome: 6,
+      reliability: 4,
+      integration: 3,
+      capability: 2,
+      tooling: 1,
+      'problem-solving': 2,
+    };
     relevance += topicBonus[f.semanticTopic] ?? 0;
     relevance *= f.confidence ?? 0.8;
     const scoredRelevance = Math.round(relevance * 100) / 100;
 
     const isAccomplishment = isAccomplishmentCandidate(f);
     const hasMetrics = Array.isArray(f.metrics) && f.metrics.length > 0;
-    const importance = Math.round(
-      ((f.confidence ?? 0.8) * 0.3 +
-        Math.min(1.0, scoredRelevance / 30) * 0.4 +
-        (isAccomplishment ? 0.2 : 0.05) +
-        (hasMetrics ? 0.1 : 0)) * 100
-    ) / 100;
+    const importance =
+      Math.round(
+        ((f.confidence ?? 0.8) * 0.3 +
+          Math.min(1.0, scoredRelevance / 30) * 0.4 +
+          (isAccomplishment ? 0.2 : 0.05) +
+          (hasMetrics ? 0.1 : 0)) *
+          100
+      ) / 100;
 
     return {
       ...f,
@@ -864,7 +1118,7 @@ export function computeFactUtilizationStats(inventoryOrParams, renderedFactIdsAr
   let renderedFactIds = new Set();
 
   if (renderedFactIdsArg !== null) {
-    facts = Array.isArray(inventoryOrParams) ? inventoryOrParams : (inventoryOrParams?.facts || []);
+    facts = Array.isArray(inventoryOrParams) ? inventoryOrParams : inventoryOrParams?.facts || [];
     renderedFactIds = renderedFactIdsArg;
   } else if (inventoryOrParams && typeof inventoryOrParams === 'object') {
     facts = Array.isArray(inventoryOrParams.facts) ? inventoryOrParams.facts : [];
@@ -873,11 +1127,15 @@ export function computeFactUtilizationStats(inventoryOrParams, renderedFactIdsAr
 
   const renderedSet = renderedFactIds instanceof Set ? renderedFactIds : new Set(renderedFactIds);
   const totalAvailable = facts.length;
-  const highValueFacts = facts.filter((f) => f.renderable && (f.importance >= 0.5 || isAccomplishmentCandidate(f)));
+  const highValueFacts = facts.filter(
+    (f) => f.renderable && (f.importance >= 0.5 || isAccomplishmentCandidate(f))
+  );
   const totalHighValue = highValueFacts.length;
 
   const usedFacts = facts.filter((f) => renderedSet.has(f.factId) || renderedSet.has(f.id));
-  const highValueUsed = usedFacts.filter((f) => f.renderable && (f.importance >= 0.5 || isAccomplishmentCandidate(f)));
+  const highValueUsed = usedFacts.filter(
+    (f) => f.renderable && (f.importance >= 0.5 || isAccomplishmentCandidate(f))
+  );
 
   const omittedFacts = facts.filter((f) => !renderedSet.has(f.factId) && !renderedSet.has(f.id));
   const omissionReasons = {};
@@ -904,8 +1162,10 @@ export function computeFactUtilizationStats(inventoryOrParams, renderedFactIdsAr
     factsOmitted: omittedFacts.length,
     factsReused: Math.max(0, renderedSet.size - usedFacts.length),
     redundantFactUse: 0,
-    utilizationRate: totalAvailable > 0 ? parseFloat((usedFacts.length / totalAvailable).toFixed(2)) : 0,
-    highValueUtilizationRate: totalHighValue > 0 ? parseFloat((highValueUsed.length / totalHighValue).toFixed(2)) : 0,
+    utilizationRate:
+      totalAvailable > 0 ? parseFloat((usedFacts.length / totalAvailable).toFixed(2)) : 0,
+    highValueUtilizationRate:
+      totalHighValue > 0 ? parseFloat((highValueUsed.length / totalHighValue).toFixed(2)) : 0,
     omissionReasons,
   };
 }
@@ -920,11 +1180,25 @@ export function computeFactUtilizationStats(inventoryOrParams, renderedFactIdsAr
  * @param {object} candidate
  */
 function mergeSources(existing, candidate) {
-  const priority = ['bullet', 'highlight', 'feature', 'feature-description', 'responsibility', 'description', 'evidence', 'summary', 'link'];
+  const priority = [
+    'bullet',
+    'highlight',
+    'feature',
+    'feature-description',
+    'responsibility',
+    'description',
+    'evidence',
+    'summary',
+    'link',
+  ];
   const a = priority.indexOf(existing.sourceType);
   const b = priority.indexOf(candidate.sourceType || '');
   if (b !== -1 && (a === -1 || b < a)) existing.sourceType = candidate.sourceType;
-  if (existing.factType === 'project-description' && candidate.factType && candidate.factType !== 'project-description') {
+  if (
+    existing.factType === 'project-description' &&
+    candidate.factType &&
+    candidate.factType !== 'project-description'
+  ) {
     existing.factType = candidate.factType;
   }
   const techs = new Set([...(existing.technologies || []), ...(candidate.technologies || [])]);
@@ -934,7 +1208,11 @@ function mergeSources(existing, candidate) {
     if (r?.evidenceId) refs.set(r.evidenceId, r);
   }
   existing.evidenceRefs = [...refs.values()];
-  if (candidate.provenance && existing.provenance !== 'VERIFIED' && candidate.provenance === 'VERIFIED') {
+  if (
+    candidate.provenance &&
+    existing.provenance !== 'VERIFIED' &&
+    candidate.provenance === 'VERIFIED'
+  ) {
     existing.provenance = 'VERIFIED';
   }
 }

@@ -59,6 +59,7 @@ export const ModelMetadataSchema = z.object({
   supportsFunctionCalling: z.boolean().default(true),
   supportsCaching: z.boolean().default(false),
   supportsThinking: z.boolean().default(false),
+  supportsThinkingLevel: z.boolean().default(false),
   isProductionDefault: z.boolean().default(false),
   deprecatedAt: z.string().nullable().optional(),
 });

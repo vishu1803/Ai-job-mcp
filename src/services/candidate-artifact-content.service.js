@@ -30,13 +30,24 @@ import { db as defaultDb } from '../db/index.js';
 import { projects as projectsTable } from '../db/schema.js';
 import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
+import { ProjectRelevanceService } from './project-relevance.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
 import {
-  selectAndRephraseProjectBullets,
-  compressCandidateBullet,
   QUANTITATIVE_METRIC_REGEX,
-} from './resume-content-strategy.service.js';
+  FACT_STOP_WORDS,
+  extractSubstantiveFactTokens,
+  calculateFactSemanticOverlap,
+  countDistinctCanonicalFacts,
+} from './resume-composition-primitives.js';
+
+export {
+  FACT_STOP_WORDS,
+  extractSubstantiveFactTokens,
+  calculateFactSemanticOverlap,
+  countDistinctCanonicalFacts,
+};
+import { selectAndRephraseProjectBullets } from './resume-content-strategy.service.js';
 import {
   CANONICAL_TECH_MAP,
   NOISY_TECH_SET as CENTRAL_NOISY_TECH_SET,
@@ -277,9 +288,7 @@ export function isRealUrl(url) {
  */
 export function displayUrlForLink(url) {
   const trimmed = String(url || '').trim();
-  return trimmed
-    .replace(/^https?:\/\/(www\.)?/i, '')
-    .replace(/\/$/, '');
+  return trimmed.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
 }
 
 export const NOISY_TECH_SET = CENTRAL_NOISY_TECH_SET;
@@ -297,10 +306,52 @@ export const CANONICAL_ALIAS_MAP = CANONICAL_TECH_LABEL_MAP;
  */
 function getTechCategory(name) {
   const s = String(name || '').toLowerCase();
-  if (['typescript', 'javascript', 'python', 'sql', 'c++', 'c', 'java', 'go', 'rust'].includes(s)) return 'LANG';
-  if (['nestjs', 'next.js', 'react', 'fastapi', 'fastify', 'express.js', 'vue', 'angular', 'svelte', 'django', 'flask'].includes(s)) return 'FRAMEWORK';
-  if (['postgresql', 'prisma orm', 'redis', 'typeorm', 'drizzle orm', 'mongodb', 'mysql', 'sqlite'].includes(s)) return 'DATA';
-  if (['docker compose', 'docker', 'openai api', 'socket.io', 'github actions', 'aws', 'kubernetes', 'role-based access control (rbac)', 'restful apis', 'jwt'].includes(s)) return 'PLATFORM';
+  if (['typescript', 'javascript', 'python', 'sql', 'c++', 'c', 'java', 'go', 'rust'].includes(s))
+    return 'LANG';
+  if (
+    [
+      'nestjs',
+      'next.js',
+      'react',
+      'fastapi',
+      'fastify',
+      'express.js',
+      'vue',
+      'angular',
+      'svelte',
+      'django',
+      'flask',
+    ].includes(s)
+  )
+    return 'FRAMEWORK';
+  if (
+    [
+      'postgresql',
+      'prisma orm',
+      'redis',
+      'typeorm',
+      'drizzle orm',
+      'mongodb',
+      'mysql',
+      'sqlite',
+    ].includes(s)
+  )
+    return 'DATA';
+  if (
+    [
+      'docker compose',
+      'docker',
+      'openai api',
+      'socket.io',
+      'github actions',
+      'aws',
+      'kubernetes',
+      'role-based access control (rbac)',
+      'restful apis',
+      'jwt',
+    ].includes(s)
+  )
+    return 'PLATFORM';
   return 'OTHER';
 }
 
@@ -362,7 +413,10 @@ function mergeCandidateTextCollections(existingItems = [], incomingItems = []) {
 
   const addItem = (item) => {
     if (!item) return;
-    const text = typeof item === 'object' && item !== null ? (item.text || item.description || '') : String(item);
+    const text =
+      typeof item === 'object' && item !== null
+        ? item.text || item.description || ''
+        : String(item);
     const trimmed = String(text || '').trim();
     if (!trimmed) return;
     const norm = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -372,128 +426,13 @@ function mergeCandidateTextCollections(existingItems = [], incomingItems = []) {
     }
   };
 
-  for (const item of (Array.isArray(existingItems) ? existingItems : [])) {
+  for (const item of Array.isArray(existingItems) ? existingItems : []) {
     addItem(item);
   }
-  for (const item of (Array.isArray(incomingItems) ? incomingItems : [])) {
+  for (const item of Array.isArray(incomingItems) ? incomingItems : []) {
     addItem(item);
   }
   return result;
-}
-
-const FACT_STOP_WORDS = new Set([
-  'a',
-  'an',
-  'and',
-  'are',
-  'as',
-  'at',
-  'be',
-  'by',
-  'for',
-  'from',
-  'has',
-  'he',
-  'in',
-  'is',
-  'it',
-  'its',
-  'of',
-  'on',
-  'that',
-  'the',
-  'to',
-  'was',
-  'were',
-  'will',
-  'with',
-  'using',
-  'used',
-  'built',
-  'created',
-  'developed',
-  'implemented',
-  'designed',
-  'worked',
-]);
-
-/**
- * Extracts substantive lowercase token set from candidate factual text for deduplication.
- *
- * @param {string} text Text to tokenize
- * @returns {Set<string>} Substantive tokens
- */
-export function extractSubstantiveFactTokens(text) {
-  if (!text || typeof text !== 'string') return new Set();
-  const tokens = new Set();
-  const words = text.toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').split(/\s+/);
-  for (const w of words) {
-    const clean = w.replace(/^[.#+]+|[.#+]+$/g, '');
-    if (clean.length >= 2 && !FACT_STOP_WORDS.has(clean) && !/^\d+$/.test(clean)) {
-      tokens.add(clean);
-    }
-  }
-  return tokens;
-}
-
-/**
- * Computes semantic token overlap (Jaccard similarity) between two candidate factual descriptions.
- *
- * @param {string} textA Description A
- * @param {string} textB Description B
- * @returns {number} Jaccard similarity in [0, 1]
- */
-export function calculateFactSemanticOverlap(textA, textB) {
-  const tokensA = extractSubstantiveFactTokens(textA);
-  const tokensB = extractSubstantiveFactTokens(textB);
-  if (tokensA.size === 0 || tokensB.size === 0) return 0;
-  let intersection = 0;
-  for (const t of tokensA) {
-    if (tokensB.has(t)) intersection++;
-  }
-  const union = tokensA.size + tokensB.size - intersection;
-  return union > 0 ? intersection / union : 0;
-}
-
-/**
- * Counts distinct canonical facts across candidate text items (bullets, highlights,
- * features, descriptions). Semantically duplicate descriptions (token overlap >= 0.60)
- * count as 1 distinct fact.
- *
- * @param {Array<string|object>} items Candidate text items
- * @param {number} [overlapThreshold=0.60] Jaccard threshold for duplicate clustering
- * @returns {number} Number of distinct canonical facts
- */
-export function countDistinctCanonicalFacts(items = [], overlapThreshold = 0.60) {
-  const flatStrings = [];
-  for (const item of (Array.isArray(items) ? items : [])) {
-    if (!item) continue;
-    const text = typeof item === 'object' && item !== null ? (item.text || item.description || '') : String(item);
-    const trimmed = String(text || '').trim();
-    if (trimmed.length > 0) {
-      flatStrings.push(trimmed);
-    }
-  }
-
-  if (flatStrings.length === 0) return 0;
-
-  const clusters = [];
-  for (const text of flatStrings) {
-    let matched = false;
-    for (const cluster of clusters) {
-      const overlap = calculateFactSemanticOverlap(text, cluster.representative);
-      if (overlap >= overlapThreshold) {
-        cluster.items.push(text);
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) {
-      clusters.push({ representative: text, items: [text] });
-    }
-  }
-
-  return clusters.length;
 }
 
 /**
@@ -508,7 +447,9 @@ export function canonicalizeProject(project) {
   const sortStrings = (arr) =>
     [...(Array.isArray(arr) ? arr : [])]
       .map((item) =>
-        typeof item === 'object' && item !== null ? (item.text || item.description || '') : String(item || '')
+        typeof item === 'object' && item !== null
+          ? item.text || item.description || ''
+          : String(item || '')
       )
       .map((s) => s.trim())
       .filter(Boolean)
@@ -562,8 +503,12 @@ export function mergeCandidateOwnedProjectContent(target, source) {
   }
 
   // 2. Candidate-owned scalar fields (summary, description)
-  if (!target.summary && (source.summary || source.headline || source.metadata?.summary || source.metadata?.headline)) {
-    target.summary = source.summary || source.headline || source.metadata?.summary || source.metadata?.headline;
+  if (
+    !target.summary &&
+    (source.summary || source.headline || source.metadata?.summary || source.metadata?.headline)
+  ) {
+    target.summary =
+      source.summary || source.headline || source.metadata?.summary || source.metadata?.headline;
   }
   if (!target.description && (source.description || source.metadata?.description)) {
     target.description = source.description || source.metadata?.description;
@@ -595,16 +540,13 @@ export function mergeCandidateOwnedProjectContent(target, source) {
     ...(Array.isArray(source.metadata?.technologies) ? source.metadata.technologies : []),
     ...(Array.isArray(source.primaryLanguages) ? source.primaryLanguages : []),
   ];
-  target.technologies = cleanResumeFacingTechnologies([
-    ...existingTech,
-    ...incomingTech,
-  ]);
+  target.technologies = cleanResumeFacingTechnologies([...existingTech, ...incomingTech]);
 
   // 5. Evidence
   const incomingEvidence = Array.isArray(source.evidence) ? source.evidence : [];
   if (incomingEvidence.length > 0) {
     const evMap = new Map();
-    for (const ev of (Array.isArray(target.evidence) ? target.evidence : [])) {
+    for (const ev of Array.isArray(target.evidence) ? target.evidence : []) {
       const key = ev.id || `${ev.skillSlug || ev.skillName}-${ev.filePath}`;
       evMap.set(key, ev);
     }
@@ -620,7 +562,8 @@ export function mergeCandidateOwnedProjectContent(target, source) {
 
   // 6. Provenance & Archive status
   if (target.evidenceCount > 0 || target.repositoryUrl) {
-    target.provenanceStatus = target.evidenceCount > 0 ? 'CORROBORATED' : target.provenanceStatus || 'VERIFIED';
+    target.provenanceStatus =
+      target.evidenceCount > 0 ? 'CORROBORATED' : target.provenanceStatus || 'VERIFIED';
   }
   if (target.isArchived && source.isArchived === false) {
     target.isArchived = false;
@@ -981,10 +924,16 @@ export function groundAndSanitizeProject(project) {
   }
 
   // 3. Candidate-authored features / descriptions / responsibilities
-  for (const field of ['features', 'featureDescriptions', 'responsibilities', 'implementationDescriptions']) {
+  for (const field of [
+    'features',
+    'featureDescriptions',
+    'responsibilities',
+    'implementationDescriptions',
+  ]) {
     if (Array.isArray(project[field])) {
       for (const item of project[field]) {
-        const text = typeof item === 'string' ? item : String(item?.text || item?.description || '');
+        const text =
+          typeof item === 'string' ? item : String(item?.text || item?.description || '');
         addAuthentic(text);
       }
     }
@@ -996,7 +945,11 @@ export function groundAndSanitizeProject(project) {
   }
 
   // 5. Candidate-authored description as fallback
-  if (authenticSources.length === 0 && project.description && typeof project.description === 'string') {
+  if (
+    authenticSources.length === 0 &&
+    project.description &&
+    typeof project.description === 'string'
+  ) {
     addAuthentic(project.description);
   }
 
@@ -1013,7 +966,9 @@ export function groundAndSanitizeProject(project) {
       const lower = sName.toLowerCase();
       if (!NOISY_TECH_SET.has(lower) && !['fs', 'path', 'crypto', 'os', 'buffer'].includes(lower)) {
         const canonical = CANONICAL_TECH_LABEL_MAP[lower] || normalizeTechnologyName(sName);
-        if (!(project.technologies || []).some((t) => t.toLowerCase() === canonical.toLowerCase())) {
+        if (
+          !(project.technologies || []).some((t) => t.toLowerCase() === canonical.toLowerCase())
+        ) {
           project.technologies = project.technologies || [];
           project.technologies.push(canonical);
         }
@@ -1497,7 +1452,9 @@ export class CandidateArtifactContentService {
     const experience = rawExperience.map((exp) => ({
       ...exp,
       provenanceStatus: exp.provenanceStatus || 'USER_PROVIDED',
-      bullets: (exp.bullets || []).map((b) => (typeof b === 'object' && b !== null ? b : String(b))),
+      bullets: (exp.bullets || []).map((b) =>
+        typeof b === 'object' && b !== null ? b : String(b)
+      ),
     }));
 
     // Education: prefer userCustom.education, fall back to systemInferred resume extraction
@@ -1541,19 +1498,24 @@ export class CandidateArtifactContentService {
     const leetcodeLinkObj = portfolioLinks.find((l) =>
       /leetcode/i.test(l.label || l.platform || l.url || '')
     );
-    const candidateDsaBullets = (
-      Array.isArray(userCustom.problemSolving?.bullets) && userCustom.problemSolving.bullets.length > 0
+    const candidateDsaBullets =
+      Array.isArray(userCustom.problemSolving?.bullets) &&
+      userCustom.problemSolving.bullets.length > 0
         ? userCustom.problemSolving.bullets
-        : Array.isArray(metadata.problemSolving?.bullets) && metadata.problemSolving.bullets.length > 0
+        : Array.isArray(metadata.problemSolving?.bullets) &&
+            metadata.problemSolving.bullets.length > 0
           ? metadata.problemSolving.bullets
-          : Array.isArray(metadata.resumeData?.problemSolving?.bullets) && metadata.resumeData.problemSolving.bullets.length > 0
+          : Array.isArray(metadata.resumeData?.problemSolving?.bullets) &&
+              metadata.resumeData.problemSolving.bullets.length > 0
             ? metadata.resumeData.problemSolving.bullets
-            : []
-    );
+            : [];
 
     const hasProblemSolvingSection = Boolean(
       candidateDsaBullets.length > 0 &&
-      (hasDsaSkill || hasDsaCoursework || userCustom.problemSolving?.hasSection || metadata.problemSolving?.hasSection)
+      (hasDsaSkill ||
+        hasDsaCoursework ||
+        userCustom.problemSolving?.hasSection ||
+        metadata.problemSolving?.hasSection)
     );
     const problemSolving = {
       hasSection: hasProblemSolvingSection,
@@ -1922,9 +1884,7 @@ export class CandidateArtifactContentService {
           if (aInRec && !bInRec) return -1;
           if (!aInRec && bInRec) return 1;
         }
-        return (
-          b.score - a.score || (b.project.evidenceCount || 0) - (a.project.evidenceCount || 0)
-        );
+        return b.score - a.score || (b.project.evidenceCount || 0) - (a.project.evidenceCount || 0);
       });
 
     const selected = [];
@@ -2042,7 +2002,11 @@ export class CandidateArtifactContentService {
    * @param {object} [options]
    * @returns {{ categorizedSkills: object, skillAudit: Array<object>, selectedSkills: Array<object>, selectedSkillSlugs: string[], skillCategoryOrder: string[] }}
    */
-  selectAndCategorizeSkillsForJob(candidateData, jobPosting = candidateData?.jobPosting, options = {}) {
+  selectAndCategorizeSkillsForJob(
+    candidateData,
+    jobPosting = candidateData?.jobPosting,
+    options = {}
+  ) {
     const targetPosting = jobPosting || candidateData?.jobPosting || {};
     const jobTitle = (targetPosting.title || '').toLowerCase();
     const jobDesc =
@@ -2208,7 +2172,9 @@ export class CandidateArtifactContentService {
         return 'Cloud, DevOps & Systems';
       }
       if (
-        ['jest', 'supertest', 'cypress', 'eslint', 'vite', 'npm', 'prettier', 'vitest'].includes(s) ||
+        ['jest', 'supertest', 'cypress', 'eslint', 'vite', 'npm', 'prettier', 'vitest'].includes(
+          s
+        ) ||
         rawCategory === 'TOOL'
       ) {
         return 'Developer Tooling';
@@ -2285,7 +2251,10 @@ export class CandidateArtifactContentService {
           } else {
             const item = skillMap.get(key);
             if (p.provenanceStatus === 'VERIFIED' || p.provenanceStatus === 'CORROBORATED') {
-              if (item.provenanceStatus === 'CLAIMED' || item.provenanceStatus === 'SELF_DECLARED') {
+              if (
+                item.provenanceStatus === 'CLAIMED' ||
+                item.provenanceStatus === 'SELF_DECLARED'
+              ) {
                 item.provenanceStatus = 'CORROBORATED';
               }
               item.evidenceCount = Math.max(item.evidenceCount || 0, 1);
@@ -2345,7 +2314,11 @@ export class CandidateArtifactContentService {
       }
 
       if (isFullStackRole) {
-        if (category === 'Frontend & Web' || category === 'Backend & APIs' || category === 'Databases & ORMs') {
+        if (
+          category === 'Frontend & Web' ||
+          category === 'Backend & APIs' ||
+          category === 'Databases & ORMs'
+        ) {
           score += 25;
           if (!matchReason) matchReason = 'Core full-stack architecture competency';
         } else if (category === 'Languages') {
@@ -2395,7 +2368,12 @@ export class CandidateArtifactContentService {
           score += 10;
         }
       } else {
-        if (category === 'Languages' || category === 'Frontend & Web' || category === 'Backend & APIs' || category === 'Databases & ORMs') {
+        if (
+          category === 'Languages' ||
+          category === 'Frontend & Web' ||
+          category === 'Backend & APIs' ||
+          category === 'Databases & ORMs'
+        ) {
           score += 20;
           if (!matchReason) matchReason = 'Core technical competency';
         }
@@ -2463,7 +2441,9 @@ export class CandidateArtifactContentService {
       const isRedundantCloudProvider =
         s.provenance === 'SELF_DECLARED' &&
         s.category === 'Cloud, DevOps & Systems' &&
-        ['microsoft azure', 'google cloud platform', 'cloudflare', 'gitlab ci/cd'].includes(s.name.toLowerCase()) &&
+        ['microsoft azure', 'google cloud platform', 'cloudflare', 'gitlab ci/cd'].includes(
+          s.name.toLowerCase()
+        ) &&
         categoryGroups['Cloud, DevOps & Systems'].some((ex) => ex.name.toLowerCase() === 'aws');
 
       if (isNoise) {
@@ -2611,7 +2591,9 @@ export class CandidateArtifactContentService {
       const seenTokens = new Set();
 
       for (const s of list) {
-        const rawLower = String(s.name || '').trim().toLowerCase();
+        const rawLower = String(s.name || '')
+          .trim()
+          .toLowerCase();
         const canonicalName = CANONICAL_ALIAS_MAP[rawLower] || s.name;
         const token = normalizeSkillToken(canonicalName);
         if (seenTokens.has(token)) continue;
@@ -2622,7 +2604,10 @@ export class CandidateArtifactContentService {
         seenTokens.add(token);
         deduped.push(canonicalName);
 
-        const skillSlug = (s.slug || token || canonicalName.toLowerCase()).replace(/[^a-z0-9-]/g, '-');
+        const skillSlug = (s.slug || token || canonicalName.toLowerCase()).replace(
+          /[^a-z0-9-]/g,
+          '-'
+        );
         selectedSkillSlugs.push(skillSlug);
         selectedSkills.push({
           slug: skillSlug,
@@ -2632,7 +2617,8 @@ export class CandidateArtifactContentService {
           evidenceId: s.evidenceId || null,
           relevanceScore: Math.min(100, Math.max(0, s.score || 0)),
           matchedRequirementId: s.matchedRequirementId || null,
-          confidenceScore: s.provenance === 'VERIFIED' ? 1.0 : (s.provenance === 'CORROBORATED' ? 0.9 : 0.7),
+          confidenceScore:
+            s.provenance === 'VERIFIED' ? 1.0 : s.provenance === 'CORROBORATED' ? 0.9 : 0.7,
           order: currentOrder++,
         });
 
@@ -2755,11 +2741,7 @@ export class CandidateArtifactContentService {
       selectedSkills,
       selectedSkillSlugs,
       skillCategoryOrder,
-    } = this.selectAndCategorizeSkillsForJob(
-      candidateData,
-      jobPosting,
-      options
-    );
+    } = this.selectAndCategorizeSkillsForJob(candidateData, jobPosting, options);
     const categoryEntries = Object.entries(categorizedSkills);
     if (categoryEntries.length > 0) {
       lines.push('## Technical Skills');
@@ -2777,20 +2759,22 @@ export class CandidateArtifactContentService {
     // LeetCode URL presence is NOT the selection condition.
     // DSA selection comes from Content Strategy.
     // Extract candidate-owned DSA content.
-    const candidateDsaBullets = (
-      Array.isArray(candidateData.problemSolving?.bullets) && candidateData.problemSolving.bullets.length > 0
+    const candidateDsaBullets =
+      Array.isArray(candidateData.problemSolving?.bullets) &&
+      candidateData.problemSolving.bullets.length > 0
         ? candidateData.problemSolving.bullets
-        : Array.isArray(candidateData.resumeData?.problemSolving?.bullets) && candidateData.resumeData.problemSolving.bullets.length > 0
+        : Array.isArray(candidateData.resumeData?.problemSolving?.bullets) &&
+            candidateData.resumeData.problemSolving.bullets.length > 0
           ? candidateData.resumeData.problemSolving.bullets
-          : Array.isArray(candidateData.userCustom?.problemSolving?.bullets) && candidateData.userCustom.problemSolving.bullets.length > 0
+          : Array.isArray(candidateData.userCustom?.problemSolving?.bullets) &&
+              candidateData.userCustom.problemSolving.bullets.length > 0
             ? candidateData.userCustom.problemSolving.bullets
-            : (candidateData.hasProblemSolvingSection || candidateData.problemSolving?.hasSection)
+            : candidateData.hasProblemSolvingSection || candidateData.problemSolving?.hasSection
               ? [
                   'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
                   'Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
                 ]
-              : []
-    );
+              : [];
 
     const hasSourceDsa = Boolean(
       candidateDsaBullets.length > 0 &&
@@ -2843,19 +2827,16 @@ export class CandidateArtifactContentService {
         const tenantId = isTenantUuid(candidateData.tenantId)
           ? candidateData.tenantId
           : isTenantUuid(jobPosting.tenantId)
-          ? jobPosting.tenantId
-          : '00000000-0000-0000-0000-000000000000';
+            ? jobPosting.tenantId
+            : '00000000-0000-0000-0000-000000000000';
         const candidateId = isTenantUuid(candidateData.candidateId)
           ? candidateData.candidateId
           : isTenantUuid(candidateData.id)
-          ? candidateData.id
-          : '00000000-0000-0000-0000-000000000000';
-        const rawReqs = Array.isArray(jobPosting.requirements)
-          ? jobPosting.requirements
-          : [];
+            ? candidateData.id
+            : '00000000-0000-0000-0000-000000000000';
+        const rawReqs = Array.isArray(jobPosting.requirements) ? jobPosting.requirements : [];
         const extractedRequirements = rawReqs.map((req) => {
-          const text =
-            typeof req === 'string' ? req : req.extractedValue || req.originalText || '';
+          const text = typeof req === 'string' ? req : req.extractedValue || req.originalText || '';
           return {
             id: crypto.randomUUID(),
             category: 'SKILL',
@@ -2885,7 +2866,8 @@ export class CandidateArtifactContentService {
             evidence = p.technologies.map((tech) => ({
               id: crypto.randomUUID(),
               evidenceType: 'CODE_USAGE',
-              skillSlug: typeof tech === 'string' ? tech.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'tech',
+              skillSlug:
+                typeof tech === 'string' ? tech.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'tech',
               skillName: typeof tech === 'string' ? tech : 'Tech',
               confidenceScore: 0.9,
               sourceLocation: { filePath: 'src/main.ts' },
@@ -3017,7 +2999,8 @@ export class CandidateArtifactContentService {
         const rawBullets = Array.isArray(candProj.bullets) ? candProj.bullets : [];
         const hasSummary = Boolean(candProj.summary && candProj.summary.trim().length > 0);
         const evidenceCount =
-          candProj.evidenceCount || (Array.isArray(candProj.evidence) ? candProj.evidence.length : 0);
+          candProj.evidenceCount ||
+          (Array.isArray(candProj.evidence) ? candProj.evidence.length : 0);
 
         if (evidenceCount === 0 && rawBullets.length === 0 && !hasSummary) {
           selectionAudit.push({
@@ -3039,7 +3022,10 @@ export class CandidateArtifactContentService {
           Array.isArray(r.contributingSkills) && r.contributingSkills.length > 0;
         const isNotMinimal = r.relevanceBand && r.relevanceBand !== 'MINIMAL';
 
-        if (score <= 0 || (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && score < 25.0)) {
+        if (
+          score <= 0 ||
+          (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && score < 25.0)
+        ) {
           selectionAudit.push({
             projectName: candProj.name || rName,
             projectId: candProj.id || rId,
@@ -3089,7 +3075,10 @@ export class CandidateArtifactContentService {
       }
 
       selectedProjects = eligible;
-    } else if (Array.isArray(jobPosting?.recommendedProjects) && jobPosting.recommendedProjects.length > 0) {
+    } else if (
+      Array.isArray(jobPosting?.recommendedProjects) &&
+      jobPosting.recommendedProjects.length > 0
+    ) {
       // Fallback for callers explicitly passing recommendedProjects without analyzer rankings
       const rankedProjects = this.rankProjectsForJob(candidateData, jobPosting, {
         maxProjects: projectBudget,
@@ -3151,10 +3140,7 @@ export class CandidateArtifactContentService {
     }
 
     // Explicitly track any recommended projects that were omitted for budget reasons
-    const recProjects =
-      jobPosting?.recommendedProjects ||
-      candidateData?.recommendedProjects ||
-      [];
+    const recProjects = jobPosting?.recommendedProjects || candidateData?.recommendedProjects || [];
     const omittedProjects = [];
     if (includeProblemSolving && recProjects.length > projectBudget) {
       const selectedSlugs = new Set(selectedProjects.map((p) => slugifyProject(p.name || p.slug)));
@@ -3224,13 +3210,16 @@ export class CandidateArtifactContentService {
     }
 
     // ---- Problem Solving & Algorithmic Practice (candidate-reported truthful framing) ----
-    const dsaProfileUrl = (leetcodeLink?.url && isRealUrl(leetcodeLink.url))
-      ? leetcodeLink.url
-      : (candidateData.problemSolving?.profileUrl && isRealUrl(candidateData.problemSolving.profileUrl))
-        ? candidateData.problemSolving.profileUrl
-        : (candidateData.resumeData?.problemSolving?.profileUrl && isRealUrl(candidateData.resumeData.problemSolving.profileUrl))
-          ? candidateData.resumeData.problemSolving.profileUrl
-          : null;
+    const dsaProfileUrl =
+      leetcodeLink?.url && isRealUrl(leetcodeLink.url)
+        ? leetcodeLink.url
+        : candidateData.problemSolving?.profileUrl &&
+            isRealUrl(candidateData.problemSolving.profileUrl)
+          ? candidateData.problemSolving.profileUrl
+          : candidateData.resumeData?.problemSolving?.profileUrl &&
+              isRealUrl(candidateData.resumeData.problemSolving.profileUrl)
+            ? candidateData.resumeData.problemSolving.profileUrl
+            : null;
 
     if (includeProblemSolving) {
       lines.push('## Problem Solving & Algorithmic Practice');
@@ -3307,9 +3296,10 @@ export class CandidateArtifactContentService {
 
     // ---- Certifications (only real stored records) ----------------------------
     const certifications = (candidateData.certifications || []).filter(Boolean);
-    const includeCertifications = options.includeCertifications !== undefined
-      ? Boolean(options.includeCertifications)
-      : certifications.length > 0;
+    const includeCertifications =
+      options.includeCertifications !== undefined
+        ? Boolean(options.includeCertifications)
+        : certifications.length > 0;
     if (includeCertifications && certifications.length > 0) {
       lines.push('## Certifications');
       lines.push('');
@@ -3323,9 +3313,8 @@ export class CandidateArtifactContentService {
 
     // ---- Relevant Coursework (optional standalone section) --------------------
     const coursework = (candidateData.coursework || []).filter(Boolean);
-    const includeCoursework = options.includeCoursework !== undefined
-      ? Boolean(options.includeCoursework)
-      : false;
+    const includeCoursework =
+      options.includeCoursework !== undefined ? Boolean(options.includeCoursework) : false;
     if (includeCoursework && coursework.length > 0) {
       lines.push('## Relevant Coursework');
       lines.push('');
@@ -3339,9 +3328,10 @@ export class CandidateArtifactContentService {
 
     // ---- Publications (optional standalone section) --------------------------
     const publications = (candidateData.publications || []).filter(Boolean);
-    const includePublications = options.includePublications !== undefined
-      ? Boolean(options.includePublications)
-      : publications.length > 0;
+    const includePublications =
+      options.includePublications !== undefined
+        ? Boolean(options.includePublications)
+        : publications.length > 0;
     if (includePublications && publications.length > 0) {
       lines.push('## Publications');
       lines.push('');
@@ -3355,9 +3345,10 @@ export class CandidateArtifactContentService {
 
     // ---- Achievements (optional standalone section) --------------------------
     const achievements = (candidateData.achievements || []).filter(Boolean);
-    const includeAchievements = options.includeAchievements !== undefined
-      ? Boolean(options.includeAchievements)
-      : achievements.length > 0;
+    const includeAchievements =
+      options.includeAchievements !== undefined
+        ? Boolean(options.includeAchievements)
+        : achievements.length > 0;
     if (includeAchievements && achievements.length > 0) {
       lines.push('## Achievements');
       lines.push('');
@@ -3371,9 +3362,10 @@ export class CandidateArtifactContentService {
 
     // ---- Additional Skills (optional standalone section) ---------------------
     const additionalSkills = (candidateData.additionalSkills || []).filter(Boolean);
-    const includeAdditionalSkills = options.includeAdditionalSkills !== undefined
-      ? Boolean(options.includeAdditionalSkills)
-      : additionalSkills.length > 0;
+    const includeAdditionalSkills =
+      options.includeAdditionalSkills !== undefined
+        ? Boolean(options.includeAdditionalSkills)
+        : additionalSkills.length > 0;
     if (includeAdditionalSkills && additionalSkills.length > 0) {
       lines.push('## Additional Skills');
       lines.push('');
@@ -3387,9 +3379,8 @@ export class CandidateArtifactContentService {
 
     // ---- Awards (optional standalone section) --------------------------------
     const awards = (candidateData.awards || []).filter(Boolean);
-    const includeAwards = options.includeAwards !== undefined
-      ? Boolean(options.includeAwards)
-      : awards.length > 0;
+    const includeAwards =
+      options.includeAwards !== undefined ? Boolean(options.includeAwards) : awards.length > 0;
     if (includeAwards && awards.length > 0) {
       lines.push('## Awards');
       lines.push('');
@@ -3530,13 +3521,12 @@ export class CandidateArtifactContentService {
         (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
       );
     });
-    const matchedClaimedSkills = claimed
-      .filter((name) => {
-        const token = normalizeSkillToken(name);
-        return [...candidateData.jobKeywords].some(
-          (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
-        );
-      });
+    const matchedClaimedSkills = claimed.filter((name) => {
+      const token = normalizeSkillToken(name);
+      return [...candidateData.jobKeywords].some(
+        (keyword) => token === keyword || (token.length >= 4 && keyword.startsWith(token))
+      );
+    });
 
     // Real internship / employment evidence
     const experience = (candidateData.experience || [])[0] || null;
@@ -3599,9 +3589,7 @@ export class CandidateArtifactContentService {
         const cleanName = formatProjectDisplayName(project.name || project.title);
         const cleanTechs = cleanResumeFacingTechnologies(project.technologies || []);
         const tech =
-          cleanTechs.length > 0
-            ? `, built with ${cleanTechs.slice(0, 4).join(', ')}`
-            : '';
+          cleanTechs.length > 0 ? `, built with ${cleanTechs.slice(0, 4).join(', ')}` : '';
         const rawUrl = project.url || project.repositoryUrl;
         const urlPart = rawUrl && isRealUrl(rawUrl) ? ` (${rawUrl})` : '';
         return `${cleanName}${urlPart}${tech}`;
@@ -3629,9 +3617,7 @@ export class CandidateArtifactContentService {
       matchedVerifiedSkills.length > 0 ? matchedVerifiedSkills : verified
     ).slice(0, 6);
     const claimedToMention = (
-      matchedClaimedSkills.length > 0
-        ? matchedClaimedSkills
-        : claimed
+      matchedClaimedSkills.length > 0 ? matchedClaimedSkills : claimed
     ).slice(0, 4);
 
     if (verifiedToMention.length > 0) {

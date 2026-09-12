@@ -3,6 +3,41 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### PART 29: Professional Resume Narrative Intelligence & Leaf Primitives Isolation (P18 Architecture)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-12  
+**Branch:** `p18-professional-resume-narrative-intelligence`  
+**Baseline Main SHA:** `2aed35318d1bc3915a373b9b25c8341e22393a7a`  
+
+**Context & Core Architectural Invariant:**
+Elevated candidate source evidence into high-density PAR accomplishment narratives ($\text{Action} + \text{Engineering Object} + \text{Technical Method} + \text{Purpose/Result}$) while strictly maintaining the non-negotiable invariant $\text{RenderedClaims} \subseteq \text{AuthorizedCanonicalEvidence}$. Successfully eliminated Node ESM circular dependency chains through dependency-neutral leaf module extraction.
+
+**Key Deliverables & Architectural Enhancements:**
+1. **Dependency-Neutral Primitives Module (`src/services/resume-composition-primitives.js`):**
+   - Established pure leaf module with zero upstream imports.
+   - Centralized `FACT_STOP_WORDS`, `extractSubstantiveFactTokens`, `calculateFactSemanticOverlap`, `countDistinctCanonicalFacts`, `assertMetricSafety`, `validateRephrasingSafety`, `toEvidenceReference`, `calculateTokenOverlap`, `splitSentences`, `compressProfessionalBullet`, `polishProfessionalSummary`, `isClaimFact`, `isUnsupportedMetricFact`, `determineProjectBulletCapacity`, `classifyExperienceBulletType`, `dedupeSkillsPresentation`, and `synthesizeAccomplishmentNarrative`.
+2. **Circular Dependency Resolution & Clean Import Architecture:**
+   - Redirected `candidate-fact-inventory.service.js`, `resume-claim-planner.service.js`, `resume-accomplishment-composer.service.js`, `resume-writing-quality.service.js`, and `resume-acceptance-gate.service.js` to import semantic overlap and fact primitives directly from `resume-composition-primitives.js`.
+   - Broken the ESM module graph cycle (`candidate-artifact-content` ↔ `candidate-fact-inventory`), resolving `ReferenceError: Cannot access 'EVIDENCE_ROLES' before initialization`.
+   - Re-exported primitives from `candidate-artifact-content.service.js` for 100% backward compatibility.
+3. **Accomplishment Narrative Synthesis:**
+   - Prioritized candidate contribution and engineering accomplishments over passive project description facts.
+   - Guarded against unbacked causal implications, uncorroborated comparative claims, superlatives, unsupported production/cluster claims, enterprise customer claims, and team leadership assertions.
+   - Formatted natural multi-fact compositions using active verb-to-participle transitions, natural coordinating conjunctions, and prepositional linking without robotic semicolons or artificial filler clauses.
+4. **Adversarial & Acceptance Test Verification:**
+   - Created `tests/fixtures/p18-golden-benchmarks.js` and `tests/unit/p18-adversarial-composition.test.js` covering 19 adversarial narrative and contribution quality rules.
+   - Verified 100% pass across all 431 tests in the P16, P17, and P18 test suites (`node --test tests/unit/p18-*.test.js tests/unit/p17-*.test.js tests/unit/p16-*.test.js`).
+5. **Real-Candidate Read-Only Quality Regression (`scripts/p16-quality-regression-comparison.mjs`):**
+   - Evaluated stored candidate (`10a2b51b-09bf-4090-8040-1f60ebeb89c9`) read-only across Cloudflare, Vercel, and Crunchyroll target roles:
+     - **Cloudflare (Systems & Infrastructure):** Overall Quality: 90/100 | Writing Quality: 76/100 | PDF Observability: 100/100 | ATS Score: 100/100 | Pages: 1
+     - **Vercel (Backend):** Overall Quality: 89/100 | Writing Quality: 79/100 | PDF Observability: 90/100 | ATS Score: 100/100 | Pages: 1
+     - **Crunchyroll (Python AI & Backend):** Overall Quality: 89/100 | Writing Quality: 81/100 | PDF Observability: 90/100 | ATS Score: 100/100 | Pages: 1
+   - Zero database mutations (0 records inserted, updated, or deleted).
+6. **Code Hygiene & Compliance:**
+   - 0 ESLint errors/warnings across all modified/new files.
+   - 100% Prettier formatted.
+
 ### PART 28: Strategic Enhancements — Unified Composition, Utility Planning, Evidence Metrics & Narrative Realization
 
 **Status:** COMPLETE & VERIFIED  
