@@ -22,7 +22,12 @@ import {
   composeProfessionalSummary,
   composeProfessionalProjectBullets,
 } from './resume-accomplishment-composer.service.js';
-import { scoreFactsForJob } from './candidate-fact-inventory.service.js';
+import {
+  scoreFactsForJob,
+  determineFactAgency,
+  classifyEvidenceRole,
+  classifyContributionClass,
+} from './candidate-fact-inventory.service.js';
 
 import {
   EVIDENCE_SEMANTIC_CLASS,
@@ -497,7 +502,7 @@ export function selectAndRephraseProjectBullets({
   const projectEvidence = Array.isArray(project.evidence) ? project.evidence : [];
   const projectTechs = Array.isArray(project.technologies) ? project.technologies : [];
 
-  const pId = project.id || project.projectId || 'proj';
+  const pId = project.id || project.projectId || project.name || 'proj';
   const facts = rawItems
     .map((item, i) => {
       const text =
@@ -517,6 +522,9 @@ export function selectAndRephraseProjectBullets({
         : [];
 
       const techs = projectTechs.filter((t) => bulletLower.includes(String(t).toLowerCase()));
+      const agency = determineFactAgency(text, { sourceType: 'bullet' });
+      const evidenceRole = classifyEvidenceRole(text, 'bullet', 'IMPLEMENTATION');
+      const contributionClass = classifyContributionClass(text, 'bullet', 'IMPLEMENTATION', { agency });
 
       return {
         factId: `${pId}-claim-${i}`,
@@ -532,6 +540,10 @@ export function selectAndRephraseProjectBullets({
         evidenceRefs: bEvidenceRefs,
         matchedRequirementIds,
         association: { projectId: pId },
+        agency,
+        agencyLevel: agency.level,
+        evidenceRole,
+        contributionClass,
       };
     })
     .filter((f) => Boolean(f.text));

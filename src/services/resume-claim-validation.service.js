@@ -22,7 +22,12 @@
  * If validation fails: REJECT the claim (never silently repair with string replacement).
  */
 
-import { extractAuthenticMetrics, isMeasurableFact } from './candidate-fact-inventory.service.js';
+import {
+  extractAuthenticMetrics,
+  isMeasurableFact,
+  AGENCY_LEVELS,
+  determineFactAgency,
+} from './candidate-fact-inventory.service.js';
 import { calculateTokenOverlap } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
 
@@ -159,7 +164,16 @@ export class ResumeClaimValidationService {
     for (const fact of contributingFacts) {
       if (targetOwnerType === 'PROJECT' && targetOwnerId) {
         const factProjId = fact.association?.projectId || fact.projectId || fact.ownerId;
-        if (factProjId && factProjId !== targetOwnerId) {
+        const validIds = new Set(
+          [
+            targetOwnerId,
+            context.project?.id,
+            context.project?.projectId,
+            context.project?.name,
+            context.project?.displayName,
+          ].filter(Boolean)
+        );
+        if (factProjId && !validIds.has(factProjId) && factProjId !== 'proj') {
           violations.push({
             code: 'CROSS_SECTION_CONTAMINATION',
             message: `Fact "${fact.factId}" from project "${factProjId}" is unauthorized for project "${targetOwnerId}"`,
@@ -287,6 +301,46 @@ export class ResumeClaimValidationService {
           .filter(Boolean)
           .map((t) => String(t).toLowerCase())
       );
+
+      // Expand standard cluster synonyms so role/class match their planner cluster
+      if (
+        authorizedTopics.has('design_decision') ||
+        authorizedTopics.has('candidate_design_decision') ||
+        authorizedTopics.has('architecture')
+      ) {
+        authorizedTopics.add('architecture');
+        authorizedTopics.add('design');
+      }
+      if (
+        authorizedTopics.has('action') ||
+        authorizedTopics.has('candidate_action') ||
+        authorizedTopics.has('candidate_implementation') ||
+        authorizedTopics.has('implementation')
+      ) {
+        authorizedTopics.add('implementation');
+        authorizedTopics.add('action');
+      }
+      if (
+        authorizedTopics.has('optimization') ||
+        authorizedTopics.has('candidate_optimization') ||
+        authorizedTopics.has('performance') ||
+        authorizedTopics.has('outcome') ||
+        authorizedTopics.has('candidate_outcome')
+      ) {
+        authorizedTopics.add('performance_outcome');
+        authorizedTopics.add('performance');
+        authorizedTopics.add('optimization');
+        authorizedTopics.add('outcome');
+      }
+      if (authorizedTopics.has('reliability') || authorizedTopics.has('security')) {
+        authorizedTopics.add('reliability');
+      }
+      if (authorizedTopics.has('integration')) {
+        authorizedTopics.add('integration_api');
+      }
+      if (authorizedTopics.has('feature') || authorizedTopics.has('tooling')) {
+        authorizedTopics.add('tooling_automation');
+      }
       const hasOverlap = claim.semanticDimensions.some((d) => {
         const dLower = String(d).toLowerCase();
         if (authorizedTopics.has(dLower)) return true;
@@ -457,6 +511,32 @@ export class ResumeClaimValidationService {
             message: `Claim asserts unbacked team management or organizational leadership: "${text.slice(0, 60)}..."`,
           });
         }
+      }
+    }
+
+    // ── 21. Candidate agency authorization (P18 Invariant) ───────────────────
+    // Technical architecture presence must never be converted into candidate agency.
+    // If the claim asserts candidate agency (active verb opener, first-person, or candidate contribution),
+    // at least one contributing canonical fact must authorize candidate agency.
+    const firstWordClean = (text.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, '');
+    const assertsCandidateAgency =
+      claim.agencyLevel === AGENCY_LEVELS.CANDIDATE ||
+      (typeof claim.contributionClass === 'string' && claim.contributionClass.startsWith('CANDIDATE_')) ||
+      ACTIVE_OPENER_VERBS.has(firstWordClean) ||
+      ACTIVE_OPENER_VERBS.has(firstWordClean.replace(/ed$/, '')) ||
+      /^(?:I\s+|engineered|architected|designed|built|developed|implemented|optimized|automated|orchestrated|spearheaded|refactored|deployed|containerized|configured|integrated|migrated|scaled|benchmarked|debugged|reduced|standardized|secured|streamlined|published|authored|established|maintained|analyzed|profiled|constructed|created|executed|delivered|led|modeled|produced|programmed|resolved|tested|wrote|championed|pioneered|introduced|formulated|devised|accelerated|synthesized|monitored)\b/i.test(text);
+
+    if (assertsCandidateAgency) {
+      const hasAuthorizedCandidateAgency = contributingFacts.some((fact) => {
+        const level = fact.agencyLevel || fact.agency?.level || determineFactAgency(fact.text, fact).level;
+        return level === AGENCY_LEVELS.CANDIDATE;
+      });
+
+      if (!hasAuthorizedCandidateAgency) {
+        violations.push({
+          code: 'AGENCY_NOT_AUTHORIZED',
+          message: `Claim asserts candidate agency ("${firstWordClean}") without contributing canonical facts authorizing candidate ownership`,
+        });
       }
     }
 

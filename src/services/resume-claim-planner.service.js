@@ -77,7 +77,12 @@ export const SEMANTIC_DIMENSION_CLUSTERS = Object.freeze([
   {
     key: 'performance_outcome',
     label: 'Performance, Optimization & Metrics',
-    roles: [EVIDENCE_ROLES.PERFORMANCE, EVIDENCE_ROLES.OUTCOME, EVIDENCE_ROLES.METRIC],
+    roles: [
+      EVIDENCE_ROLES.PERFORMANCE,
+      EVIDENCE_ROLES.OUTCOME,
+      EVIDENCE_ROLES.METRIC,
+      EVIDENCE_ROLES.OPTIMIZATION,
+    ],
     topics: [
       'performance',
       'outcome',
@@ -421,6 +426,12 @@ export class ResumeClaimPlannerService {
 
         if (globallyUsedFactIds.has(f.factId)) {
           reason = OMISSION_REASONS.SEMANTIC_DUPLICATE;
+        } else if (f.agencyLevel === 'AGENCY_NOT_AUTHORIZED' || f.agencyLevel === 'NONE' || f.agency?.level === 'NONE') {
+          if (isProjectDescriptionFact(f)) {
+            reason = OMISSION_REASONS.DESCRIPTION_ONLY;
+          } else {
+            reason = OMISSION_REASONS.AGENCY_NOT_AUTHORIZED;
+          }
         } else if (isProjectDescriptionFact(f) && accomplishmentFacts.length > 0) {
           reason = OMISSION_REASONS.DESCRIPTION_ONLY;
         } else if ((f.jobRelevance ?? 0) < 5) {
@@ -483,11 +494,15 @@ export class ResumeClaimPlannerService {
     for (const cluster of SEMANTIC_DIMENSION_CLUSTERS) {
       const matchingFacts = accomplishmentFacts.filter((f) => {
         if (assignedFactIds.has(f.factId)) return false;
+        if (cluster.roles.includes(f.evidenceRole)) return true;
+        const roleBelongsElsewhere = SEMANTIC_DIMENSION_CLUSTERS.some(
+          (other) => other.key !== cluster.key && other.roles.includes(f.evidenceRole)
+        );
+        if (roleBelongsElsewhere) return false;
         const topicMatch = cluster.topics.some((t) =>
           (f.semanticTopic || '').toLowerCase().includes(t)
         );
-        const roleMatch = cluster.roles.includes(f.evidenceRole);
-        return topicMatch || roleMatch;
+        return topicMatch;
       });
 
       if (matchingFacts.length > 0) {
@@ -614,7 +629,7 @@ export class ResumeClaimPlannerService {
           complementaryFacts: [],
           semanticDimensions: ['description'],
           evidenceRole: EVIDENCE_ROLES.PROJECT_DESCRIPTION,
-          action: 'Built',
+          action: null,
           engineeringObject: this._extractEngineeringObject(d.text),
           technicalMethods: [],
           technologies,

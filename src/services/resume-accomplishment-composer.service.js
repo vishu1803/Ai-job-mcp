@@ -362,53 +362,45 @@ function finalizeProjectBullets({
   project,
   omittedFacts,
   usedFactIds,
+  candidateProfile = null,
+  allFacts = null,
 }) {
   // Safety fallback if planner yielded 0 bullets from available supported facts
   if (bullets.length === 0 && supportedFacts.length > 0) {
     const factGroups = selectComplementaryFactGroups(supportedFacts, capacity.capacity);
-    const mentionedTechs = new Set();
     for (const group of factGroups) {
-      const text = composeBulletFromGroup(group, project, true, mentionedTechs);
+      const primaryFact = group[0];
+      const compFact = group[1] || null;
+      const narrativeResult = synthesizeAccomplishmentNarrative(
+        primaryFact,
+        compFact,
+        project?.technologies || []
+      );
+      const text =
+        typeof narrativeResult === 'object' ? narrativeResult.text : String(narrativeResult);
       const composedFromFactIds = group.map((f) => f.factId || f.id).filter(Boolean);
 
-      const isRedundant = bullets.some(
-        (kept) => calculateFactSemanticOverlap(kept.text, text) >= REDUNDANCY_OVERLAP_THRESHOLD
-      );
+      const fallbackPlanned = {
+        claimId: `fallback-claim-${primaryFact.factId || primaryFact.id}`,
+        primaryFact,
+        complementaryFacts: compFact ? [compFact] : [],
+        factIds: composedFromFactIds,
+        semanticDimensions: group.map((f) => f.semanticTopic).filter(Boolean),
+        allowedMetrics: [],
+        technologies: project?.technologies || [],
+      };
 
-      if (!isRedundant) {
-        const evidenceRefs = [];
-        const matchedRequirementIds = [];
-        let provenanceStatus = 'VERIFIED';
-
-        for (const f of group) {
-          if (Array.isArray(f.evidenceRefs)) {
-            for (const er of f.evidenceRefs) {
-              if (!evidenceRefs.some((x) => (x.evidenceId || x.id) === (er.evidenceId || er.id))) {
-                evidenceRefs.push(er);
-              }
-            }
-          }
-          if (Array.isArray(f.matchedRequirementIds)) {
-            for (const rid of f.matchedRequirementIds) {
-              if (!matchedRequirementIds.includes(rid)) matchedRequirementIds.push(rid);
-            }
-          }
-          if (f.provenance === 'CLAIMED' || f.provenance === 'USER_PROVIDED') {
-            provenanceStatus = f.provenance;
-          }
-        }
-
-        bullets.push({
-          text,
-          evidenceRefs,
-          matchedRequirementIds,
-          provenanceStatus,
-          composedFromFactIds,
-          semanticDimensions: group.map((f) => f.semanticTopic).filter(Boolean),
-          realizationSource: 'deterministic',
-        });
-        for (const fid of composedFromFactIds) usedFactIds.add(fid);
-      }
+      assembleRealizedClaim({
+        planned: fallbackPlanned,
+        realizedText: text,
+        realizationSource: 'deterministic_fallback',
+        allFacts: allFacts || supportedFacts,
+        candidateProfile,
+        project,
+        bullets,
+        omittedFacts,
+        usedFactIds,
+      });
     }
   }
 
@@ -490,6 +482,8 @@ export function composeProfessionalProjectBullets({
     project,
     omittedFacts,
     usedFactIds,
+    candidateProfile,
+    allFacts,
   });
 }
 
@@ -624,6 +618,8 @@ export async function composeProfessionalProjectBulletsAsync({
     project,
     omittedFacts,
     usedFactIds,
+    candidateProfile,
+    allFacts,
   });
 }
 

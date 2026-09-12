@@ -49,6 +49,8 @@ import {
   CONTRIBUTION_CLASSES,
   areContributionClassesCompatible,
   classifyContributionClass,
+  AGENCY_LEVELS,
+  determineFactAgency,
 } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
 
@@ -56,6 +58,8 @@ export {
   CONTRIBUTION_CLASSES,
   areContributionClassesCompatible,
   classifyContributionClass,
+  AGENCY_LEVELS,
+  determineFactAgency,
 };
 
 /** Canonical Fact Types Taxonomy (Part 2 Specification). */
@@ -107,6 +111,7 @@ export const EVIDENCE_ROLES = Object.freeze({
 
 /** Fact-Specific Omission Reasons Taxonomy (P18 Architecture). */
 export const OMISSION_REASONS = Object.freeze({
+  AGENCY_NOT_AUTHORIZED: 'AGENCY_NOT_AUTHORIZED',
   UNAUTHORIZED: 'UNAUTHORIZED',
   UNSUBSTANTIATED: 'UNSUBSTANTIATED',
   UNSUPPORTED_METRIC: 'UNSUPPORTED_METRIC',
@@ -293,18 +298,16 @@ export function classifyEvidenceRole(
     return EVIDENCE_ROLES.OPTIMIZATION;
   }
 
-  // 3. Explicit Outcome verb openers or outcome metrics
+  // 3. Explicit Outcome verb openers
   if (
-    /^(?:reduced|increased|improved|saved|decreased|accelerated)\b/i.test(norm) ||
-    /\b(?:reduced|increased|improved|resulting in|achieved|saved|decreased|accelerated|yielded)\b/i.test(lower) ||
-    /\b(?:\d+%\s+(?:reduction|increase|improvement|speedup|latency)|latency\s+by\s+\d+|throughput\s+by\s+\d+)\b/i.test(lower)
+    /^(?:reduced|increased|improved|saved|decreased|accelerated|yielded|achieved)\b/i.test(norm)
   ) {
     return EVIDENCE_ROLES.OUTCOME;
   }
 
   // 4. Explicit Action / Implementation verb openers
   if (
-    /^(?:engineered|implemented|built|developed|created|refactored|automated|scaled|migrated|containerized|deployed)\b/i.test(
+    /^(?:engineered|implemented|built|developed|created|refactored|automated|scaled|migrated|containerized|deployed|configured|integrated|secured|standardized|established|maintained|analyzed|constructed|authored|wrote|programmed|executed|delivered|spearheaded|led|championed|pioneered|introduced|formulated|devised|accelerated|synthesized|monitored)\b/i.test(
       norm
     ) ||
     /\b(?:designed and implemented|architected and deployed)\b/i.test(lower)
@@ -312,24 +315,7 @@ export function classifyEvidenceRole(
     return EVIDENCE_ROLES.ACTION;
   }
 
-  // 5. Architectural design decisions / technical method signals in non-verb statements
-  const hasArchitecturalOrDesignSignal =
-    /\b(?:streaming\s+pipelines?|data\s+exploration\s+platform|consensus|raft|microservices|event-driven|distributed\s+telemetry|cqrs|sharding|restful\s+crud|jwt-based)\b/i.test(
-      lower
-    );
-
-  if (hasArchitecturalOrDesignSignal) {
-    return EVIDENCE_ROLES.DESIGN_DECISION;
-  }
-
-  // 6. Performance / Optimization signals in non-verb statements
-  if (
-    /\b(?:optimizing|profiling|benchmarked|tuning|low-latency|high-throughput|caching|cache-hit|query optimization)\b/i.test(lower)
-  ) {
-    return EVIDENCE_ROLES.PERFORMANCE;
-  }
-
-  // 7. Passive description patterns
+  // 5. Passive description patterns & non-action statements
   const isPassiveDescriptionPattern =
     /^(?:a|an|the)\s+(?:[\w-]+\s+){0,3}(?:is\s+(?:an?|the)\s+)?(?:application|app|service|tool|platform|library|framework|cli|manager|dashboard|assistant|system|bot|extension|web dashboard)\b/i.test(
       norm
@@ -351,7 +337,12 @@ export function classifyEvidenceRole(
   if (canonicalFactType === CANONICAL_FACT_TYPES.RESPONSIBILITY)
     return EVIDENCE_ROLES.RESPONSIBILITY;
 
-  return EVIDENCE_ROLES.IMPLEMENTATION;
+  const agency = determineFactAgency(norm, { sourceType, canonicalFactType });
+  if (agency.level === AGENCY_LEVELS.CANDIDATE) {
+    return EVIDENCE_ROLES.ACTION;
+  }
+
+  return EVIDENCE_ROLES.PROJECT_DESCRIPTION;
 }
 
 /**
@@ -362,11 +353,15 @@ export function classifyEvidenceRole(
  */
 export function isAccomplishmentCandidate(fact) {
   if (!fact || !fact.renderable) return false;
+  const agencyLevel = fact.agency?.level || determineFactAgency(fact.text, fact).level;
+  if (agencyLevel !== AGENCY_LEVELS.CANDIDATE) {
+    return false;
+  }
   const role =
     fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
   const contribution =
     fact.contributionClass ||
-    classifyContributionClass(fact.text, fact.sourceType, fact.canonicalFactType);
+    classifyContributionClass(fact.text, fact.sourceType, fact.canonicalFactType, fact);
   if (
     role === EVIDENCE_ROLES.PROJECT_DESCRIPTION ||
     role === EVIDENCE_ROLES.CONTEXT ||
@@ -389,11 +384,15 @@ export function isAccomplishmentCandidate(fact) {
  */
 export function isProjectDescriptionFact(fact) {
   if (!fact) return false;
+  const agencyLevel = fact.agency?.level || determineFactAgency(fact.text, fact).level;
+  if (agencyLevel !== AGENCY_LEVELS.CANDIDATE) {
+    return true;
+  }
   const role =
     fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
   const contribution =
     fact.contributionClass ||
-    classifyContributionClass(fact.text, fact.sourceType, fact.canonicalFactType);
+    classifyContributionClass(fact.text, fact.sourceType, fact.canonicalFactType, fact);
   return (
     role === EVIDENCE_ROLES.PROJECT_DESCRIPTION ||
     role === EVIDENCE_ROLES.CONTEXT ||
@@ -565,13 +564,39 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       candidate.association?.educationId ||
       '';
 
-    const contributionClass =
-      candidate.contributionClass ||
-      classifyContributionClass(
+    const rawFactType = candidate.factType || 'candidate-authored';
+    const canonicalFactType = isTechFact
+      ? CANONICAL_FACT_TYPES.TECHNOLOGY
+      : candidate.canonicalFactType ||
+        classifyCanonicalFactType(text, CANONICAL_FACT_TYPES.IMPLEMENTATION);
+
+    const provenance = candidate.provenance || 'USER_PROVIDED';
+    const confidence =
+      typeof candidate.confidence === 'number'
+        ? candidate.confidence
+        : (PROVENANCE_CONFIDENCE[provenance] ?? 0.8);
+
+    const agency =
+      candidate.agency ||
+      determineFactAgency(text, {
+        sourceType: candidate.sourceType || 'bullet',
+        factType: candidate.factType,
+        canonicalFactType,
+        provenance,
+        confidence,
+        candidateAuthored: candidate.candidateAuthored,
+        ...candidate,
+      });
+
+    let contributionClass = candidate.contributionClass;
+    if (!contributionClass || agency.level !== AGENCY_LEVELS.CANDIDATE) {
+      contributionClass = classifyContributionClass(
         text,
         candidate.sourceType || 'bullet',
-        candidate.canonicalFactType
+        canonicalFactType,
+        { agency, provenance, ...candidate }
       );
+    }
 
     const factId = factFingerprint(text, assocKey);
 
@@ -592,7 +617,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       if (overlap < clusterThreshold) return false;
       const fContributionClass =
         f.contributionClass ||
-        classifyContributionClass(f.text, f.sourceType || 'bullet', f.canonicalFactType);
+        classifyContributionClass(f.text, f.sourceType || 'bullet', f.canonicalFactType, f);
       return areContributionClassesCompatible(fContributionClass, contributionClass);
     });
     if (dup) {
@@ -600,18 +625,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       return;
     }
 
-    const rawFactType = candidate.factType || 'candidate-authored';
-    const canonicalFactType = isTechFact
-      ? CANONICAL_FACT_TYPES.TECHNOLOGY
-      : candidate.canonicalFactType ||
-        classifyCanonicalFactType(text, CANONICAL_FACT_TYPES.IMPLEMENTATION);
-
     const topic = candidate.semanticTopic || classifyFactTopic(text);
-    const provenance = candidate.provenance || 'USER_PROVIDED';
-    const confidence =
-      typeof candidate.confidence === 'number'
-        ? candidate.confidence
-        : (PROVENANCE_CONFIDENCE[provenance] ?? 0.8);
 
     const ownerType =
       candidate.ownerType ||
@@ -652,6 +666,9 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       provenanceStatus: provenance,
       provenance,
       confidence,
+      agency,
+      agencyLevel: agency.level,
+      agencySource: agency.source,
       text,
       factType: rawFactType,
       canonicalFactType,

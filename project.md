@@ -3,6 +3,72 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### PART 31: Candidate Agency Integrity, Evidence Ownership & Fail-Closed Acceptance (P18 Follow-up Repair)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-13  
+**Baseline Main HEAD:** `a0353b9f842c19228681422c85179dc55d5a65d1`  
+**Parent:** `387af99f82b09c543d38a8f9e1d2c1238b06854a`  
+
+**Context & Core Invariants Enforced:**
+Resolved the semantic integrity vulnerability where technical architecture presence in a project description (e.g. *"High-throughput distributed telemetry and data exploration platform in Rust and TypeScript with streaming pipelines."*) was susceptible to being converted into synthetic candidate agency (*"Architected..."*, *"Designed..."*, *"Engineered..."*).
+Strictly enforced the non-negotiable invariant:
+$$\text{Rendered candidate agency} \subseteq \text{Authorized candidate-owned contribution evidence}$$
+and:
+$$\text{RenderedClaims} \subseteq \text{AuthorizedCanonicalEvidence}$$
+Established fail-closed validation (`AGENCY_NOT_AUTHORIZED`), full fallback path validation parity, strict separation between candidate actions and implementations, and calibrated narrative collapse detection.
+
+**Root Causes Diagnosed & Forensically Repaired:**
+1. **Synthetic Verb Injection on Passive Evidence:** `synthesizeAccomplishmentNarrative` previously prepended synthetic past-tense verbs (`Architected`, `Designed`, `Engineered`) if the primary statement lacked an active verb, converting passive project descriptions into unbacked candidate accomplishments.
+2. **Missing Agency Attribute & Evidence Ownership Tracking:** Canonical facts lacked explicit candidate agency annotations, allowing passive system/repository descriptions to be consumed by accomplishment composition strategies.
+3. **Absence of Agency Validation Gate:** `ResumeClaimValidationService` lacked an invariant check verifying that claims asserting candidate agency are backed by facts authorizing candidate ownership.
+4. **Fallback Realization Divergence:** The fallback path in `finalizeProjectBullets()` previously generated raw bullets with synthetic verbs without passing through `assembleRealizedClaim()`, bypassing validation invariants.
+5. **False Narrative Collapse Alerts:** `PROJECT_NARRATIVE_COLLAPSE` and `ResumeContentOptimizer` previously counted non-agency project descriptions as accomplishment candidates, attempting invalid bullet expansion or falsely flagging narrative collapse.
+
+**Key Deliverables & Architectural Enhancements:**
+1. **Fact Agency & Contribution Model (`src/services/resume-composition-primitives.js` & `candidate-fact-inventory.service.js`):**
+   - Introduced `AGENCY_LEVELS` (`NONE`, `CANDIDATE`, `INFERRED`) and `determineFactAgency(text, metadata)` detecting explicit first-person ownership, active engineering verb openers, and ownership metadata.
+   - Attached explicit `agency: { level, source, confidence }`, `agencyLevel`, and `agencySource` to canonical facts in `addFact()`.
+   - Updated `classifyContributionClass()`: Non-candidate agency facts strictly map to `DESCRIPTION` or `CONTEXT`.
+   - Updated `classifyEvidenceRole()`: Passive noun phrases without candidate agency are classified as `PROJECT_DESCRIPTION`.
+   - Updated `areContributionClassesCompatible()`: Prohibits combining `CANDIDATE_ACTION` and `CANDIDATE_IMPLEMENTATION` (`false`), maintaining separate narrative anchors.
+   - Removed synthetic action verb prefixing from `synthesizeAccomplishmentNarrative()`.
+2. **Fail-Closed Claim Validation Gate Check 21 (`src/services/resume-claim-validation.service.js`):**
+   - Implemented Check 21 (`AGENCY_NOT_AUTHORIZED`): Rejects any claim asserting candidate agency without contributing facts authorizing candidate agency ownership.
+   - Enhanced Check 3 (`CROSS_SECTION_CONTAMINATION`): Recognizes section project name/display name identifiers for unkeyed project objects.
+   - Aligned Check 10 (`SEMANTIC_DIMENSION_MISMATCH`): Supports cluster role/class synonyms (`DESIGN_DECISION` $\to$ `architecture`, `ACTION` $\to$ `implementation`, `OPTIMIZATION` $\to$ `performance_outcome`).
+3. **Unified Single Validation Gate & Fallback Parity (`src/services/resume-accomplishment-composer.service.js`):**
+   - Refactored `finalizeProjectBullets()` fallback realization to route through `assembleRealizedClaim()`, guaranteeing identical validation standards across normal and fallback pathways.
+4. **Calibrated Narrative Collapse & Optimizer Filtering (`src/services/resume-writing-quality.service.js` & `resume-content-optimizer.service.js`):**
+   - Updated `PROJECT_NARRATIVE_COLLAPSE` to require `agencyLevel === 'CANDIDATE'` and deduplicate semantically overlapping facts ($Overlap \ge 0.50$).
+   - Filtered optimizer project bullet expansion with `isAccomplishmentCandidate()`, preventing false expansion attempts on projects with only description facts.
+5. **Agency-Aware Claim Planner (`src/services/resume-claim-planner.service.js`):**
+   - Strategy C description fallback no longer assigns synthetic `action: 'Built'`, keeping `action: null`.
+   - Added `EVIDENCE_ROLES.OPTIMIZATION` to performance cluster roles and prioritized role-specific matches.
+   - Mapped omitted facts distinguishing `AGENCY_NOT_AUTHORIZED` from `DESCRIPTION_ONLY`.
+
+**Verification & Evidence:**
+- **Dedicated Forensic Regression Suite (`tests/unit/p18-forensic-narrative-repair.test.js`):**
+  - 13/13 tests PASS covering:
+    - Test A: Project description cannot create candidate agency (rejected with `AGENCY_NOT_AUTHORIZED`, 0 synthetic bullets).
+    - Test B: Explicit implementation preserves candidate agency (`CANDIDATE_ACTION`).
+    - Test C: Explicit architecture preserves candidate agency (`CANDIDATE_DESIGN_DECISION`).
+    - Test D: Unowned outcome is rejected with `AGENCY_NOT_AUTHORIZED`.
+    - Test E: Product Data Explorer Case 1 (1 candidate fact + 1 description fact $\to$ exactly 1 bullet, 0 synthetic bullets) vs Case 2 (2 candidate facts $\to$ 2 bullets).
+    - Test F: Fallback parity with normal path routes through validation gate.
+    - Test G: `areContributionClassesCompatible(CANDIDATE_ACTION, CANDIDATE_IMPLEMENTATION) === false`.
+    - Test H: No false narrative collapse on description-only facts.
+- **Full Unit Test Suite:**
+  - 444/444 tests across 116 suites PASS (`node --test tests/unit/p18-*.test.js tests/unit/p17-*.test.js tests/unit/p16-*.test.js`), 0 failures.
+- **Real-Candidate Read-Only Quality Regression (`scripts/p16-quality-regression-comparison.mjs`):**
+  - Evaluated candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` across 3 jobs:
+    - Cloudflare: Overall Quality 88/100 | Writing 80 | PDF Obs 90 | ATS 95 | Facts Used 11/125 | Pages: 1
+    - Vercel: Overall Quality 86/100 | Writing 76 | PDF Obs 90 | ATS 95 | Facts Used 13/125 | Pages: 1
+    - Crunchyroll: Overall Quality 90/100 | Writing 82 | PDF Obs 90 | ATS 100 | Facts Used 10/125 | Pages: 1
+  - Product Data Explorer renders exactly 1 candidate accomplishment bullet: *"Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus."* (0 synthetic "Architected..." bullets).
+  - Strict 1-page fit across all target jobs.
+  - Zero database mutations (0 records inserted, updated, or deleted).
+
 ### PART 30: Resume Generation Forensic Repair — Multi-Bullet Narrative Pipeline Integrity & Dynamic Evidence Composition
 
 **Status:** COMPLETE & VERIFIED  

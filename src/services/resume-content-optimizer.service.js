@@ -32,7 +32,12 @@ import { ResumeQualityAssessmentService } from './resume-quality-assessment.serv
 import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
 import { countDistinctCanonicalFacts } from './candidate-artifact-content.service.js';
 import { compressCandidateBullet } from './resume-content-strategy.service.js';
-import { buildCanonicalFactInventory, scoreFactsForJob, PROBLEM_SOLVING_PROJECT_KEY } from './candidate-fact-inventory.service.js';
+import {
+  buildCanonicalFactInventory,
+  scoreFactsForJob,
+  PROBLEM_SOLVING_PROJECT_KEY,
+  isAccomplishmentCandidate,
+} from './candidate-fact-inventory.service.js';
 import { determineProjectBulletCapacity } from './resume-accomplishment-composer.service.js';
 import { planDocumentSections } from './resume-section-planner.service.js';
 import { evaluateResumeWritingQuality } from './resume-writing-quality.service.js';
@@ -117,6 +122,7 @@ export class ResumeContentOptimizer {
     const inventoryFactCountByProject = new Map();
     for (const f of scoredInventoryFacts) {
       if (f.factType === 'technology' || f.factType === 'external-corroboration') continue;
+      if (!isAccomplishmentCandidate(f)) continue;
       const key = f.association?.projectId || '';
       if (!key) continue;
       inventoryFactCountByProject.set(key, (inventoryFactCountByProject.get(key) || 0) + 1);

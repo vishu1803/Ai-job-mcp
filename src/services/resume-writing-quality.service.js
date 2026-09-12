@@ -22,6 +22,8 @@ import { defaultAtsParseabilityService } from './resume-ats-parseability.service
 import {
   computeFactUtilizationStats,
   OMISSION_REASONS,
+  AGENCY_LEVELS,
+  determineFactAgency,
 } from './candidate-fact-inventory.service.js';
 import { calculateFactSemanticOverlap } from './resume-composition-primitives.js';
 
@@ -258,7 +260,10 @@ export function evaluateResumeWritingQuality({
         return (matchesId || matchesName) && f.renderable !== false;
       });
 
-      const distinctContributionFacts = projectFacts.filter((f) => {
+      const candidateContributionFacts = projectFacts.filter((f) => {
+        const agencyLevel =
+          f.agencyLevel || f.agency?.level || determineFactAgency(f.text, f).level;
+        if (agencyLevel !== AGENCY_LEVELS.CANDIDATE) return false;
         const role = f.evidenceRole || '';
         const cClass = f.contributionClass || '';
         return (
@@ -266,6 +271,17 @@ export function evaluateResumeWritingQuality({
           ['ACCOMPLISHMENT', 'IMPLEMENTATION', 'DESIGN_DECISION', 'OPTIMIZATION', 'PERFORMANCE'].includes(role)
         );
       });
+
+      // Deduplicate semantically overlapping candidate facts
+      const distinctContributionFacts = [];
+      for (const f of candidateContributionFacts) {
+        const isRedundant = distinctContributionFacts.some(
+          (existing) => calculateFactSemanticOverlap(existing.text, f.text) >= 0.5
+        );
+        if (!isRedundant) {
+          distinctContributionFacts.push(f);
+        }
+      }
 
       if (distinctContributionFacts.length >= 2 && pBullets.length === 1) {
         findings.push({

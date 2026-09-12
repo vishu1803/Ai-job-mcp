@@ -46,6 +46,15 @@ export const FACT_STOP_WORDS = new Set([
 ]);
 
 /**
+ * Machine-Readable Agency / Ownership Classifications.
+ */
+export const AGENCY_LEVELS = Object.freeze({
+  NONE: 'NONE',
+  CANDIDATE: 'CANDIDATE',
+  INFERRED: 'INFERRED',
+});
+
+/**
  * Generic Candidate Contribution Classifications (Findings 2 & 3).
  * Classifies factual statements by their material professional contribution role.
  */
@@ -61,7 +70,7 @@ export const CONTRIBUTION_CLASSES = Object.freeze({
 
 /**
  * Checks whether two contribution classes are mutually compatible for semantic near-duplicate merging.
- * Prevents collapsing materially distinct evidence (e.g. description + implementation, or implementation + outcome).
+ * Prevents collapsing materially distinct evidence (e.g. description + implementation, or action + implementation).
  *
  * @param {string} classA
  * @param {string} classB
@@ -73,78 +82,168 @@ export function areContributionClassesCompatible(classA, classB) {
   const compatiblePairs = new Set([
     'DESCRIPTION:CONTEXT',
     'CONTEXT:DESCRIPTION',
-    'CANDIDATE_ACTION:CANDIDATE_IMPLEMENTATION',
-    'CANDIDATE_IMPLEMENTATION:CANDIDATE_ACTION',
   ]);
   return compatiblePairs.has(`${classA}:${classB}`);
 }
 
 /**
+ * Determines candidate agency / ownership level for a factual candidate text.
+ *
+ * Preferred semantics:
+ *   NONE: factual project/context/technology presence only
+ *   CANDIDATE: source explicitly attributes the contribution to the candidate
+ *   INFERRED: uncertain ownership; NEVER sufficient for an accomplishment claim
+ *
+ * @param {string} text Normalized fact text
+ * @param {object} [metadata={}] Fact metadata (sourceType, provenance, candidateAuthored, etc.)
+ * @returns {{ level: 'NONE' | 'CANDIDATE' | 'INFERRED', source: string, confidence: number }}
+ */
+export function determineFactAgency(text, metadata = {}) {
+  // If metadata already has explicit agency object, respect it
+  if (metadata.agency && typeof metadata.agency === 'object' && metadata.agency.level) {
+    return metadata.agency;
+  }
+  if (metadata.agencyLevel) {
+    return {
+      level: metadata.agencyLevel,
+      source: metadata.agencySource || 'EXPLICIT_METADATA',
+      confidence: typeof metadata.confidence === 'number' ? metadata.confidence : 1.0,
+    };
+  }
+
+  const norm = String(text || '').trim();
+  const lower = norm.toLowerCase();
+  const sourceType = metadata.sourceType || 'bullet';
+
+  // 1. Evidence, links, or technology facts always have agency NONE
+  if (
+    sourceType === 'evidence' ||
+    sourceType === 'link' ||
+    metadata.factType === 'technology' ||
+    metadata.canonicalFactType === 'TECHNOLOGY' ||
+    metadata.candidateAuthored === false
+  ) {
+    return {
+      level: AGENCY_LEVELS.NONE,
+      source: 'PRESENCE_EVIDENCE',
+      confidence: 1.0,
+    };
+  }
+
+  // 2. Explicitly flagged as inferred or ambiguous attribution
+  if (
+    metadata.inferred === true ||
+    /^(?:assisted\s+with|helped\s+with|contributed\s+to|participated\s+in|involved\s+in)\b/i.test(norm)
+  ) {
+    return {
+      level: AGENCY_LEVELS.INFERRED,
+      source: 'AMBIGUOUS_ATTRIBUTION',
+      confidence: 0.5,
+    };
+  }
+
+  // 3. Explicit active engineering action verbs at start of candidate-authored statement
+  const hasActiveVerbOpener =
+    /^(?:architected|designed|engineered|implemented|built|developed|optimized|tuned|profiled|benchmarked|automated|orchestrated|spearheaded|led|coordinated|championed|collaborated|facilitated|refactored|deployed|containerized|migrated|configured|integrated|secured|scaled|standardized|established|maintained|analyzed|constructed|accelerated|created|resolved|monitored|reduced|increased|improved|decreased|saved|authored|wrote|programmed|executed|delivered|pioneered|introduced|formulated|devised|synthesized)\b/i.test(
+      norm
+    ) ||
+    /^(?:i|we)\s+(?:architected|designed|engineered|implemented|built|developed|optimized|spearheaded|led|refactored|deployed|authored)\b/i.test(
+      norm
+    ) ||
+    /\b(?:designed and implemented|architected and deployed)\b/i.test(lower);
+
+  if (hasActiveVerbOpener) {
+    return {
+      level: AGENCY_LEVELS.CANDIDATE,
+      source: 'EXPLICIT_ACTION_VERB',
+      confidence: metadata.provenance === 'VERIFIED' ? 1.0 : 0.85,
+    };
+  }
+
+  // 4. Passive metrics or outcome fragments without candidate agency (e.g. "40% reduction in latency through distributed caching")
+  if (
+    /^(?:\d+%\s+(?:reduction|increase|improvement|speedup|growth)|latency\s+by\s+\d+|throughput\s+by\s+\d+)\b/i.test(
+      norm
+    ) ||
+    /^(?:reduction|increase|improvement|speedup)\s+in\b/i.test(norm)
+  ) {
+    return {
+      level: AGENCY_LEVELS.NONE,
+      source: 'PASSIVE_METRIC',
+      confidence: 0.9,
+    };
+  }
+
+  // 5. Default: pure project descriptions, feature lists, noun phrases, or passive sentences
+  return {
+    level: AGENCY_LEVELS.NONE,
+    source: 'PASSIVE_DESCRIPTION',
+    confidence: 1.0,
+  };
+}
+
+/**
  * Classifies a factual candidate text into a generic contribution class.
+ * Candidate contribution classes are derived strictly from authorized candidate agency,
+ * not from lexical presence of engineering vocabulary.
  *
  * @param {string} text
  * @param {string} [sourceType='bullet']
  * @param {string} [canonicalFactType=null]
+ * @param {object} [metadata={}]
  * @returns {string} One of CONTRIBUTION_CLASSES
  */
-export function classifyContributionClass(text, sourceType = 'bullet', canonicalFactType = null) {
+export function classifyContributionClass(
+  text,
+  sourceType = 'bullet',
+  canonicalFactType = null,
+  metadata = {}
+) {
   const norm = String(text || '').trim();
   const lower = norm.toLowerCase();
+  const agency =
+    metadata.agency ||
+    determineFactAgency(norm, { sourceType, canonicalFactType, ...metadata });
 
-  // 1. Outcome / Metric / Result patterns
+  // If agency level is not CANDIDATE, it CANNOT be a candidate-owned contribution class!
+  if (agency.level !== AGENCY_LEVELS.CANDIDATE) {
+    if (sourceType === 'context' || /\b(?:context|environment|stack)\b/i.test(lower)) {
+      return CONTRIBUTION_CLASSES.CONTEXT;
+    }
+    return CONTRIBUTION_CLASSES.DESCRIPTION;
+  }
+
+  // 1. Candidate Outcome (Active verb)
   if (
-    /\b(?:reduced|increased|improved|resulting in|achieved|saved|decreased|accelerated|yielded)\b/i.test(lower) ||
-    /\b(?:\d+%\s+(?:reduction|increase|improvement|speedup|latency|growth)|latency\s+by\s+\d+|throughput\s+by\s+\d+)\b/i.test(lower)
+    /^(?:reduced|increased|improved|saved|decreased|accelerated|yielded|achieved)\b/i.test(norm) ||
+    /\b(?:resulting in|yielding|saved \$|decreased by \d+|increased revenue by)\b/i.test(norm)
   ) {
     return CONTRIBUTION_CLASSES.CANDIDATE_OUTCOME;
   }
 
-  // 2. Optimization / Performance
-  if (
-    /\b(?:optimized|optimizing|profiling|benchmarked|tuning|low-latency|high-throughput|caching|cache-hit|query optimization)\b/i.test(lower) ||
-    /\b(?:sub-second|zero-allocation|concurrency optimization|query\s+optimization)\b/i.test(lower)
-  ) {
+  // 2. Candidate Optimization (Active verb)
+  if (/^(?:optimized|optimizing|tuned|benchmarked|profiled)\b/i.test(norm)) {
     return CONTRIBUTION_CLASSES.CANDIDATE_OPTIMIZATION;
   }
 
-  // 3. Design Decision / Architectural Choice
-  if (
-    /\b(?:architected|architecting|consensus|raft|microservices|event-driven|cqrs|pipeline|streaming pipelines|sharding|schema design|partitioning|modular architecture)\b/i.test(lower) ||
-    /\b(?:protocol|state machine|data exploration platform|telemetry pipeline|distributed telemetry)\b/i.test(lower)
-  ) {
-    if (sourceType === 'description' || sourceType === 'feature' || /^(?:architected|designed|structured|selected)\b/i.test(norm)) {
-      return CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION;
-    }
-    if (/^(?:engineered|architected)\b/i.test(norm) && /\b(?:consensus|raft|architecture|pipeline)\b/i.test(lower)) {
-      return CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION;
-    }
-  }
-
-  // 4. Candidate Action vs Implementation
-  if (/^(?:spearheaded|led|coordinated|championed|collaborated|facilitated)\b/i.test(norm)) {
-    return CONTRIBUTION_CLASSES.CANDIDATE_ACTION;
-  }
-  if (/^(?:built|implemented|engineered|developed|created|refactored|automated|deployed|containerized|migrated|configured|integrated|designed)\b/i.test(norm)) {
-    return CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION;
-  }
-
-  // 5. Passive description / Context
-  const isPassivePattern =
-    /^(?:a|an|the)\s+(?:[\w-]+\s+){0,3}(?:is\s+(?:an?|the)\s+)?(?:application|app|service|tool|platform|library|framework|cli|manager|dashboard|assistant|system|bot)\b/i.test(norm) ||
-    /^(?:features\s+include|capabilities\s+include|supported\s+features)\b/i.test(norm) ||
-    (sourceType === 'description' && !/\b(?:designed|implemented|built|engineered|architected|streaming|pipelines|platform|consensus|telemetry|exploration)\b/i.test(lower));
-
-  if (isPassivePattern) {
-    return CONTRIBUTION_CLASSES.DESCRIPTION;
-  }
-
-  // If a description or feature text mentions concrete architectural or technical methods, it is CANDIDATE_DESIGN_DECISION
-  if (/\b(?:streaming|pipeline|platform|distributed|consensus|raft|api|rest|crud|microservices)\b/i.test(lower)) {
+  // 3. Candidate Design Decision (Active verb)
+  if (/^(?:architected|designed|structured|selected)\b/i.test(norm)) {
     return CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION;
   }
 
-  if (sourceType === 'description') {
-    return CONTRIBUTION_CLASSES.DESCRIPTION;
+  // 4. Candidate Action (Leadership / Coordination)
+  if (/^(?:spearheaded|led|coordinated|championed|collaborated|facilitated)\b/i.test(norm)) {
+    return CONTRIBUTION_CLASSES.CANDIDATE_ACTION;
+  }
+
+  // 5. Candidate Implementation (Active engineering verbs)
+  if (
+    /^(?:engineered|implemented|built|developed|created|refactored|automated|deployed|containerized|migrated|configured|integrated|secured|scaled|standardized|established|maintained|analyzed|constructed|authored|wrote|programmed|executed|delivered|pioneered|introduced|formulated|devised|synthesized)\b/i.test(
+      norm
+    ) ||
+    /\b(?:designed and implemented|architected and deployed)\b/i.test(lower)
+  ) {
+    return CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION;
   }
 
   return CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION;
@@ -749,20 +848,10 @@ export function synthesizeAccomplishmentNarrative(
   let primary = normalizeWhitespace(stripTrailingPeriod(primaryText));
   primary = compressProfessionalBullet(primary);
 
-  // If primary statement lacks an opening action verb, synthesize an active engineering verb
-  const hasOpeningActionVerb =
-    /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|created|configured|integrated|secured)\b/i.test(
-      primary
-    );
-  if (!hasOpeningActionVerb) {
-    if (/\b(?:streaming\s+pipelines?|consensus|raft|distributed\s+telemetry)\b/i.test(primary)) {
-      primary = `Architected ${lowerFirst(primary)}`;
-    } else if (/\b(?:platform|service|api|application|system|dashboard)\b/i.test(primary)) {
-      primary = `Designed ${lowerFirst(primary)}`;
-    } else {
-      primary = `Engineered ${lowerFirst(primary)}`;
-    }
-  }
+  // Do NOT synthesize or inject candidate agency verbs when the input statement lacks an opening action verb!
+  // The composer may normalize grammar for already-authorized contributions, but must NOT manufacture agency.
+  // When no opening action verb exists, the statement is preserved as contextual project language.
+  primary = sentenceCase(primary);
 
   let synthesized = '';
   if (!complementaryText) {
@@ -859,10 +948,25 @@ export function synthesizeAccomplishmentNarrative(
       addRefs(complementaryArg);
     }
 
+    const hasActiveOpener =
+      /^(?:architected|designed|engineered|implemented|built|developed|optimized|tuned|profiled|benchmarked|automated|orchestrated|spearheaded|led|coordinated|championed|collaborated|facilitated|refactored|deployed|containerized|migrated|configured|integrated|secured|scaled|standardized|established|maintained|analyzed|constructed|accelerated|created|resolved|monitored|reduced|increased|improved|decreased|saved)\b/i.test(
+        synthesized
+      );
+    const agencyLevel =
+      primaryArg.agency?.level ||
+      primaryArg.agencyLevel ||
+      (hasActiveOpener ? AGENCY_LEVELS.CANDIDATE : AGENCY_LEVELS.NONE);
+    const agencySource =
+      primaryArg.agency?.source ||
+      primaryArg.agencySource ||
+      (hasActiveOpener ? 'EXPLICIT_ACTION_VERB' : 'PASSIVE_DESCRIPTION');
+
     return {
       text: synthesized,
       composedFromFactIds,
       evidenceRefs,
+      agencyLevel,
+      agencySource,
       toString() {
         return this.text;
       },
