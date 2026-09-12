@@ -410,6 +410,8 @@ export const EvidenceReferenceSchema = z
     commitSha: z.string().trim().max(100).optional().nullable(),
     evidenceType: z.string().trim().max(100).optional().nullable(),
     matchedRequirementId: z.string().optional().nullable(),
+    factId: z.string().trim().optional().nullable(),
+    sourceRef: z.string().trim().optional().nullable(),
     confidenceScore: z.number().min(0).max(1).default(1.0),
     provenanceTrustClass: EvidenceTrustClassEnum.optional().nullable(),
     notes: z.string().trim().max(1000).optional().nullable(),
@@ -505,6 +507,7 @@ export const TailoredSummarySchema = z
     referencedProjectIds: z.array(z.string().trim()).default([]),
     evidenceRefs: z.array(EvidenceReferenceSchema).default([]),
     matchedRequirementIds: z.array(z.string().trim()).default([]),
+    composedFromFactIds: z.array(z.string().trim()).default([]),
     provenanceStatus: StructuredTruthCategoryEnum.default('CLAIMED'),
     provenance: EvidenceReferenceSchema.optional().nullable(),
   })
@@ -535,6 +538,7 @@ export const TailoredProjectBulletSchema = z
     text: z.string().trim().min(1).max(1000),
     evidenceRefs: z.array(EvidenceReferenceSchema).default([]),
     matchedRequirementIds: z.array(z.string().trim()).default([]),
+    composedFromFactIds: z.array(z.string().trim()).default([]),
     provenanceStatus: StructuredTruthCategoryEnum.default('VERIFIED'),
   })
   .strict();

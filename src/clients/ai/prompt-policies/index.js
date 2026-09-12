@@ -12,6 +12,7 @@ import {
   scrubPii,
 } from './base-policy.js';
 import { ResumeWordingPolicy } from './resume-wording.policy.js';
+import { ResumeAccomplishmentPolicy } from './resume-accomplishment.policy.js';
 import { CoverLetterPolicy } from './cover-letter.policy.js';
 import { JobExplanationPolicy } from './job-explanation.policy.js';
 import { CareerCoachingPolicy } from './career-coaching.policy.js';
@@ -22,6 +23,7 @@ import { ResumeEntityResolutionPolicy } from './resume-entity-resolution.policy.
 export {
   BasePromptPolicy,
   ResumeWordingPolicy,
+  ResumeAccomplishmentPolicy,
   CoverLetterPolicy,
   JobExplanationPolicy,
   CareerCoachingPolicy,
@@ -38,8 +40,14 @@ export {
  */
 export class PromptPolicyRegistry {
   constructor() {
+    const accomplishmentPolicy = new ResumeAccomplishmentPolicy();
     this._policies = new Map([
       ['RESUME_WORDING', new ResumeWordingPolicy()],
+      ['RESUME_ACCOMPLISHMENT_SYNTHESIS', accomplishmentPolicy],
+      ['RESUME_SUMMARY_SYNTHESIS', accomplishmentPolicy],
+      ['RESUME_EXPERIENCE_SYNTHESIS', accomplishmentPolicy],
+      ['RESUME_DSA_SYNTHESIS', accomplishmentPolicy],
+      ['RESUME_CLAIM_REPAIR', accomplishmentPolicy],
       ['COVER_LETTER', new CoverLetterPolicy()],
       ['JOB_EXPLANATION', new JobExplanationPolicy()],
       ['CAREER_COACHING', new CareerCoachingPolicy()],
@@ -122,3 +130,8 @@ export class PromptPolicyRegistry {
  * Singleton instance of the PromptPolicyRegistry.
  */
 export const defaultPromptPolicyRegistry = new PromptPolicyRegistry();
+
+export function getPromptPolicy(taskType) {
+  return defaultPromptPolicyRegistry.getPolicy(taskType);
+}
+

@@ -129,6 +129,16 @@ export class GeminiProviderAdapter extends AiProvider {
           ...(options.configOverride || {}),
         };
 
+        if (execConfig.modelMeta?.supportsThinking) {
+          if (options.thinkingConfig) {
+            genConfig.thinkingConfig = options.thinkingConfig;
+          } else if (options.thinkingBudget !== undefined) {
+            genConfig.thinkingConfig = { thinkingBudget: options.thinkingBudget };
+          }
+        } else if (genConfig.thinkingConfig) {
+          delete genConfig.thinkingConfig;
+        }
+
         const response = await client.models.generateContent({
           model: activeModelId,
           contents: promptEnvelope.contents,

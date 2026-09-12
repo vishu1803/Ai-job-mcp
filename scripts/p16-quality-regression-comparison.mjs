@@ -38,6 +38,7 @@ import { evaluateResumeWritingQuality } from '../src/services/resume-writing-qua
 import { buildCanonicalFactInventory, scoreFactsForJob } from '../src/services/candidate-fact-inventory.service.js';
 import { computeResumeQualityScore } from '../src/services/resume-quality-score.service.js';
 import { resumeParserService } from '../src/services/resume-parser.service.js';
+import { defaultAtsParseabilityService } from '../src/services/resume-ats-parseability.service.js';
 
 const TENANT = '24d53f53-780e-4431-b065-32180c354175';
 const CAND = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
@@ -186,18 +187,22 @@ for (const { key, label, job } of JOBS) {
     }
   }
 
-  const factsUsed = optResult.acceptanceMetrics?.factUtilization?.factsRendered || renderedBullets.length;
-  const factsOmitted = Math.max(0, totalFacts - factsUsed);
+  const evd = writingQuality.evidenceDerived || {};
+  const factsUsed = evd.factUtilization?.totalRenderedFacts || optResult.acceptanceMetrics?.factUtilization?.factsRendered || renderedBullets.length;
+  const factsOmitted = evd.factUtilization ? Math.max(0, evd.factUtilization.totalAvailableFacts - factsUsed) : Math.max(0, totalFacts - factsUsed);
 
-  // ATS parseability check
-  const extractedText = resumeParserService.extractRawText({ buffer: pdfBuffer, format: 'PDF' });
-  const atsParseable = extractedText && extractedText.length > 200;
+  // Honest ATS parseability check (P17 Architecture)
+  const atsResult = defaultAtsParseabilityService.evaluateAtsParseability({
+    pdfBuffer,
+    structuredResume: structuredDoc,
+  });
+  const atsScore = atsResult.atsParseabilityScore;
 
   // Overall Quality Score (aggregate)
   const overallQuality = Math.round(
     writingQuality.writingQualityScore * 0.4 +
     obsReport.pdfObservabilityScore * 0.3 +
-    (atsParseable ? 100 : 50) * 0.2 +
+    atsScore * 0.2 +
     (optResult.qaScore || 90) * 0.1
   );
 
@@ -214,15 +219,18 @@ for (const { key, label, job } of JOBS) {
     factsAvailable: totalFacts,
     factsUsed,
     factsOmitted,
-    omissionReasons: [
+    factUtilizationRate: evd.factUtilization?.utilizationRate ?? parseFloat((factsUsed / Math.max(1, totalFacts)).toFixed(2)),
+    omissionReasons: evd.omissionReasons ? Object.entries(evd.omissionReasons).slice(0, 5).map(([fid, reason]) => `${fid}: ${reason}`) : [
       'Bounded to 1-page physical capacity',
       'Lower-relevance technology tags kept in skills section only',
     ],
+    matchedRequirements: evd.matchedRequirements || [],
+    unmatchedRequirements: evd.unmatchedRequirements || [],
     bulletCount: renderedBullets.length,
     semanticRedundancy: writingQuality.dimensions.redundancy,
     writingQuality: writingQuality.writingQualityScore,
     writingQualityDimensions: writingQuality.dimensions,
-    atsParseability: atsParseable ? 98 : 60,
+    atsParseability: atsScore,
     pdfObservability: obsReport.pdfObservabilityScore,
     pageCount: obsReport.pageCount,
     bottomWhitespace: obsReport.geometry.bottomWhitespacePt,
@@ -232,7 +240,7 @@ for (const { key, label, job } of JOBS) {
   };
 
   results.push(evaluation);
-  console.log(`  Overall Quality: ${overallQuality}/100 | Writing: ${writingQuality.writingQualityScore} | PDF Obs: ${obsReport.pdfObservabilityScore} | Pages: ${obsReport.pageCount}`);
+  console.log(`  Overall Quality: ${overallQuality}/100 | Writing: ${writingQuality.writingQualityScore} | PDF Obs: ${obsReport.pdfObservabilityScore} | ATS: ${atsScore} | Facts Used: ${factsUsed}/${totalFacts} | Pages: ${obsReport.pageCount}`);
 }
 
 const summaryFile = path.join(OUT_DIR, 'quality-regression-results.json');

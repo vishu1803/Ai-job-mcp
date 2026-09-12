@@ -67,6 +67,41 @@ export const CANONICAL_FACT_TYPES = Object.freeze({
 
 export const FACT_TYPES = CANONICAL_FACT_TYPES;
 
+/** Explicit Evidence Roles Taxonomy (P17 Architecture). */
+export const EVIDENCE_ROLES = Object.freeze({
+  PROJECT_DESCRIPTION: 'PROJECT_DESCRIPTION',
+  CONTEXT: 'CONTEXT',
+  RESPONSIBILITY: 'RESPONSIBILITY',
+  ACTION: 'ACTION',
+  IMPLEMENTATION: 'IMPLEMENTATION',
+  ARCHITECTURE: 'ARCHITECTURE',
+  FEATURE: 'FEATURE',
+  INTEGRATION: 'INTEGRATION',
+  RELIABILITY: 'RELIABILITY',
+  SECURITY: 'SECURITY',
+  PERFORMANCE: 'PERFORMANCE',
+  OUTCOME: 'OUTCOME',
+  METRIC: 'METRIC',
+  TECHNOLOGY: 'TECHNOLOGY',
+  DSA: 'DSA',
+  EDUCATION: 'EDUCATION',
+  LINK: 'LINK',
+});
+
+/** Fact-Specific Omission Reasons Taxonomy (P17 Architecture). */
+export const OMISSION_REASONS = Object.freeze({
+  DUPLICATE: 'DUPLICATE',
+  SEMANTIC_REDUNDANCY: 'SEMANTIC_REDUNDANCY',
+  LOW_JOB_RELEVANCE: 'LOW_JOB_RELEVANCE',
+  LOW_EVIDENCE_CONFIDENCE: 'LOW_EVIDENCE_CONFIDENCE',
+  DESCRIPTION_ONLY: 'DESCRIPTION_ONLY',
+  PHYSICAL_CAPACITY: 'PHYSICAL_CAPACITY',
+  SECTION_NOT_SELECTED: 'SECTION_NOT_SELECTED',
+  LOWER_MARGINAL_VALUE: 'LOWER_MARGINAL_VALUE',
+  UNSUPPORTED_METRIC: 'UNSUPPORTED_METRIC',
+  INVALID_ASSOCIATION: 'INVALID_ASSOCIATION',
+});
+
 /** Provenance confidence weights (generic schema semantics, not identity rules). */
 const PROVENANCE_CONFIDENCE = Object.freeze({
   VERIFIED: 1.0,
@@ -86,6 +121,85 @@ const TOPIC_RULES = Object.freeze([
   { topic: 'tooling', tokens: ['docker', 'containerized', 'ci/cd', 'github actions', 'terraform', 'kubernetes', 'tooling', 'deployed'] },
   { topic: 'problem-solving', tokens: ['data structures', 'algorithms', 'leetcode', 'problem solving', 'competitive programming', 'dynamic programming', 'graph theory'] },
 ]);
+
+/**
+ * Classifies whether a factual statement represents a passive project description
+ * vs an active engineering accomplishment candidate.
+ *
+ * @param {string} text
+ * @param {string} sourceType
+ * @param {string} canonicalFactType
+ * @returns {string} One of EVIDENCE_ROLES
+ */
+export function classifyEvidenceRole(text, sourceType = 'bullet', canonicalFactType = 'IMPLEMENTATION') {
+  const norm = String(text || '').trim();
+  const lower = norm.toLowerCase();
+
+  if (sourceType === 'evidence' || canonicalFactType === CANONICAL_FACT_TYPES.TECHNOLOGY) {
+    return EVIDENCE_ROLES.TECHNOLOGY;
+  }
+  if (sourceType === 'link' || canonicalFactType === CANONICAL_FACT_TYPES.LINK) {
+    return EVIDENCE_ROLES.LINK;
+  }
+  if (sourceType === 'education' || canonicalFactType === CANONICAL_FACT_TYPES.EDUCATION) {
+    return EVIDENCE_ROLES.EDUCATION;
+  }
+  if (canonicalFactType === CANONICAL_FACT_TYPES.DSA) {
+    return EVIDENCE_ROLES.DSA;
+  }
+
+  // Active engineering verbs that indicate an accomplishment even if source is description
+  const hasStrongAccomplishmentVerb = /^(?:designed|implemented|architected|engineered|built|optimized|developed|created|refactored|automated|scaled|migrated|containerized|deployed)\b/i.test(norm) ||
+    /\b(?:designed and implemented|architected and deployed|optimized\s+[\w\s]+\s+for|decreasing\s+|reducing\s+|increasing\s+|resulting in)\b/i.test(lower);
+
+  // Passive description patterns (e.g. "A real-time task manager built with TypeScript and PostgreSQL")
+  const isPassiveDescriptionPattern = /^(?:a|an|the)\s+[\w-]+\s+(?:application|app|service|tool|platform|library|framework|cli|manager|dashboard|assistant|system|bot|extension)\b/i.test(norm) ||
+    /^(?:real-time|lightweight|full-stack|distributed|web-based|interactive)\s+[\w-]+\s+(?:application|app|service|tool|platform|manager)\b/i.test(norm) ||
+    (sourceType === 'description' && !hasStrongAccomplishmentVerb);
+
+  if (isPassiveDescriptionPattern && !hasStrongAccomplishmentVerb) {
+    return EVIDENCE_ROLES.PROJECT_DESCRIPTION;
+  }
+
+  if (canonicalFactType === CANONICAL_FACT_TYPES.ARCHITECTURE) return EVIDENCE_ROLES.ARCHITECTURE;
+  if (canonicalFactType === CANONICAL_FACT_TYPES.RELIABILITY) return EVIDENCE_ROLES.RELIABILITY;
+  if (canonicalFactType === CANONICAL_FACT_TYPES.PERFORMANCE) return EVIDENCE_ROLES.PERFORMANCE;
+  if (canonicalFactType === CANONICAL_FACT_TYPES.INTEGRATION) return EVIDENCE_ROLES.INTEGRATION;
+  if (canonicalFactType === CANONICAL_FACT_TYPES.SECURITY) return EVIDENCE_ROLES.SECURITY;
+  if (canonicalFactType === CANONICAL_FACT_TYPES.OUTCOME) return EVIDENCE_ROLES.OUTCOME;
+  if (canonicalFactType === CANONICAL_FACT_TYPES.RESPONSIBILITY) return EVIDENCE_ROLES.RESPONSIBILITY;
+
+  return EVIDENCE_ROLES.IMPLEMENTATION;
+}
+
+/**
+ * Checks if a fact is an accomplishment candidate eligible to anchor a bullet.
+ *
+ * @param {object} fact
+ * @returns {boolean}
+ */
+export function isAccomplishmentCandidate(fact) {
+  if (!fact || !fact.renderable) return false;
+  const role = fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
+  return (
+    role !== EVIDENCE_ROLES.PROJECT_DESCRIPTION &&
+    role !== EVIDENCE_ROLES.CONTEXT &&
+    role !== EVIDENCE_ROLES.TECHNOLOGY &&
+    role !== EVIDENCE_ROLES.LINK
+  );
+}
+
+/**
+ * Checks if a fact is a pure project description.
+ *
+ * @param {object} fact
+ * @returns {boolean}
+ */
+export function isProjectDescriptionFact(fact) {
+  if (!fact) return false;
+  const role = fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
+  return role === EVIDENCE_ROLES.PROJECT_DESCRIPTION || role === EVIDENCE_ROLES.CONTEXT;
+}
 
 /** Internal name for the profile-level problem-solving fact surface. */
 export const PROBLEM_SOLVING_PROJECT_KEY = '__problem_solving__';
@@ -272,6 +386,9 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
         candidate.factType !== 'external-corroboration' &&
         candidate.factType !== CANONICAL_FACT_TYPES.LINK);
 
+    const evidenceRole = candidate.evidenceRole || classifyEvidenceRole(text, candidate.sourceType || 'bullet', canonicalFactType);
+    const semanticDimensions = candidate.semanticDimensions || [topic];
+
     facts.push({
       id: factId,
       factId,
@@ -285,9 +402,12 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       text,
       factType: rawFactType,
       canonicalFactType,
+      evidenceRole,
+      semanticDimensions,
       projectId: candidate.association?.projectId || null,
       experienceId: candidate.association?.experienceId || null,
       educationId: candidate.association?.educationId || null,
+      dsaAssociation: candidate.association?.dsaAssociation || (ownerType === 'DSA' ? true : null),
       association: candidate.association || {},
       technologies: Array.isArray(candidate.technologies)
         ? candidate.technologies.map(normalizeTechnologyName).filter(Boolean)
@@ -296,6 +416,9 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       semanticTopics: [topic],
       semanticTopic: topic,
       jobRelevance: candidate.jobRelevance ?? 0,
+      importance: candidate.importance ?? 0,
+      omissionReason: candidate.omissionReason || null,
+      usedByClaimIds: candidate.usedByClaimIds || [],
       candidateAuthored: candidate.candidateAuthored ?? (candidate.sourceType !== 'evidence'),
       corroborated: candidate.corroborated ?? (provenance === 'VERIFIED' || provenance === 'CORROBORATED'),
       renderable: isRenderable,
@@ -648,11 +771,41 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
  * @param {object|null} jobPosting
  * @returns {Array<object>} New fact array with jobRelevance
  */
+/**
+ * Normalizes any job requirement input (string, {keyword}, {title}, {name}, {text}, object)
+ * into a clean string for robust matching.
+ *
+ * @param {any} req
+ * @returns {string}
+ */
+export function normalizeJobRequirementString(req) {
+  if (!req) return '';
+  if (typeof req === 'string') return req.trim();
+  if (typeof req === 'object') {
+    return [req.text, req.keyword, req.title, req.name, req.description]
+      .filter((s) => typeof s === 'string' && s.trim().length > 0)
+      .join(' ')
+      .trim();
+  }
+  return String(req).trim();
+}
+
+/**
+ * Scores facts for a target job, mutating nothing: returns NEW fact objects
+ * with jobRelevance and importance assigned. Relevance is computed from structured job text
+ * (requirements/skills/description) with generic normalization accepting both strings and objects.
+ *
+ * @param {Array<object>} facts Canonical facts
+ * @param {object|null} jobPosting
+ * @returns {Array<object>} New fact array with jobRelevance and importance
+ */
 export function scoreFactsForJob(facts, jobPosting) {
   const jp = jobPosting || {};
+  const reqStrings = (Array.isArray(jp.requirements) ? jp.requirements : []).map(normalizeJobRequirementString).filter(Boolean);
+  const skillStrings = (Array.isArray(jp.skills) ? jp.skills : []).map((s) => (typeof s === 'string' ? s : s?.name || s?.keyword || '')).filter(Boolean);
+
   const jobText = String(
-    `${jp.title || ''} ${(Array.isArray(jp.requirements) ? jp.requirements : []).join(' ')} ` +
-      `${(Array.isArray(jp.skills) ? jp.skills : []).map((s) => (typeof s === 'string' ? s : s?.name || '')).join(' ')} ${jp.description || ''}`
+    `${jp.title || ''} ${reqStrings.join(' ')} ${skillStrings.join(' ')} ${jp.description || ''}`
   ).toLowerCase();
 
   const jobTerms = new Set();
@@ -660,7 +813,7 @@ export function scoreFactsForJob(facts, jobPosting) {
     if (w.length >= 3) jobTerms.add(w);
   }
   const keyTerms = new Set(
-    String(`${jp.title || ''} ${(Array.isArray(jp.requirements) ? jp.requirements : []).join(' ')} ${(Array.isArray(jp.skills) ? jp.skills : []).map((s) => (typeof s === 'string' ? s : s?.name || '')).join(' ')}`)
+    String(`${jp.title || ''} ${reqStrings.join(' ')} ${skillStrings.join(' ')}`)
       .toLowerCase()
       .split(/[^a-z0-9+#.]+/)
       .filter((w) => w.length >= 3)
@@ -679,8 +832,82 @@ export function scoreFactsForJob(facts, jobPosting) {
     const topicBonus = { architecture: 6, implementation: 5, outcome: 6, reliability: 4, integration: 3, capability: 2, tooling: 1, 'problem-solving': 2 };
     relevance += topicBonus[f.semanticTopic] ?? 0;
     relevance *= f.confidence ?? 0.8;
-    return { ...f, jobRelevance: Math.round(relevance * 100) / 100 };
+    const scoredRelevance = Math.round(relevance * 100) / 100;
+
+    const isAccomplishment = isAccomplishmentCandidate(f);
+    const hasMetrics = Array.isArray(f.metrics) && f.metrics.length > 0;
+    const importance = Math.round(
+      ((f.confidence ?? 0.8) * 0.3 +
+        Math.min(1.0, scoredRelevance / 30) * 0.4 +
+        (isAccomplishment ? 0.2 : 0.05) +
+        (hasMetrics ? 0.1 : 0)) * 100
+    ) / 100;
+
+    return {
+      ...f,
+      jobRelevance: scoredRelevance,
+      importance,
+    };
   });
+}
+
+/**
+ * Computes deterministic fact utilization statistics and explains fact-specific omission reasons.
+ *
+ * @param {object} params
+ * @param {Array<object>} params.facts Available canonical facts
+ * @param {Set<string>|Array<string>} params.renderedFactIds Fact IDs actually rendered
+ * @returns {object} Fact utilization report
+ */
+export function computeFactUtilizationStats(inventoryOrParams, renderedFactIdsArg = null) {
+  let facts = [];
+  let renderedFactIds = new Set();
+
+  if (renderedFactIdsArg !== null) {
+    facts = Array.isArray(inventoryOrParams) ? inventoryOrParams : (inventoryOrParams?.facts || []);
+    renderedFactIds = renderedFactIdsArg;
+  } else if (inventoryOrParams && typeof inventoryOrParams === 'object') {
+    facts = Array.isArray(inventoryOrParams.facts) ? inventoryOrParams.facts : [];
+    renderedFactIds = inventoryOrParams.renderedFactIds || new Set();
+  }
+
+  const renderedSet = renderedFactIds instanceof Set ? renderedFactIds : new Set(renderedFactIds);
+  const totalAvailable = facts.length;
+  const highValueFacts = facts.filter((f) => f.renderable && (f.importance >= 0.5 || isAccomplishmentCandidate(f)));
+  const totalHighValue = highValueFacts.length;
+
+  const usedFacts = facts.filter((f) => renderedSet.has(f.factId) || renderedSet.has(f.id));
+  const highValueUsed = usedFacts.filter((f) => f.renderable && (f.importance >= 0.5 || isAccomplishmentCandidate(f)));
+
+  const omittedFacts = facts.filter((f) => !renderedSet.has(f.factId) && !renderedSet.has(f.id));
+  const omissionReasons = {};
+
+  for (const f of omittedFacts) {
+    if (f.omissionReason) {
+      omissionReasons[f.factId] = f.omissionReason;
+    } else if (isProjectDescriptionFact(f)) {
+      omissionReasons[f.factId] = OMISSION_REASONS.DESCRIPTION_ONLY;
+    } else if (f.confidence < 0.6) {
+      omissionReasons[f.factId] = OMISSION_REASONS.LOW_EVIDENCE_CONFIDENCE;
+    } else if ((f.jobRelevance ?? 0) < 10) {
+      omissionReasons[f.factId] = OMISSION_REASONS.LOW_JOB_RELEVANCE;
+    } else {
+      omissionReasons[f.factId] = OMISSION_REASONS.PHYSICAL_CAPACITY;
+    }
+  }
+
+  return {
+    factsAvailable: totalAvailable,
+    highValueFactsAvailable: totalHighValue,
+    factsUsed: usedFacts.length,
+    highValueFactsUsed: highValueUsed.length,
+    factsOmitted: omittedFacts.length,
+    factsReused: Math.max(0, renderedSet.size - usedFacts.length),
+    redundantFactUse: 0,
+    utilizationRate: totalAvailable > 0 ? parseFloat((usedFacts.length / totalAvailable).toFixed(2)) : 0,
+    highValueUtilizationRate: totalHighValue > 0 ? parseFloat((highValueUsed.length / totalHighValue).toFixed(2)) : 0,
+    omissionReasons,
+  };
 }
 
 /**

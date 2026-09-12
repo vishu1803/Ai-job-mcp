@@ -3,6 +3,68 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### PART 28: Strategic Enhancements — Unified Composition, Utility Planning, Evidence Metrics & Narrative Realization
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-12  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)  
+**Baseline Main SHA:** `2db028df4fe4f4477dc8d128dfeb6a479ffceec7`
+
+**Context & Core Product Requirements Addressed:**
+Addressed the 4 strategic enhancements requested for the P16 professional resume pipeline, adhering to the non-negotiable invariant $\text{Rendered Claims} \subseteq \text{Authorized Canonical Evidence}$:
+1. **Unify the Composition Pipeline:**
+   - Established `src/services/resume-accomplishment-composer.service.js` as the sole authoritative composition engine for both bullets and complete structured resume documents (`composeStructuredResumeDocument`, `compressProfessionalBullet`, `polishProfessionalSummary`, `ensureCandidateSectionIntegrity`).
+   - Refactored `src/services/resume-professional-composition.service.js` into a thin delegation facade with 100% backward-compatible symbol re-exports, guaranteeing zero breakage for existing consumers.
+   - Consolidated `src/services/structured-resume.service.js` to route all project bullet composition through `composeProfessionalProjectBullets`, auto-indexing raw project highlights into canonical facts on the fly when unindexed.
+2. **Utility-Driven Section Planning:**
+   - Upgraded `src/services/resume-section-planner.service.js` with an explicit multi-attribute utility optimization model:
+     $$\text{Utility}(S) = 0.35 \cdot E(S) + 0.40 \cdot R(S) + 0.25 \cdot D(S)$$
+     and marginal utility per space: $\text{MarginalUtility}(S) = \text{Utility}(S) / \text{Height}(S)$.
+   - Replaced rigid template switching with dynamic competitive ranking between body sections (`PROJECTS`, `EXPERIENCE`, `DSA`) driven by evidence utility and archetype priors.
+   - Disciplined space capacity budgeting: lowest marginal utility optional sections pruned when page height exceeds usable budget, attributing explicit `EXCEEDED_PAGE_CAPACITY_BY_HIGHER_UTILITY_SECTIONS` omission reasons.
+3. **Evidence-Derived Quality Metrics:**
+   - Expanded `src/services/resume-writing-quality.service.js` with `evaluateEvidenceDerivedQuality`:
+     - `atsParseabilityScore` (0–100): Derived directly from contact completeness (`displayName`, `email`), standard section headings, and PDF binary observation findings.
+     - `jobRelevanceScore` (0–100): Derived from exact job requirements matched against canonical evidence, producing itemized `matchedRequirements` and `unmatchedRequirements`.
+     - `factUtilization`: Derived from exact canonical fact IDs referenced or discovered in rendered text relative to total available facts.
+     - `omissionReasons`: Comprehensive mapping of every unrendered canonical fact ID to explicit reason codes (`CAPACITY_LIMIT`, `LOW_RELEVANCE`, `DUPLICATE_SUPERSEDED`, `UNSUBSTANTIATED`, `ARCHETYPE_PRIORITY`).
+4. **Accomplishment Narrative Realization:**
+   - Refined `synthesizeAccomplishmentNarrative` to synthesize natural engineering accomplishment prose from canonical facts.
+   - Uses active verb-to-participle conversion (`engineering`, `implementing`, `optimizing`, `architecting`, `scaling`, etc.), natural coordinating conjunctions, and prepositional/mechanism linking (`utilizing`, `incorporating`).
+   - Completely eliminates robotic `; ` semicolon concatenations and formulaic `"featuring X stack"` clauses.
+   - Polymorphic input handling: supports both raw string claims and canonical fact objects, preserving `composedFromFactIds` and `evidenceRefs`.
+5. **Formal 15-Point Acceptance Gate Service (`src/services/resume-acceptance-gate.service.js`):**
+   - Implemented automated gate auditing all 15 user criteria:
+     1. $\text{RenderedClaims} \subseteq \text{AuthorizedCanonicalEvidence}$
+     2. Every rendered claim contains canonical fact IDs (`composedFromFactIds`)
+     3. No unauthorized metric is rendered
+     4. No unauthorized technology is rendered
+     5. No unsupported actor, team, scale, customer, revenue, performance, production-status, or outcome claim appears
+     6. Requirement coverage derived from requirement IDs
+     7. Fact utilization derived from exact canonical fact IDs
+     8. Every omitted fact has a machine-readable decision trace
+     9. Section order selected from utility, not archetype templates
+     10. Document composition selected from total utility under page constraints
+     11. Writing quality improves against pre-change baseline
+     12. Final PDF independently observed after compilation
+     13. Deterministic results from identical snapshot
+     14. Gemini used only as realization layer, never source of truth
+     15. Legacy services contain no independent composition implementation
+   - Added `composedFromFactIds: z.array(z.string().trim()).default([])` to `TailoredProjectBulletSchema` and `TailoredSummarySchema` in `src/domain/career/resume.schemas.js`.
+   - Added `factId: z.string().trim().optional().nullable()` to `EvidenceReferenceSchema`.
+   - Maintained fact IDs on bullets throughout `structured-resume.service.js`.
+
+**Verification & Evidence:**
+- **Unit Test Suites:**
+  - `tests/unit/p16-quality-engine-integration.test.js`: 16/16 PASS (including full 15/15 criteria assertion in `Directive 15-Point Formal Acceptance Contract`).
+  - `tests/unit/p16-009-professional-quality-composition.test.js`, `tests/unit/p16-001g-professional-resume-composition.test.js`, `tests/unit/p16-structured-resume-contract.test.js`: 69/69 PASS.
+- **Real-Candidate Read-Only Quality Regression (`scripts/p16-quality-regression-comparison.mjs`):**
+  - Evaluated candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` read-only across 3 stored target jobs:
+  - **Cloudflare (Systems & Infrastructure):** Overall Quality: 82/100 | Writing Quality: 66/100 | PDF Observability: 90/100 | ATS Score: 95/100 | Facts Used: 11/125 | Page Count: 1 | Bottom Whitespace: 89pt | Occupancy: 88%
+  - **Vercel (Backend):** Overall Quality: 82/100 | Writing Quality: 65/100 | PDF Observability: 90/100 | ATS Score: 95/100 | Facts Used: 13/125 | Page Count: 1 | Bottom Whitespace: 12pt | Occupancy: 98%
+  - **Crunchyroll (Python AI & Backend):** Overall Quality: 84/100 | Writing Quality: 69/100 | PDF Observability: 90/100 | ATS Score: 95/100 | Facts Used: 13/125 | Page Count: 1 | Bottom Whitespace: 25pt | Occupancy: 96%
+  - **Database Mutations:** EXACTLY 0. Zero jobs, applications, or candidates created or modified.
+
 ### PART 27: Professional Resume Quality & Calibration Completion (P16 Architecture)
 
 **Status:** COMPLETE & VERIFIED  
@@ -8147,4 +8209,72 @@ Implemented a comprehensive UI/UX redesign of the Candidate Portfolio / Profile 
 - Root cause identified: `/analyze-job` generates authoritative `fitAnalysis` (using `JobDescriptionParser.parse`) and project relevance scores (Product-Data-Explorer `64.83`, Collaborative-task-manager `51.89`, Ai-powered-code-review-assistant `47.84`). However, this snapshot is never persisted on the server, and the extension's `/prepare-handoff` payload forwards only `{ job, applicationId }`.
 - In `prepareJobApplication`, `_resolveOrComputeJobFit` finds no `jobFitAnalysis` on the target job or answers, and falls back to in-flight recomputation against raw unparsed requirement text (`RAW_REQUIREMENT`), degrading scores to `37.28`, `28.73`, `26.19`.
 - Architectural Recommendation: Implement a server-authoritative analysis snapshot store keyed by `(tenantId, candidateId, canonicalJobId)` with content hash validation. Prepare Handoff retrieves the authoritative snapshot directly, preserving 100% score and project parity without trusting client-side payloads.
+
+---
+
+## Phase 17: Evidence-Grounded AI Resume Intelligence & Professional Composition Engine
+
+### P17-001: Evidence-Grounded AI Resume Intelligence & Professional Composition Engine
+**Status:** COMPLETE  
+**Date:** 2026-09-12  
+**Authoritative Branch:** `main` ONLY  
+
+**Context & Core Invariant:**
+Resolved the core architectural limitations in resume bullet formulation and quality assurance:
+$$\text{RenderedClaims} \subseteq \text{AuthorizedCanonicalEvidence}$$
+Candidate source data is strictly immutable. No synthetic metrics, uncorroborated performance multipliers, unauthorized technologies, or unbacked team leadership claims are permitted to enter generated resumes.
+
+**Key Deliverables Implemented & Verified:**
+1. **AI Language Realization Engine (`src/services/resume-accomplishment-composer.service.js`):**
+   - Implemented `composeProfessionalProjectBulletsAsync` supporting Gemini-backed narrative realization (`RESUME_ACCOMPLISHMENT_SYNTHESIS`) over structured claim groups with seamless, deterministic fallback to `synthesizeAccomplishmentNarrative`.
+   - Registered 5 specialized resume synthesis task types in `src/domain/ai/ai.schemas.js` and `src/clients/ai/task-policy.js`.
+   - Implemented `ResumeAccomplishmentPolicy` in `src/clients/ai/prompt-policies/resume-accomplishment.policy.js` with structured Zod response schema and anti-hallucination XML sandboxing.
+   - Configured dynamic `thinkingConfig` handling in `src/clients/gemini/gemini-adapter.js` for Gemini 2.5/flash models.
+2. **Resume Claim Planner Service (`src/services/resume-claim-planner.service.js`):**
+   - Implemented `ResumeClaimPlannerService` executing *before* language realization.
+   - Clusters canonical facts across 6 semantic dimension clusters (`architecture`, `reliability`, `performance_outcome`, `integration_api`, `tooling_automation`, `implementation`).
+   - Evaluates marginal information value, distinguishes pure descriptions from accomplishments, and strictly prevents redundant fact reuse across globally consumed fact IDs.
+3. **Resume Claim Validation Service (`src/services/resume-claim-validation.service.js`):**
+   - Enforces 13 non-negotiable validation invariants on every candidate claim:
+     1. Every factId exists in canonical fact inventory (`UNKNOWN_FACT_ID`).
+     2. Every factId belongs to candidate (`FOREIGN_CANDIDATE_FACT`).
+     3. Every factId is authorized for section/project (`CROSS_SECTION_CONTAMINATION`).
+     4. Every metric in text exists in authorized evidence (`UNSUPPORTED_METRIC`).
+     5. Every technology in text is authorized (`UNAUTHORIZED_TECHNOLOGY`).
+     6. No unsupported team/user scale claims (`UNSUPPORTED_ACTOR_CLAIM`).
+     7. No unsupported outcome claims (`UNSUPPORTED_OUTCOME`).
+     8. No unsupported performance multipliers (`UNSUPPORTED_PERFORMANCE_CLAIM`).
+     9. No employer/title modifications (`UNAUTHORIZED_EMPLOYER_MENTION`).
+     10. Semantic dimensions match fact set (`SEMANTIC_DIMENSION_MISMATCH`).
+     11. Meaning remains within evidence scope (`EVIDENCE_SCOPE_EXCEEDED`).
+     12. Claim does not duplicate rendered claims (`DUPLICATE_RENDERED_CLAIM`).
+     13. Active engineering opener verb and zero LaTeX leaks (`WEAK_VERB_OPENER`, `LATEX_LEAKAGE`).
+   - Fail-closed: invalid claims are rejected immediately without silent heuristic patching.
+4. **Honest ATS Parseability Service (`src/services/resume-ats-parseability.service.js`):**
+   - Replaced naive string-length heuristics with multi-dimensional, evidence-based structural scoring (0–100).
+   - Evaluates text extraction integrity, contact completeness, standard heading recognizability, single-column reading order, bullet boundaries, URL validity, LaTeX leakage, replacement glyphs, and broken word hyphenation.
+5. **Taxonomy-Driven Professional Writing Quality Service (`src/services/resume-writing-quality.service.js`):**
+   - Replaced brittle regexes with comprehensive taxonomy lookups from `src/utils/technology-taxonomy.js`.
+   - Expanded evaluation across 16 dimensions, integrating authentic metric usage (rewarding authentic metrics without penalizing candidates lacking them) and evidence inventory traceability.
+6. **Multi-Move Document Optimizer (`src/services/resume-content-optimizer.service.js`):**
+   - Implemented evaluation and ranking across all 8 optimizer move types (`ADD_PROJECT_CLAIM`, `REMOVE_PROJECT_CLAIM`, `REPLACE_PROJECT_CLAIM`, `ADD_EXPERIENCE_CLAIM`, `ADD_DSA_REPRESENTATION`, `REWRITE_SUMMARY`, `REORDER_SECTIONS`, `COMPRESS_LAYOUT`).
+   - Bounds optimization iterations to 5 and ranks moves by expected value per unit page capacity.
+
+**Verification Evidence:**
+- `tests/unit/p17-claim-planner.test.js`: **5/5 PASS**
+- `tests/unit/p17-claim-validation.test.js`: **12/12 PASS**
+- `tests/unit/p17-gemini-realization.test.js`: **4/4 PASS**
+- `tests/unit/p17-writing-quality-and-ats.test.js`: **5/5 PASS**
+- `tests/unit/p17-document-optimizer.test.js`: **3/3 PASS**
+- `tests/unit/p17-end-to-end-quality.test.js`: **1/1 PASS** (End-to-end Tectonic compilation & PDF observation)
+- `tests/unit/p16-quality-engine-integration.test.js`: **16/16 PASS**
+- `tests/unit/p16-009-professional-quality-composition.test.js`: **33/33 PASS**
+- `tests/unit/gemini-prompt-policy.test.js`: **16/16 PASS**
+- Full combined test run: **95/95 PASS** (28 test suites)
+- Read-Only Real Candidate Regression (`scripts/p16-quality-regression-comparison.mjs`):
+  - Job A (Cloudflare): Overall Quality 90/100, Writing 76, PDF Obs 100, ATS 100, Pages: 1.
+  - Job B (Vercel): Overall Quality 89/100, Writing 79, PDF Obs 90, ATS 100, Pages: 1.
+  - Job C (Crunchyroll): Overall Quality 89/100, Writing 81, PDF Obs 90, ATS 100, Pages: 1.
+- Database Immutability: 0 mutations to candidate records or job application rows.
+- Code Safety: 0 hardcoded candidate or job identities in `src/`.
 

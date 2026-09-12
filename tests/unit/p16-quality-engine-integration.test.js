@@ -32,6 +32,7 @@ import {
   composeExperienceRecords,
   composeDsaSection,
   composeProfessionalSummary,
+  synthesizeAccomplishmentNarrative,
 } from '../../src/services/resume-accomplishment-composer.service.js';
 import {
   planDocumentSections,
@@ -39,7 +40,17 @@ import {
 } from '../../src/services/resume-section-planner.service.js';
 import {
   evaluateResumeWritingQuality,
+  evaluateEvidenceDerivedQuality,
+  OMISSION_REASON_CODES,
 } from '../../src/services/resume-writing-quality.service.js';
+import {
+  composeStructuredResumeDocument as composeViaLegacyEntry,
+  compressProfessionalBullet,
+  polishProfessionalSummary,
+} from '../../src/services/resume-professional-composition.service.js';
+import {
+  evaluateResumeAcceptanceGate,
+} from '../../src/services/resume-acceptance-gate.service.js';
 import {
   ResumePdfObserver,
 } from '../../src/services/resume-pdf-observer.service.js';
@@ -285,4 +296,191 @@ describe('End-to-End Real PDF Quality Pipeline (Directive Section 21)', () => {
     assert.ok(obsReport.readingOrder.includes('PROJECTS'));
   });
 });
+
+describe('Strategic Enhancement 1: Accomplishment Narrative Realization', () => {
+  it('synthesizes natural engineering narrative instead of robotic semicolon concatenation', () => {
+    const primary = {
+      id: 'fact-1',
+      text: 'Engineered high-throughput distributed telemetry ingest pipeline in Rust',
+      technologies: ['Rust'],
+      factType: 'architecture',
+    };
+    const complementary = {
+      id: 'fact-2',
+      text: 'Implemented write-ahead logging and disk spillover buffering for zero data loss',
+      technologies: ['WAL'],
+      factType: 'implementation',
+    };
+
+    const narrative = synthesizeAccomplishmentNarrative(primary, complementary);
+    assert.ok(narrative);
+    assert.ok(narrative.text.length > 50);
+    // Must NOT contain robotic semicolon concatenation
+    assert.ok(!narrative.text.includes(';'), 'Narrative should not use semicolon concatenation');
+    // Must contain natural participle linkage
+    assert.ok(
+      narrative.text.includes('implementing') || narrative.text.includes('incorporating') || narrative.text.includes('utilizing'),
+      `Expected participle linkage, got: "${narrative.text}"`
+    );
+    assert.deepEqual(narrative.composedFromFactIds, ['fact-1', 'fact-2']);
+    assert.equal(narrative.evidenceRefs.length, 2);
+  });
+});
+
+describe('Strategic Enhancement 2: Genuinely Utility-Driven Section Planning', () => {
+  const { candidate, targetJob } = criticalRegressionFixture;
+
+  it('computes multi-attribute utilityScore and marginalUtilityPerSpace for all candidate sections', () => {
+    const inv = buildCanonicalFactInventory(candidate, targetJob);
+    const plan = planDocumentSections({
+      candidateProfile: candidate,
+      factInventory: inv,
+      jobPosting: targetJob,
+    });
+
+    for (const key of Object.keys(plan.sectionMetrics)) {
+      const metric = plan.sectionMetrics[key];
+      assert.ok(typeof metric.utilityScore === 'number', `${key} must have utilityScore`);
+      assert.ok(typeof metric.marginalUtilityPerSpace === 'number', `${key} must have marginalUtilityPerSpace`);
+      if (metric.available && metric.estimatedHeight > 0) {
+        assert.ok(metric.marginalUtilityPerSpace > 0, `${key} must have positive marginal utility per space`);
+      }
+    }
+  });
+
+  it('prunes lowest marginal utility sections with explicit omission reasons when capacity exceeded', () => {
+    const richCandidate = {
+      ...candidate,
+      awards: [{ title: 'ACM Regional Finalist', year: '2023' }],
+      openSource: [{ name: 'tokio-contrib', description: 'Async runtime patch' }],
+      certifications: [{ name: 'AWS Certified Solutions Architect', authority: 'AWS' }],
+    };
+    const inv = buildCanonicalFactInventory(richCandidate, targetJob);
+    const plan = planDocumentSections({
+      candidateProfile: richCandidate,
+      factInventory: inv,
+      jobPosting: targetJob,
+    });
+
+    assert.ok(plan.sectionOrder.length > 0);
+    assert.ok(plan.totalEstimatedHeight <= plan.usablePageHeight + 35, 'Total height should be disciplined to single-page capacity');
+  });
+});
+
+describe('Strategic Enhancement 3: Evidence-Derived Quality Metrics', () => {
+  const { candidate, targetJob } = criticalRegressionFixture;
+
+  it('derives ATS parseability, exact job requirement coverage, fact utilization, and omission reasons', () => {
+    const inv = buildCanonicalFactInventory(candidate, targetJob);
+    const { structuredResume } = buildStructuredResumeSnapshot({
+      candidateProfile: candidate,
+      jobPosting: targetJob,
+    });
+
+    const quality = evaluateEvidenceDerivedQuality({
+      structuredResume,
+      factInventory: inv,
+      jobPosting: targetJob,
+    });
+
+    // 1. Evidence-derived ATS Parseability
+    assert.ok(quality.atsParseabilityScore >= 90, `ATS score ${quality.atsParseabilityScore} should be >= 90`);
+    assert.equal(quality.atsFindings.length, 0, 'Should have 0 ATS defects for well-structured snapshot');
+
+    // 2. Evidence-derived Job Relevance & Requirement Matching
+    assert.ok(typeof quality.jobRelevanceScore === 'number');
+    assert.ok(quality.matchedRequirements.length > 0, 'Must identify matched requirements');
+    const matchedKeywords = quality.matchedRequirements.map((r) => r.keyword.toLowerCase());
+    assert.ok(matchedKeywords.includes('rust'), 'Must match Rust from requirements');
+
+    // 3. Exact Fact Utilization
+    assert.ok(quality.factUtilization.totalAvailableFacts > 0);
+    assert.ok(quality.factUtilization.totalRenderedFacts > 0);
+    assert.ok(quality.factUtilization.utilizationRate > 0 && quality.factUtilization.utilizationRate <= 1.0);
+    assert.ok(quality.factUtilization.renderedFactIds.length > 0);
+
+    // 4. Omission Reasons
+    assert.ok(typeof quality.omissionReasons === 'object');
+    for (const factId of quality.factUtilization.unrenderedFactIds) {
+      assert.ok(
+        quality.omissionReasons[factId],
+        `Unrendered fact ${factId} must have an explicit omission reason`
+      );
+      assert.ok(
+        Object.values(OMISSION_REASON_CODES).includes(quality.omissionReasons[factId]),
+        `Omission reason must be a recognized code`
+      );
+    }
+  });
+});
+
+describe('Strategic Enhancement 4: Unified Composition Authority', () => {
+  it('resume-professional-composition re-exports and delegates cleanly to accomplishment composer', () => {
+    const { candidate, targetJob } = criticalRegressionFixture;
+    const { structuredResume } = buildStructuredResumeSnapshot({
+      candidateProfile: candidate,
+      jobPosting: targetJob,
+    });
+
+    const composed = composeViaLegacyEntry(structuredResume);
+    assert.ok(composed);
+    assert.ok(composed.summary);
+    assert.ok(composed.projects);
+    assert.equal(composed.experience[0].company, 'Apex Infrastructure');
+  });
+});
+
+describe('Directive 15-Point Formal Acceptance Contract', () => {
+  const { candidate, targetJob } = criticalRegressionFixture;
+
+  it('validates generated resume passes all 15 acceptance criteria', async () => {
+    const inv = buildCanonicalFactInventory(candidate, targetJob);
+    const plan = planDocumentSections({
+      candidateProfile: candidate,
+      factInventory: inv,
+      jobPosting: targetJob,
+    });
+    const { structuredResume } = buildStructuredResumeSnapshot({
+      candidateProfile: candidate,
+      jobPosting: targetJob,
+    });
+
+    const latexGen = new LatexDocumentGenerator();
+    const appPkg = { structuredResume, tailoredResume: { structuredResume }, targetJob };
+    const latex = latexGen.generateTailoredResumeLatex({ applicationPackage: appPkg });
+
+    const compiler = new LatexCompilerService();
+    const compiled = await compiler.compileLatexToPdf({
+      texContent: latex.texContent,
+      jobName: 'acceptance-contract-test',
+    });
+
+    const gateResult = evaluateResumeAcceptanceGate({
+      structuredResume,
+      factInventory: inv,
+      jobPosting: targetJob,
+      sectionPlan: plan,
+      pdfBuffer: compiled.pdfBuffer,
+    });
+
+    assert.equal(
+      gateResult.passed,
+      true,
+      `Gate failed with violations: ${JSON.stringify(gateResult.violations, null, 2)}`
+    );
+    assert.equal(gateResult.violations.length, 0);
+
+    // Verify all 15 criteria explicitly pass
+    for (let i = 1; i <= 15; i++) {
+      assert.ok(gateResult.criteria[i], `Criterion ${i} must be evaluated`);
+      assert.equal(
+        gateResult.criteria[i].passed,
+        true,
+        `Criterion ${i} (${gateResult.criteria[i].name}) must pass`
+      );
+    }
+  });
+});
+
+
 

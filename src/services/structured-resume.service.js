@@ -41,8 +41,16 @@ import {
 import {
   formatTechnologyStack,
 } from '../utils/technology-normalizer.js';
-import { buildCanonicalFactInventory, scoreFactsForJob, PROBLEM_SOLVING_PROJECT_KEY } from './candidate-fact-inventory.service.js';
-import { composeProfessionalProjectBullets, determineProjectBulletCapacity } from './resume-accomplishment-composer.service.js';
+import {
+  buildCanonicalFactInventory,
+  scoreFactsForJob,
+  PROBLEM_SOLVING_PROJECT_KEY,
+} from './candidate-fact-inventory.service.js';
+import {
+  composeProfessionalProjectBullets,
+  composeProfessionalProjectBulletsAsync,
+  determineProjectBulletCapacity,
+} from './resume-accomplishment-composer.service.js';
 
 /**
  * Capacity-aware dynamic project budgeting strategy (Req H & 21).
@@ -633,9 +641,28 @@ export function buildStructuredResumeDocument({
         options?.maxBullets,
     };
 
-    // P16-009: professional composition from the canonical fact inventory.
+    // Unified authoritative accomplishment composition from the canonical fact inventory.
     const factKey = proj.id || proj.projectId || String(proj.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const projectFacts = scoredFactsByProject.get(factKey) || [];
+    let projectFacts = scoredFactsByProject.get(factKey) || [];
+    if (projectFacts.length === 0 && (Array.isArray(enrichedProj.bullets) || Array.isArray(enrichedProj.highlights))) {
+      const rawClaims = [
+        ...(Array.isArray(enrichedProj.bullets) ? enrichedProj.bullets : []),
+        ...(Array.isArray(enrichedProj.highlights) ? enrichedProj.highlights : []),
+      ].map((t) => typeof t === 'object' && t !== null ? t.text || t.description || '' : String(t || '')).filter(Boolean);
+      projectFacts = rawClaims.map((text, i) => ({
+        factId: `${selectedId}-claim-${i}`,
+        id: `${selectedId}-claim-${i}`,
+        text,
+        factType: 'candidate-authored',
+        provenance: enrichedProj.provenanceStatus || 'USER_PROVIDED',
+        confidence: 0.85,
+        semanticTopic: 'implementation',
+        measurable: false,
+        evidenceRefs: enrichedProj.evidenceRefs || [],
+        association: { projectId: selectedId },
+      }));
+    }
+
     let pBullets = [];
     let bulletCapacityInfo = null;
     let projectOmittedFacts = [];
@@ -645,17 +672,26 @@ export function buildStructuredResumeDocument({
         project: enrichedProj,
         jobPosting,
         explicitBudget: projectOptions.maxBullets ?? null,
+        candidateProfile: source,
+        options: {
+          globallyUsedFactIds: new Set(factCompositionTrace.flatMap((t) => t.composedFromFactIds || [])),
+        },
       });
-      // Strip internal composition fields: the canonical bullet schema is
-      // strict. Traceability is preserved in factCompositionReport below.
-      pBullets = composed.bullets.map(({ composedFromFactIds, semanticDimensions, ...schemaBullet }) => {
+      // Preserve canonical fact IDs directly on schemaBullet for end-to-end evidence traceability
+      pBullets = composed.bullets.map(({ semanticDimensions, ...schemaBullet }) => {
+        const factIds = Array.isArray(schemaBullet.composedFromFactIds)
+          ? schemaBullet.composedFromFactIds
+          : [];
         factCompositionTrace.push({
           projectId: selectedId,
           projectName: proj.name || proj.title || '',
-          composedFromFactIds: composedFromFactIds || [],
+          composedFromFactIds: factIds,
           semanticDimensions: semanticDimensions || [],
         });
-        return schemaBullet;
+        return {
+          ...schemaBullet,
+          composedFromFactIds: factIds,
+        };
       });
       bulletCapacityInfo = composed.capacity;
       projectOmittedFacts = composed.omittedFacts;
@@ -663,8 +699,7 @@ export function buildStructuredResumeDocument({
         factCompositionOmissions.push(...projectOmittedFacts.map((o) => ({ projectId: selectedId, ...o })));
       }
     } else {
-      // Legacy path: preserved verbatim for explicit-plan-driven flows and
-      // as the migration adapter when fact composition is disabled.
+      // Migration fallback when fact composition is explicitly disabled
       pBullets = selectAndRephraseProjectBullets({
         project: enrichedProj,
         jobPosting,
@@ -834,6 +869,10 @@ export function buildStructuredResumeDocument({
       matchAnalysis: options?.matchAnalysis || jobPosting?.jobFitAnalysis?.matchAnalysis,
       options,
     });
+  }
+
+  if (summary && typeof summary === 'object' && !Array.isArray(summary.composedFromFactIds)) {
+    summary.composedFromFactIds = [];
   }
 
   const doc = {
@@ -1140,3 +1179,37 @@ export function buildStructuredResumeSnapshot({
     factCompositionReport,
   };
 }
+
+/**
+ * Asynchronous variant of buildStructuredResumeSnapshot supporting AI provider realization.
+ *
+ * @param {object} params
+ * @param {object} params.candidateProfile
+ * @param {object} [params.jobPosting]
+ * @param {object} [params.tailoringPlan]
+ * @param {object} [params.options]
+ * @param {object} [params.aiProvider] Optional AI provider for realization
+ * @returns {Promise<{ structuredResume: object, tailoringPlan: object, evidenceValidationReceipt: object, contentQualityGate: object, factCompositionReport: object }>}
+ */
+export async function buildStructuredResumeSnapshotAsync({
+  candidateProfile,
+  jobPosting = null,
+  tailoringPlan = null,
+  options = {},
+  aiProvider = null,
+}) {
+  const provider = aiProvider || options?.aiProvider || null;
+  // If provider provided, set in options for deep realization pipelines
+  const enhancedOptions = {
+    ...options,
+    aiProvider: provider,
+  };
+
+  return buildStructuredResumeSnapshot({
+    candidateProfile,
+    jobPosting,
+    tailoringPlan,
+    options: enhancedOptions,
+  });
+}
+

@@ -117,7 +117,7 @@ describe('AI Prompt Policies & Trust Boundary Unit Tests (P8-002)', () => {
       assert.strictEqual(fallback.policyId, 'BASE_CAREER');
 
       const list = registry.listPolicies();
-      assert.strictEqual(list.length, 8);
+      assert.strictEqual(list.length, 13);
       assert.ok(list.some((p) => p.policyId === 'RESUME_WORDING'));
       assert.ok(list.some((p) => p.policyId === 'PROJECT_IMPROVEMENT'));
       assert.ok(list.some((p) => p.policyId === 'RESUME_ENTITY_RESOLUTION'));

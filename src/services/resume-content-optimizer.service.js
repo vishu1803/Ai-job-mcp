@@ -40,6 +40,20 @@ import { logger as defaultLogger } from '../utils/logger.js';
 
 export const OPTIMIZER_MAX_ITERATIONS = 5;
 
+/**
+ * Multi-move optimization move types (P17 Architecture)
+ */
+export const OPTIMIZER_MOVE_TYPES = Object.freeze({
+  ADD_PROJECT_CLAIM: 'ADD_PROJECT_CLAIM',
+  REMOVE_PROJECT_CLAIM: 'REMOVE_PROJECT_CLAIM',
+  REPLACE_PROJECT_CLAIM: 'REPLACE_PROJECT_CLAIM',
+  ADD_EXPERIENCE_CLAIM: 'ADD_EXPERIENCE_CLAIM',
+  ADD_DSA_REPRESENTATION: 'ADD_DSA_REPRESENTATION',
+  REWRITE_SUMMARY: 'REWRITE_SUMMARY',
+  REORDER_SECTIONS: 'REORDER_SECTIONS',
+  COMPRESS_LAYOUT: 'COMPRESS_LAYOUT',
+});
+
 export class ResumeContentOptimizer {
   /**
    * @param {object} [dependencies={}]
@@ -470,6 +484,93 @@ export class ResumeContentOptimizer {
           expectedValue,
           description: `Add project ${candProj.name || cId}`,
         });
+      }
+    }
+
+    // Move Type 3: ADD_EXPERIENCE_CLAIM
+    const experiences = Array.isArray(structuredResume?.experience) ? structuredResume.experience : [];
+    for (const exp of experiences) {
+      const expBullets = Array.isArray(exp.bullets) ? exp.bullets : [];
+      if (expBullets.length < 4 && availableSpacePt >= 18) {
+        moves.push({
+          type: OPTIMIZER_MOVE_TYPES.ADD_EXPERIENCE_CLAIM,
+          id: exp.id || exp.company,
+          name: exp.company || 'Experience',
+          spaceCost: 18,
+          expectedValue: 12 / 18,
+          description: `Add experience claim to ${exp.company || 'Role'}`,
+        });
+      }
+    }
+
+    // Move Type 4: ADD_DSA_REPRESENTATION
+    const dsaData = candidateProfile?.dsa || candidateProfile?.profileMetadata?.dsa;
+    if (dsaData && (!structuredResume?.dsa || !structuredResume.dsa.hasSection) && availableSpacePt >= 35) {
+      moves.push({
+        type: OPTIMIZER_MOVE_TYPES.ADD_DSA_REPRESENTATION,
+        id: 'dsa',
+        name: 'Problem Solving & DSA',
+        spaceCost: 35,
+        expectedValue: 20 / 35,
+        description: 'Include DSA / Problem Solving section',
+      });
+    }
+
+    // Move Type 5: REWRITE_SUMMARY
+    if (structuredResume?.summary?.text && structuredResume.summary.text.length > 220 && availableSpacePt < 40) {
+      moves.push({
+        type: OPTIMIZER_MOVE_TYPES.REWRITE_SUMMARY,
+        id: 'summary',
+        name: 'Professional Summary',
+        spaceCost: -15, // saves ~15pt
+        expectedValue: 1.5,
+        description: 'Compress professional summary to concise 2-sentence realization',
+      });
+    }
+
+    // Move Type 6: REORDER_SECTIONS
+    const currentOrder = structuredResume?.sectionOrder || [];
+    if (currentOrder.includes('PROJECTS') && currentOrder.includes('EXPERIENCE')) {
+      const pIdx = currentOrder.indexOf('PROJECTS');
+      const eIdx = currentOrder.indexOf('EXPERIENCE');
+      if (candidateProfile?.seniority === 'SENIOR' && pIdx < eIdx) {
+        moves.push({
+          type: OPTIMIZER_MOVE_TYPES.REORDER_SECTIONS,
+          id: 'reorder',
+          name: 'Section Ordering',
+          spaceCost: 0,
+          expectedValue: 1.2,
+          description: 'Reorder sections to prioritize Experience above Projects for senior archetype',
+        });
+      }
+    }
+
+    // Move Type 7: COMPRESS_LAYOUT
+    if (availableSpacePt < 10) {
+      moves.push({
+        type: OPTIMIZER_MOVE_TYPES.COMPRESS_LAYOUT,
+        id: 'layout',
+        name: 'Layout Compression',
+        spaceCost: -30, // saves ~30pt
+        expectedValue: 2.0,
+        description: 'Apply deterministic compact layout spacing overrides',
+      });
+    }
+
+    // Move Type 8: REMOVE_PROJECT_CLAIM
+    if (availableSpacePt < 0) {
+      for (const p of projects) {
+        if (Array.isArray(p.bullets) && p.bullets.length > 1) {
+          moves.push({
+            type: OPTIMIZER_MOVE_TYPES.REMOVE_PROJECT_CLAIM,
+            id: p.projectId || p.name,
+            name: p.name,
+            spaceCost: -18,
+            expectedValue: 2.5,
+            description: `Prune bullet from project ${p.name} to resolve page overflow`,
+          });
+          break;
+        }
       }
     }
 

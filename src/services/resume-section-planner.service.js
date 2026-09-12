@@ -276,31 +276,84 @@ export function planDocumentSections({
     omissionReason: hasOS ? null : 'No open-source contributions recorded',
   };
 
-  // Ordering logic: sensible defaults driven by candidate archetype & evidence
-  const orderedKeys = ['HEADER', SECTION_KEYS.SUMMARY, SECTION_KEYS.SKILLS];
-
-  if (candidateArchetype === 'EXPERIENCED') {
-    if (sectionMetrics.EXPERIENCE.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.EXPERIENCE);
-    if (sectionMetrics.PROJECTS.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.PROJECTS);
-    if (sectionMetrics.DSA.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.DSA);
-    if (sectionMetrics.EDUCATION.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.EDUCATION);
-  } else {
-    // Fresher / Career Changer / Project-focused
-    if (sectionMetrics.PROJECTS.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.PROJECTS);
-    if (sectionMetrics.DSA.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.DSA);
-    if (sectionMetrics.EXPERIENCE.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.EXPERIENCE);
-    if (sectionMetrics.EDUCATION.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.EDUCATION);
+  // Calculate multi-attribute utility scores & marginal utility per unit space
+  for (const key of Object.keys(sectionMetrics)) {
+    const sm = sectionMetrics[key];
+    sm.utilityScore = sm.available
+      ? Math.round(sm.evidenceStrength * 0.35 + sm.relevance * 0.40 + sm.informationDensity * 0.25)
+      : 0;
+    sm.marginalUtilityPerSpace = sm.estimatedHeight > 0
+      ? parseFloat((sm.utilityScore / sm.estimatedHeight).toFixed(2))
+      : 0;
   }
 
-  if (sectionMetrics.CERTIFICATIONS.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.CERTIFICATIONS);
-  if (sectionMetrics.AWARDS.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.AWARDS);
-  if (sectionMetrics.OPEN_SOURCE.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.OPEN_SOURCE);
+  // Anchor sections: always standard header, summary, and skills if available
+  const orderedKeys = ['HEADER'];
+  if (sectionMetrics.SUMMARY.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.SUMMARY);
+  if (sectionMetrics.SKILLS.inclusionStatus === 'INCLUDE') orderedKeys.push(SECTION_KEYS.SKILLS);
 
-  // Total estimated height
-  const totalEstimatedHeight = orderedKeys.reduce((acc, key) => {
+  // Body sections: PROJECTS, EXPERIENCE, DSA competitively ordered by utility
+  const bodyCandidates = [];
+  if (sectionMetrics.PROJECTS.inclusionStatus === 'INCLUDE') {
+    const archetypeBias = (candidateArchetype === 'FRESHER' || candidateArchetype === 'CAREER_CHANGER') ? 10 : 0;
+    bodyCandidates.push({
+      key: SECTION_KEYS.PROJECTS,
+      score: sectionMetrics.PROJECTS.utilityScore + archetypeBias,
+    });
+  }
+  if (sectionMetrics.EXPERIENCE.inclusionStatus === 'INCLUDE') {
+    const archetypeBias = candidateArchetype === 'EXPERIENCED' ? 10 : 0;
+    bodyCandidates.push({
+      key: SECTION_KEYS.EXPERIENCE,
+      score: sectionMetrics.EXPERIENCE.utilityScore + archetypeBias,
+    });
+  }
+  if (sectionMetrics.DSA.inclusionStatus === 'INCLUDE') {
+    const archetypeBias = candidateArchetype === 'FRESHER' ? 2 : -5;
+    bodyCandidates.push({
+      key: SECTION_KEYS.DSA,
+      score: sectionMetrics.DSA.utilityScore + archetypeBias,
+    });
+  }
+
+  bodyCandidates.sort((a, b) => b.score - a.score);
+  for (const candidate of bodyCandidates) {
+    orderedKeys.push(candidate.key);
+  }
+
+  // Trailing sections: EDUCATION followed by optional trailing sorted by marginal utility
+  if (sectionMetrics.EDUCATION.inclusionStatus === 'INCLUDE') {
+    orderedKeys.push(SECTION_KEYS.EDUCATION);
+  }
+
+  const optionalTrailing = [SECTION_KEYS.CERTIFICATIONS, SECTION_KEYS.AWARDS, SECTION_KEYS.OPEN_SOURCE]
+    .filter((k) => sectionMetrics[k].inclusionStatus === 'INCLUDE')
+    .sort((a, b) => (sectionMetrics[b].marginalUtilityPerSpace || 0) - (sectionMetrics[a].marginalUtilityPerSpace || 0));
+
+  for (const k of optionalTrailing) {
+    orderedKeys.push(k);
+  }
+
+  // Space capacity budgeting: calculate total estimated height
+  let totalEstimatedHeight = orderedKeys.reduce((acc, key) => {
     if (key === 'HEADER') return acc + 65; // header name, contact, links
     return acc + (sectionMetrics[key]?.estimatedHeight || 0);
   }, 0);
+
+  // If over capacity, prune lowest marginal utility optional sections with explicit reason
+  if (totalEstimatedHeight > USABLE_PAGE_HEIGHT_PT) {
+    const prunableKeys = [...optionalTrailing].reverse(); // lowest marginal utility first
+    for (const pKey of prunableKeys) {
+      if (totalEstimatedHeight <= USABLE_PAGE_HEIGHT_PT) break;
+      sectionMetrics[pKey].inclusionStatus = 'OMIT';
+      sectionMetrics[pKey].omissionReason = 'EXCEEDED_PAGE_CAPACITY_BY_HIGHER_UTILITY_SECTIONS';
+      const idx = orderedKeys.indexOf(pKey);
+      if (idx !== -1) {
+        orderedKeys.splice(idx, 1);
+        totalEstimatedHeight -= (sectionMetrics[pKey]?.estimatedHeight || 0);
+      }
+    }
+  }
 
   const capacitySurplusOrDeficit = USABLE_PAGE_HEIGHT_PT - totalEstimatedHeight;
 
