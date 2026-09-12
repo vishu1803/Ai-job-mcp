@@ -171,12 +171,18 @@ function composeBulletFromGroup(group, project, _allowTechClause, _mentionedTech
  * @param {object} [params.options] Optional configuration
  * @returns {{ bullets: Array<{ text: string, evidenceRefs: Array, matchedRequirementIds: Array, provenanceStatus: string, composedFromFactIds: Array<string> }>, omittedFacts: Array<{ factId: string, text: string, reason: string }>, capacity: object }}
  */
-export function composeProfessionalProjectBullets({
+/**
+ * Shared claim processing and planning engine for project narrative composition.
+ * Ensures identical preprocessing, unsupported-metric filtering, capacity determination,
+ * and claim planning between synchronous and asynchronous composition pathways.
+ *
+ * @private
+ */
+function prepareProjectNarrativePlan({
   facts,
   project,
   jobPosting = null,
   explicitBudget = null,
-  candidateProfile = null,
   options = {},
 }) {
   const allFacts = Array.isArray(facts) ? facts : [];
@@ -229,113 +235,134 @@ export function composeProfessionalProjectBullets({
     }
   }
 
-  const bullets = [];
-  const usedFactIds = new Set();
+  return {
+    allFacts,
+    supportedFacts,
+    omittedFacts,
+    capacity,
+    plannedClaims,
+  };
+}
 
-  if (plannedClaims.length > 0) {
-    for (const planned of plannedClaims) {
-      const primaryFact = planned.primaryFact;
-      const compFact = planned.complementaryFacts?.[0] || null;
+/**
+ * Validates, deduplicates, and assembles a realized claim into the bullets array.
+ * Enforces fail-closed validation, semantic redundancy rejection, evidence aggregation,
+ * and requirement trace attachment.
+ *
+ * @private
+ */
+function assembleRealizedClaim({
+  planned,
+  realizedText,
+  realizationSource = 'deterministic',
+  allFacts,
+  candidateProfile,
+  project,
+  bullets,
+  omittedFacts,
+  usedFactIds,
+}) {
+  const primaryFact = planned.primaryFact;
+  const compFact = planned.complementaryFacts?.[0] || null;
+  const contributingFacts = [primaryFact, compFact].filter(Boolean);
 
-      const narrativeResult = synthesizeAccomplishmentNarrative(
-        primaryFact,
-        compFact,
-        project?.technologies || []
-      );
+  const composedFromFactIds =
+    Array.isArray(planned.factIds) && planned.factIds.length > 0
+      ? planned.factIds
+      : [primaryFact?.factId || primaryFact?.id].filter(Boolean);
 
-      const text =
-        typeof narrativeResult === 'object' ? narrativeResult.text : String(narrativeResult);
-      const composedFromFactIds =
-        Array.isArray(planned.factIds) && planned.factIds.length > 0
-          ? planned.factIds
-          : typeof narrativeResult === 'object'
-            ? narrativeResult.composedFromFactIds
-            : [primaryFact?.factId || primaryFact?.id].filter(Boolean);
+  // Claim Validation Check across 20 invariants
+  const validationResult = defaultResumeClaimValidationService.validateClaim(
+    {
+      claimId: planned.claimId,
+      text: realizedText,
+      factIds: composedFromFactIds,
+      semanticDimensions: planned.semanticDimensions || [],
+      metricsUsed: planned.allowedMetrics || [],
+      technologiesUsed: planned.technologies || [],
+    },
+    {
+      factInventory: allFacts,
+      candidateProfile,
+      sectionOwnerType: 'PROJECT',
+      sectionOwnerId: project?.id || project?.projectId || project?.name,
+      alreadyRenderedClaims: bullets,
+      project,
+    }
+  );
 
-      // Step 2: Claim Validation Check across 20 invariants
-      const validationResult = defaultResumeClaimValidationService.validateClaim(
-        {
-          claimId: planned.claimId,
-          text,
-          factIds: composedFromFactIds,
-          semanticDimensions: planned.semanticDimensions || [],
-          metricsUsed: planned.allowedMetrics || [],
-          technologiesUsed: planned.technologies || [],
-        },
-        {
-          factInventory: allFacts,
-          candidateProfile,
-          sectionOwnerType: 'PROJECT',
-          sectionOwnerId: project?.id || project?.projectId || project?.name,
-          alreadyRenderedClaims: bullets,
-          project,
+  if (!validationResult.valid) {
+    omittedFacts.push({
+      factId: composedFromFactIds[0] || 'unknown',
+      text: realizedText,
+      reason: validationResult.violations?.[0]?.code || OMISSION_REASONS.VALIDATION_REJECTION,
+    });
+    return false;
+  }
+
+  // Check redundancy with accepted bullets
+  const isRedundant = bullets.some(
+    (kept) => calculateFactSemanticOverlap(kept.text, realizedText) >= REDUNDANCY_OVERLAP_THRESHOLD
+  );
+
+  if (isRedundant) {
+    omittedFacts.push({
+      factId: composedFromFactIds[0] || 'unknown',
+      text: realizedText,
+      reason: OMISSION_REASONS.REDUNDANCY_REMOVAL,
+    });
+    return false;
+  }
+
+  const evidenceRefs = [];
+  for (const f of contributingFacts) {
+    if (Array.isArray(f.evidenceRefs)) {
+      for (const er of f.evidenceRefs) {
+        if (!evidenceRefs.some((x) => (x.evidenceId || x.id) === (er.evidenceId || er.id))) {
+          evidenceRefs.push(er);
         }
-      );
-
-      if (!validationResult.valid) {
-        omittedFacts.push({
-          factId: composedFromFactIds[0] || 'unknown',
-          text,
-          reason: validationResult.violations?.[0]?.code || OMISSION_REASONS.VALIDATION_REJECTION,
-        });
-        continue;
-      }
-
-      // Check redundancy with accepted bullets
-      const isRedundant = bullets.some(
-        (kept) => calculateFactSemanticOverlap(kept.text, text) >= REDUNDANCY_OVERLAP_THRESHOLD
-      );
-
-      if (isRedundant) {
-        omittedFacts.push({
-          factId: composedFromFactIds[0] || 'unknown',
-          text,
-          reason: OMISSION_REASONS.REDUNDANCY_REMOVAL,
-        });
-      } else {
-        const evidenceRefs = [];
-        for (const f of [primaryFact, compFact].filter(Boolean)) {
-          if (Array.isArray(f.evidenceRefs)) {
-            for (const er of f.evidenceRefs) {
-              if (!evidenceRefs.some((x) => (x.evidenceId || x.id) === (er.evidenceId || er.id))) {
-                evidenceRefs.push(er);
-              }
-            }
-          }
-        }
-        if (
-          evidenceRefs.length === 0 &&
-          typeof narrativeResult === 'object' &&
-          Array.isArray(narrativeResult.evidenceRefs)
-        ) {
-          evidenceRefs.push(...narrativeResult.evidenceRefs);
-        }
-
-        const matchedRequirementIds = [];
-        for (const f of [primaryFact, compFact].filter(Boolean)) {
-          if (Array.isArray(f.matchedRequirementIds)) {
-            for (const rid of f.matchedRequirementIds) {
-              if (!matchedRequirementIds.includes(rid)) matchedRequirementIds.push(rid);
-            }
-          }
-        }
-
-        bullets.push({
-          text,
-          evidenceRefs,
-          matchedRequirementIds,
-          provenanceStatus: primaryFact?.provenance || 'VERIFIED',
-          composedFromFactIds,
-          semanticDimensions:
-            planned.semanticDimensions ||
-            (primaryFact?.semanticTopic ? [primaryFact.semanticTopic] : []),
-        });
-
-        for (const fid of composedFromFactIds) usedFactIds.add(fid);
       }
     }
   }
 
+  const matchedRequirementIds = [];
+  for (const f of contributingFacts) {
+    if (Array.isArray(f.matchedRequirementIds)) {
+      for (const rid of f.matchedRequirementIds) {
+        if (!matchedRequirementIds.includes(rid)) matchedRequirementIds.push(rid);
+      }
+    }
+  }
+
+  bullets.push({
+    text: realizedText,
+    evidenceRefs,
+    matchedRequirementIds,
+    provenanceStatus: primaryFact?.provenance || 'VERIFIED',
+    composedFromFactIds,
+    semanticDimensions:
+      planned.semanticDimensions ||
+      (primaryFact?.semanticTopic ? [primaryFact.semanticTopic] : []),
+    realizationSource,
+  });
+
+  for (const fid of composedFromFactIds) usedFactIds.add(fid);
+  return true;
+}
+
+/**
+ * Executes fallback groups when planned claims yielded 0 bullets and records capacity omissions.
+ *
+ * @private
+ */
+function finalizeProjectBullets({
+  bullets,
+  supportedFacts,
+  capacity,
+  project,
+  omittedFacts,
+  usedFactIds,
+}) {
   // Safety fallback if planner yielded 0 bullets from available supported facts
   if (bullets.length === 0 && supportedFacts.length > 0) {
     const factGroups = selectComplementaryFactGroups(supportedFacts, capacity.capacity);
@@ -356,7 +383,9 @@ export function composeProfessionalProjectBullets({
         for (const f of group) {
           if (Array.isArray(f.evidenceRefs)) {
             for (const er of f.evidenceRefs) {
-              if (!evidenceRefs.some((x) => x.evidenceId === er.evidenceId)) evidenceRefs.push(er);
+              if (!evidenceRefs.some((x) => (x.evidenceId || x.id) === (er.evidenceId || er.id))) {
+                evidenceRefs.push(er);
+              }
             }
           }
           if (Array.isArray(f.matchedRequirementIds)) {
@@ -376,6 +405,7 @@ export function composeProfessionalProjectBullets({
           provenanceStatus,
           composedFromFactIds,
           semanticDimensions: group.map((f) => f.semanticTopic).filter(Boolean),
+          realizationSource: 'deterministic',
         });
         for (const fid of composedFromFactIds) usedFactIds.add(fid);
       }
@@ -402,7 +432,71 @@ export function composeProfessionalProjectBullets({
 }
 
 /**
+ * Composes professional accomplishment bullets for a project from its canonical facts.
+ *
+ * @param {object} params
+ * @param {Array<object>} params.facts Canonical scored facts for this project (claim facts)
+ * @param {object} params.project Canonical project record (technologies, name)
+ * @param {object} [params.jobPosting] Target job
+ * @param {number|null} [params.explicitBudget] Optimizer bullet override
+ * @param {object} [params.candidateProfile] Candidate profile
+ * @param {object} [params.options] Optional configuration
+ * @returns {{ bullets: Array<{ text: string, evidenceRefs: Array, matchedRequirementIds: Array, provenanceStatus: string, composedFromFactIds: Array<string> }>, omittedFacts: Array<{ factId: string, text: string, reason: string }>, capacity: object }}
+ */
+export function composeProfessionalProjectBullets({
+  facts,
+  project,
+  jobPosting = null,
+  explicitBudget = null,
+  candidateProfile = null,
+  options = {},
+}) {
+  const { allFacts, supportedFacts, omittedFacts, capacity, plannedClaims } =
+    prepareProjectNarrativePlan({ facts, project, jobPosting, explicitBudget, options });
+
+  const bullets = [];
+  const usedFactIds = new Set();
+
+  for (const planned of plannedClaims) {
+    const primaryFact = planned.primaryFact;
+    const compFact = planned.complementaryFacts?.[0] || null;
+
+    const narrativeResult = synthesizeAccomplishmentNarrative(
+      primaryFact,
+      compFact,
+      project?.technologies || []
+    );
+
+    const realizedText =
+      typeof narrativeResult === 'object' ? narrativeResult.text : String(narrativeResult);
+
+    assembleRealizedClaim({
+      planned,
+      realizedText,
+      realizationSource: 'deterministic',
+      allFacts,
+      candidateProfile,
+      project,
+      bullets,
+      omittedFacts,
+      usedFactIds,
+    });
+  }
+
+  return finalizeProjectBullets({
+    bullets,
+    supportedFacts,
+    capacity,
+    project,
+    omittedFacts,
+    usedFactIds,
+  });
+}
+
+/**
  * Asynchronous project bullet composition with optional Gemini language realization.
+ * Follows the identical claim planning, validation, redundancy checking, and omission
+ * recording pipeline as composeProfessionalProjectBullets.
  *
  * @param {object} params
  * @param {Array<object>} params.facts
@@ -434,51 +528,8 @@ export async function composeProfessionalProjectBulletsAsync({
     });
   }
 
-  const allFacts = Array.isArray(facts) ? facts : [];
-  const supportedFacts = [];
-  const omittedFacts = [];
-  for (const f of allFacts) {
-    if (!isClaimFact(f)) continue;
-    if (isUnsupportedMetricFact(f)) {
-      omittedFacts.push({
-        factId: f.factId || f.id,
-        text: f.text,
-        reason: OMISSION_REASONS.UNSUBSTANTIATED,
-      });
-    } else {
-      supportedFacts.push(f);
-    }
-  }
-
-  const evidenceCount =
-    project?.evidenceCount ?? (Array.isArray(project?.evidence) ? project.evidence.length : 0);
-  const capacity = determineProjectBulletCapacity({
-    claimFacts: supportedFacts,
-    evidenceCount,
-    explicitBudget,
-  });
-
-  const planResult = defaultResumeClaimPlannerService.planClaims({
-    facts: supportedFacts,
-    ownerType: 'PROJECT',
-    ownerId: project?.id || project?.projectId || project?.name || 'unknown-project',
-    jobPosting,
-    targetBullets: capacity.capacity,
-    globallyUsedFactIds: options?.globallyUsedFactIds || new Set(),
-  });
-
-  const plannedClaims = planResult.plannedClaims || [];
-  if (Array.isArray(planResult.omittedFacts)) {
-    for (const om of planResult.omittedFacts) {
-      if (!omittedFacts.some((o) => o.factId === om.factId)) {
-        omittedFacts.push({
-          factId: om.factId,
-          text: om.text,
-          reason: om.reason || OMISSION_REASONS.LOW_INFORMATION_VALUE,
-        });
-      }
-    }
-  }
+  const { allFacts, supportedFacts, omittedFacts, capacity, plannedClaims } =
+    prepareProjectNarrativePlan({ facts, project, jobPosting, explicitBudget, options });
 
   const bullets = [];
   const usedFactIds = new Set();
@@ -553,80 +604,27 @@ export async function composeProfessionalProjectBulletsAsync({
         typeof fallbackResult === 'object' ? fallbackResult.text : String(fallbackResult);
     }
 
-    const composedFromFactIds =
-      Array.isArray(planned.factIds) && planned.factIds.length > 0
-        ? planned.factIds
-        : [primaryFact?.factId || primaryFact?.id].filter(Boolean);
-
-    // Final validation gate before acceptance (fail-closed)
-    const validation = defaultResumeClaimValidationService.validateClaim(
-      {
-        claimId: planned.claimId,
-        text: realizedText,
-        factIds: composedFromFactIds,
-        semanticDimensions: planned.semanticDimensions || [],
-        metricsUsed: planned.allowedMetrics || [],
-        technologiesUsed: planned.technologies || [],
-      },
-      {
-        factInventory: allFacts,
-        candidateProfile,
-        sectionOwnerType: 'PROJECT',
-        sectionOwnerId: project?.id || project?.projectId || project?.name,
-        alreadyRenderedClaims: bullets,
-        project,
-      }
-    );
-
-    if (!validation.valid) {
-      omittedFacts.push({
-        factId: composedFromFactIds[0] || 'unknown',
-        text: realizedText,
-        reason: validation.violations?.[0]?.code || OMISSION_REASONS.VALIDATION_REJECTION,
-      });
-      continue;
-    }
-
-    const isRedundant = bullets.some(
-      (kept) =>
-        calculateFactSemanticOverlap(kept.text, realizedText) >= REDUNDANCY_OVERLAP_THRESHOLD
-    );
-
-    if (isRedundant) {
-      omittedFacts.push({
-        factId: composedFromFactIds[0] || 'unknown',
-        text: realizedText,
-        reason: OMISSION_REASONS.REDUNDANCY_REMOVAL,
-      });
-    } else {
-      const evidenceRefs = [];
-      for (const f of contributingFacts) {
-        if (Array.isArray(f.evidenceRefs)) {
-          for (const er of f.evidenceRefs) {
-            if (!evidenceRefs.some((x) => x.evidenceId === er.evidenceId)) evidenceRefs.push(er);
-          }
-        }
-      }
-
-      bullets.push({
-        text: realizedText,
-        evidenceRefs,
-        matchedRequirementIds: primaryFact?.matchedRequirementIds || [],
-        provenanceStatus: primaryFact?.provenance || 'VERIFIED',
-        composedFromFactIds,
-        semanticDimensions: planned.semanticDimensions || [],
-        realizationSource,
-      });
-
-      for (const fid of composedFromFactIds) usedFactIds.add(fid);
-    }
+    assembleRealizedClaim({
+      planned,
+      realizedText,
+      realizationSource,
+      allFacts,
+      candidateProfile,
+      project,
+      bullets,
+      omittedFacts,
+      usedFactIds,
+    });
   }
 
-  return {
+  return finalizeProjectBullets({
     bullets,
-    omittedFacts,
+    supportedFacts,
     capacity,
-  };
+    project,
+    omittedFacts,
+    usedFactIds,
+  });
 }
 
 /**
@@ -712,14 +710,14 @@ export function composeProfessionalSummary({
   const targetRole =
     jobPosting?.title || options.targetRoleTitle || profile.headline || 'Software Engineer';
 
-  // 1. Analyze Job Domain Focus
+  // 1. Extract job text, requirements, and candidate evidence
   const jobText = String(
     (jobPosting?.title || '') +
       ' ' +
       (jobPosting?.description || '') +
       ' ' +
       (jobPosting?.requirements || [])
-        .map((r) => (typeof r === 'string' ? r : r.concept || r.text || ''))
+        .map((r) => (typeof r === 'string' ? r : r.concept || r.keyword || r.title || r.text || ''))
         .join(' ') +
       ' ' +
       (jobPosting?.skills || []).join(' ')
@@ -728,38 +726,6 @@ export function composeProfessionalSummary({
   const titleLower = String(jobPosting?.title || options.targetRoleTitle || '').toLowerCase();
   const descLower = String(jobPosting?.description || '').toLowerCase();
 
-  const isExplicitSystems =
-    /\b(systems?\s+engineer|infrastructure\s+engineer|systems?\s+software|kernel|consensus|distributed\s+systems)\b/i.test(
-      titleLower
-    ) || /\b(rust|c\+\+|raft|linux\s+networking)\b/i.test(titleLower);
-
-  const isBackendFocus =
-    /\b(backend|server|api|database|persistence)\b/i.test(titleLower) ||
-    (/\b(backend|api|server|fastapi|django|postgres)\b/i.test(descLower) &&
-      !/\b(frontend|ui|react)\b/i.test(titleLower));
-
-  const isFrontendFocus =
-    /\b(frontend|ui|ux|web|client|react|next\.js)\b/i.test(titleLower) ||
-    (/\b(frontend|ui|react)\b/i.test(descLower) && !/\b(backend|api|server)\b/i.test(titleLower));
-
-  const isAiEngineering =
-    /\b(ai|ml|machine\s+learning|llm|deep\s+learning|nlp|rag|pytorch|tensorflow)\b/i.test(
-      titleLower
-    ) ||
-    (/\b(ai\s+platform|machine\s+learning|pytorch|inference\s+endpoints)\b/i.test(jobText) &&
-      !isBackendFocus &&
-      !isFrontendFocus);
-
-  const isSystemsInfrastructure =
-    isExplicitSystems ||
-    (!isBackendFocus &&
-      !isFrontendFocus &&
-      !isAiEngineering &&
-      /\b(distributed|systems?|infrastructure|rust|c\+\+|concurrency|kernel|low-latency|raft|consensus|streaming|network|telemetry|fault-tolerant)\b/i.test(
-        jobText
-      ));
-
-  // 2. Identify top relevant candidate-owned technologies and skills
   const candidateSkills =
     Array.isArray(selectedSkills) && selectedSkills.length > 0
       ? selectedSkills
@@ -767,98 +733,144 @@ export function composeProfessionalSummary({
         ? profile.skills
         : profile.skills?.categories?.flatMap((c) => c.skills || []) || [];
 
-  const BACKEND_MARKERS = [
-    'python',
-    'fastapi',
-    'django',
-    'flask',
-    'postgres',
-    'postgresql',
-    'mysql',
-    'node',
-    'nodejs',
-    'node-js',
-    'express',
-    'sql',
-    'redis',
-    'mongodb',
-    'graphql',
-    'api',
-    'rest',
-    'kafka',
-    'docker',
-    'kubernetes',
-  ];
-  const FRONTEND_MARKERS = [
-    'react',
-    'typescript',
-    'javascript',
-    'nextjs',
-    'next-js',
-    'vue',
-    'angular',
-    'html',
-    'css',
-    'tailwind',
-    'tailwind-css',
-    'ui',
-    'frontend',
-  ];
-  const SYSTEMS_MARKERS = [
-    'rust',
-    'go',
-    'docker',
-    'kubernetes',
-    'linux',
-    'grpc',
-    'kafka',
-    'redis',
-    'postgresql',
-    'c++',
-    'c',
-    'raft',
-  ];
-  const AI_MARKERS = [
-    'python',
-    'fastapi',
-    'pytorch',
-    'tensorflow',
-    'redis',
-    'postgresql',
-    'docker',
-    'machine-learning',
-    'nlp',
-    'llm',
+  const projects =
+    Array.isArray(selectedProjects) && selectedProjects.length > 0
+      ? selectedProjects
+      : meta.projects || profile.projects || [];
+
+  // Dynamic Domain Configuration Catalog
+  const DOMAIN_CATALOG = [
+    {
+      id: 'systems',
+      domain: 'Distributed Systems',
+      subdomains: ['Cloud Infrastructure', 'High-Throughput Telemetry'],
+      keywords: [
+        'distributed', 'systems', 'infrastructure', 'rust', 'c++', 'concurrency',
+        'kernel', 'low-latency', 'raft', 'consensus', 'streaming', 'network',
+        'telemetry', 'fault-tolerant', 'go', 'grpc', 'kafka', 'linux',
+      ],
+      titlePattern: /\b(systems?\s+engineer|infrastructure\s+engineer|systems?\s+software|kernel|consensus|distributed\s+systems|rust|c\+\+|raft|linux\s+networking)\b/i,
+      rolePrefix: 'Systems-focused Software Engineer specializing in',
+      differentiator: 'verifiable consensus and deterministic fault-tolerant architecture',
+      sentence1: (domains, tech) => `Systems-focused Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` utilizing ${tech}` : ''}.`,
+      sentence2: (proj, diff) => proj
+        ? `Engineered robust, high-concurrency architectures including ${proj.name || proj.displayName}, emphasizing ${diff}.`
+        : `Experienced in architecting reliable, test-backed distributed software services aligned with technical requirements.`,
+      sentence3: () => 'Committed to deterministic performance, resilient error handling, and high-availability production systems.',
+    },
+    {
+      id: 'ai',
+      domain: 'AI Engineering',
+      subdomains: ['Machine Learning Platforms', 'Backend Pipelines'],
+      keywords: [
+        'ai', 'ml', 'machine learning', 'llm', 'deep learning', 'nlp', 'rag',
+        'pytorch', 'tensorflow', 'inference', 'model', 'pipelines', 'embedding',
+      ],
+      titlePattern: /\b(ai|ml|machine\s+learning|llm|deep\s+learning|nlp|rag|pytorch|tensorflow)\b/i,
+      rolePrefix: 'Software Engineer with technical specialization in',
+      differentiator: 'rigorous evidence-backed AI pipelines with low-latency inference endpoints',
+      sentence1: (domains, tech) => `Software Engineer with technical specialization in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` built with ${tech}` : ''}.`,
+      sentence2: (proj, diff) => proj
+        ? `Demonstrated practical engineering delivery in ${proj.name || proj.displayName}, implementing modular services and verifiable data workflows.`
+        : `Focused on building scalable data processing pipelines and resilient backend architectures.`,
+      sentence3: (proj, diff) => `Leverages ${diff} to deliver reliable, production-ready engineering solutions.`,
+    },
+    {
+      id: 'frontend',
+      domain: 'Modern Web Applications',
+      subdomains: ['Component Architecture', 'User Experience'],
+      keywords: [
+        'frontend', 'ui', 'ux', 'web', 'client', 'react', 'typescript',
+        'javascript', 'next.js', 'next-js', 'vue', 'angular', 'tailwind',
+        'tailwind-css', 'component', 'accessibility', 'html', 'css',
+      ],
+      titlePattern: /\b(frontend|ui|ux|web|client|react|next\.js)\b/i,
+      rolePrefix: 'Frontend-focused Software Engineer specializing in',
+      differentiator: 'accessible, component-driven user interfaces with responsive layout systems',
+      sentence1: (domains, tech) => `Frontend-focused Software Engineer specializing in modern user interfaces and component-driven web architectures${tech ? ` with ${tech}` : ''}.`,
+      sentence2: (proj, diff) => proj
+        ? `Architected modular web applications including ${proj.name || proj.displayName}, ensuring accessibility and high performance.`
+        : `Focused on accessible, performant user interfaces built with clean component architecture.`,
+      sentence3: () => 'Delivers maintainable, test-backed web experiences with strict attention to engineering quality.',
+    },
+    {
+      id: 'backend',
+      domain: 'Backend Engineering',
+      subdomains: ['Scalable API Services', 'Data Persistence'],
+      keywords: [
+        'backend', 'api', 'server', 'database', 'persistence', 'fastapi',
+        'django', 'flask', 'postgres', 'postgresql', 'mysql', 'sql',
+        'redis', 'mongodb', 'graphql', 'rest', 'microservices', 'node',
+        'express', 'nodejs', 'docker', 'kubernetes',
+      ],
+      titlePattern: /\b(backend|server|api|database|persistence)\b/i,
+      rolePrefix: 'Backend-focused Software Engineer specializing in',
+      differentiator: 'robust, test-backed service architecture with clean modular boundaries',
+      sentence1: (domains, tech) => `Backend-focused Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` using ${tech}` : ''}.`,
+      sentence2: (proj, diff) => proj
+        ? `Engineered scalable services including ${proj.name || proj.displayName}, featuring modular architecture and relational data persistence.`
+        : `Experienced in building reliable, test-backed RESTful services and distributed data workflows.`,
+      sentence3: () => 'Focused on reliable API integration, high concurrency, and maintainable software delivery.',
+    },
   ];
 
-  let matchedSkills = [];
-  if (isSystemsInfrastructure) {
-    matchedSkills = candidateSkills.filter((s) => {
-      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
-      return SYSTEMS_MARKERS.some((m) => slug.includes(m));
-    });
-  } else if (isAiEngineering) {
-    matchedSkills = candidateSkills.filter((s) => {
-      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
-      return AI_MARKERS.some((m) => slug.includes(m));
-    });
-  } else if (isFrontendFocus) {
-    matchedSkills = candidateSkills.filter((s) => {
-      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
-      return FRONTEND_MARKERS.some((m) => slug.includes(m));
-    });
-  } else {
-    matchedSkills = candidateSkills.filter((s) => {
-      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
-      return BACKEND_MARKERS.some((m) => slug.includes(m));
-    });
-  }
+  // Dynamically score domains based on job requirements + candidate evidence
+  const scoredDomains = DOMAIN_CATALOG.map((cat) => {
+    let jobScore = 0;
+    if (cat.titlePattern.test(titleLower)) jobScore += 30;
+    if (cat.titlePattern.test(descLower)) jobScore += 15;
 
-  if (matchedSkills.length === 0) {
-    matchedSkills = candidateSkills;
-  }
+    for (const kw of cat.keywords) {
+      if (jobText.includes(kw)) jobScore += 5;
+    }
 
-  const topSkills = matchedSkills.slice(0, 4);
+    let evidenceScore = 0;
+    for (const s of candidateSkills) {
+      const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
+      if (cat.keywords.some((k) => slug.includes(k))) evidenceScore += 4;
+    }
+    for (const p of projects) {
+      for (const t of p.technologies || []) {
+        const tLower = String(t).toLowerCase();
+        if (cat.keywords.some((k) => tLower.includes(k))) evidenceScore += 3;
+      }
+    }
+
+    return {
+      ...cat,
+      totalScore: jobScore * 2 + evidenceScore,
+      jobScore,
+      evidenceScore,
+    };
+  });
+
+  scoredDomains.sort((a, b) => b.totalScore - a.totalScore);
+  const activeDomain = scoredDomains[0] || DOMAIN_CATALOG[3];
+
+  const topRelevantTechnicalDomains = [
+    activeDomain.domain,
+    ...activeDomain.subdomains,
+  ];
+
+  // 2. Dynamically score candidate skills for the active domain & job text
+  const scoredSkills = candidateSkills.map((s) => {
+    const slug = (s.slug || (typeof s === 'string' ? s : s.name) || '').toLowerCase();
+    const name = s.name || (typeof s === 'string' ? s : s.slug) || slug;
+    let score = 0;
+    if (jobText.includes(slug)) score += 20;
+    if (activeDomain.keywords.some((k) => slug.includes(k))) score += 15;
+    for (const p of projects) {
+      if ((p.technologies || []).some((t) => String(t).toLowerCase().includes(slug))) {
+        score += 5;
+      }
+    }
+    return { skill: s, slug, name, score };
+  });
+
+  scoredSkills.sort((a, b) => b.score - a.score);
+  const topMatched = scoredSkills.filter((s) => s.score > 0).slice(0, 4);
+  const topSkills = (topMatched.length > 0 ? topMatched : scoredSkills.slice(0, 4)).map((s) => s.skill);
+
   const referencedSkillSlugs = topSkills.map(
     (s) => s.slug || (typeof s === 'string' ? s.toLowerCase() : s.name.toLowerCase())
   );
@@ -866,30 +878,18 @@ export function composeProfessionalSummary({
     (s) => s.name || (typeof s === 'string' ? s : s.slug)
   );
 
-  // 3. Domains & Strongest Signals
-  const topRelevantTechnicalDomains = isSystemsInfrastructure
-    ? ['Distributed Systems', 'Cloud Infrastructure', 'High-Throughput Telemetry']
-    : isAiEngineering
-      ? ['AI Engineering', 'Machine Learning Platforms', 'Backend Pipelines']
-      : isFrontendFocus
-        ? ['Modern Web Applications', 'Component Architecture', 'User Experience']
-        : ['Backend Engineering', 'Scalable API Services', 'Data Persistence'];
-
-  // Project Signal
-  const projects =
-    Array.isArray(selectedProjects) && selectedProjects.length > 0
-      ? selectedProjects
-      : meta.projects || profile.projects || [];
-
+  // 3. Project Signal
   let topProject = projects[0] || null;
   if (projects.length > 1) {
     const topSkillSet = new Set(referencedSkillSlugs);
     const sorted = [...projects].sort((a, b) => {
       const aMatch = (a.technologies || []).filter((t) =>
-        topSkillSet.has(String(t).toLowerCase())
+        topSkillSet.has(String(t).toLowerCase()) ||
+        activeDomain.keywords.some((k) => String(t).toLowerCase().includes(k))
       ).length;
       const bMatch = (b.technologies || []).filter((t) =>
-        topSkillSet.has(String(t).toLowerCase())
+        topSkillSet.has(String(t).toLowerCase()) ||
+        activeDomain.keywords.some((k) => String(t).toLowerCase().includes(k))
       ).length;
       return bMatch - aMatch;
     });
@@ -909,45 +909,13 @@ export function composeProfessionalSummary({
     ? `${topExp.title || 'Engineer'} at ${topExp.company || 'Enterprise'}`
     : null;
 
-  const differentiator = isSystemsInfrastructure
-    ? 'verifiable consensus and deterministic fault-tolerant architecture'
-    : isAiEngineering
-      ? 'rigorous evidence-backed AI pipelines with low-latency inference endpoints'
-      : isFrontendFocus
-        ? 'accessible, component-driven user interfaces with responsive layout systems'
-        : 'robust, test-backed service architecture with clean modular boundaries';
+  const differentiator = activeDomain.differentiator;
 
   // 4. Synthesize 2-3 sentence grounded summary
   const techPhrase = topRelevantTechnologies.join(', ');
-  let sentence1 = '';
-  let sentence2 = '';
-  let sentence3 = '';
-
-  if (isSystemsInfrastructure) {
-    sentence1 = `Systems-focused Software Engineer specializing in ${topRelevantTechnicalDomains[0].toLowerCase()} and ${topRelevantTechnicalDomains[1].toLowerCase()}${techPhrase ? ` utilizing ${techPhrase}` : ''}.`;
-    sentence2 = topProject
-      ? `Engineered robust, high-concurrency architectures including ${topProject.name || topProject.displayName}, emphasizing ${differentiator}.`
-      : `Experienced in architecting reliable, test-backed distributed software services aligned with technical requirements.`;
-    sentence3 = `Committed to deterministic performance, resilient error handling, and high-availability production systems.`;
-  } else if (isAiEngineering) {
-    sentence1 = `Software Engineer with technical specialization in ${topRelevantTechnicalDomains[0].toLowerCase()} and ${topRelevantTechnicalDomains[1].toLowerCase()}${techPhrase ? ` built with ${techPhrase}` : ''}.`;
-    sentence2 = topProject
-      ? `Demonstrated practical engineering delivery in ${topProject.name || topProject.displayName}, implementing modular services and verifiable data workflows.`
-      : `Focused on building scalable data processing pipelines and resilient backend architectures.`;
-    sentence3 = `Leverages ${differentiator} to deliver reliable, production-ready engineering solutions.`;
-  } else if (isFrontendFocus) {
-    sentence1 = `Frontend-focused Software Engineer specializing in modern user interfaces and component-driven web architectures${techPhrase ? ` with ${techPhrase}` : ''}.`;
-    sentence2 = topProject
-      ? `Architected modular web applications including ${topProject.name || topProject.displayName}, ensuring accessibility and high performance.`
-      : `Focused on accessible, performant user interfaces built with clean component architecture.`;
-    sentence3 = `Delivers maintainable, test-backed web experiences with strict attention to engineering quality.`;
-  } else {
-    sentence1 = `Backend-focused Software Engineer specializing in ${topRelevantTechnicalDomains[0].toLowerCase()} and ${topRelevantTechnicalDomains[1].toLowerCase()}${techPhrase ? ` using ${techPhrase}` : ''}.`;
-    sentence2 = topProject
-      ? `Engineered scalable services including ${topProject.name || topProject.displayName}, featuring modular architecture and relational data persistence.`
-      : `Experienced in building reliable, test-backed RESTful services and distributed data workflows.`;
-    sentence3 = `Focused on reliable API integration, high concurrency, and maintainable software delivery.`;
-  }
+  const sentence1 = activeDomain.sentence1(topRelevantTechnicalDomains, techPhrase);
+  const sentence2 = activeDomain.sentence2(topProject, differentiator);
+  const sentence3 = activeDomain.sentence3(topProject, differentiator);
 
   // If candidate had authentic authored summary, honor authentic facts while role-aligning
   const rawAuthored = summaryText || profile.summary || meta.summary;
@@ -955,6 +923,10 @@ export function composeProfessionalSummary({
 
   if (rawAuthored && typeof rawAuthored === 'string' && rawAuthored.trim().length >= 20) {
     let adapted = rawAuthored.trim();
+    const isBackendFocus = activeDomain.id === 'backend';
+    const isFrontendFocus = activeDomain.id === 'frontend';
+    const isSystemsFocus = activeDomain.id === 'systems';
+
     if (isBackendFocus && !isFrontendFocus) {
       adapted = adapted
         .replace(
@@ -975,6 +947,8 @@ export function composeProfessionalSummary({
         )
         .replace(/\b(?:backend\s+and\s+)/gi, '')
         .replace(/\bfull-stack\b/gi, 'Frontend');
+    } else if (isSystemsFocus) {
+      adapted = adapted.replace(/\bfull-stack\b/gi, 'Systems');
     }
 
     const polishedAuthored = polishProfessionalSummary(adapted);

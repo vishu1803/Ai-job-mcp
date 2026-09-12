@@ -46,8 +46,17 @@ import {
   classifyEvidenceSemanticType,
   EVIDENCE_SEMANTIC_CLASS,
   toEvidenceReference,
+  CONTRIBUTION_CLASSES,
+  areContributionClassesCompatible,
+  classifyContributionClass,
 } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
+
+export {
+  CONTRIBUTION_CLASSES,
+  areContributionClassesCompatible,
+  classifyContributionClass,
+};
 
 /** Canonical Fact Types Taxonomy (Part 2 Specification). */
 export const CANONICAL_FACT_TYPES = Object.freeze({
@@ -78,13 +87,16 @@ export const EVIDENCE_ROLES = Object.freeze({
   CONTEXT: 'CONTEXT',
   RESPONSIBILITY: 'RESPONSIBILITY',
   ACTION: 'ACTION',
+  ACCOMPLISHMENT: 'ACTION',
   IMPLEMENTATION: 'IMPLEMENTATION',
   ARCHITECTURE: 'ARCHITECTURE',
+  DESIGN_DECISION: 'DESIGN_DECISION',
   FEATURE: 'FEATURE',
   INTEGRATION: 'INTEGRATION',
   RELIABILITY: 'RELIABILITY',
   SECURITY: 'SECURITY',
   PERFORMANCE: 'PERFORMANCE',
+  OPTIMIZATION: 'OPTIMIZATION',
   OUTCOME: 'OUTCOME',
   METRIC: 'METRIC',
   TECHNOLOGY: 'TECHNOLOGY',
@@ -271,28 +283,62 @@ export function classifyEvidenceRole(
     return EVIDENCE_ROLES.DSA;
   }
 
-  // Active engineering verbs that indicate an accomplishment even if source is description
-  const hasStrongAccomplishmentVerb =
-    /^(?:designed|implemented|architected|engineered|built|optimized|developed|created|refactored|automated|scaled|migrated|containerized|deployed)\b/i.test(
+  // 1. Explicit Architectural / Design Decision verb openers
+  if (/^(?:architected|designed)\b/i.test(norm)) {
+    return EVIDENCE_ROLES.DESIGN_DECISION;
+  }
+
+  // 2. Explicit Optimization verb openers
+  if (/^(?:optimized|tuned|benchmarked|profiled)\b/i.test(norm)) {
+    return EVIDENCE_ROLES.OPTIMIZATION;
+  }
+
+  // 3. Explicit Outcome verb openers or outcome metrics
+  if (
+    /^(?:reduced|increased|improved|saved|decreased|accelerated)\b/i.test(norm) ||
+    /\b(?:reduced|increased|improved|resulting in|achieved|saved|decreased|accelerated|yielded)\b/i.test(lower) ||
+    /\b(?:\d+%\s+(?:reduction|increase|improvement|speedup|latency)|latency\s+by\s+\d+|throughput\s+by\s+\d+)\b/i.test(lower)
+  ) {
+    return EVIDENCE_ROLES.OUTCOME;
+  }
+
+  // 4. Explicit Action / Implementation verb openers
+  if (
+    /^(?:engineered|implemented|built|developed|created|refactored|automated|scaled|migrated|containerized|deployed)\b/i.test(
       norm
     ) ||
-    /\b(?:designed and implemented|architected and deployed|optimized\s+[\w\s]+\s+for|decreasing\s+|reducing\s+|increasing\s+|resulting in)\b/i.test(
+    /\b(?:designed and implemented|architected and deployed)\b/i.test(lower)
+  ) {
+    return EVIDENCE_ROLES.ACTION;
+  }
+
+  // 5. Architectural design decisions / technical method signals in non-verb statements
+  const hasArchitecturalOrDesignSignal =
+    /\b(?:streaming\s+pipelines?|data\s+exploration\s+platform|consensus|raft|microservices|event-driven|distributed\s+telemetry|cqrs|sharding|restful\s+crud|jwt-based)\b/i.test(
       lower
     );
 
-  // Passive description patterns (e.g. "The API Portal is an administrative web dashboard...", "Features include...")
+  if (hasArchitecturalOrDesignSignal) {
+    return EVIDENCE_ROLES.DESIGN_DECISION;
+  }
+
+  // 6. Performance / Optimization signals in non-verb statements
+  if (
+    /\b(?:optimizing|profiling|benchmarked|tuning|low-latency|high-throughput|caching|cache-hit|query optimization)\b/i.test(lower)
+  ) {
+    return EVIDENCE_ROLES.PERFORMANCE;
+  }
+
+  // 7. Passive description patterns
   const isPassiveDescriptionPattern =
     /^(?:a|an|the)\s+(?:[\w-]+\s+){0,3}(?:is\s+(?:an?|the)\s+)?(?:application|app|service|tool|platform|library|framework|cli|manager|dashboard|assistant|system|bot|extension|web dashboard)\b/i.test(
       norm
     ) ||
     /^(?:a|an|the)\s+(?:[\w-]+\s+){1,3}is\b/i.test(norm) ||
     /^(?:features\s+include|capabilities\s+include|supported\s+features)\b/i.test(norm) ||
-    /^(?:real-time|lightweight|full-stack|distributed|web-based|interactive)\s+[\w-]+\s+(?:application|app|service|tool|platform|manager)\b/i.test(
-      norm
-    ) ||
-    (sourceType === 'description' && !hasStrongAccomplishmentVerb);
+    sourceType === 'description';
 
-  if (isPassiveDescriptionPattern && !hasStrongAccomplishmentVerb) {
+  if (isPassiveDescriptionPattern) {
     return EVIDENCE_ROLES.PROJECT_DESCRIPTION;
   }
 
@@ -318,11 +364,20 @@ export function isAccomplishmentCandidate(fact) {
   if (!fact || !fact.renderable) return false;
   const role =
     fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
+  const contribution =
+    fact.contributionClass ||
+    classifyContributionClass(fact.text, fact.sourceType, fact.canonicalFactType);
+  if (
+    role === EVIDENCE_ROLES.PROJECT_DESCRIPTION ||
+    role === EVIDENCE_ROLES.CONTEXT ||
+    role === EVIDENCE_ROLES.TECHNOLOGY ||
+    role === EVIDENCE_ROLES.LINK
+  ) {
+    return false;
+  }
   return (
-    role !== EVIDENCE_ROLES.PROJECT_DESCRIPTION &&
-    role !== EVIDENCE_ROLES.CONTEXT &&
-    role !== EVIDENCE_ROLES.TECHNOLOGY &&
-    role !== EVIDENCE_ROLES.LINK
+    contribution !== CONTRIBUTION_CLASSES.DESCRIPTION &&
+    contribution !== CONTRIBUTION_CLASSES.CONTEXT
   );
 }
 
@@ -336,7 +391,15 @@ export function isProjectDescriptionFact(fact) {
   if (!fact) return false;
   const role =
     fact.evidenceRole || classifyEvidenceRole(fact.text, fact.sourceType, fact.canonicalFactType);
-  return role === EVIDENCE_ROLES.PROJECT_DESCRIPTION || role === EVIDENCE_ROLES.CONTEXT;
+  const contribution =
+    fact.contributionClass ||
+    classifyContributionClass(fact.text, fact.sourceType, fact.canonicalFactType);
+  return (
+    role === EVIDENCE_ROLES.PROJECT_DESCRIPTION ||
+    role === EVIDENCE_ROLES.CONTEXT ||
+    contribution === CONTRIBUTION_CLASSES.DESCRIPTION ||
+    contribution === CONTRIBUTION_CLASSES.CONTEXT
+  );
 }
 
 /** Internal name for the profile-level problem-solving fact surface. */
@@ -502,6 +565,14 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       candidate.association?.educationId ||
       '';
 
+    const contributionClass =
+      candidate.contributionClass ||
+      classifyContributionClass(
+        text,
+        candidate.sourceType || 'bullet',
+        candidate.canonicalFactType
+      );
+
     const factId = factFingerprint(text, assocKey);
 
     // Exact-text dedup across surfaces (e.g. same sentence in bullets + features)
@@ -512,13 +583,18 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     }
     seenFingerprints.add(factId);
 
-    // Semantic near-duplicate merge (redundant descriptions across surfaces)
+    // Role-aware semantic near-duplicate merge (Findings 2 & 3)
     const assocFacts = facts.filter(
       (f) => (f.association?.projectId || '') === (candidate.association?.projectId || '')
     );
-    const dup = assocFacts.find(
-      (f) => calculateFactSemanticOverlap(text, f.text) >= clusterThreshold
-    );
+    const dup = assocFacts.find((f) => {
+      const overlap = calculateFactSemanticOverlap(text, f.text);
+      if (overlap < clusterThreshold) return false;
+      const fContributionClass =
+        f.contributionClass ||
+        classifyContributionClass(f.text, f.sourceType || 'bullet', f.canonicalFactType);
+      return areContributionClassesCompatible(fContributionClass, contributionClass);
+    });
     if (dup) {
       mergeSources(dup, candidate);
       return;
@@ -580,6 +656,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       factType: rawFactType,
       canonicalFactType,
       evidenceRole,
+      contributionClass,
       semanticDimensions,
       projectId: candidate.association?.projectId || null,
       experienceId: candidate.association?.experienceId || null,
@@ -1040,9 +1117,32 @@ export function normalizeJobRequirementString(req) {
  */
 export function scoreFactsForJob(facts, jobPosting) {
   const jp = jobPosting || {};
-  const reqStrings = (Array.isArray(jp.requirements) ? jp.requirements : [])
-    .map(normalizeJobRequirementString)
-    .filter(Boolean);
+  const rawReqs = Array.isArray(jp.requirements) ? jp.requirements : [];
+
+  // Normalized requirement concepts with importance (Finding 10)
+  const normalizedReqs = rawReqs
+    .map((req, idx) => {
+      const text = normalizeJobRequirementString(req);
+      const id =
+        typeof req === 'object' && req !== null && req.id ? String(req.id) : `req-${idx + 1}`;
+      const keyword =
+        typeof req === 'object' && req !== null && req.keyword ? String(req.keyword) : text;
+      const importance =
+        typeof req === 'object' && req !== null && typeof req.importance === 'number'
+          ? req.importance
+          : 1.0;
+      const tokens = new Set(
+        text
+          .toLowerCase()
+          .replace(/[^a-z0-9+#.]+/g, ' ')
+          .split(/\s+/)
+          .filter((w) => w.length >= 3)
+      );
+      return { id, text, keyword, importance, tokens };
+    })
+    .filter((r) => r.text.length > 0);
+
+  const reqStrings = normalizedReqs.map((r) => r.text);
   const skillStrings = (Array.isArray(jp.skills) ? jp.skills : [])
     .map((s) => (typeof s === 'string' ? s : s?.name || s?.keyword || ''))
     .filter(Boolean);
@@ -1065,11 +1165,48 @@ export function scoreFactsForJob(facts, jobPosting) {
   return (Array.isArray(facts) ? facts : []).map((f) => {
     const lower = f.text.toLowerCase();
     let relevance = 0;
+    const matchedRequirementIds = [];
+
+    // Requirement-aware matching (Finding 10)
+    for (const req of normalizedReqs) {
+      let matched = false;
+      if (req.keyword && lower.includes(req.keyword.toLowerCase())) {
+        matched = true;
+      } else if (req.text && lower.includes(req.text.toLowerCase())) {
+        matched = true;
+      } else {
+        let tokenMatches = 0;
+        for (const token of req.tokens) {
+          if (lower.includes(token)) tokenMatches++;
+        }
+        if (req.tokens.size > 0 && tokenMatches / req.tokens.size >= 0.5) {
+          matched = true;
+        }
+      }
+
+      if (!matched && Array.isArray(f.technologies)) {
+        for (const tech of f.technologies) {
+          const tLower = String(tech).toLowerCase();
+          if (req.tokens.has(tLower) || (req.keyword && req.keyword.toLowerCase().includes(tLower))) {
+            matched = true;
+            break;
+          }
+        }
+      }
+
+      if (matched) {
+        matchedRequirementIds.push(req.id);
+        relevance += req.importance * 12;
+      }
+    }
+
     for (const term of jobTerms) {
       if (lower.includes(term)) relevance += keyTerms.has(term) ? 12 : 5;
     }
+
     // Evidence-backed facts get a trust bonus
     if (f.evidenceRefs?.length || f.sourceType === 'evidence') relevance += 5;
+
     // Topic alignment: implementation/architecture/outcome facts are
     // intrinsically more bullet-worthy than tooling-only facts.
     const topicBonus = {
@@ -1101,6 +1238,9 @@ export function scoreFactsForJob(facts, jobPosting) {
       ...f,
       jobRelevance: scoredRelevance,
       importance,
+      matchedRequirementIds: Array.from(
+        new Set([...(f.matchedRequirementIds || []), ...matchedRequirementIds])
+      ),
     };
   });
 }
@@ -1154,6 +1294,18 @@ export function computeFactUtilizationStats(inventoryOrParams, renderedFactIdsAr
     }
   }
 
+  const detailedOmissionRecords = omittedFacts.map((f, idx) => ({
+    factId: f.factId || f.id,
+    reason: omissionReasons[f.factId] || OMISSION_REASONS.CAPACITY_LIMIT,
+    utilityRank: idx + 1,
+    relevanceScore: f.jobRelevance ?? 0,
+    evidenceStrength: f.confidence ?? 0.8,
+    competingFactIds: usedFacts.map((u) => u.factId || u.id),
+    eliminatedAtStage: f.eliminatedAtStage || 'CLAIM_SELECTION',
+    selectedAlternative: f.selectedAlternative || usedFacts[0]?.factId || null,
+    text: f.text,
+  }));
+
   return {
     factsAvailable: totalAvailable,
     highValueFactsAvailable: totalHighValue,
@@ -1162,6 +1314,12 @@ export function computeFactUtilizationStats(inventoryOrParams, renderedFactIdsAr
     factsOmitted: omittedFacts.length,
     factsReused: Math.max(0, renderedSet.size - usedFacts.length),
     redundantFactUse: 0,
+    canonicalFacts: totalAvailable,
+    authorizedFacts: facts.filter((f) => f.provenanceStatus !== 'UNAUTHORIZED').length,
+    renderableFacts: facts.filter((f) => f.renderable).length,
+    eligibleFacts: totalHighValue,
+    renderedFacts: usedFacts.length,
+    detailedOmissionRecords,
     utilizationRate:
       totalAvailable > 0 ? parseFloat((usedFacts.length / totalAvailable).toFixed(2)) : 0,
     highValueUtilizationRate:

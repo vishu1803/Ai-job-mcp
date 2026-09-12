@@ -46,6 +46,111 @@ export const FACT_STOP_WORDS = new Set([
 ]);
 
 /**
+ * Generic Candidate Contribution Classifications (Findings 2 & 3).
+ * Classifies factual statements by their material professional contribution role.
+ */
+export const CONTRIBUTION_CLASSES = Object.freeze({
+  DESCRIPTION: 'DESCRIPTION',
+  CONTEXT: 'CONTEXT',
+  CANDIDATE_ACTION: 'CANDIDATE_ACTION',
+  CANDIDATE_IMPLEMENTATION: 'CANDIDATE_IMPLEMENTATION',
+  CANDIDATE_DESIGN_DECISION: 'CANDIDATE_DESIGN_DECISION',
+  CANDIDATE_OPTIMIZATION: 'CANDIDATE_OPTIMIZATION',
+  CANDIDATE_OUTCOME: 'CANDIDATE_OUTCOME',
+});
+
+/**
+ * Checks whether two contribution classes are mutually compatible for semantic near-duplicate merging.
+ * Prevents collapsing materially distinct evidence (e.g. description + implementation, or implementation + outcome).
+ *
+ * @param {string} classA
+ * @param {string} classB
+ * @returns {boolean}
+ */
+export function areContributionClassesCompatible(classA, classB) {
+  if (!classA || !classB) return true;
+  if (classA === classB) return true;
+  const compatiblePairs = new Set([
+    'DESCRIPTION:CONTEXT',
+    'CONTEXT:DESCRIPTION',
+    'CANDIDATE_ACTION:CANDIDATE_IMPLEMENTATION',
+    'CANDIDATE_IMPLEMENTATION:CANDIDATE_ACTION',
+  ]);
+  return compatiblePairs.has(`${classA}:${classB}`);
+}
+
+/**
+ * Classifies a factual candidate text into a generic contribution class.
+ *
+ * @param {string} text
+ * @param {string} [sourceType='bullet']
+ * @param {string} [canonicalFactType=null]
+ * @returns {string} One of CONTRIBUTION_CLASSES
+ */
+export function classifyContributionClass(text, sourceType = 'bullet', canonicalFactType = null) {
+  const norm = String(text || '').trim();
+  const lower = norm.toLowerCase();
+
+  // 1. Outcome / Metric / Result patterns
+  if (
+    /\b(?:reduced|increased|improved|resulting in|achieved|saved|decreased|accelerated|yielded)\b/i.test(lower) ||
+    /\b(?:\d+%\s+(?:reduction|increase|improvement|speedup|latency|growth)|latency\s+by\s+\d+|throughput\s+by\s+\d+)\b/i.test(lower)
+  ) {
+    return CONTRIBUTION_CLASSES.CANDIDATE_OUTCOME;
+  }
+
+  // 2. Optimization / Performance
+  if (
+    /\b(?:optimized|optimizing|profiling|benchmarked|tuning|low-latency|high-throughput|caching|cache-hit|query optimization)\b/i.test(lower) ||
+    /\b(?:sub-second|zero-allocation|concurrency optimization|query\s+optimization)\b/i.test(lower)
+  ) {
+    return CONTRIBUTION_CLASSES.CANDIDATE_OPTIMIZATION;
+  }
+
+  // 3. Design Decision / Architectural Choice
+  if (
+    /\b(?:architected|architecting|consensus|raft|microservices|event-driven|cqrs|pipeline|streaming pipelines|sharding|schema design|partitioning|modular architecture)\b/i.test(lower) ||
+    /\b(?:protocol|state machine|data exploration platform|telemetry pipeline|distributed telemetry)\b/i.test(lower)
+  ) {
+    if (sourceType === 'description' || sourceType === 'feature' || /^(?:architected|designed|structured|selected)\b/i.test(norm)) {
+      return CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION;
+    }
+    if (/^(?:engineered|architected)\b/i.test(norm) && /\b(?:consensus|raft|architecture|pipeline)\b/i.test(lower)) {
+      return CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION;
+    }
+  }
+
+  // 4. Candidate Action vs Implementation
+  if (/^(?:spearheaded|led|coordinated|championed|collaborated|facilitated)\b/i.test(norm)) {
+    return CONTRIBUTION_CLASSES.CANDIDATE_ACTION;
+  }
+  if (/^(?:built|implemented|engineered|developed|created|refactored|automated|deployed|containerized|migrated|configured|integrated|designed)\b/i.test(norm)) {
+    return CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION;
+  }
+
+  // 5. Passive description / Context
+  const isPassivePattern =
+    /^(?:a|an|the)\s+(?:[\w-]+\s+){0,3}(?:is\s+(?:an?|the)\s+)?(?:application|app|service|tool|platform|library|framework|cli|manager|dashboard|assistant|system|bot)\b/i.test(norm) ||
+    /^(?:features\s+include|capabilities\s+include|supported\s+features)\b/i.test(norm) ||
+    (sourceType === 'description' && !/\b(?:designed|implemented|built|engineered|architected|streaming|pipelines|platform|consensus|telemetry|exploration)\b/i.test(lower));
+
+  if (isPassivePattern) {
+    return CONTRIBUTION_CLASSES.DESCRIPTION;
+  }
+
+  // If a description or feature text mentions concrete architectural or technical methods, it is CANDIDATE_DESIGN_DECISION
+  if (/\b(?:streaming|pipeline|platform|distributed|consensus|raft|api|rest|crud|microservices)\b/i.test(lower)) {
+    return CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION;
+  }
+
+  if (sourceType === 'description') {
+    return CONTRIBUTION_CLASSES.DESCRIPTION;
+  }
+
+  return CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION;
+}
+
+/**
  * Extracts substantive lowercase token set from candidate factual text for deduplication.
  *
  * @param {string} text Text to tokenize
@@ -89,14 +194,14 @@ export function calculateFactSemanticOverlap(textA, textB) {
 /**
  * Counts distinct canonical facts across candidate text items (bullets, highlights,
  * features, descriptions). Semantically duplicate descriptions (token overlap >= 0.60)
- * count as 1 distinct fact.
+ * count as 1 distinct fact only when their contribution roles are compatible.
  *
  * @param {Array<string|object>} items Candidate text items
  * @param {number} [overlapThreshold=0.60] Jaccard threshold for duplicate clustering
  * @returns {number} Number of distinct canonical facts
  */
 export function countDistinctCanonicalFacts(items = [], overlapThreshold = 0.6) {
-  const flatStrings = [];
+  const flatItems = [];
   for (const item of Array.isArray(items) ? items : []) {
     if (!item) continue;
     const text =
@@ -105,25 +210,38 @@ export function countDistinctCanonicalFacts(items = [], overlapThreshold = 0.6) 
         : String(item);
     const trimmed = String(text || '').trim();
     if (trimmed.length > 0) {
-      flatStrings.push(trimmed);
+      const contributionClass =
+        typeof item === 'object' && item !== null && item.contributionClass
+          ? item.contributionClass
+          : classifyContributionClass(
+              trimmed,
+              typeof item === 'object' ? item.sourceType : 'bullet'
+            );
+      flatItems.push({ text: trimmed, contributionClass });
     }
   }
 
-  if (flatStrings.length === 0) return 0;
+  if (flatItems.length === 0) return 0;
 
   const clusters = [];
-  for (const text of flatStrings) {
+  for (const entry of flatItems) {
     let matched = false;
     for (const cluster of clusters) {
-      const overlap = calculateFactSemanticOverlap(text, cluster.representative);
-      if (overlap >= overlapThreshold) {
-        cluster.items.push(text);
-        matched = true;
-        break;
+      if (areContributionClassesCompatible(entry.contributionClass, cluster.contributionClass)) {
+        const overlap = calculateFactSemanticOverlap(entry.text, cluster.representative);
+        if (overlap >= overlapThreshold) {
+          cluster.items.push(entry.text);
+          matched = true;
+          break;
+        }
       }
     }
     if (!matched) {
-      clusters.push({ representative: text, items: [text] });
+      clusters.push({
+        representative: entry.text,
+        contributionClass: entry.contributionClass,
+        items: [entry.text],
+      });
     }
   }
 
@@ -630,6 +748,21 @@ export function synthesizeAccomplishmentNarrative(
 
   let primary = normalizeWhitespace(stripTrailingPeriod(primaryText));
   primary = compressProfessionalBullet(primary);
+
+  // If primary statement lacks an opening action verb, synthesize an active engineering verb
+  const hasOpeningActionVerb =
+    /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|created|configured|integrated|secured)\b/i.test(
+      primary
+    );
+  if (!hasOpeningActionVerb) {
+    if (/\b(?:streaming\s+pipelines?|consensus|raft|distributed\s+telemetry)\b/i.test(primary)) {
+      primary = `Architected ${lowerFirst(primary)}`;
+    } else if (/\b(?:platform|service|api|application|system|dashboard)\b/i.test(primary)) {
+      primary = `Designed ${lowerFirst(primary)}`;
+    } else {
+      primary = `Engineered ${lowerFirst(primary)}`;
+    }
+  }
 
   let synthesized = '';
   if (!complementaryText) {

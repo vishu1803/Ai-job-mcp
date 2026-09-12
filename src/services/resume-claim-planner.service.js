@@ -33,6 +33,9 @@ import {
   isAccomplishmentCandidate,
   isProjectDescriptionFact,
 } from './candidate-fact-inventory.service.js';
+import {
+  CONTRIBUTION_CLASSES,
+} from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
 
 /**
@@ -42,7 +45,7 @@ export const SEMANTIC_DIMENSION_CLUSTERS = Object.freeze([
   {
     key: 'architecture',
     label: 'Architecture & System Design',
-    roles: [EVIDENCE_ROLES.ARCHITECTURE],
+    roles: [EVIDENCE_ROLES.ARCHITECTURE, EVIDENCE_ROLES.DESIGN_DECISION],
     topics: [
       'architecture',
       'distributed',
@@ -52,6 +55,7 @@ export const SEMANTIC_DIMENSION_CLUSTERS = Object.freeze([
       'queue',
       'sharding',
       'event-driven',
+      'streaming',
     ],
   },
   {
@@ -492,9 +496,11 @@ export class ResumeClaimPlannerService {
           (f) =>
             !assignedFactIds.has(f.factId) &&
             f.factId !== primaryFact.factId &&
+            f.contributionClass !== CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION &&
+            f.contributionClass !== CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION &&
             (f.evidenceRole === EVIDENCE_ROLES.METRIC ||
               f.evidenceRole === EVIDENCE_ROLES.OUTCOME ||
-              f.evidenceRole === EVIDENCE_ROLES.PERFORMANCE)
+              f.contributionClass === CONTRIBUTION_CLASSES.CANDIDATE_OUTCOME)
         );
 
         const groupFacts = supportingFact ? [primaryFact, supportingFact] : [primaryFact];
@@ -703,10 +709,23 @@ export class ResumeClaimPlannerService {
   }
 
   _extractActionVerb(text) {
-    const firstWord =
-      String(text || '')
-        .trim()
-        .split(/\s+/)[0] || 'Engineered';
+    const norm = String(text || '').trim();
+    const match = norm.match(
+      /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured)\b/i
+    );
+    if (match) {
+      return match[0].charAt(0).toUpperCase() + match[0].slice(1).toLowerCase();
+    }
+    if (/\b(?:streaming\s+pipelines?|consensus|raft|distributed\s+telemetry)\b/i.test(norm)) {
+      return 'Architected';
+    }
+    if (/\b(?:optimized|tuning|caching|latency|throughput)\b/i.test(norm)) {
+      return 'Optimized';
+    }
+    if (/\b(?:platform|service|api|application|system|dashboard)\b/i.test(norm)) {
+      return 'Designed';
+    }
+    const firstWord = norm.split(/\s+/)[0] || 'Engineered';
     return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
   }
 

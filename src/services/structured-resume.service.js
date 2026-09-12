@@ -733,21 +733,23 @@ export function buildStructuredResumeDocument({
         },
       });
       // Preserve canonical fact IDs directly on schemaBullet for end-to-end evidence traceability
-      pBullets = composed.bullets.map(({ semanticDimensions, ...schemaBullet }) => {
-        const factIds = Array.isArray(schemaBullet.composedFromFactIds)
-          ? schemaBullet.composedFromFactIds
-          : [];
-        factCompositionTrace.push({
-          projectId: selectedId,
-          projectName: proj.name || proj.title || '',
-          composedFromFactIds: factIds,
-          semanticDimensions: semanticDimensions || [],
-        });
-        return {
-          ...schemaBullet,
-          composedFromFactIds: factIds,
-        };
-      });
+      pBullets = composed.bullets.map(
+        ({ semanticDimensions, realizationSource, ...schemaBullet }) => {
+          const factIds = Array.isArray(schemaBullet.composedFromFactIds)
+            ? schemaBullet.composedFromFactIds
+            : [];
+          factCompositionTrace.push({
+            projectId: selectedId,
+            projectName: proj.name || proj.title || '',
+            composedFromFactIds: factIds,
+            semanticDimensions: semanticDimensions || [],
+          });
+          return {
+            ...schemaBullet,
+            composedFromFactIds: factIds,
+          };
+        }
+      );
       _bulletCapacityInfo = composed.capacity;
       projectOmittedFacts = composed.omittedFacts;
       if (Array.isArray(projectOmittedFacts) && projectOmittedFacts.length > 0) {
@@ -763,7 +765,9 @@ export function buildStructuredResumeDocument({
         explicitBudget: projectOptions.maxBullets ?? null,
         candidateProfile: source,
       });
-      pBullets = composed.bullets;
+      pBullets = composed.bullets.map(
+        ({ semanticDimensions, realizationSource, ...schemaBullet }) => schemaBullet
+      );
       _bulletCapacityInfo = composed.capacity;
     }
 

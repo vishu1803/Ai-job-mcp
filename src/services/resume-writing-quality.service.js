@@ -244,6 +244,40 @@ export function evaluateResumeWritingQuality({
     strengths.push('High candidate contribution ratio with active engineering accomplishments');
   }
 
+  // 2c. Project Narrative Collapse Detection
+  if (factInventory && Array.isArray(factInventory.facts)) {
+    for (const p of projects) {
+      const pId = p.id || p.projectId;
+      const pName = p.name || p.displayName;
+      const pBullets = Array.isArray(p.bullets) ? p.bullets : [];
+
+      const projectFacts = factInventory.facts.filter((f) => {
+        const matchesId = pId && (f.projectId === pId || f.association?.projectId === pId);
+        const matchesName =
+          pName && f.projectName && f.projectName.toLowerCase() === pName.toLowerCase();
+        return (matchesId || matchesName) && f.renderable !== false;
+      });
+
+      const distinctContributionFacts = projectFacts.filter((f) => {
+        const role = f.evidenceRole || '';
+        const cClass = f.contributionClass || '';
+        return (
+          cClass.includes('CANDIDATE_') ||
+          ['ACCOMPLISHMENT', 'IMPLEMENTATION', 'DESIGN_DECISION', 'OPTIMIZATION', 'PERFORMANCE'].includes(role)
+        );
+      });
+
+      if (distinctContributionFacts.length >= 2 && pBullets.length === 1) {
+        findings.push({
+          code: 'PROJECT_NARRATIVE_COLLAPSE',
+          severity: 'WARN',
+          message: `Project "${pName || pId}" has ${distinctContributionFacts.length} distinct eligible contribution facts but rendered only 1 bullet`,
+          project: pName || pId,
+        });
+      }
+    }
+  }
+
   // 3. Technical Specificity (Taxonomy-driven)
   const knownTechs = new Set(Object.keys(CATEGORY_MAP).map((k) => k.toLowerCase()));
   for (const k of Object.keys(CANONICAL_TECH_MAP)) knownTechs.add(k.toLowerCase());
@@ -517,6 +551,9 @@ export const OMISSION_REASON_CODES = Object.freeze({
   SUPERSEDED_BY_RICHER_FACT: 'SUPERSEDED_BY_RICHER_FACT',
   UNSUPPORTED_ROLE_CLAIM: 'UNSUPPORTED_ROLE_CLAIM',
   UNAUTHORIZED_TECHNOLOGY: 'UNAUTHORIZED_TECHNOLOGY',
+  ROLE_INCOMPATIBLE: 'ROLE_INCOMPATIBLE',
+  SUBORDINATE_FUSED: 'SUBORDINATE_FUSED',
+  PROJECT_NARRATIVE_COLLAPSE: 'PROJECT_NARRATIVE_COLLAPSE',
 });
 
 /**

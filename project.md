@@ -3,6 +3,67 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### PART 30: Resume Generation Forensic Repair — Multi-Bullet Narrative Pipeline Integrity & Dynamic Evidence Composition
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-12  
+**Baseline Main HEAD:** `387af99f82b09c543d38a8f9e1d2c1238b06854a`  
+
+**Context & Core Architectural Invariants:**
+Diagnosed and forensically repaired the architectural cause of the recurring shallow/single-bullet failure on projects with rich candidate-owned evidence (e.g., `Product Data Explorer` model). Strictly preserved the invariant:
+$$\text{RenderedClaims} \subseteq \text{AuthorizedCanonicalEvidence}$$
+and ensured:
+$$\text{Distinct eligible contribution evidence} \to \text{distinct narrative opportunities} \to \text{appropriate number of professional bullets}$$
+Eliminated dual-authority divergences between sync and async composition pathways, unified claim planning and realization validation, and made tailored summary composition dynamic and evidence-weighted without static domain regex branches.
+
+**Root Causes Diagnosed & Forensically Repaired:**
+1. **Misclassification of Rich Project Facts:** Facts without an opening past-tense verb (e.g. *"High-throughput distributed telemetry and data exploration platform in Rust and TypeScript with streaming pipelines"*) were previously classified as `PROJECT_DESCRIPTION`, causing them to be discarded under accomplishment-priority rules.
+2. **Strategy C Premature Abandonment:** Claim planner Strategy C previously ignored description-classified facts whenever any accomplishment fact existed, discarding distinct platform architecture facts as `DESCRIPTION_ONLY`.
+3. **Strategy A Subordinate Fusion:** In Strategy A, the claim planner previously treated any fact with `evidenceRole === PERFORMANCE` (triggered by "high-throughput") as a subordinate `supportingFact`, fusing distinct architecture and implementation facts into a single run-on sentence.
+4. **Role-Agnostic Lexical Deduplication:** Lexical Jaccard near-duplicate checking in `addFact()` previously lacked contribution role awareness, risking collapse of distinct technical statements sharing common keywords.
+5. **Dual Composition Authority Divergence:** `composeProfessionalProjectBullets` (sync) and `composeProfessionalProjectBulletsAsync` (async) maintained independent implementations with divergent omission handling, fallback strategies, and validation rules.
+6. **Compound Semantic Dimension Rejection:** Invariant 10 validation rejected valid compound claim dimensions (e.g. `performance_outcome`) against atomic fact topics (`performance`), silently discarding planned bullets.
+
+**Key Deliverables & Architectural Enhancements:**
+1. **Role-Aware Contribution Classification (`src/services/resume-composition-primitives.js` & `candidate-fact-inventory.service.js`):**
+   - Introduced generic `CONTRIBUTION_CLASSES`: `DESCRIPTION`, `CONTEXT`, `CANDIDATE_ACTION`, `CANDIDATE_IMPLEMENTATION`, `CANDIDATE_DESIGN_DECISION`, `CANDIDATE_OPTIMIZATION`, `CANDIDATE_OUTCOME`.
+   - Added `DESIGN_DECISION` and `OPTIMIZATION` to `EVIDENCE_ROLES` with an `ACCOMPLISHMENT` alias for `ACTION`.
+   - Updated `classifyEvidenceRole()` to accurately identify design decision signals (e.g. streaming pipelines, data exploration platform, consensus) and active verb openers (`Architected`, `Designed`, `Engineered`, `Optimized`), preventing distinct engineering statements from falling into passive `PROJECT_DESCRIPTION`.
+   - Updated `addFact()` deduplication: checks `areContributionClassesCompatible(fClass, class)` to prevent collapsing distinct architectural and implementation facts sharing common keywords.
+   - Enhanced `scoreFactsForJob()` with requirement-aware scoring and substantive token overlap.
+   - Enhanced `computeFactUtilizationStats()` with detailed lifecycle tracking (`canonicalFacts`, `authorizedFacts`, `renderableFacts`, `eligibleFacts`, `renderedFacts`, `detailedOmissionRecords`).
+2. **Non-Destructive Claim Planning (`src/services/resume-claim-planner.service.js`):**
+   - Preserved distinct candidate contribution facts (`CANDIDATE_DESIGN_DECISION`, `CANDIDATE_IMPLEMENTATION`) as independent claim anchors rather than swallowing them as subordinate performance details.
+   - Enhanced `_extractActionVerb()` with regex pattern matching and domain-aware verb selection.
+3. **Single Authoritative Composition Core (`src/services/resume-accomplishment-composer.service.js`):**
+   - Refactored `composeProfessionalProjectBullets` and `composeProfessionalProjectBulletsAsync` to delegate to a single authoritative pipeline: `prepareProjectNarrativePlan`, `assembleRealizedClaim`, and `finalizeProjectBullets`.
+   - Guaranteed 100% parity: sync and async deterministic realizations yield bit-for-bit identical bullets, evidence references, fact IDs, and omission records.
+   - Updated `synthesizeAccomplishmentNarrative()` to automatically synthesize an active past-tense engineering verb (`Architected`, `Designed`, `Engineered`) if the primary statement lacks one.
+   - Refactored `composeProfessionalSummary()` to dynamically score technical domains and technologies from candidate evidence and job requirements using a domain catalog rather than rigid static regex branches.
+4. **Validation Invariant 10 Alignment (`src/services/resume-claim-validation.service.js`):**
+   - Aligned semantic dimension matching to support compound planner cluster dimensions (e.g., `performance_outcome`) matching component topics (`performance`, `outcome`) in contributing facts.
+5. **Quality Scorer Collapse Detection (`src/services/resume-writing-quality.service.js`):**
+   - Implemented `PROJECT_NARRATIVE_COLLAPSE` finding detecting when a project with $\ge 2$ distinct eligible contribution facts renders only 1 bullet without valid omission reasons.
+   - Expanded `OMISSION_REASON_CODES` with `ROLE_INCOMPATIBLE`, `SUBORDINATE_FUSED`, and `PROJECT_NARRATIVE_COLLAPSE`.
+6. **Strict Schema Compliance (`src/services/structured-resume.service.js`):**
+   - Stripped internal `realizationSource` and `semanticDimensions` metadata when mapping composed bullets to the strict `TailoredProjectBulletSchema`.
+
+**Verification & Evidence:**
+- **Dedicated Forensic Regression Test Suite (`tests/unit/p18-forensic-narrative-repair.test.js`):**
+  - 10/10 tests PASS covering role-aware classification, PDE multi-bullet composition ($\ge 2$ bullets), invariant $\text{RenderedClaims} \subseteq \text{AuthorizedCanonicalEvidence}$, sync/async bit-for-bit parity, dynamic summary adaptation, and narrative collapse detection.
+- **Combined P16, P17, P18 Quality Test Suite:**
+  - 75/75 tests across 29 test suites PASS (`node --test tests/unit/p18-*.test.js tests/unit/p17-*.test.js tests/unit/p16-*.test.js`).
+- **Real-Candidate Read-Only Quality Regression (`scripts/p16-quality-regression-comparison.mjs`):**
+  - Evaluated stored candidate (`10a2b51b-09bf-4090-8040-1f60ebeb89c9`) read-only across Cloudflare, Vercel, and Crunchyroll target roles:
+    - **Cloudflare (Systems & Infrastructure):** Overall Quality: 88/100 | Writing Quality: 81/100 | PDF Observability: 90/100 | ATS Score: 95/100 | Facts Used: 11/125 | Pages: 1
+    - **Vercel (Backend):** Overall Quality: 87/100 | Writing Quality: 78/100 | PDF Observability: 90/100 | ATS Score: 95/100 | Facts Used: 13/125 | Pages: 1
+    - **Crunchyroll (Python AI & Backend):** Overall Quality: 89/100 | Writing Quality: 82/100 | PDF Observability: 90/100 | ATS Score: 95/100 | Facts Used: 13/125 | Pages: 1
+  - Zero database mutations (0 records inserted, updated, or deleted).
+- **Product Data Explorer End-to-End Verification (`scratch/verify-pde-db.mjs`):**
+  - Confirmed `Product Data Explorer` loaded directly from candidate database record reliably composes **2 distinct, complementary accomplishment bullets** with 0 omissions:
+    1. *Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.*
+    2. *Architected high-throughput distributed telemetry and data exploration platform in Rust and TypeScript with streaming pipelines.*
+
 ### PART 29: Professional Resume Narrative Intelligence & Leaf Primitives Isolation (P18 Architecture)
 
 **Status:** COMPLETE & VERIFIED  

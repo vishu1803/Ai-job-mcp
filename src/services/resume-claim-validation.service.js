@@ -282,12 +282,20 @@ export class ResumeClaimValidationService {
             ...(f.semanticTopics || []),
             f.canonicalFactType?.toLowerCase(),
             f.evidenceRole?.toLowerCase(),
+            f.contributionClass?.toLowerCase(),
           ])
           .filter(Boolean)
+          .map((t) => String(t).toLowerCase())
       );
-      const hasOverlap = claim.semanticDimensions.some((d) =>
-        authorizedTopics.has(d.toLowerCase())
-      );
+      const hasOverlap = claim.semanticDimensions.some((d) => {
+        const dLower = String(d).toLowerCase();
+        if (authorizedTopics.has(dLower)) return true;
+        const parts = dLower.split('_');
+        if (parts.some((p) => authorizedTopics.has(p))) return true;
+        return [...authorizedTopics].some(
+          (at) => at.includes(dLower) || dLower.includes(at)
+        );
+      });
       if (!hasOverlap && contributingFacts.length > 0) {
         violations.push({
           code: 'SEMANTIC_DIMENSION_MISMATCH',
