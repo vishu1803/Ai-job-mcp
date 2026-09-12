@@ -593,7 +593,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     const agency =
       candidate.agency ||
       determineFactAgency(text, {
-        sourceType: candidate.sourceType || 'bullet',
+        sourceType: candidate.sourceType || null,
         factType: candidate.factType,
         canonicalFactType,
         provenance,
@@ -606,7 +606,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     if (!contributionClass || agency.level !== AGENCY_LEVELS.CANDIDATE) {
       contributionClass = classifyContributionClass(
         text,
-        candidate.sourceType || 'bullet',
+        candidate.sourceType || null,
         canonicalFactType,
         { agency, provenance, ...candidate }
       );
@@ -704,7 +704,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       importance: candidate.importance ?? 0,
       omissionReason: candidate.omissionReason || null,
       usedByClaimIds: candidate.usedByClaimIds || [],
-      candidateAuthored: candidate.candidateAuthored ?? candidate.sourceType !== 'evidence',
+      candidateAuthored: candidate.candidateAuthored === true,
       corroborated:
         candidate.corroborated ?? (provenance === 'VERIFIED' || provenance === 'CORROBORATED'),
       renderable: isRenderable,

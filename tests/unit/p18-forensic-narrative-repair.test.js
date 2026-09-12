@@ -576,6 +576,8 @@ describe('P18 Invariant: RenderedClaims <= AuthorizedCanonicalEvidence', () => {
         evidenceRole: EVIDENCE_ROLES.ACCOMPLISHMENT,
         contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_ACTION,
         agencyLevel: AGENCY_LEVELS.CANDIDATE,
+        agencySource: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET,
+        candidateAuthored: true,
         semanticTopic: 'performance',
         technologies: ['Rust'],
         metrics: {},
@@ -616,6 +618,8 @@ describe('P18 Single Composition Authority: Sync and Async Parity', () => {
         evidenceRole: EVIDENCE_ROLES.ACCOMPLISHMENT,
         contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_ACTION,
         agencyLevel: AGENCY_LEVELS.CANDIDATE,
+        agencySource: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET,
+        candidateAuthored: true,
         semanticTopic: 'performance',
         technologies: ['Rust', 'Raft'],
         metrics: {},
@@ -629,6 +633,8 @@ describe('P18 Single Composition Authority: Sync and Async Parity', () => {
         evidenceRole: EVIDENCE_ROLES.DESIGN_DECISION,
         contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION,
         agencyLevel: AGENCY_LEVELS.CANDIDATE,
+        agencySource: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET,
+        candidateAuthored: true,
         semanticTopic: 'architecture',
         technologies: ['Rust'],
         metrics: {},
@@ -961,6 +967,138 @@ describe('Test P: Full rendered trace & Formal Invariant Assertion', () => {
     assert.equal(
       assertRenderedCandidateAgencyInvariant(composed.bullets, [candFact]),
       true
+    );
+  });
+});
+
+describe('Test Q: Missing provenance is NOT trusted', () => {
+  test('missing provenance with candidateId and projectId does not establish candidate agency', () => {
+    const input = {
+      candidateId: 'candidate-1',
+      projectId: 'project-1',
+      text: 'Implemented distributed caching using Redis',
+    };
+    const agency = determineFactAgency(input.text, input);
+    assert.notEqual(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(isTrustedCandidateAgencySource(agency.source, input), false);
+    assert.equal(isAccomplishmentCandidate({ ...input, renderable: true, agency }), false);
+  });
+});
+
+describe('Test R: Project ID does not establish ownership', () => {
+  test('projectId alone without trusted candidate provenance yields NOT CANDIDATE', () => {
+    const input = {
+      projectId: 'project-1',
+      text: 'Architected distributed telemetry infrastructure',
+    };
+    const agency = determineFactAgency(input.text, input);
+    assert.notEqual(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(isTrustedCandidateAgencySource(agency.source, input), false);
+    assert.equal(isAccomplishmentCandidate({ ...input, renderable: true, agency }), false);
+  });
+});
+
+describe('Test S: Candidate ID does not establish ownership', () => {
+  test('candidateId alone without trusted candidate provenance yields NOT CANDIDATE', () => {
+    const input = {
+      candidateId: 'candidate-1',
+      text: 'Engineered distributed caching',
+    };
+    const agency = determineFactAgency(input.text, input);
+    assert.notEqual(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(isTrustedCandidateAgencySource(agency.source, input), false);
+    assert.equal(isAccomplishmentCandidate({ ...input, renderable: true, agency }), false);
+  });
+});
+
+describe('Test T: Explicit ownership still works', () => {
+  test('ownership = CANDIDATE authorizes candidate agency and accomplishment candidate', () => {
+    const input = {
+      candidateId: 'candidate-1',
+      projectId: 'project-1',
+      ownership: 'CANDIDATE',
+      text: 'Engineered distributed caching using Redis',
+    };
+    const agency = determineFactAgency(input.text, input);
+    assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(isTrustedCandidateAgencySource(agency.source, input), true);
+    assert.equal(isAccomplishmentCandidate({ ...input, renderable: true, agency }), true);
+  });
+});
+
+describe('Test U: Explicit candidateAuthored still works', () => {
+  test('candidateAuthored = true authorizes candidate agency and accomplishment candidate', () => {
+    const input = {
+      candidateId: 'candidate-1',
+      projectId: 'project-1',
+      candidateAuthored: true,
+      sourceType: 'bullet',
+      text: 'Implemented distributed caching using Redis',
+    };
+    const agency = determineFactAgency(input.text, input);
+    assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(isTrustedCandidateAgencySource(agency.source, input), true);
+    assert.equal(isAccomplishmentCandidate({ ...input, renderable: true, agency }), true);
+  });
+});
+
+describe('Test V: Explicit repository ownership cannot be upgraded', () => {
+  test('ownership = REPOSITORY cannot be upgraded by active grammar', () => {
+    const input = {
+      candidateId: 'candidate-1',
+      projectId: 'project-1',
+      ownership: 'REPOSITORY',
+      text: 'Implemented distributed caching using Redis',
+    };
+    const agency = determineFactAgency(input.text, input);
+    assert.notEqual(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(agency.level, AGENCY_LEVELS.NONE);
+    assert.equal(isTrustedCandidateAgencySource(agency.source, input), false);
+    assert.equal(isAccomplishmentCandidate({ ...input, renderable: true, agency }), false);
+  });
+});
+
+describe('Test W: Rendered invariant rejects candidate metadata without trusted source', () => {
+  test('rendered accomplishment with agencyLevel = CANDIDATE but untrusted or missing source throws ValidationError', () => {
+    const untrustedFact = {
+      factId: 'fact-untrusted',
+      id: 'fact-untrusted',
+      text: 'Engineered distributed caching using Redis.',
+      agencyLevel: AGENCY_LEVELS.CANDIDATE,
+      agencySource: AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY,
+      renderable: true,
+    };
+    const renderedBullet = {
+      text: 'Engineered distributed caching using Redis.',
+      agencyLevel: AGENCY_LEVELS.CANDIDATE,
+      agencySource: AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY,
+      composedFromFactIds: ['fact-untrusted'],
+    };
+    assert.throws(
+      () => {
+        assertRenderedCandidateAgencyInvariant([renderedBullet], [untrustedFact]);
+      },
+      /Rendered candidate agency invariant violated/
+    );
+
+    // Also throws when fact has agencyLevel CANDIDATE but no source
+    const noSourceFact = {
+      factId: 'fact-no-source',
+      id: 'fact-no-source',
+      text: 'Engineered distributed caching using Redis.',
+      agencyLevel: AGENCY_LEVELS.CANDIDATE,
+      renderable: true,
+    };
+    const noSourceBullet = {
+      text: 'Engineered distributed caching using Redis.',
+      agencyLevel: AGENCY_LEVELS.CANDIDATE,
+      composedFromFactIds: ['fact-no-source'],
+    };
+    assert.throws(
+      () => {
+        assertRenderedCandidateAgencyInvariant([noSourceBullet], [noSourceFact]);
+      },
+      /Rendered candidate agency invariant violated/
     );
   });
 });

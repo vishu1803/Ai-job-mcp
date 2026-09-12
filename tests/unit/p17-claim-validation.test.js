@@ -30,6 +30,8 @@ describe('P17: ResumeClaimValidationService', () => {
       technologies: ['Go', 'Raft'],
       metrics: [],
       renderable: true,
+      candidateAuthored: true,
+      sourceType: 'candidate_project_bullet',
     },
     {
       factId: 'f-wal-2',
@@ -43,6 +45,8 @@ describe('P17: ResumeClaimValidationService', () => {
       technologies: ['Go'],
       metrics: [{ raw: '15,000 writes/sec', value: 15000, unit: 'writes/sec' }],
       renderable: true,
+      candidateAuthored: true,
+      sourceType: 'candidate_project_bullet',
     },
     {
       factId: 'f-other-proj',
@@ -55,6 +59,8 @@ describe('P17: ResumeClaimValidationService', () => {
       technologies: ['PostgreSQL', 'Redis'],
       metrics: [],
       renderable: true,
+      candidateAuthored: true,
+      sourceType: 'candidate_project_bullet',
     },
   ];
 

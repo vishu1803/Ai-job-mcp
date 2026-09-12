@@ -35,6 +35,8 @@ describe('P17: Gemini / AI Language Realization Engine', () => {
       metrics: [],
       renderable: true,
       provenance: 'VERIFIED',
+      candidateAuthored: true,
+      sourceType: 'candidate_project_bullet',
     },
     {
       factId: 'f-wal-2',
@@ -49,6 +51,8 @@ describe('P17: Gemini / AI Language Realization Engine', () => {
       metrics: [],
       renderable: true,
       provenance: 'VERIFIED',
+      candidateAuthored: true,
+      sourceType: 'candidate_project_bullet',
     },
   ];
 

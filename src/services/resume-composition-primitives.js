@@ -83,14 +83,26 @@ export const AGENCY_SOURCES = Object.freeze({
  * @returns {boolean}
  */
 export function isTrustedCandidateAgencySource(source, fact = {}) {
+  // Explicit non-candidate provenance strictly fails closed
+  const ownership = String(fact?.ownership || fact?.candidateOwnership || '').toUpperCase();
   if (
-    fact?.candidateAuthored === true ||
-    String(fact?.ownership || fact?.candidateOwnership || '').toUpperCase() === 'CANDIDATE' ||
-    (!fact?.sourceType && (fact?.candidateId || fact?.projectId) && fact?.candidateAuthored !== false)
+    ownership === 'NONE' ||
+    ownership === 'EXTERNAL' ||
+    ownership === 'REPOSITORY' ||
+    fact?.candidateAuthored === false
   ) {
+    return false;
+  }
+
+  // Explicit candidate ownership metadata or explicit candidate-authored flag
+  if (fact?.candidateAuthored === true || ownership === 'CANDIDATE') {
     return true;
   }
+
+  // If source is missing or not a string, not trusted (fail-closed)
   if (!source || typeof source !== 'string') return false;
+
+  // Trusted agency sources strictly matching canonical model
   return (
     source === AGENCY_SOURCES.EXPLICIT_METADATA ||
     source === AGENCY_SOURCES.CANDIDATE_AUTHORED ||
@@ -98,9 +110,7 @@ export function isTrustedCandidateAgencySource(source, fact = {}) {
     source === AGENCY_SOURCES.CANDIDATE_EXPERIENCE ||
     source === AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET ||
     source === AGENCY_SOURCES.CANDIDATE_HIGHLIGHT ||
-    source === AGENCY_SOURCES.VERIFIED_CANDIDATE_CLAIM ||
-    source === 'CANDIDATE' ||
-    source === 'USER_PROVIDED'
+    source === AGENCY_SOURCES.VERIFIED_CANDIDATE_CLAIM
   );
 }
 
@@ -358,7 +368,7 @@ export function determineFactAgency(text, metadata = {}) {
   if (metadata.agencyLevel) {
     return {
       level: metadata.agencyLevel,
-      source: metadata.agencySource || AGENCY_SOURCES.EXPLICIT_METADATA,
+      source: metadata.agencySource || null,
       confidence: typeof metadata.confidence === 'number' ? metadata.confidence : 1.0,
       actionEvidence,
     };
@@ -486,8 +496,7 @@ export function determineFactAgency(text, metadata = {}) {
     sourceType === 'candidate-statement' ||
     sourceType === 'highlight' ||
     metadata.provenance === 'VERIFIED_CANDIDATE_CLAIM' ||
-    factType === 'candidate-authored' ||
-    (!sourceType && (metadata.candidateId || metadata.projectId) && metadata.candidateAuthored !== false);
+    factType === 'candidate-authored';
 
   if (isTrustedCandidateSurface) {
     const agencySource =
@@ -1315,18 +1324,15 @@ export function synthesizeAccomplishmentNarrative(
       addRefs(complementaryArg);
     }
 
-    const hasActiveOpener =
-      /^(?:architected|designed|engineered|implemented|built|developed|optimized|tuned|profiled|benchmarked|automated|orchestrated|spearheaded|led|coordinated|championed|collaborated|facilitated|refactored|deployed|containerized|migrated|configured|integrated|secured|scaled|standardized|established|maintained|analyzed|constructed|accelerated|created|resolved|monitored|reduced|increased|improved|decreased|saved)\b/i.test(
-        synthesized
-      );
-    const agencyLevel =
-      primaryArg.agency?.level ||
-      primaryArg.agencyLevel ||
-      (hasActiveOpener ? AGENCY_LEVELS.CANDIDATE : AGENCY_LEVELS.NONE);
-    const agencySource =
-      primaryArg.agency?.source ||
-      primaryArg.agencySource ||
-      (hasActiveOpener ? 'EXPLICIT_ACTION_VERB' : 'PASSIVE_DESCRIPTION');
+    const primaryAgency =
+      primaryArg.agency ||
+      (primaryArg.agencyLevel
+        ? { level: primaryArg.agencyLevel, source: primaryArg.agencySource }
+        : null) ||
+      determineFactAgency(primaryArg.text || synthesized, primaryArg);
+
+    const agencyLevel = primaryAgency.level;
+    const agencySource = primaryAgency.source;
 
     return {
       text: synthesized,
