@@ -534,6 +534,25 @@ function extractRankedCandidateSkills(candidateProfile, jobPosting, matchAnalysi
 }
 
 /**
+ * Splits text into sentences while protecting technology names (Node.js, Next.js, etc.)
+ * and abbreviations with embedded periods from false sentence breaks.
+ *
+ * @param {string} text
+ * @returns {Array<string>} Clean sentences
+ */
+export function splitSentences(text) {
+  if (!text || typeof text !== 'string') return [];
+  const protectedText = text
+    .replace(/\b([Nn]ode|[Nn]ext|[Vv]ue|[Ee]xpress)\.js\b/g, '$1__DOT__js')
+    .replace(/\b(e\.g\.|i\.e\.|etc\.|vs\.|dept\.|dr\.|mr\.|ms\.)/gi, (m) => m.replace(/\./g, '__DOT__'));
+
+  const rawMatches = protectedText.match(/[^.!?]+[.!?]+/g) || [protectedText];
+  return rawMatches
+    .map((s) => s.replace(/__DOT__/g, '.').trim())
+    .filter(Boolean);
+}
+
+/**
  * Synthesizes an evidence-grounded, job-tailored professional summary.
  * Guaranteed to reference only candidate-owned skills and projects, adhere to 1-page length constraints,
  * and attach full provenance metadata.
@@ -710,22 +729,12 @@ export function generateGroundedSummary({
   const projectDisplayName = topProject ? (topProject.displayName || topProject.name || topProject.title) : null;
 
   if (authenticSummary && typeof authenticSummary === 'string' && authenticSummary.trim().length >= 30) {
-    // P16-006: Anchor on authentic candidate-authored summary.
-    // Adapt for target role while preserving authentic facts.
+    // P16-006 / P16-007: Anchor on authentic candidate-authored summary.
+    // Adapt for target role while preserving authentic facts and 3-sentence professional density.
     const headingInfo = deriveTargetRoleHeading({ candidateProfile, jobPosting, matchAnalysis });
     const rolePhrase = headingInfo.heading || targetRoleTitle;
 
-    // Use the authentic summary directly, trimmed for professional density
     let adapted = authenticSummary.trim();
-    // Ensure it doesn't exceed 350 chars for single-page fit
-    if (adapted.length > 350) {
-      // Take the first two sentences for density
-      const sentences = adapted.match(/[^.!?]+[.!?]+/g) || [adapted];
-      adapted = sentences.slice(0, 2).join(' ').trim();
-      if (adapted.length > 350) {
-        adapted = adapted.substring(0, 347) + '...';
-      }
-    }
 
     // Role-align candidate summary if roleFocus is specialized
     if (isBackendFocus) {
@@ -740,6 +749,24 @@ export function generateGroundedSummary({
         .replace(/\b(?:backend\s+and\s+)/gi, '')
         .replace(/\bfull-stack\b/gi, 'Frontend');
     }
+
+    // Split into sentences and preserve authentic 3-sentence structure (up to 450 chars)
+    const rawSentences = splitSentences(adapted);
+
+    if (rawSentences.length >= 3) {
+      const threeSentences = rawSentences.slice(0, 3).join(' ');
+      if (threeSentences.length <= 450) {
+        adapted = threeSentences;
+      } else {
+        const twoSentences = rawSentences.slice(0, 2).join(' ');
+        adapted = twoSentences.length <= 450 ? twoSentences : twoSentences.substring(0, 447) + '...';
+      }
+    } else if (rawSentences.length === 2) {
+      adapted = rawSentences.slice(0, 2).join(' ');
+    } else if (rawSentences.length === 1) {
+      adapted = rawSentences[0];
+    }
+
     if (!/[.!?]$/.test(adapted.trim())) {
       adapted = adapted.trim() + '.';
     }
@@ -753,8 +780,9 @@ export function generateGroundedSummary({
       summaryText = adapted;
     }
 
-    // Append a skills sentence if summary is short and we have relevant skills
-    if (summaryText.length < 200 && skillPhrase) {
+    // Append a skills sentence only if summary is short AND does not already mention the skills
+    const summaryMentionsSkills = skillNames.some((sk) => summaryLower.includes(sk.toLowerCase()));
+    if (summaryText.length < 200 && skillPhrase && !summaryMentionsSkills) {
       summaryText += ` Proficient in ${skillPhrase}.`;
     }
   } else if (topSkills.length === 0 && !topProject) {
@@ -888,9 +916,97 @@ export function compressCandidateBullet(text) {
 }
 
 /**
+ * Computes Jaccard token overlap between two candidate bullet strings.
+ * Used for redundancy reduction (threshold >= 0.55).
+ *
+ * @param {string} textA
+ * @param {string} textB
+ * @returns {number} Overlap ratio [0.0, 1.0]
+ */
+export function calculateTokenOverlap(textA, textB) {
+  const getTokens = (t) =>
+    new Set(
+      String(t || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !['and', 'the', 'with', 'for', 'from', 'using', 'into', 'that', 'this', 'built', 'developed'].includes(w))
+    );
+  const setA = getTokens(textA);
+  const setB = getTokens(textB);
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let intersection = 0;
+  for (const token of setA) {
+    if (setB.has(token)) intersection++;
+  }
+  const union = new Set([...setA, ...setB]).size;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/**
+ * Grounded composition: Combines short, complementary candidate-owned fragments
+ * (< 60 chars) from the same project into high-density accomplishment prose.
+ * Strict Invariant: Combines ONLY facts explicitly present in the candidate items;
+ * NEVER invents metrics, scale, users, or leadership claims.
+ *
+ * @param {Array<object>} items Candidate items
+ * @returns {Array<object>} Composed candidate items
+ */
+export function composeCandidateProjectBullets(items) {
+  if (!Array.isArray(items) || items.length <= 1) return items;
+  const result = [];
+  const mergedIndices = new Set();
+
+  for (let i = 0; i < items.length; i++) {
+    if (mergedIndices.has(i)) continue;
+    const itemA = items[i];
+    const textA = String(itemA.text || '').trim();
+
+    // If itemA is short (< 60 chars) and not a full compound sentence, see if there's a complementary short fragment
+    if (textA.length < 60 && !textA.includes(';') && !textA.includes(' and ')) {
+      let combined = false;
+      for (let j = i + 1; j < items.length; j++) {
+        if (mergedIndices.has(j)) continue;
+        const itemB = items[j];
+        const textB = String(itemB.text || '').trim();
+
+        if (textB.length < 65 && !textB.includes(';') && calculateTokenOverlap(textA, textB) < 0.4) {
+          const cleanA = textA.replace(/[.!?]+$/, '');
+          let cleanB = textB.replace(/[.!?]+$/, '');
+          cleanB = cleanB.charAt(0).toLowerCase() + cleanB.slice(1);
+
+          const composedText = `${cleanA}; ${cleanB}.`;
+          result.push({
+            ...itemA,
+            text: composedText,
+            origText: `${itemA.origText || textA} / ${itemB.origText || textB}`,
+            evidenceRefs: [...(itemA.evidenceRefs || []), ...(itemB.evidenceRefs || [])],
+            matchedRequirementIds: [
+              ...new Set([...(itemA.matchedRequirementIds || []), ...(itemB.matchedRequirementIds || [])]),
+            ],
+            isComposed: true,
+          });
+          mergedIndices.add(i);
+          mergedIndices.add(j);
+          combined = true;
+          break;
+        }
+      }
+      if (!combined) {
+        result.push(itemA);
+      }
+    } else {
+      result.push(itemA);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Evaluates and ranks authentic project bullets against target job requirements,
  * attaching item-level evidence references and enforcing metric safety.
- * Multi-source composition (P16-006) pools candidate-authored bullets, highlights,
+ * Multi-source composition (P16-006 / P16-007) pools candidate-authored bullets, highlights,
  * features, and descriptions with strict provenance tracking.
  *
  * @param {object} params
@@ -966,9 +1082,34 @@ export function selectAndRephraseProjectBullets({
     addCandidateSource(project.summary, 'CANDIDATE_AUTHORED_SUMMARY');
   }
 
-  if (candidateItems.length === 0) {
+  // P16-007: Redundancy reduction (threshold >= 0.55) to eliminate duplicate/near-duplicate formulations
+  const distinctCandidateItems = [];
+  for (const item of candidateItems) {
+    const isDuplicate = distinctCandidateItems.some(
+      (accepted) => calculateTokenOverlap(item.text, accepted.text) >= 0.55
+    );
+    if (!isDuplicate) {
+      distinctCandidateItems.push(item);
+    }
+  }
+
+  // P16-007: Grounded composition of short complementary fragments (< 60 chars)
+  const composedCandidateItems = composeCandidateProjectBullets(distinctCandidateItems);
+
+  if (composedCandidateItems.length === 0) {
     return [];
   }
+
+  // P16-007 Rule 5: Content richness thresholds are conditional:
+  // - 3 substantive source-backed facts -> up to 3 bullets
+  // - 2 -> up to 2 bullets
+  // - 1 -> 1
+  // - 0 -> no accomplishment bullet
+  const substantiveCount = composedCandidateItems.length;
+  const maxAllowedByRichness = Math.min(3, substantiveCount);
+  const maxBullets = typeof options.maxBullets === 'number'
+    ? Math.min(options.maxBullets, maxAllowedByRichness)
+    : maxAllowedByRichness;
 
   const jobTerms = new Set();
   if (jobPosting) {
@@ -990,7 +1131,7 @@ export function selectAndRephraseProjectBullets({
   const projectEvidence = Array.isArray(project.evidence) ? project.evidence : [];
 
   // 1. Score each bullet for relevance to target job
-  const scoredBullets = candidateItems.map((bulletObj, idx) => {
+  const scoredBullets = composedCandidateItems.map((bulletObj, idx) => {
     const text = String(bulletObj.text || '').trim();
 
     let relevanceScore = 0;
@@ -1052,20 +1193,9 @@ export function selectAndRephraseProjectBullets({
   // 2. Sort by relevance score descending, preserving relative order on ties
   scoredBullets.sort((a, b) => b.relevanceScore - a.relevanceScore || a.origIndex - b.origIndex);
 
-  // 2b. Evidence-grounded pool expansion: when the authored bullet pool is
-  // thin (< 2 bullets) and the project carries richer source-level evidence
-  // than the authored bullets express, synthesize additional candidate-owned
-  // bullets strictly from verified evidence records. Selection stays within
-  // the caller-supplied budget (options.maxBullets, default 4).
-  //
-  // INVARIANT (Phase 3): candidate-authored bullets are the primary pool and
-  // are NEVER displaced by evidence-derived bullets. Derived bullets fill only
-  // the remaining budget. This prevents the historical content-starvation bug
-  // where generic derived wording crowded authentic bullets out of the
-  // renderer's per-project bullet cap.
-  const maxBullets = options.maxBullets || 4;
-  const targetPoolSize = Math.max(maxBullets, 2);
-  if (scoredBullets.length < Math.min(2, targetPoolSize)) {
+  // 2b. Evidence-grounded pool expansion: only when explicitly permitted and space exists
+  const targetPoolSize = Math.max(maxBullets, 1);
+  if (scoredBullets.length < targetPoolSize && options.allowEvidenceDerived) {
     const derivedBullets = deriveEvidenceBackedBullets(
       project,
       scoredBullets,

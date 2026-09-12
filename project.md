@@ -3,6 +3,55 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### P16-007: Final High-Quality, High-Density Resume Content Pipeline (Reference Standard Match)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-12  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)  
+**Target Main SHA:** Working Tree on `main`
+
+**Context & Core Architectural Invariants Accomplished:**
+1. **Component 1: Canonical Project Content Reconciliation (`mergeCandidateOwnedProjectContent`):**
+   - Implemented `mergeCandidateOwnedProjectContent(target, source)` in `src/services/candidate-artifact-content.service.js`.
+   - Preserves every distinct candidate-owned content surface: `bullets`, `highlights`, `features`, `featureDescriptions`, `responsibilities`, `implementationDescriptions`, `summary`, `description`, `technologies`, `repositoryUrl`, `liveUrl`, `evidence`.
+   - Source-order invariant, deduplicating via normalized text equality (`mergeCandidateTextCollections`).
+   - Reconciled across `resumeDataProjects`, `profileProjects`, and `storedProjects`.
+   - Eradicated cross-project metadata contamination in `storedProjects` where a test-seeded bullet ("Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus") was incorrectly attached to unrelated projects.
+2. **Component 2: Deterministic Bullet Strategy & Grounded Composition:**
+   - Implemented `calculateTokenOverlap` (Jaccard similarity >= 0.55) in `src/services/resume-content-strategy.service.js` to eliminate redundant near-duplicate accomplishment bullets.
+   - Implemented `composeCandidateProjectBullets(items)` to merge short complementary fragments (< 60 chars) into dense accomplishment bullets without fabricating metrics, scale, or claims.
+   - Enforced Non-Negotiable Rule 5 conditional richness thresholds: 3 substantive source facts -> up to 3 bullets; 2 -> up to 2; 1 -> 1; 0 -> 0 bullets.
+3. **Component 3: Authentic 3-Sentence Professional Summary Restoration:**
+   - Implemented `splitSentences(text)` protecting embedded dots in technology names (`Node.js`, `Next.js`, `Vue.js`) from premature sentence truncation.
+   - Preserved full authentic 3-sentence summary (250–450 characters) in `generateGroundedSummary`, retaining crucial Sentence 3 (DSA / problem-solving practice) and eliminating artificial two-line truncation and redundant "Proficient in..." keyword appending.
+4. **Component 4: Strongest Project Selection & Space-Aware Capacity:**
+   - Updated `isProjectStrongEnough` in `src/services/structured-resume.service.js` to evaluate `totalCandidateFacts` across all candidate-owned fields (`bullets`, `highlights`, `features`, `featureDescriptions`, `responsibilities`, `description`), ensuring projects with rich authentic highlights/features are recognized as strong candidates.
+5. **Component 5 & 6: Reference Quality Content Report & Utilization Gate:**
+   - Added and exported `generateReferenceQualityContentReport` in `src/services/resume-layout-engine.service.js` to audit candidate facts available, facts rendered, utilization ratio, summary sentences, and skills categories, implementing Non-Negotiable Rule 8.
+6. **Real-Candidate & End-to-End Verification:**
+   - Verified 3 distinct real-candidate job postings via `scripts/reproduce-real-candidate-jobs.mjs`:
+     - Job A (Cloudflare Systems & Infrastructure Engineer): 1 page, 100/100 QA score.
+     - Job B (Vercel Software Engineer, Backend): 1 page, 100/100 QA score.
+     - Job C (Crunchyroll Python AI & Backend Systems Engineer): 1 page, 100/100 QA score.
+   - Verified zero contaminated bullets across all jobs: ACRA renders authentic Python/FastAPI/OpenAI bullets; CTM renders authentic Node.js/TypeScript/PostgreSQL/RBAC bullets; PDE renders authentic Rust/streaming telemetry bullets.
+   - Created dedicated regression test suite `tests/unit/p16-007-reference-quality-content-pipeline.test.js` covering all 8 core rules (8/8 PASS).
+   - Verified all 328 Phase 16 unit tests (`node --test tests/unit/p16-*.test.js`) across 72 suites PASS (100%).
+   - Verified full repository unit regression suite (`npm run test:unit`) across 680 suites: 2,651 / 2,651 PASS (0 failed).
+
+**Files Added / Modified:**
+- `src/services/candidate-artifact-content.service.js`: Added `mergeCandidateOwnedProjectContent`, `mergeCandidateTextCollections`; updated `reconcileCandidateProjects` across `resumeDataProjects`, `profileProjects`, and `storedProjects`; updated `groundAndSanitizeProject` to collect all authentic candidate-authored content surfaces.
+- `src/services/resume-content-strategy.service.js`: Implemented `calculateTokenOverlap`, `composeCandidateProjectBullets`, `splitSentences`; updated `generateGroundedSummary` to preserve 3-sentence summary without false splits or keyword stuffing.
+- `src/services/structured-resume.service.js`: Updated `isProjectStrongEnough` to count `totalCandidateFacts` across all candidate-owned fields.
+- `src/services/resume-layout-engine.service.js`: Added and exported `generateReferenceQualityContentReport`.
+- `tests/unit/p16-007-reference-quality-content-pipeline.test.js` [NEW]: 8 non-negotiable rule validation tests.
+- `project.md`: Updated execution tracker with P16-007 verification evidence and metrics.
+
+**Verification Evidence:**
+- `node --test tests/unit/p16-007-reference-quality-content-pipeline.test.js`: 8 / 8 PASS.
+- `node --test tests/unit/p16-*.test.js`: 328 / 328 PASS across 72 suites.
+- `node scripts/reproduce-real-candidate-jobs.mjs`: 3/3 Real PDFs compiled to exactly 1 page with 100/100 QA score and clean, authenticated project bullets.
+- `npm run test:unit`: 2,651 / 2,651 PASS across 680 suites (0 failed).
+
 ### P16-006: Match Supplied Professional Resume Standard with High-Quality, High-Density, Grounded Content
 
 **Status:** COMPLETE & VERIFIED  

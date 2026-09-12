@@ -308,11 +308,18 @@ export function buildStructuredResumeDocument({
       (Array.isArray(ranking?.matchedRequirements) && ranking.matchedRequirements.length > 0);
     const band = ranking?.relevanceBand;
 
-    // P16-006: Also check for authentic candidate-authored content fields that
-    // groundAndSanitizeProject now uses for technology-agnostic bullet derivation.
     const hasHighlights = Array.isArray(candProj.highlights) && candProj.highlights.length > 0;
     const hasFeatures = Array.isArray(candProj.features) && candProj.features.length > 0;
     const hasDescription = candProj.description && typeof candProj.description === 'string' && candProj.description.trim().length >= 20;
+
+    // P16-007: Count total distinct candidate-owned facts across all content surfaces
+    const totalCandidateFacts =
+      authoredBullets +
+      (Array.isArray(candProj.highlights) ? candProj.highlights.length : 0) +
+      (Array.isArray(candProj.features) ? candProj.features.length : 0) +
+      (Array.isArray(candProj.featureDescriptions) ? candProj.featureDescriptions.length : 0) +
+      (Array.isArray(candProj.responsibilities) ? candProj.responsibilities.length : 0) +
+      (hasDescription ? 1 : 0);
 
     return (
       (score >= STRONG_RELEVANCE_FLOOR ||
@@ -320,9 +327,9 @@ export function buildStructuredResumeDocument({
       band === 'HIGH' ||
       band === 'MEDIUM' ||
       evidenceCount >= MIN_EVIDENCE_COUNT ||
-      authoredBullets >= MIN_AUTHORED_BULLETS) &&
+      totalCandidateFacts >= MIN_AUTHORED_BULLETS) &&
       // A slot-worth project must carry at least SOME renderable content.
-      (evidenceCount > 0 || authoredBullets > 0 || hasHighlights || hasFeatures || hasDescription ||
+      (evidenceCount > 0 || totalCandidateFacts > 0 ||
        (candProj.summary && String(candProj.summary).trim()))
     );
   };

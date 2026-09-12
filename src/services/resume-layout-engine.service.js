@@ -903,6 +903,99 @@ export class ResumeLayoutEngine {
   }
 }
 
+/**
+ * Evaluates candidate-owned content utilization and reference quality.
+ * Implements Non-Negotiable Rule 8:
+ * "Final PDF page count alone is insufficient for acceptance.
+ * The system must demonstrate that available high-value candidate-owned
+ * content was considered before accepting a sparse one-page result."
+ *
+ * @param {object} params
+ * @param {object} params.structuredResume Structured resume document
+ * @param {object} [params.budget] Page budget
+ * @param {object} [params.layoutProfile] Layout profile
+ * @returns {object} ReferenceQualityContentReport
+ */
+export function generateReferenceQualityContentReport({
+  structuredResume,
+  budget = null,
+  layoutProfile = null,
+}) {
+  if (!structuredResume) {
+    return {
+      passed: false,
+      score: 0,
+      candidateFactsAvailable: 0,
+      factsRendered: 0,
+      utilizationRatio: 0,
+      summarySentenceCount: 0,
+      summaryChars: 0,
+      skillsCategoryCount: 0,
+      findings: ['No structured resume provided'],
+    };
+  }
+
+  const findings = [];
+  const projects = Array.isArray(structuredResume.projects) ? structuredResume.projects : [];
+  let candidateFactsAvailable = 0;
+  let factsRendered = 0;
+
+  for (const p of projects) {
+    const pBullets = Array.isArray(p.bullets) ? p.bullets : [];
+    factsRendered += pBullets.length;
+    const pFacts =
+      pBullets.length +
+      (Array.isArray(p.highlights) ? p.highlights.length : 0) +
+      (Array.isArray(p.features) ? p.features.length : 0) +
+      (Array.isArray(p.responsibilities) ? p.responsibilities.length : 0) +
+      (p.description ? 1 : 0);
+    candidateFactsAvailable += Math.max(pBullets.length, pFacts);
+  }
+
+  const summaryText = structuredResume.summary?.text || '';
+  const summaryChars = summaryText.length;
+  const summarySentenceCount = (summaryText.match(/[^.!?]+[.!?]+/g) || []).length;
+
+  const skillCategories = Array.isArray(structuredResume.skills?.categories)
+    ? structuredResume.skills.categories
+    : [];
+  const skillsCategoryCount = skillCategories.length;
+
+  const maxRealisticBullets = projects.length * 3;
+  const targetFactCount = Math.min(candidateFactsAvailable, maxRealisticBullets);
+  const factUtilizationRatio = targetFactCount > 0 ? factsRendered / targetFactCount : 1.0;
+
+  if (targetFactCount > 0 && factsRendered < Math.min(targetFactCount, 2 * projects.length)) {
+    findings.push(`Available candidate project facts were underutilized: rendered ${factsRendered} of ${targetFactCount} available`);
+  }
+
+  if (summarySentenceCount > 0 && summarySentenceCount < 2) {
+    findings.push(`Summary sentence count (${summarySentenceCount}) is below standard 2-3 sentences`);
+  }
+
+  if (skillsCategoryCount < 3) {
+    findings.push(`Skills categories (${skillsCategoryCount}) below standard 4-6 categories`);
+  }
+
+  let score = 100;
+  if (factUtilizationRatio < 0.7) score -= 20;
+  else if (factUtilizationRatio < 0.85) score -= 10;
+  if (summarySentenceCount < 2 && summaryChars < 150) score -= 10;
+  if (skillsCategoryCount < 3) score -= 10;
+
+  return {
+    passed: score >= 80 && findings.length === 0,
+    score: Math.max(0, score),
+    candidateFactsAvailable,
+    factsRendered,
+    utilizationRatio: Math.min(1.0, factUtilizationRatio),
+    summarySentenceCount,
+    summaryChars,
+    skillsCategoryCount,
+    findings,
+  };
+}
+
 export const ResumeLayoutEngineService = ResumeLayoutEngine;
 export const resumeLayoutEngine = new ResumeLayoutEngine();
 export default resumeLayoutEngine;

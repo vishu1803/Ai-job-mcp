@@ -349,6 +349,137 @@ export function cleanResumeFacingTechnologies(technologies, maxCount = 6) {
 }
 
 /**
+ * Deduplicates and merges candidate-owned text items while preserving
+ * candidate-authored order and casing.
+ *
+ * @param {Array<string|object>} existingItems
+ * @param {Array<string|object>} incomingItems
+ * @returns {Array<string|object>} Merged distinct items
+ */
+function mergeCandidateTextCollections(existingItems = [], incomingItems = []) {
+  const result = [];
+  const seenNorm = new Set();
+
+  const addItem = (item) => {
+    if (!item) return;
+    const text = typeof item === 'object' && item !== null ? (item.text || item.description || '') : String(item);
+    const trimmed = String(text || '').trim();
+    if (!trimmed) return;
+    const norm = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!seenNorm.has(norm)) {
+      seenNorm.add(norm);
+      result.push(item);
+    }
+  };
+
+  for (const item of (Array.isArray(existingItems) ? existingItems : [])) {
+    addItem(item);
+  }
+  for (const item of (Array.isArray(incomingItems) ? incomingItems : [])) {
+    addItem(item);
+  }
+  return result;
+}
+
+/**
+ * Reconciles every candidate-owned content surface between two project representations.
+ * Preserves candidate-authored order and casing, prevents duplicate loss,
+ * and maintains source-order invariance.
+ *
+ * @param {object} target Existing reconciled project object (mutated and returned)
+ * @param {object} source Incoming project object
+ * @returns {object} Merged project object
+ */
+export function mergeCandidateOwnedProjectContent(target, source) {
+  if (!target || !source) return target;
+
+  // 1. Authoritative candidate-owned identity & URLs
+  if (!target.id && (source.id || source.projectId)) {
+    target.id = source.id || source.projectId;
+  }
+  const sourceRepoUrl =
+    source.metadata?.sourceUrl ||
+    source.metadata?.repositoryUrl ||
+    source.repositoryUrl ||
+    source.url ||
+    null;
+  if (!target.repositoryUrl && isRealUrl(sourceRepoUrl)) {
+    target.repositoryUrl = sourceRepoUrl;
+  }
+  const sourceLiveUrl = source.liveUrl || source.metadata?.liveUrl || null;
+  if (!target.liveUrl && isRealUrl(sourceLiveUrl)) {
+    target.liveUrl = sourceLiveUrl;
+  }
+
+  // 2. Candidate-owned scalar fields (summary, description)
+  if (!target.summary && (source.summary || source.headline || source.metadata?.summary || source.metadata?.headline)) {
+    target.summary = source.summary || source.headline || source.metadata?.summary || source.metadata?.headline;
+  }
+  if (!target.description && (source.description || source.metadata?.description)) {
+    target.description = source.description || source.metadata?.description;
+  }
+
+  // 3. Candidate-owned array fields: bullets, highlights, features, etc.
+  const arrayFields = [
+    'bullets',
+    'highlights',
+    'features',
+    'featureDescriptions',
+    'responsibilities',
+    'implementationDescriptions',
+  ];
+  for (const field of arrayFields) {
+    const existingArr = Array.isArray(target[field]) ? target[field] : [];
+    const incomingArr = Array.isArray(source[field])
+      ? source[field]
+      : Array.isArray(source.metadata?.[field])
+        ? source.metadata[field]
+        : [];
+    target[field] = mergeCandidateTextCollections(existingArr, incomingArr);
+  }
+
+  // 4. Technologies (generic, deduplicated, cleaned)
+  const existingTech = Array.isArray(target.technologies) ? target.technologies : [];
+  const incomingTech = [
+    ...(Array.isArray(source.technologies) ? source.technologies : []),
+    ...(Array.isArray(source.metadata?.technologies) ? source.metadata.technologies : []),
+    ...(Array.isArray(source.primaryLanguages) ? source.primaryLanguages : []),
+  ];
+  target.technologies = cleanResumeFacingTechnologies([
+    ...existingTech,
+    ...incomingTech,
+  ]);
+
+  // 5. Evidence
+  const incomingEvidence = Array.isArray(source.evidence) ? source.evidence : [];
+  if (incomingEvidence.length > 0) {
+    const evMap = new Map();
+    for (const ev of (Array.isArray(target.evidence) ? target.evidence : [])) {
+      const key = ev.id || `${ev.skillSlug || ev.skillName}-${ev.filePath}`;
+      evMap.set(key, ev);
+    }
+    for (const ev of incomingEvidence) {
+      const key = ev.id || `${ev.skillSlug || ev.skillName}-${ev.filePath}`;
+      if (!evMap.has(key)) {
+        evMap.set(key, ev);
+      }
+    }
+    target.evidence = Array.from(evMap.values());
+    target.evidenceCount = target.evidence.length;
+  }
+
+  // 6. Provenance & Archive status
+  if (target.evidenceCount > 0 || target.repositoryUrl) {
+    target.provenanceStatus = target.evidenceCount > 0 ? 'CORROBORATED' : target.provenanceStatus || 'VERIFIED';
+  }
+  if (target.isArchived && source.isArchived === false) {
+    target.isArchived = false;
+  }
+
+  return target;
+}
+
+/**
  * Reconciles candidate projects across connected repository evidence, candidate
  * curated resume records, and relational projects table rows.
  *
@@ -404,11 +535,38 @@ export function reconcileCandidateProjects({
     }
 
     projectMap.set(key, {
+      id: rp.id || rp.projectId || undefined,
       name: formatProjectDisplayName(rawName),
       slug: key,
       title: formatProjectDisplayName(rawName),
       summary: rp.summary || rp.headline || null,
+      description: rp.description || null,
       bullets: cleanBullets,
+      highlights: Array.isArray(rp.highlights)
+        ? rp.highlights
+        : Array.isArray(rp.metadata?.highlights)
+          ? rp.metadata.highlights
+          : [],
+      features: Array.isArray(rp.features)
+        ? rp.features
+        : Array.isArray(rp.metadata?.features)
+          ? rp.metadata.features
+          : [],
+      featureDescriptions: Array.isArray(rp.featureDescriptions)
+        ? rp.featureDescriptions
+        : Array.isArray(rp.metadata?.featureDescriptions)
+          ? rp.metadata.featureDescriptions
+          : [],
+      responsibilities: Array.isArray(rp.responsibilities)
+        ? rp.responsibilities
+        : Array.isArray(rp.metadata?.responsibilities)
+          ? rp.metadata.responsibilities
+          : [],
+      implementationDescriptions: Array.isArray(rp.implementationDescriptions)
+        ? rp.implementationDescriptions
+        : Array.isArray(rp.metadata?.implementationDescriptions)
+          ? rp.metadata.implementationDescriptions
+          : [],
       technologies: cleanResumeFacingTechnologies(
         Array.isArray(rp.technologies) ? rp.technologies.filter(Boolean) : []
       ),
@@ -438,13 +596,12 @@ export function reconcileCandidateProjects({
     const candidateResolvedUrl =
       pp.metadata?.sourceUrl ||
       pp.metadata?.repositoryUrl ||
-      pp.repositoryUrl || // P16-001F-5: canonical top-level URL resolved from linked resources
+      pp.repositoryUrl ||
       stored?.metadata?.sourceUrl ||
       stored?.metadata?.repositoryUrl ||
       pp.url ||
       (/^[\w.-]+\/[\w.-]+$/.test(rawName) ? `https://github.com/${rawName}` : null);
     const resolvedUrl = isRealUrl(candidateResolvedUrl) ? candidateResolvedUrl : null;
-    // P16-001F-5: live/demo URL now flows from the profile view's linked resources.
     const profileLiveUrl = isRealUrl(pp.liveUrl) ? pp.liveUrl : null;
 
     const evidence = Array.isArray(pp.evidence) ? pp.evidence : [];
@@ -463,10 +620,6 @@ export function reconcileCandidateProjects({
 
     const existing = projectMap.get(key);
     if (!existing) {
-      // P16-001F-5: prefer candidate-owned top-level fields, then candidate-owned
-      // metadata (bullets/technologies/description), before evidence-derived
-      // synthesis. groundAndSanitizeProject() synthesis now only fires for
-      // genuinely bullet-less projects.
       const profileBullets = Array.isArray(pp.bullets)
         ? pp.bullets
         : Array.isArray(pp.metadata?.bullets)
@@ -479,10 +632,6 @@ export function reconcileCandidateProjects({
             ? pp.metadata.technologies
             : [];
       projectMap.set(key, {
-        // P16-001F-3B: preserve the authoritative candidate-owned project identity.
-        // buildStructuredResumeDocument resolves selectedProjectIds (UUIDs from the
-        // analysis snapshot) against this id — dropping it silently omitted every
-        // reconciled project from structuredResume.projects.
         id: pp.id || pp.projectId || undefined,
         name: formatProjectDisplayName(rawName),
         slug: key,
@@ -490,18 +639,31 @@ export function reconcileCandidateProjects({
         summary: pp.summary || pp.headline || pp.metadata?.description || null,
         description: pp.description || pp.metadata?.description || null,
         bullets: profileBullets,
-        // P16-006: Collect all authentic candidate-authored content fields for
-        // technology-agnostic bullet derivation in groundAndSanitizeProject.
-        highlights: Array.isArray(pp.highlights) ? pp.highlights
-          : Array.isArray(pp.metadata?.highlights) ? pp.metadata.highlights : [],
-        features: Array.isArray(pp.features) ? pp.features
-          : Array.isArray(pp.metadata?.features) ? pp.metadata.features : [],
-        featureDescriptions: Array.isArray(pp.featureDescriptions) ? pp.featureDescriptions
-          : Array.isArray(pp.metadata?.featureDescriptions) ? pp.metadata.featureDescriptions : [],
-        responsibilities: Array.isArray(pp.responsibilities) ? pp.responsibilities
-          : Array.isArray(pp.metadata?.responsibilities) ? pp.metadata.responsibilities : [],
-        implementationDescriptions: Array.isArray(pp.implementationDescriptions) ? pp.implementationDescriptions
-          : Array.isArray(pp.metadata?.implementationDescriptions) ? pp.metadata.implementationDescriptions : [],
+        highlights: Array.isArray(pp.highlights)
+          ? pp.highlights
+          : Array.isArray(pp.metadata?.highlights)
+            ? pp.metadata.highlights
+            : [],
+        features: Array.isArray(pp.features)
+          ? pp.features
+          : Array.isArray(pp.metadata?.features)
+            ? pp.metadata.features
+            : [],
+        featureDescriptions: Array.isArray(pp.featureDescriptions)
+          ? pp.featureDescriptions
+          : Array.isArray(pp.metadata?.featureDescriptions)
+            ? pp.metadata.featureDescriptions
+            : [],
+        responsibilities: Array.isArray(pp.responsibilities)
+          ? pp.responsibilities
+          : Array.isArray(pp.metadata?.responsibilities)
+            ? pp.metadata.responsibilities
+            : [],
+        implementationDescriptions: Array.isArray(pp.implementationDescriptions)
+          ? pp.implementationDescriptions
+          : Array.isArray(pp.metadata?.implementationDescriptions)
+            ? pp.metadata.implementationDescriptions
+            : [],
         technologies: cleanResumeFacingTechnologies([
           ...profileTechSource,
           ...(Array.isArray(pp.primaryLanguages) ? pp.primaryLanguages : []),
@@ -515,54 +677,53 @@ export function reconcileCandidateProjects({
         isArchived,
       });
     } else {
-      // P16-001F-3B: the entry may originate from curated resumeData (no id);
-      // enrich it with the authoritative candidate-owned identity when available.
-      if (!existing.id && (pp.id || pp.projectId)) existing.id = pp.id || pp.projectId;
-      if (!existing.repositoryUrl && resolvedUrl) existing.repositoryUrl = resolvedUrl;
-      // P16-001F-5: propagate live/demo URL through the merge path as well.
-      if (!existing.liveUrl && profileLiveUrl) existing.liveUrl = profileLiveUrl;
-      if (evidence.length > 0) {
-        existing.evidence = evidence;
-        existing.evidenceCount = evidenceCount;
-      }
-      const techSet = new Set(existing.technologies);
-      for (const t of repoTech) {
-        if (![...techSet].some((ex) => ex.toLowerCase() === t.toLowerCase())) {
-          techSet.add(t);
-        }
-      }
-      existing.technologies = cleanResumeFacingTechnologies(Array.from(techSet));
-      if (evidenceCount > 0 || resolvedUrl) {
-        existing.provenanceStatus = 'CORROBORATED';
-      }
-      if (existing.isArchived && !isArchived) {
-        existing.isArchived = false;
-      }
+      // Reconcile all candidate-owned content surfaces via generic merger
+      mergeCandidateOwnedProjectContent(existing, {
+        ...pp,
+        repositoryUrl: resolvedUrl,
+        liveUrl: profileLiveUrl,
+        evidence,
+        technologies: repoTech,
+        isArchived,
+      });
     }
   }
 
-  // 3. Keep archived rows for auditability if not already present
+  // 3. Reconcile stored projects from database table
   for (const sp of storedProjects) {
+    if (!sp.name) continue;
+    const key = slugifyProject(sp.name);
     const isArchived =
       sp.metadata?.portfolioStatus === 'ARCHIVED' || Boolean(sp.metadata?.archivedAt);
-    if (isArchived && sp.name) {
-      const key = slugifyProject(sp.name) + '-archived';
-      if (!projectMap.has(key)) {
-      projectMap.set(key, {
-        id: sp.id || sp.projectId || undefined,
-        name: formatProjectDisplayName(sp.name),
-        slug: key,
-        title: formatProjectDisplayName(sp.name),
-        summary: sp.summary || null,
-        bullets: [],
-        technologies: Array.isArray(sp.primaryLanguages) ? sp.primaryLanguages : [],
-        repositoryUrl: sp.metadata?.sourceUrl || null,
-        liveUrl: null,
-        evidence: [],
-        evidenceCount: 0,
-        provenanceStatus: 'CLAIMED',
-        isArchived: true,
-      });
+
+    const existing = projectMap.get(key);
+    if (existing) {
+      mergeCandidateOwnedProjectContent(existing, { ...sp, isArchived });
+    } else if (isArchived) {
+      // Keep archived rows for auditability if not already present
+      const archKey = key + '-archived';
+      if (!projectMap.has(archKey)) {
+        projectMap.set(archKey, {
+          id: sp.id || sp.projectId || undefined,
+          name: formatProjectDisplayName(sp.name),
+          slug: archKey,
+          title: formatProjectDisplayName(sp.name),
+          summary: sp.summary || null,
+          description: sp.description || null,
+          bullets: [],
+          highlights: [],
+          features: [],
+          featureDescriptions: [],
+          responsibilities: [],
+          implementationDescriptions: [],
+          technologies: Array.isArray(sp.primaryLanguages) ? sp.primaryLanguages : [],
+          repositoryUrl: sp.metadata?.sourceUrl || null,
+          liveUrl: null,
+          evidence: [],
+          evidenceCount: 0,
+          provenanceStatus: 'CLAIMED',
+          isArchived: true,
+        });
       }
     }
   }
@@ -576,11 +737,11 @@ export function reconcileCandidateProjects({
 }
 
 /**
- * Technology-agnostic evidence-grounded bullet derivation and content sanitization (P16-006).
+ * Technology-agnostic evidence-grounded bullet derivation and content sanitization (P16-006 / P16-007).
  *
  * Enforces strict evidence provenance without any technology-specific branching:
- * 1. Collects authentic candidate-authored content (bullets, summary, description,
- *    highlights, features, featureDescriptions) when curated resume bullets are absent.
+ * 1. Collects authentic candidate-authored content (bullets, highlights, features,
+ *    featureDescriptions, responsibilities, implementationDescriptions, summary, description).
  * 2. Applies deterministic professional compression to authentic content.
  * 3. NEVER synthesizes accomplishment prose from dependency, import, file-path, or
  *    technology-name presence alone.
@@ -622,59 +783,71 @@ export function groundAndSanitizeProject(project) {
     return true;
   });
 
-  if (cleanBullets.length > 0) {
-    // Preserve authentic candidate bullets without modifying raw punctuation or case
-    project.bullets = cleanBullets;
-  } else {
-    // Collect authentic candidate-owned content as bullet candidates.
-    // Priority: highlights > features/featureDescriptions > summary > description
-    // NEVER synthesize prose from technology presence alone.
-    const authenticSources = [];
+  // Collect all authentic candidate-owned content as bullet candidates.
+  // Candidate-authored accomplishment content is the primary resume prose.
+  // NEVER synthesize prose from technology presence alone.
+  const authenticSources = [];
+  const seenNorm = new Set();
 
-    // Candidate-authored highlights (highest priority)
-    if (Array.isArray(project.highlights)) {
-      for (const h of project.highlights) {
-        const text = typeof h === 'string' ? h.trim() : String(h?.text || h?.description || '').trim();
-        if (text.length >= 20) authenticSources.push(text);
+  const addAuthentic = (text) => {
+    if (!text || typeof text !== 'string') return;
+    const trimmed = text.trim();
+    if (trimmed.length < 15) return;
+    if (
+      /^(source code|project link|repository|repo|url):\s*https?:\/\//i.test(trimmed) ||
+      /^https?:\/\//i.test(trimmed)
+    ) {
+      return;
+    }
+    if (QUANTITATIVE_METRIC_REGEX.test(trimmed)) {
+      const isEvidenced = evidence.some(
+        (ev) =>
+          (ev.contextSnippet && QUANTITATIVE_METRIC_REGEX.test(ev.contextSnippet)) ||
+          (ev.claimText && QUANTITATIVE_METRIC_REGEX.test(ev.claimText)) ||
+          (ev.description && QUANTITATIVE_METRIC_REGEX.test(ev.description))
+      );
+      if (!isEvidenced) return;
+    }
+    const norm = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!seenNorm.has(norm)) {
+      seenNorm.add(norm);
+      authenticSources.push(trimmed);
+    }
+  };
+
+  // 1. Curated / candidate-authored bullets
+  for (const b of cleanBullets) addAuthentic(b);
+
+  // 2. Candidate-authored highlights
+  if (Array.isArray(project.highlights)) {
+    for (const h of project.highlights) {
+      const text = typeof h === 'string' ? h : String(h?.text || h?.description || '');
+      addAuthentic(text);
+    }
+  }
+
+  // 3. Candidate-authored features / descriptions / responsibilities
+  for (const field of ['features', 'featureDescriptions', 'responsibilities', 'implementationDescriptions']) {
+    if (Array.isArray(project[field])) {
+      for (const item of project[field]) {
+        const text = typeof item === 'string' ? item : String(item?.text || item?.description || '');
+        addAuthentic(text);
       }
     }
+  }
 
-    // Candidate-authored features / feature descriptions
-    for (const field of ['features', 'featureDescriptions', 'responsibilities', 'implementationDescriptions']) {
-      if (Array.isArray(project[field])) {
-        for (const item of project[field]) {
-          const text = typeof item === 'string' ? item.trim() : String(item?.text || item?.description || '').trim();
-          if (text.length >= 20 && !authenticSources.includes(text)) {
-            authenticSources.push(text);
-          }
-        }
-      }
-    }
+  // 4. Candidate-authored summary as bullet candidate (if authentic sources thin)
+  if (authenticSources.length === 0 && project.summary && typeof project.summary === 'string') {
+    addAuthentic(project.summary);
+  }
 
-    // Candidate-authored summary as bullet candidate (when no highlights/features exist)
-    if (authenticSources.length === 0 && project.summary && typeof project.summary === 'string') {
-      const summaryText = project.summary.trim();
-      if (summaryText.length >= 20) {
-        authenticSources.push(summaryText);
-      }
-    }
+  // 5. Candidate-authored description as fallback
+  if (authenticSources.length === 0 && project.description && typeof project.description === 'string') {
+    addAuthentic(project.description);
+  }
 
-    // Candidate-authored description as fallback
-    if (authenticSources.length === 0 && project.description && typeof project.description === 'string') {
-      const descText = project.description.trim();
-      if (descText.length >= 20) {
-        authenticSources.push(descText);
-      }
-    }
-
-    // Set authentic candidate-owned sources as bullets
-    if (authenticSources.length > 0) {
-      project.bullets = authenticSources.slice(0, 4);
-    }
-    // If NO authentic candidate-authored content exists, leave bullets empty.
-    // The downstream selectAndRephraseProjectBullets will handle evidence-derived
-    // bullets via deriveEvidenceBackedBullets for verified FEATURE_EVIDENCE and
-    // CANDIDATE_AUTHORED_CLAIM evidence records only.
+  if (authenticSources.length > 0) {
+    project.bullets = authenticSources.slice(0, 5);
   }
 
   // Organically merge verified technologies discovered in repository evidence.
