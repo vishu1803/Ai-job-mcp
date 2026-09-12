@@ -462,11 +462,20 @@ export class ApplicationHandoffService {
       const expected = {
         candidateName: null,
         targetRole: null,
+        summary: null,
+        phone: null,
+        email: null,
+        location: null,
         projectNames: [],
         projectBullets: [],
         experienceRoles: [],
+        experienceCompanies: [],
         experienceBullets: [],
         educationTokens: [],
+        institutions: [],
+        degrees: [],
+        coursework: [],
+        certifications: [],
         links: [],
         sectionHeadings: [],
         skillsTokens: [],
@@ -475,12 +484,22 @@ export class ApplicationHandoffService {
       };
       const clean = (s) => String(s || '').trim();
 
-      if (snapshot.candidateIdentity?.name) {
-        expected.candidateName = clean(snapshot.candidateIdentity.name);
+      const candName = snapshot.candidateIdentity?.displayName || snapshot.candidateIdentity?.fullName || snapshot.candidateIdentity?.name;
+      if (candName) {
+        expected.candidateName = clean(candName);
       }
       if (snapshot.candidateIdentity?.headline || snapshot.targetRole) {
         expected.targetRole = clean(snapshot.candidateIdentity?.headline || snapshot.targetRole);
       }
+      if (snapshot.summary?.text) {
+        expected.summary = clean(snapshot.summary.text);
+      }
+      const candPhone = snapshot.candidateIdentity?.phone || snapshot.contact?.phone;
+      if (candPhone) expected.phone = clean(candPhone);
+      const candEmail = snapshot.candidateIdentity?.email || snapshot.contact?.email;
+      if (candEmail) expected.email = clean(candEmail);
+      const candLoc = snapshot.candidateIdentity?.location || snapshot.contact?.location;
+      if (candLoc) expected.location = clean(candLoc);
 
       // Skills tokens
       if (snapshot.skills) {
@@ -529,7 +548,7 @@ export class ApplicationHandoffService {
         }
       }
       for (const e of Array.isArray(snapshot.experience) ? snapshot.experience : []) {
-        if (e.company) expected.experienceRoles.push(clean(e.company));
+        if (e.company) expected.experienceCompanies.push(clean(e.company));
         if (e.role || e.title) expected.experienceRoles.push(clean(e.role || e.title));
         for (const b of Array.isArray(e.bullets) ? e.bullets : []) {
           const t = clean(typeof b === 'string' ? b : b?.text);
@@ -537,10 +556,24 @@ export class ApplicationHandoffService {
         }
       }
       for (const e of Array.isArray(snapshot.education) ? snapshot.education : []) {
-        for (const key of ['institution', 'degree']) {
-          const t = clean(e[key]);
-          if (t) expected.educationTokens.push(t);
+        if (e.institution || e.school) {
+          const inst = clean(e.institution || e.school);
+          expected.institutions.push(inst);
+          expected.educationTokens.push(inst);
         }
+        if (e.degree) {
+          const deg = clean(e.degree);
+          expected.degrees.push(deg);
+          expected.educationTokens.push(deg);
+        }
+        for (const c of Array.isArray(e.coursework) ? e.coursework : []) {
+          const t = clean(typeof c === 'string' ? c : c?.name);
+          if (t) expected.coursework.push(t);
+        }
+      }
+      for (const cert of Array.isArray(snapshot.certifications) ? snapshot.certifications : []) {
+        const certName = clean(cert.name || cert.title);
+        if (certName) expected.certifications.push(certName);
       }
       if (snapshot.contact?.links) {
         for (const link of Array.isArray(snapshot.contact.links) ? snapshot.contact.links : []) {
@@ -568,10 +601,43 @@ export class ApplicationHandoffService {
         COURSEWORK: 'Coursework',
         PUBLICATIONS: 'Publications',
       };
+      const hasSectionContent = (key) => {
+        switch (key) {
+          case 'SUMMARY':
+            return Boolean(
+              typeof snapshot.summary === 'string'
+                ? snapshot.summary.trim()
+                : snapshot.summary?.text?.trim()
+            );
+          case 'SKILLS':
+            return Boolean(Array.isArray(snapshot.skills) && snapshot.skills.length > 0);
+          case 'EXPERIENCE':
+            return Boolean(Array.isArray(snapshot.experience) && snapshot.experience.length > 0);
+          case 'PROJECTS':
+            return Boolean(Array.isArray(snapshot.projects) && snapshot.projects.length > 0);
+          case 'EDUCATION':
+            return Boolean(Array.isArray(snapshot.education) && snapshot.education.length > 0);
+          case 'DSA':
+            return Boolean(
+              (snapshot.dsa && Array.isArray(snapshot.dsa.bullets) && snapshot.dsa.bullets.length > 0) ||
+              (snapshot.problemSolving && Array.isArray(snapshot.problemSolving.bullets) && snapshot.problemSolving.bullets.length > 0)
+            );
+          case 'CERTIFICATIONS':
+            return Boolean(Array.isArray(snapshot.certifications) && snapshot.certifications.length > 0);
+          case 'COURSEWORK':
+            return Boolean(Array.isArray(snapshot.coursework) && snapshot.coursework.length > 0);
+          case 'PUBLICATIONS':
+            return Boolean(Array.isArray(snapshot.publications) && snapshot.publications.length > 0);
+          default:
+            return false;
+        }
+      };
       const order = Array.isArray(snapshot.sectionOrder) ? snapshot.sectionOrder : [];
       for (const key of order) {
         if (key === 'HEADER') continue;
-        if (headingLabels[key]) expected.sectionHeadings.push(headingLabels[key]);
+        if (headingLabels[key] && hasSectionContent(key)) {
+          expected.sectionHeadings.push(headingLabels[key]);
+        }
       }
 
       return expected.projectNames.length > 0 ||

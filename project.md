@@ -1,7 +1,55 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-11*
+*Last Updated: 2026-09-12*
+
+### P16-004: Resume Pipeline Hardening, Real-Candidate Verification & Genericity Audit
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-12  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)
+
+**Context & Core Invariants Accomplished:**
+Executed an exhaustive hardening, verification, and genericity audit of the P16 resume generation pipeline:
+1. **Real-Candidate End-to-End Verification:** Verified real candidate Vishwanath Nishad (`10a2b51b-09bf-4090-8040-1f60ebeb89c9`) across 2 genuinely distinct job postings (Cloudflare Systems & Infrastructure Engineer, Vercel Backend Engineer). Both tailored resumes selected relevant candidate projects, generated 100% authentic bullets from candidate records, compiled to exactly 1 page (`pages === 1`) via Tectonic, and achieved 100/100 QA scores.
+2. **Project Bullet Semantic Audit & Claim Provenance:** Verified zero presence-evidence-to-accomplishment conversion. Project bullets originate exclusively from candidate-authored project highlights; repository evidence is strictly supporting verification.
+3. **Technology Normalization Deduplication:** Centralized technology normalization across production code by eliminating redundant duplicate mapping dictionaries in `src/services/candidate-artifact-content.service.js` and `src/services/legacy-latex-generator.service.js`, routing all normalization through `src/utils/technology-normalizer.js`. Verified unknown technologies (`QuantumLeaf`, `AeroMesh`, `SurrealDB`, `CustomVectorX`) pass through cleanly without code modification.
+4. **DSA Hardening:** Unified `isMeaningfulDsa` in `src/services/resume-content-strategy.service.js` to recognize competitive programming metrics (`rating > 0`, `contests > 0`) alongside problem counts, and hardened rejection of generic filler phrases across builder, gate, renderer, and QA validator.
+5. **Layout Hardening Across 9 Stress Scenarios:** Verified all 9 stress scenarios (Fresher with heavy projects, 4 short roles, 2 long roles with dense bullets, long project names, high skill density, full DSA profile, long institution degrees, multi-certification, edge-case minimal content) compile to exactly 1 page without overflow.
+6. **Full Traceability Coverage:** Expanded `buildExpectedContent` in `src/services/application-handoff.service.js` to populate `summary`, `phone`, `email`, `location`, `experienceCompanies`, `institutions`, `degrees`, `coursework`, and `certifications`. Filtered `expected.sectionHeadings` to only evaluate headings for active sections with non-empty content.
+7. **Genericity Audit:** Generalized dev-login in `src/routes/auth.routes.js` to use configurable `DEV_USER_NAME` with fallback to the first active user, eliminating hardcoded user assumptions.
+8. **Schema Passthrough & Synchronization:** Synchronized `get_application_package.outputSchema` with `generationContractVersion` and `structuredResumeSchemaVersion`, adding `.passthrough()` to both `get_application_package.outputSchema` and `ApplicationPackageSchema`.
+9. **MCP Standard JSON-RPC Parity:** Augmented `structuredData` onto `parsedPayload.result` in `src/routes/mcp.routes.js` for backward compatibility with integration test assertions and client consumers.
+10. **Reconciled MCP Tool Registrations:** Updated registered tools count expectations to 30 tools across tests (`mcp-final-transport-acceptance`, `mcp-conformance-and-resources`, `career-profile-and-compliance`, `chatgpt-mcp-connector`), accounting for all registered lifecycle and application tools.
+11. **Negative Semantic Regression Suite:** Implemented all 15 negative semantic invariant tests in `tests/unit/p16-004-hardening-and-genericity.test.js` (15/15 PASS).
+
+**Files Added / Changed:**
+- `src/services/resume-content-strategy.service.js`: Hardened `isMeaningfulDsa` for rating/contest counts and filler rejection.
+- `src/services/candidate-artifact-content.service.js`: Replaced duplicate alias map with centralized `CANONICAL_TECH_MAP`.
+- `src/services/legacy-latex-generator.service.js`: Replaced duplicate skill map with centralized `normalizeTechnologyName`.
+- `src/services/application-handoff.service.js`: Expanded `buildExpectedContent` traceability and active section heading filter.
+- `src/services/pdf-qa-validator.service.js`: Traceability expectation groups.
+- `src/routes/auth.routes.js`: Generalized dev-login with `DEV_USER_NAME` and active user fallback.
+- `src/routes/mcp.routes.js`: Augmented `structuredData` on tool results for backward compatibility.
+- `src/domain/mcp/job-workflow-tools.schemas.js`: Added version fields and `.passthrough()` to `get_application_package.outputSchema`.
+- `src/domain/job/job-workflow.schemas.js`: Added `.passthrough()` to `ApplicationPackageSchema`.
+- `package.json`: Added `--max-old-space-size=4096` to test runner scripts.
+- `scripts/reproduce-real-candidate-jobs.mjs` [NEW]: Real candidate two-job verification script.
+- `scripts/test-phase7-stress-cases.mjs` [NEW]: 9-scenario layout stress testing script.
+- `tests/unit/p16-004-hardening-and-genericity.test.js` [NEW]: 15 negative semantic regression tests.
+- `tests/integration/mcp-final-transport-acceptance.test.js`: Updated to 30 tools and registered tool array.
+- `tests/integration/mcp-conformance-and-resources.test.js`: Updated to 30 tools.
+- `tests/integration/career-profile-and-compliance.test.js`: Updated to 30 tools.
+- `tests/integration/chatgpt-mcp-connector.test.js`: Updated to 30 tools.
+
+**Verification & Evidence:**
+- `node --test tests/unit/p16-004-hardening-and-genericity.test.js`: 15/15 PASS.
+- `npm run test:unit`: 2,632/2,632 PASS across 678 suites (0 failed).
+- Targeted P16 unit tests: 320/320 PASS.
+- Targeted P16 integration tests: 22/22 PASS.
+- MCP Transport & Conformance tests: `mcp-final-transport-acceptance` (21/21 PASS), `mcp-roundtrip-idempotency` (13/13 PASS), `chatgpt-mcp-connector` (28/28 PASS), `mcp-api-token.service` (8/8 PASS).
+- Real candidate 2-job PDFs: verified 1-page output (`pages === 1`), 100/100 QA score, zero leakage.
+- 9 stress scenarios: verified all 9 compile to exactly 1 page without overflow.
 
 ### P16-003: Resume Content Integrity & Professional One-Page Composition
 

@@ -24,7 +24,7 @@ describe('MCP Career Profile Tools (P14-004C)', () => {
     const server = createCareerMcpServer();
     const tools = server.getRegisteredTools();
 
-    assert.equal(tools.length, 29);
+    assert.equal(tools.length, 30);
     const getProfileTool = tools.find((t) => t.name === 'get_career_profile');
     const updatePrefTool = tools.find((t) => t.name === 'update_career_preferences');
 

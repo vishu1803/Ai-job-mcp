@@ -439,7 +439,7 @@ export function reconcileCandidateProjects({
       stored?.metadata?.sourceUrl ||
       stored?.metadata?.repositoryUrl ||
       pp.url ||
-      null;
+      (/^[\w.-]+\/[\w.-]+$/.test(rawName) ? `https://github.com/${rawName}` : null);
     const resolvedUrl = isRealUrl(candidateResolvedUrl) ? candidateResolvedUrl : null;
     // P16-001F-5: live/demo URL now flows from the profile view's linked resources.
     const profileLiveUrl = isRealUrl(pp.liveUrl) ? pp.liveUrl : null;
@@ -782,31 +782,7 @@ export function curateProfessionalSummary(rawSummary, candidateData = {}, jobPos
     return rawSummary || '';
   }
 
-  const CANONICAL_ALIAS_MAP = {
-    prisma: 'Prisma ORM',
-    'prisma orm': 'Prisma ORM',
-    postgres: 'PostgreSQL',
-    postgresql: 'PostgreSQL',
-    'postgresql (sql)': 'PostgreSQL',
-    node: 'Node.js',
-    'node.js': 'Node.js',
-    express: 'Express.js',
-    'express.js': 'Express.js',
-    react: 'React',
-    'react.js': 'React',
-    drizzle: 'Drizzle ORM',
-    'drizzle orm': 'Drizzle ORM',
-    'rest api': 'RESTful APIs',
-    'rest apis': 'RESTful APIs',
-    'rest api design': 'RESTful APIs',
-    fastapi: 'FastAPI',
-    fastify: 'Fastify',
-    'next.js': 'Next.js',
-    nextjs: 'Next.js',
-    nestjs: 'NestJS',
-    django: 'Django',
-    flask: 'Flask',
-  };
+  const CANONICAL_ALIAS_MAP = CANONICAL_TECH_MAP;
 
   // 1. Build canonical skill lookup from candidateData
   const skillMap = new Map();

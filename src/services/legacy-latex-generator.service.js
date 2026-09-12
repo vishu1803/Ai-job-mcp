@@ -14,6 +14,10 @@ import {
   formatProjectDisplayName,
   groundAndSanitizeProject,
 } from './candidate-artifact-content.service.js';
+import {
+  normalizeTechnologyName,
+  isNoisyTechnology,
+} from '../utils/technology-normalizer.js';
 
 /**
  * Escapes reserved LaTeX characters in dynamic user strings and safely
@@ -328,63 +332,15 @@ export class LegacyLatexGenerator {
       );
     }
 
-    // 3. Technical Skills: Canonical mapping & alias deduplication
-    const CANONICAL_SKILL_REPLACEMENTS = {
-      prisma: 'Prisma ORM',
-      'prisma orm': 'Prisma ORM',
-      postgres: 'PostgreSQL',
-      postgresql: 'PostgreSQL',
-      'postgresql (sql)': 'PostgreSQL',
-      node: 'Node.js',
-      'node.js': 'Node.js',
-      express: 'Express.js',
-      'express.js': 'Express.js',
-      react: 'React',
-      'react.js': 'React',
-      drizzle: 'Drizzle ORM',
-      'drizzle orm': 'Drizzle ORM',
-      'rest api': 'RESTful APIs',
-      'rest apis': 'RESTful APIs',
-      'rest api design': 'RESTful APIs',
-      fastapi: 'FastAPI',
-      fastify: 'Fastify',
-      'next.js': 'Next.js',
-      nextjs: 'Next.js',
-      nestjs: 'NestJS',
-      git: 'Git',
-      'github actions': 'GitHub Actions',
-      docker: 'Docker',
-      linux: 'Linux',
-      'model context protocol': 'Model Context Protocol (MCP)',
-      mcp: 'Model Context Protocol (MCP)',
-      'c/c++': 'C/C++',
-      'c++': 'C/C++',
-      c: 'C',
-    };
-
+    // 3. Technical Skills: Centralized canonical mapping & deduplication
     const normalizeAndDeduplicateSkills = (skillsList) => {
       const seen = new Set();
       const deduped = [];
       for (const s of skillsList) {
-        if (!s) continue;
-        const rawLower = String(s).trim().toLowerCase();
-        // Ignore low-value backend noise
-        if (
-          [
-            'eslint',
-            'prettier',
-            'vite',
-            'cypress',
-            'jest',
-            'tailwind css',
-            'npm',
-            'socket io',
-            'socket.io',
-          ].includes(rawLower)
-        ) {
-          continue;
-        }
-        const canonicalName = CANONICAL_SKILL_REPLACEMENTS[rawLower] || s;
+        if (!s || typeof s !== 'string') continue;
+        const trimmed = s.trim();
+        if (isNoisyTechnology(trimmed)) continue;
+        const canonicalName = normalizeTechnologyName(trimmed) || trimmed;
         const token = canonicalName.toLowerCase().replace(/[^a-z0-9]/g, '');
         if (seen.has(token)) continue;
         seen.add(token);

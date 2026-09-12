@@ -276,7 +276,7 @@ describe('MCP 2026-07-28 Conformance, Resources & Prompts (P14-004D)', () => {
     assert.ok(mismatchBody.error.message.includes('Header Mcp-Method'));
   });
 
-  it('2. MCP Server: registers all 26 tools, 8 resources (3 static + 4 templates + 1 app UI), and 4 prompts', () => {
+  it('2. MCP Server: registers all 30 tools, 8 resources (3 static + 4 templates + 1 app UI), and 4 prompts', () => {
     const server = createCareerMcpServer({
       deps: {
         profileService: mockProfileService,
@@ -289,7 +289,7 @@ describe('MCP 2026-07-28 Conformance, Resources & Prompts (P14-004D)', () => {
     const resources = server.getRegisteredResources();
     const prompts = server.getRegisteredPrompts();
 
-    assert.strictEqual(tools.length, 26);
+    assert.strictEqual(tools.length, 30);
     assert.strictEqual(resources.length, 8);
     assert.strictEqual(prompts.length, 4);
 

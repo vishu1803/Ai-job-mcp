@@ -368,11 +368,23 @@ export class PdfQaValidatorService {
       // Token expectation groups: every selected element must survive extraction.
       const expectationGroups = [
         { label: 'candidate name', tokens: expectedContent.candidateName ? [expectedContent.candidateName] : [] },
+        { label: 'target role', tokens: expectedContent.targetRole ? [expectedContent.targetRole] : [] },
+        { label: 'phone', tokens: expectedContent.phone ? [expectedContent.phone] : [] },
+        { label: 'email', tokens: expectedContent.email ? [expectedContent.email] : [] },
+        { label: 'location', tokens: expectedContent.location ? [expectedContent.location] : [] },
+        { label: 'skill', tokens: expectedContent.skillsTokens },
         { label: 'project name', tokens: expectedContent.projectNames },
+        { label: 'project technology', tokens: expectedContent.projectTechnologies },
         { label: 'project bullet', tokens: expectedContent.projectBullets },
+        { label: 'DSA', tokens: expectedContent.dsaTokens },
         { label: 'experience role', tokens: expectedContent.experienceRoles },
+        { label: 'experience company', tokens: expectedContent.experienceCompanies },
         { label: 'experience bullet', tokens: expectedContent.experienceBullets },
         { label: 'education record', tokens: expectedContent.educationTokens },
+        { label: 'degree', tokens: expectedContent.degrees },
+        { label: 'institution', tokens: expectedContent.institutions },
+        { label: 'coursework', tokens: expectedContent.coursework },
+        { label: 'certification', tokens: expectedContent.certifications },
         { label: 'link', tokens: expectedContent.links },
       ];
       for (const group of expectationGroups) {

@@ -178,15 +178,15 @@ describe('CandidateArtifactContentService (P14-006 real-content generation)', ()
     // Categorized presentation in resume
     assert.ok(resume.includes('## Technical Skills'));
     assert.ok(resume.includes('**Databases & ORMs:**') || resume.includes('**Backend & APIs:**'));
-    assert.ok(resume.includes('Postgresql'));
+    assert.ok(resume.includes('PostgreSQL') || resume.includes('Postgresql'));
     assert.ok(resume.includes('FastAPI'));
 
     // Provenance truth preserved internally in skillAudit
     const skillAudit = docs.resume.skillAudit || [];
     assert.ok(skillAudit.length > 0, 'skillAudit must be populated');
 
-    const pgAudit = skillAudit.find((s) => s.skill === 'Postgresql');
-    assert.ok(pgAudit, 'Postgresql must be present in skill audit');
+    const pgAudit = skillAudit.find((s) => s.skill === 'Postgresql' || s.skill === 'PostgreSQL');
+    assert.ok(pgAudit, 'Postgresql/PostgreSQL must be present in skill audit');
     assert.equal(pgAudit.provenance, 'VERIFIED');
 
     const fastApiAudit = skillAudit.find((s) => s.skill === 'FastAPI');

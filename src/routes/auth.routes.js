@@ -404,11 +404,20 @@ export default async function authRoutes(app, opts = {}) {
   if (config.NODE_ENV !== 'production') {
     app.get('/auth/dev-login', async (req, reply) => {
       const database = req.db || db;
+      const devUserName = process.env.DEV_USER_NAME || 'Vishwanath Nishad';
       let [user] = await database
         .select()
         .from(users)
-        .where(eq(users.displayName, 'Vishwanath Nishad'))
+        .where(eq(users.displayName, devUserName))
         .limit(1);
+
+      if (!user) {
+        [user] = await database
+          .select()
+          .from(users)
+          .where(eq(users.status, 'ACTIVE'))
+          .limit(1);
+      }
 
       // Dev-only E2E override (?e2e=1): authenticate as the dedicated, disposable
       // E2E fixture user so mutable browser/HTTP tests never touch the stable MCP

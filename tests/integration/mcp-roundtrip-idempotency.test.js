@@ -631,7 +631,6 @@ describe('MCP Application Package Round-Trip & Idempotency Contract (P14-029)', 
     assert.strictEqual(res.statusCode, 200);
     const body = JSON.parse(res.payload);
     assert.strictEqual(body.error, undefined);
-
     const data = JSON.parse(body.result.content[0].text);
     assert.strictEqual(data.applicationId, vercelApplicationId);
     assert.strictEqual(data.candidateId, candidate.id);

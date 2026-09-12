@@ -627,6 +627,20 @@ export async function mcpRoutes(fastify, opts = {}) {
           protocolVersion: req.headers['mcp-protocol-version'] || undefined,
         });
 
+        if (parsedPayload && parsedPayload.result && typeof parsedPayload.result === 'object') {
+          if (!parsedPayload.result.structuredData && parsedPayload.result.content?.[0]?.text) {
+            try {
+              const parsedText = JSON.parse(parsedPayload.result.content[0].text);
+              if (parsedText && typeof parsedText === 'object') {
+                parsedPayload.result.structuredData = parsedText;
+              }
+            } catch {
+              // Ignore non-JSON content
+            }
+          }
+          return reply.send(parsedPayload);
+        }
+
         return reply.send(responseText);
       } catch (err) {
         // Release concurrency slot if acquired before exception

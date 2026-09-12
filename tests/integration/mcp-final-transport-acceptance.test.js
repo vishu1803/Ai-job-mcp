@@ -415,17 +415,20 @@ describe('Final MCP Transport & End-to-End Acceptance Tests', () => {
       assert.strictEqual(body.jsonrpc, '2.0');
       assert.strictEqual(body.id, 101);
       assert.ok(Array.isArray(body.result.tools));
-      assert.strictEqual(body.result.tools.length, 26);
+      assert.strictEqual(body.result.tools.length, 30);
 
       const toolNames = body.result.tools.map((t) => t.name).sort();
       const expectedTools = [
         'add_application_stage',
         'analyze_job_fit',
+        'archive_handoff_kit',
         'attach_application_document',
         'confirm_and_create_pr',
         'create_application_preview',
+        'delete_handoff_kit',
         'draft_cover_letter',
         'generate_tailored_resume',
+        'get_application_package',
         'get_application_submission_status',
         'get_candidate_profile',
         'get_career_profile',
@@ -433,6 +436,7 @@ describe('Final MCP Transport & End-to-End Acceptance Tests', () => {
         'get_job_posting',
         'inspect_project_evidence',
         'list_active_applications',
+        'list_handoff_kits',
         'list_verified_skills',
         'prepare_job_application',
         'propose_project_improvement',
@@ -1002,7 +1006,7 @@ describe('Final MCP Transport & End-to-End Acceptance Tests', () => {
       assert.strictEqual(listRes.statusCode, 200);
       const listBody = listRes.json();
       assert.ok(Array.isArray(listBody.result.tools));
-      assert.strictEqual(listBody.result.tools.length, 26);
+      assert.strictEqual(listBody.result.tools.length, 30);
 
       // 2. Tools Call
       const callRes = await app.inject({

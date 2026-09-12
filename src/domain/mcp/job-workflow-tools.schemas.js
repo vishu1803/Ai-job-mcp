@@ -182,17 +182,21 @@ export const JOB_WORKFLOW_TOOL_DEFINITIONS = {
         .optional()
         .describe('Package version number (defaults to CURRENT version)'),
     }),
-    outputSchema: z.object({
-      applicationId: z.string().uuid(),
-      candidateId: z.string().uuid(),
-      jobId: z.string().nullable().optional(),
-      canonicalJobId: z.string().nullable().optional(),
-      packageVersion: z.number().int().positive(),
-      packageHash: z.string(),
-      packageStatus: z.string(),
-      preparedAt: z.string(),
-      applicationPackage: ApplicationPackageSchema,
-    }),
+    outputSchema: z
+      .object({
+        applicationId: z.string().uuid(),
+        candidateId: z.string().uuid(),
+        jobId: z.string().nullable().optional(),
+        canonicalJobId: z.string().nullable().optional(),
+        packageVersion: z.number().int().positive(),
+        packageHash: z.string(),
+        packageStatus: z.string(),
+        preparedAt: z.string(),
+        generationContractVersion: z.string().optional(),
+        structuredResumeSchemaVersion: z.string().nullable().optional(),
+        applicationPackage: ApplicationPackageSchema,
+      })
+      .passthrough(),
     exposeOutputSchema: true,
   },
 };

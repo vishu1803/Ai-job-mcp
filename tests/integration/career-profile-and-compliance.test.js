@@ -33,12 +33,12 @@ describe('Career Profile, MCP Completeness & Public Compliance (P14-004C)', () =
     if (app) await app.close();
   });
 
-  it('1. MCP Protocol Completeness: verifies 26 tools, resources, and prompts', () => {
+  it('1. MCP Protocol Completeness: verifies 30 tools, resources, and prompts', () => {
     const server = createCareerMcpServer();
 
-    // 26 registered tools
+    // 30 registered tools
     const tools = server.getRegisteredTools();
-    assert.equal(tools.length, 26);
+    assert.equal(tools.length, 30);
 
     // Resources
     const resources = server.getRegisteredResources();

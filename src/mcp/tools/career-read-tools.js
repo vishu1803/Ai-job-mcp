@@ -435,7 +435,12 @@ export async function handleGetCandidateProfile(context, rawArgs, deps = {}) {
         headline: p.headline || null,
         role: p.role || null,
         summary: p.summary || null,
-        technologies: Array.isArray(p.technologies) ? p.technologies.slice(0, 15) : [],
+        technologies:
+          Array.isArray(p.technologies) && p.technologies.length > 0
+            ? p.technologies.slice(0, 15)
+            : Array.isArray(p.metadata?.technologies)
+              ? p.metadata.technologies.slice(0, 15)
+              : [],
         repositoryUrl: repositoryUrl ? String(repositoryUrl) : null,
         bullets: Array.isArray(p.bullets) ? p.bullets.slice(0, 3) : p.summary ? [p.summary] : [],
         startDate: p.startDate ? String(p.startDate) : null,

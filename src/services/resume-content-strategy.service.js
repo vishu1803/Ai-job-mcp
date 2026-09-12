@@ -100,9 +100,9 @@ export function isClaimSafeToRender(claimText, semanticClass = EVIDENCE_SEMANTIC
     return false;
   }
 
-  // Generic template prose detection:
+  // Generic template prose & synthetic leakage detection:
   if (
-    /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality)\b/i.test(
+    /\b(?:verified by repository evidence|applied .* in verified project implementation|developed .* functionality|implemented feature across|defined in repository|engineered .* system with tested reliability and maintainable code)\b/i.test(
       trimmed
     )
   ) {
@@ -131,7 +131,7 @@ export function isMeaningfulDsa(dsa) {
   const nonFillerBullets = cleanBullets.filter((b) => {
     if (b.length < 25) return false;
     if (
-      /^(?:engaged in problem solving|built foundational analytical complexity|practiced coding problems|solved questions online)\b/i.test(
+      /^(?:engaged in problem solving|built foundational analytical complexity|practiced coding problems|solved questions online|daily problem solving practice|problem solving enthusiast|built analytical foundation)\b/i.test(
         b
       )
     ) {
@@ -142,6 +142,8 @@ export function isMeaningfulDsa(dsa) {
 
   const hasStats = Boolean(
     (typeof dsa.problemsSolved === 'number' && dsa.problemsSolved > 0) ||
+      (typeof dsa.rating === 'number' && dsa.rating > 0) ||
+      (typeof dsa.contests === 'number' && dsa.contests > 0) ||
       (Array.isArray(dsa.topics) && dsa.topics.length > 0) ||
       (Array.isArray(dsa.topicCoverage) && dsa.topicCoverage.length > 0) ||
       (typeof dsa.score === 'number' && dsa.score > 0)

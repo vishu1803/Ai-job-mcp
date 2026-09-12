@@ -205,7 +205,7 @@ export const ApplicationPackageSchema = z.object({
   evidenceValidationReceipt: EvidenceValidationReceiptSchema.optional().nullable(),
   generationContractVersion: z.string().optional(),
   structuredResumeSchemaVersion: z.string().nullable().optional(),
-});
+}).passthrough();
 
 // -----------------------------------------------------------------------------
 // 3. Application Validation Schemas
