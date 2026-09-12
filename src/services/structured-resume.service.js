@@ -24,7 +24,10 @@ import {
   ResumeTailoringPlanSchema,
   EvidenceValidationReceiptSchema,
 } from '../domain/career/resume.schemas.js';
-import { CandidateArtifactContentService } from './candidate-artifact-content.service.js';
+import {
+  CandidateArtifactContentService,
+  countDistinctCanonicalFacts,
+} from './candidate-artifact-content.service.js';
 import { composeStructuredResumeDocument } from './resume-professional-composition.service.js';
 import { assessPreRenderQuality } from './resume-content-quality-gate.service.js';
 import {
@@ -212,11 +215,11 @@ export function buildStructuredResumeDocument({
 
   // 1. Candidate Identity Snapshot (Immutable Source Data)
   const candidateIdentity = {
-    displayName: source.displayName || source.name || 'Candidate',
+    displayName: source.displayName || source.name || source.candidate?.displayName || source.candidate?.name || 'Candidate',
     headline: incomingPlan?.targetRoleTitle || tailoredHeadingInfo.heading,
-    email: source.canonicalEmail || source.email,
-    phone: source.phone || source.phoneNumber || meta.identity?.phone || meta.phone || null,
-    location: source.location || meta.identity?.location || meta.location || null,
+    email: source.canonicalEmail || source.email || source.userEmail || source.candidate?.canonicalEmail || source.candidate?.email,
+    phone: source.phone || source.phoneNumber || source.candidate?.phone || meta.identity?.phone || meta.phone || null,
+    location: source.location || source.candidate?.location || meta.identity?.location || meta.location || null,
     links: extractCandidateLinks(source),
   };
 
@@ -312,14 +315,16 @@ export function buildStructuredResumeDocument({
     const hasFeatures = Array.isArray(candProj.features) && candProj.features.length > 0;
     const hasDescription = candProj.description && typeof candProj.description === 'string' && candProj.description.trim().length >= 20;
 
-    // P16-007: Count total distinct candidate-owned facts across all content surfaces
-    const totalCandidateFacts =
-      authoredBullets +
-      (Array.isArray(candProj.highlights) ? candProj.highlights.length : 0) +
-      (Array.isArray(candProj.features) ? candProj.features.length : 0) +
-      (Array.isArray(candProj.featureDescriptions) ? candProj.featureDescriptions.length : 0) +
-      (Array.isArray(candProj.responsibilities) ? candProj.responsibilities.length : 0) +
-      (hasDescription ? 1 : 0);
+    // P16-008: Count total distinct canonical facts across all candidate content surfaces
+    const allCandidateItems = [
+      ...(Array.isArray(candProj.bullets) ? candProj.bullets : []),
+      ...(Array.isArray(candProj.highlights) ? candProj.highlights : []),
+      ...(Array.isArray(candProj.features) ? candProj.features : []),
+      ...(Array.isArray(candProj.featureDescriptions) ? candProj.featureDescriptions : []),
+      ...(Array.isArray(candProj.responsibilities) ? candProj.responsibilities : []),
+      ...(hasDescription ? [candProj.description] : []),
+    ];
+    const totalCandidateFacts = countDistinctCanonicalFacts(allCandidateItems);
 
     return (
       (score >= STRONG_RELEVANCE_FLOOR ||
@@ -539,11 +544,19 @@ export function buildStructuredResumeDocument({
       ...proj,
       matchedRequirementIds: ranking?.matchedRequirementIds || [],
     };
+    const projectOptions = {
+      ...options,
+      maxBullets:
+        options?.projectBulletOverrides?.[selectedId] ??
+        options?.projectBulletOverrides?.[proj.name] ??
+        options?.projectBulletOverrides?.[proj.title] ??
+        options?.maxBullets,
+    };
     const pBullets = selectAndRephraseProjectBullets({
       project: enrichedProj,
       jobPosting,
       matchAnalysis: options?.matchAnalysis || jobPosting?.jobFitAnalysis?.matchAnalysis,
-      options,
+      options: projectOptions,
     });
 
     projects.push({
@@ -798,7 +811,7 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
           section: 'PROJECTS',
           field: 'bullets',
           claimText: bullet.text,
-          violationType: 'UNGROUNDED_METRIC_DETECTED',
+          violationType: 'UNSUPPORTED_METRIC',
           message: err.message,
         });
       }
@@ -819,7 +832,7 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
         section: 'SUMMARY',
         field: 'text',
         claimText: doc.summary.text,
-        violationType: 'UNGROUNDED_METRIC_DETECTED',
+        violationType: 'UNSUPPORTED_METRIC',
         message: err.message,
       });
     }

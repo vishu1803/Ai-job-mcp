@@ -19,6 +19,7 @@
 
 import zlib from 'node:zlib';
 import { DENSITY_CLASSIFICATION, PAGE_STRATEGY } from './resume-layout-engine.service.js';
+import { countDistinctCanonicalFacts } from './candidate-artifact-content.service.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Section heading patterns recognized in extracted PDF text
@@ -557,6 +558,229 @@ export class PdfGeometryAnalyzer {
       present,
       missing,
       extra,
+    };
+  }
+
+  /**
+   * Measures physical bottom position of text on the first page of a compiled PDF.
+   * Extracts lowest Y coordinate from stream 0 operators (cm, BT, Td, TD, Tm).
+   *
+   * @param {Buffer} pdfBuffer Compiled PDF buffer
+   * @returns {{ lowestY: number, bottomWhitespacePt: number, pageOccupancyRatio: number, pageHeightPt: number }}
+   */
+  measurePdfBottom(pdfBuffer) {
+    const pageHeightPt = 792.0; // Standard Letter height (11in * 72)
+    const marginPt = 39.6; // 0.55in default bottom margin
+    const usableHeightPt = pageHeightPt - 2 * marginPt;
+
+    if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length < 50) {
+      return { lowestY: pageHeightPt, bottomWhitespacePt: 0, pageOccupancyRatio: 0, pageHeightPt };
+    }
+
+    // Inspect stream 0 (the first page's content stream)
+    const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    const rawPdf = pdfBuffer.toString('binary');
+    let match = streamRegex.exec(rawPdf);
+    if (!match) {
+      return { lowestY: marginPt, bottomWhitespacePt: 0, pageOccupancyRatio: 1.0, pageHeightPt };
+    }
+
+    let decompressed;
+    const rawStream = Buffer.from(match[1], 'binary');
+    try {
+      decompressed = zlib.inflateSync(rawStream);
+    } catch {
+      try {
+        decompressed = zlib.inflateRawSync(rawStream);
+      } catch {
+        decompressed = rawStream;
+      }
+    }
+
+    const streamStr = decompressed.toString('latin1');
+    let lowestY = pageHeightPt;
+    let baseTranslateY = 0;
+
+    // Check for base coordinate transform cm: e.g. "1 0 0 1 72 720 cm"
+    const cmMatch = streamStr.match(/([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+cm/);
+    if (cmMatch) {
+      baseTranslateY = parseFloat(cmMatch[6]) || 0;
+    }
+
+    // Parse BT ... ET blocks
+    const btRegex = /BT\s*([\s\S]*?)\s*ET/g;
+    let btMatch;
+    let foundCoordinates = false;
+    const opRegex =
+      /(?:([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+Tm)|(?:([-\d.]+)\s+([-\d.]+)\s+T[dD])/g;
+
+    while ((btMatch = btRegex.exec(streamStr)) !== null) {
+      const block = btMatch[1];
+      let currentY = baseTranslateY > 0 ? baseTranslateY : 720;
+      let opMatch;
+      while ((opMatch = opRegex.exec(block)) !== null) {
+        if (opMatch[6] !== undefined) {
+          // Tm operator: opMatch[6] is absolute ty translation
+          currentY = parseFloat(opMatch[6]);
+        } else if (opMatch[8] !== undefined) {
+          // Td or TD operator: opMatch[8] is relative dy translation
+          currentY += parseFloat(opMatch[8]);
+        }
+        if (currentY < lowestY && currentY > 0) {
+          lowestY = currentY;
+          foundCoordinates = true;
+        }
+      }
+    }
+
+    if (!foundCoordinates || lowestY >= pageHeightPt) {
+      // Fallback: estimate from extracted text proportion
+      const text = this._extractText(pdfBuffer) || '';
+      const estimatedFraction = Math.min(1.0, Math.max(0.4, text.length / 2800));
+      lowestY = Math.max(marginPt, pageHeightPt - marginPt - estimatedFraction * usableHeightPt);
+    }
+
+    const bottomWhitespacePt = Math.max(0, lowestY - marginPt);
+    const pageOccupancyRatio = Math.max(
+      0,
+      Math.min(1.0, (usableHeightPt - bottomWhitespacePt) / usableHeightPt)
+    );
+
+    return {
+      lowestY: Math.round(lowestY * 10) / 10,
+      bottomWhitespacePt: Math.round(bottomWhitespacePt * 10) / 10,
+      pageOccupancyRatio: Math.round(pageOccupancyRatio * 1000) / 1000,
+      pageHeightPt,
+    };
+  }
+
+  /**
+   * Computes comprehensive acceptance metrics for a compiled PDF and its structured resume (Requirement 8).
+   *
+   * @param {object} params
+   * @param {Buffer} params.pdfBuffer Compiled PDF buffer
+   * @param {object} params.structuredResume Authoritative structured resume snapshot
+   * @param {object} [params.candidateProfile] Full candidate profile (optional, for available facts)
+   * @returns {object} Acceptance metrics report
+   */
+  computeAcceptanceMetrics({ pdfBuffer, structuredResume = {}, candidateProfile = null }) {
+    const pageCount = this._detectPageCount(pdfBuffer) || 1;
+    const geometry = this.measurePdfBottom(pdfBuffer);
+
+    // 1. Summary char count & sentence count
+    const summaryText = structuredResume.summary?.text || '';
+    const summaryChars = summaryText.length;
+    const summarySentenceCount = (summaryText.match(/[^.!?]+[.!?]+/g) || []).length;
+
+    // 2. Project count & bullets per project
+    const projects = Array.isArray(structuredResume.projects) ? structuredResume.projects : [];
+    const projectCount = projects.length;
+    const bulletsPerProject = projects.map((p) => ({
+      name: p.name || p.title || 'Untitled Project',
+      bulletsCount: Array.isArray(p.bullets) ? p.bullets.length : 0,
+      bullets: Array.isArray(p.bullets) ? p.bullets : [],
+    }));
+
+    // 3. Experience bullets count
+    const experience = Array.isArray(structuredResume.experience) ? structuredResume.experience : [];
+    const experienceBulletsCount = experience.reduce(
+      (sum, exp) => sum + (Array.isArray(exp.bullets) ? exp.bullets.length : 0),
+      0
+    );
+
+    // 4. DSA status & rationale
+    const dsaRendered = Boolean(structuredResume.problemSolving?.hasSection);
+    const dsaBulletsCount = Array.isArray(structuredResume.problemSolving?.bullets)
+      ? structuredResume.problemSolving.bullets.length
+      : 0;
+    const dsaStatus = {
+      rendered: dsaRendered,
+      bulletsCount: dsaBulletsCount,
+      rationale: dsaRendered
+        ? 'Candidate has authentic DSA coursework/skills/bullets'
+        : 'Candidate lacks authentic DSA evidence; omitted truthfully without fallback filler',
+    };
+
+    // 5. Distinct candidate facts available vs rendered
+    let candidateFactsAvailable = 0;
+    let factsRendered = 0;
+
+    for (const p of projects) {
+      const pBullets = Array.isArray(p.bullets) ? p.bullets : [];
+      factsRendered += pBullets.length;
+
+      const candidateItems = [
+        ...pBullets,
+        ...(Array.isArray(p.highlights) ? p.highlights : []),
+        ...(Array.isArray(p.features) ? p.features : []),
+        ...(Array.isArray(p.featureDescriptions) ? p.featureDescriptions : []),
+        ...(Array.isArray(p.responsibilities) ? p.responsibilities : []),
+        ...(p.description ? [p.description] : []),
+      ];
+      const distinctFacts = countDistinctCanonicalFacts(candidateItems);
+      candidateFactsAvailable += Math.max(pBullets.length, distinctFacts);
+    }
+
+    // If full candidate profile provided, also count unselected project facts
+    if (candidateProfile && Array.isArray(candidateProfile.projects)) {
+      let totalProfileDistinct = 0;
+      for (const cp of candidateProfile.projects) {
+        const items = [
+          ...(Array.isArray(cp.bullets) ? cp.bullets : []),
+          ...(Array.isArray(cp.highlights) ? cp.highlights : []),
+          ...(Array.isArray(cp.features) ? cp.features : []),
+          ...(Array.isArray(cp.featureDescriptions) ? cp.featureDescriptions : []),
+          ...(Array.isArray(cp.responsibilities) ? cp.responsibilities : []),
+          ...(cp.description ? [cp.description] : []),
+        ];
+        totalProfileDistinct += countDistinctCanonicalFacts(items);
+      }
+      candidateFactsAvailable = Math.max(candidateFactsAvailable, totalProfileDistinct);
+    }
+
+    const maxRealisticBullets = projects.length * 3;
+    const targetFactCount = Math.min(candidateFactsAvailable, maxRealisticBullets);
+    const factUtilizationRatio =
+      targetFactCount > 0
+        ? Math.round((factsRendered / targetFactCount) * 1000) / 1000
+        : 1.0;
+
+    return {
+      pageCount,
+      isSinglePage: pageCount === 1,
+      geometry: {
+        lowestY: geometry.lowestY,
+        bottomWhitespacePt: geometry.bottomWhitespacePt,
+        pageOccupancyRatio: geometry.pageOccupancyRatio,
+        pageOccupancyPercent: Math.round(geometry.pageOccupancyRatio * 1000) / 10,
+      },
+      summary: {
+        chars: summaryChars,
+        sentenceCount: summarySentenceCount,
+        text: summaryText,
+      },
+      projects: {
+        count: projectCount,
+        bulletsPerProject,
+        totalBullets: factsRendered,
+      },
+      experience: {
+        rolesCount: experience.length,
+        bulletsCount: experienceBulletsCount,
+      },
+      dsa: dsaStatus,
+      factUtilization: {
+        distinctFactsAvailable: candidateFactsAvailable,
+        factsRendered,
+        targetFactCount,
+        utilizationRatio: factUtilizationRatio,
+      },
+      passAcceptanceCriteria:
+        pageCount === 1 &&
+        geometry.bottomWhitespacePt < 200 &&
+        projectCount >= 2 &&
+        summarySentenceCount >= 2 &&
+        summarySentenceCount <= 3,
     };
   }
 

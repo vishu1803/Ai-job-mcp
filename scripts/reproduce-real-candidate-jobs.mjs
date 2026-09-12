@@ -1,11 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { db, pool } from '../src/db/index.js';
 import { sql } from 'drizzle-orm';
 import { CandidateArtifactContentService } from '../src/services/candidate-artifact-content.service.js';
-import { buildStructuredResumeSnapshot } from '../src/services/structured-resume.service.js';
-import { LatexDocumentGenerator } from '../src/services/latex-document-generator.service.js';
 import { LatexCompilerService } from '../src/services/latex-compiler.service.js';
-import { ResumeParserService } from '../src/services/resume-parser.service.js';
-import { PdfQaValidatorService } from '../src/services/pdf-qa-validator.service.js';
+import { PdfGeometryAnalyzer } from '../src/services/pdf-geometry-analyzer.service.js';
+import { ResumeContentOptimizer } from '../src/services/resume-content-optimizer.service.js';
 
 const TENANT = '24d53f53-780e-4431-b065-32180c354175';
 const CAND = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
@@ -79,15 +79,23 @@ const jobC = {
 };
 
 const svc = new CandidateArtifactContentService();
-const generator = new LatexDocumentGenerator();
 const compiler = new LatexCompilerService();
-const parser = new ResumeParserService();
-const qa = new PdfQaValidatorService();
+const geometryAnalyzer = new PdfGeometryAnalyzer();
+const optimizer = new ResumeContentOptimizer({
+  latexCompiler: compiler,
+  geometryAnalyzer,
+});
 
-async function runJobFlow(label, job, snap) {
-  console.log(`\n==================================================`);
-  console.log(`RUNNING PIPELINE FOR: ${label} (${job.company} - ${job.title})`);
-  console.log(`==================================================`);
+// Artifact destination paths
+const artifactScratchDir = 'C:\\Users\\VISHW\\.gemini\\antigravity-ide\\brain\\ea0d5724-0ace-4618-9325-5853f7180381\\scratch';
+const localScratchDir = path.resolve('scratch');
+fs.mkdirSync(artifactScratchDir, { recursive: true });
+fs.mkdirSync(localScratchDir, { recursive: true });
+
+async function runOptimizedJob(label, job, fileKey) {
+  console.log(`\n======================================================================`);
+  console.log(`OPTIMIZING AND VALIDATING: ${label} (${job.company} - ${job.title})`);
+  console.log(`======================================================================`);
 
   const candData = await svc.buildCandidateData({
     tenantId: TENANT,
@@ -96,121 +104,75 @@ async function runJobFlow(label, job, snap) {
     jobPosting: job,
   });
 
-  const structuredSnapshot = buildStructuredResumeSnapshot({
+  const optResult = await optimizer.optimize({
     candidateProfile: candData,
     jobPosting: job,
     options: {
       projectRankings: job.projectRankings,
       matchAnalysis: job.jobFitAnalysis?.matchAnalysis,
+      maxIterations: 5,
     },
   });
 
-  const doc = structuredSnapshot.structuredResume;
-  console.log(`[Structured Snapshot Summary]`);
-  console.log(`- Candidate Name: ${doc.candidateIdentity?.displayName}`);
-  console.log(`- Target Role: ${doc.candidateIdentity?.headline}`);
-  console.log(`- Summary: ${doc.summary?.text}`);
-  console.log(`- Experience: ${doc.experience?.length} role(s) -> ${doc.experience?.map(e => `${e.title} at ${e.company} (${(e.bullets||[]).length} bullets)`).join('; ')}`);
-  console.log(`- Education: ${doc.education?.length} entry -> ${doc.education?.map(e => `${e.degree} from ${e.institution}`).join('; ')}`);
-  console.log(`- Selected Projects (${doc.projects?.length}):`);
-  for (const p of doc.projects) {
-    console.log(`  * [${p.rank}] ${p.displayName || p.name} (tech: ${(p.technologies || []).join(', ')})`);
-    for (const b of (p.bullets || [])) {
-      const txt = typeof b === 'string' ? b : b?.text;
-      console.log(`    - ${txt}`);
-    }
+  const pdfPathArtifact = path.join(artifactScratchDir, `${fileKey}.pdf`);
+  const pdfPathLocal = path.join(localScratchDir, `${fileKey}.pdf`);
+  fs.writeFileSync(pdfPathArtifact, optResult.pdfBuffer);
+  fs.writeFileSync(pdfPathLocal, optResult.pdfBuffer);
+  console.log(`[Artifact Persisted] -> ${pdfPathArtifact}`);
+  console.log(`[Artifact Persisted] -> ${pdfPathLocal}`);
+
+  const m = optResult.acceptanceMetrics;
+  const init = optResult.iterationHistory[0];
+
+  console.log(`[Iterations Run]: ${optResult.iterationsRun}`);
+  console.log(`[Iteration History]:`);
+  for (const h of optResult.iterationHistory) {
+    console.log(`  * Iteration ${h.iteration}: pageCount=${h.pageCount}, bottomWhitespace=${h.bottomWhitespacePt}pt, occupancy=${Math.round(h.pageOccupancyRatio*100)}%, factsRendered=${h.factsRendered}, action="${h.action}"`);
   }
 
-  const appPackage = {
-    candidateId: CAND,
-    candidateName: doc.candidateIdentity?.displayName || 'Candidate',
-    candidateEmail: doc.candidateIdentity?.email,
-    candidatePhone: doc.candidateIdentity?.phone,
-    targetJob: job,
-    packageHash: `simulated-pkg-${label.toLowerCase()}`,
-    structuredResume: doc,
-    tailoringPlan: structuredSnapshot.tailoringPlan,
-    tailoredResume: {
-      structuredResume: doc,
-      contentHash: `simulated-hash-${label.toLowerCase()}`,
-    },
+  return {
+    label,
+    company: job.company,
+    title: job.title,
+    optResult,
+    metrics: m,
+    initial: init,
   };
-
-  // Generate LaTeX
-  const latexResult = generator.generateTailoredResumeLatex({
-    applicationPackage: appPackage,
-    candidateProfile: candData,
-  });
-  console.log(`- Generated LaTeX length: ${latexResult.texContent.length} chars`);
-
-  // Compile PDF
-  const pdfResult = await compiler.compileLatexToPdf({
-    texContent: latexResult.texContent,
-    jobName: `real-cand-${label.toLowerCase()}`,
-  });
-  console.log(`- Compiled PDF size: ${pdfResult.pdfBuffer.length} bytes`);
-
-  // Extract PDF text
-  const extractedText = parser.extractRawText({ buffer: pdfResult.pdfBuffer, format: 'PDF' });
-  const pageMatches = [...extractedText.matchAll(/--- Page (\d+) ---/g)];
-  const pageCount = pageMatches.length || 1;
-  console.log(`- Actual PDF Page Count: ${pageCount}`);
-
-  // Build expectedContent for QA
-  const expectedContent = {
-    candidateName: doc.candidateIdentity?.displayName,
-    projectNames: doc.projects.map(p => p.displayName || p.name),
-    projectBullets: doc.projects.flatMap(p => (p.bullets || []).map(b => (typeof b === 'string' ? b : b?.text)).slice(0, 1)),
-    experienceRoles: (doc.experience || []).map(e => e.title),
-    experienceBullets: (doc.experience || []).flatMap(e => (e.bullets || []).slice(0, 1)),
-    educationTokens: (doc.education || []).map(e => e.institution),
-    links: ['github.com'],
-  };
-
-  const qaResult = await qa.validatePdf({
-    pdfBuffer: pdfResult.pdfBuffer,
-    expectedCandidate: {
-      name: doc.candidateIdentity?.displayName,
-      email: doc.candidateIdentity?.email,
-      phone: doc.candidateIdentity?.phone,
-    },
-    targetJob: job,
-    verifiedSkills: (candData.skills || []).slice(0, 10).map(s => s.name || s),
-    documentType: 'RESUME',
-    expectedContent,
-  });
-
-  console.log(`- QA Audit Passed: ${qaResult.passed} (Score: ${qaResult.score}/100)`);
-  if (qaResult.criticalFailures?.length) {
-    console.log(`- Critical Failures:`, qaResult.criticalFailures);
-  }
-  if (qaResult.findings?.length) {
-    console.log(`- Findings:`, qaResult.findings.slice(0, 5));
-  }
-
-  return { label, job, doc, pageCount, qaResult, extractedText };
 }
 
 try {
-  const resA = await runJobFlow('JOB_A_CLOUDFLARE', jobA, snapA);
-  const resB = await runJobFlow('JOB_B_VERCEL', jobB, snapB);
-  const resC = await runJobFlow('JOB_C_CRUNCHYROLL', jobC, snapC);
+  const resA = await runOptimizedJob('Job A', jobA, 'Job_A_Cloudflare');
+  const resB = await runOptimizedJob('Job B', jobB, 'Job_B_Vercel');
+  const resC = await runOptimizedJob('Job C', jobC, 'Job_C_Crunchyroll');
 
-  console.log(`\n==================================================`);
-  console.log(`COMPARISON AUDIT: JOB A vs JOB B vs JOB C`);
-  console.log(`==================================================`);
-  console.log(`Job A Projects: ${resA.doc.projects.map(p => p.displayName || p.name).join(' | ')}`);
-  console.log(`Job B Projects: ${resB.doc.projects.map(p => p.displayName || p.name).join(' | ')}`);
-  console.log(`Job C Projects: ${resC.doc.projects.map(p => p.displayName || p.name).join(' | ')}`);
-  console.log(`Project selection tailored: ${resA.doc.projects.length > 0 && resB.doc.projects.length > 0 && resC.doc.projects.length > 0}`);
-  console.log(`Job A Target Role: "${resA.doc.candidateIdentity?.headline}"`);
-  console.log(`Job B Target Role: "${resB.doc.candidateIdentity?.headline}"`);
-  console.log(`Job C Target Role: "${resC.doc.candidateIdentity?.headline}"`);
-  console.log(`Job A Summary: "${resA.doc.summary?.text}"`);
-  console.log(`Job B Summary: "${resB.doc.summary?.text}"`);
-  console.log(`Job C Summary: "${resC.doc.summary?.text}"`);
-  console.log(`All PDFs Exactly 1 Page: Job A = ${resA.pageCount} page(s), Job B = ${resB.pageCount} page(s), Job C = ${resC.pageCount} page(s)`);
-  console.log(`All QA Passed: Job A = ${resA.qaResult.passed}, Job B = ${resB.qaResult.passed}, Job C = ${resC.qaResult.passed}`);
+  console.log(`\n\n====================================================================================================`);
+  console.log(`P16-008: FINAL PDF CONTENT QUALITY VALIDATION & OPTIMIZER ACCEPTANCE TABLE`);
+  console.log(`====================================================================================================`);
+  console.log(`Metric                              | Job A (Cloudflare)      | Job B (Vercel)          | Job C (Crunchyroll)`);
+  console.log(`------------------------------------+-------------------------+-------------------------+-------------------------`);
+
+  const rows = [
+    ['1. Target Role Heading', resA.optResult.structuredResume.candidateIdentity?.headline, resB.optResult.structuredResume.candidateIdentity?.headline, resC.optResult.structuredResume.candidateIdentity?.headline],
+    ['2. Summary Chars / Sentences', `${resA.metrics.summary.chars}c / ${resA.metrics.summary.sentenceCount}s`, `${resB.metrics.summary.chars}c / ${resB.metrics.summary.sentenceCount}s`, `${resC.metrics.summary.chars}c / ${resC.metrics.summary.sentenceCount}s`],
+    ['3. Selected Projects Count', `${resA.metrics.projects.count} projects`, `${resB.metrics.projects.count} projects`, `${resC.metrics.projects.count} projects`],
+    ['4. Bullets per Project (R1/R2/R3)', resA.metrics.projects.bulletsPerProject.map(p => `${p.name.slice(0,12)}: ${p.bulletsCount}`).join('; '), resB.metrics.projects.bulletsPerProject.map(p => `${p.name.slice(0,12)}: ${p.bulletsCount}`).join('; '), resC.metrics.projects.bulletsPerProject.map(p => `${p.name.slice(0,12)}: ${p.bulletsCount}`).join('; ')],
+    ['5. Total Project Bullets', `${resA.metrics.projects.totalBullets} bullets`, `${resB.metrics.projects.totalBullets} bullets`, `${resC.metrics.projects.totalBullets} bullets`],
+    ['6. Experience Roles / Bullets', `${resA.metrics.experience.rolesCount} roles / ${resA.metrics.experience.bulletsCount} bullets`, `${resB.metrics.experience.rolesCount} roles / ${resB.metrics.experience.bulletsCount} bullets`, `${resC.metrics.experience.rolesCount} roles / ${resC.metrics.experience.bulletsCount} bullets`],
+    ['7. DSA Section Status', `${resA.metrics.dsa.rendered ? 'RENDERED' : 'OMITTED (Truthful)'}`, `${resB.metrics.dsa.rendered ? 'RENDERED' : 'OMITTED (Truthful)'}`, `${resC.metrics.dsa.rendered ? 'RENDERED' : 'OMITTED (Truthful)'}`],
+    ['8. Distinct Facts (Avail/Rendered)', `${resA.metrics.factUtilization.distinctFactsAvailable} avail / ${resA.metrics.factUtilization.factsRendered} rend`, `${resB.metrics.factUtilization.distinctFactsAvailable} avail / ${resB.metrics.factUtilization.factsRendered} rend`, `${resC.metrics.factUtilization.distinctFactsAvailable} avail / ${resC.metrics.factUtilization.factsRendered} rend`],
+    ['9. Fact Utilization Ratio', `${Math.round(resA.metrics.factUtilization.utilizationRatio*100)}%`, `${Math.round(resB.metrics.factUtilization.utilizationRatio*100)}%`, `${Math.round(resC.metrics.factUtilization.utilizationRatio*100)}%`],
+    ['10. Page Count (Strictly 1)', `${resA.metrics.pageCount} page (${resA.metrics.isSinglePage ? 'PASS' : 'FAIL'})`, `${resB.metrics.pageCount} page (${resB.metrics.isSinglePage ? 'PASS' : 'FAIL'})`, `${resC.metrics.pageCount} page (${resC.metrics.isSinglePage ? 'PASS' : 'FAIL'})`],
+    ['11. Bottom Whitespace', `${resA.metrics.geometry.bottomWhitespacePt} pt`, `${resB.metrics.geometry.bottomWhitespacePt} pt`, `${resC.metrics.geometry.bottomWhitespacePt} pt`],
+    ['12. Page Occupancy Ratio', `${resA.metrics.geometry.pageOccupancyPercent}%`, `${resB.metrics.geometry.pageOccupancyPercent}%`, `${resC.metrics.geometry.pageOccupancyPercent}%`],
+    ['13. Pre-Exposure QA Score', `${resA.optResult.qaScore}/100 (${resA.optResult.qaPassed ? 'PASS' : 'FAIL'})`, `${resB.optResult.qaScore}/100 (${resB.optResult.qaPassed ? 'PASS' : 'FAIL'})`, `${resC.optResult.qaScore}/100 (${resC.optResult.qaPassed ? 'PASS' : 'FAIL'})`],
+    ['14. Optimizer Iterations Run', `${resA.optResult.iterationsRun} iteration(s)`, `${resB.optResult.iterationsRun} iteration(s)`, `${resC.optResult.iterationsRun} iteration(s)`],
+  ];
+
+  for (const [k, vA, vB, vC] of rows) {
+    console.log(`${k.padEnd(35)} | ${String(vA).slice(0,23).padEnd(23)} | ${String(vB).slice(0,23).padEnd(23)} | ${String(vC).slice(0,23).padEnd(23)}`);
+  }
+
+  console.log(`------------------------------------+-------------------------+-------------------------+-------------------------`);
 
 } finally {
   await pool.end();

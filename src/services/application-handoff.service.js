@@ -23,6 +23,7 @@ import { CandidateProfileService } from './candidate-profile.service.js';
 import { ApplicationTrackingService } from './application-tracking.service.js';
 import { ApplicationReadinessService } from './application-readiness.service.js';
 import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
+import { ResumeContentOptimizer } from './resume-content-optimizer.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger } from '../utils/logger.js';
 import { ResumeParserService } from './resume-parser.service.js';
@@ -57,6 +58,15 @@ export class ApplicationHandoffService {
     this.applicationTrackingService =
       dependencies.applicationTrackingService || new ApplicationTrackingService();
     this.readinessService = dependencies.readinessService || new ApplicationReadinessService();
+    this.resumeOptimizer =
+      dependencies.resumeOptimizer ||
+      new ResumeContentOptimizer({
+        latexGenerator: this.latexGenerator,
+        latexCompiler: this.latexCompiler,
+        geometryAnalyzer: this.geometryAnalyzer,
+        qaValidator: this.qaValidator,
+        resumeQualityAssessment: this.resumeQualityAssessment,
+      });
     this.logger = logger.child({ module: 'ApplicationHandoffService' });
   }
 

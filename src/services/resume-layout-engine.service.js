@@ -22,6 +22,8 @@
  * - This service NEVER changes candidate data, evidence, or content strategy.
  */
 
+import { countDistinctCanonicalFacts } from './candidate-artifact-content.service.js';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. UNIVERSAL ATS-SAFE CONSTRAINTS (stable, never candidate-dependent)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -943,13 +945,15 @@ export function generateReferenceQualityContentReport({
   for (const p of projects) {
     const pBullets = Array.isArray(p.bullets) ? p.bullets : [];
     factsRendered += pBullets.length;
-    const pFacts =
-      pBullets.length +
-      (Array.isArray(p.highlights) ? p.highlights.length : 0) +
-      (Array.isArray(p.features) ? p.features.length : 0) +
-      (Array.isArray(p.responsibilities) ? p.responsibilities.length : 0) +
-      (p.description ? 1 : 0);
-    candidateFactsAvailable += Math.max(pBullets.length, pFacts);
+    const candidateItems = [
+      ...pBullets,
+      ...(Array.isArray(p.highlights) ? p.highlights : []),
+      ...(Array.isArray(p.features) ? p.features : []),
+      ...(Array.isArray(p.responsibilities) ? p.responsibilities : []),
+      ...(p.description ? [p.description] : []),
+    ];
+    const distinctFacts = countDistinctCanonicalFacts(candidateItems);
+    candidateFactsAvailable += Math.max(pBullets.length, distinctFacts);
   }
 
   const summaryText = structuredResume.summary?.text || '';

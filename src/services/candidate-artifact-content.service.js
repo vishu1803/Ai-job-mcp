@@ -381,6 +381,156 @@ function mergeCandidateTextCollections(existingItems = [], incomingItems = []) {
   return result;
 }
 
+const FACT_STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'by',
+  'for',
+  'from',
+  'has',
+  'he',
+  'in',
+  'is',
+  'it',
+  'its',
+  'of',
+  'on',
+  'that',
+  'the',
+  'to',
+  'was',
+  'were',
+  'will',
+  'with',
+  'using',
+  'used',
+  'built',
+  'created',
+  'developed',
+  'implemented',
+  'designed',
+  'worked',
+]);
+
+/**
+ * Extracts substantive lowercase token set from candidate factual text for deduplication.
+ *
+ * @param {string} text Text to tokenize
+ * @returns {Set<string>} Substantive tokens
+ */
+export function extractSubstantiveFactTokens(text) {
+  if (!text || typeof text !== 'string') return new Set();
+  const tokens = new Set();
+  const words = text.toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').split(/\s+/);
+  for (const w of words) {
+    const clean = w.replace(/^[.#+]+|[.#+]+$/g, '');
+    if (clean.length >= 2 && !FACT_STOP_WORDS.has(clean) && !/^\d+$/.test(clean)) {
+      tokens.add(clean);
+    }
+  }
+  return tokens;
+}
+
+/**
+ * Computes semantic token overlap (Jaccard similarity) between two candidate factual descriptions.
+ *
+ * @param {string} textA Description A
+ * @param {string} textB Description B
+ * @returns {number} Jaccard similarity in [0, 1]
+ */
+export function calculateFactSemanticOverlap(textA, textB) {
+  const tokensA = extractSubstantiveFactTokens(textA);
+  const tokensB = extractSubstantiveFactTokens(textB);
+  if (tokensA.size === 0 || tokensB.size === 0) return 0;
+  let intersection = 0;
+  for (const t of tokensA) {
+    if (tokensB.has(t)) intersection++;
+  }
+  const union = tokensA.size + tokensB.size - intersection;
+  return union > 0 ? intersection / union : 0;
+}
+
+/**
+ * Counts distinct canonical facts across candidate text items (bullets, highlights,
+ * features, descriptions). Semantically duplicate descriptions (token overlap >= 0.60)
+ * count as 1 distinct fact.
+ *
+ * @param {Array<string|object>} items Candidate text items
+ * @param {number} [overlapThreshold=0.60] Jaccard threshold for duplicate clustering
+ * @returns {number} Number of distinct canonical facts
+ */
+export function countDistinctCanonicalFacts(items = [], overlapThreshold = 0.60) {
+  const flatStrings = [];
+  for (const item of (Array.isArray(items) ? items : [])) {
+    if (!item) continue;
+    const text = typeof item === 'object' && item !== null ? (item.text || item.description || '') : String(item);
+    const trimmed = String(text || '').trim();
+    if (trimmed.length > 0) {
+      flatStrings.push(trimmed);
+    }
+  }
+
+  if (flatStrings.length === 0) return 0;
+
+  const clusters = [];
+  for (const text of flatStrings) {
+    let matched = false;
+    for (const cluster of clusters) {
+      const overlap = calculateFactSemanticOverlap(text, cluster.representative);
+      if (overlap >= overlapThreshold) {
+        cluster.items.push(text);
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      clusters.push({ representative: text, items: [text] });
+    }
+  }
+
+  return clusters.length;
+}
+
+/**
+ * Canonicalizes a project object into a source-order invariant representation.
+ * Sorts all candidate-owned collections and technology arrays deterministically.
+ *
+ * @param {object} project Raw or reconciled project object
+ * @returns {object|null} Canonicalized project object
+ */
+export function canonicalizeProject(project) {
+  if (!project) return null;
+  const sortStrings = (arr) =>
+    [...(Array.isArray(arr) ? arr : [])]
+      .map((item) =>
+        typeof item === 'object' && item !== null ? (item.text || item.description || '') : String(item || '')
+      )
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+
+  return {
+    name: project.name || '',
+    slug: project.slug || '',
+    summary: project.summary || '',
+    description: project.description || '',
+    bullets: sortStrings(project.bullets),
+    highlights: sortStrings(project.highlights),
+    features: sortStrings(project.features),
+    featureDescriptions: sortStrings(project.featureDescriptions),
+    responsibilities: sortStrings(project.responsibilities),
+    implementationDescriptions: sortStrings(project.implementationDescriptions),
+    technologies: sortStrings(project.technologies),
+    repositoryUrl: project.repositoryUrl || null,
+    liveUrl: project.liveUrl || null,
+  };
+}
+
 /**
  * Reconciles every candidate-owned content surface between two project representations.
  * Preserves candidate-authored order and casing, prevents duplicate loss,
@@ -733,7 +883,11 @@ export function reconcileCandidateProjects({
     groundAndSanitizeProject(proj);
   }
 
-  return Array.from(projectMap.values());
+  return Array.from(projectMap.values()).sort((a, b) => {
+    const keyA = (a.slug || a.name || '').toLowerCase();
+    const keyB = (b.slug || b.name || '').toLowerCase();
+    return keyA.localeCompare(keyB);
+  });
 }
 
 /**
