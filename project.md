@@ -3,6 +3,40 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### PART 26: Test Suite Audit and Calibration (P16 Architecture)
+
+**Status:** COMPLETE & AUDITED  
+**Date:** 2026-09-12  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)  
+**Target Main SHA:** Working Tree on `main`
+
+**Context & Audit Scope:**
+Comprehensive audit and calibration of all existing resume-related unit, integration, and regression tests exercising the 12 core services (`candidate-artifact-content.service.js`, `resume-content-strategy.service.js`, `resume-professional-composition.service.js`, `structured-resume.service.js`, `resume-content-quality-gate.service.js`, `resume-content-optimizer.service.js`, `resume-layout-engine.service.js`, `latex-document-generator.service.js`, `resume-quality-assessment.service.js`, `resume-parser.service.js`, `pdf-qa-validator.service.js`, `resume-presentation.service.js`). Analyzed 683 test cases across 44 test files without weakening truth, provenance, security, schema, or PDF integrity.
+
+**Audit Findings & Invariants Established:**
+1. **Test Classification (683 Tests):**
+   - `PROTECTION`: 100 tests (14.6%) — Source immutability, zero synthetic placeholders, schema boundaries, evidence provenance.
+   - `QUALITY`: 374 tests (54.8%) — Content richness, summary conciseness, relevance scoring, category limits.
+   - `REGRESSION`: 69 tests (10.1%) — Multi-surface fixes, defect prevention, edge case handling.
+   - `PDF_ARTIFACT`: 46 tests (6.7%) — Tectonic compilation, physical Stream 0 geometry, page occupancy.
+   - `INTEGRATION`: 36 tests (5.3%) — Snapshot persistence, handoff kits, MCP tools.
+   - `DETERMINISM`: 30 tests (4.4%) — Source-order invariance, hash repeatability.
+   - `GENERICITY`: 20 tests (2.9%) — Arbitrary technology/role/project genericity.
+   - `IMPLEMENTATION_DETAIL`: 8 tests (1.2%) — Tests mistaking internal presentation mechanics for contracts.
+2. **Identification of Weak Tests (13 Tests):**
+   - *Keyword-presence without provenance:* `p16-001d-summary-bullet-grounding.test.js` (Tests A, B, C) matches tech keywords in summary text without verifying `summary.evidenceRefs`.
+   - *Mock PDF without content evolution:* `p16-008-content-optimizer.test.js` and `p16-009-professional-quality-composition.test.js` mock LaTeX compiler with dummy buffer without asserting that expanded canonical facts reach the generator.
+   - *Existence-only assertions:* Tests asserting only `iterationsRun <= 5` and `pageCount === 1` without asserting content utilization.
+   - *Weak-project score assertion:* `p16-001b-authoritative-project-selection.test.js` asserting `score > 0` instead of gating against `STRONG_RELEVANCE_FLOOR` (25).
+3. **Identification of Overly Restrictive Tests (19 Tests):**
+   - *Exact bullet count preservation:* `p16-001g-professional-resume-composition.test.js:325` asserts `bullets.length === 2` on composed bullets, penalizing compound composition and capacity adaptation.
+   - *Byte-for-byte presentation equality:* `p16-001g:463-480` asserts `JSON.stringify` match on presentation arrays rather than factual field value immutability.
+   - *Rigid relative section order:* `p16-001g:526` hardcodes `PROJECTS < DSA < EDUCATION` rather than dynamic plan-governed order.
+   - *Optimizer expansion limitation:* Tests assuming optimizer only expands project bullets rather than highest-value content improvements.
+4. **Source Truth vs Presentation Truth Invariant:**
+   - Source data (candidate profile, experience, education, projects, DSA, metrics, evidence references) is strictly immutable.
+   - Presentation data is derived: Rendered Claims ⊆ Authorized Canonical Evidence. Source cardinality does not constrain rendered cardinality.
+
 ### P16-008: Final PDF Content Quality Validation and Bounded Content-Utilization Optimizer Completion
 
 **Status:** COMPLETE & VERIFIED  
