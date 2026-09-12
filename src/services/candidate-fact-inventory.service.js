@@ -50,6 +50,11 @@ import {
   areContributionClassesCompatible,
   classifyContributionClass,
   AGENCY_LEVELS,
+  AGENCY_SOURCES,
+  isTrustedCandidateAgencySource,
+  extractActionEvidence,
+  doesClaimAssertCandidateAgency,
+  assertRenderedCandidateAgencyInvariant,
   determineFactAgency,
 } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
@@ -59,6 +64,11 @@ export {
   areContributionClassesCompatible,
   classifyContributionClass,
   AGENCY_LEVELS,
+  AGENCY_SOURCES,
+  isTrustedCandidateAgencySource,
+  extractActionEvidence,
+  doesClaimAssertCandidateAgency,
+  assertRenderedCandidateAgencyInvariant,
   determineFactAgency,
 };
 
@@ -353,8 +363,10 @@ export function classifyEvidenceRole(
  */
 export function isAccomplishmentCandidate(fact) {
   if (!fact || !fact.renderable) return false;
-  const agencyLevel = fact.agency?.level || determineFactAgency(fact.text, fact).level;
-  if (agencyLevel !== AGENCY_LEVELS.CANDIDATE) {
+  const agency = fact.agency || determineFactAgency(fact.text, fact);
+  const agencyLevel = fact.agencyLevel || agency.level;
+  const agencySource = fact.agencySource || agency.source;
+  if (agencyLevel !== AGENCY_LEVELS.CANDIDATE || !isTrustedCandidateAgencySource(agencySource, fact)) {
     return false;
   }
   const role =
@@ -384,8 +396,10 @@ export function isAccomplishmentCandidate(fact) {
  */
 export function isProjectDescriptionFact(fact) {
   if (!fact) return false;
-  const agencyLevel = fact.agency?.level || determineFactAgency(fact.text, fact).level;
-  if (agencyLevel !== AGENCY_LEVELS.CANDIDATE) {
+  const agency = fact.agency || determineFactAgency(fact.text, fact);
+  const agencyLevel = fact.agencyLevel || agency.level;
+  const agencySource = fact.agencySource || agency.source;
+  if (agencyLevel !== AGENCY_LEVELS.CANDIDATE || !isTrustedCandidateAgencySource(agencySource, fact)) {
     return true;
   }
   const role =
@@ -712,36 +726,42 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
         sourceType: 'bullet',
         factType: 'candidate-authored',
         canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION,
+        candidateAuthored: true,
       },
       {
         items: p.highlights,
         sourceType: 'highlight',
         factType: 'candidate-authored',
         canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
+        candidateAuthored: true,
       },
       {
         items: p.features,
         sourceType: 'feature',
         factType: 'feature',
         canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
+        candidateAuthored: false,
       },
       {
         items: p.featureDescriptions,
         sourceType: 'feature-description',
         factType: 'feature',
         canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
+        candidateAuthored: false,
       },
       {
         items: p.responsibilities,
         sourceType: 'responsibility',
         factType: 'responsibility',
         canonicalFactType: CANONICAL_FACT_TYPES.RESPONSIBILITY,
+        candidateAuthored: true,
       },
       {
         items: p.implementationDescriptions,
         sourceType: 'responsibility',
         factType: 'implementation',
         canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION,
+        candidateAuthored: true,
       },
     ];
     for (const surf of surfaces) {
@@ -752,6 +772,10 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
           typeof item === 'object' && item !== null && item.provenanceStatus
             ? item.provenanceStatus
             : projectLevelProvenance;
+        const candidateAuthored =
+          typeof item === 'object' && item !== null && typeof item.candidateAuthored === 'boolean'
+            ? item.candidateAuthored
+            : surf.candidateAuthored;
         addFact({
           text: rawText,
           association,
@@ -762,7 +786,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
           technologies: projTech,
           ownerType: 'PROJECT',
           ownerId: projKey,
-          candidateAuthored: true,
+          candidateAuthored,
           evidenceRefs:
             typeof item === 'object' && item !== null && Array.isArray(item.evidenceRefs)
               ? item.evidenceRefs
@@ -771,7 +795,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
       }
     }
 
-    // Project description as a lower-priority description fact
+    // Project description as a lower-priority description fact (never candidate agency)
     if (p.description && typeof p.description === 'string') {
       addFact({
         text: p.description,
@@ -783,7 +807,7 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
         technologies: projTech,
         ownerType: 'PROJECT',
         ownerId: projKey,
-        candidateAuthored: true,
+        candidateAuthored: false,
       });
     }
 

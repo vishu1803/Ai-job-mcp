@@ -521,17 +521,25 @@ export function selectAndRephraseProjectBullets({
         ? [...item.matchedRequirementIds]
         : [];
 
+      const isHighlight = Array.isArray(project.highlights) && project.highlights.includes(item);
+      const candidateAuthored =
+        typeof item === 'object' && typeof item?.candidateAuthored === 'boolean'
+          ? item.candidateAuthored
+          : true;
+      const sourceType = isHighlight ? 'highlight' : 'bullet';
+      const factType = 'candidate-authored';
+
       const techs = projectTechs.filter((t) => bulletLower.includes(String(t).toLowerCase()));
-      const agency = determineFactAgency(text, { sourceType: 'bullet' });
-      const evidenceRole = classifyEvidenceRole(text, 'bullet', 'IMPLEMENTATION');
-      const contributionClass = classifyContributionClass(text, 'bullet', 'IMPLEMENTATION', { agency });
+      const agency = determineFactAgency(text, { sourceType, candidateAuthored, factType });
+      const evidenceRole = classifyEvidenceRole(text, sourceType, 'IMPLEMENTATION');
+      const contributionClass = classifyContributionClass(text, sourceType, 'IMPLEMENTATION', { agency });
 
       return {
         factId: `${pId}-claim-${i}`,
         id: `${pId}-claim-${i}`,
         renderable: true,
         text,
-        factType: 'candidate-authored',
+        factType,
         provenance: item?.provenanceStatus || project.provenanceStatus || 'USER_PROVIDED',
         confidence: 0.85,
         semanticTopic: 'implementation',
@@ -540,8 +548,10 @@ export function selectAndRephraseProjectBullets({
         evidenceRefs: bEvidenceRefs,
         matchedRequirementIds,
         association: { projectId: pId },
+        candidateAuthored,
         agency,
         agencyLevel: agency.level,
+        agencySource: agency.source,
         evidenceRole,
         contributionClass,
       };

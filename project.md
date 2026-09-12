@@ -1,14 +1,75 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-12*
+*Last Updated: 2026-09-13*
+
+### PART 32: Authoritative Agency Provenance & Generic Evidence Ownership (P18 Final Hardening)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-13  
+**Baseline Main HEAD:** `c2b21db0a2a44c4fc2a0ba3a1d05ad89be4b1070`  
+**Parent:** `a0353b9f842c19228681422c85179dc55d5a65d1`  
+
+**Context & Core Invariants Enforced:**
+Closed the remaining semantic gap where candidate ownership could be inferred too strongly from grammatical active verbs (*"Implemented distributed caching using Redis"*). Enforced the fundamental architectural invariant:
+$$\text{Rendered candidate agency} \subseteq \text{Authorized candidate-owned contribution evidence}$$
+$$\text{Action wording alone does NOT prove candidate ownership.}$$
+Established that grammar is evidence of an action, not ownership of that action. External repository evidence (commit messages, PR descriptions, issue resolutions, extracted feature lists) starting with active engineering verbs must NEVER produce candidate agency (`agency.level === CANDIDATE`) unless corroborated by trusted candidate-owned provenance (`candidateAuthored: true`, `ownership: 'CANDIDATE'`, or canonical candidate bullet/highlight source surfaces).
+
+**Root Causes Diagnosed & Hardened:**
+1. **Grammatical Action Conflation with Ownership:** Active engineering verb openers (`Implemented`, `Built`, `Engineered`, `Architected`) were previously classified as `EXPLICIT_ACTION_VERB` yielding `AGENCY_LEVELS.CANDIDATE` even on uncorroborated external repository evidence.
+2. **Missing Authoritative Agency Sources:** The system lacked fine-grained, machine-readable provenance sources distinguishing candidate-authored surfaces from external repository evidence, passive descriptions, and grammatical action verbs.
+3. **Repository Feature Bleed:** Extracted project features and descriptions risked entering accomplishment composition as candidate-authored accomplishments.
+
+**Key Deliverables & Architectural Enhancements:**
+1. **Machine-Readable Agency Sources (`src/services/resume-composition-primitives.js`):**
+   - Defined `AGENCY_SOURCES`:
+     - *Trusted Candidate Sources:* `EXPLICIT_METADATA`, `CANDIDATE_AUTHORED`, `CANDIDATE_PROFILE`, `CANDIDATE_EXPERIENCE`, `CANDIDATE_PROJECT_BULLET`, `CANDIDATE_HIGHLIGHT`, `VERIFIED_CANDIDATE_CLAIM`.
+     - *Ambiguous Attribution:* `AMBIGUOUS_ATTRIBUTION` (`level: 'INFERRED'`).
+     - *Non-Candidate Sources:* `REPOSITORY_EVIDENCE`, `PROJECT_DESCRIPTION`, `PASSIVE_DESCRIPTION`, `GRAMMATICAL_ACTION_ONLY`, `PRESENCE_EVIDENCE`, `PASSIVE_METRIC` (`level: 'NONE'`).
+   - Implemented `isTrustedCandidateAgencySource(source, fact)`: Validates that agency source represents authorized candidate ownership.
+2. **Action Evidence vs Ownership Evidence Separation (`src/services/resume-composition-primitives.js`):**
+   - Implemented `extractActionEvidence(text)`: Isolates grammatical action patterns (`hasActiveVerb`, `verb`, `isFirstPerson`, `isCompound`) without attributing ownership.
+   - Refactored `determineFactAgency(text, metadata)` with strict 6-step hierarchy: Grammatical action evidence alone without candidate ownership provenance strictly yields `AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY` with `level: 'NONE'`.
+3. **Fail-Closed Agency Invariant Gate Check 21 (`src/services/resume-claim-validation.service.js`):**
+   - Implemented generic agency assertion detector `doesClaimAssertCandidateAgency(claim, text)` across candidate contribution classes, first-person pronouns, and active engineering verbs.
+   - Enforced in Check 21 that any claim asserting candidate agency must be corroborated by contributing facts satisfying `agencyLevel === 'CANDIDATE' && isTrustedCandidateAgencySource(agencySource, fact)`.
+4. **Canonical Fact Inventory Ownership Boundaries (`src/services/candidate-fact-inventory.service.js`):**
+   - `p.description`: Assigned `candidateAuthored: false`.
+   - `p.features` / `p.featureDescriptions`: Assigned `candidateAuthored: false` (unless explicitly carrying `item.candidateAuthored === true`).
+   - `p.bullets` / `p.highlights`: Maintained `candidateAuthored: true` (`AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET` / `CANDIDATE_HIGHLIGHT`).
+   - `p.evidence`: Maintained `candidateAuthored: false`.
+5. **Machine-Verifiable Invariant Assertion (`src/services/resume-composition-primitives.js`):**
+   - Implemented `assertRenderedCandidateAgencyInvariant(renderedBullets, factInventory)` asserting that every rendered bullet asserting candidate agency has authorized candidate ownership in contributing facts.
+
+**Verification & Evidence:**
+- **Dedicated Forensic Hardening Suite (`tests/unit/p18-forensic-narrative-repair.test.js`):**
+  - **21/21 PASS**, including Tests I through P:
+    - Test I: Repository active verb (*"Implemented distributed caching using Redis"* with `sourceType: 'evidence'`) $\to$ `agency.level === 'NONE'`, `source === 'GRAMMATICAL_ACTION_ONLY'`, `isAccomplishmentCandidate === false`.
+    - Test J: Candidate-authored active verb with `candidateAuthored: true` $\to$ `agency.level === 'CANDIDATE'`, `source === 'CANDIDATE_PROJECT_BULLET'`, `isAccomplishmentCandidate === true`.
+    - Test K: Repository architecture wording $\to$ `agency.level !== 'CANDIDATE'`, non-renderable as accomplishment.
+    - Test L: Explicit ownership metadata overrides ambiguity (`ownership: 'CANDIDATE'` $\to$ `CANDIDATE`).
+    - Test M: Inferred attribution (*"helped with..."*) $\to$ `level === 'INFERRED'`, non-renderable as accomplishment.
+    - Test N: Candidate-authored passive architecture preserves candidate ownership without inventing an action verb (`CANDIDATE_DESIGN_DECISION`).
+    - Test O: Fallback realization with repository-derived active-verb evidence rejected via `AGENCY_NOT_AUTHORIZED`.
+    - Test P: Full rendered trace and `assertRenderedCandidateAgencyInvariant` verification.
+- **Full Unit Test Suite:**
+  - **452/452 PASS** across 124 suites (`node --test tests/unit/p18-*.test.js tests/unit/p17-*.test.js tests/unit/p16-*.test.js`), 0 failures, 0 regressions.
+- **Real-Candidate Read-Only Quality Regression (`scripts/p16-quality-regression-comparison.mjs`):**
+  - Evaluated candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` across 3 jobs:
+    - Cloudflare: Overall Quality 88/100 | Writing 80 | PDF Obs 90 | ATS 95 | Facts Used 11/125 | Pages: 1
+    - Vercel: Overall Quality 86/100 | Writing 76 | PDF Obs 90 | ATS 95 | Facts Used 13/125 | Pages: 1
+    - Crunchyroll: Overall Quality 90/100 | Writing 82 | PDF Obs 90 | ATS 100 | Facts Used 10/125 | Pages: 1
+  - Product Data Explorer renders exactly 1 candidate accomplishment bullet: *"Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus."* (0 synthetic "Architected..." bullets).
+  - Strict 1-page fit across all target jobs.
+  - Zero database mutations (0 records inserted, updated, or deleted).
 
 ### PART 31: Candidate Agency Integrity, Evidence Ownership & Fail-Closed Acceptance (P18 Follow-up Repair)
 
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-13  
-**Baseline Main HEAD:** `a0353b9f842c19228681422c85179dc55d5a65d1`  
-**Parent:** `387af99f82b09c543d38a8f9e1d2c1238b06854a`  
+**Baseline Main HEAD:** `c2b21db0a2a44c4fc2a0ba3a1d05ad89be4b1070`  
+**Parent:** `a0353b9f842c19228681422c85179dc55d5a65d1`  
 
 **Context & Core Invariants Enforced:**
 Resolved the semantic integrity vulnerability where technical architecture presence in a project description (e.g. *"High-throughput distributed telemetry and data exploration platform in Rust and TypeScript with streaming pipelines."*) was susceptible to being converted into synthetic candidate agency (*"Architected..."*, *"Designed..."*, *"Engineered..."*).

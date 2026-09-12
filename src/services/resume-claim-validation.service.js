@@ -27,6 +27,8 @@ import {
   isMeasurableFact,
   AGENCY_LEVELS,
   determineFactAgency,
+  doesClaimAssertCandidateAgency,
+  isTrustedCandidateAgencySource,
 } from './candidate-fact-inventory.service.js';
 import { calculateTokenOverlap } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
@@ -515,24 +517,21 @@ export class ResumeClaimValidationService {
     }
 
     // ── 21. Candidate agency authorization (P18 Invariant) ───────────────────
-    // Technical architecture presence must never be converted into candidate agency.
-    // If the claim asserts candidate agency (active verb opener, first-person, or candidate contribution),
-    // at least one contributing canonical fact must authorize candidate agency.
-    const firstWordClean = (text.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, '');
-    const assertsCandidateAgency =
-      claim.agencyLevel === AGENCY_LEVELS.CANDIDATE ||
-      (typeof claim.contributionClass === 'string' && claim.contributionClass.startsWith('CANDIDATE_')) ||
-      ACTIVE_OPENER_VERBS.has(firstWordClean) ||
-      ACTIVE_OPENER_VERBS.has(firstWordClean.replace(/ed$/, '')) ||
-      /^(?:I\s+|engineered|architected|designed|built|developed|implemented|optimized|automated|orchestrated|spearheaded|refactored|deployed|containerized|configured|integrated|migrated|scaled|benchmarked|debugged|reduced|standardized|secured|streamlined|published|authored|established|maintained|analyzed|profiled|constructed|created|executed|delivered|led|modeled|produced|programmed|resolved|tested|wrote|championed|pioneered|introduced|formulated|devised|accelerated|synthesized|monitored)\b/i.test(text);
+    // Technical architecture presence or external repository evidence must never be converted into candidate agency.
+    // If the claim asserts candidate agency, at least one contributing canonical fact must authorize candidate agency
+    // backed by trusted candidate ownership provenance.
+    const assertsCandidateAgency = doesClaimAssertCandidateAgency(claim, text);
 
     if (assertsCandidateAgency) {
       const hasAuthorizedCandidateAgency = contributingFacts.some((fact) => {
-        const level = fact.agencyLevel || fact.agency?.level || determineFactAgency(fact.text, fact).level;
-        return level === AGENCY_LEVELS.CANDIDATE;
+        const agency = fact.agency || determineFactAgency(fact.text, fact);
+        const level = fact.agencyLevel || agency.level;
+        const source = fact.agencySource || agency.source;
+        return level === AGENCY_LEVELS.CANDIDATE && isTrustedCandidateAgencySource(source, fact);
       });
 
       if (!hasAuthorizedCandidateAgency) {
+        const firstWordClean = (text.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, '');
         violations.push({
           code: 'AGENCY_NOT_AUTHORIZED',
           message: `Claim asserts candidate agency ("${firstWordClean}") without contributing canonical facts authorizing candidate ownership`,

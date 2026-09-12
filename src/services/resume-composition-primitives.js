@@ -55,6 +55,56 @@ export const AGENCY_LEVELS = Object.freeze({
 });
 
 /**
+ * Explicit Machine-Readable Agency Provenance Sources.
+ * Answers: Why does the system believe this action belongs to this candidate?
+ */
+export const AGENCY_SOURCES = Object.freeze({
+  EXPLICIT_METADATA: 'EXPLICIT_METADATA',
+  CANDIDATE_AUTHORED: 'CANDIDATE_AUTHORED',
+  CANDIDATE_PROFILE: 'CANDIDATE_PROFILE',
+  CANDIDATE_EXPERIENCE: 'CANDIDATE_EXPERIENCE',
+  CANDIDATE_PROJECT_BULLET: 'CANDIDATE_PROJECT_BULLET',
+  CANDIDATE_HIGHLIGHT: 'CANDIDATE_HIGHLIGHT',
+  VERIFIED_CANDIDATE_CLAIM: 'VERIFIED_CANDIDATE_CLAIM',
+  AMBIGUOUS_ATTRIBUTION: 'AMBIGUOUS_ATTRIBUTION',
+  REPOSITORY_EVIDENCE: 'REPOSITORY_EVIDENCE',
+  PROJECT_DESCRIPTION: 'PROJECT_DESCRIPTION',
+  PASSIVE_DESCRIPTION: 'PASSIVE_DESCRIPTION',
+  GRAMMATICAL_ACTION_ONLY: 'GRAMMATICAL_ACTION_ONLY',
+  PRESENCE_EVIDENCE: 'PRESENCE_EVIDENCE',
+  PASSIVE_METRIC: 'PASSIVE_METRIC',
+});
+
+/**
+ * Checks whether an agency source is a trusted candidate-owned provenance surface.
+ *
+ * @param {string} source
+ * @param {object} [fact={}]
+ * @returns {boolean}
+ */
+export function isTrustedCandidateAgencySource(source, fact = {}) {
+  if (
+    fact?.candidateAuthored === true ||
+    String(fact?.ownership || fact?.candidateOwnership || '').toUpperCase() === 'CANDIDATE' ||
+    (!fact?.sourceType && (fact?.candidateId || fact?.projectId) && fact?.candidateAuthored !== false)
+  ) {
+    return true;
+  }
+  if (!source || typeof source !== 'string') return false;
+  return (
+    source === AGENCY_SOURCES.EXPLICIT_METADATA ||
+    source === AGENCY_SOURCES.CANDIDATE_AUTHORED ||
+    source === AGENCY_SOURCES.CANDIDATE_PROFILE ||
+    source === AGENCY_SOURCES.CANDIDATE_EXPERIENCE ||
+    source === AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET ||
+    source === AGENCY_SOURCES.CANDIDATE_HIGHLIGHT ||
+    source === AGENCY_SOURCES.VERIFIED_CANDIDATE_CLAIM ||
+    source === 'CANDIDATE' ||
+    source === 'USER_PROVIDED'
+  );
+}
+
+/**
  * Generic Candidate Contribution Classifications (Findings 2 & 3).
  * Classifies factual statements by their material professional contribution role.
  */
@@ -86,81 +136,391 @@ export function areContributionClassesCompatible(classA, classB) {
   return compatiblePairs.has(`${classA}:${classB}`);
 }
 
+/** Canonical active engineering and action opener verbs. */
+export const ACTIVE_OPENER_VERBS = new Set([
+  'architected',
+  'designed',
+  'engineered',
+  'implemented',
+  'built',
+  'developed',
+  'optimized',
+  'tuned',
+  'profiled',
+  'benchmarked',
+  'automated',
+  'orchestrated',
+  'spearheaded',
+  'led',
+  'coordinated',
+  'championed',
+  'collaborated',
+  'facilitated',
+  'refactored',
+  'deployed',
+  'containerized',
+  'migrated',
+  'configured',
+  'integrated',
+  'secured',
+  'scaled',
+  'standardized',
+  'established',
+  'maintained',
+  'analyzed',
+  'constructed',
+  'accelerated',
+  'created',
+  'resolved',
+  'monitored',
+  'reduced',
+  'increased',
+  'improved',
+  'decreased',
+  'saved',
+  'authored',
+  'wrote',
+  'programmed',
+  'executed',
+  'delivered',
+  'pioneered',
+  'introduced',
+  'formulated',
+  'devised',
+  'synthesized',
+  'modeled',
+  'produced',
+  'tested',
+  'debugged',
+  'streamlined',
+  'published',
+]);
+
+/**
+ * Extracts Action Evidence from text, conceptually separating grammatical action patterns
+ * from Candidate Ownership Evidence.
+ *
+ * @param {string} text
+ * @returns {{ hasActiveVerb: boolean, verb: string | null, isFirstPerson?: boolean, isCompound?: boolean }}
+ */
+export function extractActionEvidence(text) {
+  const norm = String(text || '').trim();
+  const lower = norm.toLowerCase();
+
+  // First-person action opener: e.g. "I engineered...", "We architected..."
+  const firstPersonMatch = norm.match(/^(?:i|we)\s+([a-zA-Z]+)\b/i);
+  if (firstPersonMatch) {
+    const verb = firstPersonMatch[1];
+    return {
+      hasActiveVerb: true,
+      verb,
+      isFirstPerson: true,
+    };
+  }
+
+  // Compound active verb opener: e.g. "designed and implemented", "architected and deployed"
+  const compoundMatch = lower.match(/^(?:designed and implemented|architected and deployed)\b/i);
+  if (compoundMatch) {
+    return {
+      hasActiveVerb: true,
+      verb: compoundMatch[0],
+      isCompound: true,
+    };
+  }
+
+  // Single opening active engineering verb
+  const firstWordMatch = norm.match(/^([a-zA-Z]+)\b/);
+  if (firstWordMatch) {
+    const firstWord = firstWordMatch[1];
+    const firstClean = firstWord.toLowerCase();
+    if (
+      ACTIVE_OPENER_VERBS.has(firstClean) ||
+      ACTIVE_OPENER_VERBS.has(firstClean.replace(/ed$/, ''))
+    ) {
+      return {
+        hasActiveVerb: true,
+        verb: firstWord,
+      };
+    }
+  }
+
+  return {
+    hasActiveVerb: false,
+    verb: null,
+  };
+}
+
+/**
+ * Determines whether a claim asserts candidate agency.
+ * Generic detector across candidate contribution classes, first-person pronouns,
+ * and active engineering action verbs.
+ *
+ * @param {object|string} claim
+ * @param {string} [text]
+ * @returns {boolean}
+ */
+export function doesClaimAssertCandidateAgency(claim, text = '') {
+  const claimObj = typeof claim === 'object' && claim !== null ? claim : {};
+  const normText = String(text || claimObj.text || '').trim();
+  if (!normText) return false;
+
+  // 1. Explicit candidate agency metadata
+  if (claimObj.agencyLevel === AGENCY_LEVELS.CANDIDATE) return true;
+  if (
+    typeof claimObj.contributionClass === 'string' &&
+    claimObj.contributionClass.startsWith('CANDIDATE_') &&
+    claimObj.contributionClass !== CONTRIBUTION_CLASSES.DESCRIPTION &&
+    claimObj.contributionClass !== CONTRIBUTION_CLASSES.CONTEXT
+  ) {
+    return true;
+  }
+
+  // 2. First-person pronoun opener
+  if (/^(?:i|we)\s+[a-zA-Z]+/i.test(normText)) return true;
+
+  // 3. Active engineering / leadership / design / optimization / outcome opener
+  const actionEvidence = extractActionEvidence(normText);
+  if (actionEvidence.hasActiveVerb) return true;
+
+  return false;
+}
+
+/**
+ * Machine-verifiable assertion enforcing:
+ * RenderedCandidateAgency ⊆ AuthorizedCandidateOwnedEvidence
+ *
+ * @param {Array<object>} renderedBullets
+ * @param {Array<object>} factInventory
+ * @returns {boolean}
+ */
+export function assertRenderedCandidateAgencyInvariant(renderedBullets, factInventory) {
+  const bullets = Array.isArray(renderedBullets) ? renderedBullets : [];
+  const facts = Array.isArray(factInventory) ? factInventory : [];
+  const factMap = new Map();
+  for (const f of facts) {
+    const fid = f.factId || f.id;
+    if (fid) factMap.set(fid, f);
+  }
+
+  for (const bullet of bullets) {
+    const bulletText = typeof bullet === 'string' ? bullet : bullet.text || '';
+    if (!doesClaimAssertCandidateAgency(bullet, bulletText)) continue;
+
+    const composedIds = Array.isArray(bullet.composedFromFactIds)
+      ? bullet.composedFromFactIds
+      : Array.isArray(bullet.factIds)
+        ? bullet.factIds
+        : [];
+
+    const contributingFacts = composedIds.map((id) => factMap.get(id)).filter(Boolean);
+    const hasAuthorizedAgency = contributingFacts.some((f) => {
+      const level = f.agencyLevel || f.agency?.level;
+      const source = f.agencySource || f.agency?.source;
+      return level === AGENCY_LEVELS.CANDIDATE && isTrustedCandidateAgencySource(source, f);
+    });
+
+    if (!hasAuthorizedAgency) {
+      throw new ValidationError(
+        `Rendered candidate agency invariant violated: bullet "${bulletText.slice(0, 50)}..." asserts candidate agency without contributing facts authorizing candidate ownership.`
+      );
+    }
+  }
+  return true;
+}
+
 /**
  * Determines candidate agency / ownership level for a factual candidate text.
  *
- * Preferred semantics:
- *   NONE: factual project/context/technology presence only
- *   CANDIDATE: source explicitly attributes the contribution to the candidate
- *   INFERRED: uncertain ownership; NEVER sufficient for an accomplishment claim
+ * Authoritative Hierarchy:
+ *   1. Explicit agency metadata
+ *   2. Explicit candidateAuthored / ownership metadata
+ *   3. Ambiguous source attribution
+ *   4. External, presence, repository, or description source surfaces
+ *   5. Trusted candidate-owned source surfaces
+ *   6. Default / grammar alone with no candidate provenance (Grammar alone != Candidate Ownership)
  *
  * @param {string} text Normalized fact text
  * @param {object} [metadata={}] Fact metadata (sourceType, provenance, candidateAuthored, etc.)
- * @returns {{ level: 'NONE' | 'CANDIDATE' | 'INFERRED', source: string, confidence: number }}
+ * @returns {{ level: 'NONE' | 'CANDIDATE' | 'INFERRED', source: string, confidence: number, actionEvidence: object }}
  */
 export function determineFactAgency(text, metadata = {}) {
-  // If metadata already has explicit agency object, respect it
+  const norm = String(text || '').trim();
+  const lower = norm.toLowerCase();
+  const actionEvidence = extractActionEvidence(norm);
+
+  // 1. Explicit agency metadata on fact
   if (metadata.agency && typeof metadata.agency === 'object' && metadata.agency.level) {
-    return metadata.agency;
+    return {
+      ...metadata.agency,
+      actionEvidence: metadata.agency.actionEvidence || actionEvidence,
+    };
   }
   if (metadata.agencyLevel) {
     return {
       level: metadata.agencyLevel,
-      source: metadata.agencySource || 'EXPLICIT_METADATA',
+      source: metadata.agencySource || AGENCY_SOURCES.EXPLICIT_METADATA,
       confidence: typeof metadata.confidence === 'number' ? metadata.confidence : 1.0,
+      actionEvidence,
     };
   }
 
-  const norm = String(text || '').trim();
-  const lower = norm.toLowerCase();
-  const sourceType = metadata.sourceType || 'bullet';
-
-  // 1. Evidence, links, or technology facts always have agency NONE
-  if (
-    sourceType === 'evidence' ||
-    sourceType === 'link' ||
-    metadata.factType === 'technology' ||
-    metadata.canonicalFactType === 'TECHNOLOGY' ||
-    metadata.candidateAuthored === false
-  ) {
+  // 2. Explicit candidateAuthored / ownership metadata
+  const ownership = String(metadata.ownership || metadata.candidateOwnership || '').toUpperCase();
+  if (ownership === 'CANDIDATE') {
+    return {
+      level: AGENCY_LEVELS.CANDIDATE,
+      source: AGENCY_SOURCES.EXPLICIT_METADATA,
+      confidence: 1.0,
+      actionEvidence,
+    };
+  }
+  if (ownership === 'NONE' || ownership === 'EXTERNAL' || ownership === 'REPOSITORY') {
     return {
       level: AGENCY_LEVELS.NONE,
-      source: 'PRESENCE_EVIDENCE',
+      source: AGENCY_SOURCES.REPOSITORY_EVIDENCE,
       confidence: 1.0,
+      actionEvidence,
+    };
+  }
+  if (metadata.candidateAuthored === false) {
+    return {
+      level: AGENCY_LEVELS.NONE,
+      source:
+        metadata.sourceType === 'evidence'
+          ? AGENCY_SOURCES.REPOSITORY_EVIDENCE
+          : metadata.sourceType === 'description' || metadata.factType === 'project-description'
+            ? AGENCY_SOURCES.PROJECT_DESCRIPTION
+            : actionEvidence.hasActiveVerb
+              ? AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY
+              : AGENCY_SOURCES.PASSIVE_DESCRIPTION,
+      confidence: 1.0,
+      actionEvidence,
     };
   }
 
-  // 2. Explicitly flagged as inferred or ambiguous attribution
+  // 3. Ambiguous source attribution (e.g. "helped with", "assisted with")
   if (
     metadata.inferred === true ||
     /^(?:assisted\s+with|helped\s+with|contributed\s+to|participated\s+in|involved\s+in)\b/i.test(norm)
   ) {
     return {
       level: AGENCY_LEVELS.INFERRED,
-      source: 'AMBIGUOUS_ATTRIBUTION',
+      source: AGENCY_SOURCES.AMBIGUOUS_ATTRIBUTION,
       confidence: 0.5,
+      actionEvidence,
     };
   }
 
-  // 3. Explicit active engineering action verbs at start of candidate-authored statement
-  const hasActiveVerbOpener =
-    /^(?:architected|designed|engineered|implemented|built|developed|optimized|tuned|profiled|benchmarked|automated|orchestrated|spearheaded|led|coordinated|championed|collaborated|facilitated|refactored|deployed|containerized|migrated|configured|integrated|secured|scaled|standardized|established|maintained|analyzed|constructed|accelerated|created|resolved|monitored|reduced|increased|improved|decreased|saved|authored|wrote|programmed|executed|delivered|pioneered|introduced|formulated|devised|synthesized)\b/i.test(
-      norm
-    ) ||
-    /^(?:i|we)\s+(?:architected|designed|engineered|implemented|built|developed|optimized|spearheaded|led|refactored|deployed|authored)\b/i.test(
-      norm
-    ) ||
-    /\b(?:designed and implemented|architected and deployed)\b/i.test(lower);
+  // 4. External, presence, repository, or description source surfaces
+  const sourceType = String(metadata.sourceType || '').toLowerCase();
+  const factType = String(metadata.factType || '').toLowerCase();
+  const canonicalFactType = String(metadata.canonicalFactType || '').toUpperCase();
 
-  if (hasActiveVerbOpener) {
+  const isExternalOrPresenceSurface =
+    sourceType === 'evidence' ||
+    sourceType === 'link' ||
+    sourceType === 'commit' ||
+    sourceType === 'pr' ||
+    sourceType === 'repository' ||
+    sourceType === 'repo' ||
+    sourceType === 'file' ||
+    sourceType === 'dependency' ||
+    sourceType === 'description' ||
+    sourceType === 'project-description' ||
+    sourceType === 'context' ||
+    factType === 'technology' ||
+    factType === 'project-description' ||
+    factType === 'external-corroboration' ||
+    canonicalFactType === 'TECHNOLOGY' ||
+    canonicalFactType === 'LINK';
+
+  if (isExternalOrPresenceSurface && metadata.candidateAuthored !== true) {
+    if (
+      sourceType === 'evidence' ||
+      sourceType === 'commit' ||
+      sourceType === 'pr' ||
+      sourceType === 'repository'
+    ) {
+      return {
+        level: AGENCY_LEVELS.NONE,
+        source: actionEvidence.hasActiveVerb
+          ? AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY
+          : AGENCY_SOURCES.REPOSITORY_EVIDENCE,
+        confidence: 1.0,
+        actionEvidence,
+      };
+    }
+    if (sourceType === 'description' || factType === 'project-description') {
+      return {
+        level: AGENCY_LEVELS.NONE,
+        source: AGENCY_SOURCES.PROJECT_DESCRIPTION,
+        confidence: 1.0,
+        actionEvidence,
+      };
+    }
+    if (factType === 'technology' || canonicalFactType === 'TECHNOLOGY') {
+      return {
+        level: AGENCY_LEVELS.NONE,
+        source: AGENCY_SOURCES.PRESENCE_EVIDENCE,
+        confidence: 1.0,
+        actionEvidence,
+      };
+    }
+    return {
+      level: AGENCY_LEVELS.NONE,
+      source: actionEvidence.hasActiveVerb
+        ? AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY
+        : AGENCY_SOURCES.PASSIVE_DESCRIPTION,
+      confidence: 1.0,
+      actionEvidence,
+    };
+  }
+
+  // 5. Trusted candidate-owned source surfaces
+  const isTrustedCandidateSurface =
+    metadata.candidateAuthored === true ||
+    sourceType === 'bullet' ||
+    sourceType === 'candidate_project_bullet' ||
+    sourceType === 'candidate_profile' ||
+    sourceType === 'candidate_experience' ||
+    sourceType === 'candidate-statement' ||
+    sourceType === 'highlight' ||
+    metadata.provenance === 'VERIFIED_CANDIDATE_CLAIM' ||
+    factType === 'candidate-authored' ||
+    (!sourceType && (metadata.candidateId || metadata.projectId) && metadata.candidateAuthored !== false);
+
+  if (isTrustedCandidateSurface) {
+    const agencySource =
+      sourceType === 'candidate_project_bullet' || sourceType === 'bullet'
+        ? AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET
+        : sourceType === 'candidate_experience'
+          ? AGENCY_SOURCES.CANDIDATE_EXPERIENCE
+          : sourceType === 'highlight'
+            ? AGENCY_SOURCES.CANDIDATE_HIGHLIGHT
+            : metadata.provenance === 'VERIFIED_CANDIDATE_CLAIM'
+              ? AGENCY_SOURCES.VERIFIED_CANDIDATE_CLAIM
+              : AGENCY_SOURCES.CANDIDATE_AUTHORED;
+
     return {
       level: AGENCY_LEVELS.CANDIDATE,
-      source: 'EXPLICIT_ACTION_VERB',
-      confidence: metadata.provenance === 'VERIFIED' ? 1.0 : 0.85,
+      source: agencySource,
+      confidence: metadata.provenance === 'VERIFIED' ? 1.0 : 0.9,
+      actionEvidence,
     };
   }
 
-  // 4. Passive metrics or outcome fragments without candidate agency (e.g. "40% reduction in latency through distributed caching")
+  // 6. Default / grammar alone with no candidate provenance:
+  // Grammar alone must never produce CANDIDATE unless the source surface is already trusted as candidate-owned!
+  if (actionEvidence.hasActiveVerb) {
+    return {
+      level: AGENCY_LEVELS.NONE,
+      source: AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY,
+      confidence: 0.8,
+      actionEvidence,
+    };
+  }
+
+  // Passive metrics or outcome fragments without candidate agency
   if (
     /^(?:\d+%\s+(?:reduction|increase|improvement|speedup|growth)|latency\s+by\s+\d+|throughput\s+by\s+\d+)\b/i.test(
       norm
@@ -169,16 +529,18 @@ export function determineFactAgency(text, metadata = {}) {
   ) {
     return {
       level: AGENCY_LEVELS.NONE,
-      source: 'PASSIVE_METRIC',
+      source: AGENCY_SOURCES.PASSIVE_METRIC,
       confidence: 0.9,
+      actionEvidence,
     };
   }
 
-  // 5. Default: pure project descriptions, feature lists, noun phrases, or passive sentences
+  // Default: passive description
   return {
     level: AGENCY_LEVELS.NONE,
-    source: 'PASSIVE_DESCRIPTION',
+    source: AGENCY_SOURCES.PASSIVE_DESCRIPTION,
     confidence: 1.0,
+    actionEvidence,
   };
 }
 
@@ -213,7 +575,7 @@ export function classifyContributionClass(
     return CONTRIBUTION_CLASSES.DESCRIPTION;
   }
 
-  // 1. Candidate Outcome (Active verb)
+  // 1. Candidate Outcome (Active verb or result marker)
   if (
     /^(?:reduced|increased|improved|saved|decreased|accelerated|yielded|achieved)\b/i.test(norm) ||
     /\b(?:resulting in|yielding|saved \$|decreased by \d+|increased revenue by)\b/i.test(norm)
@@ -226,8 +588,13 @@ export function classifyContributionClass(
     return CONTRIBUTION_CLASSES.CANDIDATE_OPTIMIZATION;
   }
 
-  // 3. Candidate Design Decision (Active verb)
-  if (/^(?:architected|designed|structured|selected)\b/i.test(norm)) {
+  // 3. Candidate Design Decision (Active verb or architecture keywords on candidate-owned fact)
+  if (
+    /^(?:architected|designed|structured|selected)\b/i.test(norm) ||
+    /\b(?:architecture|architectural|distributed|consensus|raft|microservices|streaming pipelines|data exploration platform|telemetry platform)\b/i.test(
+      norm
+    )
+  ) {
     return CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION;
   }
 

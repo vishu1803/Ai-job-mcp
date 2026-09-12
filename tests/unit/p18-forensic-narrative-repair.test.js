@@ -26,10 +26,15 @@ import assert from 'node:assert/strict';
 import {
   buildCanonicalFactInventory,
   classifyEvidenceRole,
+  classifyContributionClass,
   CONTRIBUTION_CLASSES,
   EVIDENCE_ROLES,
   areContributionClassesCompatible,
   AGENCY_LEVELS,
+  AGENCY_SOURCES,
+  isTrustedCandidateAgencySource,
+  isAccomplishmentCandidate,
+  assertRenderedCandidateAgencyInvariant,
   determineFactAgency,
   OMISSION_REASONS,
 } from '../../src/services/candidate-fact-inventory.service.js';
@@ -137,9 +142,12 @@ describe('Test B: Explicit implementation preserves candidate agency', () => {
     'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.';
 
   test('Recognized as CANDIDATE_ACTION / candidate agency and authorized for accomplishment bullet', () => {
-    const agency = determineFactAgency(implFactText);
+    const agency = determineFactAgency(implFactText, {
+      candidateAuthored: true,
+      sourceType: 'candidate_project_bullet',
+    });
     assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
-    assert.equal(agency.source, 'EXPLICIT_ACTION_VERB');
+    assert.equal(agency.source, AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET);
 
     const role = classifyEvidenceRole(implFactText);
     assert.equal(role, EVIDENCE_ROLES.ACCOMPLISHMENT);
@@ -149,10 +157,13 @@ describe('Test B: Explicit implementation preserves candidate agency', () => {
       factId: 'fact-b-1',
       projectId: 'proj-b',
       text: implFactText,
+      sourceType: 'candidate_project_bullet',
+      candidateAuthored: true,
       evidenceRole: role,
       contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_ACTION,
       agency,
       agencyLevel: agency.level,
+      agencySource: agency.source,
       semanticTopic: 'performance',
       technologies: ['Rust', 'Raft'],
       renderable: true,
@@ -191,8 +202,12 @@ describe('Test C: Explicit architecture preserves candidate agency', () => {
     'Architected event streaming pipeline using Kafka and Rust, handling 50k events/sec.';
 
   test('Recognized as CANDIDATE_DESIGN_DECISION / candidate agency and authorized for accomplishment bullet', () => {
-    const agency = determineFactAgency(archFactText);
+    const agency = determineFactAgency(archFactText, {
+      candidateAuthored: true,
+      sourceType: 'candidate_project_bullet',
+    });
     assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(agency.source, AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET);
 
     const role = classifyEvidenceRole(archFactText);
     assert.equal(role, EVIDENCE_ROLES.DESIGN_DECISION);
@@ -202,10 +217,13 @@ describe('Test C: Explicit architecture preserves candidate agency', () => {
       factId: 'fact-c-1',
       projectId: 'proj-c',
       text: archFactText,
+      sourceType: 'candidate_project_bullet',
+      candidateAuthored: true,
       evidenceRole: role,
       contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION,
       agency,
       agencyLevel: agency.level,
+      agencySource: agency.source,
       semanticTopic: 'architecture',
       technologies: ['Kafka', 'Rust'],
       metrics: { raw: '50k events/sec', value: '50k' },
@@ -299,10 +317,13 @@ describe('Test E: PDE Case 1 vs Case 2', () => {
         factId: 'fact-pde-authored',
         projectId: 'proj-pde',
         text: 'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.',
+        sourceType: 'candidate_project_bullet',
+        candidateAuthored: true,
         evidenceRole: EVIDENCE_ROLES.ACCOMPLISHMENT,
         contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_ACTION,
-        agency: { level: AGENCY_LEVELS.CANDIDATE, source: 'EXPLICIT_ACTION_VERB' },
+        agency: { level: AGENCY_LEVELS.CANDIDATE, source: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET },
         agencyLevel: AGENCY_LEVELS.CANDIDATE,
+        agencySource: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET,
         semanticTopic: 'performance',
         technologies: ['Rust', 'Raft'],
         metrics: {},
@@ -315,10 +336,13 @@ describe('Test E: PDE Case 1 vs Case 2', () => {
         factId: 'fact-pde-desc',
         projectId: 'proj-pde',
         text: 'High-throughput distributed telemetry and data exploration platform in Rust and TypeScript with streaming pipelines.',
+        sourceType: 'description',
+        candidateAuthored: false,
         evidenceRole: EVIDENCE_ROLES.PROJECT_DESCRIPTION,
         contributionClass: CONTRIBUTION_CLASSES.DESCRIPTION,
-        agency: { level: AGENCY_LEVELS.NONE, source: 'PASSIVE_DESCRIPTION' },
+        agency: { level: AGENCY_LEVELS.NONE, source: AGENCY_SOURCES.PROJECT_DESCRIPTION },
         agencyLevel: AGENCY_LEVELS.NONE,
+        agencySource: AGENCY_SOURCES.PROJECT_DESCRIPTION,
         semanticTopic: 'architecture',
         technologies: ['Rust', 'TypeScript'],
         metrics: {},
@@ -360,10 +384,13 @@ describe('Test E: PDE Case 1 vs Case 2', () => {
         factId: 'fact-pde-1',
         projectId: 'proj-pde',
         text: 'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.',
+        sourceType: 'candidate_project_bullet',
+        candidateAuthored: true,
         evidenceRole: EVIDENCE_ROLES.ACCOMPLISHMENT,
         contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_ACTION,
-        agency: { level: AGENCY_LEVELS.CANDIDATE, source: 'EXPLICIT_ACTION_VERB' },
+        agency: { level: AGENCY_LEVELS.CANDIDATE, source: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET },
         agencyLevel: AGENCY_LEVELS.CANDIDATE,
+        agencySource: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET,
         semanticTopic: 'performance',
         technologies: ['Rust', 'Raft'],
         metrics: {},
@@ -376,10 +403,13 @@ describe('Test E: PDE Case 1 vs Case 2', () => {
         factId: 'fact-pde-2',
         projectId: 'proj-pde',
         text: 'Architected distributed consensus engine and streaming platform in Rust.',
+        sourceType: 'candidate_project_bullet',
+        candidateAuthored: true,
         evidenceRole: EVIDENCE_ROLES.DESIGN_DECISION,
         contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION,
-        agency: { level: AGENCY_LEVELS.CANDIDATE, source: 'EXPLICIT_ACTION_VERB' },
+        agency: { level: AGENCY_LEVELS.CANDIDATE, source: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET },
         agencyLevel: AGENCY_LEVELS.CANDIDATE,
+        agencySource: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET,
         semanticTopic: 'architecture',
         technologies: ['Rust'],
         metrics: {},
@@ -673,5 +703,264 @@ describe('P18 Dynamic Evidence-Weighted Summary Composition', () => {
     assert.match(summary.text, /Rust/i);
     assert.equal(summary.topRelevantTechnicalDomains[0], 'Distributed Systems');
     assert.ok(summary.topRelevantTechnologies.some((t) => t.toLowerCase() === 'rust'));
+  });
+});
+
+describe('Test I: Repository active verb is not candidate agency', () => {
+  const repoFactText = 'Implemented distributed caching using Redis.';
+
+  test('sourceType = evidence with active verb yields agency.level !== CANDIDATE and isAccomplishmentCandidate === false', () => {
+    const agency = determineFactAgency(repoFactText, { sourceType: 'evidence' });
+    assert.notEqual(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(agency.level, AGENCY_LEVELS.NONE);
+    assert.equal(agency.source, AGENCY_SOURCES.GRAMMATICAL_ACTION_ONLY);
+    assert.equal(agency.actionEvidence.hasActiveVerb, true);
+
+    const fact = {
+      id: 'fact-i-1',
+      factId: 'fact-i-1',
+      text: repoFactText,
+      sourceType: 'evidence',
+      renderable: true,
+      agency,
+      agencyLevel: agency.level,
+      agencySource: agency.source,
+    };
+
+    assert.equal(isAccomplishmentCandidate(fact), false);
+  });
+});
+
+describe('Test J: Candidate-authored active verb is candidate agency', () => {
+  const authoredFactText = 'Implemented distributed caching using Redis.';
+
+  test('sourceType = candidate_project_bullet and candidateAuthored = true yields agency.level === CANDIDATE and isAccomplishmentCandidate === true', () => {
+    const agency = determineFactAgency(authoredFactText, {
+      sourceType: 'candidate_project_bullet',
+      candidateAuthored: true,
+    });
+    assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(agency.source, AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET);
+    assert.equal(agency.actionEvidence.hasActiveVerb, true);
+
+    const fact = {
+      id: 'fact-j-1',
+      factId: 'fact-j-1',
+      text: authoredFactText,
+      sourceType: 'candidate_project_bullet',
+      candidateAuthored: true,
+      renderable: true,
+      agency,
+      agencyLevel: agency.level,
+      agencySource: agency.source,
+      evidenceRole: EVIDENCE_ROLES.ACTION,
+      contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION,
+    };
+
+    assert.equal(isAccomplishmentCandidate(fact), true);
+  });
+});
+
+describe('Test K: Repository architecture wording is not candidate design', () => {
+  const archRepoText = 'Architected streaming telemetry platform using Raft.';
+
+  test('sourceType = evidence with architecture wording yields agency !== CANDIDATE without trusted ownership', () => {
+    const agency = determineFactAgency(archRepoText, { sourceType: 'evidence' });
+    assert.notEqual(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(agency.level, AGENCY_LEVELS.NONE);
+
+    const fact = {
+      id: 'fact-k-1',
+      factId: 'fact-k-1',
+      text: archRepoText,
+      sourceType: 'evidence',
+      renderable: true,
+      agency,
+      agencyLevel: agency.level,
+      agencySource: agency.source,
+    };
+
+    assert.equal(isAccomplishmentCandidate(fact), false);
+  });
+});
+
+describe('Test L: Explicit ownership metadata overrides ambiguity', () => {
+  const text = 'Distributed telemetry platform using Raft.';
+
+  test('ownership = CANDIDATE yields agency.level === CANDIDATE', () => {
+    const agency = determineFactAgency(text, { ownership: 'CANDIDATE' });
+    assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(agency.source, AGENCY_SOURCES.EXPLICIT_METADATA);
+
+    const fact = {
+      id: 'fact-l-1',
+      factId: 'fact-l-1',
+      text,
+      renderable: true,
+      agency,
+      agencyLevel: agency.level,
+      agencySource: agency.source,
+      evidenceRole: EVIDENCE_ROLES.DESIGN_DECISION,
+      contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION,
+    };
+
+    assert.equal(isAccomplishmentCandidate(fact), true);
+  });
+});
+
+describe('Test M: Inferred attribution remains non-renderable as accomplishment', () => {
+  const text = 'Helped with distributed caching.';
+
+  test('helped with wording yields agency.level === INFERRED and isAccomplishmentCandidate === false', () => {
+    const agency = determineFactAgency(text);
+    assert.equal(agency.level, AGENCY_LEVELS.INFERRED);
+    assert.equal(agency.source, AGENCY_SOURCES.AMBIGUOUS_ATTRIBUTION);
+
+    const fact = {
+      id: 'fact-m-1',
+      factId: 'fact-m-1',
+      text,
+      renderable: true,
+      agency,
+      agencyLevel: agency.level,
+      agencySource: agency.source,
+    };
+
+    assert.equal(isAccomplishmentCandidate(fact), false);
+  });
+});
+
+describe('Test N: Candidate-authored passive architecture may still be candidate-owned', () => {
+  const text = 'Distributed telemetry platform with streaming pipelines.';
+
+  test('candidateAuthored = true preserves candidate ownership without inventing an action verb', () => {
+    const agency = determineFactAgency(text, { candidateAuthored: true });
+    assert.equal(agency.level, AGENCY_LEVELS.CANDIDATE);
+    assert.equal(agency.source, AGENCY_SOURCES.CANDIDATE_AUTHORED);
+    assert.equal(agency.actionEvidence.hasActiveVerb, false);
+
+    const contribution = classifyContributionClass(text, 'bullet', 'IMPLEMENTATION', {
+      agency,
+      candidateAuthored: true,
+    });
+    assert.equal(contribution, CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION);
+
+    const fact = {
+      id: 'fact-n-1',
+      factId: 'fact-n-1',
+      projectId: 'proj-n',
+      text,
+      renderable: true,
+      agency,
+      agencyLevel: agency.level,
+      agencySource: agency.source,
+      evidenceRole: EVIDENCE_ROLES.DESIGN_DECISION,
+      contributionClass: contribution,
+      semanticTopic: 'architecture',
+      technologies: ['Rust'],
+      jobRelevance: 80,
+    };
+
+    const composed = composeProfessionalProjectBullets({
+      facts: [fact],
+      project: { id: 'proj-n', name: 'Telemetry Platform', technologies: ['Rust'] },
+    });
+
+    // Bullets should NOT invent a synthetic verb like "Architected" or "Designed"
+    if (composed.bullets.length > 0) {
+      assert.doesNotMatch(
+        composed.bullets[0].text,
+        /^(?:Architected|Designed|Engineered)\s+distributed\b/i
+      );
+    }
+  });
+});
+
+describe('Test O: No hidden synthetic agency through fallback', () => {
+  test('Repository-derived active-verb evidence fed into fallback realization is rejected via AGENCY_NOT_AUTHORIZED', () => {
+    const repoFact = {
+      id: 'fact-o-1',
+      factId: 'fact-o-1',
+      projectId: 'proj-o',
+      text: 'Implemented distributed caching using Redis.',
+      sourceType: 'evidence',
+      candidateAuthored: false,
+      renderable: true,
+      agency: {
+        level: AGENCY_LEVELS.NONE,
+        source: AGENCY_SOURCES.REPOSITORY_EVIDENCE,
+        confidence: 1.0,
+      },
+      agencyLevel: AGENCY_LEVELS.NONE,
+      agencySource: AGENCY_SOURCES.REPOSITORY_EVIDENCE,
+      evidenceRole: EVIDENCE_ROLES.IMPLEMENTATION,
+      contributionClass: CONTRIBUTION_CLASSES.DESCRIPTION,
+      semanticTopic: 'implementation',
+      technologies: ['Redis'],
+      confidence: 1.0,
+      jobRelevance: 90,
+    };
+
+    const composed = composeProfessionalProjectBullets({
+      facts: [repoFact],
+      project: { id: 'proj-o', name: 'Caching Service', technologies: ['Redis'] },
+    });
+
+    // Zero accomplishment bullets accepted because agency is not authorized
+    assert.equal(composed.bullets.length, 0);
+    assert.ok(
+      composed.omittedFacts.some(
+        (o) =>
+          o.reason === OMISSION_REASONS.AGENCY_NOT_AUTHORIZED ||
+          o.reason === OMISSION_REASONS.DESCRIPTION_ONLY
+      )
+    );
+  });
+});
+
+describe('Test P: Full rendered trace & Formal Invariant Assertion', () => {
+  test('Every rendered accomplishment bullet traces to trusted candidate ownership and satisfies formal invariant', () => {
+    const candFact = {
+      id: 'fact-p-1',
+      factId: 'fact-p-1',
+      projectId: 'proj-p',
+      text: 'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.',
+      sourceType: 'candidate_project_bullet',
+      candidateAuthored: true,
+      renderable: true,
+      agency: {
+        level: AGENCY_LEVELS.CANDIDATE,
+        source: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET,
+        confidence: 1.0,
+      },
+      agencyLevel: AGENCY_LEVELS.CANDIDATE,
+      agencySource: AGENCY_SOURCES.CANDIDATE_PROJECT_BULLET,
+      evidenceRole: EVIDENCE_ROLES.ACTION,
+      contributionClass: CONTRIBUTION_CLASSES.CANDIDATE_ACTION,
+      semanticTopic: 'performance',
+      technologies: ['Rust', 'Raft'],
+      confidence: 1.0,
+      jobRelevance: 95,
+      evidenceRefs: [{ evidenceId: 'ev-p-1', sourceType: 'USER_PROVIDED' }],
+    };
+
+    const composed = composeProfessionalProjectBullets({
+      facts: [candFact],
+      project: { id: 'proj-p', name: 'Telemetry Engine', technologies: ['Rust', 'Raft'] },
+    });
+
+    assert.equal(composed.bullets.length, 1);
+    const bullet = composed.bullets[0];
+
+    // Assert machine-readable trace
+    assert.ok(bullet.text.startsWith('Engineered'));
+    assert.deepEqual(bullet.composedFromFactIds, ['fact-p-1']);
+    assert.ok(Array.isArray(bullet.evidenceRefs));
+
+    // Verify machine-verifiable invariant assertion
+    assert.equal(
+      assertRenderedCandidateAgencyInvariant(composed.bullets, [candFact]),
+      true
+    );
   });
 });
