@@ -575,13 +575,21 @@ export class ApplicationHandoffService {
         const certName = clean(cert.name || cert.title);
         if (certName) expected.certifications.push(certName);
       }
-      if (snapshot.contact?.links) {
-        for (const link of Array.isArray(snapshot.contact.links) ? snapshot.contact.links : []) {
-          const url = clean(typeof link === 'string' ? link : link?.url);
-          if (url) {
-            expected.links.push(url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''));
-          }
+      // Candidate profile links (candidateIdentity.links or contact.links)
+      const candLinks = Array.isArray(snapshot.candidateIdentity?.links)
+        ? snapshot.candidateIdentity.links
+        : Array.isArray(snapshot.contact?.links)
+          ? snapshot.contact.links
+          : [];
+      for (const link of candLinks) {
+        const label = clean(typeof link === 'object' && link !== null ? (link.label || link.platform) : '');
+        if (label) {
+          expected.links.push(label);
         }
+      }
+      if (snapshot.dsa?.profileUrl && typeof snapshot.dsa.profileUrl === 'string') {
+        const dsaDisplay = snapshot.dsa.profileUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+        if (dsaDisplay) expected.links.push(dsaDisplay);
       }
       if (snapshot.dsa && Array.isArray(snapshot.dsa.bullets)) {
         for (const b of snapshot.dsa.bullets) {

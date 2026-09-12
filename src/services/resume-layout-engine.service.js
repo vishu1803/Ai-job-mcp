@@ -34,7 +34,7 @@ export const ATS_DOCUMENT_CONSTRAINTS = Object.freeze({
   // Page geometry (letter paper)
   pageWidthPt: 614,         // 8.5in at 72dpi
   pageHeightPt: 794,        // 11in at 72dpi
-  marginPt: 36,             // 0.5in margins (matching current geometry package)
+  marginPt: 39.6,            // 0.55in margins (P16-006: matching geometry package)
 
   // Typography
   baseFontSizePt: 10,

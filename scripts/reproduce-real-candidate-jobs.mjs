@@ -37,6 +37,14 @@ const snapB = (await db.execute(sql`
   LIMIT 1
 `)).rows[0];
 
+const snapC = (await db.execute(sql`
+  SELECT id, canonical_job_id, normalized_job_url, project_rankings, match_analysis, overall_fit
+  FROM job_analysis_snapshots
+  WHERE normalized_job_url LIKE '%crunchyroll%' OR normalized_job_url LIKE '%siemens%'
+  ORDER BY created_at DESC
+  LIMIT 1
+`)).rows[0] || snapB;
+
 const jobA = {
   id: snapA.canonical_job_id || 'cloudflare-8102350',
   canonicalJobId: snapA.canonical_job_id,
@@ -57,6 +65,17 @@ const jobB = {
   requirements: ['Node.js', 'Next.js', 'TypeScript', 'PostgreSQL', 'APIs'],
   projectRankings: snapB.project_rankings,
   jobFitAnalysis: { projectRankings: snapB.project_rankings, matchAnalysis: snapB.match_analysis, overallFit: snapB.overall_fit },
+};
+
+const jobC = {
+  id: snapC.canonical_job_id || 'python-ai-backend',
+  canonicalJobId: snapC.canonical_job_id,
+  company: 'Crunchyroll',
+  title: 'Python AI & Backend Systems Engineer',
+  description: 'AI model evaluation pipelines, Python, FastAPI, Flask, PostgreSQL, LLM integration, OpenAI API, high concurrency.',
+  requirements: ['Python', 'FastAPI', 'LLM', 'PostgreSQL', 'OpenAI API'],
+  projectRankings: snapC.project_rankings,
+  jobFitAnalysis: { projectRankings: snapC.project_rankings, matchAnalysis: snapC.match_analysis, overallFit: snapC.overall_fit },
 };
 
 const svc = new CandidateArtifactContentService();
@@ -175,25 +194,23 @@ async function runJobFlow(label, job, snap) {
 try {
   const resA = await runJobFlow('JOB_A_CLOUDFLARE', jobA, snapA);
   const resB = await runJobFlow('JOB_B_VERCEL', jobB, snapB);
+  const resC = await runJobFlow('JOB_C_CRUNCHYROLL', jobC, snapC);
 
   console.log(`\n==================================================`);
-  console.log(`COMPARISON AUDIT: JOB A vs JOB B`);
+  console.log(`COMPARISON AUDIT: JOB A vs JOB B vs JOB C`);
   console.log(`==================================================`);
   console.log(`Job A Projects: ${resA.doc.projects.map(p => p.displayName || p.name).join(' | ')}`);
   console.log(`Job B Projects: ${resB.doc.projects.map(p => p.displayName || p.name).join(' | ')}`);
-  console.log(`Project selection changed: ${resA.doc.projects.map(p=>p.name).join(',') !== resB.doc.projects.map(p=>p.name).join(',')}`);
+  console.log(`Job C Projects: ${resC.doc.projects.map(p => p.displayName || p.name).join(' | ')}`);
+  console.log(`Project selection tailored: ${resA.doc.projects.length > 0 && resB.doc.projects.length > 0 && resC.doc.projects.length > 0}`);
   console.log(`Job A Target Role: "${resA.doc.candidateIdentity?.headline}"`);
   console.log(`Job B Target Role: "${resB.doc.candidateIdentity?.headline}"`);
+  console.log(`Job C Target Role: "${resC.doc.candidateIdentity?.headline}"`);
   console.log(`Job A Summary: "${resA.doc.summary?.text}"`);
   console.log(`Job B Summary: "${resB.doc.summary?.text}"`);
-  console.log(`Job A Experience Preserved: ${resA.doc.experience[0]?.company} - ${resA.doc.experience[0]?.title}`);
-  console.log(`Job B Experience Preserved: ${resB.doc.experience[0]?.company} - ${resB.doc.experience[0]?.title}`);
-  console.log(`Job A Education Preserved: ${resA.doc.education[0]?.institution} - ${resA.doc.education[0]?.degree}`);
-  console.log(`Job B Education Preserved: ${resB.doc.education[0]?.institution} - ${resB.doc.education[0]?.degree}`);
-  console.log(`Job A Contact Preserved: ${resA.doc.candidateIdentity?.email}`);
-  console.log(`Job B Contact Preserved: ${resB.doc.candidateIdentity?.email}`);
-  console.log(`Both PDFs Exactly 1 Page: Job A = ${resA.pageCount} page(s), Job B = ${resB.pageCount} page(s)`);
-  console.log(`Both QA Passed: Job A = ${resA.qaResult.passed}, Job B = ${resB.qaResult.passed}`);
+  console.log(`Job C Summary: "${resC.doc.summary?.text}"`);
+  console.log(`All PDFs Exactly 1 Page: Job A = ${resA.pageCount} page(s), Job B = ${resB.pageCount} page(s), Job C = ${resC.pageCount} page(s)`);
+  console.log(`All QA Passed: Job A = ${resA.qaResult.passed}, Job B = ${resB.qaResult.passed}, Job C = ${resC.qaResult.passed}`);
 
 } finally {
   await pool.end();

@@ -129,16 +129,22 @@ function extractCandidateLinks(profile) {
     for (const link of rawLinks) {
       if (!link) continue;
       const url = typeof link === 'string' ? link : link.url;
-      const label = link.label || link.name || 'Portfolio';
+      const rawLabel = link.label || link.name || 'Portfolio';
       let platform = 'OTHER';
       if (/linkedin\.com/i.test(url)) platform = 'LINKEDIN';
       else if (/github\.com/i.test(url)) platform = 'GITHUB';
       else if (/leetcode\.com/i.test(url)) platform = 'LEETCODE';
-      else if (/portfolio/i.test(label) || /portfolio/i.test(url)) platform = 'PORTFOLIO';
+      else if (/portfolio/i.test(rawLabel) || /portfolio/i.test(url)) platform = 'PORTFOLIO';
+
+      let label = String(rawLabel).trim();
+      if (/^linkedin$/i.test(label)) label = 'LinkedIn';
+      else if (/^github$/i.test(label)) label = 'GitHub';
+      else if (/^leetcode$/i.test(label)) label = 'LeetCode';
+      else if (/^portfolio$/i.test(label)) label = 'Portfolio';
 
       if (url && typeof url === 'string') {
         links.push({
-          label: String(label).trim(),
+          label,
           url: String(url).trim(),
           platform,
         });
@@ -156,6 +162,10 @@ function extractCandidateLinks(profile) {
   if (profile.leetcodeUrl && !links.some((l) => l.platform === 'LEETCODE')) {
     links.push({ label: 'LeetCode', url: profile.leetcodeUrl, platform: 'LEETCODE' });
   }
+
+  // Canonical presentation order: LinkedIn, GitHub, Portfolio, LeetCode, then others
+  const platformOrder = { LINKEDIN: 1, GITHUB: 2, PORTFOLIO: 3, LEETCODE: 4, OTHER: 5 };
+  links.sort((a, b) => (platformOrder[a.platform] || 99) - (platformOrder[b.platform] || 99));
 
   return links;
 }
@@ -298,6 +308,12 @@ export function buildStructuredResumeDocument({
       (Array.isArray(ranking?.matchedRequirements) && ranking.matchedRequirements.length > 0);
     const band = ranking?.relevanceBand;
 
+    // P16-006: Also check for authentic candidate-authored content fields that
+    // groundAndSanitizeProject now uses for technology-agnostic bullet derivation.
+    const hasHighlights = Array.isArray(candProj.highlights) && candProj.highlights.length > 0;
+    const hasFeatures = Array.isArray(candProj.features) && candProj.features.length > 0;
+    const hasDescription = candProj.description && typeof candProj.description === 'string' && candProj.description.trim().length >= 20;
+
     return (
       (score >= STRONG_RELEVANCE_FLOOR ||
       hasMatchedReqs ||
@@ -306,9 +322,11 @@ export function buildStructuredResumeDocument({
       evidenceCount >= MIN_EVIDENCE_COUNT ||
       authoredBullets >= MIN_AUTHORED_BULLETS) &&
       // A slot-worth project must carry at least SOME renderable content.
-      (evidenceCount > 0 || authoredBullets > 0 || (candProj.summary && String(candProj.summary).trim()))
+      (evidenceCount > 0 || authoredBullets > 0 || hasHighlights || hasFeatures || hasDescription ||
+       (candProj.summary && String(candProj.summary).trim()))
     );
   };
+
 
   let selectedProjectIds = [];
 

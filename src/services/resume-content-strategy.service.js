@@ -692,50 +692,128 @@ export function generateGroundedSummary({
     }
   }
 
-  // 6. Synthesize Concise Text (2-3 sentences, <350 chars) strictly from candidate-owned facts
+  // 6. Synthesize High-Density Professional Summary (P16-006)
+  // 2-3 dense sentences strictly from candidate-owned facts.
+  // Priority: authentic candidate summary → synthesized from verified skills/projects/experience.
   const candidateExperience = candidateProfile.experience || meta.experience || [];
   const hasWorkHistory = Array.isArray(candidateExperience) && candidateExperience.length > 0;
   const isFresher = !hasWorkHistory || candidateProfile.careerStatus === 'FRESHER';
 
+  // Check for authentic candidate-authored summary
+  const authenticSummary = candidateProfile.summary || meta.summary || null;
+
   let summaryText = '';
   const skillNames = topSkills.map((s) => s.name).filter(Boolean);
   const skillPhrase = skillNames.length > 0
-    ? skillNames.slice(0, 3).join(', ')
+    ? skillNames.slice(0, 4).join(', ')
     : null;
   const projectDisplayName = topProject ? (topProject.displayName || topProject.name || topProject.title) : null;
 
-  if (topSkills.length === 0 && !topProject) {
-    // Fail-closed safe fallback: use authentic candidate summary or grounded academic/background facts
-    const existingSummary = candidateProfile.summary || meta.summary;
-    if (existingSummary && existingSummary.trim().length > 0) {
-      summaryText = existingSummary.trim();
-    } else {
-      const degree = candidateProfile.education?.[0]?.degree || meta.education?.[0]?.degree;
-      const field = candidateProfile.education?.[0]?.fieldOfStudy || meta.education?.[0]?.fieldOfStudy;
-      if (degree) {
-        summaryText = `${targetRoleTitle} with academic foundation in ${field || degree}.`;
-      } else {
-        summaryText = `${targetRoleTitle} with verified technical background.`;
-      }
-    }
-  } else {
-    // Canonical role headline (seniority-adjusted, evidence-compatible) anchors the summary.
+  if (authenticSummary && typeof authenticSummary === 'string' && authenticSummary.trim().length >= 30) {
+    // P16-006: Anchor on authentic candidate-authored summary.
+    // Adapt for target role while preserving authentic facts.
     const headingInfo = deriveTargetRoleHeading({ candidateProfile, jobPosting, matchAnalysis });
     const rolePhrase = headingInfo.heading || targetRoleTitle;
+
+    // Use the authentic summary directly, trimmed for professional density
+    let adapted = authenticSummary.trim();
+    // Ensure it doesn't exceed 350 chars for single-page fit
+    if (adapted.length > 350) {
+      // Take the first two sentences for density
+      const sentences = adapted.match(/[^.!?]+[.!?]+/g) || [adapted];
+      adapted = sentences.slice(0, 2).join(' ').trim();
+      if (adapted.length > 350) {
+        adapted = adapted.substring(0, 347) + '...';
+      }
+    }
+
+    // Role-align candidate summary if roleFocus is specialized
+    if (isBackendFocus) {
+      adapted = adapted
+        .replace(/\s*and\s+(?:modern\s+)?frontend\s+(?:interfaces|applications|development|systems|components)(?=[.!?]|\b)/gi, '')
+        .replace(/\b(?:frontend\s+and\s+)/gi, '')
+        .replace(/\bfull-stack\b/gi, 'Backend');
+    } else if (isFrontendFocus) {
+      adapted = adapted
+        .replace(/\bbuilding\s+backend\s+(?:apis|systems|applications|services)\s+and\s+/gi, 'building ')
+        .replace(/\s*and\s+(?:robust\s+)?backend\s+(?:apis|systems|applications|services)(?=[.!?]|\b)/gi, '')
+        .replace(/\b(?:backend\s+and\s+)/gi, '')
+        .replace(/\bfull-stack\b/gi, 'Frontend');
+    }
+    if (!/[.!?]$/.test(adapted.trim())) {
+      adapted = adapted.trim() + '.';
+    }
+
+    // If the authentic summary doesn't mention the target role, prefix with role context
+    const roleLower = rolePhrase.toLowerCase();
+    const summaryLower = adapted.toLowerCase();
+    if (!summaryLower.includes('engineer') && !summaryLower.includes('developer') && !summaryLower.includes(roleLower)) {
+      summaryText = `${rolePhrase}. ${adapted}`;
+    } else {
+      summaryText = adapted;
+    }
+
+    // Append a skills sentence if summary is short and we have relevant skills
+    if (summaryText.length < 200 && skillPhrase) {
+      summaryText += ` Proficient in ${skillPhrase}.`;
+    }
+  } else if (topSkills.length === 0 && !topProject) {
+    // Fail-closed safe fallback: grounded academic/background facts
+    const degree = candidateProfile.education?.[0]?.degree || meta.education?.[0]?.degree;
+    const field = candidateProfile.education?.[0]?.fieldOfStudy || meta.education?.[0]?.fieldOfStudy;
+    if (degree) {
+      summaryText = `${targetRoleTitle} with academic foundation in ${field || degree}.`;
+    } else {
+      summaryText = `${targetRoleTitle} with verified technical background.`;
+    }
+  } else {
+    // P16-006: Synthesize 2-3 dense professional sentences from verified candidate facts.
+    const headingInfo = deriveTargetRoleHeading({ candidateProfile, jobPosting, matchAnalysis });
+    const rolePhrase = headingInfo.heading || targetRoleTitle;
+
+    // Sentence 1: Role title + technical specialization + top verified skills
     summaryText = skillPhrase
       ? `${rolePhrase} with hands-on experience in ${skillPhrase}.`
-      : `${rolePhrase} with hands-on project delivery.`;
+      : `${rolePhrase} with hands-on project delivery and engineering practice.`;
 
+    // Sentence 2: Key engineering strengths from verified projects
     if (projectDisplayName) {
       const projectClause = buildProjectHighlightClause(topProject, roleFocus);
-      summaryText += projectClause
-        ? ` Recent work includes ${projectDisplayName}${projectClause}.`
-        : ` Recent work includes ${projectDisplayName}.`;
+      if (projectClause) {
+        summaryText += ` Built ${projectDisplayName}${projectClause}.`;
+      } else {
+        const techStack = (topProject.technologies || []).slice(0, 3).join(', ');
+        if (techStack) {
+          summaryText += ` Built ${projectDisplayName} using ${techStack}.`;
+        } else {
+          summaryText += ` Built ${projectDisplayName}.`;
+        }
+      }
     } else if (hasWorkHistory) {
       const latest = candidateExperience[0] || {};
       const latestRole = latest.title || latest.role || null;
-      if (latestRole) {
-        summaryText += ` Professional experience includes work as ${latestRole}.`;
+      const latestCompany = latest.company || latest.organization || null;
+      if (latestRole && latestCompany) {
+        summaryText += ` Professional experience as ${latestRole} at ${latestCompany}.`;
+      } else if (latestRole) {
+        summaryText += ` Professional experience as ${latestRole}.`;
+      }
+    }
+
+    // Sentence 3: Engineering foundation (DSA, academic, or additional skills context)
+    const dsa = candidateProfile.problemSolving || meta.problemSolving;
+    const dsaUrl = dsa?.profileUrl;
+    const hasDsaPractice = dsaUrl || (Array.isArray(dsa?.bullets) && dsa.bullets.length > 0);
+    const degree = candidateProfile.education?.[0]?.degree || meta.education?.[0]?.degree;
+    const field = candidateProfile.education?.[0]?.fieldOfStudy || meta.education?.[0]?.fieldOfStudy;
+
+    if (summaryText.length < 280) {
+      if (hasDsaPractice && degree) {
+        summaryText += ` Strong foundation in data structures, algorithms, and ${field || degree}.`;
+      } else if (degree && field) {
+        summaryText += ` Academic foundation in ${field}.`;
+      } else if (hasDsaPractice) {
+        summaryText += ` Strong problem-solving foundation in data structures and algorithms.`;
       }
     }
   }
@@ -763,8 +841,57 @@ export function generateGroundedSummary({
 }
 
 /**
+ * Deterministic professional compression for candidate-authored bullet text (P16-006).
+ *
+ * Rules:
+ * 1. Removes redundant introductory fluff ("Responsible for", "Tasked with", "Helped in").
+ * 2. Merges repetitive phrasing and eliminates duplicated technology mentions.
+ * 3. Shortens verbose wording while keeping strong action verbs.
+ * 4. Preserves all technical specifics, metrics, ownership, and outcomes.
+ * 5. NEVER introduces unbacked metrics, scale, users, or leadership claims.
+ * 6. Deterministic: identical input always produces identical output.
+ *
+ * @param {string} text Candidate-authored bullet text
+ * @returns {string} Professionally compressed bullet
+ */
+export function compressCandidateBullet(text) {
+  if (!text || typeof text !== 'string') return '';
+  let b = text.trim();
+  if (b.length === 0) return '';
+
+  // 1. Remove weak introductory fluff phrases (case-insensitive, at start of sentence)
+  b = b.replace(
+    /^(?:responsible for|tasked with|helped in|helped with|assisted with|assisted in|involved in|worked on|participated in|contributed to|was responsible for|had the responsibility of|took part in)\s+/i,
+    ''
+  );
+
+  // 2. Capitalize the first letter after fluff removal
+  if (b.length > 0) {
+    b = b.charAt(0).toUpperCase() + b.slice(1);
+  }
+
+  // 3. Remove redundant "the" after action verbs at sentence start
+  b = b.replace(
+    /^(Designed|Built|Building|Build|Developing|Developed|Implementing|Implemented|Engineering|Engineered|Integrating|Integrated|Creating|Created|Architecting|Architected)\s+the\s+/i,
+    '$1 '
+  );
+
+  // 4. Collapse double spaces
+  b = b.replace(/\s{2,}/g, ' ');
+
+  // 5. Ensure the bullet ends with a period
+  if (b.length > 0 && !/[.!?]$/.test(b)) {
+    b += '.';
+  }
+
+  return b;
+}
+
+/**
  * Evaluates and ranks authentic project bullets against target job requirements,
  * attaching item-level evidence references and enforcing metric safety.
+ * Multi-source composition (P16-006) pools candidate-authored bullets, highlights,
+ * features, and descriptions with strict provenance tracking.
  *
  * @param {object} params
  * @param {object} params.project The candidate project record
@@ -783,18 +910,63 @@ export function selectAndRephraseProjectBullets({
     return [];
   }
 
-  const rawBullets = Array.isArray(project.bullets) ? project.bullets : [];
-  if (rawBullets.length === 0) {
-    if (project.summary && typeof project.summary === 'string' && project.summary.trim()) {
-      return [
-        {
-          text: project.summary.trim(),
-          evidenceRefs: Array.isArray(project.evidence) ? project.evidence.slice(0, 2) : [],
-          matchedRequirementIds: [],
-          provenanceStatus: project.provenanceStatus || 'VERIFIED',
-        },
-      ];
+  // P16-006: Multi-source candidate bullet collection with provenance
+  const candidateItems = [];
+  const seenTexts = new Set();
+  const addCandidateSource = (item, sourceType) => {
+    if (!item) return;
+    const text = typeof item === 'object' && item !== null ? (item.text || item.description || '') : String(item);
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.length < 15) return;
+    if (
+      /^(?:source code|project link|repository|repo|url):\s*https?:\/\//i.test(trimmed) ||
+      /^https?:\/\//i.test(trimmed)
+    ) {
+      return;
     }
+    const compressed = compressCandidateBullet(trimmed);
+    const norm = compressed.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (seenTexts.has(norm)) return;
+    seenTexts.add(norm);
+    candidateItems.push(
+      typeof item === 'object' && item !== null
+        ? { ...item, text: compressed, origText: trimmed, sourceType: item.sourceType || sourceType }
+        : { text: compressed, origText: trimmed, sourceType }
+    );
+  };
+
+  // Priority 1: Authored bullets
+  if (Array.isArray(project.bullets)) {
+    for (const b of project.bullets) addCandidateSource(b, 'CANDIDATE_AUTHORED_BULLET');
+  }
+  // Priority 2: Authored highlights
+  if (Array.isArray(project.highlights)) {
+    for (const h of project.highlights) addCandidateSource(h, 'CANDIDATE_AUTHORED_HIGHLIGHT');
+  }
+  // Priority 3: Authored features / feature descriptions
+  if (Array.isArray(project.features)) {
+    for (const f of project.features) addCandidateSource(f, 'CANDIDATE_AUTHORED_FEATURE');
+  }
+  if (Array.isArray(project.featureDescriptions)) {
+    for (const fd of project.featureDescriptions) addCandidateSource(fd, 'CANDIDATE_AUTHORED_FEATURE');
+  }
+  // Priority 4: Authored responsibilities / implementation descriptions
+  if (Array.isArray(project.responsibilities)) {
+    for (const r of project.responsibilities) addCandidateSource(r, 'CANDIDATE_AUTHORED_RESPONSIBILITY');
+  }
+  if (Array.isArray(project.implementationDescriptions)) {
+    for (const id of project.implementationDescriptions) addCandidateSource(id, 'CANDIDATE_AUTHORED_RESPONSIBILITY');
+  }
+  // Priority 5: Candidate description (fallback if < 2 items)
+  if (candidateItems.length < 2 && project.description && typeof project.description === 'string') {
+    addCandidateSource(project.description, 'CANDIDATE_AUTHORED_DESCRIPTION');
+  }
+  // Priority 6: Candidate summary (fallback if 0 items)
+  if (candidateItems.length === 0 && project.summary && typeof project.summary === 'string') {
+    addCandidateSource(project.summary, 'CANDIDATE_AUTHORED_SUMMARY');
+  }
+
+  if (candidateItems.length === 0) {
     return [];
   }
 
@@ -818,8 +990,7 @@ export function selectAndRephraseProjectBullets({
   const projectEvidence = Array.isArray(project.evidence) ? project.evidence : [];
 
   // 1. Score each bullet for relevance to target job
-  const scoredBullets = rawBullets.map((bullet, idx) => {
-    const bulletObj = typeof bullet === 'object' && bullet !== null ? bullet : { text: String(bullet) };
+  const scoredBullets = candidateItems.map((bulletObj, idx) => {
     const text = String(bulletObj.text || '').trim();
 
     let relevanceScore = 0;

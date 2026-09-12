@@ -30,10 +30,13 @@ import { db as defaultDb } from '../db/index.js';
 import { projects as projectsTable } from '../db/schema.js';
 import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
 import { CandidateProfileService } from './candidate-profile.service.js';
-import { ProjectRelevanceService } from './project-relevance.service.js';
 import { ValidationError } from '../errors/index.js';
 import { logger as defaultLogger } from '../utils/logger.js';
-import { selectAndRephraseProjectBullets } from './resume-content-strategy.service.js';
+import {
+  selectAndRephraseProjectBullets,
+  compressCandidateBullet,
+  QUANTITATIVE_METRIC_REGEX,
+} from './resume-content-strategy.service.js';
 import {
   CANONICAL_TECH_MAP,
   NOISY_TECH_SET as CENTRAL_NOISY_TECH_SET,
@@ -485,7 +488,20 @@ export function reconcileCandidateProjects({
         slug: key,
         title: formatProjectDisplayName(rawName),
         summary: pp.summary || pp.headline || pp.metadata?.description || null,
+        description: pp.description || pp.metadata?.description || null,
         bullets: profileBullets,
+        // P16-006: Collect all authentic candidate-authored content fields for
+        // technology-agnostic bullet derivation in groundAndSanitizeProject.
+        highlights: Array.isArray(pp.highlights) ? pp.highlights
+          : Array.isArray(pp.metadata?.highlights) ? pp.metadata.highlights : [],
+        features: Array.isArray(pp.features) ? pp.features
+          : Array.isArray(pp.metadata?.features) ? pp.metadata.features : [],
+        featureDescriptions: Array.isArray(pp.featureDescriptions) ? pp.featureDescriptions
+          : Array.isArray(pp.metadata?.featureDescriptions) ? pp.metadata.featureDescriptions : [],
+        responsibilities: Array.isArray(pp.responsibilities) ? pp.responsibilities
+          : Array.isArray(pp.metadata?.responsibilities) ? pp.metadata.responsibilities : [],
+        implementationDescriptions: Array.isArray(pp.implementationDescriptions) ? pp.implementationDescriptions
+          : Array.isArray(pp.metadata?.implementationDescriptions) ? pp.metadata.implementationDescriptions : [],
         technologies: cleanResumeFacingTechnologies([
           ...profileTechSource,
           ...(Array.isArray(pp.primaryLanguages) ? pp.primaryLanguages : []),
@@ -560,171 +576,116 @@ export function reconcileCandidateProjects({
 }
 
 /**
- * Generic evidence-grounded bullet derivation and impact sanitization.
+ * Technology-agnostic evidence-grounded bullet derivation and content sanitization (P16-006).
  *
- * Enforces strict evidence provenance:
- * 1. Derives authentic technical bullets from verified repository evidence and technologies
- *    when a project lacks curated resume bullets.
- * 2. Prunes unverified/proscribed framework references (e.g. Flask when repository uses FastAPI).
- * 3. Sanitizes unsupported quantitative/team impact metrics (e.g. "improved team productivity",
- *    "reduced average review time by X") into truthful repository-grounded implementation statements
- *    (e.g. real-time Socket.io synchronization, Next.js review interface, containerization).
+ * Enforces strict evidence provenance without any technology-specific branching:
+ * 1. Collects authentic candidate-authored content (bullets, summary, description,
+ *    highlights, features, featureDescriptions) when curated resume bullets are absent.
+ * 2. Applies deterministic professional compression to authentic content.
+ * 3. NEVER synthesizes accomplishment prose from dependency, import, file-path, or
+ *    technology-name presence alone.
+ * 4. Completely technology-agnostic: unknown/new technologies work without code changes.
+ *
+ * Hard Rules:
+ * - DEPENDENCY → NO BULLET
+ * - IMPORT → NO BULLET
+ * - FILE PATH → NO BULLET
+ * - TECHNOLOGY NAME ALONE → NO BULLET
  *
  * @param {object} project Reconciled project domain object
  */
 export function groundAndSanitizeProject(project) {
   if (!project) return;
 
-  const techSet = new Set((project.technologies || []).map((t) => String(t).toLowerCase()));
   const evidence = Array.isArray(project.evidence) ? project.evidence : [];
 
-  const evidenceSkills = new Set();
-  const evidenceFiles = new Set();
-  for (const ev of evidence) {
-    if (ev.skillName) evidenceSkills.add(ev.skillName.toLowerCase());
-    if (ev.skillSlug) evidenceSkills.add(ev.skillSlug.toLowerCase());
-    if (ev.sourceLocation?.filePath) evidenceFiles.add(ev.sourceLocation.filePath.toLowerCase());
-  }
-
-  // Filter proscribed unverified technologies (e.g. Flask without repository evidence)
-  if (!evidenceSkills.has('flask') && !evidenceSkills.has('python-flask')) {
-    project.technologies = (project.technologies || []).filter((t) => t.toLowerCase() !== 'flask');
-    techSet.delete('flask');
-  }
-
-  // Filter raw link-only bullets
-  const cleanBullets = (project.bullets || []).filter(
-    (b) =>
-      b &&
-      !/^(source code|project link|repository|repo|url):\s*https?:\/\//i.test(b) &&
-      !/^https?:\/\//i.test(b)
-  );
-
-  if (cleanBullets.length === 0 && (evidence.length > 0 || project.technologies?.length > 0)) {
-    // Synthesize authentic bullets from verified repository evidence
-    const synthesized = [];
-
-    // 1. Backend API layer
-    const isNest = techSet.has('nestjs') || evidenceSkills.has('nestjs');
-    const isFastAPI = techSet.has('fastapi') || evidenceSkills.has('fastapi');
-    const isExpress = techSet.has('express') || techSet.has('express.js') || evidenceSkills.has('express.js');
-
-    if (isNest) {
-      synthesized.push(
-        'Architected a full-stack product analytics platform with NestJS RESTful APIs, Swagger/OpenAPI documentation, and request validation.'
-      );
-    } else if (isFastAPI) {
-      synthesized.push(
-        'Engineered an asynchronous FastAPI backend to handle real-time webhook integrations and code analysis workflows.'
-      );
-    } else if (isExpress) {
-      synthesized.push(
-        'Designed and implemented RESTful CRUD APIs using Node.js and Express, organizing modular routing and middleware architecture.'
-      );
+  // Filter raw link-only bullets (URLs masquerading as content) and unsupported quantitative claims
+  const cleanBullets = (project.bullets || []).filter((b) => {
+    if (!b || typeof b !== 'string' || b.trim().length === 0) return false;
+    if (
+      /^(source code|project link|repository|repo|url):\s*https?:\/\//i.test(b) ||
+      /^https?:\/\//i.test(b)
+    ) {
+      return false;
     }
-
-    // 2. Database & Caching layer
-    const hasPostgres =
-      techSet.has('postgresql') ||
-      techSet.has('postgres') ||
-      evidenceSkills.has('postgresql') ||
-      evidenceSkills.has('postgres');
-    const hasRedis = techSet.has('redis') || evidenceSkills.has('redis');
-    const hasTypeORM = techSet.has('typeorm') || evidenceSkills.has('typeorm');
-    const hasPrisma =
-      techSet.has('prisma') || techSet.has('prisma orm') || evidenceSkills.has('prisma');
-
-    if (hasPostgres && hasRedis && (hasTypeORM || hasPrisma)) {
-      const ormName = hasTypeORM ? 'TypeORM' : 'Prisma ORM';
-      synthesized.push(
-        `Implemented PostgreSQL data persistence via ${ormName} alongside a Redis caching layer to optimize query latency and throughput.`
+    // Reject unsupported quantitative impact claims (e.g. percentages, team productivity scale)
+    // unless supported by candidate project evidence
+    if (QUANTITATIVE_METRIC_REGEX.test(b)) {
+      const isEvidenced = evidence.some(
+        (ev) =>
+          (ev.contextSnippet && QUANTITATIVE_METRIC_REGEX.test(ev.contextSnippet)) ||
+          (ev.claimText && QUANTITATIVE_METRIC_REGEX.test(ev.claimText)) ||
+          (ev.description && QUANTITATIVE_METRIC_REGEX.test(ev.description))
       );
-    } else if (hasPostgres && (hasTypeORM || hasPrisma)) {
-      const ormName = hasTypeORM ? 'TypeORM' : 'Prisma ORM';
-      synthesized.push(
-        `Implemented PostgreSQL database persistence via ${ormName}, designing structured schemas and query access patterns.`
-      );
+      if (!isEvidenced) return false;
     }
+    return true;
+  });
 
-    // 3. Frontend / UI & DevOps & Testing layer
-    const hasNext = techSet.has('next.js') || techSet.has('nextjs') || evidenceSkills.has('next.js');
-    const hasReact = techSet.has('react') || evidenceSkills.has('react');
-    const hasDocker =
-      techSet.has('docker') || techSet.has('docker compose') || evidenceSkills.has('docker');
-    const hasJest =
-      techSet.has('jest') ||
-      techSet.has('supertest') ||
-      evidenceSkills.has('jest') ||
-      evidenceSkills.has('supertest');
-
-    if ((hasNext || hasReact) && (hasDocker || hasJest)) {
-      const fe = hasNext ? 'Next.js 14 React' : 'React';
-      const devops = hasDocker
-        ? 'containerized services with Docker Compose'
-        : 'organized component architecture';
-      const testPart = hasJest
-        ? 'automated test coverage with Jest and Supertest'
-        : 'structured testing workflows';
-      synthesized.push(
-        `Built a responsive ${fe} frontend with Tailwind CSS, ${devops}, and ${testPart}.`
-      );
-    } else if (hasNext || hasReact) {
-      synthesized.push(
-        `Developed a responsive ${hasNext ? 'Next.js' : 'React'} frontend interface with modular UI components and client-side state management.`
-      );
-    }
-
-    if (synthesized.length > 0) {
-      project.bullets = synthesized;
-    }
+  if (cleanBullets.length > 0) {
+    // Preserve authentic candidate bullets without modifying raw punctuation or case
+    project.bullets = cleanBullets;
   } else {
-    // Sanitize existing bullets against verified evidence
-    project.bullets = cleanBullets.map((bullet) => {
-      let b = bullet;
+    // Collect authentic candidate-owned content as bullet candidates.
+    // Priority: highlights > features/featureDescriptions > summary > description
+    // NEVER synthesize prose from technology presence alone.
+    const authenticSources = [];
 
-      // 1. Sanitize unverified Flask claims if project uses FastAPI
-      if (/flask/i.test(b) && !evidenceSkills.has('flask')) {
-        b = b
-          .replace(/flask backend/i, 'FastAPI backend')
-          .replace(/a flask/i, 'a FastAPI')
-          .replace(/\bflask\b/gi, 'FastAPI');
+    // Candidate-authored highlights (highest priority)
+    if (Array.isArray(project.highlights)) {
+      for (const h of project.highlights) {
+        const text = typeof h === 'string' ? h.trim() : String(h?.text || h?.description || '').trim();
+        if (text.length >= 20) authenticSources.push(text);
       }
+    }
 
-      // 2. Sanitize unsupported team productivity / coordination claims
-      if (/improved team productivity|coordination overhead/i.test(b)) {
-        const hasSocket =
-          techSet.has('socket.io') ||
-          techSet.has('socket io') ||
-          evidenceSkills.has('socket io') ||
-          evidenceSkills.has('socket.io') ||
-          [...evidenceFiles].some((f) => f.includes('server.ts') || f.includes('app.ts'));
-        if (hasSocket) {
-          return 'Integrated Socket.io for bidirectional real-time event synchronization across connected clients and implemented automated unit tests with Jest.';
+    // Candidate-authored features / feature descriptions
+    for (const field of ['features', 'featureDescriptions', 'responsibilities', 'implementationDescriptions']) {
+      if (Array.isArray(project[field])) {
+        for (const item of project[field]) {
+          const text = typeof item === 'string' ? item.trim() : String(item?.text || item?.description || '').trim();
+          if (text.length >= 20 && !authenticSources.includes(text)) {
+            authenticSources.push(text);
+          }
         }
-        return 'Architected modular service architecture and responsive interface to support reliable real-time collaborative task updates.';
       }
+    }
 
-      // 3. Sanitize unsupported quantitative review time / developer velocity claims
-      if (/reduced average manual code review time|developer velocity/i.test(b)) {
-        const hasDockerOrNext =
-          techSet.has('docker') || techSet.has('next.js') || techSet.has('react');
-        if (hasDockerOrNext) {
-          return 'Built a responsive review interface using Next.js and React, containerizing the application with Docker and establishing automated code evaluation workflows.';
-        }
-        return 'Automated pull request analysis workflows and evaluation pipelines to enforce consistent code quality standards.';
+    // Candidate-authored summary as bullet candidate (when no highlights/features exist)
+    if (authenticSources.length === 0 && project.summary && typeof project.summary === 'string') {
+      const summaryText = project.summary.trim();
+      if (summaryText.length >= 20) {
+        authenticSources.push(summaryText);
       }
+    }
 
-      return b;
-    });
+    // Candidate-authored description as fallback
+    if (authenticSources.length === 0 && project.description && typeof project.description === 'string') {
+      const descText = project.description.trim();
+      if (descText.length >= 20) {
+        authenticSources.push(descText);
+      }
+    }
+
+    // Set authentic candidate-owned sources as bullets
+    if (authenticSources.length > 0) {
+      project.bullets = authenticSources.slice(0, 4);
+    }
+    // If NO authentic candidate-authored content exists, leave bullets empty.
+    // The downstream selectAndRephraseProjectBullets will handle evidence-derived
+    // bullets via deriveEvidenceBackedBullets for verified FEATURE_EVIDENCE and
+    // CANDIDATE_AUTHORED_CLAIM evidence records only.
   }
 
-  // Organically merge verified technologies discovered in repository evidence
+  // Organically merge verified technologies discovered in repository evidence.
+  // This loop is technology-agnostic: it uses the centralized normalizer for any
+  // technology without hardcoded if/else branches.
   for (const ev of evidence) {
     const sName = ev.skillName || ev.skillSlug;
     if (sName) {
       const lower = sName.toLowerCase();
       if (!NOISY_TECH_SET.has(lower) && !['fs', 'path', 'crypto', 'os', 'buffer'].includes(lower)) {
-        const canonical = CANONICAL_TECH_LABEL_MAP[lower] || sName;
+        const canonical = CANONICAL_TECH_LABEL_MAP[lower] || normalizeTechnologyName(sName);
         if (!(project.technologies || []).some((t) => t.toLowerCase() === canonical.toLowerCase())) {
           project.technologies = project.technologies || [];
           project.technologies.push(canonical);
@@ -733,29 +694,12 @@ export function groundAndSanitizeProject(project) {
     }
   }
 
-  // Ensure major stack components detected in evidence are present in project.technologies
-  if (techSet.has('nestjs') || evidenceSkills.has('nestjs')) {
-    if (!project.technologies.some((t) => /nestjs/i.test(t))) project.technologies.push('NestJS');
-  }
-  if (techSet.has('next.js') || techSet.has('nextjs') || evidenceSkills.has('next.js')) {
-    if (!project.technologies.some((t) => /next\.js/i.test(t))) project.technologies.push('Next.js');
-  }
-  if (techSet.has('typeorm') || evidenceSkills.has('typeorm')) {
-    if (!project.technologies.some((t) => /typeorm/i.test(t))) project.technologies.push('TypeORM');
-  }
-  if (techSet.has('prisma') || evidenceSkills.has('prisma')) {
-    if (!project.technologies.some((t) => /prisma/i.test(t))) project.technologies.push('Prisma ORM');
-  }
-  if (techSet.has('redis') || evidenceSkills.has('redis')) {
-    if (!project.technologies.some((t) => /redis/i.test(t))) project.technologies.push('Redis');
-  }
-  if (techSet.has('docker') || evidenceSkills.has('docker') || evidenceSkills.has('docker compose')) {
-    if (!project.technologies.some((t) => /docker/i.test(t))) project.technologies.push('Docker Compose');
-  }
-
   // Filter raw dependency noise and normalize project technologies
   project.technologies = cleanResumeFacingTechnologies(project.technologies || []);
 }
+
+/**
+export { compressCandidateBullet };
 
 /**
  * Generic evidence-aware professional summary curation.
@@ -1277,12 +1221,7 @@ export class CandidateArtifactContentService {
           ? metadata.problemSolving.bullets
           : Array.isArray(metadata.resumeData?.problemSolving?.bullets) && metadata.resumeData.problemSolving.bullets.length > 0
             ? metadata.resumeData.problemSolving.bullets
-            : (hasDsaSkill || hasDsaCoursework)
-              ? [
-                  'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
-                  'Engaged in problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
-                ]
-              : []
+            : []
     );
 
     const hasProblemSolvingSection = Boolean(

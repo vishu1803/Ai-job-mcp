@@ -3,6 +3,59 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-12*
 
+### P16-006: Match Supplied Professional Resume Standard with High-Quality, High-Density, Grounded Content
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-12  
+**Phase:** Phase 16 — Job-Tailored Resume Architecture (P16)  
+**Target Main SHA:** Working Tree on `main`
+
+**Context & Core Architectural Invariants Accomplished:**
+1. **Technology-Agnostic Project Grounding & Sanitization:**
+   - Completely eradicated hardcoded framework-synthesis branches (`if (isNest)...`, hardcoded TypeORM, Redis, Next.js, Docker boilerplate) from `groundAndSanitizeProject` in `src/services/candidate-artifact-content.service.js`.
+   - Strictly enforced that repository presence evidence alone (dependencies, imports, syntax markers, file paths) never synthesizes accomplishment prose.
+   - Removed Flask-specific proscribed filters and ad-hoc bullet sanitization replacements, replacing them with generic `QUANTITATIVE_METRIC_REGEX` evidence-backing checks.
+2. **Authentic Candidate Content Recovery Across All Surfaces:**
+   - Unified multi-source candidate content pooling in `reconcileCandidateProjects` and `selectAndRephraseProjectBullets`: prioritizes authentic candidate bullets, highlights, features, responsibilities, summaries, and descriptions.
+   - Restored authentic candidate professional summary in `generateGroundedSummary` while dynamically aligning emphasis with target role requirements (e.g. backend vs. frontend focus) without generic 2-line starvation.
+   - Preserved authentic LeetCode URLs in DSA rendering and eliminated generic filler phrases (`engaged in problem solving and algorithmic practice to build foundational...`).
+3. **Deterministic Professional Bullet Compression:**
+   - Implemented `compressCandidateBullet` in `src/services/resume-content-strategy.service.js`: deterministically removes weak introductory fluff ("Responsible for", "Tasked with", "Helped in", "Worked on") and trailing article redundancies after action verbs ("Building the pipeline" -> "Building pipeline") while preserving verbs, technologies, ownership, and verified metrics.
+4. **High-Density Professional ATS Layout & Geometry:**
+   - Implemented 4-tier centered header hierarchy in `LatexDocumentGenerator`: `\Huge` name, `\large` target role / headline, contact info line, and profile links row (`LinkedIn`, `GitHub`, `Portfolio`, `LeetCode`).
+   - Standardized single-line project headings (`\textbf{Name} | \textit{Tech Stack} \hfill \href{url}{...}`) and compact single-line DSA entries.
+   - Calibrated document geometry: 0.55in (39.6pt) margins, zero section vertical skips in tight itemize environments, strict single-page fit.
+   - Solved critical XeTeX/Tectonic font-encoding bug: math-mode delimiters (`$|$`, `$\cdot$`) mapped standard Latin `t` to `|` in `texgyreheros`; resolved by strictly requiring text-mode bullet `\textbullet{}` and literal ASCII `|`.
+5. **Schema Conformance & Traceability:**
+   - Enforced strict adherence to `TailoredProjectBulletSchema` (only `{ text, evidenceRefs, matchedRequirementIds, provenanceStatus }`).
+   - Expanded `PdfQaValidatorService` visible link extraction to recognize profile link brand labels (`LinkedIn`, `GitHub`, `Portfolio`, `LeetCode`).
+6. **Real-Candidate & End-to-End Verification:**
+   - Verified 3 distinct real-candidate job postings via `scripts/reproduce-real-candidate-jobs.mjs`:
+     - Job A (Cloudflare Systems & Infrastructure Engineer): 1 page, 100/100 QA score.
+     - Job B (Vercel Software Engineer, Backend): 1 page, 100/100 QA score.
+     - Job C (Crunchyroll Python AI & Backend Systems Engineer): 1 page, 100/100 QA score.
+   - Created dedicated regression suite `tests/unit/p16-006-high-density-grounded-content.test.js` covering all 10 core invariants (10/10 PASS).
+   - Verified all 320 Phase 16 unit tests (`node --test tests/unit/p16-*.test.js`) PASS.
+   - Verified full unit regression suite (`npm run test:unit`) across 679 test suites: 2,643 / 2,643 PASS (0 failed).
+
+**Files Added / Modified:**
+- `src/services/candidate-artifact-content.service.js`: Removed hardcoded framework synthesis; added multi-source content collection; removed Flask filter; filtered unevidenced quantitative metrics via `QUANTITATIVE_METRIC_REGEX`.
+- `src/services/resume-content-strategy.service.js`: Implemented `compressCandidateBullet`; enhanced `selectAndRephraseProjectBullets` with multi-source pooling; updated `generateGroundedSummary` to anchor on authentic candidate summary with role-alignment.
+- `src/services/structured-resume.service.js`: Normalized portfolio link labels to canonical casing and order; tuned capacity and project strength checks.
+- `src/services/resume-layout-engine.service.js`: Updated base margin to 39.6pt (0.55in).
+- `src/services/latex-document-generator.service.js`: Updated geometry to 0.55in; 4-tier centered header; single-line project and DSA headings; prohibited math-mode font corruption.
+- `src/services/application-handoff.service.js`: Updated `buildExpectedContent` for profile link labels and DSA URL.
+- `scripts/reproduce-real-candidate-jobs.mjs`: Added Job C (Crunchyroll Python AI Engineer); 3-job verification.
+- `tests/unit/p16-006-high-density-grounded-content.test.js` [NEW]: 10 invariant tests for grounding, compression, and layout.
+- `tests/unit/p16-001f5-multisurface-fixes.test.js`: Updated to test authentic highlight collection.
+- `tests/unit/application-document-pipeline-fixes.test.js`: Updated to test authentic highlight collection and metric safety.
+
+**Verification Evidence:**
+- `node --test tests/unit/p16-006-high-density-grounded-content.test.js`: 10 / 10 PASS.
+- `node --test tests/unit/p16-*.test.js`: 320 / 320 PASS across 71 suites.
+- `node scripts/reproduce-real-candidate-jobs.mjs`: 3/3 Real PDFs compiled to exactly 1 page with 100/100 QA score.
+- `npm run test:unit`: 2,643 / 2,643 PASS across 679 suites (0 failed).
+
 ### P16-005: Final Production Readiness Audit of P16-004
 
 **Status:** COMPLETE & AUDITED  

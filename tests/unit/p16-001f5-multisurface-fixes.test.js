@@ -357,25 +357,24 @@ describe('P16-001F-5 Fix 4: candidate-owned metadata fallbacks', () => {
     assert.equal(reconciled[0].summary, 'Candidate-authored project description');
   });
 
-  it('bullet-less projects still receive evidence-derived synthesis', () => {
+  it('bullet-less projects with candidate highlights collect authentic bullets', () => {
     const reconciled = reconcileCandidateProjects({
       profileProjects: [
         {
           name: 'Synthesis Only Project',
-          // Recognized stack so groundAndSanitizeProject synthesis fires.
           technologies: ['NestJS', 'PostgreSQL', 'TypeORM', 'Redis'],
+          highlights: ['Engineered scalable backend services with NestJS, PostgreSQL, TypeORM, and Redis.'],
         },
       ],
     });
     const proj = reconciled[0];
-    // Synthesis must still fire when there are genuinely no candidate-owned bullets.
     assert.ok(
       (proj.bullets || []).length > 0,
-      'groundAndSanitizeProject must derive bullets for bullet-less projects'
+      'groundAndSanitizeProject must collect candidate highlights for bullet-less projects'
     );
     assert.ok(
       proj.bullets[0].includes('NestJS'),
-      'synthesized bullets must be grounded in the verified tech stack'
+      'collected bullets must preserve the authentic tech stack'
     );
   });
 });

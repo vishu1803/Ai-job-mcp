@@ -324,7 +324,7 @@ export class LatexDocumentGenerator {
       ? `\\atssection{Technical Skills}\n${formattedSkillLines.join('\\\\\n')}\\par`
       : '';
 
-    // 4. Projects: exact stored ranking and authentic bullets
+    // 4. Projects: exact stored ranking and authentic bullets (P16-006 high-density formatting)
     const projects = Array.isArray(structuredResume.projects) ? structuredResume.projects : [];
     const maxBulletsPerProject = layoutProfile.maxBulletsPerProject || 3;
     let projectsLatexSection = '';
@@ -351,8 +351,12 @@ export class LatexDocumentGenerator {
         const linksStr = linkParts.join(' \\textbullet{} ');
 
         let headerLine = `\\textbf{${pName}}`;
-        if (linksStr) headerLine += ` \\hfill ${linksStr}`;
-        const techLine = techs ? `{\\small\\textit{${techs}}}` : '';
+        if (techs) {
+          headerLine += ` | \\textit{${techs}}`;
+        }
+        if (linksStr) {
+          headerLine += ` \\hfill ${linksStr}`;
+        }
 
         const rawBullets = Array.isArray(p.bullets) ? p.bullets : [];
         const cleanBullets = rawBullets
@@ -364,10 +368,6 @@ export class LatexDocumentGenerator {
         const pBullets = formatLatexBullets(cleanBullets);
 
         const entryLines = [`${headerLine}\\par`];
-        if (techLine) {
-          entryLines.push('\\vspace{\\atsProjectTitleToTech}');
-          entryLines.push(`${techLine}\\par`);
-        }
         entryLines.push('\\vspace{\\atsProjectTechToBullets}');
         if (pBullets) entryLines.push(pBullets);
 
@@ -379,7 +379,7 @@ export class LatexDocumentGenerator {
       projectsLatexSection = `\\atssection{Technical Projects}\n${projectEntries.join('\n')}`;
     }
 
-    // 5. DSA — included ONLY when meaningful candidate-owned evidence exists (Req G & 14).
+    // 5. DSA — included ONLY when meaningful candidate-owned evidence exists (Req G & 14, P16-006).
     let dsaLatexSection = '';
     const dsa = structuredResume.dsa;
     if (dsa && isMeaningfulDsa(dsa)) {
@@ -387,8 +387,10 @@ export class LatexDocumentGenerator {
         ? dsa.bullets.map((b) => String(b || '').trim()).filter(Boolean)
         : [];
       const dsaUrl = dsa.profileUrl && isRealUrl(dsa.profileUrl) ? dsa.profileUrl : null;
-      const dsaTitle = dsa.title || 'Problem Solving & Algorithmic Practice';
-      const dsaSubtitle = typeof dsa.subtitle === 'string' ? dsa.subtitle.trim() : '';
+      const dsaTitle = dsa.title || 'LeetCode Profile';
+      const dsaSubtitle = typeof dsa.subtitle === 'string' && dsa.subtitle.trim()
+        ? dsa.subtitle.trim()
+        : 'Data Structures & Algorithms';
 
       const cleanLeetcodeDisplay = dsaUrl ? dsaUrl.replace(/^https?:\/\/(www\.)?/, '') : '';
       const headerRight = dsaUrl
@@ -398,11 +400,9 @@ export class LatexDocumentGenerator {
       const bulletTex = formatLatexBullets(dsaBullets);
 
       dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
-\\textbf{${escapeLatex(dsaTitle)}}${headerRight ? ` \\hfill ${headerRight}` : ''}\\par
-\\vspace{\\atsRoleToMetadata}
-${dsaSubtitle ? `{\\small\\textit{${escapeLatex(dsaSubtitle)}}}\\par
+\\textbf{${escapeLatex(dsaTitle)}}${dsaSubtitle ? ` | \\textit{${escapeLatex(dsaSubtitle)}}` : ''}${headerRight ? ` \\hfill ${headerRight}` : ''}\\par
 \\vspace{\\atsMetadataToBullets}
-` : ''}${bulletTex}`;
+${bulletTex}`;
     }
 
     // 6. Professional Experience: candidate-owned snapshot records
@@ -676,9 +676,9 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
     bodyLatex,
     layoutProfile,
   }) {
-    // Phase 8/9 — Canonical ATS template configuration (single source of truth):
+    // Phase 8/9 → P16-006 — Canonical ATS template configuration:
     // - single column, linear order, no tables/textboxes/icons (unchanged)
-    // - margins 0.6in (within the 0.55–0.65in spec window; parser-safe)
+    // - margins 0.55in (tighter for higher density; parser-safe)
     // - candidate name ≈17pt (\LARGE ≈ 17.28pt), section headings ≈12pt via
     //   \large (≈12pt at 10pt base), body 10pt
     // - Unicode-safe font path: XeTeX/fontspec renders TeX Gyre Heros (Arial
@@ -710,7 +710,7 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
   \\input{glyphtounicode.tex}
   \\pdfgentounicode=1
 \\fi
-\\usepackage[margin=0.6in]{geometry}
+\\usepackage[margin=0.55in]{geometry}
 \\usepackage{hyperref}
 \\pagestyle{empty}
 \\setlength{\\parindent}{0pt}
@@ -760,9 +760,9 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
 
 % ---------------- HEADER (4-tier) ----------------
 {\\centering
-  {\\LARGE \\textbf{${escapeLatex(candidateName)}}}\\par
-  \\vspace{2.5pt}
-${candidateHeadline ? `  {\\normalsize \\textbf{${escapeLatex(candidateHeadline)}}}\\par\n  \\vspace{2.5pt}\n` : ''}\
+  {\\Huge \\textbf{${escapeLatex(candidateName)}}}\\par
+  \\vspace{3pt}
+${candidateHeadline ? `  {\\large \\textbf{${escapeLatex(candidateHeadline)}}}\\par\n  \\vspace{3pt}\n` : ''}\
   {\\small ${contactLine}}\\par
 ${profileLinksLine ? `  \\vspace{2pt}\n  {\\small ${profileLinksLine}}\\par\n` : ''}\
 }
