@@ -1505,6 +1505,10 @@ export class CandidateArtifactContentService {
         userCustom.problemSolving?.hasSection ||
         metadata.problemSolving?.hasSection
     );
+    // P19: DSA bullets must come strictly from candidate-authored stored data.
+    // A LeetCode URL proves a URL. Coursework proves coursework. A DSA skill
+    // proves the skill is declared. None of these prove specific achievements.
+    // Never fabricate "Solved algorithmic challenges..." or similar prose.
     const candidateDsaBullets =
       Array.isArray(userCustom.problemSolving?.bullets) &&
       userCustom.problemSolving.bullets.length > 0
@@ -1515,15 +1519,13 @@ export class CandidateArtifactContentService {
           : Array.isArray(metadata.resumeData?.problemSolving?.bullets) &&
               metadata.resumeData.problemSolving.bullets.length > 0
             ? metadata.resumeData.problemSolving.bullets
-            : hasCorroboratedProblemSolving
-              ? [
-                  'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
-                  'Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
-                ]
-              : [];
+            : [];
 
+    // P19: Section is renderable when candidate-authored bullets exist, OR when
+    // a valid profile URL exists (URL-only DSA renders as link representation).
     const hasProblemSolvingSection = Boolean(
-      candidateDsaBullets.length > 0 && hasCorroboratedProblemSolving
+      (candidateDsaBullets.length > 0 || isRealUrl(leetcodeLinkObj?.url)) &&
+      hasCorroboratedProblemSolving
     );
     const problemSolving = {
       hasSection: hasProblemSolvingSection,
@@ -2767,6 +2769,8 @@ export class CandidateArtifactContentService {
     // LeetCode URL presence is NOT the selection condition.
     // DSA selection comes from Content Strategy.
     // Extract candidate-owned DSA content.
+    // P19: DSA bullets must come strictly from candidate-authored stored data.
+    // Never fabricate achievement prose from corroboration signals.
     const candidateDsaBullets =
       Array.isArray(candidateData.problemSolving?.bullets) &&
       candidateData.problemSolving.bullets.length > 0
@@ -2777,12 +2781,7 @@ export class CandidateArtifactContentService {
           : Array.isArray(candidateData.userCustom?.problemSolving?.bullets) &&
               candidateData.userCustom.problemSolving.bullets.length > 0
             ? candidateData.userCustom.problemSolving.bullets
-            : candidateData.hasProblemSolvingSection || candidateData.problemSolving?.hasSection
-              ? [
-                  'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
-                  'Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
-                ]
-              : [];
+            : [];
 
     const hasSourceDsa = Boolean(
       candidateDsaBullets.length > 0 &&
@@ -2803,9 +2802,11 @@ export class CandidateArtifactContentService {
         ? Boolean(options.includeProblemSolving)
         : hasSourceDsa;
 
-    // Fail validation if DSA is selected by Content Strategy but valid candidate-owned DSA content is missing
+    // P19: DSA section can render with link-only when no authored bullets exist.
+    // Only throw if explicitly selected but no bullets AND no profile URL exist.
     if (includeProblemSolving) {
-      if (!candidateDsaBullets || candidateDsaBullets.length === 0) {
+      const dsaProfileUrl = candidateData.problemSolving?.profileUrl;
+      if ((!candidateDsaBullets || candidateDsaBullets.length === 0) && !isRealUrl(dsaProfileUrl)) {
         throw new ValidationError(
           'Problem Solving & Algorithmic Practice section is selected by Content Strategy, but valid candidate-owned DSA content is missing from snapshot; refusing to invent unverified content.'
         );

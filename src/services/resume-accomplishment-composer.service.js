@@ -834,14 +834,23 @@ export function composeProfessionalSummary({
 
     return {
       ...cat,
-      totalScore: jobScore * 2 + evidenceScore,
+      // P19: Evidence-first scoring. Candidate evidence is weighted 2x over job signals.
+      // A domain without minimum candidate evidence cannot win regardless of job score.
+      totalScore: evidenceScore >= 3 ? (jobScore + evidenceScore * 2) : evidenceScore,
       jobScore,
       evidenceScore,
+      eligible: evidenceScore >= 3, // P19: Minimum threshold for domain eligibility
     };
   });
 
   scoredDomains.sort((a, b) => b.totalScore - a.totalScore);
-  const activeDomain = scoredDomains[0] || DOMAIN_CATALOG[3];
+
+  // P19: If the top-scoring domain has no evidence eligibility, fall back to
+  // the "general" (fullstack) domain which is the safest neutral label.
+  const eligibleDomains = scoredDomains.filter((d) => d.eligible);
+  const activeDomain = eligibleDomains.length > 0
+    ? eligibleDomains[0]
+    : DOMAIN_CATALOG[3]; // general/fullstack fallback
 
   const topRelevantTechnicalDomains = [
     activeDomain.domain,
@@ -918,34 +927,11 @@ export function composeProfessionalSummary({
   let finalSummary = `${sentence1} ${sentence2} ${sentence3}`;
 
   if (rawAuthored && typeof rawAuthored === 'string' && rawAuthored.trim().length >= 20) {
+    // P19: Do NOT force-rewrite candidate-authored domain labels.
+    // The candidate said "full-stack" because that's what they are.
+    // Rewriting it to "Backend" or "Frontend" contradicts their identity.
+    // Only polish grammar/formatting, never alter domain identity claims.
     let adapted = rawAuthored.trim();
-    const isBackendFocus = activeDomain.id === 'backend';
-    const isFrontendFocus = activeDomain.id === 'frontend';
-    const isSystemsFocus = activeDomain.id === 'systems';
-
-    if (isBackendFocus && !isFrontendFocus) {
-      adapted = adapted
-        .replace(
-          /\s*and\s+(?:modern\s+)?frontend\s+(?:interfaces|applications|development|systems|components)(?=[.!?]|\b)/gi,
-          ''
-        )
-        .replace(/\b(?:frontend\s+and\s+)/gi, '')
-        .replace(/\bfull-stack\b/gi, 'Backend');
-    } else if (isFrontendFocus && !isBackendFocus) {
-      adapted = adapted
-        .replace(
-          /\bbuilding\s+backend\s+(?:apis|systems|applications|services)\s+and\s+/gi,
-          'building '
-        )
-        .replace(
-          /\s*and\s+(?:robust\s+)?backend\s+(?:apis|systems|applications|services)(?=[.!?]|\b)/gi,
-          ''
-        )
-        .replace(/\b(?:backend\s+and\s+)/gi, '')
-        .replace(/\bfull-stack\b/gi, 'Frontend');
-    } else if (isSystemsFocus) {
-      adapted = adapted.replace(/\bfull-stack\b/gi, 'Systems');
-    }
 
     const polishedAuthored = polishProfessionalSummary(adapted);
     const authoredSentences = splitSentences(polishedAuthored);

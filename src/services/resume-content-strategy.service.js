@@ -819,12 +819,45 @@ export function deriveTargetRoleHeading({
         ? 'FRESHER'
         : 'EXPERIENCED';
 
+  // P19: Derive candidate-owned headline that is stable across target jobs.
+  // The candidateHeadline comes from the candidate's stored profile and evidence,
+  // NOT from the target job title. Seniority inflation protection is applied.
+  let candidateHeadline = '';
+  const profileHeadline = profile.headline || meta.headline || meta.userCustom?.headline;
+  if (profileHeadline && typeof profileHeadline === 'string' && profileHeadline.trim()) {
+    let curated = profileHeadline.trim();
+    if (isFresher) {
+      curated = curated
+        .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
+        .trim();
+    }
+    candidateHeadline = curated;
+  } else if (hasFullStackEvidence) {
+    candidateHeadline = 'Full-Stack Software Engineer';
+  } else if (hasBackendEvidence) {
+    candidateHeadline = 'Backend Engineer';
+  } else if (hasFrontendEvidence) {
+    candidateHeadline = 'Frontend Engineer';
+  } else {
+    candidateHeadline = 'Software Engineer';
+  }
+
+  // P19: targetRoleFamily — normalized domain classification from evidence
+  let targetRoleFamily = 'GENERAL';
+  if (hasFullStackEvidence) targetRoleFamily = 'FULL_STACK';
+  else if (hasBackendEvidence) targetRoleFamily = 'BACKEND';
+  else if (hasFrontendEvidence) targetRoleFamily = 'FRONTEND';
+
   return {
     heading,
     rawTitle: rawJobTitle || heading,
     seniorityAdjusted,
     candidateSeniority,
     candidateArchetype,
+    // P19 additions: semantic separation of candidate identity from job tailoring
+    candidateHeadline,
+    targetRole: rawJobTitle || heading,
+    targetRoleFamily,
   };
 }
 

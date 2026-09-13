@@ -640,6 +640,36 @@ export const StructuredResumeDocumentSchema = z
     optionalSections: SourceOptionalSectionsSnapshotSchema.default({}),
     tailoringPlan: ResumeTailoringPlanSchema.optional().nullable(),
     createdAt: DateOrIsoStringSchema.optional(),
+    // P19: Debug trace for forensic analysis of composition decisions
+    debugTrace: z
+      .object({
+        candidateHeadline: z.string().optional(),
+        targetRole: z.string().optional(),
+        targetRoleFamily: z.string().optional(),
+        domainScoring: z
+          .array(
+            z.object({
+              domain: z.string(),
+              jobScore: z.number(),
+              evidenceScore: z.number(),
+              totalScore: z.number(),
+              eligible: z.boolean().optional(),
+            })
+          )
+          .optional(),
+        activeDomain: z.string().optional(),
+        dsaDecision: z
+          .object({
+            hasCorroboration: z.boolean().optional(),
+            hasCandidateBullets: z.boolean().optional(),
+            hasProfileUrl: z.boolean().optional(),
+            sectionIncluded: z.boolean().optional(),
+          })
+          .optional(),
+        syntheticContentBlocked: z.array(z.string()).optional(),
+      })
+      .optional()
+      .nullable(),
   })
   .strict();
 

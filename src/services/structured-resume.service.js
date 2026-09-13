@@ -225,7 +225,9 @@ export function buildStructuredResumeDocument({
       source.candidate?.displayName ||
       source.candidate?.name ||
       'Candidate',
-    headline: incomingPlan?.targetRoleTitle || tailoredHeadingInfo.heading,
+    // P19: Use candidate-owned headline, NOT the target job title.
+    // candidateHeadline is stable across jobs; heading is job-derived.
+    headline: tailoredHeadingInfo.candidateHeadline || tailoredHeadingInfo.heading,
     email:
       source.canonicalEmail ||
       source.email ||
@@ -968,7 +970,8 @@ export function buildStructuredResumeDocument({
     sectionOrder: parsedPlan.sectionOrder,
     candidateIdentity: {
       ...candidateIdentity,
-      headline: parsedPlan.targetRoleTitle,
+      // P19: Use candidate-owned headline, NOT target role title
+      headline: tailoredHeadingInfo?.candidateHeadline || candidateIdentity.headline || parsedPlan.targetRoleTitle,
     },
     summary,
     skills: {
@@ -988,6 +991,22 @@ export function buildStructuredResumeDocument({
     },
     tailoringPlan: parsedPlan,
     createdAt: new Date().toISOString(),
+    // P19: Debug trace for forensic analysis of composition decisions
+    debugTrace: {
+      candidateHeadline: tailoredHeadingInfo?.candidateHeadline || null,
+      targetRole: tailoredHeadingInfo?.targetRole || parsedPlan.targetRoleTitle,
+      targetRoleFamily: tailoredHeadingInfo?.targetRoleFamily || null,
+      dsaDecision: {
+        hasCandidateBullets: Boolean(dsa?.bullets?.length > 0),
+        hasProfileUrl: Boolean(dsa?.profileUrl),
+        sectionIncluded: Boolean(dsa?.hasSection),
+      },
+      syntheticContentBlocked: [
+        'DSA_HARDCODED_PROSE',
+        'DOMAIN_LABEL_REWRITING',
+        'HEADLINE_JOB_TITLE_LEAK',
+      ],
+    },
   };
 
   const built = StructuredResumeDocumentSchema.parse(doc);

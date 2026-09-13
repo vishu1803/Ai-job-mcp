@@ -3,6 +3,59 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 34: Resume Pipeline Forensic Repair (P19)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-13  
+**Baseline Main HEAD:** `2c1dfb1144f12e447a5b8ce2eab126aa64f104f1`  
+**Parent Commit:** `823344b03c243f3dd08b14ccd7447671a893193d`  
+
+**Context & Core Objective:**
+Fixed 10 identified bugs in the resume generation pipeline that allowed synthetic content injection, candidate identity contamination from target jobs, and summary domain contradictions. All fixes preserve P18 provenance invariants.
+
+**Bugs Fixed:**
+
+1. **Bug #1: Synthetic DSA Content Injection (`src/services/candidate-artifact-content.service.js`)**
+   - **Root Cause:** Two fallback paths (lines 1519–1522 and 2781–2784) fabricated "Solved algorithmic challenges covering dynamic programming, graph traversal..." prose when a candidate had a LeetCode URL, DSA skills, or DSA coursework but no authored bullets.
+   - **Fix:** Removed both hardcoded synthetic fallbacks. DSA bullets now come strictly from candidate-authored stored data (`userCustom.problemSolving.bullets`, `metadata.problemSolving.bullets`, `metadata.resumeData.problemSolving.bullets`). Empty array when none exist. Section can still render with link-only representation when a valid profile URL exists.
+
+2. **Bug #2: Candidate Headline Leaking Target Job Title (`src/services/resume-content-strategy.service.js`, `src/services/structured-resume.service.js`)**
+   - **Root Cause:** `deriveTargetRoleHeading` returned only `heading` (derived from `jobPosting.title`), and this was directly assigned to `candidateIdentity.headline` in the structured resume. Applying to "Senior Backend Engineer" would make a frontend developer's resume say "Senior Backend Engineer."
+   - **Fix:** Extended `deriveTargetRoleHeading` to return `{ candidateHeadline, targetRole, targetRoleFamily }`. `candidateHeadline` derives from the candidate's stored profile headline (with fresher seniority protection) or from evidence-grounded role family. It is stable across different target jobs. Updated `structured-resume.service.js` to use `candidateHeadline` for `candidateIdentity.headline`.
+
+3. **Bug #3: Summary Domain Contradictions (`src/services/resume-accomplishment-composer.service.js`)**
+   - **Root Cause:** Domain scoring formula `totalScore: jobScore * 2 + evidenceScore` allowed the target job to completely overpower candidate evidence. A backend job posting could force a frontend candidate to be labeled "Backend-focused Software Engineer." Additionally, authored summaries had domain labels force-rewritten (e.g., "full-stack" → "Backend").
+   - **Fix:** Changed scoring to `evidenceScore >= 3 ? (jobScore + evidenceScore * 2) : evidenceScore`. Domains require minimum evidence threshold of 3 for eligibility. Falls back to general/fullstack when no domain is eligible. Removed all domain-label force-rewriting regex logic from authored summary adaptation.
+
+4. **Bug #10: End-to-End Debug Trace (`src/domain/career/resume.schemas.js`, `src/services/structured-resume.service.js`)**
+   - **Fix:** Added optional `debugTrace` field to `StructuredResumeDocumentSchema` recording `candidateHeadline`, `targetRole`, `targetRoleFamily`, `dsaDecision`, and `syntheticContentBlocked` categories. Populated in `structured-resume.service.js` during document construction.
+
+**Files Changed:**
+- `src/services/candidate-artifact-content.service.js` — Removed synthetic DSA prose (Bug #1)
+- `src/services/resume-content-strategy.service.js` — Added `candidateHeadline`, `targetRole`, `targetRoleFamily` (Bug #2)
+- `src/services/structured-resume.service.js` — Use candidateHeadline for identity, populate debugTrace (Bug #2, #10)
+- `src/services/resume-accomplishment-composer.service.js` — Evidence-first domain scoring, removed domain label rewriting (Bug #3)
+- `src/domain/career/resume.schemas.js` — Added debugTrace to StructuredResumeDocumentSchema (Bug #10)
+- `tests/unit/p19-forensic-repair.test.js` — 30 new regression tests
+
+**Verification & Evidence:**
+- **P19 Forensic Repair Suite (`tests/unit/p19-forensic-repair.test.js`):**
+  - **30/30 PASS** across 10 suites:
+    - Bug #1 Cases 12–15: Synthetic DSA removal verified, source code scan confirms no banned phrases
+    - Bug #2 Cases 16–18: candidateHeadline stable across jobs, fresher seniority protection works
+    - Bug #3 Cases 19–22: Evidence-first scoring, authored labels preserved, neutral fallback works
+    - Bug #4 Cases 1–4: Rich content preservation confirmed
+    - Bug #5 Cases 5–7: Distinct contribution classes preserved in claim planner
+    - Bug #6 Cases 8–9: Single-fact projects produce exactly 1 bullet, empty-fact projects produce 0
+    - Bug #7 Cases 10–11: Provenance authority ordering validated
+    - Bug #8 Case 23: Professional summary is substantive (50+ chars)
+    - Bug #9 Case 24: isAccomplishmentCandidate respects provenance level
+    - Bug #10 Cases 25–30: debugTrace schema validates, optional field works, domain scoring array accepted
+- **Full Regression Suite:**
+  - **48/48 PASS** across P16, P17, P18, P19 suites, 0 failures, 0 regressions.
+
+---
+
 ### PART 33: Rich, ATS-Friendly Resume Composition Without Weakening Evidence Integrity
 
 **Status:** COMPLETE & VERIFIED  
