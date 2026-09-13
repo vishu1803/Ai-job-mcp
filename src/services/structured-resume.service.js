@@ -46,6 +46,7 @@ import {
   buildCanonicalFactInventory,
   scoreFactsForJob,
   calculateRequirementCoverage,
+  getJobRequirementConcepts,
 } from './candidate-fact-inventory.service.js';
 
 /**
@@ -397,11 +398,24 @@ export function buildStructuredResumeDocument({
       selectionFactsByProject.get(slugifyProject(candProj.id || candProj.projectId || '')) ||
       selectionFactsByProject.get(slugifyProject(candProj.name || candProj.title || '')) ||
       [];
-    const requirementCoverage = calculateRequirementCoverage(projectFacts, jobPosting);
+    const requirementCoverage = calculateRequirementCoverage(
+      [
+        ...projectFacts,
+        {
+          factId: `project-technologies-${candProj.id || candProj.projectId || candProj.name || 'unknown'}`,
+          text: '',
+          technologies: Array.isArray(candProj.technologies) ? candProj.technologies : [],
+        },
+      ],
+      jobPosting
+    );
     const hasSpecificJobRequirements = requirementCoverage.totalCount > 0;
 
     return (
-      (!hasSpecificJobRequirements || requirementCoverage.coverage >= 0.25) &&
+      (!hasSpecificJobRequirements ||
+        requirementCoverage.tier !== 'D' ||
+        hasMatchedReqs ||
+        (ranking?.matchedRequirementIds || []).length > 0) &&
       (score >= STRONG_RELEVANCE_FLOOR ||
         hasMatchedReqs ||
         band === 'HIGH' ||
@@ -412,6 +426,24 @@ export function buildStructuredResumeDocument({
       (evidenceCount > 0 ||
         totalCandidateFacts > 0 ||
         (candProj.summary && String(candProj.summary).trim()))
+    );
+  };
+
+  const getProjectCoverage = (candProj) => {
+    const projectFacts =
+      selectionFactsByProject.get(slugifyProject(candProj.id || candProj.projectId || '')) ||
+      selectionFactsByProject.get(slugifyProject(candProj.name || candProj.title || '')) ||
+      [];
+    return calculateRequirementCoverage(
+      [
+        ...projectFacts,
+        {
+          factId: `project-technologies-${candProj.id || candProj.projectId || candProj.name || 'unknown'}`,
+          text: '',
+          technologies: Array.isArray(candProj.technologies) ? candProj.technologies : [],
+        },
+      ],
+      jobPosting
     );
   };
 
@@ -471,20 +503,21 @@ export function buildStructuredResumeDocument({
           const rSlug = slugifyProject(r.projectName || r.name || '');
           const candProj = candProjMap.get(rId) || (rSlug ? candProjMap.get(rSlug) : null);
           if (!candProj) return null;
-          const facts =
-            selectionFactsByProject.get(slugifyProject(candProj.id || candProj.projectId || '')) ||
-            selectionFactsByProject.get(slugifyProject(candProj.name || candProj.title || '')) ||
-            [];
+          const coverage = getProjectCoverage(candProj);
           return {
             ranking: r,
             candProj,
-            coverage: calculateRequirementCoverage(facts, jobPosting).coverage,
+            coverage: coverage.coverage,
+            meaningfulCoverage: coverage.meaningfulCoverage,
+            tier: coverage.tier,
           };
         })
         .filter(Boolean)
         .sort(
           (a, b) =>
-            b.coverage - a.coverage ||
+            ({ A: 4, B: 3, C: 2, D: 1 }[b.tier] || 0) -
+              ({ A: 4, B: 3, C: 2, D: 1 }[a.tier] || 0) ||
+            b.meaningfulCoverage - a.meaningfulCoverage ||
             (b.ranking.relevanceScore ?? b.ranking.score ?? 0) -
               (a.ranking.relevanceScore ?? a.ranking.score ?? 0)
         );
@@ -523,6 +556,24 @@ export function buildStructuredResumeDocument({
           selectedProjectIds.push(candProjId);
         }
         if (selectedProjectIds.length >= dynamicProjectBudget) break;
+      }
+
+      // Safe fallback: retain the best defensible partial match rather than
+      // dropping the entire project section when no project reaches Tier A/B.
+      if (selectedProjectIds.length === 0 && rankedCandidates.length > 0) {
+        const fallback = rankedCandidates.find(({ candProj, ranking, tier }) => {
+          if (tier === 'D') return false;
+          const hasContent =
+            (Array.isArray(candProj.bullets) && candProj.bullets.length > 0) ||
+            (Array.isArray(candProj.highlights) && candProj.highlights.length > 0) ||
+            (Array.isArray(candProj.evidence) && candProj.evidence.length > 0) ||
+            Number(candProj.evidenceCount || 0) > 0;
+          return hasContent && (isProjectStrongEnough(candProj, ranking) || tier === 'C');
+        });
+        if (fallback) {
+          const fallbackId = fallback.candProj.id || fallback.candProj.projectId;
+          if (fallbackId) selectedProjectIds.push(fallbackId);
+        }
       }
     } else if (
       Array.isArray(jobPosting?.recommendedProjects) &&
@@ -1135,6 +1186,34 @@ export function buildStructuredResumeDocument({
     summary.composedFromFactIds = [];
   }
 
+  const requirementConcepts = getJobRequirementConcepts(jobPosting);
+  const selectedFactSet = selectionScoredFacts.filter(
+    (fact) =>
+      selectedProjectIds.some(
+        (projectId) =>
+          fact.association?.projectId === projectId ||
+          fact.ownerId === projectId ||
+          slugifyProject(fact.association?.projectName || '') === slugifyProject(projectId)
+      ) || fact.surface === 'experience'
+  );
+  const requirementCoverageReport = {
+    requirements: requirementConcepts.map((concept) => ({
+      id: concept.id,
+      text: concept.text,
+      importance: concept.importanceLabel,
+      category: concept.requirementClass,
+      coveredByFactIds: selectedFactSet
+        .filter((fact) => calculateRequirementCoverage([fact], {
+          requirements: [concept],
+          skills: [],
+        }).matchedRequirementIds.includes(concept.id))
+        .map((fact) => fact.factId || fact.id)
+        .filter(Boolean),
+    })),
+    selectedProjectIds: [...selectedProjectIds],
+    selectedFactIds: selectedFactSet.map((fact) => fact.factId || fact.id).filter(Boolean),
+  };
+
   const doc = {
     documentId: crypto.randomUUID(),
     schemaVersion: '2.0.0',
@@ -1198,6 +1277,7 @@ export function buildStructuredResumeDocument({
           ])
         ),
       },
+      requirementCoverage: requirementCoverageReport,
     },
   };
 

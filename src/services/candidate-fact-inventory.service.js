@@ -1164,6 +1164,61 @@ const GENERIC_REQUIREMENT_TOKENS = new Set([
     'working',
 ]);
 
+const REQUIREMENT_ALIASES = new Map([
+  ['reactjs', 'react'],
+  ['react.js', 'react'],
+  ['nextjs', 'next.js'],
+  ['restful', 'rest'],
+  ['restfulapis', 'rest api'],
+  ['restapi', 'rest api'],
+  ['httpapi', 'rest api'],
+  ['postgres', 'postgresql'],
+  ['k8s', 'kubernetes'],
+  ['js', 'javascript'],
+  ['ts', 'typescript'],
+]);
+
+const REQUIREMENT_CLASS_BY_CATEGORY = Object.freeze({
+  SKILL: 'TECHNOLOGY',
+  EXPERIENCE: 'RESPONSIBILITY',
+  DOMAIN: 'DOMAIN',
+  EDUCATION: 'EDUCATION',
+  CERTIFICATION: 'CERTIFICATION',
+  LOCATION: 'LOCATION',
+  ELIGIBILITY: 'ELIGIBILITY',
+});
+
+function normalizeRequirementToken(token) {
+  const normalized = String(token || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9+#.]+/g, '');
+  return REQUIREMENT_ALIASES.get(normalized) || normalized;
+}
+
+function classifyRequirement(raw, text) {
+  const category = typeof raw === 'object' ? String(raw.category || '').toUpperCase() : '';
+  if (REQUIREMENT_CLASS_BY_CATEGORY[category]) return REQUIREMENT_CLASS_BY_CATEGORY[category];
+  if (/\b(certif|degree|bachelor|master|phd|education)\b/i.test(text)) return 'EDUCATION';
+  if (/\b(lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop)\b/i.test(text)) {
+    return 'RESPONSIBILITY';
+  }
+  return 'TECHNOLOGY';
+}
+
+function requirementImportance(raw, text) {
+  const explicit = typeof raw === 'object' ? String(raw.importance || '').toUpperCase() : '';
+  if (explicit === 'REQUIRED') return { label: 'REQUIRED', weight: 1 };
+  if (explicit === 'PREFERRED') return { label: 'PREFERRED', weight: 0.7 };
+  if (explicit === 'OPTIONAL') return { label: 'OPTIONAL', weight: 0.35 };
+  if (/\b(must|required|minimum|essential|need to)\b/i.test(text)) {
+    return { label: 'REQUIRED', weight: 1 };
+  }
+  if (/\b(preferred|ideally|nice to have|bonus)\b/i.test(text)) {
+    return { label: 'PREFERRED', weight: 0.7 };
+  }
+  return { label: 'PREFERRED', weight: 0.7 };
+}
+
   /**
    * Returns specific, structured job concepts used consistently by ranking and
    * selection. Generic role vocabulary is intentionally excluded.
@@ -1184,20 +1239,26 @@ export function getJobRequirementConcepts(jobPosting) {
         .toLowerCase()
         .replace(/[^a-z0-9+#.]+/g, ' ')
         .split(/\s+/)
-        .filter((token) => token.length >= 3 && !GENERIC_REQUIREMENT_TOKENS.has(token));
+        .filter((token) => token.length >= 2 && !GENERIC_REQUIREMENT_TOKENS.has(token))
+        .map(normalizeRequirementToken)
+        .filter((token) => token && !GENERIC_REQUIREMENT_TOKENS.has(token));
       if (!text || tokens.length === 0) return;
-      const key = tokens.join(' ');
+      const uniqueTokens = [...new Set(tokens)];
+      const key = uniqueTokens.join(' ');
       if (seen.has(key)) return;
       seen.add(key);
+      const importance = requirementImportance(raw, text);
       concepts.push({
         id:
           typeof raw === 'object' && raw?.id
             ? String(raw.id)
             : `${fallbackPrefix}-${index + 1}`,
         text,
-        importance:
-          typeof raw === 'object' && typeof raw.importance === 'number' ? raw.importance : 1,
-        tokens: new Set(tokens),
+        importance: importance.weight,
+        importanceLabel: importance.label,
+        requirementClass: classifyRequirement(raw, text),
+        normalizedName: key,
+        tokens: new Set(uniqueTokens),
       });
     };
 
@@ -1216,30 +1277,78 @@ export function getJobRequirementConcepts(jobPosting) {
 export function calculateRequirementCoverage(facts, jobPosting) {
     const concepts = getJobRequirementConcepts(jobPosting);
     if (concepts.length === 0) {
-      return { matchedRequirementIds: [], coveredCount: 0, totalCount: 0, coverage: 1 };
+      return {
+        matchedRequirementIds: [],
+        coveredCount: 0,
+        totalCount: 0,
+        coverage: 1,
+        meaningfulCoverage: 1,
+        tier: 'C',
+        matches: [],
+      };
     }
     const matched = new Set();
+    const matches = [];
     for (const fact of Array.isArray(facts) ? facts : []) {
       const text = String(fact?.text || '').toLowerCase();
       const technologies = Array.isArray(fact?.technologies)
-        ? fact.technologies.map((technology) => String(technology).toLowerCase())
+        ? fact.technologies.map((technology) => normalizeRequirementToken(technology))
         : [];
       for (const concept of concepts) {
-        const phraseMatch = text.includes(concept.text.toLowerCase());
+        const normalizedText = text.replace(/[^a-z0-9+#.]+/g, ' ');
         const tokenMatches = [...concept.tokens].filter(
-          (token) => text.includes(token) || technologies.some((technology) => technology.includes(token))
+          (token) =>
+            new RegExp(`(^|[^a-z0-9+#.])${token.replace(/[.+]/g, '\\$&')}(?=$|[^a-z0-9+#.])`, 'i').test(
+              normalizedText
+            ) ||
+            technologies.some(
+              (technology) => technology === token || technology.includes(token)
+            )
         ).length;
-        if (phraseMatch || (concept.tokens.size === 1 && tokenMatches === 1) ||
-            (concept.tokens.size > 1 && tokenMatches / concept.tokens.size >= 0.6)) {
+        const phraseMatch = normalizedText.includes(concept.normalizedName.replace(/\./g, '.'));
+        if (
+          phraseMatch ||
+          (concept.tokens.size === 1 && tokenMatches === 1) ||
+          (concept.tokens.size > 1 && tokenMatches / concept.tokens.size >= 0.6)
+        ) {
           matched.add(concept.id);
+          matches.push({
+            requirementId: concept.id,
+            requirement: concept.text,
+            importance: concept.importanceLabel,
+            requirementClass: concept.requirementClass,
+            factId: fact.factId || fact.id || null,
+            signal: phraseMatch ? 'EXACT_CONCEPT' : 'NORMALIZED_TOKEN',
+          });
         }
       }
     }
+    const totalWeight = concepts.reduce((sum, concept) => sum + concept.importance, 0);
+    const coveredWeight = concepts
+      .filter((concept) => matched.has(concept.id))
+      .reduce((sum, concept) => sum + concept.importance, 0);
+    const meaningfulCoverage = totalWeight > 0 ? coveredWeight / totalWeight : 0;
+    const requiredConcepts = concepts.filter((concept) => concept.importanceLabel === 'REQUIRED');
+    const requiredCovered = requiredConcepts.filter((concept) => matched.has(concept.id)).length;
+    const requiredCoverage =
+      requiredConcepts.length > 0 ? requiredCovered / requiredConcepts.length : meaningfulCoverage;
+    const tier =
+      requiredCoverage >= 0.75 || meaningfulCoverage >= 0.7
+        ? 'A'
+        : requiredCoverage > 0 || meaningfulCoverage >= 0.35
+          ? 'B'
+          : matched.size > 0
+            ? 'C'
+            : 'D';
     return {
       matchedRequirementIds: [...matched],
       coveredCount: matched.size,
       totalCount: concepts.length,
       coverage: matched.size / concepts.length,
+      meaningfulCoverage,
+      requiredCoverage,
+      tier,
+      matches,
     };
 }
 

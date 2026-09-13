@@ -35,6 +35,7 @@ import { compressCandidateBullet } from './resume-content-strategy.service.js';
 import {
   buildCanonicalFactInventory,
   scoreFactsForJob,
+  calculateRequirementCoverage,
   PROBLEM_SOLVING_PROJECT_KEY,
   isAccomplishmentCandidate,
 } from './candidate-fact-inventory.service.js';
@@ -459,6 +460,28 @@ export class ResumeContentOptimizer {
   }) {
     const moves = [];
     const projects = Array.isArray(structuredResume?.projects) ? structuredResume.projects : [];
+    const hasJobRequirements =
+      Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0 ||
+      Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0;
+    const projectCoverage = (project) => {
+      const projectKey = project.id || project.projectId || project.name;
+      const facts = scoredInventoryFacts.filter(
+        (fact) =>
+          fact.association?.projectId === projectKey ||
+          fact.ownerId === projectKey ||
+          fact.association?.projectName === project.name
+      );
+      return calculateRequirementCoverage(
+        [
+          ...facts,
+          {
+            text: '',
+            technologies: Array.isArray(project.technologies) ? project.technologies : [],
+          },
+        ],
+        jobPosting
+      );
+    };
     const relevanceByProject = new Map();
     for (const fact of scoredInventoryFacts) {
       const key = fact.association?.projectId || fact.ownerId || fact.association?.projectName;
@@ -517,7 +540,11 @@ export class ResumeContentOptimizer {
         if (projects.some((existing) => (existing.projectId || existing.name) === candidateId)) continue;
         const candidateRelevance =
           relevanceByProject.get(String(candidateId).toLowerCase().replace(/[^a-z0-9]/g, '')) || 0;
-        if (candidateRelevance >= currentRelevance + 15) {
+        const candidateCoverage = projectCoverage(candidate);
+        if (
+          candidateRelevance >= currentRelevance + 15 &&
+          (!hasJobRequirements || candidateCoverage.tier !== 'D')
+        ) {
           moves.push({
             type: OPTIMIZER_MOVE_TYPES.REPLACE_PROJECT,
             id: candidateId,
@@ -550,6 +577,8 @@ export class ResumeContentOptimizer {
           evidenceCount >= 5 ||
           (Array.isArray(candProj.highlights) && candProj.highlights.length > 0);
         if (!hasRenderableContent) continue;
+        const candidateCoverage = projectCoverage(candProj);
+        if (hasJobRequirements && candidateCoverage.tier === 'D') continue;
 
         const spaceCost = 55; // ~55pt for project header + initial bullet
         if (availableSpacePt < spaceCost && availableSpacePt > 0) continue;

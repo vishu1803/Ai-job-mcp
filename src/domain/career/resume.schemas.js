@@ -708,6 +708,23 @@ export const StructuredResumeDocumentSchema = z
             renderedFactIds: z.array(z.string()).optional(),
           })
           .optional(),
+        requirementCoverage: z
+          .object({
+            requirements: z
+              .array(
+                z.object({
+                  id: z.string(),
+                  text: z.string(),
+                  importance: z.string(),
+                  category: z.string(),
+                  coveredByFactIds: z.array(z.string()).default([]),
+                })
+              )
+              .default([]),
+            selectedProjectIds: z.array(z.string()).default([]),
+            selectedFactIds: z.array(z.string()).default([]),
+          })
+          .optional(),
       })
       .optional()
       .nullable(),
@@ -770,4 +787,3 @@ export const EvidenceValidationReceipt = EvidenceValidationReceiptSchema;
 export const RESUME_GENERATION_CONTRACT_VERSION = 'P16-001F';
 export const LEGACY_GENERATION_CONTRACT_VERSION = 'LEGACY';
 export const DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION = '2.0.0';
-

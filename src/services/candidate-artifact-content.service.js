@@ -48,6 +48,7 @@ export {
   countDistinctCanonicalFacts,
 };
 import { selectAndRephraseProjectBullets } from './resume-content-strategy.service.js';
+import { getJobRequirementConcepts } from './candidate-fact-inventory.service.js';
 import {
   CANONICAL_TECH_MAP,
   NOISY_TECH_SET as CENTRAL_NOISY_TECH_SET,
@@ -2022,25 +2023,7 @@ export class CandidateArtifactContentService {
     const jobDesc =
       `${targetPosting.title || ''} ${targetPosting.description || ''} ${(targetPosting.requirements || []).join(' ')} ${(targetPosting.skills || []).join(' ')}`.toLowerCase();
 
-    const isFullStackRole =
-      /full[- ]?stack/i.test(jobTitle) ||
-      /full[- ]?stack/i.test(jobDesc) ||
-      ((/react|frontend|vue|angular|next\.js/i.test(jobDesc) ||
-        (targetPosting.skills || []).some((s) => /react|next\.js/i.test(s))) &&
-        (/backend|api|server|database|node|python|fastapi/i.test(jobDesc) ||
-          (targetPosting.skills || []).some((s) => /backend|python|fastapi|node/i.test(s))));
-
-    const isBackendRole =
-      !isFullStackRole &&
-      (/backend|api|database|server|distributed|infrastructure|microservice/i.test(jobTitle) ||
-        /backend|api|database|server|sql|postgresql|rest/i.test(jobDesc));
-
-    const isFrontendRole =
-      !isFullStackRole &&
-      !isBackendRole &&
-      (/frontend|front[- ]?end|ui|web developer/i.test(jobTitle) ||
-        (/frontend|react|vue|angular|next\.js|css|html/i.test(jobDesc) &&
-          !/backend|database|server|distributed/i.test(jobTitle)));
+    const requirementConcepts = getJobRequirementConcepts(targetPosting);
 
     const jobSkillTokens = new Set(
       (targetPosting.skills || []).map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ''))
@@ -2323,61 +2306,7 @@ export class CandidateArtifactContentService {
         if (!matchReason) matchReason = 'Demonstrated in featured repository projects';
       }
 
-      if (isFullStackRole) {
-        if (
-          category === 'Frontend & Web' ||
-          category === 'Backend & APIs' ||
-          category === 'Databases & ORMs'
-        ) {
-          score += 25;
-          if (!matchReason) matchReason = 'Core full-stack architecture competency';
-        } else if (category === 'Languages') {
-          score += 20;
-          if (!matchReason) matchReason = 'Core programming language';
-        } else if (category === 'Cloud, DevOps & Systems') {
-          score += 15;
-          if (!matchReason) matchReason = 'Infrastructure & DevOps automation competency';
-        }
-      } else if (isBackendRole) {
-        if (category === 'Databases & ORMs' || category === 'Backend & APIs') {
-          score += 25;
-          if (!matchReason) matchReason = 'Core backend / database architecture competency';
-        } else if (category === 'Languages') {
-          score += 20;
-          if (!matchReason) matchReason = 'Core programming language';
-        } else if (category === 'Cloud, DevOps & Systems') {
-          score += 15;
-          if (!matchReason) matchReason = 'Infrastructure & DevOps automation competency';
-        } else if (category === 'Frontend & Web') {
-          if (jobSkillTokens.has(token) || authMatch) {
-            score += 25;
-            if (!matchReason) matchReason = 'Frontend requirement for backend role';
-          } else {
-            score += 5;
-            if (!matchReason) matchReason = 'Secondary full-stack web framework';
-          }
-        }
-      } else if (isFrontendRole) {
-        if (category === 'Frontend & Web') {
-          score += 30;
-          if (!matchReason) matchReason = 'Core frontend architecture competency';
-        } else if (category === 'Languages') {
-          score += 25;
-          if (!matchReason) matchReason = 'Core programming language';
-        } else if (category === 'Backend & APIs') {
-          if (jobSkillTokens.has(token) || authMatch) {
-            score += 25;
-            if (!matchReason) matchReason = 'Backend requirement for frontend role';
-          } else {
-            score += 5;
-            if (!matchReason) matchReason = 'Secondary backend competency';
-          }
-        } else if (category === 'Databases & ORMs') {
-          score += 5;
-        } else if (category === 'Cloud, DevOps & Systems') {
-          score += 10;
-        }
-      } else {
+      if (!matchReason) {
         if (
           category === 'Languages' ||
           category === 'Frontend & Web' ||
@@ -2387,6 +2316,20 @@ export class CandidateArtifactContentService {
           score += 20;
           if (!matchReason) matchReason = 'Core technical competency';
         }
+      }
+
+      const conceptMatch = requirementConcepts.find((concept) => {
+        const normalizedName = normalizeSkillToken(name);
+        return [...concept.tokens].some(
+          (conceptToken) =>
+            normalizedName === normalizeSkillToken(conceptToken) ||
+            normalizedName.includes(normalizeSkillToken(conceptToken))
+        );
+      });
+      if (conceptMatch && !matchedRequirementId) {
+        matchedRequirementId = conceptMatch.id;
+        score += Math.round(35 * conceptMatch.importance);
+        matchReason = 'Candidate-owned skill covers a normalized job requirement';
       }
 
       if (provenance === 'VERIFIED' || provenance === 'CORROBORATED') {
@@ -2433,13 +2376,15 @@ export class CandidateArtifactContentService {
 
     for (const s of scoredSkills) {
       const isNoise =
-        (backendNoise.has(s.name.toLowerCase()) || s.category === 'Developer Tooling') &&
+        (backendNoise.has(s.name.toLowerCase()) ||
+          s.category === 'Developer Tooling' ||
+          (s.category === 'Frontend & Web' &&
+            !s.isDirectMatch &&
+            !s.matchedRequirementId &&
+            !featuredProjectTechs.has(s.name.toLowerCase()))) &&
         !s.isDirectMatch;
       const isSelfDeclaredUnverified = s.provenance === 'SELF_DECLARED' && s.score < 15;
-      const isSecondaryFrontend = isBackendRole && s.category === 'Frontend & Web' && s.score < 25;
-
       const isClaimedBackendWithoutEvidence =
-        isBackendRole &&
         s.category === 'Backend & APIs' &&
         (s.provenance === 'CLAIMED' || s.provenance === 'SELF_DECLARED') &&
         s.evidenceCount === 0 &&
@@ -2493,15 +2438,6 @@ export class CandidateArtifactContentService {
           status: 'OMITTED',
           reason: 'Self-declared without repository evidence or direct job requirement',
         });
-      } else if (isSecondaryFrontend) {
-        skillAudit.push({
-          skill: s.name,
-          category: s.category,
-          provenance: s.provenance,
-          score: s.score,
-          status: 'OMITTED',
-          reason: 'Frontend technology deprioritized for backend engineering focus',
-        });
       } else if (s.score >= 15 && categoryGroups[s.category]) {
         // Enforce max 2 self-declared skills per category group to preserve evidence balance
         const existingSelfDeclared = categoryGroups[s.category].filter(
@@ -2546,45 +2482,11 @@ export class CandidateArtifactContentService {
     }
 
     // Role-based baseline weights for deterministic tie-breaking
-    const roleBasePriority = isBackendRole
-      ? {
-          'Backend & APIs': 100,
-          'Databases & ORMs': 90,
-          Languages: 80,
-          'Cloud, DevOps & Systems': 70,
-          'Frontend & Web': 10,
-        }
-      : isFrontendRole
-        ? {
-            'Frontend & Web': 100,
-            Languages: 90,
-            'Backend & APIs': 50,
-            'Databases & ORMs': 40,
-            'Cloud, DevOps & Systems': 30,
-          }
-        : isFullStackRole
-          ? {
-              'Backend & APIs': 90,
-              'Frontend & Web': 90,
-              Languages: 85,
-              'Databases & ORMs': 80,
-              'Cloud, DevOps & Systems': 70,
-            }
-          : {
-              Languages: 90,
-              'Backend & APIs': 85,
-              'Frontend & Web': 80,
-              'Databases & ORMs': 75,
-              'Cloud, DevOps & Systems': 70,
-            };
-
     const sortedCategories = Object.keys(categoryGroups)
       .filter((cat) => categoryGroups[cat].length > 0)
       .sort((a, b) => {
         const scoreDiff = (categoryScores[b] || 0) - (categoryScores[a] || 0);
         if (scoreDiff !== 0) return scoreDiff;
-        const prioDiff = (roleBasePriority[b] || 0) - (roleBasePriority[a] || 0);
-        if (prioDiff !== 0) return prioDiff;
         return a.localeCompare(b);
       });
 

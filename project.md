@@ -28,6 +28,29 @@
 **Evidence boundary:**
 All selection changes operate on canonical candidate facts and existing candidate-authored experience. No synthetic accomplishments, ownership upgrades, or provider-specific assumptions were introduced.
 
+### PART 38: Generic Requirement Tiers and Safe Tailoring Fallback (P21)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-13
+
+**Implemented:**
+- Added normalized requirement concepts with aliases, requirement classes, and REQUIRED/PREFERRED/OPTIONAL importance handling.
+- Replaced broad substring-only coverage with exact concept, normalized token, weighted importance, required-coverage, and tiered coverage signals.
+- Added project coverage tiers (A/B/C/D) and technology-aware coverage inputs.
+- Replaced the zero-project hard gate with a safe fallback that selects the best evidence-backed partial project when defensible; genuinely unmatched projects remain omitted.
+- Added deterministic requirement coverage telemetry to the structured resume debug trace.
+- Removed role-title regexes from skill prioritization; candidate skills now gain relevance from normalized job concepts and candidate/project evidence rather than hardcoded frontend/backend role branches.
+- Preserved generic unrequested-framework/tooling suppression and all candidate provenance boundaries.
+
+**Research input:**
+- Reviewed ESCO occupation/skill relationships and aliases, O*NET occupation-context/task/technology dimensions, and open-source hybrid matching patterns. Production matching retains raw employer text and uses normalization as a recall aid, never as candidate evidence.
+
+**Verification:**
+- `node --check` passed for changed services and schemas.
+- Focused tailoring, optimizer, adversarial, provenance, and content-strategy regression suite: **122/122 passed**.
+- Real-candidate physical regression succeeded with Tectonic for Cloudflare, Vercel, and Crunchyroll jobs: all outputs were one page, ATS QA was 100, and occupancy was 84.1% / 97.7% / 97.7%; selected project sets and ordering differed by job.
+- The physical report is persisted at `scratch/p16-009/report.json`; current report metrics include 4/18, 6/18, and 6/18 rendered canonical facts for the three jobs, with no synthetic-content or agency-boundary failures reported by the pipeline.
+
 ### PART 36: Resume Job-Tailoring Persistence Diagnosis (P20 Investigation)
 
 **Status:** DIAGNOSIS COMPLETED; IMPLEMENTED IN PART 37
