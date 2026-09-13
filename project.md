@@ -3,6 +3,69 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 35: Authoritative Resume Evidence Pipeline Consolidation (P19)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-13  
+**Baseline Main HEAD:** `2c1dfb1144f12e447a5b8ce2eab126aa64f104f1`  
+**Parent Commit:** `2c1dfb1144f12e447a5b8ce2eab126aa64f104f1`  
+
+**Context & Core Objective:**
+Consolidated the fragmented resume evidence and accomplishment composition mechanisms across the pipeline into ONE authoritative evidence flow:
+$$\text{Canonical Fact Inventory} \to \text{Claim Planner} \to \text{Realization} \to \text{Validation} \to \text{Rendered Invariant} \to \text{Document Optimizer} \to \text{LaTeX/PDF Generation}$$
+
+**Core Architectural Consolidations & Enhancements:**
+1. **Single Semantic Authority for Accomplishment Bullets (`src/services/resume-accomplishment-composer.service.js`, `src/services/structured-resume.service.js`):**
+   - Eliminated ad-hoc raw claim reconstruction and synthetic IDs (`${selectedId}-claim-${i}`) in `structured-resume.service.js`.
+   - Multi-key index (`pId`, project name, slugified project name, project title, slugified title) guarantees that canonical facts from `buildCanonicalFactInventory` are never bypassed.
+   - Wired `finalizeProjectBullets` directly to `plannedClaims` with fallback realization grounded strictly in `isAccomplishmentCandidate` candidate-authorized facts.
+   - Preserved P18 fail-closed boundary invariants (`isTrustedCandidateAgencySource`, `determineFactAgency`, `isAccomplishmentCandidate`, Check 21, and `assertRenderedCandidateAgencyInvariant` remain immutable).
+
+2. **Domain Contradiction Prevention & General Neutral Fallback (`src/services/resume-accomplishment-composer.service.js`):**
+   - Added `id: 'general'` domain to `DOMAIN_CATALOG` with neutral role prefix and balanced sentence synthesis.
+   - Enforced domain contradiction avoidance: when job keywords contrast with candidate background, evidence-first scoring defaults to neutral/general synthesis rather than forcing an inaccurate domain identity.
+   - Removed all domain-label force-rewriting regex logic from authored summary adaptation.
+
+3. **Complete End-to-End Debug Traces (`src/domain/career/resume.schemas.js`, `src/services/structured-resume.service.js`):**
+   - Extended `debugTrace` schema with `factInventorySummary` (totalFacts, bySurface, byClass, byAgency), `claimPlanSummary` (totalPlanned, byProject, byStrategy), `realizationSummary` (composedCount, realizationSources), and `pdfSummary` (geometry, textMetrics).
+   - Populated complete structured traces during document construction.
+
+4. **Candidate Fact Headroom Transparency (`src/services/resume-content-optimizer.service.js`):**
+   - Added explicit reporting of `availableCandidateFacts`, `selectedCandidateFacts`, and `omittedCandidateFacts` in the optimizer return bundle.
+
+5. **24 Comprehensive Forensic Pipeline Tests (`tests/unit/p19-authoritative-pipeline.test.js`):**
+   - Implemented Tests A through X covering fact counts, distinct contribution classes, agency boundaries, DSA handling, headline stability, independent target roles, summary grounding, optimizer retention, sync/async parity, determinism, Check 21, and formal invariant validation.
+
+6. **Real-Candidate Dual-Job Physical PDF Verification (`scratch/verify-p19-dual-job-pdf.mjs`):**
+   - Verified real candidate profile (`Vishwanath Nishad`, 10 projects, 80 skills) across two contrasting jobs (Distributed Systems Engineer vs Frontend / Full-Stack Engineer):
+     - Strictly 1 page per resume
+     - Bottom whitespace: 162.1 pt (< 250 pt)
+     - Selectable text: 2,324 & 2,326 characters (>= 400 chars)
+     - Corrupt glyphs: 0
+     - ATS Parseability Score: 100/100 (>= 80)
+     - Writing Quality Score: 79/100 (>= 75)
+     - Headline stability: "Full-Stack & Backend Developer" 100% preserved across both jobs
+     - Target role adapts appropriately ("Distributed Systems Engineer" vs "Frontend / Full-Stack Engineer")
+     - Agency invariant passes with 100% verified authentic evidence.
+
+**Files Changed:**
+- `src/domain/career/resume.schemas.js` — Extended `debugTrace` schema with pipeline debug trace summaries.
+- `src/services/resume-accomplishment-composer.service.js` — General domain addition, domain contradiction avoidance, wired planned claims, strict fact ID tracing.
+- `src/services/structured-resume.service.js` — Consolidated single fact authority, removed synthetic claim generation, multi-key project fact indexing, dynamic project ranking fallback, end-to-end debugTrace population.
+- `src/services/resume-content-optimizer.service.js` — Fact inventory headroom reporting (`availableCandidateFacts`, `selectedCandidateFacts`, `omittedCandidateFacts`).
+- `tests/unit/p19-authoritative-pipeline.test.js` — 24 authoritative pipeline tests (Tests A through X).
+- `tests/unit/p16-001e-heading-section-order.test.js` — Aligned headline test with P19 candidate headline independence.
+- `tests/unit/p16-001f1-structured-snapshot-persistence.test.js` — Aligned headline test with P19 candidate headline independence.
+- `tests/unit/p16-004-hardening-and-genericity.test.js` — Aligned headline test with P19 candidate headline independence.
+
+**Verification & Evidence:**
+- **P19 Authoritative Pipeline Suite (`tests/unit/p19-authoritative-pipeline.test.js`):** 24/24 PASS (Tests A through X)
+- **P19 Forensic Repair Suite (`tests/unit/p19-forensic-repair.test.js`):** 30/30 PASS
+- **Regression Suites across P16, P17, P18, P19:** 183/183 PASS, 0 failures, 0 regressions
+- **Physical PDF Generation:** Both compiled PDFs verified via Tectonic, geometry analyzer, ATS parser, and writing quality grader.
+
+---
+
 ### PART 34: Resume Pipeline Forensic Repair (P19)
 
 **Status:** COMPLETE & VERIFIED  

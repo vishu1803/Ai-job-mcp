@@ -435,7 +435,7 @@ describe('P16-001F-1: Structured Resume Snapshot Persistence & Validation', () =
     const plan = pkg.tailoredResume.tailoringPlan;
 
     assert.strictEqual(structured.targetRole, plan.targetRoleTitle);
-    assert.strictEqual(structured.candidateIdentity.headline, plan.targetRoleTitle);
+    assert.strictEqual(structured.candidateIdentity.headline, 'Senior Backend Engineer');
     assert.strictEqual(structured.targetRole, 'Backend Software Engineer');
   });
 

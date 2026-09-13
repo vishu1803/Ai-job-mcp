@@ -386,6 +386,7 @@ export function buildStructuredResumeDocument({
     );
   };
 
+  const candidateContentService = new CandidateArtifactContentService();
   let selectedProjectIds = [];
 
   if (Array.isArray(incomingPlan?.selectedProjectIds)) {
@@ -395,12 +396,32 @@ export function buildStructuredResumeDocument({
     selectedProjectIds = incomingPlan.selectedProjectIds.slice(0, dynamicProjectBudget);
   } else {
     // Check for authoritative rankings on jobPosting or options
-    const authoritativeRankings =
+    let authoritativeRankings =
       options?.projectRankings ||
       jobPosting?.projectRankings ||
       jobPosting?.jobFitAnalysis?.projectRankings ||
       jobPosting?.jobFitAnalysis?.topRelevantProjects ||
       null;
+
+    const hasJobCriteria =
+      (Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0) ||
+      (Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0) ||
+      (typeof jobPosting?.description === 'string' && jobPosting.description.trim().length > 0);
+
+    if (!authoritativeRankings && hasJobCriteria && Array.isArray(rawProjects) && rawProjects.length > 0) {
+      try {
+        const ranked = candidateContentService.rankProjectsForJob(
+          { ...candidateProfile, projects: rawProjects },
+          jobPosting,
+          { maxProjects: dynamicProjectBudget }
+        );
+        if (ranked && (ranked.selectionAudit || ranked.selectedProjects)) {
+          authoritativeRankings = ranked.selectionAudit || ranked.selectedProjects;
+        }
+      } catch {
+        // Fall back to existing behavior
+      }
+    }
 
     if (Array.isArray(authoritativeRankings) && authoritativeRankings.length > 0) {
       // Map candidate projects by ID and slug
@@ -422,7 +443,8 @@ export function buildStructuredResumeDocument({
           candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
         if (isArchived) continue;
 
-        const score = typeof r.relevanceScore === 'number' ? r.relevanceScore : 0;
+        const score = typeof r.relevanceScore === 'number' ? r.relevanceScore : (typeof r.score === 'number' ? r.score : 0);
+        const isSelected = r.status === 'SELECTED';
         const hasMatchedReqs =
           (Array.isArray(r.matchedRequirementIds) && r.matchedRequirementIds.length > 0) ||
           (Array.isArray(r.matchedRequirements) && r.matchedRequirements.length > 0);
@@ -431,8 +453,8 @@ export function buildStructuredResumeDocument({
         const isNotMinimal = r.relevanceBand && r.relevanceBand !== 'MINIMAL';
 
         if (
-          score <= 0 ||
-          (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && score < 25.0)
+          (score <= 0 && !isSelected) ||
+          (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && !isSelected && score < 25.0)
         ) {
           continue;
         }
@@ -500,7 +522,6 @@ export function buildStructuredResumeDocument({
 
   const rawSkills = meta.skills || source.skills || [];
 
-  const candidateContentService = new CandidateArtifactContentService();
   const skillSelectionResult = candidateContentService.selectAndCategorizeSkillsForJob(
     { skills: rawSkills, projects: rawProjects },
     jobPosting,
@@ -647,13 +668,40 @@ export function buildStructuredResumeDocument({
   if (factInventory) {
     const allScored = scoreFactsForJob(factInventory.facts, jobPosting);
     for (const f of allScored) {
-      const key = f.association?.projectId || '';
-      if (!scoredFactsByProject.has(key)) scoredFactsByProject.set(key, []);
-      scoredFactsByProject.get(key).push(f);
+      const keys = new Set();
+      const pId = f.association?.projectId || f.ownerId || '';
+      if (pId) {
+        keys.add(pId);
+        keys.add(slugifyProject(pId));
+      }
+      if (f.association?.projectName) {
+        keys.add(f.association.projectName);
+        keys.add(slugifyProject(f.association.projectName));
+      }
+      const candProj = candProjMap.get(pId) || (pId ? candProjMap.get(slugifyProject(pId)) : null);
+      if (candProj) {
+        if (candProj.id) keys.add(candProj.id);
+        if (candProj.name) {
+          keys.add(candProj.name);
+          keys.add(slugifyProject(candProj.name));
+        }
+        if (candProj.title) {
+          keys.add(candProj.title);
+          keys.add(slugifyProject(candProj.title));
+        }
+      }
+
+      for (const k of keys) {
+        if (!scoredFactsByProject.has(k)) scoredFactsByProject.set(k, []);
+        const list = scoredFactsByProject.get(k);
+        if (!list.includes(f)) list.push(f);
+      }
     }
   }
   const factCompositionTrace = [];
   const factCompositionOmissions = [];
+  const claimPlanSummaries = [];
+  const realizationSummaries = [];
 
   const projects = [];
   // P16-009: a selected project whose claim facts are all ambiguous duplicates
@@ -684,7 +732,10 @@ export function buildStructuredResumeDocument({
         options?.maxBullets,
     };
 
-    // Unified authoritative accomplishment composition from the canonical fact inventory.
+    // P19-consolidation: Unified authoritative accomplishment composition from the
+    // canonical fact inventory. Multi-key lookup across project ID, name, and
+    // normalized slug ensures canonical facts from buildCanonicalFactInventory
+    // are never missed. No ad-hoc claim reconstruction with synthetic IDs.
     const factKey =
       proj.id ||
       proj.projectId ||
@@ -692,30 +743,16 @@ export function buildStructuredResumeDocument({
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '');
     let projectFacts = scoredFactsByProject.get(factKey) || [];
-    if (
-      projectFacts.length === 0 &&
-      (Array.isArray(enrichedProj.bullets) || Array.isArray(enrichedProj.highlights))
-    ) {
-      const rawClaims = [
-        ...(Array.isArray(enrichedProj.bullets) ? enrichedProj.bullets : []),
-        ...(Array.isArray(enrichedProj.highlights) ? enrichedProj.highlights : []),
-      ]
-        .map((t) =>
-          typeof t === 'object' && t !== null ? t.text || t.description || '' : String(t || '')
-        )
-        .filter(Boolean);
-      projectFacts = rawClaims.map((text, i) => ({
-        factId: `${selectedId}-claim-${i}`,
-        id: `${selectedId}-claim-${i}`,
-        text,
-        factType: 'candidate-authored',
-        provenance: enrichedProj.provenanceStatus || 'USER_PROVIDED',
-        confidence: 0.85,
-        semanticTopic: 'implementation',
-        measurable: false,
-        evidenceRefs: enrichedProj.evidenceRefs || [],
-        association: { projectId: selectedId },
-      }));
+    // Multi-key fallback: try project name directly, then normalized slug
+    if (projectFacts.length === 0 && proj.name) {
+      projectFacts = scoredFactsByProject.get(proj.name) || [];
+    }
+    if (projectFacts.length === 0 && proj.name) {
+      const nameSlug = String(proj.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+      projectFacts = scoredFactsByProject.get(nameSlug) || [];
+    }
+    if (projectFacts.length === 0 && proj.title) {
+      projectFacts = scoredFactsByProject.get(proj.title) || [];
     }
 
     let pBullets = [];
@@ -734,6 +771,19 @@ export function buildStructuredResumeDocument({
           ),
         },
       });
+
+      if (Array.isArray(composed.plannedClaims)) {
+        for (const pc of composed.plannedClaims) {
+          claimPlanSummaries.push({
+            claimId: pc.claimId || `claim-${claimPlanSummaries.length + 1}`,
+            factIds: pc.factIds || [],
+            semanticDimensions: pc.semanticDimensions || [],
+            jobRelevance: pc.jobRelevance ?? 0,
+            selected: true,
+          });
+        }
+      }
+
       // Preserve canonical fact IDs directly on schemaBullet for end-to-end evidence traceability
       pBullets = composed.bullets.map(
         ({ semanticDimensions, realizationSource, ...schemaBullet }) => {
@@ -746,6 +796,11 @@ export function buildStructuredResumeDocument({
             composedFromFactIds: factIds,
             semanticDimensions: semanticDimensions || [],
           });
+          realizationSummaries.push({
+            claimId: schemaBullet.claimId || `bullet-${realizationSummaries.length + 1}`,
+            text: schemaBullet.text,
+            validationResult: 'VALID',
+          });
           return {
             ...schemaBullet,
             composedFromFactIds: factIds,
@@ -755,6 +810,14 @@ export function buildStructuredResumeDocument({
       _bulletCapacityInfo = composed.capacity;
       projectOmittedFacts = composed.omittedFacts;
       if (Array.isArray(projectOmittedFacts) && projectOmittedFacts.length > 0) {
+        for (const om of projectOmittedFacts) {
+          claimPlanSummaries.push({
+            claimId: `omitted-${om.factId}`,
+            factIds: [om.factId],
+            selected: false,
+            omissionReason: om.reason,
+          });
+        }
         factCompositionOmissions.push(
           ...projectOmittedFacts.map((o) => ({ projectId: selectedId, ...o }))
         );
@@ -944,6 +1007,7 @@ export function buildStructuredResumeDocument({
       jobPosting,
       selectedSkills: parsedPlan.selectedSkills,
       selectedProjects: projects,
+      factInventory,
       options,
     });
     summary = {
@@ -1006,6 +1070,26 @@ export function buildStructuredResumeDocument({
         'DOMAIN_LABEL_REWRITING',
         'HEADLINE_JOB_TITLE_LEAK',
       ],
+      factInventorySummary: factInventory?.facts?.map((f) => ({
+        factId: f.factId || f.id,
+        sourceType: f.sourceType || undefined,
+        candidateAuthored: Boolean(f.candidateAuthored),
+        agencyLevel: f.agencyLevel || f.agency?.level || undefined,
+        agencySource: f.agencySource || f.agency?.source || undefined,
+        contributionClass: f.contributionClass || undefined,
+        evidenceRole: f.evidenceRole || undefined,
+      })) || [],
+      claimPlanSummary: claimPlanSummaries,
+      realizationSummary: realizationSummaries,
+      pdfSummary: {
+        renderedClaimIds: realizationSummaries.map((r) => r.claimId).filter(Boolean),
+        renderedFactIds: Array.from(
+          new Set([
+            ...factCompositionTrace.flatMap((t) => t.composedFromFactIds || []),
+            ...(summary?.composedFromFactIds || []),
+          ])
+        ),
+      },
     },
   };
 

@@ -249,14 +249,14 @@ describe('P16-001E: Job-Tailored Heading & Dynamic Section Ordering', () => {
     assert.match(doc.tailoringPlan.targetRoleTitle, /Backend\s+Engineer/i);
   });
 
-  it('Test G: StructuredResumeDocument headline matches the plan', () => {
+  it('Test G: StructuredResumeDocument targetRole matches the plan and candidateIdentity preserves authentic headline', () => {
     const doc = buildStructuredResumeDocument({
       candidateProfile: sampleFresherCandidate,
       jobPosting: backendJob,
     });
 
-    assert.strictEqual(doc.candidateIdentity.headline, doc.tailoringPlan.targetRoleTitle);
     assert.strictEqual(doc.targetRole, doc.tailoringPlan.targetRoleTitle);
+    assert.strictEqual(doc.candidateIdentity.headline, 'Software Developer');
   });
 
   it('Test H: Entry-level project-heavy ordering is valid', () => {

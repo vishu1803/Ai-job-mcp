@@ -360,6 +360,28 @@ export class ResumeContentOptimizer {
     const initialStats = iterationHistory[0] || {};
     const finalStats = iterationHistory[iterationHistory.length - 1] || {};
 
+    const candidateAccomplishmentFacts = scoredInventoryFacts.filter((f) =>
+      isAccomplishmentCandidate(f)
+    );
+    const availableCandidateFacts = candidateAccomplishmentFacts.length;
+    const renderedFactIds = new Set();
+    for (const proj of finalResult.structuredResume?.projects || []) {
+      for (const b of proj.bullets || []) {
+        for (const fid of b.composedFromFactIds || []) renderedFactIds.add(fid);
+      }
+    }
+    for (const fid of finalResult.structuredResume?.summary?.composedFromFactIds || []) {
+      renderedFactIds.add(fid);
+    }
+    const selectedCandidateFacts = renderedFactIds.size;
+    const omittedCandidateFacts = candidateAccomplishmentFacts
+      .filter((f) => !renderedFactIds.has(f.factId || f.id))
+      .map((f) => ({
+        factId: f.factId || f.id,
+        reason: 'CAPACITY_LIMIT',
+        pageImpact: 14,
+      }));
+
     return {
       success: Boolean(bestOnePageCandidate),
       iterationsRun: iterationHistory.length,
@@ -370,6 +392,9 @@ export class ResumeContentOptimizer {
       acceptanceMetrics: finalResult.acceptanceMetrics,
       writingQuality: finalResult.writingQuality,
       unusedHighValueEvidence: finalResult.unusedHighValueEvidence || [],
+      availableCandidateFacts,
+      selectedCandidateFacts,
+      omittedCandidateFacts,
       qaScore: finalResult.qaScore,
       qaPassed: finalResult.qaPassed,
       iterationHistory,

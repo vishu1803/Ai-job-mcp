@@ -29,7 +29,7 @@ import { defaultResumeClaimPlannerService } from './resume-claim-planner.service
 import { defaultResumeClaimValidationService } from './resume-claim-validation.service.js';
 import { AiTaskTypeSchema } from '../domain/ai/ai.schemas.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
-import { OMISSION_REASONS } from './candidate-fact-inventory.service.js';
+import { OMISSION_REASONS, isAccomplishmentCandidate } from './candidate-fact-inventory.service.js';
 
 // Import and re-export all primitives for local use and 100% backward-compatibility
 import {
@@ -93,7 +93,14 @@ export {
 function selectComplementaryFactGroups(facts, n) {
   if (n <= 0 || facts.length === 0) return [];
 
-  const sorted = [...facts].sort(
+  // P19-consolidation: Only candidate-authorized accomplishment facts can anchor bullets.
+  // This ensures selectComplementaryFactGroups and the claim planner agree on ownership.
+  const authorizedFacts = facts.filter((f) =>
+    isAccomplishmentCandidate(f.renderable === undefined ? { ...f, renderable: true } : f)
+  );
+  if (authorizedFacts.length === 0) return [];
+
+  const sorted = [...authorizedFacts].sort(
     (a, b) =>
       (b.jobRelevance ?? 0) - (a.jobRelevance ?? 0) ||
       (b.confidence ?? 0) - (a.confidence ?? 0) ||
@@ -203,10 +210,16 @@ function prepareProjectNarrativePlan({
     }
   }
 
+  // P19-consolidation: Use ONLY authorized candidate accomplishment facts for capacity.
+  // Repository descriptions and passive features must not inflate bullet capacity.
+  const authorizedCandidateFacts = supportedFacts.filter((f) =>
+    isAccomplishmentCandidate(f.renderable === undefined ? { ...f, renderable: true } : f)
+  );
+
   const evidenceCount =
     project?.evidenceCount ?? (Array.isArray(project?.evidence) ? project.evidence.length : 0);
   const capacity = determineProjectBulletCapacity({
-    claimFacts: supportedFacts,
+    claimFacts: authorizedCandidateFacts,
     evidenceCount,
     explicitBudget,
   });
@@ -364,8 +377,13 @@ function finalizeProjectBullets({
   usedFactIds,
   candidateProfile = null,
   allFacts = null,
+  plannedClaims = [],
 }) {
-  // Safety fallback if planner yielded 0 bullets from available supported facts
+  // P19-consolidation: Safety fallback — if planner yielded 0 bullets, use
+  // selectComplementaryFactGroups which is now filtered through
+  // isAccomplishmentCandidate, ensuring planner and fallback agree on ownership.
+  // This path ONLY fires when the primary planner realization path produced
+  // zero bullets AND authorized candidate accomplishment facts still exist.
   if (bullets.length === 0 && supportedFacts.length > 0) {
     const factGroups = selectComplementaryFactGroups(supportedFacts, capacity.capacity);
     for (const group of factGroups) {
@@ -389,6 +407,8 @@ function finalizeProjectBullets({
         allowedMetrics: [],
         technologies: project?.technologies || [],
       };
+
+      plannedClaims.push(fallbackPlanned);
 
       assembleRealizedClaim({
         planned: fallbackPlanned,
@@ -420,20 +440,23 @@ function finalizeProjectBullets({
     bullets,
     omittedFacts,
     capacity,
+    plannedClaims,
   };
 }
 
 /**
  * Composes professional accomplishment bullets for a project from its canonical facts.
+ * Orchestrates claim planning, single-fact realization, complementation, claim validation,
+ * metric safety verification, and omission recording.
  *
  * @param {object} params
- * @param {Array<object>} params.facts Canonical scored facts for this project (claim facts)
- * @param {object} params.project Canonical project record (technologies, name)
- * @param {object} [params.jobPosting] Target job
- * @param {number|null} [params.explicitBudget] Optimizer bullet override
- * @param {object} [params.candidateProfile] Candidate profile
- * @param {object} [params.options] Optional configuration
- * @returns {{ bullets: Array<{ text: string, evidenceRefs: Array, matchedRequirementIds: Array, provenanceStatus: string, composedFromFactIds: Array<string> }>, omittedFacts: Array<{ factId: string, text: string, reason: string }>, capacity: object }}
+ * @param {Array<object>} params.facts Canonical fact objects for this project
+ * @param {object} params.project Project metadata (name, technologies, etc.)
+ * @param {object} [params.jobPosting] Target job posting for relevance scoring
+ * @param {number|null} [params.explicitBudget] Exact bullet budget override from section planner
+ * @param {object} [params.candidateProfile] Full candidate profile for global deduplication
+ * @param {object} [params.options] Composition options
+ * @returns {{ bullets: Array<object>, omittedFacts: Array<object>, capacity: object, plannedClaims: Array<object> }}
  */
 export function composeProfessionalProjectBullets({
   facts,
@@ -449,6 +472,7 @@ export function composeProfessionalProjectBullets({
   const bullets = [];
   const usedFactIds = new Set();
 
+  // Step 2: Language Realization per planned claim
   for (const planned of plannedClaims) {
     const primaryFact = planned.primaryFact;
     const compFact = planned.complementaryFacts?.[0] || null;
@@ -484,6 +508,7 @@ export function composeProfessionalProjectBullets({
     usedFactIds,
     candidateProfile,
     allFacts,
+    plannedClaims,
   });
 }
 
@@ -620,6 +645,7 @@ export async function composeProfessionalProjectBulletsAsync({
     usedFactIds,
     candidateProfile,
     allFacts,
+    plannedClaims,
   });
 }
 
@@ -737,6 +763,23 @@ export function composeProfessionalSummary({
   // Dynamic Domain Configuration Catalog
   const DOMAIN_CATALOG = [
     {
+      id: 'general',
+      domain: 'Software Engineering',
+      subdomains: ['Full-Stack Systems', 'Cloud Services'],
+      keywords: [
+        'fullstack', 'full-stack', 'software', 'web', 'application',
+        'engineering', 'cloud', 'services', 'developer',
+      ],
+      titlePattern: /\b(software\s+engineer|full[- ]?stack|application\s+engineer|developer)\b/i,
+      rolePrefix: 'Software Engineer specializing in',
+      differentiator: 'end-to-end software delivery, modular architecture, and test-driven development',
+      sentence1: (domains, tech) => `Software Engineer specializing in ${domains[0].toLowerCase()} and ${domains[1].toLowerCase()}${tech ? ` using ${tech}` : ''}.`,
+      sentence2: (proj, diff) => proj
+        ? `Engineered maintainable software solutions including ${proj.name || proj.displayName}, emphasizing ${diff}.`
+        : `Experienced in developing scalable applications and test-backed software services.`,
+      sentence3: () => 'Committed to high-quality code delivery, robust system reliability, and maintainable production architecture.',
+    },
+    {
       id: 'systems',
       domain: 'Distributed Systems',
       subdomains: ['Cloud Infrastructure', 'High-Throughput Telemetry'],
@@ -847,10 +890,22 @@ export function composeProfessionalSummary({
 
   // P19: If the top-scoring domain has no evidence eligibility, fall back to
   // the "general" (fullstack) domain which is the safest neutral label.
+  const generalDomain = DOMAIN_CATALOG.find((d) => d.id === 'general');
   const eligibleDomains = scoredDomains.filter((d) => d.eligible);
-  const activeDomain = eligibleDomains.length > 0
-    ? eligibleDomains[0]
-    : DOMAIN_CATALOG[3]; // general/fullstack fallback
+  const jobTargetDomain = scoredDomains.find((d) => d.jobScore >= 15 && d.id !== 'general');
+
+  let activeDomain;
+  if (eligibleDomains.length > 0) {
+    if (jobTargetDomain && !jobTargetDomain.eligible && eligibleDomains[0].id !== jobTargetDomain.id) {
+      // Opposing role domain: candidate lacks evidence for the job's specific domain.
+      // Fall back to neutral/general domain to avoid domain contradiction.
+      activeDomain = generalDomain || eligibleDomains[0];
+    } else {
+      activeDomain = eligibleDomains[0];
+    }
+  } else {
+    activeDomain = generalDomain || DOMAIN_CATALOG[0];
+  }
 
   const topRelevantTechnicalDomains = [
     activeDomain.domain,
@@ -965,14 +1020,19 @@ export function composeProfessionalSummary({
   const composedFromFactIds = [];
   if (factInventory && Array.isArray(factInventory.facts)) {
     const projFacts = factInventory.facts.filter(
-      (f) => f.projectId === topProject?.id || f.association?.projectId === topProject?.id
+      (f) =>
+        f.projectId === topProject?.id ||
+        f.association?.projectId === topProject?.id ||
+        (topProject?.name && f.association?.projectName === topProject.name) ||
+        (topProject?.title && f.association?.projectName === topProject.title)
     );
     if (projFacts.length > 0) {
-      composedFromFactIds.push(String(projFacts[0].id || projFacts[0].factId));
+      const bestFact = projFacts.find((f) => isAccomplishmentCandidate(f)) || projFacts[0];
+      composedFromFactIds.push(String(bestFact.factId || bestFact.id));
     }
   }
   if (composedFromFactIds.length === 0 && topProject && Array.isArray(topProject.bullets)) {
-    const fId = topProject.bullets[0]?.composedFromFactIds?.[0] || topProject.id;
+    const fId = topProject.bullets[0]?.composedFromFactIds?.[0];
     if (fId) composedFromFactIds.push(String(fId));
   }
 

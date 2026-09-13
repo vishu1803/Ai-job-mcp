@@ -667,6 +667,47 @@ export const StructuredResumeDocumentSchema = z
           })
           .optional(),
         syntheticContentBlocked: z.array(z.string()).optional(),
+        // P19-consolidation: End-to-end trace structures
+        factInventorySummary: z
+          .array(
+            z.object({
+              factId: z.string(),
+              sourceType: z.string().optional(),
+              candidateAuthored: z.boolean().optional(),
+              agencyLevel: z.string().optional(),
+              agencySource: z.string().optional(),
+              contributionClass: z.string().optional(),
+              evidenceRole: z.string().optional(),
+            })
+          )
+          .optional(),
+        claimPlanSummary: z
+          .array(
+            z.object({
+              claimId: z.string(),
+              factIds: z.array(z.string()).optional(),
+              semanticDimensions: z.array(z.string()).optional(),
+              jobRelevance: z.number().optional(),
+              selected: z.boolean().optional(),
+              omissionReason: z.string().optional(),
+            })
+          )
+          .optional(),
+        realizationSummary: z
+          .array(
+            z.object({
+              claimId: z.string(),
+              text: z.string().optional(),
+              validationResult: z.string().optional(),
+            })
+          )
+          .optional(),
+        pdfSummary: z
+          .object({
+            renderedClaimIds: z.array(z.string()).optional(),
+            renderedFactIds: z.array(z.string()).optional(),
+          })
+          .optional(),
       })
       .optional()
       .nullable(),

@@ -229,7 +229,7 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
         jobPosting: { title: role, company: 'Science Corp' },
       });
       assert.strictEqual(doc.targetRole, role);
-      assert.strictEqual(doc.candidateIdentity.headline, role);
+      assert.strictEqual(doc.candidateIdentity.headline, 'Software Engineer');
     }
   });
 
