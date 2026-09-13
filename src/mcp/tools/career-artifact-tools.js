@@ -39,7 +39,7 @@ import { SecretScrubber } from '../../extractors/github/security/secret-scrubber
 import { defaultMcpRateLimiter } from '../../security/mcp-rate-limiter.js';
 import { assertToolPermission } from '../../security/mcp-auth.js';
 import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
-import { buildCanonicalJobRequirements } from '../../services/candidate-fact-inventory.service.js';
+import { buildCanonicalJobRequirements, normalizeJobInput } from '../../services/job-normalization.service.js';
 import {
   RecommendPortfolioProjectsInputSchema,
   RecommendPortfolioProjectsOutputSchema,
@@ -132,6 +132,30 @@ function normalizeEvidenceRef(e) {
     excerpt: SecretScrubber.scrub(e.excerpt || e.sanitizedExcerpt || ''),
     confidenceScore: typeof e.confidenceScore === 'number' ? e.confidenceScore : 1.0,
     detectedAt: e.detectedAt || new Date().toISOString(),
+  };
+}
+
+function normalizeWorkflowJobPosting(jobPosting, args) {
+  const textValue = (value) => {
+    if (typeof value === 'string') return value;
+    if (!value || typeof value !== 'object') return null;
+    return value.text || value.name || value.skill || value.concept || value.description || null;
+  };
+  const listValue = (values) =>
+    Array.isArray(values) ? values.map(textValue).filter(Boolean) : [];
+
+  return {
+    ...jobPosting,
+    id: jobPosting?.id || crypto.randomUUID(),
+    title: jobPosting?.title || args?.jobTitle || 'Target Role',
+    company: jobPosting?.company || args?.companyName || 'Target Company',
+    description: jobPosting?.description || args?.jobDescriptionText || '',
+    requirements: listValue(jobPosting?.requirements),
+    skills: listValue(jobPosting?.skills),
+    responsibilities: listValue(jobPosting?.responsibilities),
+    normalizedRequirements: jobPosting?.normalizedRequirements,
+    jobFingerprint: jobPosting?.jobFingerprint,
+    role: jobPosting?.role,
   };
 }
 
@@ -265,54 +289,58 @@ function buildCandidateProfileDomainObject(profileView, context) {
  * @param {object} [deps={}] Optional dependency overrides
  * @returns {Promise<object>} Canonical JobDescription object
  */
+function mapToMatchingRequirements(canonicalReqs, tenantId, jobDescriptionId) {
+  return (canonicalReqs || []).map((r) => ({
+    id: r.id,
+    requirementId: r.id,
+    tenantId,
+    jobDescriptionId,
+    category:
+      r.class === 'TECHNOLOGY'
+        ? 'SKILL'
+        : r.class === 'RESPONSIBILITY'
+          ? 'EXPERIENCE'
+          : r.class === 'EDUCATION'
+            ? 'EDUCATION'
+            : 'SKILL',
+    importance: r.importance,
+    weight: r.weight,
+    skillSlug: SkillTaxonomyEngine.generateSafeSlug(r.normalizedConcept || r.text) || null,
+    rawSnippet: r.text,
+    originalText: r.text,
+    extractedValue: r.normalizedConcept || r.text,
+    normalizedCriteria: {
+      skillSlug: SkillTaxonomyEngine.generateSafeSlug(r.normalizedConcept || r.text) || null,
+      skillName: r.text,
+    },
+    confidenceScore: r.confidence ?? 0.9,
+    sourceSpan: { section: 'REQUIREMENTS', snippet: r.text },
+    createdAt: new Date().toISOString(),
+  }));
+}
+
 async function resolveJobDescription(context, args, dbClient, deps = {}) {
   if (args.jobDescriptionText) {
-    const classification = await JobDescriptionParser.parse(
-      {
-        rawText: args.jobDescriptionText,
-        title: args.jobTitle || 'Target Role',
-        company: args.companyName || 'Target Company',
-        source: 'API',
-      },
-      {
-        tenantId: context.tenantId,
-        userId: context.userId,
-      }
-    );
-
-    const normalizedRequirements = (classification.requirements || []).map((r) => {
-      const title = r.title || r.extractedValue || r.rawSnippet || 'Requirement';
-      const importance = r.importance || r.priority || 'REQUIRED';
-      return {
-        id: r.id || crypto.randomUUID(),
-        tenantId: context.tenantId,
-        jobDescriptionId: classification.jobDescription.id,
-        title,
-        extractedValue: r.extractedValue || title,
-        importance,
-        priority: importance,
-        requirementType: importance,
-        isRequired: importance === 'REQUIRED',
-        weight: typeof r.weight === 'number' ? r.weight : 1.0,
-        category: r.category || 'SKILL',
-        skillSlug: r.skillSlug || null,
-        rawSnippet: r.rawSnippet || title,
-        normalizedCriteria: r.normalizedCriteria || {},
-        confidenceScore: r.confidenceScore || 0.9,
-        sourceSpan: r.sourceSpan || {
-          section: 'requirements',
-          snippet: title,
-        },
-      };
+    const title = args.jobTitle || 'Target Role';
+    const company = args.companyName || 'Target Company';
+    const canonical = normalizeJobInput({
+      title,
+      company,
+      description: args.jobDescriptionText,
+      jobDescriptionText: args.jobDescriptionText,
     });
-
+    const jobId = crypto.randomUUID();
     return {
-      id: classification.jobDescription.id,
+      id: jobId,
       tenantId: context.tenantId,
-      title: args.jobTitle || classification.jobDescription.title || 'Target Role',
-      companyName: args.companyName || classification.jobDescription.company || 'Target Company',
-      level: classification.jobDescription.level || 'MID',
-      requirements: normalizedRequirements,
+      title,
+      company,
+      companyName: company,
+      description: args.jobDescriptionText,
+      requirements: mapToMatchingRequirements(canonical.normalizedRequirements, context.tenantId, jobId),
+      skills: canonical.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
+      responsibilities: canonical.normalizedRequirements.filter((r) => r.class === 'RESPONSIBILITY').map((r) => r.text),
+      ...canonical,
     };
   }
 
@@ -352,7 +380,7 @@ async function resolveJobDescription(context, args, dbClient, deps = {}) {
       }
     }
 
-    // 6. Preserve the existing NotFoundError when neither source resolves the job
+    // Preserve the existing NotFoundError when neither source resolves the job
     if (!discoveryJob && !savedApp) {
       throw new NotFoundError(`Job description not found for ID: ${args.jobId}`);
     }
@@ -364,10 +392,6 @@ async function resolveJobDescription(context, args, dbClient, deps = {}) {
       args.companyName ||
       (discoveryJob ? discoveryJob.company : savedApp.companyName) ||
       'Target Company';
-    const resolvedLocation = discoveryJob ? discoveryJob.location : savedApp.location;
-    const resolvedWorkplaceType = discoveryJob
-      ? discoveryJob.workplaceType
-      : savedApp.workplaceType;
 
     let textToParse;
     if (discoveryJob) {
@@ -396,77 +420,24 @@ async function resolveJobDescription(context, args, dbClient, deps = {}) {
       }
     }
 
-    // 4. Parse and normalize the description using the existing job-description pipeline
-    const parserPayload = {
-      rawText: textToParse,
+    const canonical = normalizeJobInput({
       title: resolvedTitle,
       company: resolvedCompany,
-      source: 'API',
-    };
-    if (resolvedLocation) parserPayload.location = resolvedLocation;
-    if (
-      resolvedWorkplaceType &&
-      ['REMOTE', 'HYBRID', 'ON_SITE'].includes(String(resolvedWorkplaceType).toUpperCase())
-    ) {
-      parserPayload.workplaceType = String(resolvedWorkplaceType).toUpperCase();
-    }
-
-    const classification = await JobDescriptionParser.parse(parserPayload, {
-      tenantId: context.tenantId,
-      userId: context.userId,
+      description: textToParse,
+      requirements: discoveryJob && Array.isArray(discoveryJob.requirements) ? discoveryJob.requirements : [],
     });
 
-    let extractedRequirements = classification.requirements || [];
-    if (
-      extractedRequirements.length === 0 &&
-      discoveryJob &&
-      Array.isArray(discoveryJob.requirements) &&
-      discoveryJob.requirements.length > 0
-    ) {
-      extractedRequirements = discoveryJob.requirements.map((req) => ({
-        id: crypto.randomUUID(),
-        title: req,
-        extractedValue: req,
-        importance: 'REQUIRED',
-        category: 'SKILL',
-        weight: 1.0,
-      }));
-    }
-
-    const normalizedRequirements = extractedRequirements.map((r) => {
-      const title = r.title || r.extractedValue || r.rawSnippet || 'Requirement';
-      const importance = r.importance || r.priority || 'REQUIRED';
-      return {
-        id: r.id || crypto.randomUUID(),
-        tenantId: context.tenantId,
-        jobDescriptionId: classification.jobDescription.id,
-        title,
-        extractedValue: r.extractedValue || title,
-        importance,
-        priority: importance,
-        requirementType: importance,
-        isRequired: importance === 'REQUIRED',
-        weight: typeof r.weight === 'number' ? r.weight : 1.0,
-        category: r.category || 'SKILL',
-        skillSlug: r.skillSlug || null,
-        rawSnippet: r.rawSnippet || title,
-        normalizedCriteria: r.normalizedCriteria || {},
-        confidenceScore: r.confidenceScore || 0.9,
-        sourceSpan: r.sourceSpan || {
-          section: 'requirements',
-          snippet: title,
-        },
-      };
-    });
-
-    // 5. Return the same canonical job-description structure used by the existing recommendation flow
     return {
       id: args.jobId,
       tenantId: context.tenantId,
-      title: resolvedTitle || classification.jobDescription.title || 'Target Role',
-      companyName: resolvedCompany || classification.jobDescription.company || 'Target Company',
-      level: classification.jobDescription.level || 'MID',
-      requirements: normalizedRequirements,
+      title: resolvedTitle,
+      company: resolvedCompany,
+      companyName: resolvedCompany,
+      description: textToParse,
+      requirements: mapToMatchingRequirements(canonical.normalizedRequirements, context.tenantId, args.jobId),
+      skills: canonical.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
+      responsibilities: canonical.normalizedRequirements.filter((r) => r.class === 'RESPONSIBILITY').map((r) => r.text),
+      ...canonical,
     };
   }
 
@@ -867,12 +838,7 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
   const prepared = await workflowService.prepareJobApplication({
     tenantId: context.tenantId,
     candidateId,
-    jobPosting: {
-      ...jobDescription,
-      id: jobDescription?.id || crypto.randomUUID(),
-      title: jobDescription?.title || args.jobTitle || 'Target Role',
-      description: jobDescription?.description || args.jobDescriptionText || '',
-    },
+    jobPosting: normalizeWorkflowJobPosting(jobDescription, args),
     answers: {},
   });
   const structured = prepared.tailoredResume?.structuredResume;
@@ -929,7 +895,9 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
         startDate: String(experience.startDate || ''),
         endDate: experience.endDate ? String(experience.endDate) : null,
         isCurrent: Boolean(experience.isCurrent),
-        bullets: (experience.bullets || []).map((bullet) => ({
+        bullets: (experience.bullets || [])
+          .filter((bullet) => typeof bullet.text === 'string' && bullet.text.trim().length > 0)
+          .map((bullet) => ({
           bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
           text: SecretScrubber.scrub(bullet.text || ''),
           status: bullet.status || 'VERIFIED',
@@ -937,7 +905,7 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
           evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
           assertionIds: bullet.assertionIds || [],
           matchedKeywords: bullet.matchedKeywords || [],
-        })),
+          })),
       })),
       projects: (structured.projects || []).map((project) => ({
         projectId: project.projectId,
@@ -946,7 +914,9 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
         description: null,
         relevanceScore: project.relevanceScore || 0,
         relevanceBand: undefined,
-        bullets: (project.bullets || []).map((bullet) => ({
+        bullets: (project.bullets || [])
+          .filter((bullet) => typeof bullet.text === 'string' && bullet.text.trim().length > 0)
+          .map((bullet) => ({
           bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
           text: SecretScrubber.scrub(bullet.text || ''),
           status: bullet.status || 'VERIFIED',
@@ -954,7 +924,7 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
           evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
           assertionIds: bullet.assertionIds || [],
           matchedKeywords: bullet.matchedKeywords || [],
-        })),
+          })),
       })),
       education: structured.education || [],
       certifications: structured.certifications || [],

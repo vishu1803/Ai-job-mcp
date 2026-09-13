@@ -943,7 +943,6 @@ export class JobDescriptionParser {
       'scrum',
       'devops',  // too broad when not paired with specific tooling
       'microservices',  // architecture pattern, not a specific technology
-      'rest-api',  // too generic — use specific frameworks instead
       'api-design',
       'data-structures',
       'algorithms',

@@ -33,6 +33,8 @@ import { createCareerMcpServer } from '../../src/mcp/server.js';
 import { ValidationError, NotFoundError } from '../../src/errors/index.js';
 import { McpRateLimiter } from '../../src/security/mcp-rate-limiter.js';
 import { jobApplications } from '../../src/db/schema.js';
+import { createMcpWorkflowDbFixture } from '../fixtures/mcp-workflow-db.js';
+import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
 
 describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
   const tenantId = crypto.randomUUID();
@@ -197,29 +199,18 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
   }
 
   function createMockDbClient(options = {}) {
-    return {
-      select: () => ({
-        from: (table) => ({
-          where: (_condition) => ({
-            limit: () => {
-              if (table === jobApplications && options.jobAppRows !== undefined) {
-                return options.jobAppRows;
-              }
-              if (options.candidateRows !== undefined) {
-                return options.candidateRows;
-              }
-              return [
-                {
-                  id: candidateId,
-                  tenantId,
-                  userId,
-                },
-              ];
-            },
-          }),
-        }),
-      }),
-    };
+    return createMcpWorkflowDbFixture({
+      candidate: {
+        id: candidateId,
+        tenantId,
+        userId,
+        email: 'alice@example.com',
+        displayName: 'Alice Engineer',
+        profileMetadata: createMockCandidateProfileView().candidate.profileMetadata,
+      },
+      skills: createMockCandidateProfileView().skills,
+      jobApplications: options.jobAppRows || [],
+    });
   }
 
   // ===========================================================================
@@ -448,18 +439,8 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
   // 5. Dual-Layer Integrity Gating & Fact Sovereignty
   // ===========================================================================
 
-  it('9. blocks resume generation when integrity gate triggers BLOCK verdict', async () => {
-    const mockProfileService = {
-      getProfile: async () => createMockCandidateProfileView(),
-    };
-
-    const mockIntegrityService = {
-      validateCareerAssertions: () => ({
-        overallStatus: 'BLOCK',
-        blockedReasons: ['TENANT_MISMATCH: Cross-tenant evidence tampering detected'],
-      }),
-    };
-
+  it('9. propagates a canonical workflow integrity rejection', async () => {
+    let workflowCalls = 0;
     await assert.rejects(
       async () => {
         await handleGenerateTailoredResume(
@@ -470,31 +451,28 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
           },
           {
             db: createMockDbClient(),
-            candidateProfileService: mockProfileService,
-            integrityService: mockIntegrityService,
+            workflowService: {
+              prepareJobApplication: async () => {
+                workflowCalls += 1;
+                throw new ValidationError(
+                  'Resume generation blocked by Zero-Hallucination Integrity Gate.'
+                );
+              },
+            },
           }
         );
       },
       (err) => {
         assert.ok(err instanceof ValidationError);
         assert.ok(err.message.includes('Zero-Hallucination Integrity Gate'));
+        assert.strictEqual(workflowCalls, 1);
         return true;
       }
     );
   });
 
-  it('10. blocks resume generation when post-generation audit gate triggers BLOCK verdict', async () => {
-    const mockProfileService = {
-      getProfile: async () => createMockCandidateProfileView(),
-    };
-
-    const mockAuditService = {
-      auditResume: () => ({
-        overallStatus: 'BLOCK',
-        findings: [{ code: 'UNSUPPORTED_METRIC', message: 'Ungrounded metric 99% detected' }],
-      }),
-    };
-
+  it('10. propagates a canonical workflow post-generation audit rejection', async () => {
+    let workflowCalls = 0;
     await assert.rejects(
       async () => {
         await handleGenerateTailoredResume(
@@ -505,14 +483,19 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
           },
           {
             db: createMockDbClient(),
-            candidateProfileService: mockProfileService,
-            auditService: mockAuditService,
+            workflowService: {
+              prepareJobApplication: async () => {
+                workflowCalls += 1;
+                throw new ValidationError('Resume Integrity Audit Service blocked the document.');
+              },
+            },
           }
         );
       },
       (err) => {
         assert.ok(err instanceof ValidationError);
         assert.ok(err.message.includes('Resume Integrity Audit Service'));
+        assert.strictEqual(workflowCalls, 1);
         return true;
       }
     );
@@ -890,6 +873,100 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
         assert.strictEqual(err.message, `Job description not found for ID: ${otherTenantJobId}`);
         return true;
       }
+    );
+  });
+
+  it('21. canonical MCP workflow differentiates contrasting jobs and matches direct workflow semantics', async () => {
+    const profile = createMockCandidateProfileView();
+    const profileService = {
+      getProfile: async () => profile,
+    };
+    const db = createMockDbClient();
+    const rateLimiter = {
+      checkTenantLimit() {},
+      checkToolLimit() {},
+    };
+    const preparedByJob = new Map();
+
+    const createCapturedWorkflow = () => {
+      const workflow = new JobApplicationWorkflowService({
+        database: db,
+        candidateProfileService: profileService,
+      });
+      return {
+        prepareJobApplication: async (params) => {
+          const prepared = await workflow.prepareJobApplication(params);
+          preparedByJob.set(params.jobPosting.description, { params, prepared });
+          return prepared;
+        },
+      };
+    };
+
+    const backend = await handleGenerateTailoredResume(
+      mockContextMember,
+      {
+        candidateId,
+        jobTitle: 'Software Engineer',
+        jobDescriptionText: 'Build Python FastAPI services backed by PostgreSQL and REST APIs.',
+      },
+      {
+        db,
+        rateLimiter,
+        candidateProfileService: profileService,
+        workflowService: createCapturedWorkflow(),
+      }
+    );
+    const frontend = await handleGenerateTailoredResume(
+      mockContextMember,
+      {
+        candidateId,
+        jobTitle: 'Software Engineer',
+        jobDescriptionText: 'Build React and Next.js user interfaces with accessible frontend workflows.',
+      },
+      {
+        db,
+        rateLimiter,
+        candidateProfileService: profileService,
+        workflowService: createCapturedWorkflow(),
+      }
+    );
+
+    const backendPrepared = [...preparedByJob.values()].find(({ params }) =>
+      params.jobPosting.description.includes('Python')
+    );
+    assert.ok(backendPrepared);
+    const backendTrace = backendPrepared.prepared.tailoredResume.structuredResume.debugTrace;
+    const frontendPrepared = [...preparedByJob.values()].find(({ params }) =>
+      params.jobPosting.description.includes('React')
+    );
+    assert.ok(frontendPrepared);
+    const frontendTrace = frontendPrepared.prepared.tailoredResume.structuredResume.debugTrace;
+    assert.ok(backend.resume);
+    assert.ok(frontend.resume);
+    assert.notStrictEqual(backendTrace.jobFingerprint, frontendTrace.jobFingerprint);
+    assert.notDeepStrictEqual(backendTrace.normalizedRequirements, frontendTrace.normalizedRequirements);
+    assert.notDeepStrictEqual(backendTrace.matches, frontendTrace.matches);
+
+    const directWorkflow = new JobApplicationWorkflowService({
+      database: db,
+      candidateProfileService: profileService,
+    });
+    const direct = await directWorkflow.prepareJobApplication(backendPrepared.params);
+    assert.deepStrictEqual(
+      direct.tailoredResume.structuredResume.projects.map((project) => project.projectId),
+      backendPrepared.prepared.tailoredResume.structuredResume.projects.map(
+        (project) => project.projectId
+      )
+    );
+    assert.deepStrictEqual(
+      direct.tailoredResume.structuredResume.skills.categories.map((category) => ({
+        categoryName: category.categoryName,
+        skills: category.skills.map((skill) => skill.name),
+      })),
+      backendPrepared.prepared.tailoredResume.structuredResume.skills.categories.map((category) => ({
+        categoryName: category.categoryName,
+        skills: category.skills.map((skill) => skill.name),
+      }))
     );
   });
 });

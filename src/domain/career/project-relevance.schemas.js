@@ -88,7 +88,7 @@ export const ProjectRelevanceScoreBreakdownSchema = z.strictObject({
 // ---------------------------------------------------------------------------
 
 export const ProjectRelevanceExplanationSchema = z.strictObject({
-  requirementId: z.string().uuid().optional().nullable(),
+  requirementId: z.string().min(1).optional().nullable(),
   skillSlug: SafeSlugSchema.optional().nullable(),
   contribution: z.number().min(0.0).max(50.0),
   relationshipType: z
@@ -113,7 +113,7 @@ export const ProjectRelevanceSchema = z.strictObject({
     .max(100.0, { message: 'relevanceScore cannot exceed 100.0' }),
   relevanceBand: ProjectRelevanceBandEnum,
   scoreBreakdown: ProjectRelevanceScoreBreakdownSchema,
-  matchedRequirementIds: z.array(z.string().uuid()).default([]),
+  matchedRequirementIds: z.array(z.string().min(1)).default([]),
   contributingSkills: z.array(SafeSlugSchema).default([]),
   architecturalSignals: z.array(z.string()).default([]),
   supportingEvidence: z.array(EvidenceRefSchema).max(5).default([]),

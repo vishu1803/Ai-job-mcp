@@ -426,7 +426,7 @@ export const ResumeSkillCategoryOutputSchema = z
       z.object({
         skillSlug: z.string(),
         skillName: z.string(),
-        provenance: z.enum(['VERIFIED', 'INFERRED', 'CLAIMED']),
+        provenance: z.enum(['VERIFIED', 'CORROBORATED', 'INFERRED', 'CLAIMED']),
         confidenceScore: z.number().min(0).max(1).default(1.0),
         evidenceCount: z.number().int().nonnegative().default(0),
         claimLabel: z.string().nullable().optional(),

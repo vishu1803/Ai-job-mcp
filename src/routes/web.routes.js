@@ -3268,6 +3268,7 @@ export default async function webRoutes(app, opts = {}) {
     let storageKey = null;
     let filename = 'document.pdf';
     let mimeType = 'application/pdf';
+    let doc = null;
 
     // Check tailored_documents snapshots first if version or packageHash requested
     if (versionParam || packageHashParam) {
@@ -3302,7 +3303,7 @@ export default async function webRoutes(app, opts = {}) {
               ? 'TAILORED_COVER_LETTER'
               : null;
 
-        const doc = snapshots.find(
+        doc = snapshots.find(
           (d) =>
             d.documentType === targetDocType &&
             (d.metadata?.packageHash === targetHash ||
@@ -3337,6 +3338,22 @@ export default async function webRoutes(app, opts = {}) {
 
     if (!storageKey) {
       return reply.code(404).send({ error: 'Artifact storage key not found' });
+    }
+
+    const isArtifactBlocked =
+      doc?.metadata?.artifact?.status === 'BLOCKED' ||
+      (artifactType === 'resume' &&
+        (application.metadata?.handoffKit?.resume?.availabilityStatus === 'BLOCKED' ||
+          application.metadata?.handoffKit?.resume?.status === 'BLOCKED')) ||
+      (artifactType === 'cover-letter' &&
+        (application.metadata?.handoffKit?.coverLetter?.availabilityStatus === 'BLOCKED' ||
+          application.metadata?.handoffKit?.coverLetter?.status === 'BLOCKED'));
+
+    if (isArtifactBlocked) {
+      return reply.code(409).send({
+        error: 'Artifact is BLOCKED by quality or integrity validation gate',
+        code: 'ARTIFACT_BLOCKED',
+      });
     }
 
     try {
@@ -3524,6 +3541,7 @@ export default async function webRoutes(app, opts = {}) {
     let filename = 'document.pdf';
     let mimeType = 'application/pdf';
     let resolvedPackageHash = packageHashParam || null;
+    let doc = null;
 
     // P15-002: same verification for individual artifact downloads — the
     // requested packageHash must exist for THIS application, otherwise 404.
@@ -3581,7 +3599,7 @@ export default async function webRoutes(app, opts = {}) {
               ? 'TAILORED_COVER_LETTER'
               : null;
 
-        const doc = snapshots.find(
+        doc = snapshots.find(
           (d) =>
             d.documentType === targetDocType &&
             (d.metadata?.packageHash === targetHash ||
@@ -3617,6 +3635,22 @@ export default async function webRoutes(app, opts = {}) {
 
     if (!storageKey) {
       return reply.code(404).send({ error: 'Artifact storage key not found' });
+    }
+
+    const isArtifactBlocked =
+      doc?.metadata?.artifact?.status === 'BLOCKED' ||
+      (artifactType === 'resume' &&
+        (application.metadata?.handoffKit?.resume?.availabilityStatus === 'BLOCKED' ||
+          application.metadata?.handoffKit?.resume?.status === 'BLOCKED')) ||
+      (artifactType === 'cover-letter' &&
+        (application.metadata?.handoffKit?.coverLetter?.availabilityStatus === 'BLOCKED' ||
+          application.metadata?.handoffKit?.coverLetter?.status === 'BLOCKED'));
+
+    if (isArtifactBlocked) {
+      return reply.code(409).send({
+        error: 'Artifact is BLOCKED by quality or integrity validation gate',
+        code: 'ARTIFACT_BLOCKED',
+      });
     }
 
     try {

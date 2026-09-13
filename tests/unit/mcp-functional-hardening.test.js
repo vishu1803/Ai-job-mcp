@@ -24,6 +24,7 @@ import {
   handleDraftCoverLetter,
   handleGenerateTailoredResume,
 } from '../../src/mcp/tools/career-artifact-tools.js';
+import { createMcpWorkflowDbFixture } from '../fixtures/mcp-workflow-db.js';
 import { handleInspectProjectEvidence } from '../../src/mcp/tools/career-read-tools.js';
 import { registerCareerProfileTools } from '../../src/mcp/tools/career-profile-tools.js';
 
@@ -142,15 +143,19 @@ describe('MCP Functional Hardening Regression Suite', () => {
         identities: [],
       };
 
-      const mockDb = {
-        select: () => ({
-          from: () => ({
-            where: () => ({
-              limit: async () => [{ id: candidateId, tenantId }],
-            }),
-          }),
-        }),
-      };
+      const mockDb = createMcpWorkflowDbFixture({
+        candidate: {
+          id: candidateId,
+          tenantId,
+          userId,
+          email: 'test@example.com',
+          displayName: 'Test Candidate',
+          headline: 'Senior Backend Engineer',
+          summary: 'Specialized in backend APIs and distributed systems.',
+        },
+        skills: mockCandidateProfile.skills,
+        projects: mockCandidateProfile.projects,
+      });
 
       const mockProfileService = {
         getProfile: async () => mockCandidateProfile,
@@ -213,15 +218,19 @@ describe('MCP Functional Hardening Regression Suite', () => {
         identities: [],
       };
 
-      const mockDb = {
-        select: () => ({
-          from: () => ({
-            where: () => ({
-              limit: async () => [{ id: candidateId, tenantId }],
-            }),
-          }),
-        }),
-      };
+      const mockDb = createMcpWorkflowDbFixture({
+        candidate: {
+          id: candidateId,
+          tenantId,
+          userId,
+          email: 'test@example.com',
+          displayName: 'Test Candidate',
+          headline: 'Senior Backend Engineer',
+          summary: 'Specialized in backend APIs and distributed systems.',
+        },
+        skills: mockCandidateProfile.skills,
+        projects: mockCandidateProfile.projects,
+      });
 
       const mockProfileService = {
         getProfile: async () => mockCandidateProfile,

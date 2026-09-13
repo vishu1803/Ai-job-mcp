@@ -58,6 +58,12 @@ import {
   determineFactAgency,
 } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
+import {
+  normalizeJobInput,
+  getJobRequirementConceptsUnified,
+  normalizeRequirementToken,
+  GENERIC_REQUIREMENT_TOKENS,
+} from './job-normalization.service.js';
 
 export {
   CONTRIBUTION_CLASSES,
@@ -1127,165 +1133,39 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
  * @param {Array<object>} facts Canonical facts
  * @param {object|null} jobPosting
  * @returns {Array<object>} New fact array with jobRelevance
- */
+import {
+  normalizeJobInput,
+  getJobRequirementConceptsUnified,
+  normalizeJobRequirementString,
+  normalizeRequirementToken,
+  classifyRequirement,
+  resolveRequirementImportance,
+  createDeterministicRequirementId,
+  GENERIC_REQUIREMENT_TOKENS,
+  REQUIREMENT_ALIASES,
+  REQUIREMENT_CLASS_BY_CATEGORY,
+} from './job-normalization.service.js';
+
+export {
+  normalizeJobRequirementString,
+  normalizeRequirementToken,
+  classifyRequirement,
+  resolveRequirementImportance,
+  createDeterministicRequirementId,
+  GENERIC_REQUIREMENT_TOKENS,
+  REQUIREMENT_ALIASES,
+  REQUIREMENT_CLASS_BY_CATEGORY,
+};
+
 /**
- * Normalizes any job requirement input (string, {keyword}, {title}, {name}, {text}, object)
- * into a clean string for robust matching.
+ * Returns specific, structured job concepts used consistently by ranking and
+ * selection. Generic role vocabulary is intentionally excluded.
  *
- * @param {any} req
- * @returns {string}
+ * @param {object|null} jobPosting
+ * @returns {Array<{id:string,text:string,importance:number,importanceLabel:string,requirementClass:string,normalizedName:string,tokens:Set<string>}>}
  */
-export function normalizeJobRequirementString(req) {
-  if (!req) return '';
-  if (typeof req === 'string') return req.trim();
-  if (typeof req === 'object') {
-    return [req.text, req.keyword, req.title, req.name, req.description]
-      .filter((s) => typeof s === 'string' && s.trim().length > 0)
-      .join(' ')
-      .trim();
-  }
-  return String(req).trim();
-}
-
-const GENERIC_REQUIREMENT_TOKENS = new Set([
-    'software',
-    'engineer',
-    'engineering',
-    'developer',
-    'development',
-    'systems',
-    'system',
-    'application',
-    'applications',
-    'technology',
-    'technical',
-    'experience',
-    'work',
-    'working',
-]);
-
-const REQUIREMENT_ALIASES = new Map([
-  ['reactjs', 'react'],
-  ['react.js', 'react'],
-  ['nextjs', 'next.js'],
-  ['restful', 'rest'],
-  ['restfulapis', 'rest api'],
-  ['restapi', 'rest api'],
-  ['httpapi', 'rest api'],
-  ['postgres', 'postgresql'],
-  ['k8s', 'kubernetes'],
-  ['js', 'javascript'],
-  ['ts', 'typescript'],
-]);
-
-const REQUIREMENT_CLASS_BY_CATEGORY = Object.freeze({
-  SKILL: 'TECHNOLOGY',
-  EXPERIENCE: 'RESPONSIBILITY',
-  DOMAIN: 'DOMAIN',
-  EDUCATION: 'EDUCATION',
-  CERTIFICATION: 'CERTIFICATION',
-  LOCATION: 'LOCATION',
-  ELIGIBILITY: 'ELIGIBILITY',
-});
-
-function normalizeRequirementToken(token) {
-  const normalized = String(token || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9+#.]+/g, '');
-  return REQUIREMENT_ALIASES.get(normalized) || normalized;
-}
-
-function classifyRequirement(raw, text) {
-  const category = typeof raw === 'object' ? String(raw.category || '').toUpperCase() : '';
-  if (REQUIREMENT_CLASS_BY_CATEGORY[category]) return REQUIREMENT_CLASS_BY_CATEGORY[category];
-  if (/\b(certif|degree|bachelor|master|phd|education)\b/i.test(text)) return 'EDUCATION';
-  if (/\b(lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop)\b/i.test(text)) {
-    return 'RESPONSIBILITY';
-  }
-  return 'TECHNOLOGY';
-}
-
-function requirementImportance(raw, text) {
-  const explicit = typeof raw === 'object' ? String(raw.importance || '').toUpperCase() : '';
-  if (explicit === 'REQUIRED') return { label: 'REQUIRED', weight: 1 };
-  if (explicit === 'PREFERRED') return { label: 'PREFERRED', weight: 0.7 };
-  if (explicit === 'OPTIONAL') return { label: 'OPTIONAL', weight: 0.35 };
-  if (/\b(must|required|minimum|essential|need to)\b/i.test(text)) {
-    return { label: 'REQUIRED', weight: 1 };
-  }
-  if (/\b(preferred|ideally|nice to have|bonus)\b/i.test(text)) {
-    return { label: 'PREFERRED', weight: 0.7 };
-  }
-  return { label: 'PREFERRED', weight: 0.7 };
-}
-
-  /**
-   * Returns specific, structured job concepts used consistently by ranking and
-   * selection. Generic role vocabulary is intentionally excluded.
-   *
-   * @param {object|null} jobPosting
-   * @returns {Array<{id:string,text:string,importance:number,tokens:Set<string>}>}
-   */
 export function getJobRequirementConcepts(jobPosting) {
-    const jp = jobPosting || {};
-    if (Array.isArray(jp.normalizedRequirements) && jp.normalizedRequirements.length > 0) {
-      return jp.normalizedRequirements.map((requirement) => ({
-        id: String(requirement.id),
-        text: requirement.text,
-        importance: requirement.weight,
-        importanceLabel: requirement.importance,
-        requirementClass: requirement.class,
-        normalizedName: requirement.normalizedConcept,
-        tokens: new Set([
-          ...String(requirement.normalizedConcept || '').split(' ').filter(Boolean),
-          ...(Array.isArray(requirement.aliases) ? requirement.aliases : []).map(normalizeRequirementToken),
-        ]),
-      }));
-    }
-    const rawRequirements = Array.isArray(jp.requirements) ? jp.requirements : [];
-    const rawSkills = Array.isArray(jp.skills) ? jp.skills : [];
-    const descriptionRequirements =
-      rawRequirements.length === 0 && rawSkills.length === 0 && typeof jp.description === 'string'
-        ? jp.description
-            .split(/\r?\n|[;,]/)
-            .map((part) => part.trim())
-            .filter(Boolean)
-        : [];
-    const concepts = [];
-    const seen = new Set();
-
-    const add = (raw, index, fallbackPrefix) => {
-      const text = normalizeJobRequirementString(raw);
-      const tokens = text
-        .toLowerCase()
-        .replace(/[^a-z0-9+#.]+/g, ' ')
-        .split(/\s+/)
-        .filter((token) => token.length >= 2 && !GENERIC_REQUIREMENT_TOKENS.has(token))
-        .map(normalizeRequirementToken)
-        .filter((token) => token && !GENERIC_REQUIREMENT_TOKENS.has(token));
-      if (!text || tokens.length === 0) return;
-      const uniqueTokens = [...new Set(tokens)];
-      const key = uniqueTokens.join(' ');
-      if (seen.has(key)) return;
-      seen.add(key);
-      const importance = requirementImportance(raw, text);
-      concepts.push({
-        id:
-          typeof raw === 'object' && raw?.id
-            ? String(raw.id)
-            : `${fallbackPrefix}-${index + 1}`,
-        text,
-        importance: importance.weight,
-        importanceLabel: importance.label,
-        requirementClass: classifyRequirement(raw, text),
-        normalizedName: key,
-        tokens: new Set(uniqueTokens),
-      });
-    };
-
-    [...rawRequirements, ...descriptionRequirements].forEach((req, index) => add(req, index, 'req'));
-    rawSkills.forEach((skill, index) => add(skill, index, 'skill'));
-    return concepts;
+  return getJobRequirementConceptsUnified(jobPosting);
 }
 
 /**
@@ -1295,34 +1175,7 @@ export function getJobRequirementConcepts(jobPosting) {
  * @returns {{jobFingerprint:string, role:object, normalizedRequirements:Array<object>}}
  */
 export function buildCanonicalJobRequirements(jobPosting) {
-  const concepts = getJobRequirementConcepts(jobPosting);
-  const normalizedRequirements = concepts.map((concept) => ({
-    id: concept.id,
-    text: concept.text,
-    normalizedConcept: concept.normalizedName,
-    aliases: [...concept.tokens],
-    class: concept.requirementClass,
-    importance: concept.importanceLabel,
-    weight: concept.importance,
-    confidence: 1,
-    source: 'JOB_POSTING',
-  }));
-  const fingerprint = JSON.stringify({
-    title: jobPosting?.title || '',
-    requirements: normalizedRequirements,
-  });
-  return {
-    jobFingerprint: fingerprint,
-    role: {
-      rawTitle: jobPosting?.title || '',
-      normalizedOccupation: jobPosting?.normalizedOccupation || null,
-      seniority: jobPosting?.seniority || null,
-      function: jobPosting?.function || null,
-      specialization: jobPosting?.specialization || null,
-      domain: jobPosting?.domain || null,
-    },
-    normalizedRequirements,
-  };
+  return normalizeJobInput(jobPosting);
 }
 
 function normalizedFactTokens(value) {

@@ -101,7 +101,7 @@ export const EvidenceRefSchema = z
 
 export const CandidateRequirementMatchSchema = z
   .object({
-    requirementId: z.string().uuid({ message: 'Requirement ID must be a valid UUID' }),
+    requirementId: z.string().min(1, { message: 'Requirement ID must be a non-empty string' }),
     category: RequirementCategoryEnum,
     importance: RequirementImportanceEnum,
     required: z.boolean().optional(),
@@ -147,7 +147,7 @@ export const CandidateRequirementMatchSchema = z
 
 export const SkillGapSchema = z
   .object({
-    requirementId: z.string().uuid({ message: 'Requirement ID must be a valid UUID' }),
+    requirementId: z.string().min(1, { message: 'Requirement ID must be a non-empty string' }),
     skillSlug: SafeSlugSchema.nullable().optional(),
     skillName: z.string().trim().min(1).max(100),
     category: RequirementCategoryEnum,
@@ -170,7 +170,7 @@ export const SkillGapSchema = z
 
 export const MatchExplanationSchema = z
   .object({
-    requirementId: z.string().uuid({ message: 'Requirement ID must be a valid UUID' }),
+    requirementId: z.string().min(1, { message: 'Requirement ID must be a non-empty string' }),
     status: MatchStatusEnum,
     reason: z.string().trim().min(1).max(1000),
     evidenceRefs: z.array(EvidenceRefSchema).max(3).default([]),

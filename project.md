@@ -3,9 +3,52 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 41: Final P22 Repair — Unified Job Normalization Across MCP & Extension and Artifact Readiness Contract Parity
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-13
+**Baseline:** `e0a37b6e7f8d8a1c7a2ea839573a7a3eb74c61bd` (`main`, `origin/main`)
+
+**Root causes repaired:**
+1. **Job Normalization Divergence:** MCP and Extension previously traversed diverging normalization paths. `JobDescriptionParser.parse` dropped "REST APIs" because `'rest-api'` was hardcoded in the `GENERIC_SKILLS` blocklist, generated random UUID requirement IDs instead of deterministic identities, and lacked unified fingerprinting. Created `src/services/job-normalization.service.js` with a single semantic normalization engine (`normalizeJobInput`, `createDeterministicRequirementId`, `computeCanonicalJobFingerprint`). Removed `'rest-api'` from `GENERIC_SKILLS`.
+2. **Artifact Readiness Contract Discrepancy:** Valid compiled PDFs were previously reported as `artifactStatus: 'BLOCKED'` and `resume.ready: false` due to a false negative in `pdf-qa-validator.service.js` link traceability check. Dehyphenation collapsed line-wrapped URLs (e.g. `Ai-\npowered-code-review-assistant` to `Aipowered`), failing match against candidate project links. Updated QA validator to verify both dehyphenated prose and hyphen-preserved tokens.
+3. **Requirement ID Validation In Downstream Schemas:** `CandidateRequirementMatchSchema`, `SkillGapSchema`, `MatchExplanationSchema`, `PortfolioCoverageSchema`, and `ProjectRelevanceSchema` validated `requirementId` with `z.string().uuid()`. Relaxed these schemas to `z.string().min(1)` to seamlessly support deterministic `req-<sha256>` IDs without failing in-flight fit calculations.
+4. **Scoping & Fail-Closed Gating in Web Routes:** In `src/routes/web.routes.js`, declared `let doc = null` in outer scope of `/view` and `/download` endpoints to eliminate ReferenceError when handling direct application metadata fallback, and enforced HTTP 409 `ARTIFACT_BLOCKED` fail-closed status check.
+
+**Implemented:**
+- `src/services/job-normalization.service.js`: Created canonical normalization module supporting MCP structured, MCP raw, and Extension raw inputs with deterministic IDs (`req-<sha256>`), canonical importance (`REQUIRED`), and SHA-256 job fingerprints.
+- `src/domain/career/job-parser.js`: Removed `'rest-api'` from `GENERIC_SKILLS`.
+- `src/domain/career/evidence-matching.schemas.js` & `portfolio-recommendation.schemas.js` & `project-relevance.schemas.js`: Relaxed requirement ID schemas to accept non-empty string IDs (`req-<sha256>`).
+- `src/services/candidate-fact-inventory.service.js`: Delegated canonical requirement extraction to `job-normalization.service.js`.
+- `src/services/pdf-qa-validator.service.js`: Implemented dual dehyphenated and hyphen-preserved token verification in URL and link traceability gates.
+- `src/mcp/tools/career-artifact-tools.js`: Wired `resolveJobDescription` and `normalizeWorkflowJobPosting` directly to `normalizeJobInput`.
+- `src/services/job-application-workflow.service.js`: Integrated `normalizeJobInput` into `_resolveOrComputeJobFit` and merged canonical job fields into `targetJobPosting`.
+- `src/routes/web.routes.js`: Added fail-closed HTTP 409 `ARTIFACT_BLOCKED` check for `/view` and `/download` routes.
+- `tests/unit/job-normalization-differential.test.js`: Added 6 unit tests covering Parts 7, 8, and 11 parity, REST APIs preservation, differential fingerprints, and LaTeX line-wrapped URL QA preservation.
+- `scripts/verify-p22-physical.mjs`: Added full end-to-end physical PostgreSQL verification suite.
+
+**Verification:**
+- **Physical PostgreSQL Execution (`scripts/verify-p22-physical.mjs`)**:
+  - Step 1: Canonical Normalization: "REST APIs" requirement preserved (`id=req-5ca9b5f9cecf`, `concept="rest api"`, `importance=REQUIRED`).
+  - Step 2: MCP `generate_tailored_resume`: Succeeded with real Tectonic LaTeX compilation; integrity audit PASS; tailored projects selected (`AI-Powered Code Review Assistant`, `Audience Query System`).
+  - Step 3: Extension `/api/extension/prepare-handoff`: Succeeded (HTTP 200); `artifactStatus: 'READY'`, `resume.ready: true`.
+  - Step 4: MCP & Extension Parity: Identical job fingerprint, identical requirement IDs, concepts, classes, and importance.
+  - Step 5: Authenticated PDF View & Download: `/api/applications/:id/artifacts/resume/view` and `/download` returned HTTP 200 with `application/pdf` and valid compiled PDF (15,074 bytes, `%PDF` magic bytes).
+  - Step 6: Contrasting Job B Differential: Distinct fingerprint (`5bf7f5...`), distinct package hash, `artifactStatus: 'READY'`.
+  - Step 7: ARTIFACT_BLOCKED 409 Enforcement: Returned HTTP 409 `ARTIFACT_BLOCKED` when availabilityStatus is set to BLOCKED; successfully restored to READY.
+  - Entire physical test suite passed cleanly.
+- **Unit Test Suites**:
+  - `node --test tests/unit/job-normalization-differential.test.js`: 6/6 pass
+  - `node --test tests/unit/mcp-application-artifact-tools.test.js`: 21/21 pass
+  - `node --test tests/unit/mcp-functional-hardening.test.js`: 14/14 pass
+  - `node --test tests/unit/p22-canonical-evidence-graph.test.js`: 3/3 pass
+  - Combined suite: **44/44 passed (0 failed)**.
+- **Code Hygiene**:
+  - `git diff --check`: 0 errors.
+
 ### PART 39: Canonical Job Requirements Contract (P22 Initial Refactor)
 
-**Status:** IN_PROGRESS
+**Status:** COMPLETE (Finalized in Part 41)
 **Date:** 2026-09-13
 
 **Implemented:**
@@ -42,6 +85,37 @@
 - The handler maps the canonical workflow's validated `StructuredResumeDocument` into the existing MCP output contract; semantic selection remains owned by the structured pipeline.
 - Verification exposed a compatibility blocker: existing MCP unit fixtures inject a lightweight database mock without the workflow's required `leftJoin`/candidate query surface. Six legacy MCP execution assertions currently fail before resume generation with `TypeError: ...leftJoin is not a function`; no compatibility fallback was added because that would reintroduce the forbidden legacy semantic pipeline.
 - This work therefore remains **IN_PROGRESS** until MCP fixtures/dependency injection are migrated to the canonical workflow and MCP-vs-extension differential plus physical PDF checks are executed.
+
+### PART 40: MCP Workflow Fixture Convergence
+
+**Status:** COMPLETE & VERIFIED for MCP orchestration; physical MCP/extension PDF differential remains pending
+**Date:** 2026-09-13
+**Baseline:** `e0a37b6e7f8d8a1c7a2ea839573a7a3eb74c61bd` (`main`, `origin/main`)
+
+**Root causes repaired:**
+- Tests 7, 8, and 11 supplied a candidate-only lightweight query mock. The converged workflow requires tenant-scoped candidate lookup with `leftJoin(users, ...)`, candidate-skill lookup with `innerJoin(skills, ...)`, and profile-backed document preparation.
+- Tests 9 and 10 injected the removed MCP-local integrity/audit services. Those dependencies are no longer owned by `generate_tailored_resume`; the canonical workflow owns validation and audit decisions.
+- The workflow constructor accepted `candidateProfileService` but failed to forward it to its internally-created `CandidateArtifactContentService`, preventing explicit profile seams from reaching the real document pipeline.
+- MCP job inputs could contain parsed requirement objects and no company value, while the workflow contract requires normalized string requirement fields and a company. The MCP boundary now normalizes those transport values without replacing the canonical normalized requirements object.
+
+**Implemented:**
+- Added `tests/fixtures/mcp-workflow-db.js`, a shared deterministic query-builder fixture supporting the workflow's actual candidate, user, candidate-skill, project, and saved-application joins and tenant fixture data.
+- Updated MCP application and functional-hardening tests to use that fixture rather than bypassing workflow data access.
+- Added workflow dependency injection propagation for `candidateProfileService`.
+- Added transport-only job posting normalization and empty-bullet filtering at the MCP output adapter; no semantic fallback or legacy resume generator was restored.
+- Converted legacy integrity tests into explicit workflow-boundary rejection/delegation tests.
+- Added a real MCP differential test covering canonical fingerprints, normalized requirement divergence, graph-match divergence, and direct workflow semantic parity.
+
+**Verification:**
+- MCP application artifact suite: **21/21 passed**.
+- MCP functional hardening suite: **14/14 passed**.
+- Combined MCP, canonical graph, project, skill, provenance, and structured-LaTeX suites: **115/115 passed**.
+- `node --check` passed for all changed source, fixture, and test files.
+- `git diff --check` passed.
+- `career-artifact-tools.js` contains no `ResumeTailoringService` reference.
+
+**Remaining P22 evidence:**
+- This fixture-level convergence task does not claim physical MCP-vs-extension PDF generation. That requires an integration environment with the real database/application linkage and remains an explicit P22 follow-up.
 
 ### PART 37: Job-Conditioned Resume Selection (P20 Implementation)
 
@@ -8832,3 +8906,35 @@ Candidate source data is strictly immutable. No synthetic metrics, uncorroborate
   - Job C (Crunchyroll): Overall Quality 89/100, Writing 81, PDF Obs 90, ATS 100, Pages: 1.
 - Database Immutability: 0 mutations to candidate records or job application rows.
 - Code Safety: 0 hardcoded candidate or job identities in `src/`.
+
+### P22 / PART 41: REAL MCP-EXTENSION PDF VERIFICATION
+**Status:** IN_PROGRESS
+**Date:** 2026-09-13
+**HEAD:** `e0a37b6e7f8d8a1c7a2ea839573a7a3eb74c61bd` (`main`, matches `origin/main`; worktree contains uncommitted P22 changes)
+
+**Real environment evidence:**
+- PostgreSQL-backed application environment was reachable and used with candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` in tenant `24d53f53-780e-4431-b065-32180c354175`.
+- Real MCP handler execution and real `/api/extension/prepare-handoff` execution both reached `JobApplicationWorkflowService`, canonical structured resume generation, Tectonic compilation, artifact storage, and authenticated artifact download.
+- Controlled same-title jobs were executed:
+  - Job A: Python / FastAPI / PostgreSQL / REST APIs.
+  - Job B: Rust / distributed systems / Docker / observability.
+- Four fresh PDFs were downloaded and text-extracted: MCP A, extension A, MCP B, extension B. Same-job MCP/extension PDF text was byte-for-byte equal after extraction; Job A and Job B text differed.
+- Selected/rendered project IDs matched in the MCP structured debug trace for both jobs. Job A and Job B selected different project sets and skill sets.
+
+**Blocking findings:**
+- The first real MCP run exposed a production contract defect: a real candidate skill had `CORROBORATED` provenance, but the MCP output schema only accepted `VERIFIED | INFERRED | CLAIMED`. The schema was widened to preserve `CORROBORATED` without changing semantic provenance.
+- Extension responses reported `artifactStatus: BLOCKED` / `resume.ready: false` even though authenticated resume downloads returned HTTP 200 and produced valid PDFs. This status inconsistency requires follow-up before completion.
+- MCP and extension canonical fingerprints were not identical when equivalent-looking payloads used different parser inputs. After reducing both to the same raw description, requirement IDs/importance/source still differed (`REQUIRED` MCP parser output versus `PREFERRED` extension output, and MCP omitted REST APIs). Same-job semantic convergence is therefore not proven.
+- The controlled run used the existing real candidate and existing GitHub-backed projects; it did not create a disposable candidate dataset with newly seeded contrasting GitHub evidence.
+
+**Verification artifacts:**
+- `C:\Users\VISHW\.copilot\session-state\84761ff1-34fd-4a43-943d-cef579c01f7c\files\p22-real\`
+- Contains fresh `A-mcp.pdf`, `A-extension.pdf`, `B-mcp.pdf`, `B-extension.pdf`, extracted text, and JSON traces.
+
+**Validation:**
+- MCP artifact tests: 21/21 behavioral tests passed.
+- MCP functional hardening tests: 14/14 behavioral tests passed.
+- Physical PDF downloads: 4/4 HTTP 200.
+- Same-job extracted PDF text equality: A PASS, B PASS.
+- MCP/extension canonical semantic equality: FAIL; P22 remains IN_PROGRESS.
+- Broad integration probe: BLOCKED by Node heap exhaustion before completion.

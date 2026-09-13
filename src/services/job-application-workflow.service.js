@@ -22,6 +22,7 @@ import { AtsFitScoreService } from './ats-fit-score.service.js';
 import { EvidenceMatchingService } from './evidence-matching.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
 import { JobDescriptionParser } from '../domain/career/job-parser.js';
+import { normalizeJobInput } from './job-normalization.service.js';
 import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 import {
@@ -301,9 +302,14 @@ export class JobApplicationWorkflowService {
    */
   constructor(options = {}) {
     this.db = options.database || defaultDb;
+    this.candidateProfileService =
+      options.candidateProfileService || new CandidateProfileService(this.db);
     this.candidateArtifactContentService =
       options.candidateArtifactContentService ||
-      new CandidateArtifactContentService({ database: this.db });
+      new CandidateArtifactContentService({
+        database: this.db,
+        candidateProfileService: this.candidateProfileService,
+      });
     this.applicationTrackingService =
       options.applicationTrackingService || new ApplicationTrackingService({ database: this.db });
     const documentStorage =
@@ -322,8 +328,6 @@ export class JobApplicationWorkflowService {
       : options.submissionAdapters instanceof Map
         ? Array.from(options.submissionAdapters.values())
         : [];
-    this.candidateProfileService =
-      options.candidateProfileService || new CandidateProfileService(this.db);
     this.mcpAuditService = options.mcpAuditService || null;
     this.logger = options.logger || defaultLogger;
   }
@@ -490,83 +494,63 @@ export class JobApplicationWorkflowService {
         let extractedRequirements = [];
         let jobDescription = null;
 
-        if (descriptionText.length >= 20) {
-          // Parse targetJobPosting.description with existing JobDescriptionParser to produce
-          // the exact same atomic requirement representation as Analyze (Section 8 Fallback Parity)
-          const classification = await JobDescriptionParser.parse(
-            {
-              rawText: descriptionText,
-              title: targetJobPosting.title || 'Target Role',
-              company: targetJobPosting.company || targetJobPosting.companyName || 'Target Company',
-              source: 'MANUAL',
-            },
-            {
-              tenantId: context.tenantId,
-              userId: context.userId,
-            }
-          );
-          extractedRequirements = classification.requirements || [];
+        const canonical = normalizeJobInput(targetJobPosting);
+        const isJobIdUuid =
+          targetJobPosting.id &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
+        const jobId = isJobIdUuid ? targetJobPosting.id : crypto.randomUUID();
 
-          const isJobIdUuid =
-            targetJobPosting.id &&
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
+        extractedRequirements = canonical.normalizedRequirements.map((r) => ({
+          id: r.id,
+          requirementId: r.id,
+          tenantId: context.tenantId,
+          jobDescriptionId: jobId,
+          category:
+            r.class === 'TECHNOLOGY'
+              ? 'SKILL'
+              : r.class === 'RESPONSIBILITY'
+                ? 'EXPERIENCE'
+                : r.class === 'EDUCATION'
+                  ? 'EDUCATION'
+                  : 'SKILL',
+          importance: r.importance,
+          weight: r.weight,
+          skillSlug: r.normalizedConcept ? r.normalizedConcept.replace(/\s+/g, '-') : null,
+          rawSnippet: boundRequirementText(r.text),
+          extractedValue: r.normalizedConcept || r.text,
+          originalText: boundRequirementText(r.text),
+          normalizedCriteria: {
+            skillSlug: r.normalizedConcept ? r.normalizedConcept.replace(/\s+/g, '-') : null,
+            skillName: r.text,
+          },
+          confidenceScore: r.confidence ?? 0.9,
+          sourceSpan: { section: 'REQUIREMENTS', snippet: boundRequirementText(r.text) },
+          createdAt: new Date().toISOString(),
+        }));
 
-          jobDescription = {
-            id: isJobIdUuid ? targetJobPosting.id : classification.jobDescription?.id || crypto.randomUUID(),
-            tenantId: context.tenantId,
-            title: targetJobPosting.title || classification.jobDescription?.title || 'Target Role',
-            companyName:
-              targetJobPosting.company ||
-              targetJobPosting.companyName ||
-              classification.jobDescription?.company ||
-              'Target Company',
-            level: targetJobPosting.level || classification.jobDescription?.level || 'MID',
-            requirements: extractedRequirements,
-            skills: targetJobPosting.skills || [],
-            description: descriptionText,
-            provider: targetJobPosting.provider || targetJobPosting.source || 'EXTERNAL',
-            sourceUrl: targetJobPosting.sourceUrl || null,
-            applicationUrl: targetJobPosting.applicationUrl || null,
-          };
-        } else {
-          const rawReqs = Array.isArray(targetJobPosting.requirements)
-            ? targetJobPosting.requirements
-            : [];
-          extractedRequirements = rawReqs.map((req) => {
-            const text = typeof req === 'string' ? req : req.extractedValue || req.originalText || '';
-            return {
-              id: crypto.randomUUID(),
-              category: 'SKILL',
-              importance: 'REQUIRED',
-              weight: 1.0,
-              skillSlug: null,
-              rawSnippet: boundRequirementText(text),
-              extractedValue: text,
-              originalText: boundRequirementText(text),
-              normalizedCriteria: {},
-              confidenceScore: 0.85,
-              sourceSpan: { section: 'RAW_REQUIREMENT', snippet: boundRequirementText(text) },
-              createdAt: new Date().toISOString(),
-            };
-          });
-
-          const isJobIdUuid =
-            targetJobPosting.id &&
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
-          jobDescription = {
-            id: isJobIdUuid ? targetJobPosting.id : crypto.randomUUID(),
-            tenantId: context.tenantId,
-            title: targetJobPosting.title || 'Target Role',
-            companyName: targetJobPosting.company || 'Target Company',
-            level: targetJobPosting.level || 'MID',
-            requirements: extractedRequirements,
-            skills: targetJobPosting.skills || [],
-            description: descriptionText,
-            provider: targetJobPosting.provider || targetJobPosting.source || 'EXTERNAL',
-            sourceUrl: targetJobPosting.sourceUrl || null,
-            applicationUrl: targetJobPosting.applicationUrl || null,
-          };
-        }
+        jobDescription = {
+          id: jobId,
+          tenantId: context.tenantId,
+          title: targetJobPosting.title || canonical.role?.rawTitle || 'Target Role',
+          companyName:
+            targetJobPosting.company ||
+            targetJobPosting.companyName ||
+            'Target Company',
+          level: targetJobPosting.level || 'MID',
+          requirements: extractedRequirements,
+          skills:
+            targetJobPosting.skills ||
+            canonical.normalizedRequirements
+              .filter((r) => r.class === 'TECHNOLOGY')
+              .map((r) => r.text),
+          description: descriptionText || targetJobPosting.rawText || '',
+          provider: targetJobPosting.provider || targetJobPosting.source || 'EXTERNAL',
+          sourceUrl: targetJobPosting.sourceUrl || null,
+          applicationUrl: targetJobPosting.applicationUrl || null,
+          jobFingerprint: canonical.jobFingerprint,
+          role: canonical.role,
+          normalizedRequirements: canonical.normalizedRequirements,
+        };
 
         const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
           context,
@@ -739,6 +723,7 @@ export class JobApplicationWorkflowService {
 
     const derivedRecommended = eligibleProjects.map((p) => p.projectName || p.name);
 
+    const canonicalJob = normalizeJobInput(jobPosting);
     const targetJobPosting = {
       id: jobPosting?.id || jobPosting?.canonicalJobId || crypto.randomUUID(),
       canonicalJobId: jobPosting?.canonicalJobId || jobPosting?.id,
@@ -749,9 +734,22 @@ export class JobApplicationWorkflowService {
       location: jobPosting?.location || 'Remote',
       workplaceType: jobPosting?.workplaceType || jobPosting?.workplace || 'REMOTE',
       employmentType: jobPosting?.employmentType || 'FULL_TIME',
-      requirements: jobPosting?.requirements || [],
-      skills: jobPosting?.skills || [],
       ...jobPosting,
+      ...canonicalJob,
+      requirements:
+        Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0
+          ? jobPosting.requirements
+              .map((r) => (typeof r === 'string' ? r : r.text || r.name || r.extractedValue || ''))
+              .filter(Boolean)
+          : canonicalJob.normalizedRequirements.map((r) => r.text),
+      skills:
+        Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0
+          ? jobPosting.skills
+              .map((s) => (typeof s === 'string' ? s : s.name || s.slug || ''))
+              .filter(Boolean)
+          : canonicalJob.normalizedRequirements
+              .filter((r) => r.class === 'TECHNOLOGY')
+              .map((r) => r.text),
       recommendedProjects:
         jobPosting?.recommendedProjects ||
         answers?.recommendedProjects ||

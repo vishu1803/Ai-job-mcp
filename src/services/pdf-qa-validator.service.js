@@ -363,7 +363,15 @@ export class PdfQaValidatorService {
           .replace(/\s+/g, ' ')
           .toLowerCase()
           .trim();
+      const normHyphenPreserved = (s) =>
+        String(s || '')
+          .normalize('NFKC')
+          .replace(/-\s*\n\s*/g, '-')
+          .replace(/\s+/g, ' ')
+          .toLowerCase()
+          .trim();
       const normText = norm(cleanText);
+      const normHyphenPreservedText = normHyphenPreserved(cleanText);
 
       // Token expectation groups: every selected element must survive extraction.
       const expectationGroups = [
@@ -390,7 +398,8 @@ export class PdfQaValidatorService {
       for (const group of expectationGroups) {
         for (const token of Array.isArray(group.tokens) ? group.tokens : []) {
           const t = norm(token);
-          if (t && !normText.includes(t)) {
+          const tHyphen = normHyphenPreserved(token);
+          if (t && !normText.includes(t) && !normHyphenPreservedText.includes(tHyphen)) {
             traceability.missing.push({ kind: group.label, token });
           }
         }

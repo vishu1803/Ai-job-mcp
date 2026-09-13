@@ -105,7 +105,7 @@ export const HighlightedSkillSchema = z.strictObject({
 });
 
 export const RequirementCoverageItemSchema = z.strictObject({
-  requirementId: z.string().uuid({ message: 'Requirement ID must be a valid UUID' }),
+  requirementId: z.string().min(1, { message: 'Requirement ID must be a non-empty string' }),
   requirementTitle: z.string().min(1).max(255),
   skillSlug: SafeSlugSchema.optional().nullable(),
   priority: z.enum(['REQUIRED', 'PREFERRED', 'OPTIONAL']),
@@ -154,7 +154,7 @@ export const ProjectRecommendationSchema = z.strictObject({
   sourceAvailable: z.boolean().default(true),
   documentationAvailable: z.boolean().default(true),
   primaryRoleHighlighted: z.string().min(1).max(100).default('Software Engineer'),
-  requirementsCovered: z.array(z.string().uuid()).default([]),
+  requirementsCovered: z.array(z.string().min(1)).default([]),
   signalsAdded: z.array(PortfolioSignalEnum).default([]),
   skillsToHighlight: z.array(z.string().min(1).max(100)).default([]),
   evidenceHighlights: z.array(EvidenceRefSchema).max(5).default([]),
@@ -179,7 +179,7 @@ export const PortfolioWarningSchema = z.strictObject({
   ]),
   message: z.string().min(1).max(500),
   affectedProjectId: z.string().uuid().optional().nullable(),
-  affectedRequirementId: z.string().uuid().optional().nullable(),
+  affectedRequirementId: z.string().min(1).optional().nullable(),
   severity: z.enum(['CRITICAL', 'WARNING', 'INFO']).default('WARNING'),
 });
 
@@ -190,8 +190,8 @@ export const PortfolioCoverageSchema = z.strictObject({
   preferredRequirementsCount: z.number().int().nonnegative(),
   preferredCoveredCount: z.number().int().nonnegative(),
   coveragePercentage: z.number().min(0.0).max(100.0),
-  coveredRequirementIds: z.array(z.string().uuid()),
-  uncoveredRequirementIds: z.array(z.string().uuid()),
+  coveredRequirementIds: z.array(z.string().min(1)),
+  uncoveredRequirementIds: z.array(z.string().min(1)),
 });
 
 export const PortfolioSignalCoverageSchema = z.strictObject({
