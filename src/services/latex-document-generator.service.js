@@ -642,6 +642,18 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
       layoutProfile,
     });
 
+    const renderedProjectNames = projects
+      .map((project) => project.displayName || project.name || 'Project')
+      .filter(Boolean);
+    const missingRenderedProjects = renderedProjectNames.filter(
+      (name) => !tex.includes(escapeLatex(name))
+    );
+    if (projects.length > 0 && (!tex.includes('Technical Projects') || missingRenderedProjects.length > 0)) {
+      throw new ValidationError(
+        `Structured project/render parity failed: ${missingRenderedProjects.join(', ') || 'Technical Projects section missing'}`
+      );
+    }
+
     return {
       texContent: tex,
       candidateName,

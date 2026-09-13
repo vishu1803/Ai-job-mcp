@@ -1236,11 +1236,21 @@ export function getJobRequirementConcepts(jobPosting) {
         importanceLabel: requirement.importance,
         requirementClass: requirement.class,
         normalizedName: requirement.normalizedConcept,
-        tokens: new Set(requirement.normalizedConcept.split(' ').filter(Boolean)),
+        tokens: new Set([
+          ...String(requirement.normalizedConcept || '').split(' ').filter(Boolean),
+          ...(Array.isArray(requirement.aliases) ? requirement.aliases : []).map(normalizeRequirementToken),
+        ]),
       }));
     }
     const rawRequirements = Array.isArray(jp.requirements) ? jp.requirements : [];
     const rawSkills = Array.isArray(jp.skills) ? jp.skills : [];
+    const descriptionRequirements =
+      rawRequirements.length === 0 && rawSkills.length === 0 && typeof jp.description === 'string'
+        ? jp.description
+            .split(/\r?\n|[;,]/)
+            .map((part) => part.trim())
+            .filter(Boolean)
+        : [];
     const concepts = [];
     const seen = new Set();
 
@@ -1273,7 +1283,7 @@ export function getJobRequirementConcepts(jobPosting) {
       });
     };
 
-    rawRequirements.forEach((req, index) => add(req, index, 'req'));
+    [...rawRequirements, ...descriptionRequirements].forEach((req, index) => add(req, index, 'req'));
     rawSkills.forEach((skill, index) => add(skill, index, 'skill'));
     return concepts;
 }
@@ -1315,6 +1325,76 @@ export function buildCanonicalJobRequirements(jobPosting) {
   };
 }
 
+function normalizedFactTokens(value) {
+  return new Set(
+    String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9+#.]+/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(normalizeRequirementToken)
+      .filter((token) => token && !GENERIC_REQUIREMENT_TOKENS.has(token))
+  );
+}
+
+function matchesRequirementConcept(fact, concept) {
+  const factTokens = normalizedFactTokens(fact?.text);
+  const technologyTokens = new Set(
+    (Array.isArray(fact?.technologies) ? fact.technologies : [])
+      .flatMap((technology) => [...normalizedFactTokens(technology)])
+  );
+  const available = new Set([...factTokens, ...technologyTokens]);
+  const conceptTokens = [...concept.tokens];
+  const matchedTokens = conceptTokens.filter((token) => available.has(token));
+  const normalizedText = String(fact?.text || '').toLowerCase();
+  const normalizedConcept = String(concept.normalizedName || '').replace(/\./g, '.');
+  const phraseMatch =
+    normalizedConcept.length > 0 &&
+    new RegExp(
+      `(^|[^a-z0-9+#.])${normalizedConcept.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^a-z0-9+#.])`,
+      'i'
+    ).test(normalizedText);
+  if (phraseMatch) return { matchType: 'EXACT_CONCEPT', strength: 1 };
+  if (conceptTokens.length === 1 && matchedTokens.length === 1) {
+    return { matchType: 'NORMALIZED_ALIAS', strength: 0.9 };
+  }
+  if (conceptTokens.length > 1 && matchedTokens.length / conceptTokens.length >= 0.6) {
+    return { matchType: 'TOKEN_BOUNDARY', strength: 0.7 };
+  }
+  return null;
+}
+
+/**
+ * Creates the authoritative candidate-fact to job-requirement evidence graph.
+ * All section selectors should consume its edges rather than matching job text.
+ *
+ * @param {Array<object>} facts
+ * @param {object|null} jobPosting
+ * @returns {{job: object, facts: Array<object>, matches: Array<object>}}
+ */
+export function buildCandidateJobEvidenceGraph(facts, jobPosting) {
+  const job = buildCanonicalJobRequirements(jobPosting);
+  const concepts = getJobRequirementConcepts({ ...jobPosting, ...job });
+  const matches = [];
+  for (const fact of Array.isArray(facts) ? facts : []) {
+    for (const requirement of concepts) {
+      const relation = matchesRequirementConcept(fact, requirement);
+      if (!relation) continue;
+      matches.push({
+        requirementId: requirement.id,
+        factId: fact.factId || fact.id || null,
+        matchType: relation.matchType,
+        matchStrength: relation.strength,
+        requirementImportance: requirement.importanceLabel,
+        evidenceStrength: fact.confidence ?? 0.8,
+        confidence: Math.min(1, relation.strength * (fact.confidence ?? 0.8)),
+        explanation: `${relation.matchType} matched '${requirement.text}' to candidate fact`,
+      });
+    }
+  }
+  return { job, facts: Array.isArray(facts) ? facts : [], matches };
+}
+
   /**
    * Computes specific requirement coverage for a fact set.
    *
@@ -1323,7 +1403,8 @@ export function buildCanonicalJobRequirements(jobPosting) {
    * @returns {{matchedRequirementIds:string[], coveredCount:number, totalCount:number, coverage:number}}
    */
 export function calculateRequirementCoverage(facts, jobPosting) {
-    const concepts = getJobRequirementConcepts(jobPosting);
+    const graph = buildCandidateJobEvidenceGraph(facts, jobPosting);
+    const concepts = getJobRequirementConcepts({ ...jobPosting, ...graph.job });
     if (concepts.length === 0) {
       return {
         matchedRequirementIds: [],
@@ -1335,42 +1416,17 @@ export function calculateRequirementCoverage(facts, jobPosting) {
         matches: [],
       };
     }
-    const matched = new Set();
-    const matches = [];
-    for (const fact of Array.isArray(facts) ? facts : []) {
-      const text = String(fact?.text || '').toLowerCase();
-      const technologies = Array.isArray(fact?.technologies)
-        ? fact.technologies.map((technology) => normalizeRequirementToken(technology))
-        : [];
-      for (const concept of concepts) {
-        const normalizedText = text.replace(/[^a-z0-9+#.]+/g, ' ');
-        const tokenMatches = [...concept.tokens].filter(
-          (token) =>
-            new RegExp(`(^|[^a-z0-9+#.])${token.replace(/[.+]/g, '\\$&')}(?=$|[^a-z0-9+#.])`, 'i').test(
-              normalizedText
-            ) ||
-            technologies.some(
-              (technology) => technology === token || technology.includes(token)
-            )
-        ).length;
-        const phraseMatch = normalizedText.includes(concept.normalizedName.replace(/\./g, '.'));
-        if (
-          phraseMatch ||
-          (concept.tokens.size === 1 && tokenMatches === 1) ||
-          (concept.tokens.size > 1 && tokenMatches / concept.tokens.size >= 0.6)
-        ) {
-          matched.add(concept.id);
-          matches.push({
-            requirementId: concept.id,
-            requirement: concept.text,
-            importance: concept.importanceLabel,
-            requirementClass: concept.requirementClass,
-            factId: fact.factId || fact.id || null,
-            signal: phraseMatch ? 'EXACT_CONCEPT' : 'NORMALIZED_TOKEN',
-          });
-        }
-      }
-    }
+    const matched = new Set(graph.matches.map((match) => match.requirementId));
+    const matches = graph.matches.map((match) => {
+      const concept = concepts.find((item) => item.id === match.requirementId);
+      return {
+        ...match,
+        requirement: concept?.text,
+        importance: concept?.importanceLabel,
+        requirementClass: concept?.requirementClass,
+        signal: match.matchType,
+      };
+    });
     const totalWeight = concepts.reduce((sum, concept) => sum + concept.importance, 0);
     const coveredWeight = concepts
       .filter((concept) => matched.has(concept.id))
@@ -1410,30 +1466,22 @@ export function calculateRequirementCoverage(facts, jobPosting) {
  * @returns {Array<object>} New fact array with jobRelevance and importance
  */
 export function scoreFactsForJob(facts, jobPosting) {
-  const jp = jobPosting || {};
-  const requirementConcepts = getJobRequirementConcepts(jp);
+  const graph = buildCandidateJobEvidenceGraph(facts, jobPosting);
+  const matchesByFact = new Map();
+  for (const match of graph.matches) {
+    if (!matchesByFact.has(match.factId)) matchesByFact.set(match.factId, []);
+    matchesByFact.get(match.factId).push(match);
+  }
 
   return (Array.isArray(facts) ? facts : []).map((f) => {
-    const lower = f.text.toLowerCase();
+    const factMatches = matchesByFact.get(f.factId || f.id) || [];
     let relevance = 0;
-    const matchedRequirementIds = [];
-
-    // Requirement-aware matching (Finding 10)
-    for (const req of requirementConcepts) {
-      const tokenMatches = [...req.tokens].filter(
-        (token) =>
-          lower.includes(token) ||
-          (Array.isArray(f.technologies) &&
-            f.technologies.some((tech) => String(tech).toLowerCase().includes(token)))
-      ).length;
-      const matched =
-        lower.includes(req.text.toLowerCase()) ||
-        (req.tokens.size === 1 && tokenMatches === 1) ||
-        (req.tokens.size > 1 && tokenMatches / req.tokens.size >= 0.6);
-      if (matched) {
-        matchedRequirementIds.push(req.id);
-        relevance += req.importance * 30;
-      }
+    const matchedRequirementIds = factMatches.map((match) => match.requirementId);
+    for (const match of factMatches) {
+      const requirement = graph.job.normalizedRequirements.find(
+        (item) => item.id === match.requirementId
+      );
+      relevance += (requirement?.weight ?? 0.7) * 30 * match.matchStrength;
     }
 
     // Evidence-backed facts get a trust bonus

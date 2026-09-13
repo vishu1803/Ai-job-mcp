@@ -725,6 +725,50 @@ export const StructuredResumeDocumentSchema = z
             selectedFactIds: z.array(z.string()).default([]),
           })
           .optional(),
+        jobFingerprint: z.string().optional(),
+        normalizedRequirements: z
+          .array(
+            z.object({
+              id: z.string(),
+              text: z.string(),
+              normalizedConcept: z.string(),
+              aliases: z.array(z.string()),
+              class: z.string(),
+              importance: z.string(),
+              weight: z.number(),
+              confidence: z.number(),
+              source: z.string(),
+            })
+          )
+          .optional(),
+        matches: z
+          .array(
+            z.object({
+              requirementId: z.string(),
+              factId: z.string().nullable(),
+              matchType: z.string(),
+              matchStrength: z.number(),
+              requirementImportance: z.string(),
+              evidenceStrength: z.number(),
+              confidence: z.number(),
+              explanation: z.string(),
+            })
+          )
+          .optional(),
+        projectRemovalRecords: z
+          .array(
+            z.object({
+              projectId: z.string(),
+              reason: z.string(),
+              stage: z.string(),
+              replacementProjectId: z.string().nullable(),
+            })
+          )
+          .optional(),
+        selectedProjectIds: z.array(z.string()).optional(),
+        renderedProjectIds: z.array(z.string()).optional(),
+        selectedFactIds: z.array(z.string()).optional(),
+        renderedFactIds: z.array(z.string()).optional(),
       })
       .optional()
       .nullable(),

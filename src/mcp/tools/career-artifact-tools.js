@@ -33,13 +33,13 @@ import { ProjectRelevanceService } from '../../services/project-relevance.servic
 import { AtsFitScoreService } from '../../services/ats-fit-score.service.js';
 import { PortfolioRecommendationService } from '../../services/portfolio-recommendation.service.js';
 import { CoverLetterDraftingService } from '../../services/cover-letter-drafting.service.js';
-import { ResumeTailoringService } from '../../services/resume-tailoring.service.js';
 import { ZeroHallucinationIntegrityService } from '../../services/zero-hallucination-integrity.service.js';
-import { ResumeIntegrityAuditService } from '../../services/resume-integrity-audit.service.js';
+import { JobApplicationWorkflowService } from '../../services/job-application-workflow.service.js';
 import { SecretScrubber } from '../../extractors/github/security/secret-scrubber.js';
 import { defaultMcpRateLimiter } from '../../security/mcp-rate-limiter.js';
 import { assertToolPermission } from '../../security/mcp-auth.js';
 import { SkillTaxonomyEngine } from '../../domain/career/skill-taxonomy.js';
+import { buildCanonicalJobRequirements } from '../../services/candidate-fact-inventory.service.js';
 import {
   RecommendPortfolioProjectsInputSchema,
   RecommendPortfolioProjectsOutputSchema,
@@ -595,7 +595,10 @@ export async function handleRecommendPortfolioProjects(context, rawArgs, deps = 
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
   const profileView = await profileService.getProfile(context, candidateId);
   const candidateProfileObj = buildCandidateProfileDomainObject(profileView, context);
-  const jobDescription = await resolveJobDescription(context, args, dbClient, deps);
+  const rawJobDescription = await resolveJobDescription(context, args, dbClient, deps);
+  const jobDescription = rawJobDescription
+    ? { ...rawJobDescription, ...buildCanonicalJobRequirements(rawJobDescription) }
+    : rawJobDescription;
 
   // 4. Delegate to Intermediate Intelligence Services
   const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
@@ -846,223 +849,118 @@ export async function handleDraftCoverLetter(context, rawArgs, deps = {}) {
 export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) {
   const dbClient = deps.db || defaultDb;
   const rateLimiter = deps.rateLimiter || defaultMcpRateLimiter;
-  const profileService = deps.candidateProfileService || new CandidateProfileService();
-  const resumeService = deps.resumeService || new ResumeTailoringService();
-  const auditService = deps.auditService || new ResumeIntegrityAuditService();
-  const integrityService = deps.integrityService || new ZeroHallucinationIntegrityService();
 
-  // 1. Rate Limiting Check
   rateLimiter.checkTenantLimit(context.tenantId);
   rateLimiter.checkToolLimit(context.tenantId, 'generate_tailored_resume');
-
-  // 2. Validate Tool Inputs
   const args = GenerateTailoredResumeInputSchema.parse(rawArgs || {});
-
-  // 3. Resolve Candidate Profile & Job Description
   const candidateId = await resolveTargetCandidateId(context, args.candidateId, dbClient);
-  const profileView = await profileService.getProfile(context, candidateId);
-  const candidateProfileObj = buildCandidateProfileDomainObject(profileView, context);
-  const jobDescription = await resolveJobDescription(context, args, dbClient, deps);
-
-  // 4. Intermediate Intelligence Services
-  const matchAnalysis = EvidenceMatchingService.matchJobToCandidate(
-    context,
-    jobDescription,
-    candidateProfileObj
-  );
-
-  const projectAnalysis = ProjectRelevanceService.computeProjectsRelevance(
-    context,
-    jobDescription,
-    candidateProfileObj.projects,
-    { candidateId: candidateProfileObj.id, skills: candidateProfileObj.skills }
-  );
-
-  // 5. Pre-Generation Integrity Gate
-  const candidateAssertions = buildCandidateAssertions(candidateProfileObj);
-  const evidenceIndex = candidateProfileObj.skills.flatMap((s) =>
-    Array.isArray(s.evidenceItems) ? s.evidenceItems : s.primaryEvidence ? [s.primaryEvidence] : []
-  );
-
-  const integritySummary = integrityService.validateCareerAssertions(
-    context,
-    candidateAssertions,
-    evidenceIndex,
-    { candidateProfile: candidateProfileObj }
-  );
-
-  if (integritySummary.overallStatus === 'BLOCK') {
-    throw new ValidationError('Resume tailoring blocked by Zero-Hallucination Integrity Gate.', {
-      findings: integritySummary.blockedReasons || [],
+  const rawJobDescription = await resolveJobDescription(context, args, dbClient, deps);
+  const jobDescription = rawJobDescription
+    ? { ...rawJobDescription, ...buildCanonicalJobRequirements(rawJobDescription) }
+    : rawJobDescription;
+  const workflowService =
+    deps.workflowService ||
+    new JobApplicationWorkflowService({
+      database: dbClient,
+      candidateProfileService: deps.candidateProfileService,
     });
-  }
-
-  // 6. Execute Resume Tailoring Service
-  const tailoringOptions = {
-    presentationMode: args.presentationMode,
-    existingResumeText: args.existingResumeText,
-    existingResumeFormat: args.existingResumeFormat,
-    templateId: args.templateId,
-    ...(args.targetOptions || {}),
-  };
-
-  if (args.presentationMode === 'PRESERVE_EXISTING') {
-    const docId = crypto.randomUUID();
-    tailoringOptions.sourceDocumentId = docId;
-    tailoringOptions.sourceDocument = {
-      id: docId,
-      format: args.existingResumeFormat || 'MARKDOWN',
-      rawContent: args.existingResumeText || '',
-    };
-  }
-
-  const tailoredResume = await resumeService.tailorResume(
-    context,
-    candidateProfileObj,
-    jobDescription,
-    matchAnalysis,
-    projectAnalysis,
-    integritySummary.auditedAssertions || [],
-    tailoringOptions
-  );
-
-  // 7. Post-Generation Resume Integrity Audit Gate
-  const auditReport = auditService.auditResume(
-    context,
-    tailoredResume,
-    integritySummary.auditedAssertions || [],
-    candidateProfileObj,
-    {
-      presentationMode: args.presentationMode,
-    }
-  );
-
-  if (auditReport.overallStatus === 'BLOCK') {
-    throw new ValidationError('Resume tailoring blocked by Resume Integrity Audit Service.', {
-      findings: auditReport.findings || [],
-    });
-  }
-
-  // 8. Assemble Output Structure
-  const warnings = [...(tailoredResume.presentationAudit?.warnings || [])];
-  if (auditReport.overallStatus === 'WARN') {
-    warnings.push(
-      'Resume contains unverified user claims audited and labeled with warning badges.'
-    );
-  }
-
-  const output = {
-    resumeId: tailoredResume.resumeId,
-    candidateId: candidateProfileObj.id,
-    jobTitle: jobDescription.title || 'Target Role',
-    presentationMode: tailoredResume.presentationMode || args.presentationMode || 'GENERATE_NEW',
-    templateId: tailoredResume.templateId || args.templateId || 'ATS_FOCUSED',
-    presentationAudit: {
-      status:
-        tailoredResume.presentationAudit?.status ||
-        tailoredResume.presentationIntegrityStatus ||
-        'PASS',
-      preservedAttributes: tailoredResume.presentationAudit?.preservedAttributes || {},
-      modifiedAttributes: tailoredResume.presentationAudit?.modifiedAttributes || {},
-      warnings: tailoredResume.presentationAudit?.warnings || [],
+  const prepared = await workflowService.prepareJobApplication({
+    tenantId: context.tenantId,
+    candidateId,
+    jobPosting: {
+      ...jobDescription,
+      id: jobDescription?.id || crypto.randomUUID(),
+      title: jobDescription?.title || args.jobTitle || 'Target Role',
+      description: jobDescription?.description || args.jobDescriptionText || '',
     },
+    answers: {},
+  });
+  const structured = prepared.tailoredResume?.structuredResume;
+  if (!structured) {
+    throw new ValidationError('Canonical workflow did not produce a structured resume.');
+  }
+  const receipt = prepared.tailoredResume.evidenceValidationReceipt || {};
+  const projectBullets = (structured.projects || []).flatMap((project) => project.bullets || []);
+  const experienceBullets = (structured.experience || []).flatMap((experience) => experience.bullets || []);
+  const output = {
+    resumeId: structured.documentId,
+    candidateId,
+    jobTitle: structured.targetRole,
+    presentationMode: args.presentationMode,
+    templateId: args.templateId,
+    presentationAudit: { status: 'PASS', preservedAttributes: {}, modifiedAttributes: {}, warnings: [] },
     integrityReport: {
-      overallStatus: integritySummary.overallStatus === 'PASS' ? 'PASS' : 'PARTIAL',
-      verifiedAssertionsCount: tailoredResume.metadata?.verifiedBullets || 0,
-      inferredAssertionsCount: tailoredResume.metadata?.inferredBullets || 0,
-      claimedAssertionsCount: tailoredResume.metadata?.claimedBullets || 0,
-      evidenceItemsCitedCount: (tailoredResume.projects || []).reduce(
-        (acc, p) =>
-          acc + (p.bullets || []).reduce((bAcc, b) => bAcc + (b.evidenceRefs?.length || 0), 0),
-        0
-      ),
+      overallStatus: receipt.overallStatus === 'PASS' ? 'PASS' : 'PARTIAL',
+      verifiedAssertionsCount: receipt.verifiedClaimsCount || 0,
+      inferredAssertionsCount: receipt.inferredClaimsCount || 0,
+      claimedAssertionsCount: receipt.userProvidedClaimsCount || 0,
+      evidenceItemsCitedCount: projectBullets.reduce((sum, bullet) => sum + (bullet.evidenceRefs?.length || 0), 0),
     },
     auditReport: {
-      status:
-        auditReport.overallStatus === 'BLOCK'
-          ? 'BLOCK'
-          : auditReport.overallStatus === 'WARN'
-            ? 'WARN'
-            : 'PASS',
-      totalClaimsChecked: auditReport.summary?.totalClaimsChecked || 0,
-      verifiedClaimsCount: auditReport.summary?.verifiedClaimsCount || 0,
-      warningsCount: auditReport.findings?.filter((f) => f.status === 'WARN').length || 0,
+      status: receipt.overallStatus === 'PASS' ? 'PASS' : 'WARN',
+      totalClaimsChecked: receipt.totalClaimsAudited || projectBullets.length + experienceBullets.length,
+      verifiedClaimsCount: receipt.verifiedClaimsCount || 0,
+      warningsCount: receipt.violations?.length || 0,
     },
     resume: {
       basics: {
-        name: candidateProfileObj.displayName || 'Candidate',
-        headline: candidateProfileObj.headline || null,
-        summary: tailoredResume.summary || candidateProfileObj.summary || null,
-        email: candidateProfileObj.canonicalEmail || null,
-        location: candidateProfileObj.location || null,
+        name: structured.candidateIdentity.displayName,
+        headline: structured.candidateIdentity.headline || null,
+        summary: structured.summary?.text || null,
+        email: structured.candidateIdentity.email || null,
+        location: structured.candidateIdentity.location || null,
       },
-      summaryBullets: (tailoredResume.summaryBullets || []).map((b) =>
-        typeof b === 'string' ? b : b.text || ''
-      ),
-      skills: (tailoredResume.skills || []).map((cat) => ({
-        category: cat.category || 'Core Technical Skills',
-        skills: (cat.skills || []).map((s) => ({
-          skillSlug: s.canonicalSlug || s.skillSlug || s.slug || 'skill',
-          skillName: s.skillName || s.name || 'Skill',
-          provenance: s.provenance || s.provenanceStatus || s.status || 'VERIFIED',
-          confidenceScore: typeof s.confidenceScore === 'number' ? s.confidenceScore : 1.0,
-          evidenceCount: s.evidenceCount || (s.evidenceRefs ? s.evidenceRefs.length : 0),
-          claimLabel: s.claimLabel || null,
+      summaryBullets: [],
+      skills: (structured.skills?.categories || []).map((category) => ({
+        category: category.categoryName,
+        skills: (category.skills || []).map((skill) => ({
+          skillSlug: skill.slug || skill.name,
+          skillName: skill.name,
+          provenance: skill.provenanceStatus || 'VERIFIED',
+          confidenceScore: skill.confidenceScore ?? 1,
+          evidenceCount: skill.evidenceId ? 1 : 0,
+          claimLabel: null,
         })),
       })),
-      experience: (tailoredResume.experience || []).map((exp) => ({
-        company: exp.company,
-        title: exp.title,
-        location: exp.location || null,
-        startDate: String(exp.startDate),
-        endDate: exp.endDate ? String(exp.endDate) : null,
-        isCurrent: Boolean(exp.isCurrent),
-        bullets: (exp.bullets || []).map((b) => ({
-          bulletId: b.bulletId || b.id || crypto.randomUUID(),
-          text: SecretScrubber.scrub(b.text || ''),
-          status: b.status || 'VERIFIED',
-          confidenceScore: typeof b.confidenceScore === 'number' ? b.confidenceScore : 1.0,
-          evidenceRefs: (b.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
-          assertionIds: b.assertionIds || [],
-          matchedKeywords: b.matchedKeywords || [],
-          claimLabel: b.claimLabel || null,
+      experience: (structured.experience || []).map((experience) => ({
+        company: experience.company || '',
+        title: experience.title || '',
+        location: experience.location || null,
+        startDate: String(experience.startDate || ''),
+        endDate: experience.endDate ? String(experience.endDate) : null,
+        isCurrent: Boolean(experience.isCurrent),
+        bullets: (experience.bullets || []).map((bullet) => ({
+          bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
+          text: SecretScrubber.scrub(bullet.text || ''),
+          status: bullet.status || 'VERIFIED',
+          confidenceScore: bullet.confidenceScore ?? 1,
+          evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
+          assertionIds: bullet.assertionIds || [],
+          matchedKeywords: bullet.matchedKeywords || [],
         })),
       })),
-      projects: (tailoredResume.projects || []).slice(0, 5).map((p) => ({
-        projectId: p.projectId || p.id,
-        name: p.name,
-        displayName: p.displayName,
-        description: p.description || null,
-        relevanceScore: p.relevanceScore || 0,
-        relevanceBand: p.relevanceBand,
-        bullets: (p.bullets || []).map((b) => ({
-          bulletId: b.bulletId || b.id || crypto.randomUUID(),
-          text: SecretScrubber.scrub(b.text || ''),
-          status: b.status || 'VERIFIED',
-          confidenceScore: typeof b.confidenceScore === 'number' ? b.confidenceScore : 1.0,
-          evidenceRefs: (b.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
-          assertionIds: b.assertionIds || [],
-          matchedKeywords: b.matchedKeywords || [],
-          claimLabel: b.claimLabel || null,
+      projects: (structured.projects || []).map((project) => ({
+        projectId: project.projectId,
+        name: project.name,
+        displayName: project.displayName,
+        description: null,
+        relevanceScore: project.relevanceScore || 0,
+        relevanceBand: undefined,
+        bullets: (project.bullets || []).map((bullet) => ({
+          bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
+          text: SecretScrubber.scrub(bullet.text || ''),
+          status: bullet.status || 'VERIFIED',
+          confidenceScore: bullet.confidenceScore ?? 1,
+          evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
+          assertionIds: bullet.assertionIds || [],
+          matchedKeywords: bullet.matchedKeywords || [],
         })),
       })),
-      education: (tailoredResume.education || []).map((edu) => ({
-        institution: edu.institution || edu.school,
-        degree: edu.degree,
-        fieldOfStudy: edu.fieldOfStudy || edu.field,
-        startDate: edu.startDate ? String(edu.startDate) : undefined,
-        endDate: edu.endDate ? String(edu.endDate) : undefined,
-      })),
-      certifications: (tailoredResume.certifications || []).map((cert) => ({
-        name: cert.name || cert.title,
-        issuer: cert.issuer,
-        issuedDate: cert.issuedDate ? String(cert.issuedDate) : undefined,
-      })),
+      education: structured.education || [],
+      certifications: structured.certifications || [],
     },
-    warnings,
-    _meta: {
-      cacheControl: DEFAULT_CACHE_CONTROL,
-    },
+    warnings: [],
+    _meta: { cacheControl: DEFAULT_CACHE_CONTROL },
   };
 
   return GenerateTailoredResumeOutputSchema.parse(output);

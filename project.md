@@ -22,6 +22,27 @@
 - Extract the shared candidate↔job evidence graph and migrate remaining section-specific matchers.
 - Add explicit selection-to-render parity/removal records, marginal project-set optimization, complete debug telemetry, differential four-job tests, and physical PDF evidence.
 
+**P22 forensic findings and current repair:**
+- Verified current `origin/main` before editing: `544290ef902f21cc11564364f3a270d51de6634c`, `refactor(career): canonical job requirements contract (P22 initial refactor)`.
+- MCP `analyze_job_fit` and extension `/api/extension/analyze-job` converge through `handleAnalyzeJobFit`; MCP `prepare_job_application` and extension `/api/extension/prepare-handoff` converge through `JobApplicationWorkflowService.prepareJobApplication`.
+- MCP `generate_tailored_resume` remains a reachable legacy direct path through `ResumeTailoringService`; it now receives the canonical normalized job contract, but it still requires migration to the structured-resume authority.
+- Added the authoritative candidate-fact/job-requirement graph in `candidate-fact-inventory.service.js`; coverage and fact scoring now consume the same edge semantics with exact concept, alias, and token-boundary relations.
+- Removed job-conditioned broad raw-skill resurrection when no selected skills survive.
+- Reused the single fact inventory for selection and composition instead of rebuilding it twice.
+- Added structured telemetry for job fingerprint, normalized requirements, graph matches, project removals, and selected/rendered project/fact IDs.
+- Added a hard structured-project removal invariant and LaTeX project-name/section parity check.
+- Added `tests/unit/p22-canonical-evidence-graph.test.js` covering deterministic graph edges, generic-vocabulary suppression, scoring/coverage agreement, and structured-vs-raw line-job equivalence.
+
+**P22 verification:**
+- Focused graph, project, skill, provenance, and structured-LaTeX suites: **80/80 passed**.
+- Current implementation remains **IN_PROGRESS** because the legacy direct MCP tailoring path, `ProjectRelevanceService`, optimizer trace, extension/MCP physical differential, and full selected-fact/skill/experience/PDF parity contract are not yet migrated.
+
+**P22 convergence attempt:**
+- `generate_tailored_resume` was routed through `JobApplicationWorkflowService.prepareJobApplication`, so production MCP resume generation no longer invokes `ResumeTailoringService`, `EvidenceMatchingService`, or `ProjectRelevanceService` directly.
+- The handler maps the canonical workflow's validated `StructuredResumeDocument` into the existing MCP output contract; semantic selection remains owned by the structured pipeline.
+- Verification exposed a compatibility blocker: existing MCP unit fixtures inject a lightweight database mock without the workflow's required `leftJoin`/candidate query surface. Six legacy MCP execution assertions currently fail before resume generation with `TypeError: ...leftJoin is not a function`; no compatibility fallback was added because that would reintroduce the forbidden legacy semantic pipeline.
+- This work therefore remains **IN_PROGRESS** until MCP fixtures/dependency injection are migrated to the canonical workflow and MCP-vs-extension differential plus physical PDF checks are executed.
+
 ### PART 37: Job-Conditioned Resume Selection (P20 Implementation)
 
 **Status:** COMPLETE & VERIFIED

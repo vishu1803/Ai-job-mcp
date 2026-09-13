@@ -48,6 +48,7 @@ import {
   calculateRequirementCoverage,
   getJobRequirementConcepts,
   buildCanonicalJobRequirements,
+  buildCandidateJobEvidenceGraph,
 } from './candidate-fact-inventory.service.js';
 
 /**
@@ -333,6 +334,10 @@ export function buildStructuredResumeDocument({
   // 6. Tailoring Plan
   const rawProjects = meta.projects || source.projects || [];
   const selectionFactInventory = buildCanonicalFactInventory(source, canonicalJob, options?.factInventoryOptions);
+  const evidenceGraph = buildCandidateJobEvidenceGraph(
+    selectionFactInventory.facts,
+    canonicalJob
+  );
   const selectionScoredFacts = scoreFactsForJob(selectionFactInventory.facts, canonicalJob);
   const selectionFactsByProject = new Map();
   for (const fact of selectionScoredFacts) {
@@ -683,7 +688,7 @@ export function buildStructuredResumeDocument({
               selectedProjectTechnologyTerms.has(token)
             );
           });
-          return (bounded.length > 0 ? bounded : skillSelectionResult.selectedSkills || [])
+          return (bounded.length > 0 || canonicalJob ? bounded : skillSelectionResult.selectedSkills || [])
             .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
             .slice(0, options?.maxSkills || 12);
         })();
@@ -825,9 +830,7 @@ export function buildStructuredResumeDocument({
   // by professional composition. Built once from the deep-cloned candidate
   // snapshot; downstream composition NEVER re-discovers facts from raw arrays.
   const useFactComposition = options?.useFactComposition !== false;
-  const factInventory = useFactComposition
-    ? buildCanonicalFactInventory(source, canonicalJob, options?.factInventoryOptions)
-    : null;
+  const factInventory = useFactComposition ? selectionFactInventory : null;
   const scoredFactsByProject = new Map();
   if (factInventory) {
     const allScored = scoreFactsForJob(factInventory.facts, canonicalJob);
@@ -866,6 +869,7 @@ export function buildStructuredResumeDocument({
   const factCompositionOmissions = [];
   const claimPlanSummaries = [];
   const realizationSummaries = [];
+  const projectRemovalRecords = [];
 
   const projects = [];
   // P16-009: a selected project whose claim facts are all ambiguous duplicates
@@ -1055,6 +1059,12 @@ export function buildStructuredResumeDocument({
       markRendered(proj);
     } else {
       skippedProjectIds.add(selectedId);
+      projectRemovalRecords.push({
+        projectId: selectedId,
+        reason: 'NO_RENDERABLE_CANDIDATE_FACTS',
+        stage: 'STRUCTURED_COMPOSITION',
+        replacementProjectId: null,
+      });
       // Backfill: next ranked strong project not already selected/skipped
       if (Array.isArray(authoritativeRankings)) {
         for (const r of authoritativeRankings) {
@@ -1080,6 +1090,12 @@ export function buildStructuredResumeDocument({
             projects.push(backfillEntry);
             markRendered(candProj);
             skippedProjectIds.add(backfillEntry.projectId);
+            projectRemovalRecords.push({
+              projectId: selectedId,
+              reason: 'REPLACED_AFTER_EMPTY_COMPOSITION',
+              stage: 'STRUCTURED_COMPOSITION',
+              replacementProjectId: backfillEntry.projectId,
+            });
           } else {
             skippedProjectIds.add(candProj.id || candProj.projectId || rId);
           }
@@ -1118,8 +1134,14 @@ export function buildStructuredResumeDocument({
     }
   }
 
-  // Fallback if no categorized skills were derived
-  if (categorizedSkills.length === 0 && Array.isArray(rawSkills) && rawSkills.length > 0) {
+  // Do not resurrect the broad candidate inventory after job-conditioned
+  // selection. Raw skills remain available only for no-job presentation calls.
+  if (
+    categorizedSkills.length === 0 &&
+    !canonicalJob &&
+    Array.isArray(rawSkills) &&
+    rawSkills.length > 0
+  ) {
     const skillsList = rawSkills.map((s, idx) => {
       const name = typeof s === 'string' ? s : s.name;
       const slug = (typeof s === 'string' ? s : s.slug || s.name || `skill-${idx}`)
@@ -1283,8 +1305,33 @@ export function buildStructuredResumeDocument({
         ),
       },
       requirementCoverage: requirementCoverageReport,
+      jobFingerprint: canonicalJobRequirements.jobFingerprint,
+      normalizedRequirements: canonicalJobRequirements.normalizedRequirements,
+      matches: evidenceGraph.matches,
+      projectRemovalRecords,
+      selectedProjectIds: [...parsedPlan.selectedProjectIds],
+      renderedProjectIds: projects.map((project) => project.projectId),
+      selectedFactIds: selectedFactSet.map((fact) => fact.factId || fact.id).filter(Boolean),
+      renderedFactIds: Array.from(
+        new Set([
+          ...factCompositionTrace.flatMap((trace) => trace.composedFromFactIds || []),
+          ...(summary?.composedFromFactIds || []),
+        ])
+      ),
     },
   };
+
+  const renderedProjectIdSet = new Set(projects.map((project) => project.projectId));
+  const unrecordedProjectLoss = parsedPlan.selectedProjectIds.filter(
+    (projectId) =>
+      !renderedProjectIdSet.has(projectId) &&
+      !projectRemovalRecords.some((record) => record.projectId === projectId)
+  );
+  if (unrecordedProjectLoss.length > 0) {
+    throw new Error(
+      `Selected projects disappeared without a removal record: ${unrecordedProjectLoss.join(', ')}`
+    );
+  }
 
   const built = StructuredResumeDocumentSchema.parse(doc);
 
