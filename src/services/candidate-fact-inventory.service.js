@@ -1228,6 +1228,17 @@ function requirementImportance(raw, text) {
    */
 export function getJobRequirementConcepts(jobPosting) {
     const jp = jobPosting || {};
+    if (Array.isArray(jp.normalizedRequirements) && jp.normalizedRequirements.length > 0) {
+      return jp.normalizedRequirements.map((requirement) => ({
+        id: String(requirement.id),
+        text: requirement.text,
+        importance: requirement.weight,
+        importanceLabel: requirement.importance,
+        requirementClass: requirement.class,
+        normalizedName: requirement.normalizedConcept,
+        tokens: new Set(requirement.normalizedConcept.split(' ').filter(Boolean)),
+      }));
+    }
     const rawRequirements = Array.isArray(jp.requirements) ? jp.requirements : [];
     const rawSkills = Array.isArray(jp.skills) ? jp.skills : [];
     const concepts = [];
@@ -1265,6 +1276,43 @@ export function getJobRequirementConcepts(jobPosting) {
     rawRequirements.forEach((req, index) => add(req, index, 'req'));
     rawSkills.forEach((skill, index) => add(skill, index, 'skill'));
     return concepts;
+}
+
+/**
+ * Builds the single normalized job contract consumed by all tailoring stages.
+ *
+ * @param {object|null} jobPosting
+ * @returns {{jobFingerprint:string, role:object, normalizedRequirements:Array<object>}}
+ */
+export function buildCanonicalJobRequirements(jobPosting) {
+  const concepts = getJobRequirementConcepts(jobPosting);
+  const normalizedRequirements = concepts.map((concept) => ({
+    id: concept.id,
+    text: concept.text,
+    normalizedConcept: concept.normalizedName,
+    aliases: [...concept.tokens],
+    class: concept.requirementClass,
+    importance: concept.importanceLabel,
+    weight: concept.importance,
+    confidence: 1,
+    source: 'JOB_POSTING',
+  }));
+  const fingerprint = JSON.stringify({
+    title: jobPosting?.title || '',
+    requirements: normalizedRequirements,
+  });
+  return {
+    jobFingerprint: fingerprint,
+    role: {
+      rawTitle: jobPosting?.title || '',
+      normalizedOccupation: jobPosting?.normalizedOccupation || null,
+      seniority: jobPosting?.seniority || null,
+      function: jobPosting?.function || null,
+      specialization: jobPosting?.specialization || null,
+      domain: jobPosting?.domain || null,
+    },
+    normalizedRequirements,
+  };
 }
 
   /**

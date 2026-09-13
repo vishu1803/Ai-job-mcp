@@ -3,6 +3,25 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 39: Canonical Job Requirements Contract (P22 Initial Refactor)
+
+**Status:** IN_PROGRESS
+**Date:** 2026-09-13
+
+**Implemented:**
+- Added `buildCanonicalJobRequirements()` to establish one normalized runtime job contract containing a deterministic fingerprint, role metadata, requirement IDs, normalized concepts, aliases, classes, importance, weights, confidence, and source.
+- Structured resume construction now creates the canonical job once and passes it through project ranking, project coverage, fact inventory/scoring, skill selection, experience composition, summary composition, claim planning inputs, and debug coverage calculations.
+- Existing raw job fields remain available for presentation and compatibility, but downstream tailoring receives the canonical contract rather than independently rebuilding the requirement list.
+
+**Verification:**
+- `node --check src/services/structured-resume.service.js` passed.
+- Targeted authoritative project, skill, and provenance suites passed: 50/50.
+- Added a regression test proving contrasting jobs produce distinct fingerprints and stable normalized requirement identities.
+
+**Remaining P22 work:**
+- Extract the shared candidate↔job evidence graph and migrate remaining section-specific matchers.
+- Add explicit selection-to-render parity/removal records, marginal project-set optimization, complete debug telemetry, differential four-job tests, and physical PDF evidence.
+
 ### PART 37: Job-Conditioned Resume Selection (P20 Implementation)
 
 **Status:** COMPLETE & VERIFIED

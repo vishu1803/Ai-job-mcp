@@ -47,6 +47,7 @@ import {
   scoreFactsForJob,
   calculateRequirementCoverage,
   getJobRequirementConcepts,
+  buildCanonicalJobRequirements,
 } from './candidate-fact-inventory.service.js';
 
 /**
@@ -207,10 +208,14 @@ export function buildStructuredResumeDocument({
   // Deep clone to guarantee candidateProfile is never mutated
   const source = JSON.parse(JSON.stringify(candidateProfile));
   const meta = source.profileMetadata || {};
+  const canonicalJobRequirements = buildCanonicalJobRequirements(jobPosting);
+  const canonicalJob = jobPosting
+    ? { ...jobPosting, ...canonicalJobRequirements }
+    : jobPosting;
 
   const matchAnalysis =
-    jobPosting?.matchAnalysis ||
-    jobPosting?.jobFitAnalysis?.matchAnalysis ||
+    canonicalJob?.matchAnalysis ||
+    canonicalJob?.jobFitAnalysis?.matchAnalysis ||
     options.matchAnalysis ||
     null;
 
@@ -268,7 +273,7 @@ export function buildStructuredResumeDocument({
   }));
   const experience = composeExperienceRecords({
     candidateExperiences: experienceSnapshot,
-    jobPosting,
+    jobPosting: canonicalJob,
   }).map(({ presentationCandidates: _presentationCandidates, ...record }) => record);
 
   // 3. Education Snapshot (Authoritative source facts; no synthetic degrees/universities)
@@ -327,8 +332,8 @@ export function buildStructuredResumeDocument({
 
   // 6. Tailoring Plan
   const rawProjects = meta.projects || source.projects || [];
-  const selectionFactInventory = buildCanonicalFactInventory(source, jobPosting, options?.factInventoryOptions);
-  const selectionScoredFacts = scoreFactsForJob(selectionFactInventory.facts, jobPosting);
+  const selectionFactInventory = buildCanonicalFactInventory(source, canonicalJob, options?.factInventoryOptions);
+  const selectionScoredFacts = scoreFactsForJob(selectionFactInventory.facts, canonicalJob);
   const selectionFactsByProject = new Map();
   for (const fact of selectionScoredFacts) {
     const keys = [
@@ -407,7 +412,7 @@ export function buildStructuredResumeDocument({
           technologies: Array.isArray(candProj.technologies) ? candProj.technologies : [],
         },
       ],
-      jobPosting
+      canonicalJob
     );
     const hasSpecificJobRequirements = requirementCoverage.totalCount > 0;
 
@@ -443,7 +448,7 @@ export function buildStructuredResumeDocument({
           technologies: Array.isArray(candProj.technologies) ? candProj.technologies : [],
         },
       ],
-      jobPosting
+      canonicalJob
     );
   };
 
@@ -462,21 +467,21 @@ export function buildStructuredResumeDocument({
     // Check for authoritative rankings on jobPosting or options
     let authoritativeRankings =
       options?.projectRankings ||
-      jobPosting?.projectRankings ||
-      jobPosting?.jobFitAnalysis?.projectRankings ||
-      jobPosting?.jobFitAnalysis?.topRelevantProjects ||
+      canonicalJob?.projectRankings ||
+      canonicalJob?.jobFitAnalysis?.projectRankings ||
+      canonicalJob?.jobFitAnalysis?.topRelevantProjects ||
       null;
 
     const hasJobCriteria =
-      (Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0) ||
-      (Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0) ||
-      (typeof jobPosting?.description === 'string' && jobPosting.description.trim().length > 0);
+      (Array.isArray(canonicalJob?.requirements) && canonicalJob.requirements.length > 0) ||
+      (Array.isArray(canonicalJob?.skills) && canonicalJob.skills.length > 0) ||
+      (typeof canonicalJob?.description === 'string' && canonicalJob.description.trim().length > 0);
 
     if (!authoritativeRankings && hasJobCriteria && Array.isArray(rawProjects) && rawProjects.length > 0) {
       try {
         const ranked = candidateContentService.rankProjectsForJob(
           { ...candidateProfile, projects: rawProjects },
-          jobPosting,
+          canonicalJob,
           { maxProjects: dynamicProjectBudget }
         );
         if (ranked && (ranked.selectionAudit || ranked.selectedProjects)) {
@@ -576,8 +581,8 @@ export function buildStructuredResumeDocument({
         }
       }
     } else if (
-      Array.isArray(jobPosting?.recommendedProjects) &&
-      jobPosting.recommendedProjects.length > 0
+      Array.isArray(canonicalJob?.recommendedProjects) &&
+      canonicalJob.recommendedProjects.length > 0
     ) {
       // Explicit recommended projects passed on jobPosting
       const candProjMap = new Map();
@@ -585,7 +590,7 @@ export function buildStructuredResumeDocument({
         const slug = slugifyProject(p.name || p.title || '');
         if (slug) candProjMap.set(slug, p);
       }
-      for (const rec of jobPosting.recommendedProjects) {
+      for (const rec of canonicalJob.recommendedProjects) {
         const recSlug = slugifyProject(typeof rec === 'string' ? rec : rec.name || rec.slug || '');
         const candProj = candProjMap.get(recSlug);
         if (candProj) {
@@ -602,13 +607,13 @@ export function buildStructuredResumeDocument({
         if (selectedProjectIds.length >= dynamicProjectBudget) break;
       }
     } else if (
-      !jobPosting ||
-      ((!jobPosting.requirements || jobPosting.requirements.length === 0) &&
-        (!jobPosting.skills || jobPosting.skills.length === 0) &&
-        (!jobPosting.description || !jobPosting.description.trim()) &&
-        !jobPosting.projectRankings &&
-        !jobPosting.recommendedProjects &&
-        !jobPosting.jobFitAnalysis)
+      !canonicalJob ||
+      ((!canonicalJob.requirements || canonicalJob.requirements.length === 0) &&
+        (!canonicalJob.skills || canonicalJob.skills.length === 0) &&
+        (!canonicalJob.description || !canonicalJob.description.trim()) &&
+        !canonicalJob.projectRankings &&
+        !canonicalJob.recommendedProjects &&
+        !canonicalJob.jobFitAnalysis)
     ) {
       // Standalone tests without jobPosting or minimal jobPosting without requirements/description/rankings:
       // use raw candidate projects sliced to budget
@@ -628,7 +633,7 @@ export function buildStructuredResumeDocument({
 
   const skillSelectionResult = candidateContentService.selectAndCategorizeSkillsForJob(
     { skills: rawSkills, projects: rawProjects },
-    jobPosting,
+    canonicalJob,
     options
   );
 
@@ -643,8 +648,8 @@ export function buildStructuredResumeDocument({
       : (() => {
           const jobSkillTerms = new Set(
             [
-              ...(Array.isArray(jobPosting?.skills) ? jobPosting.skills : []),
-              ...(Array.isArray(jobPosting?.requirements) ? jobPosting.requirements : []),
+              ...(Array.isArray(canonicalJob?.skills) ? canonicalJob.skills : []),
+              ...(Array.isArray(canonicalJob?.requirements) ? canonicalJob.requirements : []),
             ]
               .map((item) =>
                 String(
@@ -712,7 +717,7 @@ export function buildStructuredResumeDocument({
 
   const derivedOrdering = deriveSectionOrdering({
     candidateProfile: source,
-    jobPosting,
+    jobPosting: canonicalJob,
     options,
   });
 
@@ -730,9 +735,9 @@ export function buildStructuredResumeDocument({
 
   const basePlan = {
     planId: crypto.randomUUID(),
-    targetJobId: jobPosting?.id || null,
+    targetJobId: canonicalJob?.id || null,
     targetRoleTitle: tailoredHeadingInfo.heading,
-    targetCompany: jobPosting?.company || null,
+    targetCompany: canonicalJob?.company || null,
     candidateArchetype:
       tailoredHeadingInfo.candidateArchetype || derivedOrdering.candidateArchetype,
     pageTarget: 'ONE_PAGE_STRICT',
@@ -805,9 +810,9 @@ export function buildStructuredResumeDocument({
   // Index authoritative rankings for metadata enrichment
   const rankingByProjId = new Map();
   const authoritativeRankings =
-    jobPosting?.projectRankings ||
-    jobPosting?.jobFitAnalysis?.projectRankings ||
-    jobPosting?.jobFitAnalysis?.topRelevantProjects ||
+    canonicalJob?.projectRankings ||
+    canonicalJob?.jobFitAnalysis?.projectRankings ||
+    canonicalJob?.jobFitAnalysis?.topRelevantProjects ||
     [];
   for (const r of authoritativeRankings) {
     const rId = r.projectId || r.id;
@@ -821,11 +826,11 @@ export function buildStructuredResumeDocument({
   // snapshot; downstream composition NEVER re-discovers facts from raw arrays.
   const useFactComposition = options?.useFactComposition !== false;
   const factInventory = useFactComposition
-    ? buildCanonicalFactInventory(source, jobPosting, options?.factInventoryOptions)
+    ? buildCanonicalFactInventory(source, canonicalJob, options?.factInventoryOptions)
     : null;
   const scoredFactsByProject = new Map();
   if (factInventory) {
-    const allScored = scoreFactsForJob(factInventory.facts, jobPosting);
+    const allScored = scoreFactsForJob(factInventory.facts, canonicalJob);
     for (const f of allScored) {
       const keys = new Set();
       const pId = f.association?.projectId || f.ownerId || '';
@@ -921,7 +926,7 @@ export function buildStructuredResumeDocument({
       const composed = composeProfessionalProjectBullets({
         facts: projectFacts,
         project: enrichedProj,
-        jobPosting,
+        jobPosting: canonicalJob,
         explicitBudget: projectOptions.maxBullets ?? null,
         candidateProfile: source,
         options: {
@@ -985,7 +990,7 @@ export function buildStructuredResumeDocument({
       const composed = composeProfessionalProjectBullets({
         facts: projectFacts,
         project: enrichedProj,
-        jobPosting,
+        jobPosting: canonicalJob,
         explicitBudget: projectOptions.maxBullets ?? null,
         candidateProfile: source,
       });
@@ -1163,7 +1168,7 @@ export function buildStructuredResumeDocument({
   } else {
     const compSummary = composeProfessionalSummary({
       candidateProfile: source,
-      jobPosting,
+      jobPosting: canonicalJob,
       selectedSkills: parsedPlan.selectedSkills,
       selectedProjects: projects,
       factInventory,
@@ -1186,7 +1191,7 @@ export function buildStructuredResumeDocument({
     summary.composedFromFactIds = [];
   }
 
-  const requirementConcepts = getJobRequirementConcepts(jobPosting);
+  const requirementConcepts = getJobRequirementConcepts(canonicalJob);
   const selectedFactSet = selectionScoredFacts.filter(
     (fact) =>
       selectedProjectIds.some(

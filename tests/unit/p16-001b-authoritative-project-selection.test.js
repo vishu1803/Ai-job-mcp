@@ -17,6 +17,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildStructuredResumeDocument } from '../../src/services/structured-resume.service.js';
+import { buildCanonicalJobRequirements } from '../../src/services/candidate-fact-inventory.service.js';
 import { CandidateArtifactContentService } from '../../src/services/candidate-artifact-content.service.js';
 import { ProjectRelevanceService } from '../../src/services/project-relevance.service.js';
 
@@ -28,6 +29,26 @@ describe('P16-001B: Authoritative Analyzer -> Project Selection', () => {
   const projPythonCacheId = 'a2222222-2222-4222-8222-222222222222';
   const projReactFrontendId = 'b2222222-2222-4222-8222-222222222222';
   const projRustSystemsId = 'c3333333-3333-4333-8333-333333333333';
+
+  it('builds one normalized job contract with stable requirement identities', () => {
+    const backend = buildCanonicalJobRequirements({
+      title: 'Backend Engineer',
+      requirements: ['Python', 'FastAPI', 'PostgreSQL'],
+      skills: ['Docker'],
+    });
+    const frontend = buildCanonicalJobRequirements({
+      title: 'Frontend Engineer',
+      requirements: ['React', 'Next.js'],
+    });
+
+    assert.notEqual(backend.jobFingerprint, frontend.jobFingerprint);
+    assert.deepEqual(
+      backend.normalizedRequirements.map(({ normalizedConcept }) => normalizedConcept),
+      ['python', 'fastapi', 'postgresql', 'docker']
+    );
+    assert.ok(backend.normalizedRequirements.every((requirement) => requirement.id));
+    assert.ok(backend.normalizedRequirements.every((requirement) => requirement.class));
+  });
 
   const candidateProfile = {
     id: CANDIDATE_ID,
