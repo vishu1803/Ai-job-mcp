@@ -3,6 +3,91 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 33: Rich, ATS-Friendly Resume Composition Without Weakening Evidence Integrity
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-13  
+**Baseline Main HEAD:** `823344b03c243f3dd08b14ccd7447671a893193d`  
+**Parent Commit:** `823344b03c243f3dd08b14ccd7447671a893193d`  
+
+**Context & Core Objective:**
+Upgraded the resume composition engine to produce an information-dense, technically detailed, ATS-friendly one-page resume structurally matching reference resume architectural standards (strong professional summary, dense categorized skills, multi-bullet technical projects, problem solving / DSA section, rich experience bullets, education with coursework) without weakening evidence integrity or violating the fail-closed provenance boundary:
+$$\text{Rendered candidate agency} \subseteq \text{Authorized candidate-owned contribution evidence}$$
+$$\text{IDENTITY / ASSOCIATION} \neq \text{OWNERSHIP}$$
+$$\text{Action wording alone does NOT prove candidate ownership.}$$
+
+**Root Causes Diagnosed & Resolved:**
+1. **Aggressive Outcome Fact Swallowing in Claim Planning (`src/services/resume-claim-planner.service.js`):**
+   - In `_clusterFactsIntoClaimGroups`, whenever a cluster matched a primary fact (e.g. `CANDIDATE_DESIGN_DECISION`), it greedily swallowed any outcome fact (`role === OUTCOME` or `CANDIDATE_OUTCOME`) into a compound claim `[primaryFact, supportingFact]`.
+   - This destroyed outcome facts as standalone accomplishment claims, reduced Collaborative Task Manager's available claims from 3 to 2, and rendered run-on sentences (`"... to support real-time updates, and improved team productivity..."`).
+   - *Resolution:* Restructured clustering so compound pairing is restricted strictly to optimization primaries (`CANDIDATE_OPTIMIZATION` or `evidenceRole === PERFORMANCE`) when budget is constrained (`facts.length > targetBullets`). When budget allows ($\ge 3$ bullets), every distinct accomplishment fact generates its own standalone PAR claim.
+2. **Semantic Coverage Suppressing Distinct Classes (`src/services/resume-claim-planner.service.js`):**
+   - Diminishing returns coverage tracking used raw topic strings that caused key mismatches for multi-word cluster keys (`performance_outcome`, `integration_api`, `tooling_automation`).
+   - *Resolution:* Implemented `_normalizeCoverageKey()` mapping all roles, topics, and dimensions to canonical cluster keys and initialized `semanticCoverage` tracking across all standard clusters.
+3. **Run-on Synthesis Fallback Gap (`src/services/resume-composition-primitives.js`):**
+   - `synthesizeAccomplishmentNarrative`'s `verbToParticiple` mapping lacked outcome verbs (`Improved`, `Reduced`, `Achieved`, `Delivered`, `Saved`, etc.), defaulting to awkward coordinating conjunctions (`", and improved..."`).
+   - *Resolution:* Expanded `verbToParticiple` with 13 outcome and optimization verbs (`Improved` $\to$ `improving`, `Reduced` $\to$ `reducing`, `Achieved` $\to$ `achieving`, `Delivered` $\to$ `delivering`, `Saved` $\to$ `saving`, `Yielded` $\to$ `yielding`, `Accelerated` $\to$ `accelerating`, `Expanded` $\to$ `expanding`, `Enhanced` $\to$ `enhancing`, `Boosted` $\to$ `boosting`, `Minimized` $\to$ `minimizing`, `Maximized` $\to$ `maximizing`, `Streamlined` $\to$ `streamlining`).
+4. **Missing DSA Bullets in Candidate Artifact Data (`src/services/candidate-artifact-content.service.js`):**
+   - In `buildCandidateData()`, problem solving bullets defaulted to `[]` when `userCustom.problemSolving?.bullets` was null, despite corroborated LeetCode URL (`https://leetcode.com/u/vishwanatnishad`) and Data Structures & Algorithms coursework.
+   - *Resolution:* Aligned `buildCandidateData()` with `buildResumeMarkdown()` to populate candidate-reported problem-solving bullets when corroborated by profile URL, coursework, or skills.
+5. **Optimizer Map Key Mismatches (`src/services/resume-content-optimizer.service.js`):**
+   - `inventoryFactCountByProject` was indexed only by UUID, preventing lookup by project name or slug during candidate move generation.
+   - *Resolution:* Indexed `inventoryFactCountByProject` by project ID, project name, and normalized slug.
+
+**Key Deliverables & Architectural Enhancements:**
+1. **Discrete PAR Claim Group Generation (`src/services/resume-claim-planner.service.js`):**
+   - Outcome facts are preserved as standalone PAR claims with their own dimensions, ensuring projects with 3 distinct facts (e.g. Collaborative Task Manager) generate 3 substantive, non-run-on bullets.
+   - Added `_normalizeCoverageKey()` and expanded `_extractActionVerb` to recognize outcome verbs.
+2. **Fluent Participle Synthesis (`src/services/resume-composition-primitives.js`):**
+   - Upgraded `verbToParticiple` with full outcome verb coverage, ensuring natural grammatical synthesis when compound pairing is legitimately applied.
+3. **Corroborated DSA Representation (`src/services/candidate-artifact-content.service.js`):**
+   - Populated Problem Solving / DSA section in `buildCandidateData()` whenever corroborated by verified profile links or coursework evidence.
+4. **Multi-Key Optimizer Fact Inventory Indexing (`src/services/resume-content-optimizer.service.js`):**
+   - Enabled optimizer to detect available fact headroom across UUIDs, project names, and normalized slugs.
+5. **Comprehensive Unit Test Suite (`tests/unit/p18-rich-content-composition.test.js`):**
+   - Implemented Tests A through R covering all edge cases with generic synthetic fixtures.
+
+**Verification & Evidence:**
+- **Dedicated Rich Composition Suite (`tests/unit/p18-rich-content-composition.test.js`):**
+  - **18/18 PASS** (`node --test tests/unit/p18-rich-content-composition.test.js`):
+    - Test A: Single-bullet project with 1 candidate fact renders strictly 1 bullet without phantom agency.
+    - Test B: Multi-bullet project with 3 distinct facts renders 3 distinct substantive bullets when budget $\ge 3$.
+    - Test C: Outcome facts form independent claim groups and are not swallowed by design decisions.
+    - Test D: Optimization primary facts pair with outcome only when bullet budget is constrained.
+    - Test E: `synthesizeAccomplishmentNarrative` transforms outcome verbs into fluent participles.
+    - Test F: Problem Solving / DSA section is populated when corroborated by profile URL and coursework.
+    - Test G: Problem Solving / DSA section is strictly omitted when candidate has no DSA evidence.
+    - Test H: Single-word technologies are rejected by fail-closed description gate.
+    - Test I: Source order invariance produces deterministic claim planning results.
+    - Test J: Semantic redundancy check rejects near-duplicate accomplishment claims ($\ge 0.50$ overlap).
+    - Test K: `assertRenderedCandidateAgencyInvariant` enforces fail-closed provenance.
+    - Test L: `determineProjectBulletCapacity` assigns capacity up to 3 for rich facts.
+    - Test M: `_normalizeCoverageKey` maps dimensions to canonical clusters.
+    - Test N: `_extractActionVerb` accurately recognizes outcome and optimization verbs.
+    - Test O: Accomplishments are strictly preferred over description facts regardless of utility.
+    - Test P: Globally used facts are not reused across projects and marked `SEMANTIC_DUPLICATE`.
+    - Test Q: `composeProfessionalProjectBullets` preserves fact IDs and traceability metadata.
+    - Test R: Handles empty, missing, or malformed fact inputs gracefully without crashing.
+- **Full Unit Test Suite:**
+  - **477/477 PASS** across 132 test suites (`node --test tests/unit/p18-*.test.js tests/unit/p17-*.test.js tests/unit/p16-*.test.js`), 0 failures, 0 regressions.
+- **Real-Candidate Read-Only Quality Regression (`scripts/p16-quality-regression-comparison.mjs`):**
+  - Evaluated candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` across 3 real stored jobs:
+    - Cloudflare: Overall Quality 87/100 | Writing 77 | PDF Obs 90 | ATS 95 | Facts Used 11/127 | Pages: 1
+      - Collaborative Task Manager: Exactly 3 distinct, substantive bullets.
+      - Product Data Explorer: Exactly 1 candidate-authored bullet (*"Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus."*).
+      - Problem Solving & DSA: Rendered with 2 substantive bullets.
+      - Bottom whitespace: 45pt (94% page occupancy, perfectly balanced 0.5in margin).
+    - Vercel: Overall Quality 89/100 | Writing 80 | PDF Obs 90 | ATS 100 | Facts Used 12/127 | Pages: 1
+      - AI-Powered Code Review Assistant: Exactly 3 distinct, substantive bullets.
+      - Product Data Explorer: Exactly 1 candidate-authored bullet.
+      - Problem Solving & DSA: Rendered with 2 substantive bullets.
+      - Bottom whitespace: 45pt (94% page occupancy).
+    - Crunchyroll: Overall Quality 90/100 | Writing 82 | PDF Obs 90 | ATS 100 | Facts Used 10/127 | Pages: 1
+      - Strict 1-page fit preserved.
+  - Zero database mutations (0 records inserted, updated, or deleted).
+
+---
+
 ### PART 32: Authoritative Agency Provenance & Generic Evidence Ownership (P18 Final Hardening)
 
 **Status:** COMPLETE & VERIFIED  

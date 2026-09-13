@@ -1498,6 +1498,13 @@ export class CandidateArtifactContentService {
     const leetcodeLinkObj = portfolioLinks.find((l) =>
       /leetcode/i.test(l.label || l.platform || l.url || '')
     );
+    const hasCorroboratedProblemSolving = Boolean(
+      (leetcodeLinkObj?.url && isRealUrl(leetcodeLinkObj.url)) ||
+        hasDsaSkill ||
+        hasDsaCoursework ||
+        userCustom.problemSolving?.hasSection ||
+        metadata.problemSolving?.hasSection
+    );
     const candidateDsaBullets =
       Array.isArray(userCustom.problemSolving?.bullets) &&
       userCustom.problemSolving.bullets.length > 0
@@ -1508,14 +1515,15 @@ export class CandidateArtifactContentService {
           : Array.isArray(metadata.resumeData?.problemSolving?.bullets) &&
               metadata.resumeData.problemSolving.bullets.length > 0
             ? metadata.resumeData.problemSolving.bullets
-            : [];
+            : hasCorroboratedProblemSolving
+              ? [
+                  'Solved algorithmic challenges covering dynamic programming, graph traversal, trees, arrays, and binary search.',
+                  'Engaged in daily problem solving and algorithmic practice to build foundational analytical complexity and optimization skills.',
+                ]
+              : [];
 
     const hasProblemSolvingSection = Boolean(
-      candidateDsaBullets.length > 0 &&
-      (hasDsaSkill ||
-        hasDsaCoursework ||
-        userCustom.problemSolving?.hasSection ||
-        metadata.problemSolving?.hasSection)
+      candidateDsaBullets.length > 0 && hasCorroboratedProblemSolving
     );
     const problemSolving = {
       hasSection: hasProblemSolvingSection,

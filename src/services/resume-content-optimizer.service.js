@@ -123,9 +123,16 @@ export class ResumeContentOptimizer {
     for (const f of scoredInventoryFacts) {
       if (f.factType === 'technology' || f.factType === 'external-corroboration') continue;
       if (!isAccomplishmentCandidate(f)) continue;
-      const key = f.association?.projectId || '';
-      if (!key) continue;
-      inventoryFactCountByProject.set(key, (inventoryFactCountByProject.get(key) || 0) + 1);
+      const keys = new Set();
+      if (f.association?.projectId) keys.add(f.association.projectId);
+      if (f.ownerId) keys.add(f.ownerId);
+      if (f.association?.projectName) {
+        keys.add(f.association.projectName);
+        keys.add(String(f.association.projectName).toLowerCase().replace(/[^a-z0-9]/g, ''));
+      }
+      for (const k of keys) {
+        inventoryFactCountByProject.set(k, (inventoryFactCountByProject.get(k) || 0) + 1);
+      }
     }
     const additionalProjectIds = [];
 
@@ -280,13 +287,14 @@ export class ResumeContentOptimizer {
 
           if (bestMove.type === 'BULLETS') {
             const currentCount = projectBulletOverrides[bestMove.id] ?? bestMove.currentCount;
-            projectBulletOverrides[bestMove.id] = currentCount + 1;
+            const targetCount = Math.min(3, currentCount + 1);
+            projectBulletOverrides[bestMove.id] = targetCount;
             if (bestMove.name) {
-              projectBulletOverrides[bestMove.name] = currentCount + 1;
+              projectBulletOverrides[bestMove.name] = targetCount;
             }
-            iterationRecord.action = `EXPAND_PROJECT_BULLETS: ${bestMove.name} (${currentCount} -> ${currentCount + 1})`;
+            iterationRecord.action = `EXPAND_PROJECT_BULLETS: ${bestMove.name} (${currentCount} -> ${targetCount})`;
             this.logger.info(
-              { project: bestMove.name, newCount: currentCount + 1, iteration, expectedValue: bestMove.expectedValue },
+              { project: bestMove.name, newCount: targetCount, iteration, expectedValue: bestMove.expectedValue },
               'Optimizer expanding project bullets from canonical fact inventory'
             );
           } else if (bestMove.type === 'PROJECT') {
@@ -410,14 +418,17 @@ export class ResumeContentOptimizer {
     // Move Type 1: Expand Project Bullets
     for (const p of projects) {
       const pId = p.projectId || p.name;
-      const currentCount = Array.isArray(p.bullets) ? p.bullets.length : 0;
-      if (currentCount >= 3) continue;
+      const effectiveCount =
+        projectBulletOverrides?.[pId] ??
+        projectBulletOverrides?.[p.name] ??
+        (Array.isArray(p.bullets) ? p.bullets.length : 0);
+      if (effectiveCount >= 3) continue;
 
       const factCount =
         inventoryFactCountByProject.get(pId) ??
         inventoryFactCountByProject.get(String(p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')) ??
         0;
-      if (factCount <= currentCount) continue;
+      if (factCount <= effectiveCount) continue;
 
       const spaceCost = 18; // ~18pt per bullet line
       if (availableSpacePt < spaceCost && availableSpacePt > 0) continue;
@@ -435,7 +446,7 @@ export class ResumeContentOptimizer {
         type: 'BULLETS',
         id: pId,
         name: p.name || p.displayName,
-        currentCount,
+        currentCount: effectiveCount,
         spaceCost,
         qualityGain,
         relevanceGain,

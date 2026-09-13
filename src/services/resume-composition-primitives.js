@@ -1258,6 +1258,19 @@ export function synthesizeAccomplishmentNarrative(
         [/^Scaled\b/i, 'scaling'],
         [/^Standardized\b/i, 'standardizing'],
         [/^Established\b/i, 'establishing'],
+        [/^Improved\b/i, 'improving'],
+        [/^Reduced\b/i, 'reducing'],
+        [/^Achieved\b/i, 'achieving'],
+        [/^Delivered\b/i, 'delivering'],
+        [/^Saved\b/i, 'saving'],
+        [/^Yielded\b/i, 'yielding'],
+        [/^Accelerated\b/i, 'accelerating'],
+        [/^Expanded\b/i, 'expanding'],
+        [/^Enhanced\b/i, 'enhancing'],
+        [/^Boosted\b/i, 'boosting'],
+        [/^Minimized\b/i, 'minimizing'],
+        [/^Maximized\b/i, 'maximizing'],
+        [/^Streamlined\b/i, 'streamlining'],
       ];
 
       let matched = false;

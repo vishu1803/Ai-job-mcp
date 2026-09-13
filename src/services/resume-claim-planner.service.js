@@ -331,6 +331,7 @@ export class ResumeClaimPlannerService {
       ownerType,
       ownerId,
       jobPosting,
+      targetBullets,
     });
 
     // 3. Score each candidate claim group using multi-attribute utility
@@ -362,11 +363,10 @@ export class ResumeClaimPlannerService {
     const semanticCoverage = {
       architecture: 0,
       implementation: 0,
-      integration: 0,
+      integration_api: 0,
       reliability: 0,
-      security: 0,
-      performance: 0,
-      outcome: 0,
+      performance_outcome: 0,
+      tooling_automation: 0,
     };
 
     for (const candidate of candidateGroups) {
@@ -382,7 +382,7 @@ export class ResumeClaimPlannerService {
 
       // Semantic Coverage: apply diminishing returns if primary dimension is already covered
       const primaryDim = candidate.semanticDimensions[0] || 'implementation';
-      const coverageKey = primaryDim.toLowerCase().replace(/[^a-z]/g, '');
+      const coverageKey = this._normalizeCoverageKey(primaryDim);
       const existingDimCoverage = semanticCoverage[coverageKey] || 0;
 
       if (existingDimCoverage >= 1 && candidateGroups.length > selectedClaims.length) {
@@ -390,7 +390,7 @@ export class ResumeClaimPlannerService {
         const alternativeDiverse = candidateGroups.find(
           (g) =>
             !selectedClaims.includes(g) &&
-            (semanticCoverage[(g.semanticDimensions[0] || '').toLowerCase()] || 0) === 0 &&
+            (semanticCoverage[this._normalizeCoverageKey(g.semanticDimensions[0])] || 0) === 0 &&
             !g.descriptionOnlyRisk &&
             !g.factIds.some(
               (fid) => usedFactIdsInSelection.has(fid) || globallyUsedFactIds.has(fid)
@@ -412,8 +412,29 @@ export class ResumeClaimPlannerService {
       for (const fid of candidate.factIds) {
         usedFactIdsInSelection.add(fid);
       }
-      if (coverageKey in semanticCoverage) {
-        semanticCoverage[coverageKey] += 1;
+      semanticCoverage[coverageKey] = (semanticCoverage[coverageKey] || 0) + 1;
+    }
+
+    // Backfill pass: If budget remains (selectedClaims.length < targetBullets), fill legitimate capacity
+    // with valid unselected candidate groups that were deferred for semantic diversity
+    if (selectedClaims.length < targetBullets) {
+      for (const candidate of candidateGroups) {
+        if (selectedClaims.length >= targetBullets) break;
+        if (selectedClaims.includes(candidate)) continue;
+        if (candidate.descriptionOnlyRisk && accomplishmentFacts.length > 0) continue;
+        const hasFactOverlap = candidate.factIds.some(
+          (fid) => usedFactIdsInSelection.has(fid) || globallyUsedFactIds.has(fid)
+        );
+        if (hasFactOverlap) continue;
+
+        candidate.recommendedUse = 'COMPLEMENTARY';
+        selectedClaims.push(candidate);
+        for (const fid of candidate.factIds) {
+          usedFactIdsInSelection.add(fid);
+        }
+        const primaryDim = candidate.semanticDimensions[0] || 'implementation';
+        const coverageKey = this._normalizeCoverageKey(primaryDim);
+        semanticCoverage[coverageKey] = (semanticCoverage[coverageKey] || 0) + 1;
       }
     }
 
@@ -434,7 +455,7 @@ export class ResumeClaimPlannerService {
           }
         } else if (isProjectDescriptionFact(f) && accomplishmentFacts.length > 0) {
           reason = OMISSION_REASONS.DESCRIPTION_ONLY;
-        } else if ((f.jobRelevance ?? 0) < 5) {
+        } else if (jobPosting && (f.jobRelevance ?? 0) < 5) {
           reason = OMISSION_REASONS.BELOW_RELEVANCE_FLOOR;
         } else if (f.confidence < 0.6) {
           reason = OMISSION_REASONS.UNSUBSTANTIATED;
@@ -486,6 +507,7 @@ export class ResumeClaimPlannerService {
     ownerType,
     ownerId,
     jobPosting: _jobPosting,
+    targetBullets,
   }) {
     const groups = [];
     const assignedFactIds = new Set();
@@ -507,16 +529,34 @@ export class ResumeClaimPlannerService {
 
       if (matchingFacts.length > 0) {
         const primaryFact = matchingFacts[0];
-        const supportingFact = accomplishmentFacts.find(
-          (f) =>
-            !assignedFactIds.has(f.factId) &&
-            f.factId !== primaryFact.factId &&
-            f.contributionClass !== CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION &&
-            f.contributionClass !== CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION &&
-            (f.evidenceRole === EVIDENCE_ROLES.METRIC ||
-              f.evidenceRole === EVIDENCE_ROLES.OUTCOME ||
-              f.contributionClass === CONTRIBUTION_CLASSES.CANDIDATE_OUTCOME)
-        );
+
+        // Only pair supporting outcome/metric if:
+        // 1. Bullet budget is constrained (we have more accomplishment facts than targetBullets)
+        // 2. Primary fact is explicitly an optimization or performance tuning fact (NOT a general implementation or design decision)
+        // 3. Supporting fact is a metric or outcome
+        const isOptimizationPrimary =
+          primaryFact.contributionClass === CONTRIBUTION_CLASSES.CANDIDATE_OPTIMIZATION ||
+          primaryFact.evidenceRole === EVIDENCE_ROLES.PERFORMANCE ||
+          primaryFact.evidenceRole === EVIDENCE_ROLES.OPTIMIZATION;
+
+        const budgetConstrained =
+          typeof targetBullets === 'number' && targetBullets > 0
+            ? accomplishmentFacts.length > targetBullets
+            : false;
+
+        const supportingFact =
+          isOptimizationPrimary && budgetConstrained
+            ? accomplishmentFacts.find(
+                (f) =>
+                  !assignedFactIds.has(f.factId) &&
+                  f.factId !== primaryFact.factId &&
+                  f.contributionClass !== CONTRIBUTION_CLASSES.CANDIDATE_DESIGN_DECISION &&
+                  f.contributionClass !== CONTRIBUTION_CLASSES.CANDIDATE_IMPLEMENTATION &&
+                  (f.evidenceRole === EVIDENCE_ROLES.METRIC ||
+                    f.evidenceRole === EVIDENCE_ROLES.OUTCOME ||
+                    f.contributionClass === CONTRIBUTION_CLASSES.CANDIDATE_OUTCOME)
+              )
+            : null;
 
         const groupFacts = supportingFact ? [primaryFact, supportingFact] : [primaryFact];
         const factIds = groupFacts.map((f) => f.factId);
@@ -723,10 +763,21 @@ export class ResumeClaimPlannerService {
     group.claimUtility = Math.max(0, Math.min(100, Math.round(rawUtility)));
   }
 
+  _normalizeCoverageKey(dim) {
+    if (!dim) return 'implementation';
+    const clean = String(dim).toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (clean.includes('arch') || clean.includes('design')) return 'architecture';
+    if (clean.includes('relia') || clean.includes('secu') || clean.includes('telemet')) return 'reliability';
+    if (clean.includes('perf') || clean.includes('outc') || clean.includes('opti') || clean.includes('metric')) return 'performance_outcome';
+    if (clean.includes('integ') || clean.includes('api') || clean.includes('proto')) return 'integration_api';
+    if (clean.includes('tool') || clean.includes('infra') || clean.includes('ci') || clean.includes('cd')) return 'tooling_automation';
+    return 'implementation';
+  }
+
   _extractActionVerb(text) {
     const norm = String(text || '').trim();
     const match = norm.match(
-      /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured)\b/i
+      /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured|improved|reduced|delivered|achieved|saved|accelerated|expanded)\b/i
     );
     if (match) {
       return match[0].charAt(0).toUpperCase() + match[0].slice(1).toLowerCase();
