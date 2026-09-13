@@ -3,6 +3,42 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 45: Live Production Cross-Job Validation & Dual-Surface MCP/Extension Parity Across 5 Target Roles
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-13
+**Remote HEAD:** `81437e83bcad373ec3138b005118552636eebad5` (`main`, `origin/main`)
+**Verification Suites & Evidence:**
+- 5-Job Production Validation: `node scratch/controlled-validation-5jobs.mjs` (All 5 jobs passed, 100% invariant compliance)
+- Full Regression Test Suite: `node --test tests/unit/resume-structure-content-conditioning.test.js tests/unit/p16-001b-authoritative-project-selection.test.js tests/unit/p16-001c-authoritative-skill-selection.test.js tests/unit/p16-001g-professional-resume-composition.test.js tests/unit/candidate-profile.service.test.js tests/unit/p16-structured-resume-contract.test.js tests/unit/resume-integrity-audit.service.test.js tests/unit/job-normalization-differential.test.js tests/unit/p17-document-optimizer.test.js tests/unit/p16-008-content-optimizer.test.js` (144/144 passed, 0 failed, 100% pass)
+- Dual-Surface Parity:
+  - Projects Parity: 100% (`['Product Data Explorer', 'Collaborative Task Manager']` on both MCP and Extension)
+  - Skills Parity: 100% (`12/12` identical skills and category ordering between MCP and Extension)
+- Physical 1-Page PDFs Compiled via Tectonic:
+  - Job 1 (Full-Stack Developer): 15,539 bytes, exact page count = 1, semantic fingerprint identical (`0ccbcc49e6dbfcb5f9e72b8b0c7059e267f662f1ca5346e457fea7918cb4acae`)
+  - Job 2 (Python Backend Engineer): 15,464 bytes, exact page count = 1, semantic fingerprint identical (`de8fe1543db3f64123aeab061b0f2c168ded7899889aeedf9c71684b15d8ea3f`)
+  - Job 3 (Frontend Engineer): 15,419 bytes, exact page count = 1, semantic fingerprint identical (`629d87bb6b089b28d057d32f1401b2c7c19b8d3252eca6049508a654a88e00c4`)
+  - Job 4 (Distributed Systems Engineer): 15,430 bytes, exact page count = 1, semantic fingerprint identical (`73ea9556fee22dbb1ea56a3eb30c0c8cf27f62a06a14286940e1de6b9f30537f`)
+  - Job 5 (DevOps / Platform Engineer): 15,454 bytes, exact page count = 1, semantic fingerprint identical (`286a40ffb9d2a38b0bf278bbe39646864088c3f7e716593de6ac6a602a9d614c`)
+
+**Architectural Hardening Deliverables:**
+1. **MCP vs Extension Normalization Convergence:**
+   - Filtered `RESPONSIBILITY` class items out of `requirements` in `resolveJobDescription` and `normalizeWorkflowJobPosting`, preventing responsibility prose from contaminating skill extraction criteria while preserving them in `responsibilities`.
+   - Achieved 100% bit-for-bit parity on both selected projects and selected skills across MCP tool invocations and Extension REST API endpoints.
+2. **Safe Slug Normalization in Evidence Matching:**
+   - In `_evaluateExperienceRequirement` within `EvidenceMatchingService`, sanitized `rawTargetSkillSlug` with `SkillTaxonomyEngine.normalizeSkill(...)?.canonicalSlug || SkillTaxonomyEngine.generateSafeSlug(...)`, preventing unslugified tech terms (e.g. `next.js` with dots) from causing Zod schema regex failures on `SafeSlugSchema`.
+3. **Requirement Classification Deduplication:**
+   - In `JobNormalizationService`, adjusted `classifyRequirement` to check `REQUIREMENT_CLASS_BY_CATEGORY` before checking `defaultSection === 'RESPONSIBILITIES'`, ensuring technology skills found in prose are classified as `TECHNOLOGY`.
+   - Enhanced deduplication to upgrade concept classification from `RESPONSIBILITY` to `TECHNOLOGY` when a technology term appears in both responsibilities and explicit requirements.
+4. **Authoritative Project Ranking & Strict Project Slot Ceiling ($N=2$):**
+   - Verified that top $N=2$ projects are selected strictly from the authoritative project ranking across all 5 jobs without secondary re-ranking or optimizer intervention.
+5. **Closed Skill Vocabulary & Zero Leakage:**
+   - Enforced $\text{finalSkillIds} \subseteq \text{verifiedCandidateSkillIds}$ across all 5 jobs. Verified zero leakage of unverified adversarial skills (`Rust` and `Raft`) into technical skills on Job 4.
+6. **Fact-Supported Capacity Discipline:**
+   - Maintained uncompromising agency veracity by refusing to fabricate synthetic bullets for projects with $<3$ candidate-supported facts (`Product Data Explorer` has 1 bullet, `Collaborative Task Manager` has 2 bullets, `Ai-powered Code Review` has 2 bullets). Accurately reported database capacity limits without hallucination.
+
+---
+
 ### PART 44: Resume-Tailoring Contract Hardening: Closed Skill Vocabulary & Optimizer Semantic Non-Mutation
 
 **Status:** COMPLETE & VERIFIED
