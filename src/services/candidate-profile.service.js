@@ -319,9 +319,42 @@ export class CandidateProfileService {
         }
       }
 
-      const bullets = Array.isArray(proj.bullets) && proj.bullets.length > 0
-        ? proj.bullets
-        : (Array.isArray(proj.metadata?.bullets) ? proj.metadata.bullets : []);
+      let bullets = Array.isArray(proj.bullets) && proj.bullets.length > 0
+        ? [...proj.bullets]
+        : (Array.isArray(proj.metadata?.bullets) ? [...proj.metadata.bullets] : []);
+
+      // Defensive candidate-evidence enrichment: if DB metadata lacks 3 bullets, hydrate
+      // from candidate's authentic master resume projects (zero fabrication, genuine candidate claims only).
+      if (bullets.length < 3 && Array.isArray(candidate.profileMetadata?.resumeData?.projects)) {
+        const projName = (proj.name || proj.title || '').toLowerCase();
+        const projSlug = (proj.slug || '').toLowerCase();
+        for (const metaProj of candidate.profileMetadata.resumeData.projects) {
+          const metaTitle = (metaProj.title || metaProj.name || '').toLowerCase();
+          const metaSlug = (metaProj.slug || '').toLowerCase();
+          const isMatch =
+            (projSlug && metaSlug && projSlug === metaSlug) ||
+            (projName && metaTitle && (
+              projName.includes(metaTitle) ||
+              metaTitle.includes(projName) ||
+              projName.replace(/[^a-z0-9]/g, '') === metaTitle.replace(/[^a-z0-9]/g, '')
+            ));
+          if (isMatch && Array.isArray(metaProj.bullets)) {
+            for (const b of metaProj.bullets) {
+              const bText = typeof b === 'string' ? b.trim() : (b?.text || '').trim();
+              if (
+                bText &&
+                !bullets.some(
+                  (existing) =>
+                    (typeof existing === 'string' ? existing : existing?.text || '').trim() === bText
+                )
+              ) {
+                bullets.push(b);
+              }
+            }
+          }
+        }
+      }
+
       const technologies = Array.isArray(proj.technologies) && proj.technologies.length > 0
         ? proj.technologies
         : (Array.isArray(proj.metadata?.technologies)

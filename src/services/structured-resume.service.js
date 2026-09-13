@@ -51,6 +51,7 @@ import {
   buildCanonicalJobRequirements,
   buildCandidateJobEvidenceGraph,
 } from './candidate-fact-inventory.service.js';
+import { compressProfessionalBullet } from './resume-composition-primitives.js';
 
 /**
  * Capacity-aware dynamic project budgeting strategy (Req H & 21).
@@ -464,6 +465,7 @@ export function buildStructuredResumeDocument({
 
   const candidateContentService = new CandidateArtifactContentService();
   let selectedProjectIds = [];
+  let authoritativeEligibleProjectCount = options?.authoritativeProjectCount ?? 0;
 
   // P43 Contract: Project count is structural, not semantic. When a master resume structure exists,
   // the number of project slots is inherited from that structure (structuralProjectCapacity).
@@ -484,10 +486,9 @@ export function buildStructuredResumeDocument({
   if (Array.isArray(incomingPlan?.selectedProjectIds) || Array.isArray(options?.selectedProjectIds)) {
     // An explicit incoming plan's project selection is authoritative; it is bounded
     // by structuralProjectCapacity.
-    selectedProjectIds = (incomingPlan?.selectedProjectIds || options.selectedProjectIds).slice(
-      0,
-      structuralProjectCapacity
-    );
+    const explicitIds = incomingPlan?.selectedProjectIds || options.selectedProjectIds;
+    authoritativeEligibleProjectCount = explicitIds.length;
+    selectedProjectIds = explicitIds.slice(0, structuralProjectCapacity);
   } else {
     if (Array.isArray(resolvedAuthoritativeRankings) && resolvedAuthoritativeRankings.length > 0) {
       const candProjMap = new Map();
@@ -499,6 +500,7 @@ export function buildStructuredResumeDocument({
         if (p.slug) candProjMap.set(slugifyProject(p.slug), p);
       }
 
+      const eligibleAuthoritativeProjectIds = [];
       for (const r of resolvedAuthoritativeRankings) {
         const rId = r.projectId || r.id;
         const rSlug = slugifyProject(r.projectName || r.name || r.title || r.slug || '');
@@ -529,11 +531,12 @@ export function buildStructuredResumeDocument({
         if (!isProjectStrongEnough(candProj, r)) continue;
 
         const candProjId = candProj.id || candProj.projectId;
-        if (candProjId && !selectedProjectIds.includes(candProjId)) {
-          selectedProjectIds.push(candProjId);
+        if (candProjId && !eligibleAuthoritativeProjectIds.includes(candProjId)) {
+          eligibleAuthoritativeProjectIds.push(candProjId);
         }
-        if (selectedProjectIds.length >= structuralProjectCapacity) break;
       }
+      authoritativeEligibleProjectCount = eligibleAuthoritativeProjectIds.length;
+      selectedProjectIds = eligibleAuthoritativeProjectIds.slice(0, structuralProjectCapacity);
     } else if (
       Array.isArray(canonicalJob?.recommendedProjects) &&
       canonicalJob.recommendedProjects.length > 0
@@ -544,6 +547,7 @@ export function buildStructuredResumeDocument({
         const slug = slugifyProject(p.name || p.title || p.displayName || '');
         if (slug) candProjMap.set(slug, p);
       }
+      const eligibleRecs = [];
       for (const rec of canonicalJob.recommendedProjects) {
         const recSlug = slugifyProject(typeof rec === 'string' ? rec : rec.name || rec.slug || '');
         const candProj = candProjMap.get(recSlug);
@@ -553,12 +557,13 @@ export function buildStructuredResumeDocument({
           if (isArchived) continue;
           if (!isProjectStrongEnough(candProj, null)) continue;
           const candProjId = candProj.id || candProj.projectId;
-          if (candProjId && !selectedProjectIds.includes(candProjId)) {
-            selectedProjectIds.push(candProjId);
+          if (candProjId && !eligibleRecs.includes(candProjId)) {
+            eligibleRecs.push(candProjId);
           }
         }
-        if (selectedProjectIds.length >= structuralProjectCapacity) break;
       }
+      authoritativeEligibleProjectCount = eligibleRecs.length;
+      selectedProjectIds = eligibleRecs.slice(0, structuralProjectCapacity);
     } else if (
       !canonicalJob ||
       ((!canonicalJob.requirements || canonicalJob.requirements.length === 0) &&
@@ -570,6 +575,7 @@ export function buildStructuredResumeDocument({
     ) {
       // Standalone tests without jobPosting or minimal jobPosting without requirements/description/rankings:
       // use raw candidate projects sliced to capacity
+      authoritativeEligibleProjectCount = Array.isArray(rawProjects) ? rawProjects.length : 0;
       selectedProjectIds = Array.isArray(rawProjects)
         ? rawProjects
             .slice(0, structuralProjectCapacity)
@@ -578,6 +584,7 @@ export function buildStructuredResumeDocument({
     } else {
       // Job posting with requirements/description provided, but zero projects met the relevance criteria:
       // Empty selection (prefers NO project over WRONG project when relevance is genuinely zero)
+      authoritativeEligibleProjectCount = 0;
       selectedProjectIds = [];
     }
   }
@@ -1244,6 +1251,7 @@ export function buildStructuredResumeDocument({
       projectRemovalRecords,
       selectedProjectIds: [...parsedPlan.selectedProjectIds],
       renderedProjectIds: projects.map((project) => project.projectId),
+      authoritativeEligibleProjectCount,
       selectedFactIds: selectedFactSet.map((fact) => fact.factId || fact.id).filter(Boolean),
       renderedFactIds: Array.from(
         new Set([
@@ -1400,8 +1408,40 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
     }
   }
 
-  // Check project bullets
-  for (const proj of doc.projects || []) {
+  // Check project count & bullets
+  const renderedProjects = doc.projects || [];
+  const authoritativeProjectCount =
+    options?.authoritativeProjectCount ??
+    doc.debugTrace?.authoritativeEligibleProjectCount ??
+    doc.metadata?.authoritativeEligibleProjectCount ??
+    (doc.debugTrace?.selectedProjectIds?.length ?? doc.metadata?.selectedProjectIds?.length ?? 0);
+  const removalRecords =
+    doc.debugTrace?.projectRemovalRecords || doc.metadata?.projectRemovalRecords || [];
+
+  if (renderedProjects.length === 0 && (authoritativeProjectCount > 0 || removalRecords.length > 0)) {
+    const hasInsufficientEvidence = removalRecords.some(
+      (r) => r.reason === 'INSUFFICIENT_CANDIDATE_BULLETS'
+    );
+    if (hasInsufficientEvidence) {
+      violations.push({
+        section: 'PROJECTS',
+        field: 'projects',
+        claimText: 'Zero projects rendered',
+        violationType: 'INSUFFICIENT_SOURCE_EVIDENCE',
+        message: `0 projects rendered because candidate projects lack the required minimum 3 candidate-supported bullets (${removalRecords.map((r) => r.projectId).join(', ')}).`,
+      });
+    } else {
+      violations.push({
+        section: 'PROJECTS',
+        field: 'projects',
+        claimText: 'Zero projects rendered',
+        violationType: 'PIPELINE_FAILURE',
+        message: `0 projects rendered despite ${authoritativeProjectCount} authoritative eligible projects existing.`,
+      });
+    }
+  }
+
+  for (const proj of renderedProjects) {
     if (!Array.isArray(proj.bullets) || proj.bullets.length < 3) {
       violations.push({
         section: 'PROJECTS',

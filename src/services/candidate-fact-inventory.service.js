@@ -722,9 +722,39 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
   for (const p of Array.isArray(rawProjects) ? rawProjects : []) {
     const projKey = p.id || p.projectId || p.name;
     const association = { projectId: projKey, projectName: p.name || p.title || '' };
-    const pBullets = Array.isArray(p.bullets) && p.bullets.length > 0
-      ? p.bullets
-      : (Array.isArray(p.metadata?.bullets) ? p.metadata.bullets : []);
+    let pBullets = Array.isArray(p.bullets) && p.bullets.length > 0
+      ? [...p.bullets]
+      : (Array.isArray(p.metadata?.bullets) ? [...p.metadata.bullets] : []);
+
+    if (pBullets.length < 3 && Array.isArray(candidateProfile?.profileMetadata?.resumeData?.projects)) {
+      const projName = (p.name || p.title || '').toLowerCase();
+      const projSlug = (p.slug || '').toLowerCase();
+      for (const metaProj of candidateProfile.profileMetadata.resumeData.projects) {
+        const metaTitle = (metaProj.title || metaProj.name || '').toLowerCase();
+        const metaSlug = (metaProj.slug || '').toLowerCase();
+        const isMatch =
+          (projSlug && metaSlug && projSlug === metaSlug) ||
+          (projName && metaTitle && (
+            projName.includes(metaTitle) ||
+            metaTitle.includes(projName) ||
+            projName.replace(/[^a-z0-9]/g, '') === metaTitle.replace(/[^a-z0-9]/g, '')
+          ));
+        if (isMatch && Array.isArray(metaProj.bullets)) {
+          for (const b of metaProj.bullets) {
+            const bText = typeof b === 'string' ? b.trim() : (b?.text || '').trim();
+            if (
+              bText &&
+              !pBullets.some(
+                (existing) =>
+                  (typeof existing === 'string' ? existing : existing?.text || '').trim() === bText
+              )
+            ) {
+              pBullets.push(b);
+            }
+          }
+        }
+      }
+    }
     const pHighlights = Array.isArray(p.highlights) && p.highlights.length > 0
       ? p.highlights
       : (Array.isArray(p.metadata?.highlights) ? p.metadata.highlights : []);

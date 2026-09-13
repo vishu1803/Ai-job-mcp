@@ -43,6 +43,8 @@ export const GATE_FINDING_CODES = Object.freeze({
   SEMANTIC_LEAKAGE: 'SEMANTIC_LEAKAGE',
   SEMANTICALLY_REDUNDANT_BULLETS: 'SEMANTICALLY_REDUNDANT_BULLETS',
   UNSUPPORTED_METRIC_CLAIM: 'UNSUPPORTED_METRIC_CLAIM',
+  INSUFFICIENT_SOURCE_EVIDENCE: 'INSUFFICIENT_SOURCE_EVIDENCE',
+  PIPELINE_FAILURE: 'PIPELINE_FAILURE',
 });
 
 /** Minimum informative length (chars) for a rendered bullet. */
@@ -158,6 +160,35 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
         severity: GATE_SEVERITY.FAIL,
         remediable: false,
         message: `Selected project '${p.displayName || p.name || 'unnamed'}' renders with ${bullets.length} bullet(s); minimum required is ${MIN_BULLETS_PER_PROJECT}.`,
+      });
+    }
+  }
+
+  // ── Check 1b: Zero projects rendered when authoritative projects exist ──
+  const authoritativeProjectCount =
+    doc.debugTrace?.authoritativeEligibleProjectCount ??
+    doc.metadata?.authoritativeEligibleProjectCount ??
+    (doc.debugTrace?.selectedProjectIds?.length ?? doc.metadata?.selectedProjectIds?.length ?? 0);
+  const removalRecords =
+    doc.debugTrace?.projectRemovalRecords || doc.metadata?.projectRemovalRecords || [];
+
+  if (projects.length === 0 && (authoritativeProjectCount > 0 || removalRecords.length > 0)) {
+    const hasInsufficientEvidence = removalRecords.some(
+      (r) => r.reason === 'INSUFFICIENT_CANDIDATE_BULLETS'
+    );
+    if (hasInsufficientEvidence) {
+      findings.push({
+        code: GATE_FINDING_CODES.INSUFFICIENT_SOURCE_EVIDENCE,
+        severity: GATE_SEVERITY.FAIL,
+        remediable: false,
+        message: `0 projects rendered because candidate projects lack the required minimum 3 candidate-supported bullets (${removalRecords.map((r) => r.projectId).join(', ')}).`,
+      });
+    } else {
+      findings.push({
+        code: GATE_FINDING_CODES.PIPELINE_FAILURE,
+        severity: GATE_SEVERITY.FAIL,
+        remediable: false,
+        message: `0 projects rendered despite ${authoritativeProjectCount} authoritative eligible projects existing.`,
       });
     }
   }

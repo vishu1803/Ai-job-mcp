@@ -770,6 +770,7 @@ export const StructuredResumeDocumentSchema = z
         renderedProjectIds: z.array(z.string()).optional(),
         selectedFactIds: z.array(z.string()).optional(),
         renderedFactIds: z.array(z.string()).optional(),
+        authoritativeEligibleProjectCount: z.number().int().nonnegative().optional(),
       })
       .optional()
       .nullable(),
@@ -791,6 +792,8 @@ export const EvidenceViolationTypeEnum = z.enum([
   'SENIORITY_INFLATION',
   'MISSING_REQUIRED_SOURCE',
   'SCHEMA_VALIDATION_ERROR',
+  'INSUFFICIENT_SOURCE_EVIDENCE',
+  'PIPELINE_FAILURE',
 ]);
 
 export const EvidenceViolationSchema = z

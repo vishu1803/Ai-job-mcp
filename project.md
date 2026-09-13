@@ -3,6 +3,46 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 47: Project Evidence Capacity, Authentic Multi-Bullet Extraction, and Validator Disambiguation
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-13  
+**Remote HEAD Base:** `28c71f2b8e7f134e00276fed424b07cf7d505aab` (`main`, `origin/main`)  
+**Verification Suites & Evidence:**  
+- Focused Unit Tests: `node --test tests/unit/p46-ranking-authority-and-bullet-minimum.test.js tests/unit/p47-project-evidence-capacity.test.js` (15/15 passed, 0 failed, 100% pass)  
+  1. `Extracts >=3 authentic source bullets per candidate project`: PASS  
+  2. `Renders top N=2 projects matching authoritative ranking with >=3 bullets each`: PASS  
+  3. `Proof every rendered bullet is strictly candidate-supported (zero fabrication)`: PASS  
+  4. `Validator emits INSUFFICIENT_SOURCE_EVIDENCE when candidate project lacks 3 bullets`: PASS  
+  5. `Validator emits PIPELINE_FAILURE when authoritative projects exist but pipeline failed to select them`: PASS  
+  6. `Allows 0 projects legitimately when candidate genuinely has 0 projects and 0 eligible rankings`: PASS  
+- Live Production PostgreSQL Verification: `scripts/sync-candidate-project-evidence.mjs` & live snapshot:
+  - All 3 candidate projects synchronized with $\ge 3$ authentic bullets:
+    - `Product-Data-Explorer`: 3 bullets from verified GitHub repository README and architecture
+    - `Ai-powered-code-review-assistant`: 3 bullets from candidate master resume `resumeData.projects` / claims
+    - `Collaborative-task-manager`: 3 bullets from candidate master resume `resumeData.projects` / claims
+  - Authoritative ranking top $N=2$ projects selected: `Collaborative-task-manager` and `Ai-powered-code-review-assistant`
+  - Rendered resume projects: 2 projects with 3 candidate-supported bullets each
+  - EvidenceValidationReceipt: `overallStatus: PASS`, `violations: []`
+
+**Architectural Hardening Deliverables:**  
+1. **Authoritative Candidate Project Evidence Synchronization & Defensive Hydration:**  
+   - Synchronized verified candidate project evidence in PostgreSQL for candidate `10a2b51b-09bf-4090-8040-1f60ebeb89c9` across `Product Data Explorer`, `AI-Powered Code Review Assistant`, and `Collaborative Task Manager`.
+   - Hardened `CandidateProfileService.getProfile` and `CandidateFactInventoryService.buildCandidateFactInventory`: if stored project metadata has $<3$ bullets, it defensively hydrates authentic candidate-authored bullets from `candidate.profileMetadata.resumeData.projects` and raw sections. Zero synthetic bullets fabricated.
+2. **Validator Disambiguation & Fail-Closed Integrity Enforcement:**  
+   - Extended `EvidenceViolationTypeEnum` in `src/domain/career/resume.schemas.js` with `INSUFFICIENT_SOURCE_EVIDENCE` and `PIPELINE_FAILURE`.
+   - Updated `validateStructuredResumeIntegrity` (`src/services/structured-resume.service.js`) and `assessPreRenderQuality` (`src/services/resume-content-quality-gate.service.js`):
+     - Zero projects rendered is NOT silently treated as success when authoritative eligible projects exist.
+     - When projects are dropped due to $<3$ candidate-supported bullets, the validator explicitly emits `INSUFFICIENT_SOURCE_EVIDENCE` (`FAIL` severity).
+     - When authoritative eligible projects exist in rankings/profile but pipeline fails to select them, the validator explicitly emits `PIPELINE_FAILURE` (`FAIL` severity).
+     - When a candidate genuinely has 0 projects or zero relevance for an irrelevant role, 0 projects is permitted without false errors.
+3. **Master Structure Invariance & Project Capacity:**  
+   - Master structure project capacity ceiling preserved ($N=2$).
+   - Authoritative project ranking remains the sole ranking authority.
+   - Renderer/optimizer semantic freeze enforced with zero out-of-band additions or alterations.
+
+---
+
 ### PART 46: Project Ranking Authority & Minimum 3 Bullets Per Project
 
 **Status:** COMPLETE & VERIFIED  
