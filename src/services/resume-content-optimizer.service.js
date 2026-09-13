@@ -29,7 +29,12 @@ import { LatexCompilerService } from './latex-compiler.service.js';
 import { PdfGeometryAnalyzer } from './pdf-geometry-analyzer.service.js';
 import { PdfQaValidatorService } from './pdf-qa-validator.service.js';
 import { ResumeQualityAssessmentService } from './resume-quality-assessment.service.js';
-import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
+import {
+  buildStructuredResumeSnapshot,
+  freezeSemanticResume,
+  assertSemanticEquivalence,
+  computeResumeSemanticFingerprint,
+} from './structured-resume.service.js';
 import { countDistinctCanonicalFacts } from './candidate-artifact-content.service.js';
 import { compressCandidateBullet } from './resume-content-strategy.service.js';
 import {
@@ -158,6 +163,10 @@ export class ResumeContentOptimizer {
       currentStructuredResume = snap.structuredResume || snap;
     }
 
+    // Step 0: Introduce explicit semantic-freeze boundary (Issue 2 Contract)
+    // The semantic resume is frozen; optimizer may only perform presentation/layout transformations.
+    const baselineSemantic = freezeSemanticResume(currentStructuredResume);
+
     let currentLayoutOverrides = { ...(options.layoutOverrides || {}) };
 
     for (let iteration = 1; iteration <= maxIterations; iteration++) {
@@ -172,12 +181,15 @@ export class ResumeContentOptimizer {
             ...initialOptions,
             projectBulletOverrides,
             layoutOverrides: currentLayoutOverrides,
-            additionalProjectIds: [...additionalProjectIds],
-            selectedProjectIds,
+            selectedProjectIds: baselineSemantic.projectIds,
           },
         });
         currentStructuredResume = snap.structuredResume || snap;
       }
+
+      // Assert runtime semantic equivalence: optimizer operation cannot change
+      // project IDs, project ordering, project count, skill IDs, summary, DSA, experience, education, section order
+      assertSemanticEquivalence(baselineSemantic, currentStructuredResume);
 
       // 2. Generate LaTeX source
       const appPkg = {
@@ -308,24 +320,11 @@ export class ResumeContentOptimizer {
               { project: bestMove.name, newCount: targetCount, iteration, expectedValue: bestMove.expectedValue },
               'Optimizer expanding project bullets from canonical fact inventory'
             );
-          } else if (bestMove.type === 'PROJECT') {
-            additionalProjectIds.push(bestMove.id);
-            iterationRecord.action = `ADD_PROJECT: ${bestMove.name}`;
-            this.logger.info(
-              { project: bestMove.name, iteration, expectedValue: bestMove.expectedValue },
-              'Optimizer adding a strong under-utilized project from the canonical fact inventory'
-            );
-          } else if (bestMove.type === OPTIMIZER_MOVE_TYPES.REPLACE_PROJECT) {
-            selectedProjectIds = selectedProjectIds || currentStructuredResume.projects.map((p) => p.projectId || p.name);
-            const index = selectedProjectIds.indexOf(bestMove.currentId);
-            if (index >= 0) selectedProjectIds[index] = bestMove.id;
-            iterationRecord.action = `REPLACE_PROJECT: ${bestMove.currentName} -> ${bestMove.name}`;
-          } else if (bestMove.type === OPTIMIZER_MOVE_TYPES.DROP_PROJECT) {
-            selectedProjectIds = selectedProjectIds || currentStructuredResume.projects.map((p) => p.projectId || p.name);
-            selectedProjectIds = selectedProjectIds.filter((id) => id !== bestMove.id);
-            iterationRecord.action = `DROP_PROJECT: ${bestMove.name}`;
+          } else if (bestMove.type === OPTIMIZER_MOVE_TYPES.COMPRESS_LAYOUT) {
+            currentLayoutOverrides.profile = 'COMPACT';
+            iterationRecord.action = 'COMPRESS_LAYOUT: Tightened layout profile to COMPACT';
           } else {
-            iterationRecord.action = bestMove.description || 'APPLIED_CONTENT_MOVE';
+            iterationRecord.action = bestMove.description || 'APPLIED_LAYOUT_MOVE';
           }
         } else {
           // Optimal document composition achieved
@@ -402,6 +401,9 @@ export class ResumeContentOptimizer {
         pageImpact: 14,
       }));
 
+    // Final runtime assertion: output structured resume has identical semantic selection to baseline input
+    assertSemanticEquivalence(baselineSemantic, finalResult.structuredResume);
+
     return {
       success: Boolean(bestOnePageCandidate),
       iterationsRun: iterationHistory.length,
@@ -451,7 +453,7 @@ export class ResumeContentOptimizer {
     structuredResume,
     projectBulletOverrides,
     additionalProjectIds,
-    inventoryFactCountByProject,
+    inventoryFactCountByProject = new Map(),
     crossProjectDuplicateFacts = [],
     jobPosting,
     candidateProfile,
@@ -500,8 +502,8 @@ export class ResumeContentOptimizer {
       if (effectiveCount >= 3) continue;
 
       const factCount =
-        inventoryFactCountByProject.get(pId) ??
-        inventoryFactCountByProject.get(String(p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')) ??
+        inventoryFactCountByProject?.get?.(pId) ??
+        inventoryFactCountByProject?.get?.(String(p.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')) ??
         0;
       if (factCount <= effectiveCount) continue;
 
@@ -530,139 +532,6 @@ export class ResumeContentOptimizer {
         expectedValue,
         description: `Add bullet to project ${p.name || pId}`,
       });
-
-      const currentId = p.projectId || p.name;
-      const currentRelevance =
-        relevanceByProject.get(String(currentId).toLowerCase().replace(/[^a-z0-9]/g, '')) || 0;
-      for (const candidate of candidateProfile?.projects || []) {
-        const candidateId = candidate.id || candidate.projectId;
-        if (!candidateId || candidateId === currentId) continue;
-        if (projects.some((existing) => (existing.projectId || existing.name) === candidateId)) continue;
-        const candidateRelevance =
-          relevanceByProject.get(String(candidateId).toLowerCase().replace(/[^a-z0-9]/g, '')) || 0;
-        const candidateCoverage = projectCoverage(candidate);
-        if (
-          candidateRelevance >= currentRelevance + 15 &&
-          (!hasJobRequirements || candidateCoverage.tier !== 'D')
-        ) {
-          moves.push({
-            type: OPTIMIZER_MOVE_TYPES.REPLACE_PROJECT,
-            id: candidateId,
-            currentId,
-            name: candidate.name || candidate.title || candidateId,
-            currentName: p.name || currentId,
-            expectedValue: (candidateRelevance - currentRelevance) / 10,
-            description: `Replace generic project ${p.name || currentId} with ${candidate.name || candidateId}`,
-          });
-        }
-      }
-    }
-
-    // Move Type 2: Add High-Relevance Project
-    if (projects.length < 4) {
-      const rawProjects = Array.isArray(candidateProfile?.projects) ? candidateProfile.projects : [];
-      for (const candProj of rawProjects) {
-        const cId = candProj.id || candProj.projectId;
-        if (!cId) continue;
-        if (projects.some((p) => p.projectId === cId)) continue;
-        if (additionalProjectIds.includes(cId)) continue;
-        const isArchived =
-          candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
-        if (isArchived) continue;
-
-        const factCount = inventoryFactCountByProject.get(cId) || 0;
-        const evidenceCount = candProj.evidenceCount ?? (Array.isArray(candProj.evidence) ? candProj.evidence.length : 0);
-        const hasRenderableContent =
-          factCount >= 2 ||
-          evidenceCount >= 5 ||
-          (Array.isArray(candProj.highlights) && candProj.highlights.length > 0);
-        if (!hasRenderableContent) continue;
-        const candidateCoverage = projectCoverage(candProj);
-        if (hasJobRequirements && candidateCoverage.tier === 'D') continue;
-
-        const spaceCost = 55; // ~55pt for project header + initial bullet
-        if (availableSpacePt < spaceCost && availableSpacePt > 0) continue;
-
-        const qualityGain = 25;
-        const relevanceGain = candProj.relevanceScore || 70;
-        const evidenceGain = 2;
-        const redundancyChange = 0;
-
-        const expectedValue =
-          (qualityGain * 0.4 + relevanceGain * 0.3 + evidenceGain * 10 - redundancyChange * 0.5) /
-          Math.max(1, spaceCost);
-
-        moves.push({
-          type: 'PROJECT',
-          id: cId,
-          name: candProj.name || candProj.title || cId,
-          spaceCost,
-          qualityGain,
-          relevanceGain,
-          evidenceGain,
-          redundancyChange,
-          expectedValue,
-          description: `Add project ${candProj.name || cId}`,
-        });
-      }
-    }
-
-    // Move Type 3: ADD_EXPERIENCE_CLAIM
-    const experiences = Array.isArray(structuredResume?.experience) ? structuredResume.experience : [];
-    for (const exp of experiences) {
-      const expBullets = Array.isArray(exp.bullets) ? exp.bullets : [];
-      if (expBullets.length < 4 && availableSpacePt >= 18) {
-        moves.push({
-          type: OPTIMIZER_MOVE_TYPES.ADD_EXPERIENCE_CLAIM,
-          id: exp.id || exp.company,
-          name: exp.company || 'Experience',
-          spaceCost: 18,
-          expectedValue: 12 / 18,
-          description: `Add experience claim to ${exp.company || 'Role'}`,
-        });
-      }
-    }
-
-    // Move Type 4: ADD_DSA_REPRESENTATION
-    const dsaData = candidateProfile?.dsa || candidateProfile?.profileMetadata?.dsa;
-    if (dsaData && (!structuredResume?.dsa || !structuredResume.dsa.hasSection) && availableSpacePt >= 35) {
-      moves.push({
-        type: OPTIMIZER_MOVE_TYPES.ADD_DSA_REPRESENTATION,
-        id: 'dsa',
-        name: 'Problem Solving & DSA',
-        spaceCost: 35,
-        expectedValue: 20 / 35,
-        description: 'Include DSA / Problem Solving section',
-      });
-    }
-
-    // Move Type 5: REWRITE_SUMMARY
-    if (structuredResume?.summary?.text && structuredResume.summary.text.length > 220 && availableSpacePt < 40) {
-      moves.push({
-        type: OPTIMIZER_MOVE_TYPES.REWRITE_SUMMARY,
-        id: 'summary',
-        name: 'Professional Summary',
-        spaceCost: -15, // saves ~15pt
-        expectedValue: 1.5,
-        description: 'Compress professional summary to concise 2-sentence realization',
-      });
-    }
-
-    // Move Type 6: REORDER_SECTIONS
-    const currentOrder = structuredResume?.sectionOrder || [];
-    if (currentOrder.includes('PROJECTS') && currentOrder.includes('EXPERIENCE')) {
-      const pIdx = currentOrder.indexOf('PROJECTS');
-      const eIdx = currentOrder.indexOf('EXPERIENCE');
-      if (candidateProfile?.seniority === 'SENIOR' && pIdx < eIdx) {
-        moves.push({
-          type: OPTIMIZER_MOVE_TYPES.REORDER_SECTIONS,
-          id: 'reorder',
-          name: 'Section Ordering',
-          spaceCost: 0,
-          expectedValue: 1.2,
-          description: 'Reorder sections to prioritize Experience above Projects for senior archetype',
-        });
-      }
     }
 
     // Move Type 7: COMPRESS_LAYOUT

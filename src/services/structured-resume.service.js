@@ -616,7 +616,27 @@ export function buildStructuredResumeDocument({
       ? incomingPlan.selectedSkillSlugs
       : skillSelectionResult.selectedSkillSlugs;
 
-  const selectedSkills =
+  // Invariant: finalSkillIds ⊆ verifiedCandidateSkillIds
+  // Only skills already present in the candidate's verified skill inventory may appear in the final Technical Skills section.
+  const verifiedCandidateSkillNames = new Set(
+    rawSkills
+      .map((s) => (typeof s === 'string' ? s : s.name || s.skillName || ''))
+      .map((s) => s.toLowerCase().trim())
+      .filter(Boolean)
+  );
+  const verifiedCandidateSkillSlugs = new Set(
+    rawSkills
+      .map((s) => (typeof s === 'string' ? s : s.slug || s.name || s.skillName || ''))
+      .map((s) => s.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      .filter(Boolean)
+  );
+  const isAuthorizedCandidateSkill = (skill) => {
+    const name = String(typeof skill === 'string' ? skill : skill?.name || skill?.displayName || '').toLowerCase().trim();
+    const slug = String(typeof skill === 'string' ? skill : skill?.slug || skill?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    return verifiedCandidateSkillNames.has(name) || verifiedCandidateSkillSlugs.has(slug);
+  };
+
+  const rawCandidateSelectedSkills =
     Array.isArray(incomingPlan?.selectedSkills) && incomingPlan.selectedSkills.length > 0
       ? incomingPlan.selectedSkills
       : (() => {
@@ -661,8 +681,12 @@ export function buildStructuredResumeDocument({
             .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
             .slice(0, options?.maxSkills || 12);
         })();
+
+  const selectedSkills = (rawCandidateSelectedSkills || []).filter(isAuthorizedCandidateSkill);
   if (!(Array.isArray(incomingPlan?.selectedSkillSlugs) && incomingPlan.selectedSkillSlugs.length > 0)) {
     selectedSkillSlugs = selectedSkills.map((skill) => skill.slug || skill.name).filter(Boolean);
+  } else {
+    selectedSkillSlugs = incomingPlan.selectedSkillSlugs.filter((slug) => isAuthorizedCandidateSkill(slug));
   }
 
   const skillCategoryOrder =
@@ -730,36 +754,9 @@ export function buildStructuredResumeDocument({
     },
   };
 
-  // P16-009: optimizer-driven project expansion — resolved BEFORE plan parsing
-  // so the added projects flow into parsedPlan.selectedProjectIds. Each must
-  // still pass the strength gate (authentic content, not archived);
-  // relevance-zero projects are still excluded. Total projects capped at 4.
-  const additionalProjectIds = Array.isArray(options?.additionalProjectIds)
-    ? options.additionalProjectIds
-    : [];
-  if (additionalProjectIds.length > 0) {
-    const candProjMapForExtras = new Map();
-    for (const p of rawProjects) {
-      const pId = p.id || p.projectId;
-      if (pId) candProjMapForExtras.set(pId, p);
-      const slug = slugifyProject(p.name || p.title || '');
-      if (slug) candProjMapForExtras.set(slug, p);
-    }
-    for (const extraId of additionalProjectIds) {
-      if (selectedProjectIds.length >= 4) break;
-      const candProj =
-        candProjMapForExtras.get(extraId) || candProjMapForExtras.get(slugifyProject(extraId));
-      if (!candProj) continue;
-      const isArchived =
-        candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
-      if (isArchived) continue;
-      if (!isProjectStrongEnough(candProj, null)) continue;
-      const candProjId = candProj.id || candProj.projectId || extraId;
-      if (!selectedProjectIds.includes(candProjId)) {
-        selectedProjectIds.push(candProjId);
-      }
-    }
-  }
+  // Project selection contract: Projects inherit capacity N from master structure.
+  // Selection is strictly top N eligible projects from existing authoritative ranking.
+  // No secondary ranking formula or optimizer-driven project expansion.
 
   const planToParse = incomingPlan
     ? { ...basePlan, ...incomingPlan, selectedProjectIds }
@@ -1089,9 +1086,10 @@ export function buildStructuredResumeDocument({
   }
 
   // 8. Skills Categorization (strictly aligned with parsedPlan.skillCategoryOrder & parsedPlan.selectedSkills)
+  // Invariant: finalSkillIds ⊆ verifiedCandidateSkillIds
   const categorizedSkills = [];
   const skillsByCategory = new Map();
-  for (const s of parsedPlan.selectedSkills || []) {
+  for (const s of (parsedPlan.selectedSkills || []).filter(isAuthorizedCandidateSkill)) {
     const cat = s.category || 'Core Competencies';
     if (!skillsByCategory.has(cat)) {
       skillsByCategory.set(cat, []);
@@ -1634,3 +1632,131 @@ export async function buildStructuredResumeSnapshotAsync({
     options: enhancedOptions,
   });
 }
+
+/**
+ * Takes an immutable semantic snapshot of a structured resume.
+ * Captures all candidate factual and semantic selections:
+ * - project IDs, ordering, count
+ * - skill IDs, names, category groupings
+ * - summary text and composed fact IDs
+ * - experience companies, titles, dates, fact IDs
+ * - DSA URL and candidate-authored DSA bullets
+ * - education institutions, degrees, dates
+ * - section order
+ *
+ * @param {object} structuredResume Structured resume document
+ * @returns {object} Immutable semantic snapshot
+ */
+export function freezeSemanticResume(structuredResume) {
+  const resume = structuredResume?.structuredResume || structuredResume;
+  if (!resume) return null;
+
+  return Object.freeze({
+    projectIds: Object.freeze((resume.projects || []).map((p) => p.projectId || p.id || p.name)),
+    projectNames: Object.freeze((resume.projects || []).map((p) => p.name || p.title)),
+    projectCount: (resume.projects || []).length,
+    skillSlugs: Object.freeze((resume.selectedSkillSlugs || []).slice().sort()),
+    skillsByCategory: Object.freeze(
+      (resume.skills?.categories || []).map((cat) => ({
+        categoryName: cat.categoryName,
+        skills: Object.freeze((cat.skills || []).map((s) => s.slug || s.name)),
+      }))
+    ),
+    summaryText: resume.summary?.text || null,
+    summaryFactIds: Object.freeze([...(resume.summary?.composedFromFactIds || [])].sort()),
+    experienceFactIds: Object.freeze(
+      (resume.experience || []).flatMap((e) =>
+        (e.bullets || []).flatMap((b) => b.composedFromFactIds || [b.text || b])
+      )
+    ),
+    experienceCompanies: Object.freeze(
+      (resume.experience || []).map((e) => `${e.company || ''}:${e.title || ''}`)
+    ),
+    dsaBullets: Object.freeze(
+      (resume.dsa?.bullets || []).map((b) => (typeof b === 'string' ? b : b.text || ''))
+    ),
+    dsaUrl: resume.dsa?.profileUrl || null,
+    educationFacts: Object.freeze(
+      (resume.education || []).map((e) => `${e.institution || ''}:${e.degree || ''}`)
+    ),
+    sectionOrder: Object.freeze([...(resume.sectionOrder || [])]),
+  });
+}
+
+/**
+ * Computes a deterministic SHA-256 semantic fingerprint of a structured resume.
+ * Changes to presentation metadata (spacing, margin, layout profile, font size)
+ * will NOT change this fingerprint; any semantic change WILL change this fingerprint.
+ *
+ * @param {object} structuredResume Structured resume document
+ * @returns {string} SHA-256 hex digest
+ */
+export function computeResumeSemanticFingerprint(structuredResume) {
+  const frozen = freezeSemanticResume(structuredResume);
+  if (!frozen) return '';
+  return crypto.createHash('sha256').update(JSON.stringify(frozen)).digest('hex');
+}
+
+/**
+ * Asserts strict semantic equivalence between two structured resume representations
+ * (e.g. before vs after optimizer / renderer).
+ *
+ * @param {object} baseline Baseline structured resume or frozen snapshot
+ * @param {object} current Current structured resume or frozen snapshot
+ * @throws {Error} If any semantic selection changed
+ * @returns {boolean} True if strictly equivalent
+ */
+export function assertSemanticEquivalence(baseline, current) {
+  const base = baseline?.projectIds ? baseline : freezeSemanticResume(baseline);
+  const curr = current?.projectIds ? current : freezeSemanticResume(current);
+
+  if (!base || !curr) return true;
+
+  if (base.projectCount !== curr.projectCount) {
+    throw new Error(
+      `Optimizer semantic violation: project count changed from ${base.projectCount} to ${curr.projectCount}`
+    );
+  }
+
+  for (let i = 0; i < base.projectIds.length; i++) {
+    if (
+      base.projectIds[i] !== curr.projectIds[i] ||
+      base.projectNames?.[i] !== curr.projectNames?.[i]
+    ) {
+      throw new Error(
+        `Optimizer semantic violation: project ordering changed at index ${i}. Expected '${base.projectIds[i]}', got '${curr.projectIds[i]}'`
+      );
+    }
+  }
+
+  if (JSON.stringify(base.skillsByCategory) !== JSON.stringify(curr.skillsByCategory)) {
+    throw new Error('Optimizer semantic violation: technical skills selection or category grouping was modified');
+  }
+
+  if (base.summaryText !== curr.summaryText) {
+    throw new Error('Optimizer semantic violation: summary text was rewritten or modified');
+  }
+
+  if (JSON.stringify(base.summaryFactIds) !== JSON.stringify(curr.summaryFactIds)) {
+    throw new Error('Optimizer semantic violation: summary composed fact IDs were modified');
+  }
+
+  if (base.dsaUrl !== curr.dsaUrl || JSON.stringify(base.dsaBullets) !== JSON.stringify(curr.dsaBullets)) {
+    throw new Error('Optimizer semantic violation: DSA profile URL or bullets were modified');
+  }
+
+  if (JSON.stringify(base.experienceCompanies) !== JSON.stringify(curr.experienceCompanies)) {
+    throw new Error('Optimizer semantic violation: experience records were modified');
+  }
+
+  if (JSON.stringify(base.educationFacts) !== JSON.stringify(curr.educationFacts)) {
+    throw new Error('Optimizer semantic violation: education records were modified');
+  }
+
+  if (JSON.stringify(base.sectionOrder) !== JSON.stringify(curr.sectionOrder)) {
+    throw new Error('Optimizer semantic violation: section order was modified');
+  }
+
+  return true;
+}
+

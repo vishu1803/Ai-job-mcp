@@ -3,6 +3,43 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 44: Resume-Tailoring Contract Hardening: Closed Skill Vocabulary & Optimizer Semantic Non-Mutation
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-13
+**Remote HEAD Base:** `75d2ac813656664f65b0ea607df9efe8a2075bc0` (`main`, `origin/main`)
+**Verification Suites:**
+- Unit Tests: `node --test tests/unit/resume-structure-content-conditioning.test.js` (16/16 passed, 0 failed, 100% pass)
+- Regression Bundle: `node --test tests/unit/p16-001b-authoritative-project-selection.test.js tests/unit/p16-001c-authoritative-skill-selection.test.js tests/unit/p16-001g-professional-resume-composition.test.js tests/unit/candidate-profile.service.test.js tests/unit/p16-structured-resume-contract.test.js tests/unit/resume-integrity-audit.service.test.js tests/unit/job-normalization-differential.test.js tests/unit/p17-document-optimizer.test.js tests/unit/p16-008-content-optimizer.test.js` (128/128 passed, 0 failed)
+- Physical PDFs via Tectonic:
+  - `resume_backend.pdf`: 15,430 bytes, exact page count = 1, semantic fingerprint bit-for-bit identical (`cd496d42c9058d0779257003bc5271b1600c454796fa942c9ce6f4c2c53a1fcd`)
+  - `resume_systems.pdf`: 15,567 bytes, exact page count = 1, semantic fingerprint bit-for-bit identical (`d5cae9f15805ff762acf161483808ac6e7460491d26919e4f68b9e060e9ccf8e`)
+  - `resume_frontend.pdf`: 15,419 bytes, exact page count = 1, semantic fingerprint bit-for-bit identical (`cf81b24a53bf8fba79b029d8956ba55d11dfb4d61ef287376e9f54535784d954`)
+
+**Contract Hardening & Architectural Deliverables:**
+1. **Issue 1 — Closed Skill Vocabulary & Corroboration-Only Project Technologies:**
+   - Invariant enforced: $\text{finalSkillIds} \subseteq \text{verifiedCandidateSkillIds}$.
+   - In `CandidateArtifactContentService.selectAndCategorizeSkillsForJob`, project technologies/metadata strictly corroborate existing authorized candidate skills (`item.provenanceStatus = 'CORROBORATED'`, increment `evidenceCount`). Project technologies NEVER create new candidate skills or expand candidate skill vocabulary.
+   - Verified that unverified project technologies (e.g. `Rust` and `Raft` from Audience Query System) are NEVER promoted into Technical Skills even when targeting a Systems job requiring Rust.
+   - Updated `TailoredSelectedSkillSchema` in `src/domain/career/resume.schemas.js` to support verified `evidenceCount` for complete end-to-end evidence traceability.
+2. **Issue 2 — Renderer & Optimizer Semantic Freeze Invariant:**
+   - Invariant enforced: $\text{semantic}(\text{output after optimizer}) \equiv \text{semantic}(\text{input before optimizer})$.
+   - Implemented `freezeSemanticResume`, `computeResumeSemanticFingerprint`, and `assertSemanticEquivalence` in `src/services/structured-resume.service.js`.
+   - In `ResumeContentOptimizer.optimize`: Added explicit semantic baseline freeze (`freezeSemanticResume`). Removed all semantic moves (`ADD_PROJECT`, `REPLACE_PROJECT`, `DROP_PROJECT`, `ADD_EXPERIENCE_CLAIM`, `ADD_DSA_REPRESENTATION`, `REWRITE_SUMMARY`, `REORDER_SECTIONS`) from candidate move generation and candidate move application.
+   - Preserved presentation-only moves: `BULLETS` (bullet density expansion on selected projects), `REMOVE_PROJECT_CLAIM` (overflow bullet reduction), `COMPRESS_LAYOUT` (compact spacing profile).
+   - Enforced runtime assertion `assertSemanticEquivalence` at every optimization step and on final return.
+3. **Project Capacity & Shortage Invariant:**
+   - Slot capacity ($N=2$) is inherited structurally from the candidate's master resume structure.
+   - Selection is strictly the top $N$ eligible projects from the existing authoritative ranking without secondary ranking or optimizer-driven expansion.
+   - Fail-closed empty selection: When candidate projects have zero relevance to target job criteria (e.g. Swift iOS role), zero projects are selected (prefers NO project over WRONG project).
+4. **Dynamic Skill Category Prioritization:**
+   - Category prioritization evaluates the strength of the category for the job based on direct requirement matches and top skill scores, ensuring domain-relevant categories rank first (e.g. `Backend & APIs` for backend roles, `Frontend & Web` for frontend roles).
+5. **Cross-Interface Parity:**
+   - Validated that MCP (`handleGenerateTailoredResume`) and Extension (`JobApplicationWorkflowService`) converge on identical canonical structured resume selection and skill sets.
+   - Verified that legacy paths (such as `ResumeTailoringService`) are unreachable from canonical workflows.
+
+---
+
 ### PART 43: Resume Tailoring Model Repair: Structural Stability & Job-Conditioned Content
 
 **Status:** COMPLETE & VERIFIED

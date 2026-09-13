@@ -1690,6 +1690,9 @@ export class CandidateArtifactContentService {
       /backend|api|database|server|distributed|infrastructure|microservice/i.test(jobTitle) ||
       /backend|api|database|server|sql|postgresql|rest/i.test(jobDesc);
     const isFrontendRole = /frontend|ui|ux|client/i.test(jobTitle) && !isBackendRole;
+    const isMobileRole =
+      /ios|android|swift|swiftui|kotlin|mobile|react native|flutter/i.test(jobTitle) ||
+      /ios|android|swift|swiftui|mobile/i.test(jobDesc);
 
     const jobSkillsList = (targetPosting.skills || []).map((s) => s.toLowerCase());
 
@@ -1842,6 +1845,10 @@ export class CandidateArtifactContentService {
         if (/state|responsive|design/i.test(techText)) frontendSignals += 10;
         roleRelevance = Math.min(30, frontendSignals);
         if (roleRelevance === 0) roleRelevance = 5;
+      } else if (isMobileRole) {
+        let mobileSignals = 0;
+        if (/swift|swiftui|kotlin|android|ios|react native|flutter/i.test(techText)) mobileSignals += 20;
+        roleRelevance = Math.min(30, mobileSignals);
       } else {
         roleRelevance = 20;
       }
@@ -1861,7 +1868,14 @@ export class CandidateArtifactContentService {
       }
       technologyOverlap = Math.min(20, matchedJobTechs.size * 5);
 
-      const baseScore = evidenceQuality + technicalDepth + roleRelevance + technologyOverlap;
+      const hasJobSpecificCriteria =
+        (Array.isArray(targetPosting.requirements) && targetPosting.requirements.length > 0) ||
+        (Array.isArray(targetPosting.skills) && targetPosting.skills.length > 0);
+
+      let baseScore = evidenceQuality + technicalDepth + roleRelevance + technologyOverlap;
+      if (hasJobSpecificCriteria && technologyOverlap === 0 && roleRelevance === 0) {
+        baseScore = 0;
+      }
 
       scored.push({
         project: proj,
@@ -1920,6 +1934,12 @@ export class CandidateArtifactContentService {
         continue;
       }
 
+      if (candidate.score <= 0) {
+        candidate.status = 'REJECTED';
+        candidate.rejectionReason = 'Zero relevance to target job requirements';
+        continue;
+      }
+
       if (selected.length === 0) {
         candidate.status = 'SELECTED';
         selected.push(candidate);
@@ -1952,7 +1972,11 @@ export class CandidateArtifactContentService {
         (item.status === 'SELECTED' ? null : 'Lower relevance compared to top selected projects'),
     }));
 
-    const selectedProjects = selected.map((s) => s.project);
+    const selectedProjects = selected.map((s) => ({
+      ...s.project,
+      relevanceScore: s.score,
+      status: s.status,
+    }));
 
     // If authoritative recommended projects list is present, preserve its recommended ordering
     if (recSlugs.length > 0) {
@@ -1990,8 +2014,18 @@ export class CandidateArtifactContentService {
       .sort((a, b) => b.relevance - a.relevance || a.name.localeCompare(b.name));
 
     // Attach metadata properties
+    const hasExplicitJobTarget =
+      targetPosting &&
+      ((Array.isArray(targetPosting.requirements) && targetPosting.requirements.length > 0) ||
+        (Array.isArray(targetPosting.skills) && targetPosting.skills.length > 0) ||
+        (typeof targetPosting.title === 'string' && targetPosting.title.trim().length > 0));
+
     rankedList.selectedProjects =
-      selectedProjects.length > 0 ? selectedProjects : rankedList.slice(0, maxToSelect);
+      selectedProjects.length > 0
+        ? selectedProjects
+        : hasExplicitJobTarget
+          ? []
+          : rankedList.slice(0, maxToSelect);
     rankedList.selectionAudit = selectionAudit;
 
     return rankedList;
@@ -2223,7 +2257,9 @@ export class CandidateArtifactContentService {
       }
     }
 
-    // Connect verified project technologies to guarantee project/skill consistency
+    // Connect verified project technologies to corroborate existing skills and guarantee consistency.
+    // Invariant: finalSkillIds ⊆ verifiedCandidateSkillIds.
+    // Project technologies MUST NOT create new candidate skills or expand skill vocabulary.
     const featuredProjectTechs = new Set();
     for (const p of candidateData.projects || []) {
       for (const t of p.technologies || []) {
@@ -2232,17 +2268,21 @@ export class CandidateArtifactContentService {
           const canonical = CANONICAL_ALIAS_MAP[cleaned.toLowerCase()] || cleaned;
           featuredProjectTechs.add(canonical.toLowerCase());
           const key = canonical.toLowerCase();
-          if (!skillMap.has(key)) {
-            skillMap.set(key, {
-              name: canonical,
-              slug: key.replace(/[^a-z0-9-]/g, '-'),
-              category: getCategory(canonical, null),
-              provenanceStatus: p.provenanceStatus || 'VERIFIED',
-              evidenceCount: p.evidenceCount || 1,
-              evidenceId: null,
-            });
-          } else {
-            const item = skillMap.get(key);
+
+          // Lookup existing authorized candidate skill only
+          let item = skillMap.get(key);
+          if (!item) {
+            for (const s of skillMap.values()) {
+              const sName = (s.name || s.skillName || '').toLowerCase().trim();
+              const sSlug = (s.slug || '').toLowerCase().trim();
+              if (sName === key || sSlug === key || CANONICAL_ALIAS_MAP[sName] === canonical) {
+                item = s;
+                break;
+              }
+            }
+          }
+
+          if (item) {
             if (p.provenanceStatus === 'VERIFIED' || p.provenanceStatus === 'CORROBORATED') {
               if (
                 item.provenanceStatus === 'CLAIMED' ||
@@ -2253,6 +2293,8 @@ export class CandidateArtifactContentService {
               item.evidenceCount = Math.max(item.evidenceCount || 0, 1);
             }
           }
+          // If the project technology does not match an existing candidate skill,
+          // do NOT add it to skillMap. Project technologies must not expand skill vocabulary.
         }
       }
     }
@@ -2475,10 +2517,14 @@ export class CandidateArtifactContentService {
       }
     }
 
-    // Derive category priority dynamically based on the aggregate relevance scores of selected skills
+    // Derive category priority dynamically based on top skill relevance scores and direct matches
     const categoryScores = {};
     for (const [cat, list] of Object.entries(categoryGroups)) {
-      categoryScores[cat] = list.reduce((sum, s) => sum + (s.score || 0), 0);
+      const topSkills = list.slice().sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3);
+      const topSum = topSkills.reduce((sum, s) => sum + (s.score || 0), 0);
+      const maxScore = topSkills[0]?.score || 0;
+      const directMatches = list.filter((s) => s.isDirectMatch || (s.score && s.score >= 35)).length;
+      categoryScores[cat] = maxScore * 2 + topSum + directMatches * 25;
     }
 
     // Role-based baseline weights for deterministic tie-breaking
@@ -2526,6 +2572,7 @@ export class CandidateArtifactContentService {
           name: canonicalName,
           category: cat,
           provenanceStatus: s.provenance === 'SELF_DECLARED' ? 'USER_PROVIDED' : s.provenance,
+          evidenceCount: s.evidenceCount || 0,
           evidenceId: s.evidenceId || null,
           relevanceScore: Math.min(100, Math.max(0, s.score || 0)),
           matchedRequirementId: s.matchedRequirementId || null,

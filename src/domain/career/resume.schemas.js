@@ -432,6 +432,7 @@ export const TailoredSelectedSkillSchema = z
     provenanceStatus: StructuredTruthCategoryEnum,
     evidenceId: z.string().uuid().optional().nullable(),
     evidenceRef: EvidenceReferenceSchema.optional().nullable(),
+    evidenceCount: z.number().int().nonnegative().optional(),
     relevanceScore: z.number().min(0).max(100).default(0),
     matchedRequirementId: z.string().optional().nullable(),
     confidenceScore: z.number().min(0).max(1).default(1.0),
