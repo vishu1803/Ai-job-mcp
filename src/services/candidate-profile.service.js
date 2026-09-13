@@ -319,12 +319,25 @@ export class CandidateProfileService {
         }
       }
 
+      const bullets = Array.isArray(proj.bullets) && proj.bullets.length > 0
+        ? proj.bullets
+        : (Array.isArray(proj.metadata?.bullets) ? proj.metadata.bullets : []);
+      const technologies = Array.isArray(proj.technologies) && proj.technologies.length > 0
+        ? proj.technologies
+        : (Array.isArray(proj.metadata?.technologies)
+          ? proj.metadata.technologies
+          : (Array.isArray(proj.metadata?.skills) ? proj.metadata.skills : []));
+      const description = proj.description || proj.metadata?.description || proj.summary || null;
+
       projectList.push({
         id: proj.id,
         name: proj.name,
         slug: proj.slug,
         headline: proj.headline,
-        summary: proj.summary,
+        summary: proj.summary || description,
+        description,
+        bullets,
+        technologies,
         role: proj.role,
         isHighlighted: proj.isHighlighted,
         startDate: proj.startDate ? String(proj.startDate) : null,
@@ -424,6 +437,62 @@ export class CandidateProfileService {
       });
     }
 
+    // P43: Fetch candidate's master resume sections to establish structural contract
+    const rawResumeSections = await this._db
+      .select()
+      .from(resumeSections)
+      .where(and(eq(resumeSections.tenantId, tenantId), eq(resumeSections.candidateId, candidateId)))
+      .orderBy(asc(resumeSections.orderIndex));
+
+    const meta = candidate.profileMetadata || {};
+    const portfolioLinks =
+      meta.portfolioLinks ||
+      meta.userCustom?.portfolioLinks ||
+      [];
+    const leetcodeLink = portfolioLinks.find(
+      (l) => typeof l?.url === 'string' && /leetcode\.com/i.test(l.url)
+    ) || null;
+
+    let dsaBullets = [];
+    if (Array.isArray(meta.dsa?.bullets) && meta.dsa.bullets.length > 0) {
+      dsaBullets = meta.dsa.bullets.map(String);
+    } else if (Array.isArray(meta.userCustom?.dsa?.bullets) && meta.userCustom.dsa.bullets.length > 0) {
+      dsaBullets = meta.userCustom.dsa.bullets.map(String);
+    } else if (rawResumeSections.length > 0) {
+      // Find authentic candidate-authored DSA bullets from parsed resume sections without fabricating
+      for (const sec of rawResumeSections) {
+        const text = sec.rawText || '';
+        // Look specifically for problem solving / algorithmic practice text (excluding contact header)
+        if (
+          /problems\s*solved|competitive\s*programming|algorithmic\s*practice/i.test(text) ||
+          (/leetcode/i.test(text) && !/@|linkedin\.com|github\.com/i.test(text))
+        ) {
+          const lines = text
+            .split('\n')
+            .map((l) => l.replace(/^[●•\-\*]\s*/, '').trim())
+            .filter((l) => l.length > 10 && !/^\s*(?:problem\s*solving|algorithmic\s*practice)\s*$/i.test(l));
+          if (lines.length > 0) {
+            dsaBullets = lines;
+            break;
+          }
+        }
+      }
+    }
+
+    const dsa =
+      leetcodeLink || dsaBullets.length > 0
+        ? {
+            hasSection: true,
+            profileUrl: leetcodeLink ? leetcodeLink.url.trim() : null,
+            bullets: dsaBullets,
+            provenanceStatus: 'USER_PROVIDED',
+          }
+        : null;
+
+    const experience = meta.experience || meta.userCustom?.experience || [];
+    const education = meta.education || meta.userCustom?.education || [];
+    const certifications = meta.certifications || meta.userCustom?.certifications || [];
+
     return {
       candidate: {
         id: candidate.id,
@@ -443,6 +512,13 @@ export class CandidateProfileService {
       resources: resourceList,
       projects: projectList,
       skills: skillList,
+      experience,
+      education,
+      certifications,
+      portfolioLinks,
+      links: portfolioLinks,
+      dsa,
+      resumeSections: rawResumeSections,
     };
   }
 

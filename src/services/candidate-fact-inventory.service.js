@@ -719,51 +719,72 @@ export function buildCanonicalFactInventory(candidateProfile, jobPosting = null,
     });
   };
 
-  // ── 1. Project facts ──────────────────────────────────────────────────────
   for (const p of Array.isArray(rawProjects) ? rawProjects : []) {
     const projKey = p.id || p.projectId || p.name;
     const association = { projectId: projKey, projectName: p.name || p.title || '' };
-    const projTech = Array.isArray(p.technologies) ? p.technologies : [];
+    const pBullets = Array.isArray(p.bullets) && p.bullets.length > 0
+      ? p.bullets
+      : (Array.isArray(p.metadata?.bullets) ? p.metadata.bullets : []);
+    const pHighlights = Array.isArray(p.highlights) && p.highlights.length > 0
+      ? p.highlights
+      : (Array.isArray(p.metadata?.highlights) ? p.metadata.highlights : []);
+    const pFeatures = Array.isArray(p.features) && p.features.length > 0
+      ? p.features
+      : (Array.isArray(p.metadata?.features) ? p.metadata.features : []);
+    const pFeatureDescriptions = Array.isArray(p.featureDescriptions) && p.featureDescriptions.length > 0
+      ? p.featureDescriptions
+      : (Array.isArray(p.metadata?.featureDescriptions) ? p.metadata.featureDescriptions : []);
+    const pResponsibilities = Array.isArray(p.responsibilities) && p.responsibilities.length > 0
+      ? p.responsibilities
+      : (Array.isArray(p.metadata?.responsibilities) ? p.metadata.responsibilities : []);
+    const pImplementations = Array.isArray(p.implementationDescriptions) && p.implementationDescriptions.length > 0
+      ? p.implementationDescriptions
+      : (Array.isArray(p.metadata?.implementationDescriptions) ? p.metadata.implementationDescriptions : []);
+    const projTech = Array.isArray(p.technologies) && p.technologies.length > 0
+      ? p.technologies
+      : (Array.isArray(p.metadata?.technologies)
+        ? p.metadata.technologies
+        : (Array.isArray(p.metadata?.skills) ? p.metadata.skills : []));
 
     const projectLevelProvenance = p.provenanceStatus || 'USER_PROVIDED';
     const surfaces = [
       {
-        items: p.bullets,
+        items: pBullets,
         sourceType: 'bullet',
         factType: 'candidate-authored',
         canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION,
         candidateAuthored: true,
       },
       {
-        items: p.highlights,
+        items: pHighlights,
         sourceType: 'highlight',
         factType: 'candidate-authored',
         canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
         candidateAuthored: true,
       },
       {
-        items: p.features,
+        items: pFeatures,
         sourceType: 'feature',
         factType: 'feature',
         canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
         candidateAuthored: false,
       },
       {
-        items: p.featureDescriptions,
+        items: pFeatureDescriptions,
         sourceType: 'feature-description',
         factType: 'feature',
         canonicalFactType: CANONICAL_FACT_TYPES.FEATURE,
         candidateAuthored: false,
       },
       {
-        items: p.responsibilities,
+        items: pResponsibilities,
         sourceType: 'responsibility',
         factType: 'responsibility',
         canonicalFactType: CANONICAL_FACT_TYPES.RESPONSIBILITY,
         candidateAuthored: true,
       },
       {
-        items: p.implementationDescriptions,
+        items: pImplementations,
         sourceType: 'responsibility',
         factType: 'implementation',
         canonicalFactType: CANONICAL_FACT_TYPES.IMPLEMENTATION,

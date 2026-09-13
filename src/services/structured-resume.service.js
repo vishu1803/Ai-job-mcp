@@ -41,6 +41,7 @@ import {
   deriveSectionOrdering,
   isMeaningfulDsa,
 } from './resume-content-strategy.service.js';
+import { MasterResumeStructureService } from './master-resume-structure.service.js';
 import { formatTechnologyStack } from '../utils/technology-normalizer.js';
 import {
   buildCanonicalFactInventory,
@@ -312,22 +313,53 @@ export function buildStructuredResumeDocument({
   // or real stats also qualify. Fabricated counts/ratings remain forbidden.
   const rawDsa = meta.dsa || source.dsa || source.problemSolving || meta.problemSolving || null;
   let dsa = null;
-  if (rawDsa && typeof rawDsa === 'object') {
-    const dsaUrl =
-      typeof rawDsa.profileUrl === 'string' && /^https?:\/\//i.test(rawDsa.profileUrl.trim())
-        ? rawDsa.profileUrl.trim()
-        : null;
-    const dsaBullets = Array.isArray(rawDsa.bullets)
-      ? rawDsa.bullets.map(String).filter(Boolean)
-      : [];
+  const candidatePortfolioLinks =
+    meta.portfolioLinks ||
+    source.portfolioLinks ||
+    source.links ||
+    candidateIdentity.links ||
+    [];
+  const leetcodeLink = candidatePortfolioLinks.find(
+    (l) => typeof (typeof l === 'string' ? l : l?.url) === 'string' && /leetcode\.com/i.test(typeof l === 'string' ? l : l.url)
+  );
+  const leetcodeUrl = leetcodeLink
+    ? (typeof leetcodeLink === 'string' ? leetcodeLink : leetcodeLink.url).trim()
+    : null;
+
+  let dsaBullets = [];
+  if (rawDsa && typeof rawDsa === 'object' && Array.isArray(rawDsa.bullets) && rawDsa.bullets.length > 0) {
+    dsaBullets = rawDsa.bullets.map(String).filter(Boolean);
+  } else {
+    const rawResumeSections = source.resumeSections || meta.resumeSections || [];
+    for (const sec of rawResumeSections) {
+      const text = sec.rawText || '';
+      if (
+        /problems\s*solved|competitive\s*programming|algorithmic\s*practice/i.test(text) ||
+        (/leetcode/i.test(text) && !/@|linkedin\.com|github\.com/i.test(text))
+      ) {
+        const lines = text
+          .split('\n')
+          .map((l) => l.replace(/^[●•\-\*]\s*/, '').trim())
+          .filter((l) => l.length > 10 && !/^\s*(?:problem\s*solving|algorithmic\s*practice)\s*$/i.test(l));
+        if (lines.length > 0) {
+          dsaBullets = lines;
+          break;
+        }
+      }
+    }
+  }
+
+  const dsaUrl =
+    rawDsa && typeof rawDsa.profileUrl === 'string' && /^https?:\/\//i.test(rawDsa.profileUrl.trim())
+      ? rawDsa.profileUrl.trim()
+      : leetcodeUrl;
+
+  if (dsaUrl || dsaBullets.length > 0 || rawDsa?.hasSection) {
     dsa = {
-      // P16-009: an explicit upstream hasSection=true is honored, and a valid
-      // profile URL or authored bullets make the section renderable even when
-      // the upstream flag was computed as false (URL-only DSA must not vanish).
-      hasSection: Boolean(rawDsa.hasSection || dsaBullets.length > 0 || dsaUrl),
+      hasSection: true,
       profileUrl: dsaUrl,
       bullets: dsaBullets,
-      provenanceStatus: 'CLAIMED',
+      provenanceStatus: rawDsa?.provenanceStatus || 'USER_PROVIDED',
     };
   }
 
@@ -358,84 +390,57 @@ export function buildStructuredResumeDocument({
   // DSA, so a URL-only DSA is appended to the order here.
   const _includeProblemSolving = Boolean(dsa?.bullets?.length || dsa?.profileUrl);
 
-  // Phase 4 — Dynamic, content-aware project budget (Req H & 21).
-  // Dynamically computes project capacity based on candidate experience, DSA, and education footprint.
+  // Master Resume Structure: Project capacity is structural, not semantic (Req 1, 6 & 15)
+  const masterStructure = MasterResumeStructureService.resolveMasterStructure(source, options);
+  const structuralProjectCapacity = masterStructure.projectSlotCapacity || 2;
   const hasMeaningfulDsaContent = isMeaningfulDsa(dsa);
-
   const dynamicProjectBudget = estimateProjectCapacity({
     experience: meta.experience || source.experience || [],
     hasMeaningfulDsa: hasMeaningfulDsaContent,
     education: meta.education || source.education || [],
     explicitBudget:
-      options?.projectBudget || options?.maxProjects || incomingPlan?.projectBudget || null,
+      options?.projectBudget || options?.maxProjects || incomingPlan?.projectBudget || structuralProjectCapacity,
   });
 
-  // Minimum authoritative-strength thresholds a project must meet to earn a slot.
-  // Projects below these bars are omitted rather than padding the page (fail-sparse).
-  const STRONG_RELEVANCE_FLOOR = 30; // ranking relevanceScore ≥ 30, or
-  const MIN_EVIDENCE_COUNT = 5; // ≥ 5 evidence records, or
-  const MIN_AUTHORED_BULLETS = 2; // ≥ 2 authored technical bullets
-
   /**
-   * Evaluates whether a ranked candidate project has enough authentic content
-   * strength to justify occupying page budget. Purely data-driven.
+   * Evaluates whether a candidate project has authentic content strength to occupy a slot.
+   * Purely data-driven: verifies candidate owns real bullets, descriptions, or evidence.
    */
   const isProjectStrongEnough = (candProj, ranking) => {
-    const score = typeof ranking?.relevanceScore === 'number' ? ranking.relevanceScore : 0;
+    const score =
+      typeof ranking?.relevanceScore === 'number'
+        ? ranking.relevanceScore
+        : typeof ranking?.score === 'number'
+          ? ranking.score
+          : 0;
     const evidenceCount =
       candProj.evidenceCount ?? (Array.isArray(candProj.evidence) ? candProj.evidence.length : 0);
-    const hasMatchedReqs =
-      (Array.isArray(ranking?.matchedRequirementIds) && ranking.matchedRequirementIds.length > 0) ||
-      (Array.isArray(ranking?.matchedRequirements) && ranking.matchedRequirements.length > 0);
-    const band = ranking?.relevanceBand;
+    const hasDescription = Boolean(
+      (candProj.description &&
+        typeof candProj.description === 'string' &&
+        candProj.description.trim().length >= 10) ||
+      (candProj.metadata?.description &&
+        typeof candProj.metadata.description === 'string' &&
+        candProj.metadata.description.trim().length >= 10)
+    );
 
-    const hasDescription =
-      candProj.description &&
-      typeof candProj.description === 'string' &&
-      candProj.description.trim().length >= 20;
-
-    // P16-008: Count total distinct canonical facts across all candidate content surfaces
     const allCandidateItems = [
       ...(Array.isArray(candProj.bullets) ? candProj.bullets : []),
       ...(Array.isArray(candProj.highlights) ? candProj.highlights : []),
       ...(Array.isArray(candProj.features) ? candProj.features : []),
       ...(Array.isArray(candProj.featureDescriptions) ? candProj.featureDescriptions : []),
       ...(Array.isArray(candProj.responsibilities) ? candProj.responsibilities : []),
-      ...(hasDescription ? [candProj.description] : []),
+      ...(Array.isArray(candProj.metadata?.bullets) ? candProj.metadata.bullets : []),
+      ...(hasDescription ? [candProj.description || candProj.metadata?.description] : []),
     ];
     const totalCandidateFacts = countDistinctCanonicalFacts(allCandidateItems);
-    const projectFacts =
-      selectionFactsByProject.get(slugifyProject(candProj.id || candProj.projectId || '')) ||
-      selectionFactsByProject.get(slugifyProject(candProj.name || candProj.title || '')) ||
-      [];
-    const requirementCoverage = calculateRequirementCoverage(
-      [
-        ...projectFacts,
-        {
-          factId: `project-technologies-${candProj.id || candProj.projectId || candProj.name || 'unknown'}`,
-          text: '',
-          technologies: Array.isArray(candProj.technologies) ? candProj.technologies : [],
-        },
-      ],
-      canonicalJob
-    );
-    const hasSpecificJobRequirements = requirementCoverage.totalCount > 0;
 
     return (
-      (!hasSpecificJobRequirements ||
-        requirementCoverage.tier !== 'D' ||
-        hasMatchedReqs ||
-        (ranking?.matchedRequirementIds || []).length > 0) &&
-      (score >= STRONG_RELEVANCE_FLOOR ||
-        hasMatchedReqs ||
-        band === 'HIGH' ||
-        band === 'MEDIUM' ||
-        evidenceCount >= MIN_EVIDENCE_COUNT ||
-        totalCandidateFacts >= MIN_AUTHORED_BULLETS) &&
-      // A slot-worth project must carry at least SOME renderable content.
-      (evidenceCount > 0 ||
-        totalCandidateFacts > 0 ||
-        (candProj.summary && String(candProj.summary).trim()))
+      totalCandidateFacts > 0 ||
+      evidenceCount > 0 ||
+      score > 0 ||
+      Boolean(candProj.summary && String(candProj.summary).trim()) ||
+      Boolean(candProj.headline && String(candProj.headline).trim())
     );
   };
 
@@ -460,87 +465,73 @@ export function buildStructuredResumeDocument({
   const candidateContentService = new CandidateArtifactContentService();
   let selectedProjectIds = [];
 
+  // P43 Contract: Project count is structural, not semantic. When a master resume structure exists,
+  // the number of project slots is inherited from that structure (structuralProjectCapacity).
+  // The existing authoritative project-ranking system supplies the ordered candidate projects,
+  // and the resume generator selects the top N eligible projects for those slots.
+  // Job relevance determines ranking; it does not determine the resume's structure.
+  // No second project-ranking algorithm may be introduced inside StructuredResumeService.
+  let resolvedAuthoritativeRankings =
+    options?.projectRankings ||
+    canonicalJob?.projectRankings ||
+    canonicalJob?.jobFitAnalysis?.projectRankings ||
+    canonicalJob?.jobFitAnalysis?.topRelevantProjects ||
+    null;
+  let isFromAuthoritativeSelected = false;
+
+  const hasJobCriteria =
+    (Array.isArray(canonicalJob?.requirements) && canonicalJob.requirements.length > 0) ||
+    (Array.isArray(canonicalJob?.skills) && canonicalJob.skills.length > 0) ||
+    (typeof canonicalJob?.description === 'string' && canonicalJob.description.trim().length > 0);
+
+  if (!resolvedAuthoritativeRankings && hasJobCriteria && Array.isArray(rawProjects) && rawProjects.length > 0) {
+    try {
+      const ranked = candidateContentService.rankProjectsForJob(
+        { ...candidateProfile, projects: rawProjects },
+        canonicalJob,
+        { maxProjects: structuralProjectCapacity }
+      );
+      if (ranked && (ranked.selectedProjects || ranked.selectionAudit)) {
+        resolvedAuthoritativeRankings = ranked.selectedProjects || ranked.selectionAudit;
+        if (ranked.selectedProjects && ranked.selectedProjects.length > 0) {
+          isFromAuthoritativeSelected = true;
+        }
+      }
+    } catch {
+      // Fall back to existing behavior
+    }
+  }
+
   if (Array.isArray(incomingPlan?.selectedProjectIds) || Array.isArray(options?.selectedProjectIds)) {
-    // An explicit incoming plan's project selection is authoritative; it is only
-    // capped by the dynamic page budget (no strength filtering — explicit selection
-    // is the tailoring system's decision).
+    // An explicit incoming plan's project selection is authoritative; it is bounded
+    // by structuralProjectCapacity.
     selectedProjectIds = (incomingPlan?.selectedProjectIds || options.selectedProjectIds).slice(
       0,
-      dynamicProjectBudget
+      structuralProjectCapacity
     );
   } else {
-    // Check for authoritative rankings on jobPosting or options
-    let authoritativeRankings =
-      options?.projectRankings ||
-      canonicalJob?.projectRankings ||
-      canonicalJob?.jobFitAnalysis?.projectRankings ||
-      canonicalJob?.jobFitAnalysis?.topRelevantProjects ||
-      null;
-
-    const hasJobCriteria =
-      (Array.isArray(canonicalJob?.requirements) && canonicalJob.requirements.length > 0) ||
-      (Array.isArray(canonicalJob?.skills) && canonicalJob.skills.length > 0) ||
-      (typeof canonicalJob?.description === 'string' && canonicalJob.description.trim().length > 0);
-
-    if (!authoritativeRankings && hasJobCriteria && Array.isArray(rawProjects) && rawProjects.length > 0) {
-      try {
-        const ranked = candidateContentService.rankProjectsForJob(
-          { ...candidateProfile, projects: rawProjects },
-          canonicalJob,
-          { maxProjects: dynamicProjectBudget }
-        );
-        if (ranked && (ranked.selectionAudit || ranked.selectedProjects)) {
-          authoritativeRankings = ranked.selectionAudit || ranked.selectedProjects;
-        }
-      } catch {
-        // Fall back to existing behavior
-      }
-    }
-
-    if (Array.isArray(authoritativeRankings) && authoritativeRankings.length > 0) {
-      // Map candidate projects by ID and slug
+    if (Array.isArray(resolvedAuthoritativeRankings) && resolvedAuthoritativeRankings.length > 0) {
       const candProjMap = new Map();
       for (const p of rawProjects) {
         const pId = p.id || p.projectId;
         if (pId) candProjMap.set(pId, p);
-        const slug = slugifyProject(p.name || p.title || '');
+        const slug = slugifyProject(p.name || p.title || p.displayName || '');
         if (slug) candProjMap.set(slug, p);
+        if (p.slug) candProjMap.set(slugifyProject(p.slug), p);
       }
 
-      const rankedCandidates = authoritativeRankings
-        .map((r) => {
-          const rId = r.projectId || r.id;
-          const rSlug = slugifyProject(r.projectName || r.name || '');
-          const candProj = candProjMap.get(rId) || (rSlug ? candProjMap.get(rSlug) : null);
-          if (!candProj) return null;
-          const coverage = getProjectCoverage(candProj);
-          return {
-            ranking: r,
-            candProj,
-            coverage: coverage.coverage,
-            meaningfulCoverage: coverage.meaningfulCoverage,
-            tier: coverage.tier,
-          };
-        })
-        .filter(Boolean)
-        .sort(
-          (a, b) =>
-            ({ A: 4, B: 3, C: 2, D: 1 }[b.tier] || 0) -
-              ({ A: 4, B: 3, C: 2, D: 1 }[a.tier] || 0) ||
-            b.meaningfulCoverage - a.meaningfulCoverage ||
-            (b.ranking.relevanceScore ?? b.ranking.score ?? 0) -
-              (a.ranking.relevanceScore ?? a.ranking.score ?? 0)
-        );
-
-      for (const { ranking: r, candProj } of rankedCandidates) {
+      for (const r of resolvedAuthoritativeRankings) {
         const rId = r.projectId || r.id;
+        const rSlug = slugifyProject(r.projectName || r.name || r.title || r.slug || '');
+        const candProj = candProjMap.get(rId) || (rSlug ? candProjMap.get(rSlug) : null);
+        if (!candProj) continue;
 
         const isArchived =
           candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
         if (isArchived) continue;
 
         const score = typeof r.relevanceScore === 'number' ? r.relevanceScore : (typeof r.score === 'number' ? r.score : 0);
-        const isSelected = r.status === 'SELECTED';
+        const isSelected = r.status === 'SELECTED' || isFromAuthoritativeSelected;
         const hasMatchedReqs =
           (Array.isArray(r.matchedRequirementIds) && r.matchedRequirementIds.length > 0) ||
           (Array.isArray(r.matchedRequirements) && r.matchedRequirements.length > 0);
@@ -549,41 +540,20 @@ export function buildStructuredResumeDocument({
         const isNotMinimal = r.relevanceBand && r.relevanceBand !== 'MINIMAL';
 
         if (
-          (score <= 0 && !isSelected) ||
-          (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && !isSelected && score < 25.0)
+          !isSelected &&
+          (score <= 0 ||
+            (!hasMatchedReqs && !hasContributingSkills && !isNotMinimal && score < 25.0))
         ) {
           continue;
         }
 
-        // Phase 4 strength gate: a slot is granted only when the project carries
-        // enough authentic content to justify page space (fail-sparse, never pad).
-        if (!isProjectStrongEnough(candProj, r)) {
-          continue;
-        }
+        if (!isProjectStrongEnough(candProj, r)) continue;
 
-        const candProjId = candProj.id || candProj.projectId || rId;
-        if (!selectedProjectIds.includes(candProjId)) {
+        const candProjId = candProj.id || candProj.projectId;
+        if (candProjId && !selectedProjectIds.includes(candProjId)) {
           selectedProjectIds.push(candProjId);
         }
-        if (selectedProjectIds.length >= dynamicProjectBudget) break;
-      }
-
-      // Safe fallback: retain the best defensible partial match rather than
-      // dropping the entire project section when no project reaches Tier A/B.
-      if (selectedProjectIds.length === 0 && rankedCandidates.length > 0) {
-        const fallback = rankedCandidates.find(({ candProj, ranking, tier }) => {
-          if (tier === 'D') return false;
-          const hasContent =
-            (Array.isArray(candProj.bullets) && candProj.bullets.length > 0) ||
-            (Array.isArray(candProj.highlights) && candProj.highlights.length > 0) ||
-            (Array.isArray(candProj.evidence) && candProj.evidence.length > 0) ||
-            Number(candProj.evidenceCount || 0) > 0;
-          return hasContent && (isProjectStrongEnough(candProj, ranking) || tier === 'C');
-        });
-        if (fallback) {
-          const fallbackId = fallback.candProj.id || fallback.candProj.projectId;
-          if (fallbackId) selectedProjectIds.push(fallbackId);
-        }
+        if (selectedProjectIds.length >= structuralProjectCapacity) break;
       }
     } else if (
       Array.isArray(canonicalJob?.recommendedProjects) &&
@@ -592,7 +562,7 @@ export function buildStructuredResumeDocument({
       // Explicit recommended projects passed on jobPosting
       const candProjMap = new Map();
       for (const p of rawProjects) {
-        const slug = slugifyProject(p.name || p.title || '');
+        const slug = slugifyProject(p.name || p.title || p.displayName || '');
         if (slug) candProjMap.set(slug, p);
       }
       for (const rec of canonicalJob.recommendedProjects) {
@@ -602,14 +572,13 @@ export function buildStructuredResumeDocument({
           const isArchived =
             candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
           if (isArchived) continue;
-          // Phase 4 strength gate applies to recommendation-driven selection too.
           if (!isProjectStrongEnough(candProj, null)) continue;
           const candProjId = candProj.id || candProj.projectId;
           if (candProjId && !selectedProjectIds.includes(candProjId)) {
             selectedProjectIds.push(candProjId);
           }
         }
-        if (selectedProjectIds.length >= dynamicProjectBudget) break;
+        if (selectedProjectIds.length >= structuralProjectCapacity) break;
       }
     } else if (
       !canonicalJob ||
@@ -621,10 +590,10 @@ export function buildStructuredResumeDocument({
         !canonicalJob.jobFitAnalysis)
     ) {
       // Standalone tests without jobPosting or minimal jobPosting without requirements/description/rankings:
-      // use raw candidate projects sliced to budget
+      // use raw candidate projects sliced to capacity
       selectedProjectIds = Array.isArray(rawProjects)
         ? rawProjects
-            .slice(0, dynamicProjectBudget)
+            .slice(0, structuralProjectCapacity)
             .map((p, i) => p.id || p.projectId || `proj-${i + 1}`)
         : [];
     } else {
@@ -720,42 +689,36 @@ export function buildStructuredResumeDocument({
     )
   );
 
-  const derivedOrdering = deriveSectionOrdering({
-    candidateProfile: source,
-    jobPosting: canonicalJob,
-    options,
-  });
-
-  // P16-009: URL-only DSA ordering fix — deriveSectionOrdering only pushes DSA
-  // when isMeaningfulDsa sees authored bullets; when the profile carries a valid
-  // problem-solving URL, append DSA after PROJECTS explicitly.
-  if (dsa?.hasSection && !derivedOrdering.sectionOrder.includes('DSA')) {
-    const projIdx = derivedOrdering.sectionOrder.indexOf('PROJECTS');
-    if (projIdx !== -1) {
-      derivedOrdering.sectionOrder.splice(projIdx + 1, 0, 'DSA');
-    } else {
-      derivedOrdering.sectionOrder.push('DSA');
-    }
-  }
+  const masterStructureForOrder = MasterResumeStructureService.resolveMasterStructure(source, options);
+  const activeSectionOrder =
+    Array.isArray(incomingPlan?.sectionOrder) && incomingPlan.sectionOrder.length > 0
+      ? incomingPlan.sectionOrder
+      : MasterResumeStructureService.deriveActiveSectionOrder(masterStructureForOrder, {
+          ...source,
+          dsa,
+          projects: rawProjects,
+          experience,
+          education,
+          skills: rawSkills,
+        });
 
   const basePlan = {
     planId: crypto.randomUUID(),
     targetJobId: canonicalJob?.id || null,
     targetRoleTitle: tailoredHeadingInfo.heading,
     targetCompany: canonicalJob?.company || null,
-    candidateArchetype:
-      tailoredHeadingInfo.candidateArchetype || derivedOrdering.candidateArchetype,
+    candidateArchetype: tailoredHeadingInfo.candidateArchetype || 'EXPERIENCED',
     pageTarget: 'ONE_PAGE_STRICT',
-    sectionOrder: derivedOrdering.sectionOrder,
+    sectionOrder: activeSectionOrder,
     selectedProjectIds,
     selectedSkillSlugs,
     selectedSkills: orderedSelectedSkills,
     skillCategoryOrder: boundedSkillCategoryOrder,
     optionalSections: {
-      includeDsa: derivedOrdering.sectionOrder.includes('DSA'),
-      includeCertifications: derivedOrdering.sectionOrder.includes('CERTIFICATIONS'),
-      includeCoursework: derivedOrdering.sectionOrder.includes('COURSEWORK'),
-      includePublications: derivedOrdering.sectionOrder.includes('PUBLICATIONS'),
+      includeDsa: activeSectionOrder.includes('DSA'),
+      includeCertifications: activeSectionOrder.includes('CERTIFICATIONS'),
+      includeCoursework: activeSectionOrder.includes('COURSEWORK'),
+      includePublications: activeSectionOrder.includes('PUBLICATIONS'),
       includeAchievements: false,
       includeAdditionalSkills: false,
       includeAwards: false,
@@ -815,6 +778,7 @@ export function buildStructuredResumeDocument({
   // Index authoritative rankings for metadata enrichment
   const rankingByProjId = new Map();
   const authoritativeRankings =
+    resolvedAuthoritativeRankings ||
     canonicalJob?.projectRankings ||
     canonicalJob?.jobFitAnalysis?.projectRankings ||
     canonicalJob?.jobFitAnalysis?.topRelevantProjects ||
@@ -1004,9 +968,29 @@ export function buildStructuredResumeDocument({
       _bulletCapacityInfo = composed.capacity;
     }
 
+    if (pBullets.length === 0) {
+      const candidateBullets = Array.isArray(proj.bullets) && proj.bullets.length > 0
+        ? proj.bullets
+        : (Array.isArray(proj.metadata?.bullets) ? proj.metadata.bullets : []);
+      if (candidateBullets.length > 0) {
+        pBullets = candidateBullets.slice(0, projectOptions.maxBullets || 2).map((b, bIdx) => ({
+          text: compressProfessionalBullet(typeof b === 'string' ? b : b.text),
+          claimId: `cand-bullet-${selectedId}-${bIdx}`,
+          provenanceStatus: 'USER_PROVIDED',
+          composedFromFactIds: [],
+        }));
+      }
+    }
+
     if (pBullets.length === 0 && allowZeroBulletDrop) {
       return null; // empty entry — skip and backfill
     }
+
+    const rawTechs = Array.isArray(proj.technologies) && proj.technologies.length > 0
+      ? proj.technologies
+      : (Array.isArray(proj.metadata?.technologies)
+        ? proj.metadata.technologies
+        : (Array.isArray(proj.metadata?.skills) ? proj.metadata.skills : []));
 
     return {
       projectId: selectedId,
@@ -1014,8 +998,8 @@ export function buildStructuredResumeDocument({
       displayName: proj.displayName || proj.name || proj.title || `Project ${idx + 1}`,
       repositoryUrl: proj.repositoryUrl || proj.url || null,
       liveUrl: proj.liveUrl || null,
-      technologies: Array.isArray(proj.technologies)
-        ? formatTechnologyStack(proj.technologies)
+      technologies: rawTechs.length > 0
+        ? formatTechnologyStack(rawTechs)
         : [],
       bullets: pBullets,
       relevanceScore,
@@ -1586,7 +1570,12 @@ export function buildStructuredResumeSnapshot({
     const weakOptional = contentQualityGate.findings.filter(
       (f) => f.code === 'WEAK_OPTIONAL_SECTION' && f.suggestion === 'OMIT_SECTION'
     );
-    if (weakOptional.length > 0) {
+    // P43: Never drop candidate-owned authentic DSA (valid URL or real bullets) merely because relevance is weak (Req 9 & 13)
+    const hasAuthenticDsa = Boolean(
+      structuredResume.dsa?.profileUrl ||
+      (Array.isArray(structuredResume.dsa?.bullets) && structuredResume.dsa.bullets.length > 0)
+    );
+    if (weakOptional.length > 0 && !hasAuthenticDsa) {
       structuredResume.dsa = { ...(structuredResume.dsa || {}), hasSection: false };
       if (
         Array.isArray(structuredResume.sectionOrder) &&

@@ -880,8 +880,11 @@ export class JobApplicationWorkflowService {
             experience: profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
             education: profileView.candidate?.profileMetadata?.education || profileView.education || [],
             certifications: profileView.candidate?.profileMetadata?.certifications || profileView.certifications || [],
-            dsa: profileView.candidate?.profileMetadata?.dsa || profileView.dsa || null,
-            links: profileView.candidate?.profileMetadata?.portfolioLinks || profileView.links || [],
+            dsa: profileView.dsa || profileView.candidate?.profileMetadata?.dsa || null,
+            links: profileView.links || profileView.candidate?.profileMetadata?.portfolioLinks || [],
+            portfolioLinks: profileView.portfolioLinks || profileView.candidate?.profileMetadata?.portfolioLinks || [],
+            resumeSections: profileView.resumeSections || [],
+            profileMetadata: profileView.candidate?.profileMetadata || cand.profileMetadata || {},
           };
         }
       } catch {
@@ -1433,8 +1436,11 @@ export class JobApplicationWorkflowService {
             experience: profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
             education: profileView.candidate?.profileMetadata?.education || profileView.education || [],
             certifications: profileView.candidate?.profileMetadata?.certifications || profileView.certifications || [],
-            dsa: profileView.candidate?.profileMetadata?.dsa || profileView.dsa || null,
-            links: profileView.candidate?.profileMetadata?.portfolioLinks || profileView.links || [],
+            dsa: profileView.dsa || profileView.candidate?.profileMetadata?.dsa || null,
+            links: profileView.links || profileView.candidate?.profileMetadata?.portfolioLinks || [],
+            portfolioLinks: profileView.portfolioLinks || profileView.candidate?.profileMetadata?.portfolioLinks || [],
+            resumeSections: profileView.resumeSections || [],
+            profileMetadata: profileView.candidate?.profileMetadata || cand.profileMetadata || {},
           };
         }
       } catch {

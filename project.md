@@ -3,6 +3,91 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 43: Resume Tailoring Model Repair: Structural Stability & Job-Conditioned Content
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-13
+**Remote HEAD:** `ec909e9dd49799984cdef65d410d4701a23df514` (`main`, `origin/main`)
+**Verification Suites:**
+- Unit Tests: `node --test tests/unit/resume-structure-content-conditioning.test.js` (13/13 passed, 0 failed)
+- Regression Bundle: `node --test tests/unit/resume-structure-content-conditioning.test.js tests/unit/p16-001b-authoritative-project-selection.test.js tests/unit/p16-001c-authoritative-skill-selection.test.js tests/unit/p16-001g-professional-resume-composition.test.js tests/unit/candidate-profile.service.test.js tests/unit/p16-structured-resume-contract.test.js tests/unit/resume-integrity-audit.service.test.js tests/unit/job-normalization-differential.test.js` (126/126 passed, 0 failed)
+- Physical PDFs via Tectonic:
+  - `resume_backend.pdf`: 15,313 bytes, exact page count = 1
+  - `resume_systems.pdf`: 15,569 bytes, exact page count = 1
+  - `resume_frontend.pdf`: 15,421 bytes, exact page count = 1
+
+**Root Causes Repaired & Architecture Upgrades:**
+1. **Master Resume Structure Invariance Contract:**
+   - Section order, headings, and overall layout hierarchy are structural invariants derived from the candidate's master resume (`resume_sections` / `MasterResumeStructureService`) and must NEVER mutate merely because the target job changes.
+   - Canonical section ordering: `['HEADER', 'SUMMARY', 'SKILLS', 'PROJECTS', 'DSA', 'EXPERIENCE', 'EDUCATION']`.
+   - Active section derivation (`deriveActiveSectionOrder`) is purely data-presence driven (e.g., candidate has authentic DSA facts/links), completely decoupled from job relevance scoring.
+2. **Structural Project Capacity Contract ($N=2$):**
+   - Project count is structural, not semantic. The resume inherits slot capacity from the candidate's master structure ($N=2$).
+   - The authoritative project ranking output (`candidateContentService.rankProjectsForJob` / `JobApplicationWorkflowService`) supplies the relevance order directly; `StructuredResumeService` does not invent a secondary ranking or arbitrary tier-sorting algorithm.
+   - Project slot capacity is a ceiling, not a quota: if a candidate has fewer eligible projects than slots (e.g. genuinely irrelevant jobs like Swift Mobile), only eligible projects are shown (prefers NO project over WRONG project).
+3. **Candidate Project Metadata Unpacking & Non-Dropping Guarantee:**
+   - Unpacked candidate project `bullets`, `technologies`, and `description` from database `projects.metadata` onto top-level candidate objects in `candidate-profile.service.js` and `candidate-fact-inventory.service.js`.
+   - Fallback to candidate-authored bullets in `StructuredResumeService` guarantees that candidate projects are never dropped when authentic candidate claims exist.
+4. **Strictly Verified & Locked Skills:**
+   - Skills are sourced exclusively from candidate authorized inventory (`candidate_skills` + candidate project technologies/metadata). Zero invented, mutated, or hallucinated technologies.
+   - Job conditioning prioritizes categories and relevant skills within those categories based on requirement matches, while strictly respecting verified candidate provenance.
+5. **Zero Role-Title / Domain Hardcoded Branching:**
+   - Removed all `if (title.includes('Backend'))` style branching. Summary sentences, experience bullet scoring, and project rankings are computed dynamically via evidence-graph concept extraction (`getJobRequirementConcepts(jobPosting)`).
+6. **Authentic DSA / Problem Solving Only:**
+   - Eradicated hardcoded problem counts ("450+ Solved") and contest ratings.
+   - Candidate's authentic LeetCode URL (`https://leetcode.com/u/vishwanatnishad`) and candidate-authored DSA bullets are preserved faithfully across all target roles.
+7. **Experience Non-Fabrication & Job Relevance Reordering:**
+   - Preserves authentic employer, title, and dates.
+   - Reorders candidate's authored bullets according to job requirement relevance scores, breaking ties using candidate's original authored order (`originalIndex`). Never generates unsupported facts.
+8. **Layout & Single-Page Strict Preservation:**
+   - Strict 1-page compilation verified across Backend, Systems, and Frontend roles using Tectonic LaTeX compilation.
+
+### PART 42: Comprehensive Cross-Pipeline Forensic Audit — MCP Tools vs Extension vs Resume Pipeline
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-13
+**Remote HEAD:** `ec909e9dd49799984cdef65d410d4701a23df514` (`main`, `origin/main`)
+**Verification Script:** `scripts/forensic-cross-pipeline-audit.mjs` (0 failures, all 24 phases verified)
+
+**Forensic Audit Summary & Verified Findings:**
+1. **Tool Responsibility Matrix (Phases 1 & 19):**
+   - Cataloged all 30 MCP tools across career read, artifact, write, tracking, workflow, and profile domains.
+   - Cataloged all 8 Extension & web artifact endpoints (`/session`, `/auth-status`, `/analyze-job`, `/prepare-handoff`, `/validate-package`, `/preview-package`, `/view`, `/download`).
+   - Every tool was verified to fulfill its documented Zod schema contract without hidden side-effects or out-of-band mutations.
+2. **Semantic Authority Classification (Phases 2 & 10):**
+   - **Canonical Semantic Authority:** `JobApplicationWorkflowService` + `normalizeJobInput` + `CandidateJobEvidenceGraph` + `StructuredResumeService`. This unified pipeline is the sole authority governing project selection, skill curation, and claim planning for resumes.
+   - **Specialized Advisory Services:** `ProjectRelevanceService` (keyword/tech relevance), `AtsFitScoreService` (fit score & band), `PortfolioRecommendationService` (featured portfolio curation), and `EvidenceMatchingService` (requirement match status). All 4 services are verified strictly advisory; none can silently override or inject projects/skills into the resume.
+   - **Dead Code:** `ResumeTailoringService` (`src/services/resume-tailoring.service.js`) was confirmed completely unreachable from all production entry points.
+3. **Snapshot Staleness & Mismatch Protection (Phases 5 & 9):**
+   - Verified that `job_analysis_snapshots` stores `jobContentHash` and `canonicalJobId`.
+   - Verified 5 boundary conditions against live database:
+     - 9a: Matching job snapshot successfully validates.
+     - 9b: Modified job description triggers `JOB_CONTENT_HASH_MISMATCH` (`valid: false`), gracefully falling back to canonical parser.
+     - 9c: Mismatched canonical job ID throws fail-closed HTTP 409 `ANALYSIS_JOB_MISMATCH`.
+     - 9d: Cross-tenant snapshot access throws HTTP 403 `CROSS_TENANT_ACCESS_DENIED`.
+     - 9e: Cross-candidate snapshot access throws HTTP 403 `CROSS_CANDIDATE_ACCESS_DENIED`.
+4. **Input Mode Parity (Phase 8):**
+   - Compared Mode A (MCP Direct raw text) vs Mode C (Extension raw job payload).
+   - Produced identical SHA-256 job fingerprints (`03459567...`) and identical deterministic requirement IDs (`req-<sha256>`).
+5. **Differential MCP vs Extension Parity (Phase 20):**
+   - MCP `handleGenerateTailoredResume` vs Extension `POST /api/extension/prepare-handoff` executed on identical candidate and job description:
+     - Selected Projects: Identical (`AI-Powered Code Review Assistant`, `Audience Query System`).
+     - Selected Skills: Identical (11 skills: Docker Compose, Express.js, FastAPI, Flask, NestJS, OpenAI API, PostgreSQL, Python, React, Tailwind CSS, TypeORM).
+     - PDF Generation: Both compiled via Tectonic LaTeX engine, generating valid encrypted PDF artifacts.
+6. **Generic Software Engineer Test (Phase 21):**
+   - Tested 3 distinct roles with the identical title "Software Engineer":
+     - Python Role: Coverage 75.0% (Tier A, 3/4 reqs).
+     - Rust Role: Coverage 33.3% (Tier B, 1/3 reqs).
+     - React Role: Coverage 100.0% (Tier A, 5/5 reqs).
+   - Proved the pipeline conditions evidence on actual technical requirements rather than job titles.
+7. **Artifact State Contract Parity (Phase 18):**
+   - READY status: Authenticated View (`/view`) and Download (`/download`) returned HTTP 200 with valid PDF (15,098 bytes, `%PDF` magic bytes).
+   - BLOCKED status: Authenticated View returned fail-closed HTTP 409 `ARTIFACT_BLOCKED`, ensuring unavailable artifacts cannot be downloaded.
+8. **Pipeline Tracing (Phases 3, 4, 6, 7, 11-17):**
+   - Skill, experience, project, and summary generation are anchored to `CandidateJobEvidenceGraph`.
+   - `ResumeOptimizerService` performs presentation layout and density tuning without altering factual candidate claims.
+   - Output adapters perform presentation serialization only, without modifying underlying resume data.
+
 ### PART 41: Final P22 Repair — Unified Job Normalization Across MCP & Extension and Artifact Readiness Contract Parity
 
 **Status:** COMPLETE & VERIFIED

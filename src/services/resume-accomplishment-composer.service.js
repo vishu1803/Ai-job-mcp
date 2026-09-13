@@ -29,7 +29,11 @@ import { defaultResumeClaimPlannerService } from './resume-claim-planner.service
 import { defaultResumeClaimValidationService } from './resume-claim-validation.service.js';
 import { AiTaskTypeSchema } from '../domain/ai/ai.schemas.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
-import { OMISSION_REASONS, isAccomplishmentCandidate } from './candidate-fact-inventory.service.js';
+import {
+  OMISSION_REASONS,
+  isAccomplishmentCandidate,
+  getJobRequirementConcepts,
+} from './candidate-fact-inventory.service.js';
 
 // Import and re-export all primitives for local use and 100% backward-compatibility
 import {
@@ -659,37 +663,56 @@ export function composeExperienceRecords({
 }) {
   if (!Array.isArray(candidateExperiences)) return [];
 
+  const requirementConcepts = jobPosting ? getJobRequirementConcepts(jobPosting) : [];
+
   return candidateExperiences.map((exp) => {
     const sourceBullets = Array.isArray(exp.bullets) ? exp.bullets : [];
-    const requirements = [
-      ...(Array.isArray(jobPosting?.requirements) ? jobPosting.requirements : []),
-      ...(Array.isArray(jobPosting?.skills) ? jobPosting.skills : []),
-    ]
-      .map((req) =>
-        typeof req === 'string'
-          ? req.toLowerCase()
-          : String(req?.keyword || req?.name || req?.title || req?.text || '').toLowerCase()
-      )
-      .filter((req) => req.length >= 3 && !/^(software|engineer|engineering|systems?)$/.test(req));
-    const presentationCandidates = sourceBullets.map((bullet) => {
+    const presentationCandidates = sourceBullets.map((bullet, originalIndex) => {
       const rawText = typeof bullet === 'string' ? bullet : bullet?.text || '';
       const polished = compressProfessionalBullet(rawText);
       const bulletType = classifyExperienceBulletType(rawText);
       const lower = rawText.toLowerCase();
-      const matchedRequirementIds = requirements
-        .map((requirement, index) => (lower.includes(requirement) ? `req-${index + 1}` : null))
-        .filter(Boolean);
+
+      // Score against canonical requirement concepts
+      const matchedRequirementIds = [];
+      let score = 0;
+
+      for (const concept of requirementConcepts) {
+        const conceptName = String(concept.normalizedName || '').toLowerCase();
+        let matched = false;
+        if (conceptName && conceptName.length >= 3 && lower.includes(conceptName)) {
+          matched = true;
+        } else if (concept.tokens && concept.tokens.size > 0) {
+          let tokenMatches = 0;
+          for (const token of concept.tokens) {
+            if (token.length >= 3 && lower.includes(token)) {
+              tokenMatches++;
+            }
+          }
+          if (tokenMatches > 0 && tokenMatches >= Math.min(2, concept.tokens.size)) {
+            matched = true;
+          }
+        }
+        if (matched) {
+          matchedRequirementIds.push(concept.id);
+          score += concept.importance || 1.0;
+        }
+      }
+
       return {
         text: polished,
         bulletType,
         evidenceRefs: bullet?.evidenceRefs || [],
         matchedRequirementIds: bullet?.matchedRequirementIds || matchedRequirementIds,
         provenanceStatus: bullet?.provenanceStatus || exp.provenanceStatus || 'USER_PROVIDED',
-        jobRelevance: matchedRequirementIds.length,
+        jobRelevance: score > 0 ? score : matchedRequirementIds.length,
+        originalIndex,
       };
     });
+
+    // P43: Reorder by job relevance descending; break ties using candidate's original authored order
     presentationCandidates.sort(
-      (a, b) => b.jobRelevance - a.jobRelevance || a.text.localeCompare(b.text)
+      (a, b) => b.jobRelevance - a.jobRelevance || a.originalIndex - b.originalIndex
     );
 
     return {
@@ -999,37 +1022,47 @@ export function composeProfessionalSummary({
   let finalSummary = `${sentence1} ${sentence2} ${sentence3}`;
 
   if (rawAuthored && typeof rawAuthored === 'string' && rawAuthored.trim().length >= 20) {
-    // P19: Do NOT force-rewrite candidate-authored domain labels.
-    // The candidate said "full-stack" because that's what they are.
-    // Rewriting it to "Backend" or "Frontend" contradicts their identity.
-    // Only polish grammar/formatting, never alter domain identity claims.
-    let adapted = rawAuthored.trim();
-
-    const polishedAuthored = polishProfessionalSummary(adapted);
+    const polishedAuthored = polishProfessionalSummary(rawAuthored.trim());
     const authoredSentences = splitSentences(polishedAuthored);
-    if (authoredSentences.length >= 3) {
-      finalSummary = authoredSentences.slice(0, 3).join(' ');
-    } else if (authoredSentences.length === 2) {
-      finalSummary = `${polishedAuthored} ${sentence3}`;
+
+    // Extract authentic candidate delivery and analytical/DSA statements if present
+    const authenticDelivery = authoredSentences.find((s) =>
+      /proven|deliver|scale|production|independent|leverag|engineered|built/i.test(s)
+    );
+    const authenticDsa = authoredSentences.find((s) =>
+      /problem-solver|data structures|algorithms|analytical|problem solving/i.test(s)
+    );
+
+    // Sentence 1: Role identity adapted with job-matched domain and verified technologies
+    // Preserves candidate's authentic core title without hardcoding role branches
+    let tailoredSentence1;
+    const baseRole = (profile.headline || profile.currentRole || 'Software Engineer').replace(/Developer/i, 'Engineer');
+    if (techPhrase) {
+      tailoredSentence1 = `${baseRole} specializing in ${activeDomain.domain.toLowerCase()} and ${activeDomain.subdomains[0].toLowerCase()}, with verified competencies in ${techPhrase}.`;
     } else {
-      const summaryLower = polishedAuthored.toLowerCase();
-      if (
-        summaryLower.includes('engineer') ||
-        summaryLower.includes('developer') ||
-        summaryLower.includes('specializ')
-      ) {
-        finalSummary = `${polishedAuthored} ${sentence3}`;
-      } else {
-        finalSummary = `${sentence1} ${polishedAuthored}`;
-      }
+      tailoredSentence1 = authoredSentences[0] || sentence1;
     }
 
-    const summaryMentionsSkills = topRelevantTechnologies.some((sk) =>
-      finalSummary.toLowerCase().includes(sk.toLowerCase())
-    );
-    if (finalSummary.length < 250 && techPhrase && !summaryMentionsSkills) {
-      finalSummary += ` Proficient in ${techPhrase}.`;
+    // Sentence 2: Production delivery highlighting the top evidence project for this job
+    let tailoredSentence2;
+    if (topProject && (topProject.displayName || topProject.name || topProject.title)) {
+      const projName = topProject.displayName || topProject.name || topProject.title;
+      tailoredSentence2 = `Demonstrated delivery of scalable, production-ready software solutions, proven through projects including ${projName}.`;
+    } else if (authenticDelivery) {
+      tailoredSentence2 = authenticDelivery;
+    } else {
+      tailoredSentence2 = sentence2;
     }
+
+    // Sentence 3: Foundational analytical rigor / DSA from authentic candidate claims or active domain
+    let tailoredSentence3;
+    if (authenticDsa) {
+      tailoredSentence3 = authenticDsa;
+    } else {
+      tailoredSentence3 = sentence3;
+    }
+
+    finalSummary = `${tailoredSentence1} ${tailoredSentence2} ${tailoredSentence3}`;
   }
 
   finalSummary = compressProfessionalBullet(finalSummary);

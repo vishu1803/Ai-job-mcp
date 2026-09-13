@@ -603,7 +603,7 @@ export const SourceDsaSnapshotSchema = z
     hasSection: z.boolean().default(false),
     profileUrl: z.string().trim().url().nullable().optional(),
     bullets: z.array(z.string().trim().min(1)).default([]),
-    provenanceStatus: z.literal('CLAIMED').default('CLAIMED'),
+    provenanceStatus: z.enum(['CLAIMED', 'USER_PROVIDED', 'VERIFIED', 'CORROBORATED']).default('CLAIMED'),
   })
   .strict();
 
