@@ -23,6 +23,7 @@ import { EvidenceMatchingService } from './evidence-matching.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
 import { JobDescriptionParser } from '../domain/career/job-parser.js';
 import { normalizeJobInput } from './job-normalization.service.js';
+import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
 import {
@@ -500,33 +501,40 @@ export class JobApplicationWorkflowService {
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetJobPosting.id);
         const jobId = isJobIdUuid ? targetJobPosting.id : crypto.randomUUID();
 
-        extractedRequirements = canonical.normalizedRequirements.map((r) => ({
-          id: r.id,
-          requirementId: r.id,
-          tenantId: context.tenantId,
-          jobDescriptionId: jobId,
-          category:
-            r.class === 'TECHNOLOGY'
-              ? 'SKILL'
-              : r.class === 'RESPONSIBILITY'
-                ? 'EXPERIENCE'
-                : r.class === 'EDUCATION'
-                  ? 'EDUCATION'
-                  : 'SKILL',
-          importance: r.importance,
-          weight: r.weight,
-          skillSlug: r.normalizedConcept ? r.normalizedConcept.replace(/\s+/g, '-') : null,
-          rawSnippet: boundRequirementText(r.text),
-          extractedValue: r.normalizedConcept || r.text,
-          originalText: boundRequirementText(r.text),
-          normalizedCriteria: {
-            skillSlug: r.normalizedConcept ? r.normalizedConcept.replace(/\s+/g, '-') : null,
-            skillName: r.text,
-          },
-          confidenceScore: r.confidence ?? 0.9,
-          sourceSpan: { section: 'REQUIREMENTS', snippet: boundRequirementText(r.text) },
-          createdAt: new Date().toISOString(),
-        }));
+        extractedRequirements = canonical.normalizedRequirements.map((r) => {
+          const safeSlug = r.normalizedConcept
+            ? (SkillTaxonomyEngine.normalizeSkill(r.normalizedConcept)?.canonicalSlug ||
+               SkillTaxonomyEngine.generateSafeSlug(r.normalizedConcept) ||
+               null)
+            : null;
+          return {
+            id: r.id,
+            requirementId: r.id,
+            tenantId: context.tenantId,
+            jobDescriptionId: jobId,
+            category:
+              r.class === 'TECHNOLOGY'
+                ? 'SKILL'
+                : r.class === 'RESPONSIBILITY'
+                  ? 'EXPERIENCE'
+                  : r.class === 'EDUCATION'
+                    ? 'EDUCATION'
+                    : 'SKILL',
+            importance: r.importance,
+            weight: r.weight,
+            skillSlug: safeSlug,
+            rawSnippet: boundRequirementText(r.text),
+            extractedValue: r.normalizedConcept || r.text,
+            originalText: boundRequirementText(r.text),
+            normalizedCriteria: {
+              skillSlug: safeSlug,
+              skillName: r.text,
+            },
+            confidenceScore: r.confidence ?? 0.9,
+            sourceSpan: { section: 'REQUIREMENTS', snippet: boundRequirementText(r.text) },
+            createdAt: new Date().toISOString(),
+          };
+        });
 
         jobDescription = {
           id: jobId,

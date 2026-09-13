@@ -1229,12 +1229,17 @@ export class EvidenceMatchingService {
   static _evaluateExperienceRequirement(req, candidateProfile, resourceMap = new Map()) {
     // 0. Qualitative practical development experience requirement
     if (req.normalizedCriteria?.experienceType === 'PRACTICAL_DEVELOPMENT') {
-      const targetSkillSlug =
-        req.normalizedCriteria.associatedSkillSlug ||
+      const rawTargetSkillSlug =
+        req.normalizedCriteria?.associatedSkillSlug ||
         req.skillSlug ||
-        (req.normalizedCriteria.technology
+        (req.normalizedCriteria?.technology
           ? SkillTaxonomyEngine.normalizeSkill(req.normalizedCriteria.technology)?.canonicalSlug
           : null);
+      const targetSkillSlug = rawTargetSkillSlug
+        ? (SkillTaxonomyEngine.normalizeSkill(rawTargetSkillSlug)?.canonicalSlug ||
+           SkillTaxonomyEngine.generateSafeSlug(rawTargetSkillSlug) ||
+           null)
+        : null;
 
       const candidateSkills = Array.isArray(candidateProfile.skills) ? candidateProfile.skills : [];
       const matchedSkill = targetSkillSlug

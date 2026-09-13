@@ -135,14 +135,30 @@ function normalizeEvidenceRef(e) {
   };
 }
 
-function normalizeWorkflowJobPosting(jobPosting, args) {
+export function normalizeWorkflowJobPosting(jobPosting, args) {
   const textValue = (value) => {
     if (typeof value === 'string') return value;
     if (!value || typeof value !== 'object') return null;
-    return value.text || value.name || value.skill || value.concept || value.description || null;
+    return (
+      value.text ||
+      value.originalText ||
+      value.rawSnippet ||
+      value.extractedValue ||
+      value.name ||
+      value.skill ||
+      value.concept ||
+      value.description ||
+      null
+    );
   };
   const listValue = (values) =>
     Array.isArray(values) ? values.map(textValue).filter(Boolean) : [];
+
+  const rawReqs = Array.isArray(jobPosting?.requirements)
+    ? jobPosting.requirements.filter(
+        (r) => !r || typeof r === 'string' || (r.category !== 'EXPERIENCE' && r.class !== 'RESPONSIBILITY')
+      )
+    : [];
 
   return {
     ...jobPosting,
@@ -150,10 +166,12 @@ function normalizeWorkflowJobPosting(jobPosting, args) {
     title: jobPosting?.title || args?.jobTitle || 'Target Role',
     company: jobPosting?.company || args?.companyName || 'Target Company',
     description: jobPosting?.description || args?.jobDescriptionText || '',
-    requirements: listValue(jobPosting?.requirements),
+    requirements: listValue(rawReqs),
     skills: listValue(jobPosting?.skills),
     responsibilities: listValue(jobPosting?.responsibilities),
-    normalizedRequirements: jobPosting?.normalizedRequirements,
+    normalizedRequirements: Array.isArray(jobPosting?.normalizedRequirements)
+      ? jobPosting.normalizedRequirements.filter((r) => r.class !== 'RESPONSIBILITY')
+      : jobPosting?.normalizedRequirements,
     jobFingerprint: jobPosting?.jobFingerprint,
     role: jobPosting?.role,
   };
@@ -319,7 +337,7 @@ function mapToMatchingRequirements(canonicalReqs, tenantId, jobDescriptionId) {
   }));
 }
 
-async function resolveJobDescription(context, args, dbClient, deps = {}) {
+export async function resolveJobDescription(context, args, dbClient, deps = {}) {
   if (args.jobDescriptionText) {
     const title = args.jobTitle || 'Target Role';
     const company = args.companyName || 'Target Company';
@@ -337,7 +355,11 @@ async function resolveJobDescription(context, args, dbClient, deps = {}) {
       company,
       companyName: company,
       description: args.jobDescriptionText,
-      requirements: mapToMatchingRequirements(canonical.normalizedRequirements, context.tenantId, jobId),
+      requirements: mapToMatchingRequirements(
+        canonical.normalizedRequirements.filter((r) => r.class !== 'RESPONSIBILITY'),
+        context.tenantId,
+        jobId
+      ),
       skills: canonical.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
       responsibilities: canonical.normalizedRequirements.filter((r) => r.class === 'RESPONSIBILITY').map((r) => r.text),
       ...canonical,
@@ -434,7 +456,11 @@ async function resolveJobDescription(context, args, dbClient, deps = {}) {
       company: resolvedCompany,
       companyName: resolvedCompany,
       description: textToParse,
-      requirements: mapToMatchingRequirements(canonical.normalizedRequirements, context.tenantId, args.jobId),
+      requirements: mapToMatchingRequirements(
+        canonical.normalizedRequirements.filter((r) => r.class !== 'RESPONSIBILITY'),
+        context.tenantId,
+        args.jobId
+      ),
       skills: canonical.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
       responsibilities: canonical.normalizedRequirements.filter((r) => r.class === 'RESPONSIBILITY').map((r) => r.text),
       ...canonical,
@@ -879,14 +905,23 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
       summaryBullets: [],
       skills: (structured.skills?.categories || []).map((category) => ({
         category: category.categoryName,
-        skills: (category.skills || []).map((skill) => ({
-          skillSlug: skill.slug || skill.name,
-          skillName: skill.name,
-          provenance: skill.provenanceStatus || 'VERIFIED',
-          confidenceScore: skill.confidenceScore ?? 1,
-          evidenceCount: skill.evidenceId ? 1 : 0,
-          claimLabel: null,
-        })),
+        skills: (category.skills || []).map((skill) => {
+          const prov = skill.provenanceStatus;
+          const mappedProvenance =
+            prov === 'USER_PROVIDED'
+              ? 'CLAIMED'
+              : ['VERIFIED', 'CORROBORATED', 'INFERRED', 'CLAIMED'].includes(prov)
+                ? prov
+                : 'VERIFIED';
+          return {
+            skillSlug: skill.slug || skill.name,
+            skillName: skill.name,
+            provenance: mappedProvenance,
+            confidenceScore: skill.confidenceScore ?? 1,
+            evidenceCount: skill.evidenceId ? 1 : 0,
+            claimLabel: null,
+          };
+        }),
       })),
       experience: (structured.experience || []).map((experience) => ({
         company: experience.company || '',
@@ -897,15 +932,24 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
         isCurrent: Boolean(experience.isCurrent),
         bullets: (experience.bullets || [])
           .filter((bullet) => typeof bullet.text === 'string' && bullet.text.trim().length > 0)
-          .map((bullet) => ({
-          bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
-          text: SecretScrubber.scrub(bullet.text || ''),
-          status: bullet.status || 'VERIFIED',
-          confidenceScore: bullet.confidenceScore ?? 1,
-          evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
-          assertionIds: bullet.assertionIds || [],
-          matchedKeywords: bullet.matchedKeywords || [],
-          })),
+          .map((bullet) => {
+            const st = bullet.status;
+            const mappedStatus =
+              st === 'USER_PROVIDED'
+                ? 'CLAIMED'
+                : ['VERIFIED', 'INFERRED', 'CLAIMED'].includes(st)
+                  ? st
+                  : 'VERIFIED';
+            return {
+              bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
+              text: SecretScrubber.scrub(bullet.text || ''),
+              status: mappedStatus,
+              confidenceScore: bullet.confidenceScore ?? 1,
+              evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
+              assertionIds: bullet.assertionIds || [],
+              matchedKeywords: bullet.matchedKeywords || [],
+            };
+          }),
       })),
       projects: (structured.projects || []).map((project) => ({
         projectId: project.projectId,
@@ -916,15 +960,24 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
         relevanceBand: undefined,
         bullets: (project.bullets || [])
           .filter((bullet) => typeof bullet.text === 'string' && bullet.text.trim().length > 0)
-          .map((bullet) => ({
-          bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
-          text: SecretScrubber.scrub(bullet.text || ''),
-          status: bullet.status || 'VERIFIED',
-          confidenceScore: bullet.confidenceScore ?? 1,
-          evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
-          assertionIds: bullet.assertionIds || [],
-          matchedKeywords: bullet.matchedKeywords || [],
-          })),
+          .map((bullet) => {
+            const st = bullet.status;
+            const mappedStatus =
+              st === 'USER_PROVIDED'
+                ? 'CLAIMED'
+                : ['VERIFIED', 'INFERRED', 'CLAIMED'].includes(st)
+                  ? st
+                  : 'VERIFIED';
+            return {
+              bulletId: bullet.bulletId || bullet.id || crypto.randomUUID(),
+              text: SecretScrubber.scrub(bullet.text || ''),
+              status: mappedStatus,
+              confidenceScore: bullet.confidenceScore ?? 1,
+              evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
+              assertionIds: bullet.assertionIds || [],
+              matchedKeywords: bullet.matchedKeywords || [],
+            };
+          }),
       })),
       education: structured.education || [],
       certifications: structured.certifications || [],

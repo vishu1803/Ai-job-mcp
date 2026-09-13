@@ -843,10 +843,11 @@ export function buildStructuredResumeDocument({
 
   /** Composes one project entry; returns null when it renders empty and drops are allowed. */
   const buildProjectEntry = (selectedId, proj, idx, ranking) => {
-    const relevanceScore =
+    const rawRelevance =
       ranking && typeof ranking.relevanceScore === 'number'
         ? ranking.relevanceScore
         : (proj.relevanceScore ?? 0);
+    const relevanceScore = Math.min(100, Math.max(0, rawRelevance));
 
     const enrichedProj = {
       ...proj,

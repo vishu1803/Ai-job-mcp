@@ -120,9 +120,9 @@ export function normalizeRequirementToken(token) {
  * @returns {'TECHNOLOGY'|'RESPONSIBILITY'|'DOMAIN'|'EDUCATION'|'CERTIFICATION'|'LOCATION'|'ELIGIBILITY'}
  */
 export function classifyRequirement(raw, text, defaultSection = null) {
-  if (defaultSection === 'RESPONSIBILITIES') return 'RESPONSIBILITY';
   const category = typeof raw === 'object' ? String(raw.category || raw.type || '').toUpperCase() : '';
   if (REQUIREMENT_CLASS_BY_CATEGORY[category]) return REQUIREMENT_CLASS_BY_CATEGORY[category];
+  if (defaultSection === 'RESPONSIBILITIES') return 'RESPONSIBILITY';
   if (/\b(certif|degree|bachelor|master|phd|education)[a-z]*\b/i.test(text)) return 'EDUCATION';
   if (/\b(lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor)[a-z]*\b/i.test(text)) {
     return 'RESPONSIBILITY';
@@ -459,7 +459,17 @@ export function normalizeJobInput(jobInput) {
     const { key, uniqueTokens } = extractConceptTokens(text);
     if (!key || uniqueTokens.length === 0) continue;
 
-    if (seenConcepts.has(key)) continue;
+    if (seenConcepts.has(key)) {
+      const candidateClass = classifyRequirement(raw, text, entry.defaultSection);
+      const existing = concepts.find((c) => c.normalizedConcept === key);
+      if (existing && existing.class === 'RESPONSIBILITY' && candidateClass === 'TECHNOLOGY') {
+        existing.class = 'TECHNOLOGY';
+        const importance = resolveRequirementImportance(raw, text, entry.defaultSection);
+        existing.importance = importance.label;
+        existing.weight = importance.weight;
+      }
+      continue;
+    }
     seenConcepts.add(key);
 
     const requirementClass = classifyRequirement(raw, text, entry.defaultSection);

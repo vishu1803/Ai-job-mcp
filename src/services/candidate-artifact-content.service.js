@@ -1974,7 +1974,7 @@ export class CandidateArtifactContentService {
 
     const selectedProjects = selected.map((s) => ({
       ...s.project,
-      relevanceScore: s.score,
+      relevanceScore: Math.min(100, Math.max(0, s.score || 0)),
       status: s.status,
     }));
 
