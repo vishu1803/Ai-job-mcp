@@ -3,6 +3,37 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 46: Project Ranking Authority & Minimum 3 Bullets Per Project
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-13  
+**Remote HEAD Base:** `95b8b00cea1e58a1e38f6a263c14480a317ff5b4` (`main`, `origin/main`)  
+**Verification Suite & Evidence:**  
+- Focused Unit Tests: `node --test tests/unit/p46-ranking-authority-and-bullet-minimum.test.js` (9/9 passed, 0 failed, 100% pass)  
+  1. `selectedProjectIds exactly equal the top N eligible IDs from the authoritative ranking`: PASS  
+  2. `produces empty project selection when authoritative rankings are absent (no fallback to rankProjectsForJob)`: PASS  
+  3. `drops a project with insufficient bullets without backfilling from rankings`: PASS  
+  4. `excludes projects with exactly 2 authentic bullets from rendering`: PASS  
+  5. `renders a project with exactly 3 authentic bullets`: PASS  
+  6. `assessPreRenderQuality returns FAIL when a rendered project has <3 bullets`: PASS  
+  7. `never fabricates synthetic bullets to reach 3 — drops the project instead`: PASS  
+  8. `renders projects with 4+ bullets without truncation to 3`: PASS  
+  9. `validateStructuredResumeIntegrity returns FAIL when any project has <3 bullets`: PASS  
+
+**Architectural Hardening Deliverables:**  
+1. **Issue 1 — Project Ranking Authority Enforcement:**  
+   - Removed secondary/embedded ranking invocation: eradicated `rankProjectsForJob()` fallback and internal `CandidateArtifactContentService` instantiation inside `buildStructuredResumeDocument`.  
+   - Authoritative pipeline flow: `authoritative ranking → eligible projects → top N from master structure → resume`.  
+   - Eradicated downstream backfill re-ranking loops: dropped projects are not replaced by scanning rankings out-of-band.  
+   - Verified that `selectedProjectIds` strictly and deterministically equal the top N eligible IDs from the authoritative ranking.  
+2. **Issue 2 — Strict 3-Bullet Minimum & Quality Gate Hardening:**  
+   - Promoted `MIN_BULLETS_PER_PROJECT` from 2 to 3 in `resume-content-quality-gate.service.js` and upgraded finding severity from `WARN` to `FAIL`.  
+   - In `buildProjectEntry`, projects with $<3$ candidate-supported bullets are strictly excluded from rendering rather than producing thin content. Zero synthetic bullets fabricated.  
+   - Fixed fallback bullet limits in `buildStructuredResumeDocument` so authentic candidate bullets are preserved rather than clamped to 2.  
+   - Hardened `validateStructuredResumeIntegrity` in `structured-resume.service.js` to emit `SCHEMA_VALIDATION_ERROR` violations and report `overallStatus: 'FAIL'` on `EvidenceValidationReceipt` if any rendered project has $<3$ bullets.  
+
+---
+
 ### PART 45: Live Production Cross-Job Validation & Dual-Surface MCP/Extension Parity Across 5 Target Roles
 
 **Status:** COMPLETE & VERIFIED

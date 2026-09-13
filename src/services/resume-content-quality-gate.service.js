@@ -51,8 +51,8 @@ const MIN_BULLET_LENGTH = 25;
 /** Minimum substantive length (chars) for an optional-section (DSA) bullet. */
 const MIN_OPTIONAL_BULLET_LENGTH = 30;
 
-/** A selected project should carry at least this many bullets when available. */
-const MIN_BULLETS_PER_PROJECT = 2;
+/** A selected project must carry at least this many bullets (P46 hard minimum). */
+const MIN_BULLETS_PER_PROJECT = 3;
 
 /** Page-budget utilization below which the document is considered sparse. */
 const SPARSE_UTILIZATION_THRESHOLD = 0.55;
@@ -155,9 +155,9 @@ export function assessPreRenderQuality({ structuredResume, pageBudget = null, ta
       backfillAvailableCount += 1;
       findings.push({
         code: GATE_FINDING_CODES.TOO_FEW_PROJECT_BULLETS,
-        severity: GATE_SEVERITY.WARN,
+        severity: GATE_SEVERITY.FAIL,
         remediable: false,
-        message: `Selected project '${p.displayName || p.name || 'unnamed'}' renders with ${bullets.length} bullet(s); page budget may allow ${MIN_BULLETS_PER_PROJECT}.`,
+        message: `Selected project '${p.displayName || p.name || 'unnamed'}' renders with ${bullets.length} bullet(s); minimum required is ${MIN_BULLETS_PER_PROJECT}.`,
       });
     }
   }

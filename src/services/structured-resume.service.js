@@ -471,36 +471,15 @@ export function buildStructuredResumeDocument({
   // and the resume generator selects the top N eligible projects for those slots.
   // Job relevance determines ranking; it does not determine the resume's structure.
   // No second project-ranking algorithm may be introduced inside StructuredResumeService.
-  let resolvedAuthoritativeRankings =
+  // P46 Contract: Resume generation MUST consume the existing authoritative project ranking
+  // output directly. No secondary ranking via rankProjectsForJob() is permitted here.
+  // Flow: authoritative ranking → eligible projects → top N from master structure → resume.
+  const resolvedAuthoritativeRankings =
     options?.projectRankings ||
     canonicalJob?.projectRankings ||
     canonicalJob?.jobFitAnalysis?.projectRankings ||
     canonicalJob?.jobFitAnalysis?.topRelevantProjects ||
     null;
-  let isFromAuthoritativeSelected = false;
-
-  const hasJobCriteria =
-    (Array.isArray(canonicalJob?.requirements) && canonicalJob.requirements.length > 0) ||
-    (Array.isArray(canonicalJob?.skills) && canonicalJob.skills.length > 0) ||
-    (typeof canonicalJob?.description === 'string' && canonicalJob.description.trim().length > 0);
-
-  if (!resolvedAuthoritativeRankings && hasJobCriteria && Array.isArray(rawProjects) && rawProjects.length > 0) {
-    try {
-      const ranked = candidateContentService.rankProjectsForJob(
-        { ...candidateProfile, projects: rawProjects },
-        canonicalJob,
-        { maxProjects: structuralProjectCapacity }
-      );
-      if (ranked && (ranked.selectedProjects || ranked.selectionAudit)) {
-        resolvedAuthoritativeRankings = ranked.selectedProjects || ranked.selectionAudit;
-        if (ranked.selectedProjects && ranked.selectedProjects.length > 0) {
-          isFromAuthoritativeSelected = true;
-        }
-      }
-    } catch {
-      // Fall back to existing behavior
-    }
-  }
 
   if (Array.isArray(incomingPlan?.selectedProjectIds) || Array.isArray(options?.selectedProjectIds)) {
     // An explicit incoming plan's project selection is authoritative; it is bounded
@@ -531,7 +510,7 @@ export function buildStructuredResumeDocument({
         if (isArchived) continue;
 
         const score = typeof r.relevanceScore === 'number' ? r.relevanceScore : (typeof r.score === 'number' ? r.score : 0);
-        const isSelected = r.status === 'SELECTED' || isFromAuthoritativeSelected;
+        const isSelected = r.status === 'SELECTED';
         const hasMatchedReqs =
           (Array.isArray(r.matchedRequirementIds) && r.matchedRequirementIds.length > 0) ||
           (Array.isArray(r.matchedRequirements) && r.matchedRequirements.length > 0);
@@ -834,11 +813,9 @@ export function buildStructuredResumeDocument({
 
   const projects = [];
   // P16-009: a selected project whose claim facts are all ambiguous duplicates
-  // (dropped at cross-project attribution) composes 0 bullets and would render
-  // an empty entry. Such entries are skipped and the freed slot is backfilled
-  // from the next ranked strong project that composes at least one bullet.
-  // Explicit incoming-plan selections remain authoritative (no drops).
-  const allowZeroBulletDrop = useFactComposition && !incomingPlan?.selectedProjectIds;
+  // (dropped at cross-project attribution) composes insufficient bullets.
+  // P46: Minimum 3 candidate-supported bullets required per project; insufficient
+  // projects are dropped from the rendered output without backfill.
   const skippedProjectIds = new Set();
 
   /** Composes one project entry; returns null when it renders empty and drops are allowed. */
@@ -971,7 +948,10 @@ export function buildStructuredResumeDocument({
         ? proj.bullets
         : (Array.isArray(proj.metadata?.bullets) ? proj.metadata.bullets : []);
       if (candidateBullets.length > 0) {
-        pBullets = candidateBullets.slice(0, projectOptions.maxBullets || 2).map((b, bIdx) => ({
+        const bulletLimit = typeof projectOptions.maxBullets === 'number'
+          ? projectOptions.maxBullets
+          : candidateBullets.length;
+        pBullets = candidateBullets.slice(0, bulletLimit).map((b, bIdx) => ({
           text: compressProfessionalBullet(typeof b === 'string' ? b : b.text),
           claimId: `cand-bullet-${selectedId}-${bIdx}`,
           provenanceStatus: 'USER_PROVIDED',
@@ -980,8 +960,12 @@ export function buildStructuredResumeDocument({
       }
     }
 
-    if (pBullets.length === 0 && allowZeroBulletDrop) {
-      return null; // empty entry — skip and backfill
+    // P46 Contract: Minimum 3 candidate-supported bullets per rendered project.
+    // Projects with fewer than 3 bullets are dropped rather than rendered with thin content.
+    // No synthetic bullets are fabricated to reach the minimum.
+    const MIN_BULLETS_PER_RENDERED_PROJECT = 3;
+    if (pBullets.length < MIN_BULLETS_PER_RENDERED_PROJECT) {
+      return null; // insufficient candidate-supported bullets — drop project
     }
 
     const rawTechs = Array.isArray(proj.technologies) && proj.technologies.length > 0
@@ -1040,49 +1024,15 @@ export function buildStructuredResumeDocument({
       projects.push(entry);
       markRendered(proj);
     } else {
+      // P46 Contract: No backfill re-ranking. When a selected project has insufficient
+      // candidate-supported bullets (<3), it is dropped without replacement.
       skippedProjectIds.add(selectedId);
       projectRemovalRecords.push({
         projectId: selectedId,
-        reason: 'NO_RENDERABLE_CANDIDATE_FACTS',
+        reason: 'INSUFFICIENT_CANDIDATE_BULLETS',
         stage: 'STRUCTURED_COMPOSITION',
         replacementProjectId: null,
       });
-      // Backfill: next ranked strong project not already selected/skipped
-      if (Array.isArray(authoritativeRankings)) {
-        for (const r of authoritativeRankings) {
-          if (projects.length >= parsedPlan.selectedProjectIds.length) break;
-          const rId = r.projectId || r.id;
-          if (!rId || parsedPlan.selectedProjectIds.includes(rId) || skippedProjectIds.has(rId))
-            continue;
-          const candProj =
-            candProjMap.get(rId) || candProjMap.get(slugifyProject(r.projectName || r.name || ''));
-          if (!candProj) continue;
-          if (isAlreadyRendered(candProj)) continue; // same-record guard (uuid/slug identity)
-          if (candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED')
-            continue;
-          if (!isProjectStrongEnough(candProj, r)) continue;
-          const backfillRanking = rankingByProjId.get(rId) || r;
-          const backfillEntry = buildProjectEntry(
-            candProj.id || candProj.projectId || rId,
-            candProj,
-            projects.length,
-            backfillRanking
-          );
-          if (backfillEntry) {
-            projects.push(backfillEntry);
-            markRendered(candProj);
-            skippedProjectIds.add(backfillEntry.projectId);
-            projectRemovalRecords.push({
-              projectId: selectedId,
-              reason: 'REPLACED_AFTER_EMPTY_COMPOSITION',
-              stage: 'STRUCTURED_COMPOSITION',
-              replacementProjectId: backfillEntry.projectId,
-            });
-          } else {
-            skippedProjectIds.add(candProj.id || candProj.projectId || rId);
-          }
-        }
-      }
     }
   }
 
@@ -1452,6 +1402,15 @@ export function validateStructuredResumeIntegrity(doc, options = {}) {
 
   // Check project bullets
   for (const proj of doc.projects || []) {
+    if (!Array.isArray(proj.bullets) || proj.bullets.length < 3) {
+      violations.push({
+        section: 'PROJECTS',
+        field: 'bullets',
+        claimText: proj.displayName || proj.name || 'unnamed',
+        violationType: 'SCHEMA_VALIDATION_ERROR',
+        message: `Selected project '${proj.displayName || proj.name || 'unnamed'}' renders with ${proj.bullets?.length || 0} bullet(s); minimum required is 3.`,
+      });
+    }
     for (const bullet of proj.bullets || []) {
       totalClaimsAudited += 1;
       if (bullet.provenanceStatus === 'VERIFIED') verifiedClaimsCount += 1;
