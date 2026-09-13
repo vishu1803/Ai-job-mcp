@@ -1147,6 +1147,102 @@ export function normalizeJobRequirementString(req) {
   return String(req).trim();
 }
 
+const GENERIC_REQUIREMENT_TOKENS = new Set([
+    'software',
+    'engineer',
+    'engineering',
+    'developer',
+    'development',
+    'systems',
+    'system',
+    'application',
+    'applications',
+    'technology',
+    'technical',
+    'experience',
+    'work',
+    'working',
+]);
+
+  /**
+   * Returns specific, structured job concepts used consistently by ranking and
+   * selection. Generic role vocabulary is intentionally excluded.
+   *
+   * @param {object|null} jobPosting
+   * @returns {Array<{id:string,text:string,importance:number,tokens:Set<string>}>}
+   */
+export function getJobRequirementConcepts(jobPosting) {
+    const jp = jobPosting || {};
+    const rawRequirements = Array.isArray(jp.requirements) ? jp.requirements : [];
+    const rawSkills = Array.isArray(jp.skills) ? jp.skills : [];
+    const concepts = [];
+    const seen = new Set();
+
+    const add = (raw, index, fallbackPrefix) => {
+      const text = normalizeJobRequirementString(raw);
+      const tokens = text
+        .toLowerCase()
+        .replace(/[^a-z0-9+#.]+/g, ' ')
+        .split(/\s+/)
+        .filter((token) => token.length >= 3 && !GENERIC_REQUIREMENT_TOKENS.has(token));
+      if (!text || tokens.length === 0) return;
+      const key = tokens.join(' ');
+      if (seen.has(key)) return;
+      seen.add(key);
+      concepts.push({
+        id:
+          typeof raw === 'object' && raw?.id
+            ? String(raw.id)
+            : `${fallbackPrefix}-${index + 1}`,
+        text,
+        importance:
+          typeof raw === 'object' && typeof raw.importance === 'number' ? raw.importance : 1,
+        tokens: new Set(tokens),
+      });
+    };
+
+    rawRequirements.forEach((req, index) => add(req, index, 'req'));
+    rawSkills.forEach((skill, index) => add(skill, index, 'skill'));
+    return concepts;
+}
+
+  /**
+   * Computes specific requirement coverage for a fact set.
+   *
+   * @param {Array<object>} facts
+   * @param {object|null} jobPosting
+   * @returns {{matchedRequirementIds:string[], coveredCount:number, totalCount:number, coverage:number}}
+   */
+export function calculateRequirementCoverage(facts, jobPosting) {
+    const concepts = getJobRequirementConcepts(jobPosting);
+    if (concepts.length === 0) {
+      return { matchedRequirementIds: [], coveredCount: 0, totalCount: 0, coverage: 1 };
+    }
+    const matched = new Set();
+    for (const fact of Array.isArray(facts) ? facts : []) {
+      const text = String(fact?.text || '').toLowerCase();
+      const technologies = Array.isArray(fact?.technologies)
+        ? fact.technologies.map((technology) => String(technology).toLowerCase())
+        : [];
+      for (const concept of concepts) {
+        const phraseMatch = text.includes(concept.text.toLowerCase());
+        const tokenMatches = [...concept.tokens].filter(
+          (token) => text.includes(token) || technologies.some((technology) => technology.includes(token))
+        ).length;
+        if (phraseMatch || (concept.tokens.size === 1 && tokenMatches === 1) ||
+            (concept.tokens.size > 1 && tokenMatches / concept.tokens.size >= 0.6)) {
+          matched.add(concept.id);
+        }
+      }
+    }
+    return {
+      matchedRequirementIds: [...matched],
+      coveredCount: matched.size,
+      totalCount: concepts.length,
+      coverage: matched.size / concepts.length,
+    };
+}
+
 /**
  * Scores facts for a target job, mutating nothing: returns NEW fact objects
  * with jobRelevance and importance assigned. Relevance is computed from structured job text
@@ -1158,50 +1254,7 @@ export function normalizeJobRequirementString(req) {
  */
 export function scoreFactsForJob(facts, jobPosting) {
   const jp = jobPosting || {};
-  const rawReqs = Array.isArray(jp.requirements) ? jp.requirements : [];
-
-  // Normalized requirement concepts with importance (Finding 10)
-  const normalizedReqs = rawReqs
-    .map((req, idx) => {
-      const text = normalizeJobRequirementString(req);
-      const id =
-        typeof req === 'object' && req !== null && req.id ? String(req.id) : `req-${idx + 1}`;
-      const keyword =
-        typeof req === 'object' && req !== null && req.keyword ? String(req.keyword) : text;
-      const importance =
-        typeof req === 'object' && req !== null && typeof req.importance === 'number'
-          ? req.importance
-          : 1.0;
-      const tokens = new Set(
-        text
-          .toLowerCase()
-          .replace(/[^a-z0-9+#.]+/g, ' ')
-          .split(/\s+/)
-          .filter((w) => w.length >= 3)
-      );
-      return { id, text, keyword, importance, tokens };
-    })
-    .filter((r) => r.text.length > 0);
-
-  const reqStrings = normalizedReqs.map((r) => r.text);
-  const skillStrings = (Array.isArray(jp.skills) ? jp.skills : [])
-    .map((s) => (typeof s === 'string' ? s : s?.name || s?.keyword || ''))
-    .filter(Boolean);
-
-  const jobText = String(
-    `${jp.title || ''} ${reqStrings.join(' ')} ${skillStrings.join(' ')} ${jp.description || ''}`
-  ).toLowerCase();
-
-  const jobTerms = new Set();
-  for (const w of jobText.split(/[^a-z0-9+#.]+/)) {
-    if (w.length >= 3) jobTerms.add(w);
-  }
-  const keyTerms = new Set(
-    String(`${jp.title || ''} ${reqStrings.join(' ')} ${skillStrings.join(' ')}`)
-      .toLowerCase()
-      .split(/[^a-z0-9+#.]+/)
-      .filter((w) => w.length >= 3)
-  );
+  const requirementConcepts = getJobRequirementConcepts(jp);
 
   return (Array.isArray(facts) ? facts : []).map((f) => {
     const lower = f.text.toLowerCase();
@@ -1209,40 +1262,21 @@ export function scoreFactsForJob(facts, jobPosting) {
     const matchedRequirementIds = [];
 
     // Requirement-aware matching (Finding 10)
-    for (const req of normalizedReqs) {
-      let matched = false;
-      if (req.keyword && lower.includes(req.keyword.toLowerCase())) {
-        matched = true;
-      } else if (req.text && lower.includes(req.text.toLowerCase())) {
-        matched = true;
-      } else {
-        let tokenMatches = 0;
-        for (const token of req.tokens) {
-          if (lower.includes(token)) tokenMatches++;
-        }
-        if (req.tokens.size > 0 && tokenMatches / req.tokens.size >= 0.5) {
-          matched = true;
-        }
-      }
-
-      if (!matched && Array.isArray(f.technologies)) {
-        for (const tech of f.technologies) {
-          const tLower = String(tech).toLowerCase();
-          if (req.tokens.has(tLower) || (req.keyword && req.keyword.toLowerCase().includes(tLower))) {
-            matched = true;
-            break;
-          }
-        }
-      }
-
+    for (const req of requirementConcepts) {
+      const tokenMatches = [...req.tokens].filter(
+        (token) =>
+          lower.includes(token) ||
+          (Array.isArray(f.technologies) &&
+            f.technologies.some((tech) => String(tech).toLowerCase().includes(token)))
+      ).length;
+      const matched =
+        lower.includes(req.text.toLowerCase()) ||
+        (req.tokens.size === 1 && tokenMatches === 1) ||
+        (req.tokens.size > 1 && tokenMatches / req.tokens.size >= 0.6);
       if (matched) {
         matchedRequirementIds.push(req.id);
-        relevance += req.importance * 12;
+        relevance += req.importance * 30;
       }
-    }
-
-    for (const term of jobTerms) {
-      if (lower.includes(term)) relevance += keyTerms.has(term) ? 12 : 5;
     }
 
     // Evidence-backed facts get a trust bonus

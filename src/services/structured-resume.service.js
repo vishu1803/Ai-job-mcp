@@ -32,6 +32,7 @@ import {
   composeStructuredResumeDocument,
   composeProfessionalSummary,
   composeProfessionalProjectBullets,
+  composeExperienceRecords,
 } from './resume-accomplishment-composer.service.js';
 import { assessPreRenderQuality } from './resume-content-quality-gate.service.js';
 import {
@@ -44,6 +45,7 @@ import { formatTechnologyStack } from '../utils/technology-normalizer.js';
 import {
   buildCanonicalFactInventory,
   scoreFactsForJob,
+  calculateRequirementCoverage,
 } from './candidate-fact-inventory.service.js';
 
 /**
@@ -252,7 +254,7 @@ export function buildStructuredResumeDocument({
 
   // 2. Experience Snapshot (Authoritative source facts; no synthetic dates/titles)
   const rawExperience = meta.experience || source.experience || source.workExperience || [];
-  const experience = (Array.isArray(rawExperience) ? rawExperience : []).map((exp, idx) => ({
+  const experienceSnapshot = (Array.isArray(rawExperience) ? rawExperience : []).map((exp, idx) => ({
     id: exp.id || `exp-${idx + 1}`,
     company: exp.company || null,
     title: exp.title || exp.role || null,
@@ -263,6 +265,10 @@ export function buildStructuredResumeDocument({
     bullets: Array.isArray(exp.bullets) ? [...exp.bullets.map(String)] : [],
     provenanceStatus: 'USER_PROVIDED',
   }));
+  const experience = composeExperienceRecords({
+    candidateExperiences: experienceSnapshot,
+    jobPosting,
+  }).map(({ presentationCandidates: _presentationCandidates, ...record }) => record);
 
   // 3. Education Snapshot (Authoritative source facts; no synthetic degrees/universities)
   const rawEducation = meta.education || source.education || [];
@@ -320,6 +326,22 @@ export function buildStructuredResumeDocument({
 
   // 6. Tailoring Plan
   const rawProjects = meta.projects || source.projects || [];
+  const selectionFactInventory = buildCanonicalFactInventory(source, jobPosting, options?.factInventoryOptions);
+  const selectionScoredFacts = scoreFactsForJob(selectionFactInventory.facts, jobPosting);
+  const selectionFactsByProject = new Map();
+  for (const fact of selectionScoredFacts) {
+    const keys = [
+      fact.association?.projectId,
+      fact.ownerId,
+      fact.association?.projectName,
+      fact.projectId,
+    ].filter(Boolean);
+    for (const key of keys) {
+      const normalized = slugifyProject(key);
+      if (!selectionFactsByProject.has(normalized)) selectionFactsByProject.set(normalized, []);
+      selectionFactsByProject.get(normalized).push(fact);
+    }
+  }
   // P16-009: URL-only DSA must render. The renderer inserts DSA after PROJECTS
   // when dsa content exists; the ordering derivation only sees authored-bullet
   // DSA, so a URL-only DSA is appended to the order here.
@@ -371,8 +393,15 @@ export function buildStructuredResumeDocument({
       ...(hasDescription ? [candProj.description] : []),
     ];
     const totalCandidateFacts = countDistinctCanonicalFacts(allCandidateItems);
+    const projectFacts =
+      selectionFactsByProject.get(slugifyProject(candProj.id || candProj.projectId || '')) ||
+      selectionFactsByProject.get(slugifyProject(candProj.name || candProj.title || '')) ||
+      [];
+    const requirementCoverage = calculateRequirementCoverage(projectFacts, jobPosting);
+    const hasSpecificJobRequirements = requirementCoverage.totalCount > 0;
 
     return (
+      (!hasSpecificJobRequirements || requirementCoverage.coverage >= 0.25) &&
       (score >= STRONG_RELEVANCE_FLOOR ||
         hasMatchedReqs ||
         band === 'HIGH' ||
@@ -389,11 +418,14 @@ export function buildStructuredResumeDocument({
   const candidateContentService = new CandidateArtifactContentService();
   let selectedProjectIds = [];
 
-  if (Array.isArray(incomingPlan?.selectedProjectIds)) {
+  if (Array.isArray(incomingPlan?.selectedProjectIds) || Array.isArray(options?.selectedProjectIds)) {
     // An explicit incoming plan's project selection is authoritative; it is only
     // capped by the dynamic page budget (no strength filtering — explicit selection
     // is the tailoring system's decision).
-    selectedProjectIds = incomingPlan.selectedProjectIds.slice(0, dynamicProjectBudget);
+    selectedProjectIds = (incomingPlan?.selectedProjectIds || options.selectedProjectIds).slice(
+      0,
+      dynamicProjectBudget
+    );
   } else {
     // Check for authoritative rankings on jobPosting or options
     let authoritativeRankings =
@@ -433,11 +465,32 @@ export function buildStructuredResumeDocument({
         if (slug) candProjMap.set(slug, p);
       }
 
-      for (const r of authoritativeRankings) {
+      const rankedCandidates = authoritativeRankings
+        .map((r) => {
+          const rId = r.projectId || r.id;
+          const rSlug = slugifyProject(r.projectName || r.name || '');
+          const candProj = candProjMap.get(rId) || (rSlug ? candProjMap.get(rSlug) : null);
+          if (!candProj) return null;
+          const facts =
+            selectionFactsByProject.get(slugifyProject(candProj.id || candProj.projectId || '')) ||
+            selectionFactsByProject.get(slugifyProject(candProj.name || candProj.title || '')) ||
+            [];
+          return {
+            ranking: r,
+            candProj,
+            coverage: calculateRequirementCoverage(facts, jobPosting).coverage,
+          };
+        })
+        .filter(Boolean)
+        .sort(
+          (a, b) =>
+            b.coverage - a.coverage ||
+            (b.ranking.relevanceScore ?? b.ranking.score ?? 0) -
+              (a.ranking.relevanceScore ?? a.ranking.score ?? 0)
+        );
+
+      for (const { ranking: r, candProj } of rankedCandidates) {
         const rId = r.projectId || r.id;
-        const rSlug = slugifyProject(r.projectName || r.name || '');
-        const candProj = candProjMap.get(rId) || (rSlug ? candProjMap.get(rSlug) : null);
-        if (!candProj) continue;
 
         const isArchived =
           candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
@@ -528,7 +581,7 @@ export function buildStructuredResumeDocument({
     options
   );
 
-  const selectedSkillSlugs =
+  let selectedSkillSlugs =
     Array.isArray(incomingPlan?.selectedSkillSlugs) && incomingPlan.selectedSkillSlugs.length > 0
       ? incomingPlan.selectedSkillSlugs
       : skillSelectionResult.selectedSkillSlugs;
@@ -536,7 +589,51 @@ export function buildStructuredResumeDocument({
   const selectedSkills =
     Array.isArray(incomingPlan?.selectedSkills) && incomingPlan.selectedSkills.length > 0
       ? incomingPlan.selectedSkills
-      : skillSelectionResult.selectedSkills;
+      : (() => {
+          const jobSkillTerms = new Set(
+            [
+              ...(Array.isArray(jobPosting?.skills) ? jobPosting.skills : []),
+              ...(Array.isArray(jobPosting?.requirements) ? jobPosting.requirements : []),
+            ]
+              .map((item) =>
+                String(
+                  typeof item === 'string'
+                    ? item
+                    : item?.keyword || item?.name || item?.title || item?.text || ''
+                )
+                  .toLowerCase()
+                  .replace(/[^a-z0-9+#.]/g, '')
+              )
+              .filter(Boolean)
+          );
+          const selectedProjectTechnologyTerms = new Set(
+            rawProjects
+              .filter((project) =>
+                selectedProjectIds.includes(project.id || project.projectId)
+              )
+              .flatMap((project) =>
+              (project.technologies || []).map((technology) =>
+                String(technology).toLowerCase().replace(/[^a-z0-9+#.]/g, '')
+              )
+              )
+          );
+          const bounded = (skillSelectionResult.selectedSkills || []).filter((skill) => {
+            const token = String(skill.slug || skill.name || '')
+              .toLowerCase()
+              .replace(/[^a-z0-9+#.]/g, '');
+            return (
+              skill.matchedRequirementId ||
+              [...jobSkillTerms].some((term) => term === token || term.includes(token) || token.includes(term)) ||
+              selectedProjectTechnologyTerms.has(token)
+            );
+          });
+          return (bounded.length > 0 ? bounded : skillSelectionResult.selectedSkills || [])
+            .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
+            .slice(0, options?.maxSkills || 12);
+        })();
+  if (!(Array.isArray(incomingPlan?.selectedSkillSlugs) && incomingPlan.selectedSkillSlugs.length > 0)) {
+    selectedSkillSlugs = selectedSkills.map((skill) => skill.slug || skill.name).filter(Boolean);
+  }
 
   const skillCategoryOrder =
     Array.isArray(incomingPlan?.skillCategoryOrder) && incomingPlan.skillCategoryOrder.length > 0
@@ -550,6 +647,17 @@ export function buildStructuredResumeDocument({
             'Cloud, DevOps & Systems',
             'Frontend & Web',
           ];
+  const selectedSkillCategories = new Set(
+    (selectedSkills || []).map((skill) => skill.category || 'Core Competencies')
+  );
+  const boundedSkillCategoryOrder = skillCategoryOrder.filter((category) =>
+    selectedSkillCategories.has(category)
+  );
+  const orderedSelectedSkills = boundedSkillCategoryOrder.flatMap((category) =>
+    (selectedSkills || []).filter(
+      (skill) => (skill.category || 'Core Competencies') === category
+    )
+  );
 
   const derivedOrdering = deriveSectionOrdering({
     candidateProfile: source,
@@ -580,8 +688,8 @@ export function buildStructuredResumeDocument({
     sectionOrder: derivedOrdering.sectionOrder,
     selectedProjectIds,
     selectedSkillSlugs,
-    selectedSkills,
-    skillCategoryOrder,
+    selectedSkills: orderedSelectedSkills,
+    skillCategoryOrder: boundedSkillCategoryOrder,
     optionalSections: {
       includeDsa: derivedOrdering.sectionOrder.includes('DSA'),
       includeCertifications: derivedOrdering.sectionOrder.includes('CERTIFICATIONS'),

@@ -655,24 +655,42 @@ export async function composeProfessionalProjectBulletsAsync({
 export function composeExperienceRecords({
   candidateExperiences = [],
   factInventory: _factInventory = null,
-  jobPosting: _jobPosting = null,
+  jobPosting = null,
 }) {
   if (!Array.isArray(candidateExperiences)) return [];
 
   return candidateExperiences.map((exp) => {
     const sourceBullets = Array.isArray(exp.bullets) ? exp.bullets : [];
+    const requirements = [
+      ...(Array.isArray(jobPosting?.requirements) ? jobPosting.requirements : []),
+      ...(Array.isArray(jobPosting?.skills) ? jobPosting.skills : []),
+    ]
+      .map((req) =>
+        typeof req === 'string'
+          ? req.toLowerCase()
+          : String(req?.keyword || req?.name || req?.title || req?.text || '').toLowerCase()
+      )
+      .filter((req) => req.length >= 3 && !/^(software|engineer|engineering|systems?)$/.test(req));
     const presentationCandidates = sourceBullets.map((bullet) => {
       const rawText = typeof bullet === 'string' ? bullet : bullet?.text || '';
       const polished = compressProfessionalBullet(rawText);
       const bulletType = classifyExperienceBulletType(rawText);
+      const lower = rawText.toLowerCase();
+      const matchedRequirementIds = requirements
+        .map((requirement, index) => (lower.includes(requirement) ? `req-${index + 1}` : null))
+        .filter(Boolean);
       return {
         text: polished,
         bulletType,
         evidenceRefs: bullet?.evidenceRefs || [],
-        matchedRequirementIds: bullet?.matchedRequirementIds || [],
+        matchedRequirementIds: bullet?.matchedRequirementIds || matchedRequirementIds,
         provenanceStatus: bullet?.provenanceStatus || exp.provenanceStatus || 'USER_PROVIDED',
+        jobRelevance: matchedRequirementIds.length,
       };
     });
+    presentationCandidates.sort(
+      (a, b) => b.jobRelevance - a.jobRelevance || a.text.localeCompare(b.text)
+    );
 
     return {
       ...exp,
@@ -722,8 +740,8 @@ export function composeProfessionalSummary({
   candidateProfile,
   jobPosting = null,
   factInventory = null,
-  selectedProjects = [],
-  selectedSkills = [],
+  selectedProjects = null,
+  selectedSkills = null,
   summaryText = null,
   options = {},
 }) {
@@ -748,17 +766,16 @@ export function composeProfessionalSummary({
   const titleLower = String(jobPosting?.title || options.targetRoleTitle || '').toLowerCase();
   const descLower = String(jobPosting?.description || '').toLowerCase();
 
-  const candidateSkills =
-    Array.isArray(selectedSkills) && selectedSkills.length > 0
-      ? selectedSkills
-      : Array.isArray(profile.skills)
-        ? profile.skills
-        : profile.skills?.categories?.flatMap((c) => c.skills || []) || [];
+  const candidateSkills = Array.isArray(selectedSkills)
+    ? selectedSkills
+    : Array.isArray(profile.skills)
+      ? profile.skills
+      : profile.skills?.categories?.flatMap((c) => c.skills || []) || [];
 
-  const projects =
-    Array.isArray(selectedProjects) && selectedProjects.length > 0
-      ? selectedProjects
-      : meta.projects || profile.projects || [];
+  // An explicitly supplied selection, including an empty selection, is
+  // authoritative. Never mention a project that failed job-conditioned
+  // selection merely because it exists on the raw candidate profile.
+  const projects = Array.isArray(selectedProjects) ? selectedProjects : [];
 
   // Dynamic Domain Configuration Catalog
   const DOMAIN_CATALOG = [

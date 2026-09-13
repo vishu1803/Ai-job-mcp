@@ -49,6 +49,11 @@ export const OPTIMIZER_MAX_ITERATIONS = 5;
  * Multi-move optimization move types (P17 Architecture)
  */
 export const OPTIMIZER_MOVE_TYPES = Object.freeze({
+  REPLACE_PROJECT: 'REPLACE_PROJECT',
+  DROP_PROJECT: 'DROP_PROJECT',
+  ADD_RELEVANT_PROJECT: 'ADD_RELEVANT_PROJECT',
+  REPLACE_SKILL_SET: 'REPLACE_SKILL_SET',
+  REORDER_EXPERIENCE_EVIDENCE: 'REORDER_EXPERIENCE_EVIDENCE',
   ADD_PROJECT_CLAIM: 'ADD_PROJECT_CLAIM',
   REMOVE_PROJECT_CLAIM: 'REMOVE_PROJECT_CLAIM',
   REPLACE_PROJECT_CLAIM: 'REPLACE_PROJECT_CLAIM',
@@ -111,6 +116,9 @@ export class ResumeContentOptimizer {
 
     // Track per-project bullet count overrides: { [projectId | projectName]: count }
     const projectBulletOverrides = { ...(options.projectBulletOverrides || {}) };
+    let selectedProjectIds = Array.isArray(options.selectedProjectIds)
+      ? [...options.selectedProjectIds]
+      : null;
 
     // Build authoritative canonical fact inventory
     const factInventory = candidateProfile
@@ -164,6 +172,7 @@ export class ResumeContentOptimizer {
             projectBulletOverrides,
             layoutOverrides: currentLayoutOverrides,
             additionalProjectIds: [...additionalProjectIds],
+            selectedProjectIds,
           },
         });
         currentStructuredResume = snap.structuredResume || snap;
@@ -276,6 +285,7 @@ export class ResumeContentOptimizer {
           additionalProjectIds,
           inventoryFactCountByProject,
           crossProjectDuplicateFacts: factInventory?.crossProjectDuplicateFacts || [],
+          scoredInventoryFacts,
           jobPosting,
           candidateProfile,
           availableSpacePt,
@@ -304,6 +314,15 @@ export class ResumeContentOptimizer {
               { project: bestMove.name, iteration, expectedValue: bestMove.expectedValue },
               'Optimizer adding a strong under-utilized project from the canonical fact inventory'
             );
+          } else if (bestMove.type === OPTIMIZER_MOVE_TYPES.REPLACE_PROJECT) {
+            selectedProjectIds = selectedProjectIds || currentStructuredResume.projects.map((p) => p.projectId || p.name);
+            const index = selectedProjectIds.indexOf(bestMove.currentId);
+            if (index >= 0) selectedProjectIds[index] = bestMove.id;
+            iterationRecord.action = `REPLACE_PROJECT: ${bestMove.currentName} -> ${bestMove.name}`;
+          } else if (bestMove.type === OPTIMIZER_MOVE_TYPES.DROP_PROJECT) {
+            selectedProjectIds = selectedProjectIds || currentStructuredResume.projects.map((p) => p.projectId || p.name);
+            selectedProjectIds = selectedProjectIds.filter((id) => id !== bestMove.id);
+            iterationRecord.action = `DROP_PROJECT: ${bestMove.name}`;
           } else {
             iterationRecord.action = bestMove.description || 'APPLIED_CONTENT_MOVE';
           }
@@ -436,9 +455,17 @@ export class ResumeContentOptimizer {
     jobPosting,
     candidateProfile,
     availableSpacePt,
+    scoredInventoryFacts = [],
   }) {
     const moves = [];
     const projects = Array.isArray(structuredResume?.projects) ? structuredResume.projects : [];
+    const relevanceByProject = new Map();
+    for (const fact of scoredInventoryFacts) {
+      const key = fact.association?.projectId || fact.ownerId || fact.association?.projectName;
+      if (!key) continue;
+      const normalized = String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
+      relevanceByProject.set(normalized, Math.max(relevanceByProject.get(normalized) || 0, fact.jobRelevance || 0));
+    }
 
     // Move Type 1: Expand Project Bullets
     for (const p of projects) {
@@ -480,6 +507,28 @@ export class ResumeContentOptimizer {
         expectedValue,
         description: `Add bullet to project ${p.name || pId}`,
       });
+
+      const currentId = p.projectId || p.name;
+      const currentRelevance =
+        relevanceByProject.get(String(currentId).toLowerCase().replace(/[^a-z0-9]/g, '')) || 0;
+      for (const candidate of candidateProfile?.projects || []) {
+        const candidateId = candidate.id || candidate.projectId;
+        if (!candidateId || candidateId === currentId) continue;
+        if (projects.some((existing) => (existing.projectId || existing.name) === candidateId)) continue;
+        const candidateRelevance =
+          relevanceByProject.get(String(candidateId).toLowerCase().replace(/[^a-z0-9]/g, '')) || 0;
+        if (candidateRelevance >= currentRelevance + 15) {
+          moves.push({
+            type: OPTIMIZER_MOVE_TYPES.REPLACE_PROJECT,
+            id: candidateId,
+            currentId,
+            name: candidate.name || candidate.title || candidateId,
+            currentName: p.name || currentId,
+            expectedValue: (candidateRelevance - currentRelevance) / 10,
+            description: `Replace generic project ${p.name || currentId} with ${candidate.name || candidateId}`,
+          });
+        }
+      }
     }
 
     // Move Type 2: Add High-Relevance Project

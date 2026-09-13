@@ -3,6 +3,60 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 37: Job-Conditioned Resume Selection (P20 Implementation)
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-13
+
+**Implemented:**
+- Requirement concepts now exclude generic vocabulary and drive fact relevance and independent project coverage.
+- Structured resume generation revalidates supplied project rankings, gates weak coverage, and honors optimizer-selected project IDs.
+- Summary composition treats an explicit empty project selection as authoritative instead of falling back to raw profile projects.
+- Skills are filtered to job requirements and selected-project technologies, bounded globally, and kept in the same category/skill order as the tailoring plan.
+- Existing experience bullets are scored and reordered against job requirements without creating new experience claims.
+- Optimizer move generation and application now support evidence-backed project replacement and dropping.
+
+**Verification:**
+- `node --check` passed for all modified services.
+- P16-001B authoritative project selection: 12/12 passed.
+- P16-001C authoritative skill selection: 14/14 passed.
+- P16-008 optimizer: 7/7 passed.
+- P19 authoritative evidence pipeline: 24/24 passed.
+- Resume content strategy regression: 15/15 passed.
+- Combined targeted run: 76/77 initially passed; the single skill-order regression was corrected, then the focused P16-001C suite passed 14/14.
+
+**Evidence boundary:**
+All selection changes operate on canonical candidate facts and existing candidate-authored experience. No synthetic accomplishments, ownership upgrades, or provider-specific assumptions were introduced.
+
+### PART 36: Resume Job-Tailoring Persistence Diagnosis (P20 Investigation)
+
+**Status:** DIAGNOSIS COMPLETED; IMPLEMENTED IN PART 37
+**Date:** 2026-09-13
+
+**Observed Failure:**
+Contrasting jobs can change the target role/domain wording while producing substantially identical skills, project bullets, summary project signals, and experience content.
+
+**Evidence-Backed Root Causes:**
+1. **Authoritative project rankings are not sufficiently job-discriminative.** `ProjectRelevanceService` gives up to 50 points to requirement coverage but also awards fixed architectural density, evidence quality, completeness, and recency points (`src/services/project-relevance.service.js:675-1032`). Rich repositories therefore outrank job-specific repositories even when their requirement coverage is weak. The fallback `CandidateArtifactContentService.rankProjectsForJob` has the same bias: evidence quality and generic technical depth can dominate, while unknown/general roles receive a fixed `roleRelevance = 20` (`src/services/candidate-artifact-content.service.js:1682-1995`).
+2. **Structured resume generation treats supplied rankings as final.** When `projectRankings` or `jobFitAnalysis.projectRankings` exists, `buildStructuredResumeDocument` selects from it and does not recompute or reject rankings whose matched requirements are weak (`src/services/structured-resume.service.js:398-469`). The optimizer only expands bullets or adds projects; it never replaces a selected project using a stronger job-specific candidate (`src/services/resume-content-optimizer.service.js:272-305`, `src/services/resume-content-optimizer.service.js:426-620`).
+3. **Summary loses selection authority when no projects survive the strength gate.** `composeProfessionalSummary` falls back from `selectedProjects` to `profile.projects`/`meta.projects` when the selected list is empty, then chooses a project using broad domain keywords rather than authoritative requirement matches (`src/services/resume-accomplishment-composer.service.js:888-1010`). This can make the summary mention a generic or unrelated project even when the project section is empty or job-specific selection failed.
+4. **Skills are filtered by role but not bounded to job requirements.** `selectAndCategorizeSkillsForJob` selects every skill scoring above the per-category threshold, with only `maxPerCategory` (default 6); there is no global job-relevance budget or requirement-coverage gate (`src/services/candidate-artifact-content.service.js:2007-2650`). Consequently, contrasting jobs retain most of the same candidate skill inventory.
+5. **Experience is explicitly job-invariant.** `composeExperienceRecords` ignores the job input (`_jobPosting`) and maps every stored experience bullet through deterministic compression without requirement scoring or selection (`src/services/resume-accomplishment-composer.service.js:735-805`).
+6. **Fact scoring is too permissive and loses requirement precision.** `scoreFactsForJob` token-matches against the entire title, requirements, skills, and description, including broad terms, and assigns no hard requirement coverage constraint to claim selection (`src/services/candidate-fact-inventory.service.js:1159-1286`). The claim planner receives `jobPosting` but its clustering path does not use it directly; it relies on the resulting scalar `jobRelevance` (`src/services/resume-claim-planner.service.js:293-430`, `src/services/resume-claim-planner.service.js:720-820`).
+
+**Reproduction Evidence:**
+- A direct two-job `buildStructuredResumeSnapshot` comparison (Python Backend vs React Frontend) changed the summary domain and target role, but selected all four candidate skills, rendered no projects under the strength gate, and the summary still referenced the first raw candidate project.
+- Existing `scratch/quality-comparison/quality-regression-results.json` shows Product Data Explorer rendered for Cloudflare, Vercel, and Crunchyroll; Vercel and Crunchyroll also render the same AI-Powered Code Review Assistant bullets. The same artifact reports only 9% fact utilization for all three jobs.
+- Stored job-analysis snapshots inspected on 2026-09-13 show high fixed-score floors and weakly differentiated rankings: Product Data Explorer remains rank 1 across contrasting stored jobs despite different requirement sets.
+
+**Conclusion:**
+The persistence is not primarily an evidence-protection problem. It is a ranking-contract and selection-budget problem: job signals are diluted by fixed generic quality scores, then authoritative rankings are trusted downstream; when selection is empty, summary falls back to raw candidate projects; skills and experience have no strict job-specific selection contract; and the optimizer cannot repair project identity. A fix must establish requirement-aware ranking/selection as the single source for projects, skills, summary, and experience before changing wording or PDF optimization.
+
+**Verification:**
+- Inline two-job snapshot comparison via `node --input-type=module`: reproduced identical project omission, broad skill retention, and raw-project summary fallback.
+- Read-only inspection of stored `job_analysis_snapshots`: confirmed repeated high-ranked projects across contrasting jobs.
+- No product source files changed; no database mutations performed.
+
 ### PART 35: Authoritative Resume Evidence Pipeline Consolidation (P19)
 
 **Status:** COMPLETE & VERIFIED  
@@ -8715,4 +8769,3 @@ Candidate source data is strictly immutable. No synthetic metrics, uncorroborate
   - Job C (Crunchyroll): Overall Quality 89/100, Writing 81, PDF Obs 90, ATS 100, Pages: 1.
 - Database Immutability: 0 mutations to candidate records or job application rows.
 - Code Safety: 0 hardcoded candidate or job identities in `src/`.
-
