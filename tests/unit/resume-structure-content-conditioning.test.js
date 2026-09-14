@@ -86,19 +86,26 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
       resumeSections: profileView.resumeSections,
     };
 
+    const contentService = new CandidateArtifactContentService({ database: db });
+    const getRankings = (job) => {
+      const canonicalJob = normalizeJobInput(job);
+      const ranked = contentService.rankProjectsForJob(candidateProfile, canonicalJob, { maxProjects: 2 });
+      return ranked.selectedProjects || (Array.isArray(ranked) ? ranked : []);
+    };
+
     snapBackend = buildStructuredResumeSnapshot({
       candidateProfile,
-      jobPosting: jobBackend,
+      jobPosting: { ...jobBackend, projectRankings: getRankings(jobBackend) },
     });
 
     snapSystems = buildStructuredResumeSnapshot({
       candidateProfile,
-      jobPosting: jobSystems,
+      jobPosting: { ...jobSystems, projectRankings: getRankings(jobSystems) },
     });
 
     snapFrontend = buildStructuredResumeSnapshot({
       candidateProfile,
-      jobPosting: jobFrontend,
+      jobPosting: { ...jobFrontend, projectRankings: getRankings(jobFrontend) },
     });
   });
 
@@ -342,8 +349,14 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
         projects: [
           {
             id: 'proj-sole',
+            projectId: 'proj-sole',
             name: 'Sole Authentic Project',
-            bullets: ['Authored sole authentic project bullet with real metrics.'],
+            title: 'Sole Authentic Project',
+            bullets: [
+              'Authored sole authentic project bullet with real metrics.',
+              'Engineered scalable backend service with automated integration tests.',
+              'Optimized database queries and connection pooling for high throughput.',
+            ],
             technologies: ['Python', 'FastAPI'],
             relevanceScore: 90,
           },
@@ -352,7 +365,17 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
 
       const snap = buildStructuredResumeSnapshot({
         candidateProfile: singleProjectCandidate,
-        jobPosting: jobBackend,
+        jobPosting: {
+          ...jobBackend,
+          projectRankings: [
+            {
+              projectId: 'proj-sole',
+              projectName: 'Sole Authentic Project',
+              relevanceScore: 90,
+              status: 'SELECTED',
+            },
+          ],
+        },
       });
 
       // Must render exactly 1 project, NEVER invent a second project
@@ -527,6 +550,18 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
       );
       const mcpSkills = mcpResult.resume.skills.flatMap((c) => c.skills.map((s) => s.skillName));
       assert.deepStrictEqual(mcpSkills, workflowSkills, 'MCP and Extension must select identical skills');
+
+      // Summary parity
+      assert.strictEqual(
+        mcpResult.resume.basics.summary,
+        structuredFromWorkflow.summary?.text,
+        'MCP and Extension must produce identical summary'
+      );
+
+      // Semantic fingerprint parity
+      const workflowFingerprint = computeResumeSemanticFingerprint(structuredFromWorkflow);
+      const mcpFingerprint = computeResumeSemanticFingerprint(mcpResult);
+      assert.strictEqual(mcpFingerprint, workflowFingerprint, 'MCP and Extension must have identical semantic fingerprint');
     });
 
     it('15. verifies no legacy semantic path (e.g. ResumeTailoringService) is reachable', async () => {

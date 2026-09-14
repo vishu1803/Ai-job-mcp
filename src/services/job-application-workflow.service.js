@@ -705,6 +705,75 @@ export class JobApplicationWorkflowService {
         notes: 'Self-reported in candidate resume / profile',
       }));
 
+    // 2b. Fetch candidate profile view for canonical ranking and document generation
+    let candidateProfileInput = null;
+    try {
+      const profileView = await this.candidateProfileService.getProfile(
+        { tenantId, userId: cand.userId, role: 'MEMBER' },
+        candidateId
+      );
+      if (profileView) {
+        candidateProfileInput = {
+          ...profileView.candidate,
+          phone:
+            profileView.candidate?.phone ||
+            profileView.candidate?.profileMetadata?.identity?.phone ||
+            profileView.candidate?.profileMetadata?.phone ||
+            cand.phone ||
+            cand.profileMetadata?.identity?.phone ||
+            null,
+          location:
+            profileView.candidate?.location ||
+            profileView.candidate?.profileMetadata?.identity?.location ||
+            profileView.candidate?.profileMetadata?.location ||
+            cand.location ||
+            cand.profileMetadata?.identity?.location ||
+            null,
+          skills: profileView.skills || [],
+          projects: profileView.projects || [],
+          experience:
+            profileView.candidate?.profileMetadata?.experience ||
+            profileView.experience ||
+            [],
+          education:
+            profileView.candidate?.profileMetadata?.education ||
+            profileView.education ||
+            [],
+          certifications:
+            profileView.candidate?.profileMetadata?.certifications ||
+            profileView.certifications ||
+            [],
+          dsa: profileView.dsa || profileView.candidate?.profileMetadata?.dsa || null,
+          links:
+            profileView.links ||
+            profileView.candidate?.profileMetadata?.portfolioLinks ||
+            [],
+          portfolioLinks:
+            profileView.portfolioLinks ||
+            profileView.candidate?.profileMetadata?.portfolioLinks ||
+            [],
+          resumeSections: profileView.resumeSections || [],
+          profileMetadata: profileView.candidate?.profileMetadata || cand.profileMetadata || {},
+        };
+      }
+    } catch {
+      // Fallback
+    }
+
+    if (!candidateProfileInput) {
+      candidateProfileInput = {
+        ...cand,
+        userId: cand.userId,
+        displayName: cand.displayName || 'Candidate',
+        canonicalEmail: candidateEmail,
+        email: candidateEmail,
+        phone: cand.phone || cand.profileMetadata?.identity?.phone || undefined,
+        skills: verifiedSkills.concat(claimedSkills),
+        projects: [],
+        profileMetadata: cand.profileMetadata || {},
+      };
+    }
+
     // Resolve or compute Job Fit Analysis upfront (strictly analyze_job_fit passthrough)
     const jobFitAnalysis = await this._resolveOrComputeJobFit({
       context: { tenantId, userId: cand.userId, role: 'MEMBER' },
@@ -712,24 +781,6 @@ export class JobApplicationWorkflowService {
       targetJobPosting: jobPosting,
       answers,
     });
-
-    const authoritativeRankings =
-      jobFitAnalysis?.projectRankings || jobFitAnalysis?.topRelevantProjects || [];
-
-    // Filter to projects meeting analyzer selection criteria
-    const eligibleProjects = authoritativeRankings.filter((p) => {
-      const score = typeof p.relevanceScore === 'number' ? p.relevanceScore : 0;
-      if (score <= 0) return false;
-      const hasMatchedReqs =
-        (Array.isArray(p.matchedRequirementIds) && p.matchedRequirementIds.length > 0) ||
-        (Array.isArray(p.matchedRequirements) && p.matchedRequirements.length > 0);
-      const hasContributingSkills =
-        Array.isArray(p.contributingSkills) && p.contributingSkills.length > 0;
-      const isNotMinimal = p.relevanceBand && p.relevanceBand !== 'MINIMAL';
-      return hasMatchedReqs || hasContributingSkills || isNotMinimal || score >= 25.0;
-    });
-
-    const derivedRecommended = eligibleProjects.map((p) => p.projectName || p.name);
 
     const canonicalJob = normalizeJobInput(jobPosting);
     const targetJobPosting = {
@@ -747,9 +798,11 @@ export class JobApplicationWorkflowService {
       requirements:
         Array.isArray(jobPosting?.requirements) && jobPosting.requirements.length > 0
           ? jobPosting.requirements
-              .map((r) => (typeof r === 'string' ? r : r.text || r.name || r.extractedValue || ''))
-              .filter(Boolean)
-          : canonicalJob.normalizedRequirements.map((r) => r.text),
+          : canonicalJob.requirements,
+      responsibilities:
+        Array.isArray(jobPosting?.responsibilities) && jobPosting.responsibilities.length > 0
+          ? jobPosting.responsibilities
+          : canonicalJob.responsibilities,
       skills:
         Array.isArray(jobPosting?.skills) && jobPosting.skills.length > 0
           ? jobPosting.skills
@@ -758,13 +811,31 @@ export class JobApplicationWorkflowService {
           : canonicalJob.normalizedRequirements
               .filter((r) => r.class === 'TECHNOLOGY')
               .map((r) => r.text),
-      recommendedProjects:
-        jobPosting?.recommendedProjects ||
-        answers?.recommendedProjects ||
-        derivedRecommended,
-      projectRankings: authoritativeRankings,
-      jobFitAnalysis,
     };
+
+    // Authoritative project rankings from canonical ranking engine
+    const canonicalRanked = this.candidateArtifactContentService.rankProjectsForJob(
+      candidateProfileInput,
+      targetJobPosting,
+      { maxProjects: 2 }
+    );
+    const authoritativeRankings =
+      canonicalRanked.selectedProjects || (Array.isArray(canonicalRanked) ? canonicalRanked : []);
+
+    if (jobFitAnalysis) {
+      jobFitAnalysis.projectRankings = authoritativeRankings;
+      jobFitAnalysis.topRelevantProjects = authoritativeRankings;
+    }
+
+    const eligibleProjects = authoritativeRankings;
+    const derivedRecommended = eligibleProjects.map((p) => p.projectName || p.name || p.title);
+
+    targetJobPosting.recommendedProjects =
+      jobPosting?.recommendedProjects ||
+      answers?.recommendedProjects ||
+      derivedRecommended;
+    targetJobPosting.projectRankings = authoritativeRankings;
+    targetJobPosting.jobFitAnalysis = jobFitAnalysis;
 
     // 3-5. Generate real document content from canonical candidate data.
     // Fail-closed: if real data cannot support documents, the operation fails
@@ -845,72 +916,22 @@ export class JobApplicationWorkflowService {
         : tailoredResumeResult.fitScore || 85;
 
     // 5b. Build and Validate Structured Resume Snapshot (P16-001F-1)
-    let candidateProfileInput = documentContent.candidateData
-      ? {
-          ...documentContent.candidateData,
-          phone:
-            documentContent.candidateData.phone ||
-            cand.phone ||
-            cand.profileMetadata?.identity?.phone ||
-            null,
-          location:
-            documentContent.candidateData.location ||
-            cand.location ||
-            cand.profileMetadata?.identity?.location ||
-            null,
-        }
-      : null;
-    if (!candidateProfileInput) {
-      try {
-        const profileView = await this.candidateProfileService.getProfile(
-          { tenantId, userId: cand.userId, role: 'MEMBER' },
-          candidateId
-        );
-        if (profileView) {
-          candidateProfileInput = {
-            ...profileView.candidate,
-            phone:
-              profileView.candidate?.phone ||
-              profileView.candidate?.profileMetadata?.identity?.phone ||
-              profileView.candidate?.profileMetadata?.phone ||
-              cand.phone ||
-              cand.profileMetadata?.identity?.phone ||
-              null,
-            location:
-              profileView.candidate?.location ||
-              profileView.candidate?.profileMetadata?.identity?.location ||
-              profileView.candidate?.profileMetadata?.location ||
-              cand.location ||
-              cand.profileMetadata?.identity?.location ||
-              null,
-            skills: profileView.skills || [],
-            projects: profileView.projects || [],
-            experience: profileView.candidate?.profileMetadata?.experience || profileView.experience || [],
-            education: profileView.candidate?.profileMetadata?.education || profileView.education || [],
-            certifications: profileView.candidate?.profileMetadata?.certifications || profileView.certifications || [],
-            dsa: profileView.dsa || profileView.candidate?.profileMetadata?.dsa || null,
-            links: profileView.links || profileView.candidate?.profileMetadata?.portfolioLinks || [],
-            portfolioLinks: profileView.portfolioLinks || profileView.candidate?.profileMetadata?.portfolioLinks || [],
-            resumeSections: profileView.resumeSections || [],
-            profileMetadata: profileView.candidate?.profileMetadata || cand.profileMetadata || {},
-          };
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    if (!candidateProfileInput) {
+    if (documentContent.candidateData) {
       candidateProfileInput = {
-        ...cand,
-        userId: cand.userId,
-        displayName: cand.displayName || 'Candidate',
-        canonicalEmail: candidateEmail,
-        email: candidateEmail,
-        phone: cand.phone || cand.profileMetadata?.identity?.phone || undefined,
-        skills: verifiedSkills.concat(claimedSkills),
-        projects: selectedProjectsList,
-        profileMetadata: cand.profileMetadata || {},
+        ...candidateProfileInput,
+        ...documentContent.candidateData,
+        phone:
+          documentContent.candidateData.phone ||
+          candidateProfileInput.phone ||
+          cand.phone ||
+          cand.profileMetadata?.identity?.phone ||
+          null,
+        location:
+          documentContent.candidateData.location ||
+          candidateProfileInput.location ||
+          cand.location ||
+          cand.profileMetadata?.identity?.location ||
+          null,
       };
     }
 

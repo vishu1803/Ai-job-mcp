@@ -365,6 +365,26 @@ export const GenerateTailoredResumeInputSchema = z
       .max(255)
       .optional()
       .describe('Optional target job title (e.g., "Senior Backend Engineer").'),
+    companyName: z
+      .string()
+      .trim()
+      .max(255)
+      .optional()
+      .describe('Optional hiring company name (e.g., "Vercel / NextStack").'),
+    company: z
+      .string()
+      .trim()
+      .max(255)
+      .optional()
+      .describe('Optional hiring company name alias.'),
+    requirements: z
+      .array(z.string().trim())
+      .optional()
+      .describe('Optional explicit job requirements list.'),
+    skills: z
+      .array(z.string().trim())
+      .optional()
+      .describe('Optional explicit target job skills list.'),
     presentationMode: ResumePresentationModeEnum.default('GENERATE_NEW').describe(
       'Presentation mode: "GENERATE_NEW" (clean modern template) or "PRESERVE_EXISTING" (audited layout preservation).'
     ),
@@ -444,6 +464,7 @@ export const ResumeBulletOutputSchema = z
     evidenceRefs: z.array(EvidenceRefSchema).default([]),
     assertionIds: z.array(z.string().uuid()).default([]),
     matchedKeywords: z.array(z.string()).default([]),
+    composedFromFactIds: z.array(z.string()).optional(),
     claimLabel: z.string().nullable().optional(),
   })
   .strict();
@@ -521,6 +542,7 @@ export const GenerateTailoredResumeOutputSchema = z
         certifications: z.array(z.record(z.any())).default([]),
       })
       .strict(),
+    structuredResume: z.record(z.any()).optional().describe('Canonical structured resume snapshot consumed from the workflow.'),
     warnings: z.array(z.string()).default([]),
     _meta: z
       .object({

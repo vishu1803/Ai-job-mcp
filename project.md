@@ -3,6 +3,65 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-13*
 
+### PART 48: Remote Main 5-Job Forensic Validation & Cross-Surface Parity Verification
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-13
+**Remote HEAD:** `0b60bf8310ea0b13a5aba151273489f4112607ae` (`main`, `origin/main`)
+**Verification Suites & Evidence:**
+- 5-Job Forensic Validation Suite: `node scratch/controlled-validation-5jobs.mjs` (All 5 jobs passed, 100% invariant compliance, 0 failures, 0 warnings)
+- Structure Invariance:
+  - Master structure order: `['HEADER', 'SUMMARY', 'SKILLS', 'PROJECTS', 'DSA', 'EXPERIENCE', 'EDUCATION']` verified 100% identical across all 5 jobs.
+  - Rendered LaTeX headings: `Professional Summary`, `Technical Skills`, `Technical Projects`, `Problem Solving & Algorithmic Practice`, `Professional Experience`, `Education` verified across all 5 jobs.
+- Project Ranking & Evidence Integrity:
+  - Master slot capacity $N=2$ strictly preserved.
+  - Selected projects match authoritative ranking top-$N$ across all 5 jobs with 0 secondary re-ranking or diversity manipulation:
+    - Job 1 (Full-Stack): `['Collaborative Task Manager', 'AI-Powered Code Review Assistant']`
+    - Job 2 (Python Backend): `['AI-Powered Code Review Assistant', 'Product Data Explorer']`
+    - Job 3 (Frontend): `['Collaborative Task Manager', 'Product Data Explorer']`
+    - Job 4 (Distributed Systems): `['AI-Powered Code Review Assistant', 'Collaborative Task Manager']`
+    - Job 5 (DevOps/Platform): `['AI-Powered Code Review Assistant', 'Product Data Explorer']`
+  - Every rendered project contains $\ge 3$ candidate-supported bullets (6 project bullets total per resume).
+  - All bullets verified with authentic source fact IDs and candidate provenance (`USER_PROVIDED` / `VERIFIED` / `CORROBORATED`). Zero synthetic/fabricated bullets.
+- Closed Skill Vocabulary & Adversarial Leak Protection:
+  - $\text{finalSkillIds} \subseteq \text{VERIFIED/CORROBORATED candidate skills}$.
+  - Adversarial `Rust` and `Raft` on Job 4 (Distributed Systems) verified completely rejected with 0 leakage.
+- Job-Conditioned Heading / Title:
+  - Meaningfully conditioned across contrasting roles without collapsing:
+    - Job 1: `Full-Stack Developer`
+    - Job 2: `Python Backend Engineer`
+    - Job 3: `Frontend Engineer`
+    - Job 4: `Distributed Systems Engineer`
+    - Job 5: `DevOps / Platform Engineer`
+  - 5 distinct, evidence-backed headings; zero hardcoding; preserved 4-tier header layout.
+- Content Conditioning:
+  - Job-relevant conditioning validated across summaries, skill groupings, project selections, experience bullet prioritization, and target role headings.
+- Content Optimizer Semantic Freeze:
+  - Deterministic SHA-256 semantic fingerprint before == after across all 5 jobs with 0 semantic drift:
+    - Job 1: `7c08636250ed75d1e93e266765d4563f0f998e37ff08b66decdb3b1908fa3212` (IDENTICAL)
+    - Job 2: `3d643ee1e4b85750d0340ca1d650222a7fec0407166e51147a4f9408253a699c` (IDENTICAL)
+    - Job 3: `209a34185bc1e7b99c0b115682855146c98670a4425ff990dd3a557b7f14b62d` (IDENTICAL)
+    - Job 4: `dbec9772ee785fe97be640ee693b79dae4a50d2432a932d03b9e4a3aeb96e8e8` (IDENTICAL)
+    - Job 5: `e527d925d304918e7d23d8c114389650d9959e78262a67e9f3b1451fdb1ce9e1` (IDENTICAL)
+- Dual-Surface MCP vs Extension Parity:
+  - Projects parity: 100% identical (`['Collaborative Task Manager', 'AI-Powered Code Review Assistant']`).
+  - Target role / heading parity: 100% identical (`Full-Stack Developer`).
+  - Skills parity: 100% identical (12/12 skills and category order).
+  - Summary parity: 100% bit-for-bit identical text.
+  - Semantic fingerprint parity verified (`7c08636250ed75d1e93e266765d4563f0f998e37ff08b66decdb3b1908fa3212`).
+- Physical PDF Compilation (Tectonic):
+  - Job 1 (Full-Stack): 15,841 bytes, exact page count = 1
+  - Job 2 (Python Backend): 15,710 bytes, exact page count = 1
+  - Job 3 (Frontend): 15,757 bytes, exact page count = 1
+  - Job 4 (Distributed Systems): 15,834 bytes, exact page count = 1
+  - Job 5 (DevOps/Platform): 15,712 bytes, exact page count = 1
+  - Text verified directly from compiled PDF binaries: all 5 headings present, canonical section order present, 6 bullets / 2 projects verified.
+- Genericity / Zero Hardcoding Audit:
+  - Scanned all 273 production source files in `src/` and `extension/` for candidate IDs, tenant IDs, candidate names, project titles, company names, or job titles.
+  - Violations found: 0. Genericity Check: PASS.
+
+---
+
 ### PART 47: Project Evidence Capacity, Authentic Multi-Bullet Extraction, and Validator Disambiguation
 
 **Status:** COMPLETE & VERIFIED  

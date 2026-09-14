@@ -1651,18 +1651,30 @@ export function freezeSemanticResume(structuredResume) {
   const resume = structuredResume?.structuredResume || structuredResume;
   if (!resume) return null;
 
+  const rawSkillsCats = Array.isArray(resume.skills?.categories)
+    ? resume.skills.categories
+    : Array.isArray(resume.skills)
+      ? resume.skills
+      : [];
+
+  const rawSkillSlugs =
+    resume.selectedSkillSlugs ||
+    (Array.isArray(resume.skills)
+      ? resume.skills.flatMap((c) => (c.skills || []).map((s) => s.skillSlug || s.skillName || s.name || s.slug))
+      : []);
+
   return Object.freeze({
     projectIds: Object.freeze((resume.projects || []).map((p) => p.projectId || p.id || p.name)),
     projectNames: Object.freeze((resume.projects || []).map((p) => p.name || p.title)),
     projectCount: (resume.projects || []).length,
-    skillSlugs: Object.freeze((resume.selectedSkillSlugs || []).slice().sort()),
+    skillSlugs: Object.freeze(rawSkillSlugs.slice().sort()),
     skillsByCategory: Object.freeze(
-      (resume.skills?.categories || []).map((cat) => ({
-        categoryName: cat.categoryName,
-        skills: Object.freeze((cat.skills || []).map((s) => s.slug || s.name)),
+      rawSkillsCats.map((cat) => ({
+        categoryName: cat.categoryName || cat.category,
+        skills: Object.freeze((cat.skills || []).map((s) => s.slug || s.skillSlug || s.name || s.skillName)),
       }))
     ),
-    summaryText: resume.summary?.text || null,
+    summaryText: resume.summary?.text || resume.basics?.summary || null,
     summaryFactIds: Object.freeze([...(resume.summary?.composedFromFactIds || [])].sort()),
     experienceFactIds: Object.freeze(
       (resume.experience || []).flatMap((e) =>

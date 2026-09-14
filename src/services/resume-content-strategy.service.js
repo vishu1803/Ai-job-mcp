@@ -611,11 +611,12 @@ export function normalizeTargetRoleTitle(rawTitle) {
   );
 
   // 2b. Generic canonical-role rule: strip ANY remaining trailing qualification
-  // clause (", <Team/Domain/Specialty>"). The canonical headline must be a
-  // concise role title, not the full employer posting string. Specializations
-  // that survive the core-title simplification are expressed through the
+  // clause (" — <Tech / Specialty>", " | <Specialty>", ", <Team/Domain/Specialty>").
+  // The canonical headline must be a concise role title, not the full employer posting string.
+  // Specializations that survive the core-title simplification are expressed through the
   // evidence-compatibility logic in deriveTargetRoleHeading, not by copying
-  // posting qualifiers verbatim.
+  // posting qualifiers verbatim. Note: preserve internal hyphens in compound words like Full-Stack.
+  title = title.replace(/\s+[-–—|]\s+.*$/, '').trim();
   title = title.replace(/,\s*[^,]+$/, '').trim();
 
   // 4. Strip generic employer-attachment patterns: ", <Team> at <Company>" and " at <Company>"
@@ -711,7 +712,9 @@ export function deriveTargetRoleHeading({
     candidateProjects.flatMap((p) => (p.technologies || []).map((t) => slugifyTerm(t)))
   );
 
-  const hasBackendEvidence = [...candidateSkills, ...projectTechs].some((s) =>
+  const allCandidateCapabilities = [...candidateSkills, ...projectTechs];
+
+  const hasBackendEvidence = allCandidateCapabilities.some((s) =>
     [
       'python',
       'fastapi',
@@ -730,7 +733,7 @@ export function deriveTargetRoleHeading({
       'graphql',
     ].includes(s)
   );
-  const hasFrontendEvidence = [...candidateSkills, ...projectTechs].some((s) =>
+  const hasFrontendEvidence = allCandidateCapabilities.some((s) =>
     [
       'react',
       'typescript',
@@ -747,6 +750,50 @@ export function deriveTargetRoleHeading({
     ].includes(s)
   );
   const hasFullStackEvidence = hasBackendEvidence && hasFrontendEvidence;
+
+  const hasDistributedEvidence =
+    allCandidateCapabilities.some((s) =>
+      [
+        'distributed',
+        'distributed-systems',
+        'redis',
+        'concurrency',
+        'microservices',
+        'async',
+        'asynchronous',
+        'docker',
+        'clustering',
+        'socketio',
+        'socket.io',
+        'kafka',
+        'rabbitmq',
+      ].includes(s)
+    ) || hasBackendEvidence;
+
+  const hasDevOpsEvidence = allCandidateCapabilities.some((s) =>
+    [
+      'docker',
+      'ci-cd',
+      'cicd',
+      'git',
+      'github-actions',
+      'linux',
+      'cloud',
+      'kubernetes',
+      'k8s',
+      'terraform',
+      'aws',
+      'monitoring',
+      'nginx',
+      'devops',
+      'infrastructure',
+      'platform',
+    ].includes(s)
+  );
+
+  const hasPythonEvidence = allCandidateCapabilities.some((s) =>
+    ['python', 'fastapi', 'django', 'flask', 'pandas', 'numpy'].includes(s)
+  );
 
   // 3. Raw target title from job posting
   const rawJobTitle = jobPosting?.title ? String(jobPosting.title).trim() : null;
@@ -769,18 +816,54 @@ export function deriveTargetRoleHeading({
       seniorityAdjusted = true;
     }
 
-    // Evidence compatibility check:
-    const isBackendRole = /\bbackend\b/i.test(normalized);
-    const isFrontendRole = /\bfrontend\b/i.test(normalized);
-    const isFullStackRole = /\bfull-stack\b/i.test(normalized);
+    const isFullStackRole = /\bfull[- ]?stack\b/i.test(normalized);
+    const isFrontendRole = /\bfront[- ]?end\b/i.test(normalized) && !isFullStackRole;
+    const isPythonRole = /\bpython\b/i.test(normalized);
+    const isBackendRole = (/\bback[- ]?end\b/i.test(normalized) || isPythonRole) && !isFullStackRole;
+    const isDistributedRole = /\b(?:distributed|systems)\b/i.test(normalized);
+    const isDevOpsRole = /\b(?:devops|platform|infrastructure|sre|site reliability|cloud)\b/i.test(normalized);
+    const isMobileRole = /\b(?:ios|android|swift|kotlin|mobile|flutter|react native)\b/i.test(normalized);
 
-    if (isFullStackRole && !hasFullStackEvidence && (hasBackendEvidence || hasFrontendEvidence)) {
-      if (hasBackendEvidence) normalized = normalized.replace(/\bfull-stack\b/i, 'Backend');
-      else if (hasFrontendEvidence) normalized = normalized.replace(/\bfull-stack\b/i, 'Frontend');
-    } else if (isBackendRole && !hasBackendEvidence && hasFrontendEvidence) {
-      normalized = normalized.replace(/\bbackend\b/i, 'Frontend');
-    } else if (isFrontendRole && !hasFrontendEvidence && hasBackendEvidence) {
-      normalized = normalized.replace(/\bfrontend\b/i, 'Backend');
+    // Role conditioning & evidence compatibility check:
+    if (isFullStackRole) {
+      if (hasFullStackEvidence) {
+        normalized = /developer/i.test(normalized) ? 'Full-Stack Developer' : 'Full-Stack Software Engineer';
+      } else if (hasBackendEvidence) {
+        normalized = /developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer';
+      } else if (hasFrontendEvidence) {
+        normalized = /developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer';
+      } else {
+        normalized = 'Software Engineer';
+      }
+    } else if (isDistributedRole && hasDistributedEvidence) {
+      normalized = 'Distributed Systems Engineer';
+    } else if (isDevOpsRole && hasDevOpsEvidence) {
+      normalized = 'DevOps / Platform Engineer';
+    } else if (isBackendRole) {
+      if (isPythonRole && hasPythonEvidence) {
+        normalized = /developer/i.test(normalized) ? 'Python Backend Developer' : 'Python Backend Engineer';
+      } else if (hasBackendEvidence) {
+        normalized = /developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer';
+      } else if (hasFrontendEvidence) {
+        normalized = /developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer';
+      } else {
+        normalized = 'Software Engineer';
+      }
+    } else if (isFrontendRole) {
+      if (hasFrontendEvidence) {
+        normalized = /developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer';
+      } else if (hasBackendEvidence) {
+        normalized = /developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer';
+      } else {
+        normalized = 'Software Engineer';
+      }
+    } else if (isMobileRole) {
+      const hasMobileEvidence = allCandidateCapabilities.some((s) =>
+        ['ios', 'swift', 'swiftui', 'android', 'kotlin', 'react-native', 'flutter'].includes(s)
+      );
+      if (!hasMobileEvidence) {
+        normalized = 'Software Engineer';
+      }
     }
 
     // Clean any trailing or double spaces
@@ -847,6 +930,7 @@ export function deriveTargetRoleHeading({
   if (hasFullStackEvidence) targetRoleFamily = 'FULL_STACK';
   else if (hasBackendEvidence) targetRoleFamily = 'BACKEND';
   else if (hasFrontendEvidence) targetRoleFamily = 'FRONTEND';
+  else if (hasDevOpsEvidence) targetRoleFamily = 'DEVOPS';
 
   return {
     heading,
@@ -856,7 +940,7 @@ export function deriveTargetRoleHeading({
     candidateArchetype,
     // P19 additions: semantic separation of candidate identity from job tailoring
     candidateHeadline,
-    targetRole: rawJobTitle || heading,
+    targetRole: heading,
     targetRoleFamily,
   };
 }

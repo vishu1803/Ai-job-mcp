@@ -243,9 +243,9 @@ export class LatexDocumentGenerator {
   _generateFromStructuredResume({ applicationPackage, structuredResume, layoutProfile }) {
     const targetJob = applicationPackage.targetJob || {};
     const targetRole =
-      structuredResume.candidateIdentity?.headline ||
       structuredResume.targetRole ||
       applicationPackage.tailoringPlan?.targetRoleTitle ||
+      structuredResume.candidateIdentity?.headline ||
       targetJob.title ||
       'Software Engineer';
     const targetCompany = targetJob.company || 'Target Organization';
@@ -275,7 +275,7 @@ export class LatexDocumentGenerator {
 
     const candidatePhone = identity.phone || '';
     const candidateLocation = identity.location || '';
-    const candidateHeadline = identity.headline || targetRole || '';
+    const candidateHeadline = targetRole || identity.headline || '';
 
     // Contact line
     const contactElements = [];

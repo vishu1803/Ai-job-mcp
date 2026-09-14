@@ -164,7 +164,7 @@ export function normalizeWorkflowJobPosting(jobPosting, args) {
     ...jobPosting,
     id: jobPosting?.id || crypto.randomUUID(),
     title: jobPosting?.title || args?.jobTitle || 'Target Role',
-    company: jobPosting?.company || args?.companyName || 'Target Company',
+    company: jobPosting?.company || args?.companyName || args?.company || 'Target Company',
     description: jobPosting?.description || args?.jobDescriptionText || '',
     requirements: listValue(rawReqs),
     skills: listValue(jobPosting?.skills),
@@ -340,12 +340,14 @@ function mapToMatchingRequirements(canonicalReqs, tenantId, jobDescriptionId) {
 export async function resolveJobDescription(context, args, dbClient, deps = {}) {
   if (args.jobDescriptionText) {
     const title = args.jobTitle || 'Target Role';
-    const company = args.companyName || 'Target Company';
+    const company = args.companyName || args.company || 'Target Company';
     const canonical = normalizeJobInput({
       title,
       company,
       description: args.jobDescriptionText,
       jobDescriptionText: args.jobDescriptionText,
+      requirements: args.requirements,
+      skills: args.skills,
     });
     const jobId = crypto.randomUUID();
     return {
@@ -355,12 +357,18 @@ export async function resolveJobDescription(context, args, dbClient, deps = {}) 
       company,
       companyName: company,
       description: args.jobDescriptionText,
-      requirements: mapToMatchingRequirements(
-        canonical.normalizedRequirements.filter((r) => r.class !== 'RESPONSIBILITY'),
-        context.tenantId,
-        jobId
-      ),
-      skills: canonical.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
+      requirements:
+        Array.isArray(args.requirements) && args.requirements.length > 0
+          ? args.requirements
+          : mapToMatchingRequirements(
+              canonical.normalizedRequirements.filter((r) => r.class !== 'RESPONSIBILITY'),
+              context.tenantId,
+              jobId
+            ),
+      skills:
+        Array.isArray(args.skills) && args.skills.length > 0
+          ? args.skills
+          : canonical.normalizedRequirements.filter((r) => r.class === 'TECHNOLOGY').map((r) => r.text),
       responsibilities: canonical.normalizedRequirements.filter((r) => r.class === 'RESPONSIBILITY').map((r) => r.text),
       ...canonical,
     };
@@ -948,6 +956,8 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
               evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
               assertionIds: bullet.assertionIds || [],
               matchedKeywords: bullet.matchedKeywords || [],
+              composedFromFactIds: bullet.composedFromFactIds || (bullet.factId ? [bullet.factId] : []),
+              claimLabel: bullet.claimLabel || null,
             };
           }),
       })),
@@ -976,12 +986,15 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
               evidenceRefs: (bullet.evidenceRefs || []).map(normalizeEvidenceRef).filter(Boolean),
               assertionIds: bullet.assertionIds || [],
               matchedKeywords: bullet.matchedKeywords || [],
+              composedFromFactIds: bullet.composedFromFactIds || (bullet.factId ? [bullet.factId] : []),
+              claimLabel: bullet.claimLabel || null,
             };
           }),
       })),
       education: structured.education || [],
       certifications: structured.certifications || [],
     },
+    structuredResume: structured,
     warnings: [],
     _meta: { cacheControl: DEFAULT_CACHE_CONTROL },
   };
