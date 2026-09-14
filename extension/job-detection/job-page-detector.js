@@ -136,7 +136,7 @@ export class JobPageDetector {
       ].includes(provider);
 
     const JOB_SIGNAL_REGEX =
-      /\b(?:we[' ]?re hiring|apply now|submit (?:your )?(?:application|resume)|join our team|about the (?:role|opportunity)|job description|qualifications|responsibilities include|years of experience|full[- ]time|part[- ]time|contract(?:or)? position|benefits(?: package)?|equity|open role|open position|careers?)\b/i;
+      /\b(?:we(?:[' ]?re|\s+are)\s+hiring|apply now|submit (?:your )?(?:application|resume)|join our (?:\w+\s+)?team|about the (?:role|opportunity)|job description|qualifications|responsibilities include|years (?:of )?experience|full[- ]time|part[- ]time|contract(?:or)? position|benefits(?: package)?|equity|open role|open position|careers?)\b/i;
 
     const hasJobSignals =
       JOB_SIGNAL_REGEX.test(sanitizedDescription) ||

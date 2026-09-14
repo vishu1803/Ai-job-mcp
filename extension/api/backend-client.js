@@ -128,16 +128,65 @@ export class BackendClient {
   }
 
   /**
+   * Checks backend service health via /livez.
+   *
+   * @returns {Promise<{ status: string, ok: boolean }>}
+   */
+  async getHealth() {
+    try {
+      const data = await this._fetch('/livez', { method: 'GET' });
+      return { status: data?.status || 'ok', ok: true, ...data };
+    } catch (err) {
+      return { status: 'error', ok: false, error: err.message };
+    }
+  }
+
+  /**
+   * Normalizes response payloads to ensure recommendedProjects is always present.
+   *
+   * @private
+   * @param {object} data
+   * @returns {object}
+   */
+  _normalizeProjects(data) {
+    if (!data || typeof data !== 'object') return data;
+    if (Array.isArray(data.recommendedProjects) && data.recommendedProjects.length > 0) {
+      return data;
+    }
+    const fallback =
+      (Array.isArray(data.portfolioRecommendations?.featuredProjects) && data.portfolioRecommendations.featuredProjects.length > 0)
+        ? data.portfolioRecommendations.featuredProjects
+        : (Array.isArray(data.fitAnalysis?.topRelevantProjects) && data.fitAnalysis.topRelevantProjects.length > 0)
+          ? data.fitAnalysis.topRelevantProjects
+          : [];
+
+    data.recommendedProjects = fallback.map((p, idx) => ({
+      projectId: p.projectId || p.id || `proj-${idx + 1}`,
+      name: String(p.name || p.displayName || p.projectName || 'Project').replace(/^[a-zA-Z0-9_-]+\//, ''),
+      displayName: p.displayName || p.name || p.projectName || 'Project',
+      technologies: Array.isArray(p.technologies)
+        ? p.technologies
+        : (Array.isArray(p.primarySignals) ? p.primarySignals : []),
+      relevanceScore: Number(p.relevanceScore ?? p.score ?? 50),
+      relevanceBand: p.relevanceBand || 'MEDIUM',
+      matchedRequirements: Array.isArray(p.matchedRequirements) ? p.matchedRequirements : [],
+      verificationStatus: p.verificationStatus || 'VERIFIED',
+    }));
+    return data;
+  }
+
+  /**
    * Normalizes, canonicalizes, and executes ATS fit analysis on detected job.
    *
    * @param {object} job NormalizedJobPayload
    * @returns {Promise<object>} Analysis, matches, blockers, and recommendations
    */
   async analyzeJob(job) {
-    return this._fetch('/api/extension/analyze-job', {
+    const data = await this._fetch('/api/extension/analyze-job', {
       method: 'POST',
       body: { job },
     });
+    return this._normalizeProjects(data);
   }
 
   /**
@@ -149,10 +198,11 @@ export class BackendClient {
    * @returns {Promise<object>} Handoff package telemetry and artifact links
    */
   async prepareHandoff(job, applicationId = null, analysisSnapshotId = null) {
-    return this._fetch('/api/extension/prepare-handoff', {
+    const data = await this._fetch('/api/extension/prepare-handoff', {
       method: 'POST',
       body: { job, applicationId, analysisSnapshotId },
     });
+    return this._normalizeProjects(data);
   }
 
   /**

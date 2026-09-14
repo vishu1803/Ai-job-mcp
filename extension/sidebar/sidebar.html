@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Careers Hub — Persistent Assistant</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <div class="sidebar-container">
+    <!-- Top Header -->
+    <header class="sidebar-header">
+      <div class="brand-row">
+        <div class="brand-identity">
+          <span class="brand-dot"></span>
+          <span class="brand-title">AI Careers Hub</span>
+          <span class="badge-tag">v2.0 Persistent</span>
+        </div>
+        <div class="header-actions">
+          <span id="connectionBadge" class="status-badge disconnected" title="Backend Connection Status">
+            <span class="dot"></span>
+            <span id="connectionText">Checking...</span>
+          </span>
+          <button id="refreshBtn" class="icon-button" title="Refresh Active Tab State" aria-label="Refresh">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div id="authNotice" class="auth-notice hidden">
+        <span>Not authenticated.</span>
+        <a id="signInLink" href="#" target="_blank">Sign In to Dashboard</a>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="sidebar-main">
+      <!-- State / Status Alert Bar -->
+      <div id="workflowStatusBar" class="workflow-status-bar">
+        <span id="workflowStateText" class="state-text">Ready</span>
+        <span id="syncIndicator" class="sync-indicator synced" title="State synchronized">Durable State Synced</span>
+      </div>
+
+      <!-- Portal & Adapter Information Card -->
+      <section id="portalCard" class="card portal-card">
+        <div class="card-header">
+          <div class="header-label">
+            <span class="portal-icon">🌐</span>
+            <span id="portalName" class="portal-title">Detecting Portal...</span>
+          </div>
+          <span id="confidenceBadge" class="confidence-badge low">Confidence: Low</span>
+        </div>
+        <div class="portal-capabilities" id="portalCapabilities">
+          <span class="capability-pill pending" id="capJob">Job Extraction</span>
+          <span class="capability-pill pending" id="capApp">App Detection</span>
+          <span class="capability-pill pending" id="capForm">Form Extraction</span>
+          <span class="capability-pill pending" id="capAutofill">Field Mapping</span>
+        </div>
+      </section>
+
+      <!-- Active Job Detection Card -->
+      <section id="jobCard" class="card job-card">
+        <div class="card-header">
+          <h2 class="card-title">Target Position</h2>
+          <button id="reanalyzeBtn" class="link-button" title="Force re-extraction of page">Re-detect</button>
+        </div>
+        <div id="jobContent" class="job-content">
+          <div id="jobNotDetectedState" class="empty-state">
+            <p class="empty-title">No job posting detected on current tab</p>
+            <p class="empty-subtitle">Navigate to a job board (Greenhouse, Lever, Workday, LinkedIn, or any career page) to activate.</p>
+          </div>
+          <div id="jobDetectedState" class="job-detected-state hidden">
+            <h3 id="jobTitle" class="job-title">—</h3>
+            <p id="jobCompany" class="job-company">—</p>
+            <div class="job-meta-row">
+              <span id="jobLocation" class="meta-tag">📍 Remote</span>
+              <span id="jobType" class="meta-tag">💼 Full-time</span>
+              <span id="jobIdTag" class="meta-tag code-font">ID: —</span>
+            </div>
+            <div class="action-row">
+              <button id="analyzeJobBtn" class="btn btn-primary btn-sm">Analyze Job Match</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ATS Fit & Match Section -->
+      <section id="analysisCard" class="card analysis-card hidden">
+        <div class="card-header">
+          <h2 class="card-title">ATS Fit Analysis</h2>
+          <span id="matchBandBadge" class="match-band-badge">RECOMMENDED</span>
+        </div>
+        <div class="fit-overview">
+          <div class="score-circle-container">
+            <div class="score-circle">
+              <span id="scoreValue" class="score-number">--</span>
+              <span class="score-total">/100</span>
+            </div>
+          </div>
+          <div class="score-breakdown">
+            <div class="breakdown-item">
+              <span class="breakdown-label">Matched Skills:</span>
+              <span id="matchedSkillsCount" class="breakdown-val">0</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Missing Skills:</span>
+              <span id="missingSkillsCount" class="breakdown-val">0</span>
+            </div>
+            <div class="breakdown-item">
+              <span class="breakdown-label">Experience Fit:</span>
+              <span id="experienceFitVal" class="breakdown-val">--</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="skills-tags-container">
+          <div class="tag-group">
+            <span class="tag-label">Matched Skills:</span>
+            <div id="matchedSkillsList" class="tag-list"></div>
+          </div>
+          <div class="tag-group">
+            <span class="tag-label">Missing / Growth Skills:</span>
+            <div id="missingSkillsList" class="tag-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Authoritative Recommended Projects Section (P57 Rule 1 & Rule 2) -->
+      <section id="projectsCard" class="card projects-card hidden">
+        <div class="card-header">
+          <div class="header-label">
+            <span class="section-icon">💼</span>
+            <h2 class="card-title">Recommended Portfolio Projects</h2>
+          </div>
+          <span class="verified-tag">✓ Authoritative Backend Ranking</span>
+        </div>
+        <p class="section-desc">
+          Top candidate portfolio projects canonically ranked by backend matching algorithms to align with detected job requirements.
+        </p>
+        <div id="recommendedProjectsList" class="projects-list">
+          <!-- Dynamically populated project cards -->
+        </div>
+      </section>
+
+      <!-- Application & Handoff Kit Section -->
+      <section id="handoffCard" class="card handoff-card hidden">
+        <div class="card-header">
+          <div class="header-label">
+            <span class="section-icon">📦</span>
+            <h2 class="card-title">Application Handoff Kit</h2>
+          </div>
+          <span id="handoffStatusBadge" class="status-badge-sm ready">READY</span>
+        </div>
+        <p class="section-desc">
+          Generate or retrieve the cryptographically verified application kit tailored with ranked projects.
+        </p>
+
+        <div class="handoff-actions">
+          <button id="prepareHandoffBtn" class="btn btn-accent btn-block">
+            <span class="btn-spinner hidden" id="prepareSpinner"></span>
+            <span id="prepareBtnText">Prepare Handoff Kit</span>
+          </button>
+        </div>
+
+        <div id="artifactsContainer" class="artifacts-container hidden">
+          <div class="artifact-item" id="resumeArtifact">
+            <div class="artifact-icon">📄</div>
+            <div class="artifact-details">
+              <div class="artifact-title">Tailored Resume (PDF)</div>
+              <div class="artifact-meta" id="resumeMeta">LaTeX Compiled • Verified</div>
+            </div>
+            <button id="downloadResumeBtn" class="btn btn-outline btn-xs">Download</button>
+          </div>
+          <div class="artifact-item" id="coverLetterArtifact">
+            <div class="artifact-icon">✉️</div>
+            <div class="artifact-details">
+              <div class="artifact-title">Tailored Cover Letter (PDF)</div>
+              <div class="artifact-meta" id="coverLetterMeta">LaTeX Compiled • Verified</div>
+            </div>
+            <button id="downloadCoverLetterBtn" class="btn btn-outline btn-xs">Download</button>
+          </div>
+          <div class="artifact-item" id="kitZipArtifact">
+            <div class="artifact-icon">🗂️</div>
+            <div class="artifact-details">
+              <div class="artifact-title">Complete Application Bundle</div>
+              <div class="artifact-meta" id="bundleMeta">All artifacts + SHA-256 manifest</div>
+            </div>
+            <button id="downloadBundleBtn" class="btn btn-outline btn-xs">Download ZIP</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Multi-step Application & Form Autofill Section (P57.6) -->
+      <section id="formDetectionCard" class="card form-detection-card hidden">
+        <div class="card-header">
+          <div class="header-label">
+            <span class="section-icon">📝</span>
+            <h2 class="card-title">Application Form Assistant</h2>
+          </div>
+          <span id="stepIndicator" class="step-indicator">Step 1</span>
+        </div>
+        <div class="form-status-body">
+          <p id="formStatusMessage" class="form-status-message">
+            Job application form detected. Verified fields mapped from canonical profile.
+          </p>
+          <div id="formFieldsSummary" class="fields-summary">
+            <!-- Dynamic field mapping pills -->
+          </div>
+          <div class="form-actions">
+            <button id="autofillFormBtn" class="btn btn-secondary btn-sm" disabled>
+              Fill Verified Fields (User Review Required)
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="sidebar-footer">
+      <div class="footer-row">
+        <span class="footer-note">Evidence-Based • Multi-Tenant Isolated</span>
+        <a id="dashboardLink" href="http://localhost:3000" target="_blank" class="footer-link">Open Dashboard</a>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="sidebar.js"></script>
+</body>
+</html>

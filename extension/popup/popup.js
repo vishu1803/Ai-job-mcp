@@ -36,6 +36,7 @@ export class PopupController {
     this.alertBox = document.getElementById('alertBox');
     this.alertMessage = document.getElementById('alertMessage');
     this.alertCloseBtn = document.getElementById('alertCloseBtn');
+    this.openSidebarBtn = document.getElementById('openSidebarBtn');
 
     // States
     this.stateLoading = document.getElementById('stateLoading');
@@ -98,6 +99,14 @@ export class PopupController {
 
   _attachEventListeners() {
     this.alertCloseBtn.addEventListener('click', () => this.hideAlert());
+    this.openSidebarBtn?.addEventListener('click', async () => {
+      try {
+        await chrome.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' });
+        window.close();
+      } catch (err) {
+        console.warn('Could not open side panel:', err);
+      }
+    });
     this.openAuthBtn.addEventListener('click', () => this.handleOpenAuth());
     this.retryDetectBtn.addEventListener('click', () => this.detectJobOnPage());
     this.analyzeJobBtn.addEventListener('click', () => this.handleAnalyzeJob());
@@ -407,9 +416,11 @@ export class PopupController {
       this.missingItems.innerHTML = '<div class="req-item text-muted">No hard missing requirements identified.</div>';
     }
 
-    // Portfolio projects
+    // Portfolio projects (P57: Consumes authoritative recommendedProjects contract)
     this.featuredProjectsList.innerHTML = '';
-    const featured = result.portfolioRecommendations?.featuredProjects || [];
+    const featured = (Array.isArray(result.recommendedProjects) && result.recommendedProjects.length > 0)
+      ? result.recommendedProjects
+      : (result.portfolioRecommendations?.featuredProjects || []);
     if (featured.length > 0) {
       featured.forEach((p) => {
         const div = document.createElement('div');

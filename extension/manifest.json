@@ -30,8 +30,12 @@
     "tabs",
     "storage",
     "downloads",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
+  "side_panel": {
+    "default_path": "sidebar/sidebar.html"
+  },
   "host_permissions": [
     "http://localhost:*/*",
     "http://127.0.0.1:*/*",
@@ -59,8 +63,11 @@
       "resources": [
         "job-detection/*",
         "popup/*",
+        "sidebar/*",
         "icons/*",
-        "content/*"
+        "content/*",
+        "lib/*",
+        "api/*"
       ],
       "matches": [
         "*://*/*"

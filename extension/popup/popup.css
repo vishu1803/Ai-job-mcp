@@ -126,6 +126,25 @@ body {
 .status-offline .pill-dot { background-color: var(--accent-warning); }
 .status-offline { color: var(--accent-warning); border-color: rgba(245, 158, 11, 0.25); }
 
+.btn-sidebar-dock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 500;
+  background-color: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-sidebar-dock:hover {
+  background-color: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+}
+
 /* Global Alert */
 .alert-box {
   display: flex;

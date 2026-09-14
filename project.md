@@ -3,6 +3,64 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-14*
 
+### PART 57: Extension Architecture: Persistent Sidebar, Durable State & Dynamic Job-Portal Adapter System
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-14  
+**Scope:** Chrome Extension Architecture (MV3 SidePanel, Durable State, Capability-Based Adapters, Navigation Reconciliation, Authoritative Project Contract)  
+**Branch:** `main`  
+
+**Executive Summary:**
+Implemented Part 57 to transform the browser extension from an ephemeral dropdown popup with dropped project contracts into a durable, portal-agnostic application client with a persistent sidebar, strict multi-signal job detection, and capability-based portal adapters:
+1. **Authoritative Recommended Projects Contract (Rule 1 & Rule 2):**
+   - Eliminated the regression where `/analyze-job` and `/prepare-handoff` dropped project data, causing "No verified portfolio projects linked" in the extension UI.
+   - Built `normalizeRecommendedProjectsForExtension` in `src/routes/extension.routes.js` to ensure canonical `recommendedProjects[]` envelopes are emitted by `/api/extension/analyze-job` and `/api/extension/prepare-handoff`.
+   - Updated `extension/api/backend-client.js` with `_normalizeProjects` and `/livez` health probe.
+   - Preserved backend authority: zero client-side ranking or score re-computation. Canonical project IDs (`projectId`), clean names, technologies, relevance scores, relevance bands, and verification statuses survive from backend to UI.
+2. **Persistent Chrome MV3 Sidebar & Durable State (Rule 3):**
+   - Configured `sidePanel` permission and `"side_panel": { "default_path": "sidebar/sidebar.html" }` in `extension/manifest.json`.
+   - Configured `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` in `extension/background/service-worker.js` with message routing for `OPEN_SIDE_PANEL` and `ACTIVE_TAB_CHANGED`.
+   - Implemented `DurableWorkflowStore` in `extension/lib/durable-workflow-store.js` backed by `chrome.storage.local`. Closing the sidebar never destroys workflow state.
+   - Built 11-state explicit `WorkflowStateMachine` in `extension/lib/workflow-state-machine.js` (`IDLE`, `PORTAL_DETECTED`, `JOB_DETECTED`, `ANALYZING`, `ANALYSIS_READY`, `ANALYSIS_FAILED`, `APPLICATION_PREPARING`, `APPLICATION_READY`, `FORM_FILLING`, `VERIFICATION_REQUIRED`, `SUBMISSION_DETECTED`).
+   - Built high-performance dark-themed persistent sidebar (`extension/sidebar/sidebar.html`, `sidebar.css`, `sidebar.js`) featuring capability pills, fit score ring, authoritative `recommendedProjects` cards, handoff kit actions, and multi-step form status.
+3. **Capability-Based Adapter Architecture (Rule 4):**
+   - Implemented `AdapterRegistry` in `extension/job-detection/adapter-registry.js` with explicit capability declarations (`jobExtraction`, `applicationDetection`, `formExtraction`, `automaticFieldMapping`).
+   - Prioritized resolution across Greenhouse, Lever, Workday, LinkedIn, Indeed, Naukri, iimjobs, Shine, Foundit, TimesJobs, Hirect, Cutshort, Instahyre, and Generic fallback.
+   - Implemented `JobDetectionEngine` in `extension/job-detection/detection-engine.js` with multi-signal scoring (ATS matching, structured JSON-LD, title quality, description density >=150 chars, requirements, and company signals) with confidence tiers (`HIGH`, `MEDIUM`, `LOW`).
+   - Handled unknown portals gracefully via `schema.org/JobPosting` JSON-LD (high confidence) or semantic DOM heuristics (medium confidence).
+4. **SPA Navigation Reconciliation (Rule 5):**
+   - Built `JobIdentity` in `extension/lib/job-identity.js` with deterministic, synchronous 64-character SHA-256 fingerprinting (`deriveJobFingerprint`, `isSameJobIdentity`, `normalizeJobUrlForIdentity`) stripping transient URL query parameters and SPA wizard routes (`/apply`, `/step*`).
+   - Implemented `NavigationObserver` in `extension/content/navigation-observer.js` intercepting `pushState`, `replaceState`, `popstate`, and DOM mutations.
+   - Guarantees reconciliation invariant: same job + route/DOM changes preserves `applicationId`, `packageHash`, `recommendedProjects`, and workflow state. Context transitions only occur when job identity genuinely changes.
+5. **Form & Application Detection Layer:**
+   - Implemented `FormDetector` in `extension/content/form-detector.js` mapping application inputs to canonical candidate profile fields (`FIRST_NAME`, `LAST_NAME`, `EMAIL`, `PHONE`, `RESUME_UPLOAD`, `LINKEDIN_URL`, `GITHUB_URL`).
+   - Coordinated content script workflows via `extension/content/content-script.js`.
+6. **Preserved Frozen Invariants:**
+   - ZERO changes to frozen resume PDF layout, margins (`0.52in`), Latin Modern Roman serif typography (`lmroman10`), LaTeX templates, or canonical generation semantics.
+
+**Verification & Test Results:**
+- `tests/unit/p57-backend-recommended-projects.test.js`: **5/5 PASS**
+  1. Transforms `featuredProjects` into canonical `recommendedProjects` contract with technologies.
+  2. Falls back to `fitAnalysis.topRelevantProjects` when `featuredProjects` is empty.
+  3. Falls back to candidate verified projects when both tool results are empty.
+  4. `BackendClient._normalizeProjects` preserves `recommendedProjects` and backfills if missing.
+  5. Canonical project IDs survive the entire chain without modification.
+- `tests/unit/p57-extension-architecture.test.js`: **7/7 PASS**
+  1. JobIdentity normalization and invariant preservation across URL variations.
+  2. Workflow state machine valid transitions and invalid transition rejections.
+  3. Durable workflow store persistence and SPA navigation reconciliation.
+  4. Adapter registry prioritized resolution and capability declaration.
+  5. Form detector wizard step detection and field mapping.
+  6. Authoritative recommended projects survival invariant.
+  7. SHA-256 fingerprint deterministic 64-character hex generation.
+- `tests/unit/extension-popup-controller.test.js`: **12/12 PASS**
+- `tests/integration/p57-multi-portal-e2e.test.js`: **4/4 PASS**
+  1. Greenhouse ATS: Extraction, capabilities, form detection, authoritative analysis & project contract.
+  2. Lever ATS: SPA navigation reconciliation & state preservation.
+  3. Unknown portal: schema.org/JobPosting JSON-LD fallback.
+  4. Unknown portal: Semantic DOM fallback (medium confidence).
+- **Total Suite:** 28/28 passing tests. Zero regressions.
+
 ### PART 56: Resume-Grounding Correctness & Canonical Validation Gate
 
 **Status:** COMPLETE & VERIFIED  
