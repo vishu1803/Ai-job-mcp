@@ -694,7 +694,7 @@ export class ResumeLayoutEngine {
 
     const maxBulletsPerProject = overrides.maxBulletsPerProject !== undefined
       ? overrides.maxBulletsPerProject
-      : (density === DENSITY_CLASSIFICATION.DENSE || density === DENSITY_CLASSIFICATION.OVERFULL ? 2 : 3);
+      : 3;
 
     return {
       spacing: adapted,
@@ -749,7 +749,7 @@ export class ResumeLayoutEngine {
 
     return this.calculateAdaptiveSpacing(model, budget, currentLayout.pageStrategy, {
       density: nextDensity,
-      maxBulletsPerProject: 2,
+      maxBulletsPerProject: 3,
     });
   }
 

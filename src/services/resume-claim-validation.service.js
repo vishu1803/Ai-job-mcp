@@ -402,6 +402,32 @@ export class ResumeClaimValidationService {
       }
     }
 
+    // ── 13b. Project Bullet Complete Sentence & Action Accomplishment Contract ──
+    if (context.sectionOwnerType === 'PROJECT') {
+      const trimmed = text.trim();
+      if (!trimmed.endsWith('.') && !trimmed.endsWith('!')) {
+        violations.push({
+          code: 'INCOMPLETE_SENTENCE',
+          message: 'Project bullet must read as a complete sentence ending with punctuation',
+        });
+      }
+      const isFragment =
+        /^(?:intelligent\s+automated|real-time\s+collaborative|full-stack\s+[a-z]+(?:\s+platform|\s+application|\s+manager|\s+system)?\s+built|a\s+[a-z]+|an\s+[a-z]+|the\s+[a-z]+)/i.test(trimmed);
+      const startsWithActionVerb =
+        /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured|improved|reduced|delivered|achieved|saved|accelerated|expanded|created|established|maintained|monitored|profiled|formulated|synthesized)\b/i.test(trimmed) ||
+        /^designed\s+and\s+implemented\b/i.test(trimmed) ||
+        /^built\s+and\s+(?:deployed|implemented|designed)\b/i.test(trimmed) ||
+        /^architected\s+and\s+(?:engineered|implemented)\b/i.test(trimmed) ||
+        /^developed\s+and\s+(?:integrated|deployed)\b/i.test(trimmed);
+
+      if (isFragment || !startsWithActionVerb) {
+        violations.push({
+          code: 'FRAGMENT_BULLET',
+          message: `Project bullet is a fragment or lacks a strong action verb accomplishment opener: "${trimmed.slice(0, 40)}..."`,
+        });
+      }
+    }
+
     // ── 14. Unsupported causal implication ───────────────────────────────────
     const causalPatterns = [
       /\b(?:causing|which led to|directly resulting in|attributable to|consequently driving)\b/i,
@@ -634,11 +660,23 @@ export class ResumeClaimValidationService {
     }
 
     // Contributing facts and fact inventory: extract both declared technologies and technologies mentioned in authentic fact text
-    const factsToCheck = [
-      ...contributingFacts,
-      ...(Array.isArray(context.factInventory) ? context.factInventory : []),
-      ...(context.factInventory?.facts || []),
-    ];
+    const factsToCheck = isProjectClaim
+      ? [
+          ...contributingFacts,
+          ...((Array.isArray(context.factInventory) ? context.factInventory : (context.factInventory?.facts || [])).filter(
+            (f) =>
+              (f.sectionOwnerType === 'PROJECT' || f.ownerType === 'PROJECT' || f.association?.projectId) &&
+              (!context.sectionOwnerId ||
+                f.sectionOwnerId === context.sectionOwnerId ||
+                f.ownerId === context.sectionOwnerId ||
+                f.association?.projectId === context.sectionOwnerId)
+          )),
+        ]
+      : [
+          ...contributingFacts,
+          ...(Array.isArray(context.factInventory) ? context.factInventory : []),
+          ...(context.factInventory?.facts || []),
+        ];
     for (const f of factsToCheck) {
       for (const t of f.technologies || []) {
         if (t) techSet.add(normalizeTechnologyName(t).toLowerCase());

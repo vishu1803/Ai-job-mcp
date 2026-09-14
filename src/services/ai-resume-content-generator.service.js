@@ -536,26 +536,40 @@ export class AiResumeContentGeneratorService {
     const job = targetJobPosting || {};
     const proj = project || {};
 
+    const isFragmentOrDescription = (text) => {
+      const trimmed = String(text || '').trim();
+      if (!trimmed) return true;
+      if (/^uses\s+[a-z0-9]/i.test(trimmed)) return true;
+      if (/^(?:intelligent\s+automated|real-time\s+collaborative|full-stack\s+[a-z]+(?:\s+platform|\s+application|\s+manager|\s+system)?\s+built|a\s+[a-z]+|an\s+[a-z]+|the\s+[a-z]+)\b/i.test(trimmed)) {
+        return true;
+      }
+      return false;
+    };
+
     let rawFacts = (Array.isArray(projectFacts) && projectFacts.length > 0
       ? projectFacts
       : (proj.bullets || proj.metadata?.bullets || [])
     ).filter((f) => {
-      if (typeof f === 'object' && f && (f.factType === 'technology' || f.factType === 'external-corroboration')) {
+      if (typeof f === 'object' && f && (
+        f.factType === 'technology' ||
+        f.factType === 'external-corroboration' ||
+        f.factType === 'feature-description' ||
+        f.sourceType === 'feature-description'
+      )) {
         return false;
       }
       const text = typeof f === 'string' ? f : (f?.text || f?.claim || '');
-      if (/^uses\s+[a-z0-9]/i.test(text.trim())) return false;
-      return true;
+      return !isFragmentOrDescription(text);
     });
 
-    // If filtered facts are fewer than 3, backfill from candidate project bullets
+    // If filtered facts are fewer than 3, backfill strictly from candidate-authored project accomplishment bullets
     if (rawFacts.length < 3) {
       const candProjBullets = Array.isArray(proj.metadata?.bullets) && proj.metadata.bullets.length > 0
         ? proj.metadata.bullets
         : (Array.isArray(proj.bullets) ? proj.bullets : []);
       for (const cb of candProjBullets) {
         const text = typeof cb === 'string' ? cb : (cb?.text || cb?.claim || '');
-        if (text && !/^uses\s+[a-z0-9]/i.test(text.trim()) && !rawFacts.some((rf) => (typeof rf === 'string' ? rf : rf.text) === text)) {
+        if (text && !isFragmentOrDescription(text) && !rawFacts.some((rf) => (typeof rf === 'string' ? rf : (rf.text || rf.claim)) === text)) {
           rawFacts.push(cb);
         }
       }
@@ -580,6 +594,7 @@ export class AiResumeContentGeneratorService {
           sectionOwnerId: projectOwnerId,
           candidateId: candId,
           provenanceStatus: 'VERIFIED',
+          provenance: 'VERIFIED',
         };
       }
       return {
@@ -597,8 +612,16 @@ export class AiResumeContentGeneratorService {
         sectionOwnerId: f.sectionOwnerId || projectOwnerId,
         candidateId: f.candidateId || candId,
         provenanceStatus: f.provenanceStatus || 'VERIFIED',
+        provenance: f.provenance || 'VERIFIED',
       };
-    }).filter((f) => String(f.text || '').trim().length > 0);
+    }).filter((f) => String(f.text || '').trim().length > 0 && !isFragmentOrDescription(f.text));
+
+    // Fail closed if project lacks minimum 3 grounded accomplishment facts
+    if (availableFacts.length < 3) {
+      const err = new Error('INSUFFICIENT_SOURCE_EVIDENCE: Project lacks minimum 3 grounded accomplishment facts');
+      err.code = 'INSUFFICIENT_SOURCE_EVIDENCE';
+      throw err;
+    }
 
     // Target job context
     const title = String(job.title || job.targetRole || '').toLowerCase();
@@ -623,7 +646,16 @@ export class AiResumeContentGeneratorService {
           metrics: f.metrics || [],
         }));
 
-        const prompt = `Rewrite and synthesize 3 concise, professional engineering accomplishment bullets for project "${proj.name || proj.title}". Tailor the focus toward the requirements of target position "${job.title || 'Software Engineer'}" without hallucinating any new metrics, technologies, or claims. Map each bullet back to its exact contributing factId in factIds[]. Return { bullets: [...] }.`;
+        const prompt = `Synthesize exactly 3 distinct, professional engineering accomplishment bullets for project "${proj.name || proj.title}", tailored specifically toward target position "${job.title || 'Software Engineer'}".
+MANDATORY WRITING RULES:
+1. Every bullet MUST be a complete sentence ending with a period (.), adhering strictly to: [Action Verb] + [Engineering Object / System] + [Technical Method / Mechanism] + [Purpose / Result].
+2. NEVER produce sentence fragments, passive voice, or raw repository descriptions (e.g. do NOT output "Intelligent automated code review system..." or "Real-time collaborative task manager built with...").
+3. Cover 3 DIVERSE technical aspects across the 3 bullets:
+   - Aspect 1: Core application architecture / platform / full-stack execution
+   - Aspect 2: Backend APIs / data persistence / database optimization / schema design
+   - Aspect 3: Integration / performance / asynchronous workflows / automation / security
+4. STRICT EVIDENCE GROUNDING: Use ONLY the technologies and facts provided in <candidate_facts>. Do NOT invent AWS, cloud infrastructure, performance percentages, or metrics not supported by the facts.
+5. Map every bullet to its contributing factId in factIds[]. Return { bullets: [...] }.`;
 
         const aiResponse = await activeProvider.generateStructured({
           taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
@@ -643,6 +675,10 @@ export class AiResumeContentGeneratorService {
         if (aiResponse && aiResponse.data && Array.isArray(aiResponse.data.bullets) && aiResponse.data.bullets.length >= 3) {
           const validatedBullets = [];
           for (const rawB of aiResponse.data.bullets) {
+            let bulletText = String(rawB.text || '').trim();
+            if (!bulletText) continue;
+            if (!bulletText.endsWith('.')) bulletText += '.';
+
             const rawFactIds = (rawB.factIds || []).filter((id) =>
               availableFacts.some((f) => (f.factId || f.id) === id)
             );
@@ -657,7 +693,7 @@ export class AiResumeContentGeneratorService {
             const validation = validateClaimEvidenceGrounding(
               {
                 claimId: rawB.claimId || `claim-${validatedBullets.length + 1}`,
-                text: rawB.text,
+                text: bulletText,
                 factIds: finalFactIds,
                 composedFromFactIds: finalFactIds,
                 sourceFact: finalSourceFact,
@@ -673,7 +709,7 @@ export class AiResumeContentGeneratorService {
 
             if (validation.valid) {
               validatedBullets.push({
-                text: rawB.text,
+                text: bulletText,
                 factId: finalFactIds[0],
                 composedFromFactIds: finalFactIds,
                 evidenceRefs: finalFactIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),

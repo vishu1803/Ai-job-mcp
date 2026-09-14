@@ -495,11 +495,7 @@ export function buildStructuredResumeDocument({
     canonicalJob?.projectRankings ||
     canonicalJob?.jobFitAnalysis?.projectRankings ||
     canonicalJob?.jobFitAnalysis?.topRelevantProjects ||
-    (canonicalJob && typeof candidateContentService?.rankProjectsForJob === 'function'
-      ? candidateContentService.rankProjectsForJob(source, canonicalJob, {
-          maxProjects: structuralProjectCapacity,
-        })?.selectedProjects
-      : null);
+    null;
 
   if (Array.isArray(incomingPlan?.selectedProjectIds) || Array.isArray(options?.selectedProjectIds)) {
     // An explicit incoming plan's project selection is authoritative; it is bounded
@@ -1638,12 +1634,31 @@ export function buildStructuredResumeSnapshot({
   // schema-clean.
   const _capturedReport = { value: null };
   const callerSink = typeof options?.reportSink === 'function' ? options.reportSink : null;
+  // Resolve authoritative rankings at snapshot level if omitted by caller
+  const resolvedOptions = { ...options };
+  const contentSvc = resolvedOptions.candidateContentService || new CandidateArtifactContentService();
+  if (
+    !resolvedOptions.projectRankings &&
+    !jobPosting?.projectRankings &&
+    !jobPosting?.jobFitAnalysis?.projectRankings &&
+    jobPosting &&
+    typeof contentSvc?.rankProjectsForJob === 'function'
+  ) {
+    const ranked = contentSvc.rankProjectsForJob(
+      candidateProfile,
+      jobPosting
+    );
+    if (Array.isArray(ranked?.selectedProjects)) {
+      resolvedOptions.projectRankings = ranked.selectedProjects;
+    }
+  }
+
   const builtResume = buildStructuredResumeDocument({
     candidateProfile,
     jobPosting,
     tailoringPlan,
     options: {
-      ...options,
+      ...resolvedOptions,
       reportSink: (r) => {
         _capturedReport.value = r;
         if (callerSink) callerSink(r);
@@ -1790,6 +1805,11 @@ export function freezeSemanticResume(structuredResume) {
       (resume.education || []).map((e) => `${e.institution || ''}:${e.degree || ''}`)
     ),
     sectionOrder: Object.freeze([...(resume.sectionOrder || [])]),
+    projectBullets: Object.freeze(
+      (resume.projects || []).map((p) =>
+        Object.freeze((p.bullets || []).map((b) => (typeof b === 'object' ? b.text || '' : String(b))))
+      )
+    ),
   });
 }
 
@@ -1836,6 +1856,12 @@ export function assertSemanticEquivalence(baseline, current) {
       throw new Error(
         `Optimizer semantic violation: project ordering changed at index ${i}. Expected '${base.projectIds[i]}', got '${curr.projectIds[i]}'`
       );
+    }
+  }
+
+  if (base.projectBullets && base.projectBullets.length > 0 && curr.projectBullets && curr.projectBullets.length > 0) {
+    if (JSON.stringify(base.projectBullets) !== JSON.stringify(curr.projectBullets)) {
+      throw new Error('Optimizer semantic violation: validated project bullets were deleted or rewritten');
     }
   }
 

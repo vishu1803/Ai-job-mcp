@@ -25,7 +25,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
-    preferredModelId: 'gemini-3.6-flash',
+    preferredModelId: 'gemini-3.5-flash-lite',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 4096,
@@ -39,7 +39,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'RESUME_SUMMARY_SYNTHESIS',
-    preferredModelId: 'gemini-3.6-flash',
+    preferredModelId: 'gemini-3.5-flash-lite',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 4096,

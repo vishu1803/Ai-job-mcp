@@ -58,31 +58,35 @@ export class ResumeAccomplishmentPolicy extends BasePromptPolicy {
     return `=== RESUME ACCOMPLISHMENT REALIZATION CONSTRAINTS ===
 1. PRIMARY WRITING OBJECTIVE:
    Synthesize at least 3 concise, powerful engineering accomplishment bullets for the project, returned in { bullets: [...] }.
-   Each bullet must strictly adhere to:
+   Every single bullet MUST be a complete sentence ending with a period (.), adhering strictly to:
    [ACTION VERB] + [ENGINEERING OBJECT / SYSTEM] + [TECHNICAL METHOD / MECHANISM] + [PURPOSE / OUTCOME (if supported)]
    Examples of preferred professional structure:
-   - "Architected X using Y to support Z."
-   - "Engineered X with Y, enabling reliable Z."
-   - "Implemented X using Y for deterministic Z."
+   - "Architected high-concurrency microservices using Node.js and PostgreSQL to support real-time data synchronization."
+   - "Engineered asynchronous webhook pipelines with FastAPI to process external event payloads reliably."
+   - "Implemented JWT-based authentication and role-based access control (RBAC) to ensure secure multi-tenant isolation."
 
-2. STRICT FACTUAL GROUNDING (ZERO FABRICATION):
+2. THREE DIVERSE TECHNICAL ASPECTS:
+   Across the 3 synthesized bullets, you must cover 3 distinct, complementary aspects of the project:
+   - Aspect 1: Core application architecture, platform design, or full-stack delivery.
+   - Aspect 2: Backend APIs, data persistence, database optimization, or schema modeling.
+   - Aspect 3: Integration, performance, asynchronous workflows, automation, or security.
+   Do not repeat the same focus or technologies identically across multiple bullets.
+
+3. STRICT FACTUAL GROUNDING (ZERO FABRICATION):
    - You must synthesize statement text EXCLUSIVELY from the provided <candidate_facts>.
    - Map every referenced fact back to its exact factId in factIds[].
    - NEVER invent outcomes, scale, revenue, percentages, user counts, or speedups if not explicitly in <candidate_facts>.
-   - When no outcome is supported, articulate the technical purpose, capability, mechanism, or reliability contribution.
-   - Do NOT manufacture a metric. Do NOT force "resulting in" clauses.
+   - When no metric is supported, articulate the technical purpose, mechanism, or reliability contribution.
+   - NEVER claim cloud infrastructure or technologies (e.g. AWS, Kubernetes) unless explicitly listed in <candidate_facts>.
 
-3. PROHIBITED PHRASING & BUZZWORDS:
+4. PROHIBITED PHRASING, FRAGMENTS & BUZZWORDS:
+   - NEVER output sentence fragments or raw repository descriptions (e.g. "Intelligent automated code review system...", "Real-time collaborative task manager built with...").
    - NEVER use weak openers: "worked on", "helped with", "responsible for", "assisted in", "tasked with".
-   - NEVER use empty corporate filler: "dynamic", "highly motivated", "results-driven", "passionate", "cutting-edge", "seamless", "world-class", "innovative", "spearheaded modern solutions".
+   - NEVER use empty corporate filler: "dynamic", "highly motivated", "results-driven", "passionate", "cutting-edge", "seamless", "world-class", "innovative".
 
-4. TECHNICAL SPECIFICITY:
-   - Include only technologies explicitly listed in <candidate_facts> or authorized technologies.
-   - Accurately categorize semanticDimensions (e.g. architecture, implementation, reliability, integration, performance).
-
-5. DESCRIPTION VS ACCOMPLISHMENT:
-   - A pure project description (e.g., "A real-time task manager built with TypeScript") is NOT an accomplishment. Set descriptionOnly=true if the input lacks accomplishment evidence.
-   - Prefer synthesizing active accomplishments over passive summaries.`;
+5. ACTIVE VOICE & COMPLETE SENTENCES:
+   - Every bullet must begin with a strong past-tense engineering action verb (Engineered, Architected, Designed, Implemented, Built, Deployed, Optimized, Scaled, Automated, Configured, Integrated).
+   - Every bullet must terminate with punctuation (.).`;
   }
 }
 

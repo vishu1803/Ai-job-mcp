@@ -355,7 +355,7 @@ export class LatexDocumentGenerator {
 
     // 4. Projects: exact stored ranking and authentic bullets (P16-006 high-density formatting)
     const projects = Array.isArray(structuredResume.projects) ? structuredResume.projects : [];
-    const maxBulletsPerProject = layoutProfile.maxBulletsPerProject || 3;
+    const maxBulletsPerProject = Math.max(layoutProfile.maxBulletsPerProject || 3, 3);
     let projectsLatexSection = '';
     if (projects.length > 0) {
       const projectEntries = projects.map((p, index) => {

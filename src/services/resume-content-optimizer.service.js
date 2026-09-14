@@ -116,8 +116,8 @@ export class ResumeContentOptimizer {
     const iterationHistory = [];
     let bestOnePageCandidate = null;
 
-    // Default initial project bullets to 2 so optimizer has headroom to expand to 3 for strong projects
-    const defaultMaxBullets = typeof options.maxBullets === 'number' ? options.maxBullets : 2;
+    // Default initial project bullets to 3 per the 3-bullet project contract
+    const defaultMaxBullets = typeof options.maxBullets === 'number' ? options.maxBullets : 3;
     const initialOptions = { maxBullets: defaultMaxBullets, ...options };
 
     // Track per-project bullet count overrides: { [projectId | projectName]: count }
@@ -562,9 +562,10 @@ export class ResumeContentOptimizer {
     }
 
     // Move Type 8: REMOVE_PROJECT_CLAIM
+    // Note: Project bullets cannot be pruned below the mandatory 3-bullet contract
     if (availableSpacePt < 0) {
       for (const p of projects) {
-        if (Array.isArray(p.bullets) && p.bullets.length > 1) {
+        if (Array.isArray(p.bullets) && p.bullets.length > 3) {
           moves.push({
             type: OPTIMIZER_MOVE_TYPES.REMOVE_PROJECT_CLAIM,
             id: p.projectId || p.name,
@@ -630,38 +631,12 @@ export class ResumeContentOptimizer {
     }
 
     const projects = Array.isArray(structuredResume?.projects) ? structuredResume.projects : [];
-    let longestBullet = null;
-    let maxLen = 0;
 
-    for (const p of projects) {
-      if (!Array.isArray(p.bullets)) continue;
-      for (const b of p.bullets) {
-        const text = typeof b === 'object' ? b.text || '' : String(b);
-        if (text.length > maxLen && text.length > 80) {
-          maxLen = text.length;
-          longestBullet = { project: p, bullet: b, text };
-        }
-      }
-    }
-
-    if (longestBullet) {
-      const compressedText = compressCandidateBullet(longestBullet.text);
-      if (compressedText.length < longestBullet.text.length) {
-        if (typeof longestBullet.bullet === 'object') {
-          longestBullet.bullet.text = compressedText;
-        } else {
-          const idx = longestBullet.project.bullets.indexOf(longestBullet.bullet);
-          if (idx !== -1) longestBullet.project.bullets[idx] = compressedText;
-        }
-        return {
-          description: `Compressed longest bullet in ${longestBullet.project.name} (${maxLen} -> ${compressedText.length} chars)`,
-        };
-      }
-    }
-
+    // Note: Project bullets cannot be pruned below 3 per the 3-bullet contract,
+    // and validated bullets cannot be deleted or rewritten by the optimizer.
     for (let i = projects.length - 1; i >= 0; i--) {
       const p = projects[i];
-      if (Array.isArray(p.bullets) && p.bullets.length > 1) {
+      if (Array.isArray(p.bullets) && p.bullets.length > 3) {
         p.bullets.pop();
         return {
           description: `Removed lowest-ranked bullet from project ${p.name}`,

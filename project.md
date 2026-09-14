@@ -3,6 +3,71 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-14*
 
+### PART 54: Minimal Project-Bullet Content Fix — 3-Bullet Contract, Fragment Elimination & Sentence Completeness
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-14
+**Production Candidate:** `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad)
+**Target Snapshots / Jobs:** 5 Canonical Roles (Full-Stack Engineer, Python Backend Engineer, Frontend Engineer, DevOps / Platform Engineer, Software Engineer)
+
+**Executive Summary:**
+Implemented a minimal, surgical project-bullet content fix across the content generation, optimization, and validation pipeline without altering the frozen resume layout, Latin Modern serif typography (`lmroman10`), margins (`0.52in`), section ordering, LaTeX styling, project-link styling, phone UI, headline logic, skill logic, project ranking, or project selection:
+1. **Enforced Minimum 3 Bullets Per Selected Project:** Selected projects (N=2 max) previously rendered only 2 bullets each in generated LaTeX resumes (4 bullets total) due to default layout density budgeting (`maxBulletsPerProject = 2` for `DENSE` or `OVERFULL`), optimizer pruning (`REMOVE_PROJECT_CLAIM`), and renderer slicing (`cleanBullets.slice(0, maxBulletsPerProject)`). Enforced `maxBulletsPerProject: 3` across `resume-layout-engine.service.js`, `latex-document-generator.service.js`, and `resume-content-optimizer.service.js`, guaranteeing exactly 3 bullets per project (2 projects = 6 bullets minimum).
+2. **Eliminated Sentence Fragments & Repo Descriptions:** Ingested repository description strings (`"Intelligent automated code review system integrating OpenAI API and FastAPI webhooks."` and `"Real-time collaborative task manager built with TypeScript, Express, Prisma, and PostgreSQL."`) were previously ranked above authentic accomplishments. Filtered out `feature-description` facts and sentence fragments in `ai-resume-content-generator.service.js`, backfilling exclusively from authentic candidate accomplishment bullets in `metadata.bullets` and parsed resume data.
+3. **Mandated Complete Sentence Structure & Action Verbs:** In `resume-claim-validation.service.js`, added check (13b) validating that every project bullet is a complete sentence ending in punctuation (`INCOMPLETE_SENTENCE`), begins with a strong engineering action verb, and contains zero fragment phrases (`FRAGMENT_BULLET`).
+4. **Enforced Three Diverse Technical Aspects:** Updated prompt policy (`resume-accomplishment.policy.js`) and generator prompt to cover 3 distinct, complementary aspects per project:
+   - Aspect 1: Core application architecture / platform design / full-stack execution
+   - Aspect 2: Backend APIs / data persistence / database optimization / schema design
+   - Aspect 3: Integration / performance / asynchronous workflows / automation / security
+5. **Strict Evidence Grounding & Zero AWS Project Claims:** Scoped authorized technologies in `resume-claim-validation.service.js` to project facts when `isProjectClaim === true`, preventing profile-level declared skills (e.g. AWS) from authorizing unbacked project bullet claims.
+6. **Fail-Closed Contract on Thin Evidence:** If a project has `< 3` grounded accomplishment facts, the generator fails closed (`INSUFFICIENT_SOURCE_EVIDENCE`), causing the pipeline to drop thin projects rather than fabricating synthetic bullets.
+7. **Preserved Exactly 1 Physical Page Budget:** Verified via real Tectonic XeTeX compilation and PDF page counting that the 6-bullet layout fits strictly on 1 page across all 5 canonical engineering roles.
+
+**Core Architectural Implementations:**
+1. **Layout Engine & Calibration Budgeting (`src/services/resume-layout-engine.service.js`):**
+   - Line 697: Changed default `maxBulletsPerProject` from `(density === DENSE || density === OVERFULL ? 2 : 3)` to `3`.
+   - Line 752: In `calibrateLayoutFromMeasurement`, updated `maxBulletsPerProject: 3`.
+2. **LaTeX Document Generator Guarantee (`src/services/latex-document-generator.service.js`):**
+   - Line 358: Sliced project bullets with `Math.max(layoutProfile.maxBulletsPerProject || 3, 3)`, guaranteeing the renderer never slices below 3 bullets.
+3. **Resume Content Optimizer Protection (`src/services/resume-content-optimizer.service.js`):**
+   - Line 120: Defaulted `defaultMaxBullets` to `3`.
+   - Lines 565–578: Enforced `REMOVE_PROJECT_CLAIM` candidate move only if `p.bullets.length > 3`.
+   - Lines 630–645: Guarded deterministic compression so validated project bullets cannot be deleted or rewritten below 3 bullets.
+4. **Semantic Resume Freezing & Ranking Contract (`src/services/structured-resume.service.js`):**
+   - Added `projectBullets` to `freezeSemanticResume` and asserted bullet invariance in `assertSemanticEquivalence`.
+   - Preserved strict P46 ranking authority contract in `buildStructuredResumeDocument` (no unranked fallback), while populating rankings in `buildStructuredResumeSnapshot` when omitted.
+5. **Task Policy Model Optimization (`src/clients/ai/task-policy.js`):**
+   - Configured `gemini-3.5-flash-lite` for `RESUME_ACCOMPLISHMENT_SYNTHESIS` and `RESUME_SUMMARY_SYNTHESIS`, eliminating 429 quota exhaustion.
+6. **Accomplishment Prompt Policy (`src/clients/ai/prompt-policies/resume-accomplishment.policy.js`):**
+   - Updated `getTaskSpecificConstraints` to mandate 3 diverse aspects, complete sentences ending in `.`, action verb openers, zero fragments, and zero ungrounded technologies (like AWS).
+7. **AI Content Generator & Deterministic Fallback (`src/services/ai-resume-content-generator.service.js`):**
+   - In `generateJobConditionedProjectBullets`: Filtered out `feature-description` facts and fragment strings; backfilled strictly from candidate-authored accomplishment bullets; failed closed on `< 3` facts with `INSUFFICIENT_SOURCE_EVIDENCE`; prompted Gemini with the 3-aspect contract; validated returned bullets with `validateClaimEvidenceGrounding`.
+   - In `_synthesizeJobConditionedProjectBullets`: Ensured top 3 facts are formatted as complete sentences with punctuation and action verbs, passing claim evidence grounding.
+8. **Claim Validation Service (`src/services/resume-claim-validation.service.js`):**
+   - Added check 13b enforcing complete sentences (`INCOMPLETE_SENTENCE`) and action verb openers without fragment phrases (`FRAGMENT_BULLET`) for project bullets.
+   - Scoped `factsToCheck` to project-owned facts when `isProjectClaim === true`, preventing profile skills (e.g. AWS) from authorizing unbacked project bullet claims.
+
+**Verification & Test Results:**
+- `tests/unit/p54-project-bullet-content-fix.test.js`: **7/7 PASS**
+  1. Filters out repo description fragments and generates >= 3 accomplishment bullets.
+  2. Enforces complete sentence structure and action verb openers via ResumeClaimValidationService.
+  3. Fails closed with INSUFFICIENT_SOURCE_EVIDENCE if project has < 3 grounded facts.
+  4. Rejects unsupported technologies (AWS) in project bullet claims.
+  5. ResumeLayoutEngine calibrates maxBulletsPerProject to 3 (never 2).
+  6. LatexDocumentGenerator does not trim project bullets below 3.
+  7. End-to-end: Snapshot produces 2 projects with >= 3 bullets each (total >= 6 bullets).
+- `tests/unit/p50-production-resume-tailoring.test.js`: **17/17 PASS**
+- `tests/unit/p47-project-evidence-capacity.test.js`: **6/6 PASS**
+- `tests/unit/p46-ranking-authority-and-bullet-minimum.test.js`: **9/9 PASS**
+- `tests/unit/p53-taxonomy-noise-boundary.test.js`: **30/30 PASS**
+- `tests/unit/extension-prepare-handoff-regression.test.js`: **3/3 PASS**
+- **Live Real-AI Synthesis & Tectonic Compilation (`scratch/verify-p54-live-ai.js`):**
+  - **Full-Stack Engineer:** Real Gemini generation (3 bullets per project, 6 bullets total), Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+  - **Python Backend Engineer:** Real Gemini generation (3 bullets per project, 6 bullets total), Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+  - **Frontend Engineer:** Real Gemini generation (3 bullets per project, 6 bullets total), Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+  - **DevOps / Platform Engineer:** Real Gemini generation (3 bullets per project, 6 bullets total), Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+  - **Software Engineer:** Real Gemini generation (3 bullets per project, 6 bullets total), Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+
 ### PART 53: Production Defect Resolution — Taxonomy Noise Boundary & Extension Prepare-Handoff Scope Fix
 
 **Status:** COMPLETE & VERIFIED
