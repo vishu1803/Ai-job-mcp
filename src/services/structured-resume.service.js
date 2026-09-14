@@ -1166,20 +1166,6 @@ export function buildStructuredResumeDocument({
   // 9. Grounded Tailored Summary
   let summary = null;
   if (
-    incomingPlan?.summary &&
-    typeof incomingPlan.summary === 'object' &&
-    incomingPlan.summary.text
-  ) {
-    summary = {
-      text: incomingPlan.summary.text,
-      referencedSkillSlugs: incomingPlan.summary.referencedSkillSlugs || [],
-      referencedProjectIds: incomingPlan.summary.referencedProjectIds || [],
-      evidenceRefs: incomingPlan.summary.evidenceRefs || [],
-      matchedRequirementIds: incomingPlan.summary.matchedRequirementIds || [],
-      provenanceStatus: incomingPlan.summary.provenanceStatus || 'CLAIMED',
-      provenance: incomingPlan.summary.provenance || null,
-    };
-  } else if (
     options?.aiContent?.summary &&
     typeof options.aiContent.summary === 'object' &&
     typeof options.aiContent.summary.text === 'string' &&
@@ -1197,6 +1183,20 @@ export function buildStructuredResumeDocument({
       ...(options.aiContent.summary.sourceFact ? { sourceFact: options.aiContent.summary.sourceFact } : {}),
       ...(options.aiContent.summary.transformationType ? { transformationType: options.aiContent.summary.transformationType } : {}),
       ...(options.aiContent.summary.sentences ? { sentences: options.aiContent.summary.sentences } : {}),
+    };
+  } else if (
+    incomingPlan?.summary &&
+    typeof incomingPlan.summary === 'object' &&
+    incomingPlan.summary.text
+  ) {
+    summary = {
+      text: incomingPlan.summary.text,
+      referencedSkillSlugs: incomingPlan.summary.referencedSkillSlugs || [],
+      referencedProjectIds: incomingPlan.summary.referencedProjectIds || [],
+      evidenceRefs: incomingPlan.summary.evidenceRefs || [],
+      matchedRequirementIds: incomingPlan.summary.matchedRequirementIds || [],
+      provenanceStatus: incomingPlan.summary.provenanceStatus || 'CLAIMED',
+      provenance: incomingPlan.summary.provenance || null,
     };
   } else {
     const compSummary = composeProfessionalSummary({

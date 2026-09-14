@@ -331,6 +331,7 @@ export class JobApplicationWorkflowService {
         ? Array.from(options.submissionAdapters.values())
         : [];
     this.mcpAuditService = options.mcpAuditService || null;
+    this.aiProvider = options.aiProvider;
     this.logger = options.logger || defaultLogger;
   }
 

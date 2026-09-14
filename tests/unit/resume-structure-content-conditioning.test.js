@@ -514,7 +514,7 @@ describe('Resume Tailoring Model Contract & Invariants Suite', () => {
   // =========================================================================
   describe('CONTRACT 14 & 15: MCP and Extension Parity & No Legacy Path', () => {
     it('14. guarantees MCP and Extension converge on identical canonical structured resume selection', async () => {
-      const workflowService = new JobApplicationWorkflowService({ database: db });
+      const workflowService = new JobApplicationWorkflowService({ database: db, aiProvider: false });
 
       // Run canonical workflow
       const prep = await workflowService.prepareJobApplication({

@@ -5,13 +5,53 @@
 
 ### PART 49: AI Resume Content Generation Quality & Job-Adaptive Synthesis (Factual Grounding & Traceability)
 
-**Status:** COMPLETE & VERIFIED  
+**Status:** COMPLETE & VERIFIED (Deterministic Baseline & Real AI Provider Gate: 100% PASS)  
 **Date:** 2026-09-14  
-**Remote HEAD Base:** `0b60bf8310ea0b13a5aba151273489f4112607ae` (`main`, `origin/main`)  
+**Remote HEAD Base:** `41e6b30` (`main`, `origin/main`)  
 **Production Candidate:** `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad)  
 **MCP Context:** `{ tenantId: '24d53f53-780e-4431-b065-32180c354175', userId: '9dd8e4fb-456b-4104-9cb1-c839a544b721', role: 'OWNER' }`  
+**Production AI Model Used:** `gemini` / `gemini-3.6-flash` (via Google AI Studio Developer API)  
 
-**Verification Suites & Evidence:**  
+**Real AI Provider Validation Gate (Hard Mandate: Real Model Required, No `aiProvider: false`):**  
+- **Verdict:** **PASS** (100% Real AI Provider Execution Across All 4 Target Roles, Zero Fallback)  
+- **Root Causes Fixed:**  
+  1. *Prompt Policy Schema Attachment (`RESUME_SUMMARY_SYNTHESIS`):* Attached `ResumeSummaryResponseSchema` to `ResumeSummaryPolicy.responseSchema` in constructor. Ensured Gemini receives the full structured schema with strict types and properties rather than `{}`.  
+  2. *Accomplishment Schema Contract (`RESUME_ACCOMPLISHMENT_SYNTHESIS`):* Defined `ResumeAccomplishmentResponseSchema` as `{ bullets: z.array(ResumeAccomplishmentBulletSchema).min(3), writingRationale, confidence }`. Attached to `ResumeAccomplishmentPolicy.responseSchema`, matching the exact shape consumed by `generateJobConditionedProjectBullets`.  
+  3. *Production Model Configuration & Token Headroom:* Set `preferredModelId: 'gemini-3.6-flash'` with `fallbackModelId: 'gemini-2.5-flash'` in `src/clients/ai/task-policy.js`. Increased `maxOutputTokens` to 4096 and `timeoutMs` to 15000, preventing JSON truncation caused by thinking token budget.  
+  4. *Provider Resolution Logic in Generator:* Fixed `_resolveActiveProvider` and constructor in `AiResumeContentGeneratorService` to resolve `getDefaultAiProvider()` when `aiProvider` is undefined, while strictly respecting explicit `false`/`null` opt-outs.  
+  5. *Structured Resume Precedence Alignment:* In `src/services/structured-resume.service.js`, placed `options?.aiContent?.summary` prior to default `incomingPlan.summary` so that genuine AI syntheses (`transformationType: 'REWRITE'`) are never masked by deterministic draft summaries.  
+
+**Real-AI 4-Job Evidence Ledger (`scratch/p49-real-ai-evaluation-report.json`):**  
+1. **Full-Stack Engineer (Senior Full-Stack Engineer @ Nexus Innovations):**  
+   - Model: `gemini-3.6-flash` | Fallback: `false` | Execution: 55,128ms  
+   - Summary (`REWRITE`): *"Full-Stack Developer skilled in constructing modular backends and dynamic web interfaces using TypeScript, NestJS, Next.js, and React. Demonstrates background in building PostgreSQL persistence layers, Redis caching, and asynchronous FastAPI endpoints for high-concurrency real-time processing. Experienced in delivering RESTful APIs and modern user interfaces with Tailwind CSS and Vite."*  
+     - Fact IDs: `['20ea16bd56af939449c7f08d', '1df21aaa4523094fd4b2caef', '0435cbc63553b9b994be5c81', '0e9a94f0d07f5560088a23b1']` (Grounding: 0 violations, PASS)  
+   - Project 1 (Collaborative Task Manager): 3 bullets (`COMBINE`, `REWRITE`, `REWRITE`), Fact IDs: `cc72530e5396ed36b9fd0683`, `3b3e509d644767f738c38867`, `804ee5c97a54ba0d971e7ef6`, `735f6df7e471d08ddbd630ed` (PASS)  
+   - Project 2 (AI-Powered Code Review Assistant): 3 bullets (`REWRITE`, `COMBINE`, `REWRITE`), Fact IDs: `1df21aaa4523094fd4b2caef`, `4bb8016ba4dca212d039423a`, `3579f8b33d3ddf7cad14c34d`, `97b5c395cefa3df2112dbaf6` (PASS)  
+   - Artifacts: 1-page PDF generated via Tectonic, Receipt: PASS  
+2. **Python Backend Engineer (Senior Python Backend Engineer @ PyCore Systems):**  
+   - Model: `gemini-3.6-flash` | Fallback: `false` | Execution: 57,605ms  
+   - Summary (`REWRITE`): *"Full-Stack and Backend Developer with hands-on experience engineering asynchronous Python services using Flask and FastAPI for real-time webhook processing and AI integrations. Demonstrates expertise in architecting robust RESTful APIs, configuring PostgreSQL persistence, and deploying Redis caching layers to handle high concurrency and backend responsiveness."*  
+     - Fact IDs: `['1df21aaa4523094fd4b2caef', '20ea16bd56af939449c7f08d', '0e9a94f0d07f5560088a23b1']` (Grounding: 0 violations, PASS)  
+   - Project 1 (AI-Powered Code Review Assistant): 3 bullets (`COMBINE`, `COMBINE`, `REWRITE`), Fact IDs: `1df21aaa4523094fd4b2caef`, `3579f8b33d3ddf7cad14c34d`, `4bb8016ba4dca212d039423a`, `97b5c395cefa3df2112dbaf6` (PASS)  
+   - Project 2 (Collaborative Task Manager): 3 bullets (`REWRITE`, `COMBINE`, `COMBINE`), Fact IDs: `3b3e509d644767f738c38867`, `cc72530e5396ed36b9fd0683`, `735f6df7e471d08ddbd630ed`, `804ee5c97a54ba0d971e7ef6` (PASS)  
+   - Artifacts: 1-page PDF generated via Tectonic, Receipt: PASS  
+3. **Frontend Engineer (Senior Frontend Engineer @ PixelCraft Labs):**  
+   - Model: `gemini-3.6-flash` | Fallback: `false` | Execution: 72,041ms  
+   - Summary (`REWRITE`): *"Vishwanath Nishad is a Full-Stack & Backend Developer with strong capabilities in modern frontend development, leveraging React, Next.js, and Tailwind CSS to build interactive web applications. He has engineered a real-time object detection web application using React and Vite, and contributed to Next.js-based projects such as a Collaborative Task Manager and Product Data Explorer, showcasing experience in developing robust and data-driven user interfaces."*  
+     - Fact IDs: `['10f082f597be129ead486fad', '1f59f3d090c023946ffb32c4', '004580d1f73bb425666f3a1e', '0435cbc63553b9b994be5c81']` (Grounding: 0 violations, PASS)  
+   - Project 1 (Collaborative Task Manager): 3 bullets (`REWRITE`, `REWRITE`, `REWRITE`), Fact IDs: `3b3e509d644767f738c38867`, `735f6df7e471d08ddbd630ed`, `cc72530e5396ed36b9fd0683` (PASS)  
+   - Project 2 (Product Data Explorer): 3 bullets (`REWRITE`, `REWRITE`, `REWRITE`), Fact IDs: `c1a79710c94f9cde150521e1`, `20ea16bd56af939449c7f08d`, `f94c101647ec9a3a70b4c035` (PASS)  
+   - Artifacts: 1-page PDF generated via Tectonic, Receipt: PASS  
+4. **DevOps / Platform Engineer (DevOps / Platform Engineer @ CloudScale Infrastructure):**  
+   - Model: `gemini-3.6-flash` | Fallback: `false` | Execution: 85,309ms  
+   - Summary (`REWRITE`): *"Vishwanath Nishad is a backend-focused engineer with experience in architecting scalable applications using NestJS, FastAPI, and Express.js, integrating robust data persistence with PostgreSQL and optimizing performance through Redis caching. He further demonstrates platform engineering capabilities through the implementation of CI/CD pipelines with GitHub Actions and containerization using Docker Compose, ensuring high concurrency and application availability for complex systems."*  
+     - Fact IDs: `['20ea16bd56af939449c7f08d', '1df21aaa4523094fd4b2caef', '1b0047785d17a1a8318653a9', '228dbdcc040421a41994d2c7', '2b14ed4a7f6b056e8e9a8277', '148a987084b7401576fb9260']` (Grounding: 0 violations, PASS)  
+   - Project 1 (AI-Powered Code Review Assistant): 3 bullets (`EMPHASIZE` from verified candidate webhook/concurrency facts), Fact IDs: `1df21aaa4523094fd4b2caef`, `3579f8b33d3ddf7cad14c34d`, `4bb8016ba4dca212d039423a` (PASS)  
+   - Project 2 (Collaborative Task Manager): 3 bullets (`REWRITE`, `REWRITE`, `COMBINE`), Fact IDs: `3b3e509d644767f738c38867`, `cc72530e5396ed36b9fd0683`, `735f6df7e471d08ddbd630ed` (PASS)  
+   - Artifacts: 1-page PDF generated via Tectonic, Receipt: PASS
+
+**Deterministic Fallback Verification Suites & Evidence (aiProvider: false):**  
 - Dedicated AI Content Generation Quality & Factual Grounding Suite: `node --test tests/unit/ai-content-generation-quality.test.js` (16/16 passed, 0 failed, 100% pass)  
   1. Professional summary adaptation across 4 contrasting roles (Full-Stack, Python Backend, Frontend, DevOps): PASS  
   2. Pairwise Jaccard word similarity < 0.60 across all job pairs (zero static fill-in templates): PASS  

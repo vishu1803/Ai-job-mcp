@@ -14,16 +14,25 @@ import { BasePromptPolicy } from './base-policy.js';
 /**
  * Zod response schema contract for Gemini accomplishment synthesis.
  */
-export const ResumeAccomplishmentResponseSchema = z.object({
-  claimId: z.string().trim().min(1),
+export const ResumeAccomplishmentBulletSchema = z.object({
+  claimId: z.string().trim().default(''),
   text: z.string().trim().min(10).max(500),
   factIds: z.array(z.string().trim()).min(1),
+  transformationType: z
+    .enum(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'])
+    .default('REWRITE'),
   semanticDimensions: z.array(z.string().trim()).default([]),
   metricsUsed: z.array(z.string().trim()).default([]),
   technologiesUsed: z.array(z.string().trim()).default([]),
   unsupportedClaims: z.array(z.string().trim()).default([]),
-  descriptionOnly: z.boolean().default(false),
-  redundancyRisk: z.number().min(0).max(1).default(0),
+  writingRationale: z.string().trim().default(''),
+});
+
+/**
+ * Zod response schema contract for Gemini accomplishment synthesis (bullets array).
+ */
+export const ResumeAccomplishmentResponseSchema = z.object({
+  bullets: z.array(ResumeAccomplishmentBulletSchema).min(3),
   writingRationale: z.string().trim().default(''),
   confidence: z.number().min(0).max(1).default(1.0),
 });
@@ -42,12 +51,14 @@ export class ResumeAccomplishmentPolicy extends BasePromptPolicy {
         maxJobTextLength: 8000,
       },
     });
+    this.responseSchema = ResumeAccomplishmentResponseSchema;
   }
 
   getTaskSpecificConstraints() {
     return `=== RESUME ACCOMPLISHMENT REALIZATION CONSTRAINTS ===
 1. PRIMARY WRITING OBJECTIVE:
-   Synthesize a single, powerful engineering bullet statement adhering to:
+   Synthesize at least 3 concise, powerful engineering accomplishment bullets for the project, returned in { bullets: [...] }.
+   Each bullet must strictly adhere to:
    [ACTION VERB] + [ENGINEERING OBJECT / SYSTEM] + [TECHNICAL METHOD / MECHANISM] + [PURPOSE / OUTCOME (if supported)]
    Examples of preferred professional structure:
    - "Architected X using Y to support Z."

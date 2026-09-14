@@ -38,6 +38,7 @@ export class ResumeSummaryPolicy extends BasePromptPolicy {
         maxJobTextLength: 8000,
       },
     });
+    this.responseSchema = ResumeSummaryResponseSchema;
   }
 
   getTaskSpecificConstraints() {

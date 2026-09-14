@@ -36,11 +36,11 @@ export class AiResumeContentGeneratorService {
    * @param {import('../clients/ai/ai-provider.interface.js').AiProvider} [options.aiProvider]
    */
   constructor(options = {}) {
-    this.aiProvider = options.aiProvider !== undefined ? options.aiProvider : null;
+    this.aiProvider = options.aiProvider !== undefined ? options.aiProvider : undefined;
   }
 
   /**
-   * Resolves the active AI provider honoring explicit opt-outs (false/null).
+   * Resolves the active AI provider honoring explicit opt-outs (false).
    *
    * @private
    * @param {*} aiProvider
@@ -48,9 +48,9 @@ export class AiResumeContentGeneratorService {
    */
   _resolveActiveProvider(aiProvider) {
     if (aiProvider === false || aiProvider === null) return null;
-    if (aiProvider) return aiProvider;
+    if (aiProvider !== undefined) return aiProvider;
     if (this.aiProvider === false || this.aiProvider === null) return null;
-    if (this.aiProvider) return this.aiProvider;
+    if (this.aiProvider !== undefined) return this.aiProvider;
     try {
       return getDefaultAiProvider();
     } catch {
@@ -179,9 +179,9 @@ export class AiResumeContentGeneratorService {
     const candidate = candidateProfile || {};
     const job = targetJobPosting || {};
 
-    const availableFacts = Array.isArray(factInventory)
+    const availableFacts = (Array.isArray(factInventory) && factInventory.length > 0)
       ? factInventory
-      : candidate.facts || [];
+      : (candidateProfile ? (buildCanonicalFactInventory(candidateProfile, targetJobPosting)?.facts || []) : []);
 
     // Extract relevant skills and verified technologies
     const verifiedSkillsList = (
@@ -211,7 +211,7 @@ export class AiResumeContentGeneratorService {
           metrics: f.metrics || [],
         }));
 
-        const prompt = `Synthesize a job-conditioned 2-to-3 sentence professional resume summary for ${candidate.displayName || 'the candidate'} targeting the position of "${targetTitle}". Emphasize real architectural capabilities and accomplishments verified in the provided candidate facts matching "${targetTitle}". Do not use boilerplate templates.`;
+        const prompt = `Synthesize a job-conditioned 2-to-3 sentence professional resume summary for ${candidate.displayName || 'the candidate'} targeting the position of "${targetTitle}". Emphasize real architectural capabilities and accomplishments verified in the provided candidate facts matching "${targetTitle}". Map contributing candidate fact IDs into composedFromFactIds[]. Do not use boilerplate templates.`;
 
         const aiResponse = await activeProvider.generateStructured({
           taskType: 'RESUME_SUMMARY_SYNTHESIS',
@@ -274,11 +274,17 @@ export class AiResumeContentGeneratorService {
                 sourceFact: sourceFacts,
                 transformationType: 'REWRITE',
               };
+            } else {
+              console.warn('[AiResumeContentGenerator] Summary grounding failed:', groundingResult.violations);
             }
+          } else {
+            console.warn('[AiResumeContentGenerator] Summary shape check failed. length:', generatedText.length, 'validFactIds:', validFactIds);
           }
+        } else {
+          console.warn('[AiResumeContentGenerator] Summary aiResponse.data missing summaryText:', aiResponse?.data);
         }
-      } catch {
-        // Fallback to deterministic evidence-grounded synthesizer on AI error
+      } catch (err) {
+        console.error('[AiResumeContentGenerator] Summary generation exception:', err.message || err);
       }
     }
 
@@ -617,7 +623,7 @@ export class AiResumeContentGeneratorService {
           metrics: f.metrics || [],
         }));
 
-        const prompt = `Rewrite and synthesize 3 concise, professional engineering accomplishment bullets for project "${proj.name || proj.title}". Tailor the focus toward the requirements of target position "${job.title || 'Software Engineer'}" without hallucinating any new metrics, technologies, or claims.`;
+        const prompt = `Rewrite and synthesize 3 concise, professional engineering accomplishment bullets for project "${proj.name || proj.title}". Tailor the focus toward the requirements of target position "${job.title || 'Software Engineer'}" without hallucinating any new metrics, technologies, or claims. Map each bullet back to its exact contributing factId in factIds[]. Return { bullets: [...] }.`;
 
         const aiResponse = await activeProvider.generateStructured({
           taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
@@ -676,14 +682,20 @@ export class AiResumeContentGeneratorService {
                 sourceFact: finalSourceFact,
                 transformationType,
               });
+            } else {
+              console.warn('[AiResumeContentGenerator] Bullet grounding failed:', validation.violations);
             }
           }
           if (validatedBullets.length >= 3) {
             return validatedBullets.slice(0, 3);
+          } else {
+            console.warn('[AiResumeContentGenerator] Validated bullets count < 3:', validatedBullets.length);
           }
+        } else {
+          console.warn('[AiResumeContentGenerator] Bullets aiResponse.data missing or < 3:', aiResponse?.data);
         }
-      } catch {
-        // Fallback to deterministic realization on AI error
+      } catch (err) {
+        console.error('[AiResumeContentGenerator] Project bullets exception:', err.message || err);
       }
     }
 
