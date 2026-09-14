@@ -27,6 +27,8 @@ import {
   freezeSemanticResume,
   assertSemanticEquivalence,
 } from '../../src/services/structured-resume.service.js';
+import { validateClaimEvidenceGrounding } from '../../src/services/resume-claim-validation.service.js';
+import { buildCanonicalFactInventory } from '../../src/services/candidate-fact-inventory.service.js';
 
 /**
  * Computes Jaccard word similarity between two text strings.
@@ -128,7 +130,7 @@ describe('AI Resume Content Generation Quality Suite', () => {
   before(async () => {
     const profileService = new CandidateProfileService();
     candidateProfile = await profileService.getProfile(mcpContext, CANDIDATE_ID);
-    workflowService = new JobApplicationWorkflowService({ database: db });
+    workflowService = new JobApplicationWorkflowService({ database: db, aiProvider: false });
 
     // Prepare packages for all 4 jobs
     results.fullStack = await workflowService.prepareJobApplication({
@@ -249,7 +251,7 @@ describe('AI Resume Content Generation Quality Suite', () => {
       );
     });
 
-    it('ensures all summaries preserve valid composedFromFactIds and evidenceRefs', () => {
+    it('ensures all summaries preserve valid composedFromFactIds, evidenceRefs, sourceFact, and transformationType', () => {
       for (const [key, pkg] of Object.entries(results)) {
         const summary = pkg.tailoredResume?.structuredResume?.summary;
         assert.ok(Array.isArray(summary.composedFromFactIds), `${key} must have composedFromFactIds array`);
@@ -257,6 +259,22 @@ describe('AI Resume Content Generation Quality Suite', () => {
         assert.ok(Array.isArray(summary.evidenceRefs), `${key} summary must have evidenceRefs array`);
         assert.ok(summary.evidenceRefs.length > 0, `${key} summary must have evidence refs`);
         assert.strictEqual(summary.provenanceStatus, 'VERIFIED', `${key} summary provenanceStatus must be VERIFIED`);
+        assert.ok(summary.sourceFact, `${key} summary must have sourceFact`);
+        assert.ok(
+          ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(summary.transformationType),
+          `${key} summary must have valid transformationType`
+        );
+        if (Array.isArray(summary.sentences) && summary.sentences.length > 0) {
+          for (const s of summary.sentences) {
+            assert.ok(s.text, `${key} summary sentence must have text`);
+            assert.ok(s.composedFromFactIds?.length > 0, `${key} summary sentence must have composedFromFactIds`);
+            assert.ok(s.sourceFact, `${key} summary sentence must have sourceFact`);
+            assert.ok(
+              ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(s.transformationType),
+              `${key} summary sentence must have valid transformationType`
+            );
+          }
+        }
       }
     });
   });
@@ -300,7 +318,7 @@ describe('AI Resume Content Generation Quality Suite', () => {
       }
     });
 
-    it('ensures every project bullet is strictly candidate-supported with valid fact IDs', () => {
+    it('ensures every project bullet is strictly candidate-supported with valid fact IDs, sourceFact, and transformationType', () => {
       for (const [key, pkg] of Object.entries(results)) {
         const projects = pkg.tailoredResume?.structuredResume?.projects || [];
         for (const proj of projects) {
@@ -313,6 +331,11 @@ describe('AI Resume Content Generation Quality Suite', () => {
             assert.ok(
               Array.isArray(bullet.evidenceRefs) && bullet.evidenceRefs.length > 0,
               `Bullet in ${proj.name} must have valid evidenceRefs`
+            );
+            assert.ok(bullet.sourceFact, `Bullet in ${proj.name} must have sourceFact`);
+            assert.ok(
+              ['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM'].includes(bullet.transformationType),
+              `Bullet in ${proj.name} must have valid transformationType (got ${bullet.transformationType})`
             );
           }
         }
@@ -406,6 +429,192 @@ describe('AI Resume Content Generation Quality Suite', () => {
           `MCP and Extension must produce identical bullets for project ${workflowProjNames[i]}`
         );
       }
+    });
+  });
+
+  // =========================================================================
+  // 5. Strict Evidence-Grounding and Anti-Fabrication Hard Regression Tests
+  // =========================================================================
+  describe('5. Strict Evidence-Grounding and Anti-Fabrication Hard Regression Tests', () => {
+    let factInventory = null;
+    let authenticFact = null;
+    let validationContext = null;
+
+    before(() => {
+      factInventory = buildCanonicalFactInventory(candidateProfile, jobFullStack).facts;
+      // Pick an authentic candidate-authored bullet fact for Vishwanath Nishad
+      authenticFact =
+        factInventory.find(
+          (f) =>
+            f.text &&
+            f.text.includes('OpenAI API') &&
+            f.agencyLevel === 'CANDIDATE' &&
+            f.candidateAuthored
+        ) || factInventory[0];
+      validationContext = {
+        factInventory,
+        candidateProfile,
+        sectionOwnerType: 'PROJECT',
+        sectionOwnerId: authenticFact.association?.projectId || authenticFact.projectId || 'proj',
+        project: {
+          id: authenticFact.association?.projectId || authenticFact.projectId || 'proj',
+          name: 'AI-Powered Code Review Assistant',
+          technologies: ['Python', 'FastAPI', 'Flask', 'OpenAI', 'Git'],
+        },
+      };
+    });
+
+    it('rejects claims with unauthorized technologies (Raft, Kubernetes, Kafka, Prometheus)', () => {
+      const claim = {
+        text: 'Architected distributed consensus engine using Raft and Apache Kafka for event streaming.',
+        composedFromFactIds: [authenticFact.factId],
+        sourceFact: authenticFact.text,
+        transformationType: 'REWRITE',
+      };
+
+      const result = validateClaimEvidenceGrounding(claim, validationContext);
+      assert.strictEqual(result.valid, false, 'Claim with Raft and Kafka must be rejected');
+      assert.ok(
+        result.violations.some(
+          (v) => v.code === 'UNAUTHORIZED_TECHNOLOGY' || v.code === 'UNSUPPORTED_ARCHITECTURE_CLAIM'
+        ),
+        'Must report UNAUTHORIZED_TECHNOLOGY or UNSUPPORTED_ARCHITECTURE_CLAIM violation'
+      );
+    });
+
+    it('rejects claims with unbacked metrics or percentages (65% latency reduction, 10,000 items)', () => {
+      const claim = {
+        text: 'Optimized PostgreSQL database queries resulting in a 65% latency reduction across 10,000 items.',
+        composedFromFactIds: [authenticFact.factId],
+        sourceFact: authenticFact.text,
+        transformationType: 'REWRITE',
+      };
+
+      const result = validateClaimEvidenceGrounding(claim, validationContext);
+      assert.strictEqual(result.valid, false, 'Claim with unbacked 65% latency and 10,000 items must be rejected');
+      assert.ok(
+        result.violations.some((v) => v.code === 'UNSUPPORTED_METRIC'),
+        'Must report UNSUPPORTED_METRIC violation'
+      );
+    });
+
+    it('rejects technology substitution (substituting Gemini API when candidate used OpenAI API)', () => {
+      const claim = {
+        text: 'Developed automated code review assistant integrating Gemini API to analyze GitHub Pull Requests.',
+        composedFromFactIds: [authenticFact.factId],
+        sourceFact: authenticFact.text, // authenticFact explicitly uses OpenAI API
+        transformationType: 'REWRITE',
+      };
+
+      const result = validateClaimEvidenceGrounding(claim, validationContext);
+      assert.strictEqual(result.valid, false, 'Substituting Gemini API for OpenAI API must be rejected');
+      assert.ok(
+        result.violations.some(
+          (v) => v.code === 'TECHNOLOGY_SUBSTITUTION' || v.code === 'UNAUTHORIZED_TECHNOLOGY'
+        ),
+        'Must report TECHNOLOGY_SUBSTITUTION or UNAUTHORIZED_TECHNOLOGY violation'
+      );
+    });
+
+    it('rejects unbacked architecture mechanisms (AST parsing)', () => {
+      const claim = {
+        text: 'Built code review scanner using AST parsing to analyze Python pull requests for syntax errors.',
+        composedFromFactIds: [authenticFact.factId],
+        sourceFact: authenticFact.text,
+        transformationType: 'REWRITE',
+      };
+
+      const result = validateClaimEvidenceGrounding(claim, validationContext);
+      assert.strictEqual(result.valid, false, 'Unbacked AST parsing architecture must be rejected');
+      assert.ok(
+        result.violations.some((v) => v.code === 'UNSUPPORTED_ARCHITECTURE_CLAIM'),
+        'Must report UNSUPPORTED_ARCHITECTURE_CLAIM violation'
+      );
+    });
+
+    it('rejects empty fact IDs, missing source facts, and invalid transformation types', () => {
+      // 1. Empty fact IDs
+      const emptyFactsClaim = {
+        text: 'Engineered high performance backend services with Python.',
+        composedFromFactIds: [],
+        sourceFact: authenticFact.text,
+        transformationType: 'EMPHASIZE',
+      };
+      const res1 = validateClaimEvidenceGrounding(emptyFactsClaim, validationContext);
+      assert.strictEqual(res1.valid, false);
+      assert.ok(res1.violations.some((v) => v.code === 'EMPTY_FACT_IDS'));
+
+      // 2. Unknown fact ID
+      const unknownFactClaim = {
+        text: 'Engineered high performance backend services with Python.',
+        composedFromFactIds: ['non-existent-fact-id-99999'],
+        sourceFact: authenticFact.text,
+        transformationType: 'EMPHASIZE',
+      };
+      const res2 = validateClaimEvidenceGrounding(unknownFactClaim, validationContext);
+      assert.strictEqual(res2.valid, false);
+      assert.ok(res2.violations.some((v) => v.code === 'UNKNOWN_FACT_ID'));
+
+      // 3. Missing sourceFact
+      const missingSourceClaim = {
+        text: 'Engineered high performance backend services with Python.',
+        composedFromFactIds: [authenticFact.factId],
+        transformationType: 'EMPHASIZE',
+      };
+      const res3 = validateClaimEvidenceGrounding(missingSourceClaim, validationContext);
+      assert.strictEqual(res3.valid, false);
+      assert.ok(res3.violations.some((v) => v.code === 'MISSING_SOURCE_FACT'));
+
+      // 4. Invalid transformationType
+      const invalidTransformClaim = {
+        text: 'Engineered high performance backend services with Python.',
+        composedFromFactIds: [authenticFact.factId],
+        sourceFact: authenticFact.text,
+        transformationType: 'HALLUCINATE',
+      };
+      const res4 = validateClaimEvidenceGrounding(invalidTransformClaim, validationContext);
+      assert.strictEqual(res4.valid, false);
+      assert.ok(res4.violations.some((v) => v.code === 'INVALID_TRANSFORMATION_TYPE'));
+    });
+
+    it('rejects claims referencing foreign candidate fact IDs', () => {
+      const foreignFact = {
+        factId: 'foreign-fact-123',
+        candidateId: 'different-candidate-uuid-8888',
+        text: 'Engineered distributed caching layer in Redis.',
+        technologies: ['Redis'],
+      };
+      const contextWithForeignFact = {
+        ...validationContext,
+        factInventory: [...factInventory, foreignFact],
+      };
+
+      const claim = {
+        text: 'Engineered distributed caching layer in Redis.',
+        composedFromFactIds: ['foreign-fact-123'],
+        sourceFact: foreignFact.text,
+        transformationType: 'VERBATIM',
+      };
+
+      const result = validateClaimEvidenceGrounding(claim, contextWithForeignFact);
+      assert.strictEqual(result.valid, false);
+      assert.ok(
+        result.violations.some((v) => v.code === 'FOREIGN_CANDIDATE_FACT'),
+        'Must reject facts from foreign candidate IDs'
+      );
+    });
+
+    it('accepts genuine candidate claims supported by authentic candidate evidence', () => {
+      const genuineClaim = {
+        text: 'Developed an intelligent automated code review system by integrating OpenAI API to analyze GitHub Pull Requests, identifying style issues and suggesting bug fixes.',
+        composedFromFactIds: [authenticFact.factId],
+        sourceFact: authenticFact.text,
+        transformationType: 'EMPHASIZE',
+      };
+
+      const result = validateClaimEvidenceGrounding(genuineClaim, validationContext);
+      assert.strictEqual(result.valid, true, `Genuine claim must be valid, got violations: ${JSON.stringify(result.violations)}`);
+      assert.strictEqual(result.violations.length, 0);
     });
   });
 });

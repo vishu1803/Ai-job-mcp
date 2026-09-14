@@ -879,9 +879,14 @@ export function buildStructuredResumeDocument({
     // Job-conditioned AI bullet injection with evidence preservation
     const aiBullets =
       options?.aiContent?.projectBullets?.[selectedId] ||
+      (proj.id ? options?.aiContent?.projectBullets?.[proj.id] : null) ||
+      (proj.projectId ? options?.aiContent?.projectBullets?.[proj.projectId] : null) ||
       (proj.name ? options?.aiContent?.projectBullets?.[proj.name] : null) ||
       (proj.title ? options?.aiContent?.projectBullets?.[proj.title] : null) ||
-      (proj.name ? options?.aiContent?.projectBullets?.[slugifyProject(proj.name)] : null);
+      (proj.displayName ? options?.aiContent?.projectBullets?.[proj.displayName] : null) ||
+      (proj.name ? options?.aiContent?.projectBullets?.[slugifyProject(proj.name)] : null) ||
+      (proj.title ? options?.aiContent?.projectBullets?.[slugifyProject(proj.title)] : null) ||
+      (proj.displayName ? options?.aiContent?.projectBullets?.[slugifyProject(proj.displayName)] : null);
 
     if (Array.isArray(aiBullets) && aiBullets.length >= 3) {
       pBullets = aiBullets.map((b, bIdx) => {
@@ -907,6 +912,8 @@ export function buildStructuredResumeDocument({
           matchedRequirementIds: Array.isArray(b.matchedRequirementIds) ? b.matchedRequirementIds : [],
           composedFromFactIds: factIds,
           provenanceStatus: 'VERIFIED',
+          ...(b.sourceFact ? { sourceFact: b.sourceFact } : {}),
+          ...(b.transformationType ? { transformationType: b.transformationType } : {}),
         };
       });
     } else if (useFactComposition && projectFacts.length > 0) {
@@ -1187,6 +1194,9 @@ export function buildStructuredResumeDocument({
       composedFromFactIds: options.aiContent.summary.composedFromFactIds || [],
       provenanceStatus: 'VERIFIED',
       provenance: options.aiContent.summary.provenance || null,
+      ...(options.aiContent.summary.sourceFact ? { sourceFact: options.aiContent.summary.sourceFact } : {}),
+      ...(options.aiContent.summary.transformationType ? { transformationType: options.aiContent.summary.transformationType } : {}),
+      ...(options.aiContent.summary.sentences ? { sentences: options.aiContent.summary.sentences } : {}),
     };
   } else {
     const compSummary = composeProfessionalSummary({

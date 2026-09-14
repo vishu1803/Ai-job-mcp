@@ -937,10 +937,21 @@ export class JobApplicationWorkflowService {
     }
 
     // Generate AI-conditioned Professional Summary and Project Bullets (Content Generation Quality)
-    const topSelectedProjects = (selectedProjectsList.length > 0
-      ? selectedProjectsList
-      : authoritativeRankings
+    const candidateProjects = candidateProfileInput.projects || cand.projects || [];
+    const topProjectIdentifiers = (authoritativeRankings.length > 0
+      ? authoritativeRankings
+      : selectedProjectsList
     ).slice(0, 2);
+    const topSelectedProjects = topProjectIdentifiers.map((item) => {
+      const pId = item.id || item.projectId;
+      const pName = item.name || item.projectName || item.title;
+      const matched = candidateProjects.find(
+        (cp) =>
+          (pId && (cp.id === pId || cp.projectId === pId)) ||
+          (pName && (cp.name === pName || cp.title === pName))
+      );
+      return matched || item;
+    });
 
     let aiContent = null;
     try {
@@ -1519,12 +1530,28 @@ export class JobApplicationWorkflowService {
       currentPkg?.jobFitAnalysis?.topRelevantProjects ||
       [];
 
+    const candidateProjectsForRegen = candidateProfileInput.projects || cand.projects || [];
+    const topDraftIdentifiers = (authoritativeDraftRankings.length > 0
+      ? authoritativeDraftRankings
+      : selectedProjectsList
+    ).slice(0, 2);
+    const topDraftSelectedProjects = topDraftIdentifiers.map((item) => {
+      const pId = item.id || item.projectId;
+      const pName = item.name || item.projectName || item.title;
+      const matched = candidateProjectsForRegen.find(
+        (cp) =>
+          (pId && (cp.id === pId || cp.projectId === pId)) ||
+          (pName && (cp.name === pName || cp.title === pName))
+      );
+      return matched || item;
+    });
+
     let aiContent = null;
     try {
       aiContent = await defaultAiResumeContentGenerator.generateResumeAiContent({
         candidateProfile: candidateProfileInput,
         targetJobPosting: jobPosting,
-        selectedProjects: selectedProjectsList.slice(0, 2),
+        selectedProjects: topDraftSelectedProjects,
         selectedSkills: verifiedSkills,
         factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
         aiProvider: this.aiProvider,

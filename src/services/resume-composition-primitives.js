@@ -1401,6 +1401,8 @@ export function toEvidenceReference(rawRef, defaultSourceType = 'VERIFIED') {
     confidenceScore: typeof rawRef.confidenceScore === 'number' ? rawRef.confidenceScore : 1.0,
     provenanceTrustClass: rawRef.provenanceTrustClass || null,
     notes: rawRef.notes || null,
+    factId: rawRef.factId || null,
+    sourceRef: rawRef.sourceRef || rawRef.factId || null,
   };
 }
 

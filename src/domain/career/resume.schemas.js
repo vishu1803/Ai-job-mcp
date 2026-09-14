@@ -511,6 +511,14 @@ export const TailoredSummarySchema = z
     composedFromFactIds: z.array(z.string().trim()).default([]),
     provenanceStatus: StructuredTruthCategoryEnum.default('CLAIMED'),
     provenance: EvidenceReferenceSchema.optional().nullable(),
+    sourceFact: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+    transformationType: z.enum(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM']).optional().nullable(),
+    sentences: z.array(z.object({
+      text: z.string(),
+      composedFromFactIds: z.array(z.string()).default([]),
+      sourceFact: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+      transformationType: z.string().optional().nullable(),
+    })).optional().nullable(),
   })
   .strict();
 
@@ -541,6 +549,8 @@ export const TailoredProjectBulletSchema = z
     matchedRequirementIds: z.array(z.string().trim()).default([]),
     composedFromFactIds: z.array(z.string().trim()).default([]),
     provenanceStatus: StructuredTruthCategoryEnum.default('VERIFIED'),
+    sourceFact: z.union([z.string(), z.array(z.string())]).optional().nullable(),
+    transformationType: z.enum(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM']).optional().nullable(),
   })
   .strict();
 

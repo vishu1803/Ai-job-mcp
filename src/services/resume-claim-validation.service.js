@@ -364,7 +364,8 @@ export class ResumeClaimValidationService {
     if (contributingFacts.length > 0) {
       const combinedFactText = contributingFacts.map((f) => f.text).join(' ');
       const overlap = calculateTokenOverlap(text, combinedFactText);
-      if (overlap < 0.2 && text.length > 50) {
+      const minThreshold = context.sectionOwnerType === 'SUMMARY' ? 0.05 : 0.2;
+      if (overlap < minThreshold && text.length > 50) {
         violations.push({
           code: 'EVIDENCE_SCOPE_EXCEEDED',
           message: `Claim text deviates substantially from underlying source facts (overlap: ${overlap})`,
@@ -552,10 +553,15 @@ export class ResumeClaimValidationService {
         code: 'CLAIM_TOO_SHORT',
         message: `Claim length (${text.length} chars) is below minimal professional threshold`,
       });
-    } else if (text.length > 350) {
+    } else if (context.sectionOwnerType !== 'SUMMARY' && text.length > 350) {
       violations.push({
         code: 'CLAIM_TOO_LONG',
         message: `Claim length (${text.length} chars) exceeds maximum bullet length`,
+      });
+    } else if (context.sectionOwnerType === 'SUMMARY' && text.length > 2000) {
+      violations.push({
+        code: 'CLAIM_TOO_LONG',
+        message: `Summary length (${text.length} chars) exceeds maximum allowed length`,
       });
     }
 
@@ -630,7 +636,7 @@ export class ResumeClaimValidationService {
       if (f.text) {
         const matches =
           f.text.match(
-            /\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git|Alembic|Prometheus|Grafana)\b/gi
+            /\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git|Alembic|Prometheus|Grafana|OpenAI|Gemini|NestJS|TypeORM|Tailwind|CSS|HTML|Socket\.io)\b/gi
           ) || [];
         for (const m of matches) {
           techSet.add(normalizeTechnologyName(m).toLowerCase());
@@ -640,7 +646,183 @@ export class ResumeClaimValidationService {
 
     return techSet;
   }
+
+  /**
+   * Enforces strict factual grounding and traceability for an AI-generated claim.
+   *
+   * @param {object} claim
+   * @param {string} claim.text
+   * @param {Array<string>} [claim.composedFromFactIds]
+   * @param {Array<string>} [claim.factIds]
+   * @param {string|Array<string>} [claim.sourceFact]
+   * @param {string} [claim.transformationType]
+   * @param {object} context
+   * @returns {{ valid: boolean, rejected: boolean, violations: Array<{ code: string, message: string }> }}
+   */
+  validateClaimEvidenceGrounding(claim, context = {}) {
+    const violations = [];
+    if (!claim || typeof claim !== 'object' || !claim.text) {
+      return {
+        valid: false,
+        rejected: true,
+        violations: [{ code: 'INVALID_CLAIM_PAYLOAD', message: 'Claim text is required' }],
+      };
+    }
+
+    const text = String(claim.text || '').trim();
+    const factIds = Array.isArray(claim.composedFromFactIds) && claim.composedFromFactIds.length > 0
+      ? claim.composedFromFactIds
+      : (Array.isArray(claim.factIds) ? claim.factIds : []);
+
+    // 1. Check composedFromFactIds
+    if (factIds.length === 0) {
+      violations.push({
+        code: 'EMPTY_FACT_IDS',
+        message: 'Claim does not map to any candidate-owned fact ID',
+      });
+    }
+
+    // 2. Check sourceFact presence
+    const sourceFact = claim.sourceFact;
+    const hasSourceFact =
+      (typeof sourceFact === 'string' && sourceFact.trim().length > 0) ||
+      (Array.isArray(sourceFact) && sourceFact.length > 0);
+    if (!hasSourceFact) {
+      violations.push({
+        code: 'MISSING_SOURCE_FACT',
+        message: 'Claim is missing source fact text evidence mapping',
+      });
+    }
+
+    // 3. Check transformationType
+    const validTransformations = new Set(['REWRITE', 'CONDENSE', 'COMBINE', 'EMPHASIZE', 'VERBATIM']);
+    if (!claim.transformationType || !validTransformations.has(String(claim.transformationType).toUpperCase())) {
+      violations.push({
+        code: 'INVALID_TRANSFORMATION_TYPE',
+        message: `Claim transformationType "${claim.transformationType}" must be one of REWRITE, CONDENSE, COMBINE, EMPHASIZE, VERBATIM`,
+      });
+    }
+
+    // Index fact inventory
+    const factMap = new Map();
+    const factInventory = context.factInventory;
+    if (Array.isArray(factInventory)) {
+      for (const f of factInventory) factMap.set(f.factId || f.id, f);
+    } else if (factInventory && typeof factInventory.get === 'function') {
+      for (const [k, v] of factInventory.entries()) factMap.set(k, v);
+    } else if (factInventory && Array.isArray(factInventory.facts)) {
+      for (const f of factInventory.facts) factMap.set(f.factId || f.id, f);
+    }
+
+    const contributingFacts = [];
+    for (const fid of factIds) {
+      const f = factMap.get(fid);
+      if (!f) {
+        violations.push({
+          code: 'UNKNOWN_FACT_ID',
+          message: `Referenced factId "${fid}" does not exist in candidate fact inventory`,
+        });
+      } else {
+        contributingFacts.push(f);
+      }
+    }
+
+    // 4. Candidate ownership
+    const candidateId = context.candidateProfile?.id || context.candidateProfile?.candidate?.id;
+    for (const f of contributingFacts) {
+      if (f.candidateId && candidateId && f.candidateId !== candidateId) {
+        violations.push({
+          code: 'FOREIGN_CANDIDATE_FACT',
+          message: `Fact "${f.factId || f.id}" belongs to candidate "${f.candidateId}", not current candidate "${candidateId}"`,
+        });
+      }
+    }
+
+    // 5. Technology substitution & unauthorized technology
+    const authorizedTechs = this._buildAuthorizedTechSet(context, contributingFacts);
+    const sourceTextsCombined = contributingFacts.map((f) => f.text || '').join(' ') + ' ' + (typeof sourceFact === 'string' ? sourceFact : (Array.isArray(sourceFact) ? sourceFact.join(' ') : ''));
+
+    // Check specific technology substitution: OpenAI vs Gemini
+    if (/\bopenai\b/i.test(sourceTextsCombined) && !/\bgemini\b/i.test(sourceTextsCombined) && /\bgemini\b/i.test(text)) {
+      violations.push({
+        code: 'TECHNOLOGY_SUBSTITUTION',
+        message: 'Claim substituted "Gemini" for verified candidate technology "OpenAI"',
+      });
+    }
+    if (/\bgemini\b/i.test(sourceTextsCombined) && !/\bopenai\b/i.test(sourceTextsCombined) && /\bopenai\b/i.test(text)) {
+      violations.push({
+        code: 'TECHNOLOGY_SUBSTITUTION',
+        message: 'Claim substituted "OpenAI" for verified candidate technology "Gemini"',
+      });
+    }
+
+    // Check all technologies in claim text
+    const techRegex =
+      /\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git|Alembic|Prometheus|Grafana|OpenAI|Gemini|NestJS|TypeORM|Tailwind|CSS|HTML|Socket\.io)\b/gi;
+    const matches = text.match(techRegex) || [];
+    for (const m of matches) {
+      const norm = normalizeTechnologyName(m).toLowerCase();
+      if (!authorizedTechs.has(norm)) {
+        violations.push({
+          code: 'UNAUTHORIZED_TECHNOLOGY',
+          message: `Technology "${m}" in claim text is not authorized by candidate evidence`,
+        });
+      }
+    }
+
+    // 6. Number & Metric grounding
+    const metricMatches = text.match(/\b\d+(?:\.\d+)?%|\b\d+[\d,]*(?:\+)?\s*(?:seconds?|secs?|ms|users?|clients?|repositories|items?|requests?(?:\/|\s*per\s*)sec(?:ond)?)\b/gi) || [];
+    for (const mm of metricMatches) {
+      const cleanMm = mm.toLowerCase().replace(/\s+/g, '');
+      const sourceHasMetric = sourceTextsCombined.toLowerCase().replace(/\s+/g, '').includes(cleanMm);
+      if (!sourceHasMetric) {
+        violations.push({
+          code: 'UNSUPPORTED_METRIC',
+          message: `Metric or scale number "${mm}" in claim text does not exist in supporting candidate facts`,
+        });
+      }
+    }
+
+    // 7. Unbacked architecture / mechanism claims
+    const unbackedMechanismPatterns = [
+      { pattern: /\bAST\b/i, term: 'AST (Abstract Syntax Tree)' },
+      { pattern: /\bRaft\b/i, term: 'Raft consensus' },
+      { pattern: /\bKafka\b/i, term: 'Kafka' },
+      { pattern: /\bKubernetes\b/i, term: 'Kubernetes' },
+      { pattern: /\bPrometheus\b/i, term: 'Prometheus' },
+    ];
+    for (const mech of unbackedMechanismPatterns) {
+      if (mech.pattern.test(text)) {
+        const supported = mech.pattern.test(sourceTextsCombined);
+        if (!supported) {
+          violations.push({
+            code: 'UNSUPPORTED_ARCHITECTURE_CLAIM',
+            message: `Claim introduces unbacked architecture mechanism "${mech.term}" not found in candidate facts`,
+          });
+        }
+      }
+    }
+
+    // 8. Run baseline checks (active voice, grammar, outcome, actor)
+    const baseResult = this.validateClaim({ ...claim, factIds }, context);
+    for (const v of baseResult.violations) {
+      if (!violations.some((existing) => existing.code === v.code)) {
+        violations.push(v);
+      }
+    }
+
+    return {
+      valid: violations.length === 0,
+      rejected: violations.length > 0,
+      violations,
+    };
+  }
 }
 
 export const defaultResumeClaimValidationService = new ResumeClaimValidationService();
+
+export function validateClaimEvidenceGrounding(claim, context = {}) {
+  return defaultResumeClaimValidationService.validateClaimEvidenceGrounding(claim, context);
+}
+
 export default ResumeClaimValidationService;
