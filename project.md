@@ -3,6 +3,75 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-14*
 
+### PART 55: Minimal AI-Context Privacy Boundary & Content-Grounding Fix
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-14
+**Production Candidate:** `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad)
+**Target Snapshots / Jobs:** 5 Canonical Roles (Software Engineer, Python Backend Engineer, Full-Stack Engineer, Frontend Engineer, DevOps / Platform Engineer)
+**AI Model:** `gemini-3.5-flash-lite` (Real AI Verified, `isFallback: false`)
+
+**Executive Summary:**
+Implemented a minimal, surgical AI-context privacy boundary and content-grounding fix across the AI generation, validation, and resume pipeline without modifying the frozen visual resume layout, Latin Modern Roman serif typography (`lmroman10`), margins (`0.52in`), section ordering, LaTeX styling, project-link styling, phone UI, headline logic, skill logic, project ranking, or project selection:
+1. **Eliminated Candidate PII from AI Context:** Identified root cause of candidate name appearing at the start of generated summaries (`"Vishwanath Nishad is a backend engineer..."`): `ai-resume-content-generator.service.js` directly interpolated `${candidate.displayName}` into prompt instructions and passed `candidateFacts.candidateName: candidate.displayName`, while project names retained raw repository owner prefixes (`vishu1803/...`) and database UUIDs were leaked in prompt payloads.
+2. **Created Single Canonical Sanitizer (`src/services/ai-context-sanitizer.service.js`):** Built `buildResumeAiContext({ job, candidateProfile, selectedProjects, selectedSkills, factInventory, taskType })` used identically across MCP and Extension. Strips all personal identifiers (name, email, phone, location, personal/LinkedIn/GitHub profile URLs), scrubs repository owner prefixes (e.g. `vishu1803/ai-code-reviewer` -> `ai-code-reviewer`), and shields database UUIDs behind transient reference IDs (`fact-1`, `fact-2`) with deterministic bidirectional mapping.
+3. **Mandated Neutral Third-Person Phrasing:** Updated prompt policy (`resume-summary.policy.js`) and generator prompt contracts to strictly require third-person neutral phrasing without candidate name or personal pronouns (e.g. `"Backend engineer specializing in..."`, `"Software engineer with expertise in..."`).
+4. **Post-Generation Defense-in-Depth Privacy Validator:** Built `validateAiPrivacy({ text, candidateProfile })` which dynamically compiles forbidden PII tokens from the candidate profile and validates AI outputs. Integrated as Check 0 into `ResumeClaimValidationService` (`CANDIDATE_PII_DETECTED`), failing closed if any personal identifier leaks.
+5. **Strict Grounded Outcomes & Metrics Invariant:** Enhanced `ResumeClaimValidationService` Check 7 (`UNSUPPORTED_OUTCOME`) and Check 4/8 (`UNSUPPORTED_METRIC`). Enforced that claims asserting review time reduction, manual time savings, developer velocity, code quality standards, productivity improvements, or percentage reductions must be explicitly substantiated by contributing candidate-owned source facts, preventing ungrounded extrapolations from mere automation.
+6. **Non-Project Section Technology Authorization:** Fixed `_buildAuthorizedTechSet` in `ResumeClaimValidationService` so that non-project sections (such as SUMMARY) correctly authorize candidate verified profile skills and candidate project technologies, resolving false rejections on valid skills like `Node.js`, while handling composite technology tokens (`Tailwind CSS`).
+7. **Strict Single-Page ATS Budget & 6-Bullet Minimum:** Verified via real Tectonic XeTeX compilation and PDF page counting that the 6-bullet project structure (3 bullets per project, 2 selected projects) fits strictly on 1 physical page across all 5 canonical engineering roles with zero candidate PII in summaries.
+
+**Core Architectural Implementations:**
+1. **Canonical Context Sanitizer (`src/services/ai-context-sanitizer.service.js`):**
+   - Implemented `buildResumeAiContext`: Scopes and sanitizes context strictly per task type (`RESUME_SUMMARY_SYNTHESIS` vs `RESUME_ACCOMPLISHMENT_SYNTHESIS`).
+   - Implemented `sanitizeProjectName`: Strips repository owner namespaces and slug formatting.
+   - Implemented `validateAiPrivacy`: Defense-in-depth token scanner compiling forbidden tokens (names, email, phone digits, location, personal URLs, internal UUIDs) and validating claim texts.
+2. **Prompt Policies (`src/clients/ai/prompt-policies/`):**
+   - `resume-summary.policy.js`: Mandates neutral third-person openings, explicitly forbidding candidate name, contact details, personal URLs, and unsubstantiated outcome claims.
+   - `resume-accomplishment.policy.js`: Strictly prohibits inferring percentage reductions, time savings, developer velocity, productivity gains, or code quality improvements from automation facts alone.
+3. **AI Content Generator (`src/services/ai-resume-content-generator.service.js`):**
+   - Wired `buildResumeAiContext` into `generateJobConditionedSummary` and `generateJobConditionedProjectBullets`.
+   - Replaced name interpolation in prompts with neutral third-person prompt contracts.
+   - Sanitized project names in deterministic fallbacks and shielded internal IDs.
+   - Added post-generation `validateAiPrivacy` check and automatic fact re-alignment fallback.
+4. **Resume Claim Validation Service (`src/services/resume-claim-validation.service.js`):**
+   - Check 0: Added privacy validation via `validateAiPrivacy` (`CANDIDATE_PII_DETECTED`).
+   - Check 7: Added strict outcome checks for review time savings, developer velocity, code quality standards, and productivity improvements (`UNSUPPORTED_OUTCOME`).
+   - Check 4/8: Added percentage reduction check (`UNSUPPORTED_METRIC`).
+   - Fixed `_buildAuthorizedTechSet`: Scoped `isProjectClaim` properly to prevent SUMMARY from being treated as a project claim, authorizing candidate profile skills and project technologies for non-project sections.
+
+**Verification & Test Results:**
+- `tests/unit/p55-ai-context-privacy.test.js`: **16/16 PASS**
+  1. Context Sanitizer: strips candidate name completely from summary context.
+  2. Context Sanitizer: strips candidate email from context.
+  3. Context Sanitizer: strips candidate phone number from context.
+  4. Context Sanitizer: strips candidate location from context.
+  5. Context Sanitizer: strips candidate personal URLs and cleans project names from context.
+  6. Context Sanitizer: shields candidate database UUIDs using transient reference IDs.
+  7. Prompt Policy: mandates neutral third-person phrasing without candidate name.
+  8. Privacy Validator: detects and flags any leaked candidate PII tokens.
+  9. Context Sanitizer: scopes project accomplishment context strictly to project facts.
+  10. Claim Validator: rejects unsupported outcome claims (review time, velocity, quality, productivity).
+  11. Claim Validator: rejects unsupported percentage reduction metrics.
+  12. Claim Validator: rejects unauthorized technologies in claims.
+  13. Accomplishment Generator: produces >= 3 grounded bullets per project with no PII.
+  14. Parity: Extension and MCP context payloads are identically sanitized.
+  15. Invariance: Sanitization does not mutate candidate database profile.
+  16. Adversarial: Blocks synthetic candidate PII leakage across all fields.
+- `tests/unit/p54-project-bullet-content-fix.test.js`: **7/7 PASS**
+- `tests/unit/p50-production-resume-tailoring.test.js`: **17/17 PASS**
+- `tests/unit/p46-ranking-authority-and-bullet-minimum.test.js`: **9/9 PASS**
+- `tests/unit/p53-taxonomy-noise-boundary.test.js`: **30/30 PASS**
+- `tests/unit/extension-prepare-handoff-regression.test.js`: **3/3 PASS**
+- **Full Combined Suite:** **62/62 passed (0 failed)**
+- **Live Real-AI Synthesis & Tectonic Compilation (`scratch/verify-p55-live-ai.js`):**
+  - Model: `gemini-3.5-flash-lite`, Fallback: **FALSE (Real AI)** across all 5 roles.
+  - **Software Engineer:** Real AI, 0 names in summary, 6 project bullets, Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+  - **Python Backend Engineer:** Real AI, 0 names in summary, 6 project bullets, Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+  - **Full-Stack Engineer:** Real AI, 0 names in summary, 6 project bullets, Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+  - **Frontend Engineer:** Real AI, 0 names in summary, 6 project bullets, Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+  - **DevOps / Platform Engineer:** Real AI, 0 names in summary, 6 project bullets, Tectonic XeTeX compilation, **Strictly 1 Page (PASS)**.
+
 ### PART 54: Minimal Project-Bullet Content Fix — 3-Bullet Contract, Fragment Elimination & Sentence Completeness
 
 **Status:** COMPLETE & VERIFIED

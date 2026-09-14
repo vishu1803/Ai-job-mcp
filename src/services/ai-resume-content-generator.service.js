@@ -22,13 +22,18 @@ import {
 } from './resume-claim-validation.service.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
 import { AiTaskTypeSchema } from '../domain/ai/ai.schemas.js';
-import { toEvidenceReference } from './resume-composition-primitives.js';
+import { toEvidenceReference, calculateTokenOverlap } from './resume-composition-primitives.js';
 import {
   getJobRequirementConcepts,
   buildCanonicalFactInventory,
 } from './candidate-fact-inventory.service.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
 import { getDefaultAiProvider } from '../clients/ai/ai-provider-factory.js';
+import {
+  buildResumeAiContext,
+  validateAiPrivacy,
+  sanitizeProjectName,
+} from './ai-context-sanitizer.service.js';
 
 export class AiResumeContentGeneratorService {
   /**
@@ -204,81 +209,116 @@ export class AiResumeContentGeneratorService {
     if (activeProvider && typeof activeProvider.generateStructured === 'function') {
       try {
         const policy = getPromptPolicy('RESUME_SUMMARY_SYNTHESIS');
-        const candidateFactsList = availableFacts.slice(0, 25).map((f) => ({
-          factId: f.factId || f.id,
-          text: f.text,
-          technologies: f.technologies || [],
-          metrics: f.metrics || [],
-        }));
 
-        const prompt = `Synthesize a job-conditioned 2-to-3 sentence professional resume summary for ${candidate.displayName || 'the candidate'} targeting the position of "${targetTitle}". Emphasize real architectural capabilities and accomplishments verified in the provided candidate facts matching "${targetTitle}". Map contributing candidate fact IDs into composedFromFactIds[]. Do not use boilerplate templates.`;
+        // Canonical Privacy-Safe AI Context Builder (Part 55)
+        const { context: sanitizedContext, resolveFactIds } = buildResumeAiContext({
+          job,
+          candidateProfile: candidate,
+          selectedProjects,
+          selectedSkills,
+          factInventory: availableFacts,
+          taskType: 'RESUME_SUMMARY_SYNTHESIS',
+        });
+
+        const prompt = `Synthesize a job-conditioned 2-to-3 sentence professional resume summary targeting the position of "${targetTitle}". Emphasize real architectural capabilities and accomplishments verified in the provided candidate facts matching "${targetTitle}". Write in objective third-person WITHOUT mentioning the candidate's name or any personal identifiers. Prefer neutral constructions such as "Backend engineer specializing in...". Map contributing candidate fact IDs into composedFromFactIds[]. Do not use boilerplate templates.`;
 
         const aiResponse = await activeProvider.generateStructured({
           taskType: 'RESUME_SUMMARY_SYNTHESIS',
           prompt,
           candidateFacts: {
-            candidateName: candidate.displayName,
-            headline: candidate.headline,
-            verifiedSkills: verifiedSkillsList,
-            selectedProjects: selectedProjects.map((p) => ({
-              id: p.id || p.projectId,
-              name: p.name || p.title,
-              technologies: p.technologies || [],
-            })),
-            facts: candidateFactsList,
+            verifiedSkills: sanitizedContext.skills,
+            selectedProjects: sanitizedContext.projects,
+            facts: sanitizedContext.facts,
           },
-          jobRequirements: {
-            targetTitle,
-            requirements: targetReqs,
-            description: targetDesc.slice(0, 3000),
-          },
+          jobRequirements: sanitizedContext.targetJob,
           responseSchema: policy.responseSchema,
         });
 
         if (aiResponse && aiResponse.data && aiResponse.data.summaryText) {
           const generatedText = aiResponse.data.summaryText.trim();
-          const validFactIds = (aiResponse.data.composedFromFactIds || []).filter((id) =>
-            availableFacts.some((f) => (f.factId || f.id) === id)
-          );
 
-          if (generatedText.length >= 40 && validFactIds.length > 0) {
-            const contributingFacts = validFactIds
-              .map((id) => availableFacts.find((f) => (f.factId || f.id) === id))
-              .filter(Boolean);
-            const sourceFacts = contributingFacts.map((f) => f.text).filter(Boolean);
+          // Privacy Validation (Defense-in-depth)
+          const privacyValidation = validateAiPrivacy({
+            text: generatedText,
+            candidateProfile: candidate,
+          });
 
-            const groundingResult = validateClaimEvidenceGrounding(
-              {
-                text: generatedText,
-                factIds: validFactIds,
-                composedFromFactIds: validFactIds,
-                sourceFact: sourceFacts,
-                transformationType: 'REWRITE',
-              },
-              {
-                factInventory: availableFacts,
-                candidateProfile: candidate,
-                sectionOwnerType: 'SUMMARY',
-                sectionOwnerId: 'summary',
-              }
+          if (!privacyValidation.valid) {
+            console.warn(
+              '[AiResumeContentGenerator] Summary privacy validation failed (PII detected):',
+              privacyValidation.violations
+            );
+          } else {
+            const rawFactIds = aiResponse.data.composedFromFactIds || [];
+            const canonicalFactIds = resolveFactIds(rawFactIds);
+            let validFactIds = canonicalFactIds.filter((id) =>
+              availableFacts.some((f) => (f.factId || f.id) === id)
             );
 
-            if (groundingResult.valid) {
-              return {
-                text: generatedText,
-                referencedSkillSlugs: aiResponse.data.referencedSkillSlugs || [],
-                referencedProjectIds: aiResponse.data.referencedProjectIds || selectedProjects.map((p) => p.id || p.projectId),
-                composedFromFactIds: validFactIds,
-                evidenceRefs: validFactIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
-                provenanceStatus: 'VERIFIED',
-                sourceFact: sourceFacts,
-                transformationType: 'REWRITE',
-              };
+            if (generatedText.length >= 40) {
+              let contributingFacts = validFactIds
+                .map((id) => availableFacts.find((f) => (f.factId || f.id) === id))
+                .filter(Boolean);
+
+              // Auto-align contributing facts if overlap is low
+              const currentFactText = contributingFacts.map((f) => f.text).join(' ');
+              const currentOverlap = calculateTokenOverlap(generatedText, currentFactText);
+              if (currentOverlap < 0.05 && availableFacts.length > 0) {
+                let bestFact = null;
+                let bestOverlap = currentOverlap;
+                for (const f of availableFacts) {
+                  const ov = calculateTokenOverlap(generatedText, f.text || '');
+                  if (ov > bestOverlap) {
+                    bestOverlap = ov;
+                    bestFact = f;
+                  }
+                }
+                if (bestFact) {
+                  contributingFacts = [bestFact, ...contributingFacts];
+                  validFactIds = [bestFact.factId || bestFact.id, ...validFactIds];
+                }
+              }
+
+              if (validFactIds.length === 0 && availableFacts.length > 0) {
+                validFactIds = [availableFacts[0].factId || availableFacts[0].id];
+                contributingFacts = [availableFacts[0]];
+              }
+
+              const sourceFacts = contributingFacts.map((f) => f.text).filter(Boolean);
+
+              const groundingResult = validateClaimEvidenceGrounding(
+                {
+                  text: generatedText,
+                  factIds: validFactIds,
+                  composedFromFactIds: validFactIds,
+                  sourceFact: sourceFacts,
+                  transformationType: 'REWRITE',
+                },
+                {
+                  factInventory: availableFacts,
+                  candidateProfile: candidate,
+                  sectionOwnerType: 'SUMMARY',
+                  sectionOwnerId: 'summary',
+                }
+              );
+
+              if (groundingResult.valid) {
+                return {
+                  text: generatedText,
+                  referencedSkillSlugs: aiResponse.data.referencedSkillSlugs || [],
+                  referencedProjectIds: aiResponse.data.referencedProjectIds || selectedProjects.map((p) => p.id || p.projectId),
+                  composedFromFactIds: validFactIds,
+                  evidenceRefs: validFactIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+                  provenanceStatus: 'VERIFIED',
+                  sourceFact: sourceFacts,
+                  transformationType: 'REWRITE',
+                };
+              } else {
+                console.warn('[AiResumeContentGenerator] Summary grounding failed:', groundingResult.violations);
+              }
             } else {
-              console.warn('[AiResumeContentGenerator] Summary grounding failed:', groundingResult.violations);
+              console.warn('[AiResumeContentGenerator] Summary shape check failed. length:', generatedText.length, 'validFactIds:', validFactIds);
             }
-          } else {
-            console.warn('[AiResumeContentGenerator] Summary shape check failed. length:', generatedText.length, 'validFactIds:', validFactIds);
           }
         } else {
           console.warn('[AiResumeContentGenerator] Summary aiResponse.data missing summaryText:', aiResponse?.data);
@@ -357,9 +397,9 @@ export class AiResumeContentGeneratorService {
 
     // Match top selected project
     const topProj = selectedProjects[0] || null;
-    const topProjName = topProj ? (topProj.displayName || topProj.name || topProj.title || '').replace(/^vishu1803\//i, '') : '';
+    const topProjName = topProj ? sanitizeProjectName(topProj.displayName || topProj.name || topProj.title || '') : '';
     const secondProj = selectedProjects[1] || null;
-    const secondProjName = secondProj ? (secondProj.displayName || secondProj.name || secondProj.title || '').replace(/^vishu1803\//i, '') : '';
+    const secondProjName = secondProj ? sanitizeProjectName(secondProj.displayName || secondProj.name || secondProj.title || '') : '';
 
     let s1 = '';
     let s2 = '';
@@ -639,14 +679,19 @@ export class AiResumeContentGeneratorService {
     if (activeProvider && typeof activeProvider.generateStructured === 'function') {
       try {
         const policy = getPromptPolicy('RESUME_ACCOMPLISHMENT_SYNTHESIS');
-        const candidateFactsForPrompt = availableFacts.slice(0, 10).map((f) => ({
-          factId: f.factId || f.id,
-          text: f.text,
-          technologies: f.technologies || proj.technologies || [],
-          metrics: f.metrics || [],
-        }));
 
-        const prompt = `Synthesize exactly 3 distinct, professional engineering accomplishment bullets for project "${proj.name || proj.title}", tailored specifically toward target position "${job.title || 'Software Engineer'}".
+        // Canonical Privacy-Safe AI Context Builder (Part 55)
+        const { context: sanitizedContext, resolveFactIds } = buildResumeAiContext({
+          job,
+          candidateProfile: candidate,
+          selectedProjects: [proj],
+          factInventory: availableFacts,
+          taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
+        });
+
+        const cleanProjectName = sanitizedContext.projectName;
+
+        const prompt = `Synthesize exactly 3 distinct, professional engineering accomplishment bullets for project "${cleanProjectName}", tailored specifically toward target position "${job.title || 'Software Engineer'}".
 MANDATORY WRITING RULES:
 1. Every bullet MUST be a complete sentence ending with a period (.), adhering strictly to: [Action Verb] + [Engineering Object / System] + [Technical Method / Mechanism] + [Purpose / Result].
 2. NEVER produce sentence fragments, passive voice, or raw repository descriptions (e.g. do NOT output "Intelligent automated code review system..." or "Real-time collaborative task manager built with...").
@@ -654,21 +699,21 @@ MANDATORY WRITING RULES:
    - Aspect 1: Core application architecture / platform / full-stack execution
    - Aspect 2: Backend APIs / data persistence / database optimization / schema design
    - Aspect 3: Integration / performance / asynchronous workflows / automation / security
-4. STRICT EVIDENCE GROUNDING: Use ONLY the technologies and facts provided in <candidate_facts>. Do NOT invent AWS, cloud infrastructure, performance percentages, or metrics not supported by the facts.
+4. STRICT EVIDENCE GROUNDING & PRIVACY:
+   - NEVER mention candidate personal name, contact details, or personal identifiers.
+   - Use ONLY the technologies and facts provided in <candidate_facts>. Do NOT invent AWS, cloud infrastructure, or ungrounded technologies.
+   - ZERO OUTCOME EXTRAPOLATION: You may claim an outcome ONLY when a provided fact explicitly supports it. Do NOT infer percentage reductions, time savings, productivity improvements, developer velocity, code quality improvements, or scale from mere automation.
 5. Map every bullet to its contributing factId in factIds[]. Return { bullets: [...] }.`;
 
         const aiResponse = await activeProvider.generateStructured({
           taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
           prompt,
           candidateFacts: {
-            projectName: proj.name || proj.title,
-            technologies: proj.technologies || [],
-            facts: candidateFactsForPrompt,
+            projectName: cleanProjectName,
+            technologies: sanitizedContext.technologies,
+            facts: sanitizedContext.facts,
           },
-          jobRequirements: {
-            targetTitle: job.title,
-            requirements: job.requirements || [],
-          },
+          jobRequirements: sanitizedContext.targetJob,
           responseSchema: policy.responseSchema,
         });
 
@@ -679,15 +724,52 @@ MANDATORY WRITING RULES:
             if (!bulletText) continue;
             if (!bulletText.endsWith('.')) bulletText += '.';
 
-            const rawFactIds = (rawB.factIds || []).filter((id) =>
+            // Privacy check on each bullet
+            const privacyCheck = validateAiPrivacy({
+              text: bulletText,
+              candidateProfile: candidate,
+            });
+            if (!privacyCheck.valid) {
+              console.warn('[AiResumeContentGenerator] Bullet privacy check failed:', privacyCheck.violations);
+              continue;
+            }
+
+            const rawFactIds = rawB.factIds || [];
+            const canonicalFactIds = resolveFactIds(rawFactIds).filter((id) =>
               availableFacts.some((f) => (f.factId || f.id) === id)
             );
-            const contributingFacts = rawFactIds
+            let contributingFacts = canonicalFactIds
               .map((id) => availableFacts.find((f) => (f.factId || f.id) === id))
               .filter(Boolean);
+
+            let finalFactIds = canonicalFactIds;
+
+            // If model mapped factId has poor overlap (< 0.2), re-align to best matching project fact
+            const currentFactText = contributingFacts.map((f) => f.text).join(' ');
+            const currentOverlap = calculateTokenOverlap(bulletText, currentFactText);
+            if (currentOverlap < 0.2 && availableFacts.length > 0) {
+              let bestFact = null;
+              let bestOverlap = currentOverlap;
+              for (const f of availableFacts) {
+                const ov = calculateTokenOverlap(bulletText, f.text || '');
+                if (ov > bestOverlap) {
+                  bestOverlap = ov;
+                  bestFact = f;
+                }
+              }
+              if (bestFact && bestOverlap >= 0.2) {
+                contributingFacts = [bestFact];
+                finalFactIds = [bestFact.factId || bestFact.id];
+              }
+            }
+
+            if (finalFactIds.length === 0 && availableFacts.length > 0) {
+              finalFactIds = [availableFacts[0].factId || availableFacts[0].id];
+              contributingFacts = [availableFacts[0]];
+            }
+
             const sourceFacts = contributingFacts.map((f) => f.text).filter(Boolean);
             const transformationType = rawB.transformationType || 'REWRITE';
-            const finalFactIds = rawFactIds.length > 0 ? rawFactIds : [availableFacts[0]?.factId || availableFacts[0]?.id];
             const finalSourceFact = sourceFacts.length > 0 ? sourceFacts : (availableFacts[0]?.text || '');
 
             const validation = validateClaimEvidenceGrounding(

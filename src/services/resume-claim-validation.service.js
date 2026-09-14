@@ -32,6 +32,7 @@ import {
 } from './candidate-fact-inventory.service.js';
 import { calculateTokenOverlap } from './resume-composition-primitives.js';
 import { normalizeTechnologyName } from '../utils/technology-normalizer.js';
+import { validateAiPrivacy } from './ai-context-sanitizer.service.js';
 
 // Recognized active engineering verbs
 const ACTIVE_OPENER_VERBS = new Set([
@@ -127,6 +128,22 @@ export class ResumeClaimValidationService {
       for (const [k, v] of factInventory.entries()) factMap.set(k, v);
     } else if (factInventory && Array.isArray(factInventory.facts)) {
       for (const f of factInventory.facts) factMap.set(f.factId || f.id, f);
+    }
+
+    // ── 0. Privacy Validation: Zero Candidate PII Permitted ─────────────────
+    if (context.candidateProfile) {
+      const privacyCheck = validateAiPrivacy({
+        text,
+        candidateProfile: context.candidateProfile,
+      });
+      if (!privacyCheck.valid) {
+        for (const v of privacyCheck.violations) {
+          violations.push({
+            code: 'CANDIDATE_PII_DETECTED',
+            message: `Claim contains forbidden candidate personal identifier: "${v.token}" (${v.message})`,
+          });
+        }
+      }
     }
 
     // ── 1. Every factId exists ────────────────────────────────────────────────
@@ -259,6 +276,89 @@ export class ResumeClaimValidationService {
           code: 'UNSUPPORTED_OUTCOME',
           message:
             'Claim asserts an outcome clause not substantiated by contributing canonical facts',
+        });
+      }
+    }
+
+    // Strict Grounding Invariant (Part 55): Specific outcomes cannot be inferred from mere automation
+    // (a) Review time / manual time savings
+    const timeSavingsPattern =
+      /\b(?:reduced|saved|decreased|cut|lowered)\s+(?:average\s+)?(?:manual\s+)?(?:code\s+)?review\s+time\b|\btime\s+savings\b|\bsaved\s+\d+\+?\s+(?:hours|mins|minutes)\b/i;
+    if (timeSavingsPattern.test(text)) {
+      const supported = contributingFacts.some(
+        (f) =>
+          timeSavingsPattern.test(f.text) ||
+          /\b(?:review\s+time|manual\s+time|time\s+savings)\b/i.test(f.text)
+      );
+      if (!supported) {
+        violations.push({
+          code: 'UNSUPPORTED_OUTCOME',
+          message:
+            'Claim asserts review time reduction or time savings not explicitly substantiated by source facts',
+        });
+      }
+    }
+
+    // (b) Developer velocity
+    const velocityPattern =
+      /\b(?:developer\s+velocity|team\s+velocity|engineering\s+velocity)\b/i;
+    if (velocityPattern.test(text)) {
+      const supported = contributingFacts.some(
+        (f) => velocityPattern.test(f.text) || /\bvelocity\b/i.test(f.text)
+      );
+      if (!supported) {
+        violations.push({
+          code: 'UNSUPPORTED_OUTCOME',
+          message:
+            'Claim asserts developer velocity improvement not explicitly substantiated by source facts',
+        });
+      }
+    }
+
+    // (c) Code quality standards / improvements
+    const qualityPattern =
+      /\b(?:code\s+quality\s+standards|improved\s+code\s+quality|higher\s+code\s+quality)\b/i;
+    if (qualityPattern.test(text)) {
+      const supported = contributingFacts.some(
+        (f) => qualityPattern.test(f.text) || /\b(?:code\s+quality|quality\s+standards)\b/i.test(f.text)
+      );
+      if (!supported) {
+        violations.push({
+          code: 'UNSUPPORTED_OUTCOME',
+          message:
+            'Claim asserts code quality improvement not explicitly substantiated by source facts',
+        });
+      }
+    }
+
+    // (d) Team / developer productivity
+    const productivityPattern =
+      /\b(?:improved|boosted|increased|enhanced)\s+(?:team\s+|developer\s+)?productivity\b/i;
+    if (productivityPattern.test(text)) {
+      const supported = contributingFacts.some(
+        (f) => productivityPattern.test(f.text) || /\bproductivity\b/i.test(f.text)
+      );
+      if (!supported) {
+        violations.push({
+          code: 'UNSUPPORTED_OUTCOME',
+          message:
+            'Claim asserts productivity improvement not explicitly substantiated by source facts',
+        });
+      }
+    }
+
+    // (e) Percentage reductions
+    const percentageReductionPattern =
+      /\b(?:reduced|decreased|lowered|slashed|cut)\s+(?:by\s+)?\d+%/i;
+    if (percentageReductionPattern.test(text)) {
+      const supported = contributingFacts.some(
+        (f) => percentageReductionPattern.test(f.text) || /\b\d+%\b/.test(f.text)
+      );
+      if (!supported) {
+        violations.push({
+          code: 'UNSUPPORTED_METRIC',
+          message:
+            'Claim asserts an uncorroborated percentage reduction not present in source facts',
         });
       }
     }
@@ -620,7 +720,6 @@ export class ResumeClaimValidationService {
     const isProjectClaim = Boolean(
       context.project ||
       context.sectionOwnerType === 'PROJECT' ||
-      context.sectionOwnerId ||
       context.targetSection === 'PROJECTS'
     );
 
@@ -641,6 +740,16 @@ export class ResumeClaimValidationService {
           for (const s of (cat.skills || []).filter(isVerifiedSkill)) {
             const name = s.name || s.slug || '';
             if (name) techSet.add(normalizeTechnologyName(name).toLowerCase());
+          }
+        }
+      }
+
+      // For non-project sections (e.g. SUMMARY), all candidate project technologies are authorized
+      const rawProjects = profile.profileMetadata?.projects || profile.projects || [];
+      for (const proj of rawProjects) {
+        if (Array.isArray(proj.technologies)) {
+          for (const t of proj.technologies) {
+            if (t) techSet.add(normalizeTechnologyName(t).toLowerCase());
           }
         }
       }
@@ -806,11 +915,15 @@ export class ResumeClaimValidationService {
 
     // Check all technologies in claim text
     const techRegex =
-      /\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git|Alembic|Prometheus|Grafana|OpenAI|Gemini|NestJS|TypeORM|Tailwind|CSS|HTML|Socket\.io)\b/gi;
+      /\b(Rust|Go|Python|TypeScript|JavaScript|Node\.js|React|PostgreSQL|Docker|Kubernetes|Raft|Kafka|gRPC|Redis|GraphQL|FastAPI|Prisma|Next\.js|Vue\.js|Express|Flask|Django|AWS|GCP|Linux|SQL|Git|Alembic|Prometheus|Grafana|OpenAI|Gemini|NestJS|TypeORM|Tailwind(?:\s+CSS)?|CSS|HTML|Socket\.io)\b/gi;
     const matches = text.match(techRegex) || [];
     for (const m of matches) {
       const norm = normalizeTechnologyName(m).toLowerCase();
       if (!authorizedTechs.has(norm)) {
+        // If CSS is checked but Tailwind or Tailwind CSS is authorized, allow it
+        if ((norm === 'css' || norm === 'css3') && (authorizedTechs.has('tailwind css') || authorizedTechs.has('tailwind'))) {
+          continue;
+        }
         violations.push({
           code: 'UNAUTHORIZED_TECHNOLOGY',
           message: `Technology "${m}" in claim text is not authorized by candidate evidence`,

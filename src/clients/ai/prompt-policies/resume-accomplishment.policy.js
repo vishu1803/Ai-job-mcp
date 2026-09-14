@@ -56,10 +56,11 @@ export class ResumeAccomplishmentPolicy extends BasePromptPolicy {
 
   getTaskSpecificConstraints() {
     return `=== RESUME ACCOMPLISHMENT REALIZATION CONSTRAINTS ===
-1. PRIMARY WRITING OBJECTIVE:
+1. PRIMARY WRITING OBJECTIVE & PRIVACY BOUNDARY:
    Synthesize at least 3 concise, powerful engineering accomplishment bullets for the project, returned in { bullets: [...] }.
    Every single bullet MUST be a complete sentence ending with a period (.), adhering strictly to:
    [ACTION VERB] + [ENGINEERING OBJECT / SYSTEM] + [TECHNICAL METHOD / MECHANISM] + [PURPOSE / OUTCOME (if supported)]
+   - NEVER mention candidate personal name, contact information, or personal identifiers.
    Examples of preferred professional structure:
    - "Architected high-concurrency microservices using Node.js and PostgreSQL to support real-time data synchronization."
    - "Engineered asynchronous webhook pipelines with FastAPI to process external event payloads reliably."
@@ -72,11 +73,13 @@ export class ResumeAccomplishmentPolicy extends BasePromptPolicy {
    - Aspect 3: Integration, performance, asynchronous workflows, automation, or security.
    Do not repeat the same focus or technologies identically across multiple bullets.
 
-3. STRICT FACTUAL GROUNDING (ZERO FABRICATION):
+3. STRICT FACTUAL GROUNDING & ZERO OUTCOME EXTRAPOLATION:
    - You must synthesize statement text EXCLUSIVELY from the provided <candidate_facts>.
    - Map every referenced fact back to its exact factId in factIds[].
-   - NEVER invent outcomes, scale, revenue, percentages, user counts, or speedups if not explicitly in <candidate_facts>.
-   - When no metric is supported, articulate the technical purpose, mechanism, or reliability contribution.
+   - OUTCOME GROUNDING CONTRACT: A project bullet may claim an outcome ONLY when a candidate-owned source fact explicitly supports it, or the transformation is a faithful semantic rewrite of that fact.
+   - Do NOT infer percentage reductions, time savings, productivity improvements, developer velocity, code quality improvements, scale, or business outcomes from merely knowing that automation exists.
+     (e.g., knowing that "automated code evaluation" exists does NOT authorize claiming "reduced manual review time" or "improved developer velocity" unless explicitly stated in the source fact).
+   - When no metric or outcome is supported, articulate the technical purpose, mechanism, or reliability contribution.
    - NEVER claim cloud infrastructure or technologies (e.g. AWS, Kubernetes) unless explicitly listed in <candidate_facts>.
 
 4. PROHIBITED PHRASING, FRAGMENTS & BUZZWORDS:

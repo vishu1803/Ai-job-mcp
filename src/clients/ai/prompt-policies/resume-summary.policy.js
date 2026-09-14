@@ -43,19 +43,24 @@ export class ResumeSummaryPolicy extends BasePromptPolicy {
 
   getTaskSpecificConstraints() {
     return `=== RESUME PROFESSIONAL SUMMARY CONSTRAINTS ===
-1. PRIMARY WRITING OBJECTIVE:
+1. PRIMARY WRITING OBJECTIVE & STRICT THIRD-PERSON NEUTRALITY:
    Synthesize a 2 to 3 sentence professional career summary that:
+   - Write in objective third-person WITHOUT using the candidate's name or ANY personal identifiers.
+   - PREFER neutral professional openers such as:
+     "Backend engineer specializing in..." or "Full-Stack developer experienced in..."
+     NEVER start with or include the candidate's personal name (e.g. NEVER write "[Name] is a...").
+   - NEVER output candidate name, email, phone number, location, address, LinkedIn URL, GitHub URL, portfolio URL, or internal IDs.
    - Specifically conditions the candidate's verified profile to the target job description and engineering expectations.
-   - Highlights the intersection of the candidate's authentic technical skills, architectural accomplishments, and project deliverables with the job's core technical requirements.
+   - Highlights the intersection of authentic technical skills, architectural accomplishments, and project deliverables with the job's core technical requirements.
    - Produces natural, fluent, and highly specific prose that varies meaningfully between different engineering roles (e.g. Backend vs Frontend vs Full-Stack vs DevOps).
    - AVOID reusing identical sentence templates or robotic fill-in-the-blank formulas across different jobs.
 
 2. STRICT FACTUAL GROUNDING (ZERO FABRICATION):
-   - Every technical skill, framework, and project mentioned MUST exist in <candidate_facts> and <verified_skills>.
+   - Every technical skill, framework, and project mentioned MUST exist in <candidate_facts> and <skills>.
    - Map every referenced fact or accomplishment directly into composedFromFactIds[].
    - Map referenced skill slugs to referencedSkillSlugs[].
    - Map referenced project IDs to referencedProjectIds[].
-   - NEVER invent years of experience, titles, employers, certifications, metrics, or technologies not present in the candidate evidence.
+   - NEVER invent years of experience, titles, employers, certifications, metrics, scale, architecture, deployments, business outcomes, or technologies not present in the candidate evidence.
 
 3. PROHIBITED PHRASING & TEMPLATE BOILERPLATE:
    - NEVER use hollow filler: "results-driven professional", "dynamic self-starter", "passionate developer looking for opportunities", "proven track record of success".
