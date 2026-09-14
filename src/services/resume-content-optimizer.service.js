@@ -152,15 +152,26 @@ export class ResumeContentOptimizer {
 
     // Deep copy structured resume if provided, otherwise build initial snapshot
     let currentStructuredResume = null;
+    let initialTailoringPlan =
+      applicationPackage?.tailoringPlan ||
+      applicationPackage?.tailoredResume?.tailoringPlan ||
+      options?.tailoringPlan ||
+      null;
+
     if (structuredResume) {
       currentStructuredResume = JSON.parse(JSON.stringify(structuredResume.structuredResume || structuredResume));
     } else {
       const snap = buildStructuredResumeSnapshot({
         candidateProfile,
         jobPosting,
+        tailoringPlan: initialTailoringPlan,
         options: { ...initialOptions, projectBulletOverrides },
       });
       currentStructuredResume = snap.structuredResume || snap;
+    }
+
+    if (!initialOptions.matchAnalysis && applicationPackage?.jobFitAnalysis?.matchAnalysis) {
+      initialOptions.matchAnalysis = applicationPackage.jobFitAnalysis.matchAnalysis;
     }
 
     // Preserve AI summary and project bullets across optimizer iterations for semantic freeze
@@ -178,6 +189,38 @@ export class ResumeContentOptimizer {
       };
     }
 
+    // Preserve skills across optimizer iterations for semantic freeze
+    if (!initialTailoringPlan && currentStructuredResume?.skills) {
+      const rawCats = Array.isArray(currentStructuredResume.skills?.categories)
+        ? currentStructuredResume.skills.categories
+        : Array.isArray(currentStructuredResume.skills)
+          ? currentStructuredResume.skills
+          : [];
+      const extractedSelectedSkills = rawCats.flatMap((cat) =>
+        (cat.skills || []).map((s, idx) => ({
+          slug: s.slug || s.name,
+          name: s.name || s.slug,
+          category: cat.categoryName || cat.category || 'Core Competencies',
+          provenanceStatus: s.provenanceStatus || 'VERIFIED',
+          evidenceId: s.evidenceId || null,
+          relevanceScore: s.relevanceScore ?? 50,
+          matchedRequirementId: s.matchedRequirementId || null,
+          confidenceScore: s.confidenceScore ?? 1.0,
+          order: idx + 1,
+        }))
+      );
+      const extractedCategoryOrder = rawCats.map((cat) => cat.categoryName || cat.category).filter(Boolean);
+      const extractedSkillSlugs = extractedSelectedSkills.map((s) => s.slug || s.name).filter(Boolean);
+
+      if (extractedSelectedSkills.length > 0) {
+        initialTailoringPlan = {
+          selectedSkills: extractedSelectedSkills,
+          selectedSkillSlugs: extractedSkillSlugs,
+          skillCategoryOrder: extractedCategoryOrder,
+        };
+      }
+    }
+
     // Step 0: Introduce explicit semantic-freeze boundary (Issue 2 Contract)
     // The semantic resume is frozen; optimizer may only perform presentation/layout transformations.
     const baselineSemantic = freezeSemanticResume(currentStructuredResume);
@@ -192,6 +235,7 @@ export class ResumeContentOptimizer {
         const snap = buildStructuredResumeSnapshot({
           candidateProfile,
           jobPosting,
+          tailoringPlan: initialTailoringPlan,
           options: {
             ...initialOptions,
             projectBulletOverrides,
@@ -325,7 +369,8 @@ export class ResumeContentOptimizer {
 
           if (bestMove.type === 'BULLETS') {
             const currentCount = projectBulletOverrides[bestMove.id] ?? bestMove.currentCount;
-            const targetCount = Math.min(3, currentCount + 1);
+            const maxBulletLimit = (currentStructuredResume?.projects || []).length === 1 ? 4 : 3;
+            const targetCount = Math.min(maxBulletLimit, currentCount + 1);
             projectBulletOverrides[bestMove.id] = targetCount;
             if (bestMove.name) {
               projectBulletOverrides[bestMove.name] = targetCount;
@@ -514,7 +559,8 @@ export class ResumeContentOptimizer {
         projectBulletOverrides?.[pId] ??
         projectBulletOverrides?.[p.name] ??
         (Array.isArray(p.bullets) ? p.bullets.length : 0);
-      if (effectiveCount >= 3) continue;
+      const maxBulletLimit = projects.length === 1 ? 4 : 3;
+      if (effectiveCount >= maxBulletLimit) continue;
 
       const factCount =
         inventoryFactCountByProject?.get?.(pId) ??
@@ -562,10 +608,11 @@ export class ResumeContentOptimizer {
     }
 
     // Move Type 8: REMOVE_PROJECT_CLAIM
-    // Note: Project bullets cannot be pruned below the mandatory 3-bullet contract
+    // Note: Project bullets cannot be pruned below the mandatory 3-bullet contract for multi-project resumes
     if (availableSpacePt < 0) {
+      const minAllowedBullets = projects.length === 1 ? 1 : 3;
       for (const p of projects) {
-        if (Array.isArray(p.bullets) && p.bullets.length > 3) {
+        if (Array.isArray(p.bullets) && p.bullets.length > minAllowedBullets) {
           moves.push({
             type: OPTIMIZER_MOVE_TYPES.REMOVE_PROJECT_CLAIM,
             id: p.projectId || p.name,

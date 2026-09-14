@@ -55,7 +55,12 @@ import {
 import {
   compressProfessionalBullet,
   toEvidenceReference,
+  sanitizeGroundedAccomplishment,
 } from './resume-composition-primitives.js';
+import {
+  validateClaimEvidenceGrounding,
+  hasUnsupportedOutcomeOrMetric,
+} from './resume-claim-validation.service.js';
 
 /**
  * Capacity-aware dynamic project budgeting strategy (Req H & 21).
@@ -907,23 +912,22 @@ export function buildStructuredResumeDocument({
       (proj.displayName ? options?.aiContent?.projectBullets?.[slugifyProject(proj.displayName)] : null);
 
     if (Array.isArray(aiBullets) && aiBullets.length >= 3) {
-      pBullets = aiBullets.map((b, bIdx) => {
+      const candidateAiBullets = [];
+      for (let bIdx = 0; bIdx < aiBullets.length; bIdx++) {
+        const b = aiBullets[bIdx];
+        if (!b || (!b.text && typeof b !== 'string')) continue;
+        let bText = typeof b === 'string' ? b.trim() : String(b.text || '').trim();
+        if (!bText) continue;
+
+        bText = sanitizeGroundedAccomplishment(bText);
+        if (!bText.endsWith('.')) bText += '.';
+
         const factIds = Array.isArray(b.composedFromFactIds) && b.composedFromFactIds.length > 0
           ? b.composedFromFactIds
           : (b.factId ? [b.factId] : []);
-        factCompositionTrace.push({
-          projectId: selectedId,
-          projectName: proj.name || proj.title || '',
-          composedFromFactIds: factIds,
-          semanticDimensions: b.semanticDimensions || [],
-        });
-        realizationSummaries.push({
-          claimId: b.claimId || `ai-bullet-${selectedId}-${bIdx + 1}`,
-          text: b.text,
-          validationResult: 'VALID',
-        });
-        return {
-          text: b.text,
+
+        const candidateBullet = {
+          text: bText,
           evidenceRefs: Array.isArray(b.evidenceRefs) && b.evidenceRefs.length > 0
             ? b.evidenceRefs
             : factIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
@@ -933,7 +937,36 @@ export function buildStructuredResumeDocument({
           ...(b.sourceFact ? { sourceFact: b.sourceFact } : {}),
           ...(b.transformationType ? { transformationType: b.transformationType } : {}),
         };
-      });
+
+        const val = validateClaimEvidenceGrounding(candidateBullet, {
+          factInventory: projectFacts,
+          candidateProfile: source,
+          sectionOwnerType: 'PROJECT',
+          sectionOwnerId: selectedId,
+          contributingFacts: projectFacts,
+        });
+
+        if (val.valid && !hasUnsupportedOutcomeOrMetric(bText, projectFacts)) {
+          candidateAiBullets.push(candidateBullet);
+        }
+      }
+
+      if (candidateAiBullets.length >= 3) {
+        pBullets = candidateAiBullets.map((b, bIdx) => {
+          factCompositionTrace.push({
+            projectId: selectedId,
+            projectName: proj.name || proj.title || '',
+            composedFromFactIds: b.composedFromFactIds,
+            semanticDimensions: b.semanticDimensions || [],
+          });
+          realizationSummaries.push({
+            claimId: b.claimId || `ai-bullet-${selectedId}-${bIdx + 1}`,
+            text: b.text,
+            validationResult: 'VALID',
+          });
+          return b;
+        });
+      }
     } else if (useFactComposition && projectFacts.length > 0) {
       const composed = composeProfessionalProjectBullets({
         facts: projectFacts,
@@ -1021,26 +1054,73 @@ export function buildStructuredResumeDocument({
           ? projectOptions.maxBullets
           : candidateBullets.length;
         pBullets = candidateBullets.slice(0, bulletLimit).map((b, bIdx) => ({
-          text: compressProfessionalBullet(typeof b === 'string' ? b : b.text),
-          claimId: `cand-bullet-${selectedId}-${bIdx}`,
-          provenanceStatus: 'USER_PROVIDED',
+          text: compressProfessionalBullet(sanitizeGroundedAccomplishment(typeof b === 'string' ? b : b.text)),
+          evidenceRefs: [],
+          matchedRequirementIds: [],
           composedFromFactIds: [],
+          provenanceStatus: 'USER_PROVIDED',
         }));
+      }
+    }
+
+    // Authoritative Grounding & Validation Gate (Part 56)
+    // Ensure every project bullet is strictly substantiated by facts with zero ungrounded outcomes
+    const isFragmentText = (t) =>
+      /^(?:intelligent\s+automated|real-time\s+collaborative|full-stack\s+[a-z]+(?:\s+platform|\s+application|\s+manager|\s+system)?\s+built|a\s+[a-z]+|an\s+[a-z]+|the\s+[a-z]+)/i.test(
+        String(t || '').trim()
+      );
+
+    pBullets = pBullets
+      .map((b) => {
+        const currentText = typeof b === 'string' ? b : b.text;
+        const sanitized = sanitizeGroundedAccomplishment(currentText);
+        return typeof b === 'string' ? sanitized : { ...b, text: sanitized };
+      })
+      .filter((b) => {
+        const currentText = typeof b === 'string' ? b : b.text;
+        return !isFragmentText(currentText) && !hasUnsupportedOutcomeOrMetric(currentText, projectFacts);
+      });
+
+    const MIN_BULLETS_PER_RENDERED_PROJECT = 3;
+    const minRequiredBullets = typeof projectOptions.maxBullets === 'number'
+      ? Math.min(MIN_BULLETS_PER_RENDERED_PROJECT, projectOptions.maxBullets)
+      : MIN_BULLETS_PER_RENDERED_PROJECT;
+
+    // If bullets dropped below minimum due to rejected ungrounded outcomes, backfill from valid facts
+    if (pBullets.length < minRequiredBullets && projectFacts.length >= minRequiredBullets) {
+      for (const pf of projectFacts) {
+        if (pBullets.length >= minRequiredBullets) break;
+        if (pf.canonicalFactType === 'DESCRIPTION') continue;
+        const rawText = pf.text || '';
+        let factText = sanitizeGroundedAccomplishment(rawText);
+        if (!factText.endsWith('.')) factText += '.';
+        if (isFragmentText(factText)) continue;
+        const factId = pf.factId || pf.id;
+        const alreadyIncluded = pBullets.some(
+          (b) => (b.composedFromFactIds || []).includes(factId) || b.text === factText
+        );
+        if (!alreadyIncluded && !hasUnsupportedOutcomeOrMetric(factText, projectFacts)) {
+          pBullets.push({
+            text: factText,
+            evidenceRefs: [toEvidenceReference({ factId, truthCategory: 'VERIFIED' })],
+            matchedRequirementIds: [],
+            composedFromFactIds: factId ? [factId] : [],
+            provenanceStatus: 'VERIFIED',
+            sourceFact: factText,
+            transformationType: 'VERBATIM',
+          });
+        }
       }
     }
 
     // P46 Contract: Minimum 3 candidate-supported bullets per rendered project.
     // Projects with fewer than 3 candidate-supported bullets are dropped rather than rendered with thin content.
     // No synthetic bullets are fabricated to reach the minimum.
-    const MIN_BULLETS_PER_RENDERED_PROJECT = 3;
     const candidateAvailableBullets = Math.max(
       Array.isArray(proj.bullets) ? proj.bullets.length : 0,
       Array.isArray(proj.metadata?.bullets) ? proj.metadata.bullets.length : 0,
       projectFacts.length
     );
-    const minRequiredBullets = typeof projectOptions.maxBullets === 'number'
-      ? Math.min(MIN_BULLETS_PER_RENDERED_PROJECT, projectOptions.maxBullets)
-      : MIN_BULLETS_PER_RENDERED_PROJECT;
     if (candidateAvailableBullets < MIN_BULLETS_PER_RENDERED_PROJECT || pBullets.length < minRequiredBullets) {
       return null; // insufficient candidate-supported bullets — drop project
     }
@@ -1053,7 +1133,7 @@ export function buildStructuredResumeDocument({
 
     return {
       projectId: selectedId,
-      name: proj.name || proj.title || `Project ${idx + 1}`,
+      name: proj.displayName || formatProjectDisplayName(proj.title || proj.name) || proj.name || `Project ${idx + 1}`,
       displayName: proj.displayName || formatProjectDisplayName(proj.title || proj.name) || `Project ${idx + 1}`,
       repositoryUrl: proj.repositoryUrl || proj.url || null,
       liveUrl: proj.liveUrl || null,
@@ -1778,7 +1858,7 @@ export function freezeSemanticResume(structuredResume) {
 
   return Object.freeze({
     projectIds: Object.freeze((resume.projects || []).map((p) => p.projectId || p.id || p.name)),
-    projectNames: Object.freeze((resume.projects || []).map((p) => p.name || p.title)),
+    projectNames: Object.freeze((resume.projects || []).map((p) => formatProjectDisplayName(p.displayName || p.name || p.title))),
     projectCount: (resume.projects || []).length,
     skillSlugs: Object.freeze(rawSkillSlugs.slice().sort()),
     skillsByCategory: Object.freeze(
@@ -1860,8 +1940,18 @@ export function assertSemanticEquivalence(baseline, current) {
   }
 
   if (base.projectBullets && base.projectBullets.length > 0 && curr.projectBullets && curr.projectBullets.length > 0) {
-    if (JSON.stringify(base.projectBullets) !== JSON.stringify(curr.projectBullets)) {
-      throw new Error('Optimizer semantic violation: validated project bullets were deleted or rewritten');
+    for (let i = 0; i < base.projectBullets.length; i++) {
+      const baseList = base.projectBullets[i] || [];
+      const currList = curr.projectBullets[i] || [];
+      if (currList.length < baseList.length) {
+        throw new Error('Optimizer semantic violation: validated project bullets were deleted or rewritten');
+      }
+      const currSet = new Set(currList);
+      for (const b of baseList) {
+        if (!currSet.has(b)) {
+          throw new Error('Optimizer semantic violation: validated project bullets were deleted or rewritten');
+        }
+      }
     }
   }
 

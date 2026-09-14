@@ -22,7 +22,7 @@ import {
 } from './resume-claim-validation.service.js';
 import { getPromptPolicy } from '../clients/ai/prompt-policies/index.js';
 import { AiTaskTypeSchema } from '../domain/ai/ai.schemas.js';
-import { toEvidenceReference, calculateTokenOverlap } from './resume-composition-primitives.js';
+import { toEvidenceReference, calculateTokenOverlap, sanitizeGroundedAccomplishment } from './resume-composition-primitives.js';
 import {
   getJobRequirementConcepts,
   buildCanonicalFactInventory,
@@ -720,8 +720,9 @@ MANDATORY WRITING RULES:
         if (aiResponse && aiResponse.data && Array.isArray(aiResponse.data.bullets) && aiResponse.data.bullets.length >= 3) {
           const validatedBullets = [];
           for (const rawB of aiResponse.data.bullets) {
-            let bulletText = String(rawB.text || '').trim();
-            if (!bulletText) continue;
+            let rawText = String(rawB.text || '').trim();
+            if (!rawText) continue;
+            let bulletText = sanitizeGroundedAccomplishment(rawText);
             if (!bulletText.endsWith('.')) bulletText += '.';
 
             // Privacy check on each bullet
@@ -892,10 +893,10 @@ MANDATORY WRITING RULES:
     for (const item of scoredFacts) {
       const f = item.fact;
       const factId = f.factId || f.id || `f-${bullets.length + 1}`;
-      let text = String(f.text || '').trim();
-      if (!text) continue;
+      let rawText = String(f.text || '').trim();
+      if (!rawText) continue;
 
-      // Ensure proper capitalization and punctuation
+      let text = sanitizeGroundedAccomplishment(rawText);
       text = text.charAt(0).toUpperCase() + text.slice(1);
       if (!text.endsWith('.')) text += '.';
 
@@ -905,7 +906,7 @@ MANDATORY WRITING RULES:
         matchedRequirementIds: [],
         composedFromFactIds: [factId],
         provenanceStatus: 'VERIFIED',
-        sourceFact: f.text,
+        sourceFact: text,
         transformationType: 'EMPHASIZE',
       };
 
@@ -914,7 +915,7 @@ MANDATORY WRITING RULES:
           text,
           factIds: [factId],
           composedFromFactIds: [factId],
-          sourceFact: f.text,
+          sourceFact: text,
           transformationType: 'EMPHASIZE',
         },
         {
@@ -937,18 +938,39 @@ MANDATORY WRITING RULES:
         if (bullets.length >= 3) break;
         const factId = f.factId || f.id;
         if (!bullets.some((b) => b.composedFromFactIds.includes(factId))) {
-          let text = String(f.text || '').trim();
+          let rawText = String(f.text || '').trim();
+          if (!rawText) continue;
+          let text = sanitizeGroundedAccomplishment(rawText);
           text = text.charAt(0).toUpperCase() + text.slice(1);
           if (!text.endsWith('.')) text += '.';
-          bullets.push({
-            text,
-            evidenceRefs: [toEvidenceReference({ factId, truthCategory: 'VERIFIED' })],
-            matchedRequirementIds: [],
-            composedFromFactIds: [factId],
-            provenanceStatus: 'VERIFIED',
-            sourceFact: f.text,
-            transformationType: 'VERBATIM',
-          });
+
+          const val = validateClaimEvidenceGrounding(
+            {
+              text,
+              factIds: [factId],
+              composedFromFactIds: [factId],
+              sourceFact: text,
+              transformationType: 'VERBATIM',
+            },
+            {
+              factInventory: availableFacts,
+              candidateProfile: candidate,
+              sectionOwnerType: 'PROJECT',
+              sectionOwnerId: proj.id || proj.projectId,
+            }
+          );
+
+          if (val.valid) {
+            bullets.push({
+              text,
+              evidenceRefs: [toEvidenceReference({ factId, truthCategory: 'VERIFIED' })],
+              matchedRequirementIds: [],
+              composedFromFactIds: [factId],
+              provenanceStatus: 'VERIFIED',
+              sourceFact: text,
+              transformationType: 'VERBATIM',
+            });
+          }
         }
       }
     }

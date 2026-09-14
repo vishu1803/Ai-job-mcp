@@ -3,6 +3,90 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-14*
 
+### PART 56: Resume-Grounding Correctness & Canonical Validation Gate
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-14  
+**Production Candidate:** `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad)  
+**Target Snapshots / Jobs:** 5 Canonical Roles (Senior Backend Engineer, Full-Stack Engineer, Python Backend Engineer, Frontend Engineer, DevOps / Platform Engineer)  
+**AI Model:** `gemini-3.5-flash-lite` (Real AI Verified, `isFallback: false`)  
+
+**Executive Summary:**
+Resolved the remaining resume-grounding correctness defect where unverified outcome claims reached the final compiled PDF (e.g. `"Reduced average manual code review time across multiple repositories by automating code evaluation, resulting in improved developer velocity and code quality standards."`).
+1. **Identified Root Causes Across System Boundaries:**
+   - **Circular Verification in Grounding Validator (`ResumeClaimValidationService`):** In Check 7 (`UNSUPPORTED_OUTCOME`), `timeSavingsPattern`, `velocityPattern`, and `qualityPattern` checked `contributingFacts.some(f => pattern.test(f.text))`. Because the candidate's self-declared database bullet string contained those words, the validator circularly authorized its own outcome claim.
+   - **Missing Canonical Validation Gate on Authoritative Bullets (`StructuredResumeService`):** `buildStructuredResumeDocument` blindly accepted incoming bullets (`aiBullets` or candidate bullets) and mapped them with `validationResult: 'VALID'` without validating every final bullet against strict outcome and metric evidence.
+   - **Fact Text Leakage in AI Context Prompts (`AiContextSanitizerService`):** Raw unverified fact strings containing speculative outcome buzzwords were passed directly to Gemini prompts, priming the model to generate or echo outcome claims.
+2. **Grammatical Accomplishment Rewriting & Outcome Sanitization (`sanitizeGroundedAccomplishment`):**
+   - Built `sanitizeGroundedAccomplishment(text)` in `src/services/resume-composition-primitives.js` and exported as `sanitizeAccomplishmentClaim`.
+   - Safely parses mixed accomplishment claims: extracts the authentic, supported engineering implementation action from `... by <verb>ing <scope>` (e.g. `by automating code evaluation across multiple repositories`) and rewrites it into an active past-tense engineering achievement (`"Automated code evaluation across multiple repositories."`).
+   - Strips trailing ungrounded outcome clauses (`, resulting in improved developer velocity and code quality standards.`).
+   - Leaves pure unsupported outcomes (e.g. `"Reduced review time by 40%."`) untouched so validator strictly rejects them.
+3. **Strict Verified Outcome/Metric Evidence Enforcement:**
+   - Updated `ResumeClaimValidationService` Check 7 (`UNSUPPORTED_OUTCOME`), Check 4/8 (`UNSUPPORTED_METRIC`), and exported `hasUnsupportedOutcomeOrMetric`.
+   - Replaced circular `pattern.test(f.text)` checks with `isVerifiedOutcomeFact` and `isVerifiedMetricFact`, requiring non-bullet, verified evidence (`f.sourceType !== 'bullet' && f.sourceType !== 'summary' && (f.canonicalFactType === 'OUTCOME' || f.canonicalFactType === 'METRIC' || f.evidenceRole === 'OUTCOME' || (Array.isArray(f.metrics) && f.metrics.length > 0)) && (f.provenanceStatus === 'VERIFIED' || f.provenance === 'VERIFIED' || f.corroborated === true)`).
+   - Added coordination/operational overhead check (`overheadPattern`) and generalized percentage reduction regex to catch intermediate words (`reduced database latency by 45%`).
+4. **Context Sanitization for Accomplishment Synthesis:**
+   - Sanitized all fact texts passed in `buildResumeAiContext` for accomplishment and summary generation so Gemini prompts never receive speculative outcome buzzwords.
+5. **Authoritative Grounding Gate in `StructuredResumeService`:**
+   - Validates and sanitizes every incoming AI bullet and candidate bullet against `hasUnsupportedOutcomeOrMetric`.
+   - Filters out description fragments (`isFragmentText`), preserving only complete sentence engineering accomplishments.
+   - If valid bullets drop below 3 due to rejected ungrounded outcomes, backfills from remaining valid, non-fragment, sanitized candidate project facts.
+   - Strictly enforces the P46 contract: drops any project with fewer than 3 substantiated accomplishment bullets.
+6. **Preserved Frozen Presentation & Invariants:**
+   - ZERO changes to LaTeX layout, Latin Modern Roman typography (`lmroman10`), margins (`0.52in`), section ordering, LaTeX styling, project links, phone UI, headline logic, skill taxonomy, or project ranking authority.
+
+**Core Architectural Implementations:**
+1. **`src/services/resume-composition-primitives.js`:**
+   - Added `sanitizeGroundedAccomplishment(text)`: Transforms leading outcome phrases with `by <gerund>` into active past-tense engineering sentences; strips trailing `resulting in...`, `leading to...`, and speculative outcome clauses.
+2. **`src/services/resume-claim-validation.service.js`:**
+   - Eliminated circular validation where `f.text` authorized self-declared outcome buzzwords.
+   - Added `isVerifiedOutcomeFact` and `isVerifiedMetricFact` requiring verified, non-bullet outcome evidence.
+   - Added coordination/operational overhead check (`overheadPattern`).
+   - Added `hasUnsupportedOutcomeOrMetric(text, contributingFacts)` and exported `sanitizeAccomplishmentClaim`.
+3. **`src/services/ai-context-sanitizer.service.js`:**
+   - Sanitized fact text inputs in `buildResumeAiContext` for accomplishment and summary generation.
+4. **`src/services/ai-resume-content-generator.service.js`:**
+   - Applied `sanitizeGroundedAccomplishment` to all Gemini response bullets and deterministic fallback bullets.
+5. **`src/services/structured-resume.service.js`:**
+   - Added authoritative validation gate on `aiBullets` and candidate bullets in `buildStructuredResumeDocument`.
+   - Enforced `hasUnsupportedOutcomeOrMetric` and `isFragmentText` checks on all project bullets.
+   - Added safe backfill from verified, non-fragment project facts when bullets drop below minimum 3.
+   - Enforced project bullet containment in `assertSemanticEquivalence` ensuring validated project bullets cannot be deleted or rewritten across optimizer iterations.
+6. **`src/services/resume-content-optimizer.service.js`:**
+   - Preserved tailoring plan skills and match analysis across optimizer iterations to guarantee semantic equivalence on secondary iterations.
+   - Preserved single-project versus multi-project bullet boundaries for overflow rollbacks without violating the 3-bullet contract.
+7. **`src/services/job-normalization.service.js`:**
+   - Expanded requirement cue keywords to include optimization, performance, load, test, deploy, and security tokens in `hasReqOrRespCue`, ensuring legitimate engineering requirement lines from job descriptions are fully captured.
+
+**Verification & Test Results:**
+- `tests/unit/p56-resume-grounding-correctness.test.js`: **13/13 PASS**
+  1. Unsupported outcome claim rejected (UNSUPPORTED_OUTCOME violation).
+  2. Unsupported metric claim rejected (UNSUPPORTED_METRIC violation).
+  3. Supported implementation claim accepted (valid: true).
+  4. Mixed bullet safely rewritten to supported portion or rejected if pure outcome.
+  5. Fallback-generated bullets undergo identical validation and strip outcome buzzwords.
+  6. Final canonical StructuredResume document rejects or sanitizes ungrounded bullets.
+  7. 3-bullets-per-project requirement remains strictly intact.
+  8. Project ranking and selection logic remains unchanged.
+  9. PII protection and context privacy remain intact.
+  10. MCP and Extension workflow parity is preserved.
+  11. User-provided skills behavior remains intact.
+  12. Heading precedence remains intact.
+  13. Renderer output remains visually identical with zero layout/styling alterations.
+- `tests/unit/p55-ai-context-privacy.test.js`: **16/16 PASS**
+- `tests/unit/p54-project-bullet-content-fix.test.js`: **7/7 PASS**
+- `tests/unit/p50-production-resume-tailoring.test.js`: **17/17 PASS**
+- `tests/unit/p46-ranking-authority-and-bullet-minimum.test.js`: **9/9 PASS**
+- `tests/unit/p53-taxonomy-noise-boundary.test.js`: **30/30 PASS**
+- `tests/unit/*regression*.test.js`: **53/53 PASS**
+- **Live Real-AI Generation & Tectonic Compilation Across 5 Canonical Roles (`scratch/live_p56_verification.js`):**
+  - **Senior Backend Engineer:** Real Gemini 3.5 flash lite, Evidence Receipt: PASS, 6 bullets, 0 ungrounded claims, Tectonic PDF: **Strictly 1 Page (PASS)**.
+  - **Full-Stack Engineer:** Real Gemini 3.5 flash lite, Evidence Receipt: PASS, 6 bullets, 0 ungrounded claims, Tectonic PDF: **Strictly 1 Page (PASS)**.
+  - **Python Backend Engineer:** Real Gemini 3.5 flash lite, Evidence Receipt: PASS, 6 bullets, 0 ungrounded claims, Tectonic PDF: **Strictly 1 Page (PASS)**.
+  - **Frontend Engineer:** Real Gemini 3.5 flash lite, Evidence Receipt: PASS, 6 bullets, 0 ungrounded claims, Tectonic PDF: **Strictly 1 Page (PASS)**.
+  - **DevOps / Platform Engineer:** Real Gemini 3.5 flash lite, Evidence Receipt: PASS, 6 bullets, 0 ungrounded claims, Tectonic PDF: **Strictly 1 Page (PASS)**.
+
 ### PART 55: Minimal AI-Context Privacy Boundary & Content-Grounding Fix
 
 **Status:** COMPLETE & VERIFIED

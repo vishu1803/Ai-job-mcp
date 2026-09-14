@@ -302,7 +302,7 @@ export function parseJobDescriptionSections(description) {
       if (!JobDescriptionParser._isCompanyProse(cleanLine)) {
         const hasCue =
           JobDescriptionParser.extractSkillsFromLine(cleanLine).length > 0 ||
-          /\b(?:lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute|must|require|need|experience|proficien|knowledge|degree|years?)\b/i.test(
+          /\b(?:lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute|optimi|performan|load|refactor|test|deploy|integrat|secur|must|require|need|experience|proficien|knowledge|degree|years?)[a-z]*\b/i.test(
             cleanLine
           );
         if (hasCue) {
@@ -496,7 +496,7 @@ export function normalizeJobInput(jobInput) {
         }
       } else {
         const hasReqOrRespCue =
-          /\b(?:lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute|must|require|need|experience|proficien|knowledge|degree|years?)\b/i.test(
+          /\b(?:lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute|optimi|performan|load|refactor|test|deploy|integrat|secur|must|require|need|experience|proficien|knowledge|degree|years?)[a-z]*\b/i.test(
             item.text
           );
         if (!isProse || hasReqOrRespCue) {

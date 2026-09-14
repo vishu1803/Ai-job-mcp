@@ -14,6 +14,8 @@
  * 3. Guarantees MCP and Extension parity through a single authoritative builder.
  */
 
+import { sanitizeGroundedAccomplishment } from './resume-composition-primitives.js';
+
 const UUID_REGEX = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi;
 const URL_REGEX = /https?:\/\/[^\s]+/gi;
@@ -493,7 +495,8 @@ export function buildResumeAiContext({
     const sanitizedFacts = rawFacts.slice(0, 10).map((f) => {
       const canonicalId = f.factId || f.id;
       const tId = getTransientFactId(canonicalId);
-      const text = scrubTextPii(f.text || f.claim || '', additionalScrubTokens);
+      const rawText = scrubTextPii(f.text || f.claim || '', additionalScrubTokens);
+      const text = sanitizeGroundedAccomplishment(rawText);
       return {
         factId: tId,
         text,
@@ -532,7 +535,8 @@ export function buildResumeAiContext({
   const sanitizedFacts = availableFacts.slice(0, 25).map((f) => {
     const canonicalId = f.factId || f.id;
     const tId = getTransientFactId(canonicalId);
-    const text = scrubTextPii(f.text || '', additionalScrubTokens);
+    const rawText = scrubTextPii(f.text || '', additionalScrubTokens);
+    const text = sanitizeGroundedAccomplishment(rawText);
     return {
       factId: tId,
       text,

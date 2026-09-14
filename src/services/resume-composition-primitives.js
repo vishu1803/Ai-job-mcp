@@ -1581,3 +1581,100 @@ export function splitSentences(text) {
   const rawMatches = protectedText.match(/[^.!?]+[.!?]+/g) || [protectedText];
   return rawMatches.map((s) => s.replace(/__DOT__/g, '.').trim()).filter(Boolean);
 }
+
+const GERUND_TO_PAST_TENSE = new Map([
+  ['automating', 'Automated'],
+  ['providing', 'Provided'],
+  ['implementing', 'Implemented'],
+  ['deploying', 'Deployed'],
+  ['building', 'Built'],
+  ['engineering', 'Engineered'],
+  ['developing', 'Developed'],
+  ['architecting', 'Architected'],
+  ['designing', 'Designed'],
+  ['creating', 'Created'],
+  ['integrating', 'Integrated'],
+  ['configuring', 'Configured'],
+  ['refactoring', 'Refactored'],
+  ['scaling', 'Scaled'],
+  ['containerizing', 'Containerized'],
+  ['optimizing', 'Optimized'],
+  ['migrating', 'Migrated'],
+  ['establishing', 'Established'],
+  ['authoring', 'Authored'],
+  ['constructing', 'Constructed'],
+  ['introducing', 'Introduced'],
+  ['delivering', 'Delivered'],
+  ['standardizing', 'Standardized'],
+]);
+
+function gerundToPastTense(gerund) {
+  const lower = String(gerund || '').toLowerCase();
+  if (GERUND_TO_PAST_TENSE.has(lower)) {
+    return GERUND_TO_PAST_TENSE.get(lower);
+  }
+  if (lower.endsWith('ing')) {
+    const base = lower.slice(0, -3);
+    if (base.endsWith('e')) return (base + 'd').charAt(0).toUpperCase() + (base + 'd').slice(1);
+    return (base + 'ed').charAt(0).toUpperCase() + (base + 'ed').slice(1);
+  }
+  return gerund.charAt(0).toUpperCase() + gerund.slice(1);
+}
+
+/**
+ * Sanitizes an accomplishment claim by safely extracting and rewriting the
+ * supported implementation clause into an active past-tense engineering sentence
+ * while stripping speculative, ungrounded outcome clauses (e.g. developer velocity,
+ * review time reduction, code quality standards, productivity improvements).
+ *
+ * If a claim contains ONLY an unsupported outcome with no implementation clause,
+ * it is returned untouched so that claim evidence validation strictly rejects it.
+ *
+ * @param {string} text
+ * @returns {string} Sanitized grounded accomplishment
+ */
+export function sanitizeGroundedAccomplishment(text) {
+  if (!text || typeof text !== 'string') return '';
+  let cleaned = text.trim();
+
+  // 1. Strip trailing outcome clauses
+  cleaned = cleaned.replace(
+    /,\s*(?:resulting in|leading to|yielding|achieving|improving|reducing|boosting|saving|enhancing|cutting)\s+(?:(?:an?\s+)?(?:average\s+)?(?:manual\s+)?(?:significant\s+)?(?:measurable\s+)?(?:team\s+|developer\s+|engineering\s+|code\s+|system\s+)?(?:velocity|productivity|quality|review\s+time|overhead|efficiency|standards|performance|latency|costs?)(?:\s+(?:across|for|in|and|by)\b[^,.]+)?)\s*\.?$/i,
+    '.'
+  );
+
+  cleaned = cleaned.replace(/,\s*resulting\s+in\s+[^.]+\.?$/i, '.');
+  cleaned = cleaned.replace(/,\s*leading\s+to\s+[^.]+\.?$/i, '.');
+
+  // 2. Transform leading outcome phrases with 'by <verb>ing'
+  // e.g. 'Reduced average manual code review time across multiple repositories by automating code evaluation.'
+  // e.g. 'Improved team productivity and coordination overhead by providing a responsive interface with real-time updates and an optimized database structure.'
+  const leadingByMatch = cleaned.match(
+    /^(?:Reduced|Saved|Decreased|Cut|Lowered|Improved|Boosted|Enhanced|Increased|Optimized)\s+([^,]+?)\s+by\s+([a-z]+ing)\b\s*(.*)$/i
+  );
+
+  if (leadingByMatch) {
+    const outcomePhrase = leadingByMatch[1] ? leadingByMatch[1].trim() : '';
+    const gerund = leadingByMatch[2];
+    let remainder = leadingByMatch[3] ? leadingByMatch[3].trim() : '';
+    if (remainder.endsWith('.')) remainder = remainder.slice(0, -1).trim();
+
+    const scopeMatch = outcomePhrase.match(/\b(?:across|for|in|within)\s+([a-z0-9\s_-]+)$/i);
+    const scope = scopeMatch ? scopeMatch[1].trim() : '';
+
+    const pastVerb = gerundToPastTense(gerund);
+    if (scope && !remainder.toLowerCase().includes(scope.toLowerCase()) && !remainder.toLowerCase().includes('across')) {
+      cleaned = `${pastVerb} ${remainder} across ${scope}.`;
+    } else {
+      cleaned = `${pastVerb} ${remainder}.`;
+    }
+  }
+
+  if (cleaned.length > 0) {
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    if (!cleaned.endsWith('.')) cleaned += '.';
+  }
+
+  return cleaned;
+}
+
