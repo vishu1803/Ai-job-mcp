@@ -588,25 +588,35 @@ export class ResumeClaimValidationService {
       }
     }
 
-    // Candidate skills (array of strings or objects)
-    if (Array.isArray(profile.skills)) {
-      for (const s of profile.skills) {
-        const name = typeof s === 'string' ? s : s.name || s.slug || '';
-        if (name) techSet.add(normalizeTechnologyName(name).toLowerCase());
-      }
-    } else if (profile.skills && Array.isArray(profile.skills.categories)) {
-      for (const cat of profile.skills.categories) {
-        for (const s of cat.skills || []) {
-          const name = typeof s === 'string' ? s : s.name || s.slug || '';
+    // Candidate skills: only VERIFIED or CORROBORATED skills may authorize general claims.
+    // USER_PROVIDED / SELF_DECLARED skills are eligible for the skills section,
+    // but must NEVER authorize accomplishment claims without project evidence.
+    const isProjectClaim = Boolean(
+      context.project ||
+      context.sectionOwnerType === 'PROJECT' ||
+      context.sectionOwnerId ||
+      context.targetSection === 'PROJECTS'
+    );
+
+    const isVerifiedSkill = (s) => {
+      if (typeof s === 'string') return false; // bare strings lack verified evidence provenance
+      const prov = s.provenanceStatus || s.provenance;
+      return prov === 'VERIFIED' || prov === 'CORROBORATED';
+    };
+
+    if (!isProjectClaim) {
+      if (Array.isArray(profile.skills)) {
+        for (const s of profile.skills.filter(isVerifiedSkill)) {
+          const name = s.name || s.slug || '';
           if (name) techSet.add(normalizeTechnologyName(name).toLowerCase());
         }
-      }
-    }
-
-    if (Array.isArray(profile.canonicalSkills)) {
-      for (const s of profile.canonicalSkills) {
-        const name = typeof s === 'string' ? s : s.name || s.slug || '';
-        if (name) techSet.add(normalizeTechnologyName(name).toLowerCase());
+      } else if (profile.skills && Array.isArray(profile.skills.categories)) {
+        for (const cat of profile.skills.categories) {
+          for (const s of (cat.skills || []).filter(isVerifiedSkill)) {
+            const name = s.name || s.slug || '';
+            if (name) techSet.add(normalizeTechnologyName(name).toLowerCase());
+          }
+        }
       }
     }
 

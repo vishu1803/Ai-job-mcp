@@ -3,6 +3,57 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-14*
 
+### PART 50: Production-Grade Resume Rendering & Tailoring Refinement
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-14
+**Remote HEAD Base:** `fb71aa5` (`main`, `origin/main`)
+**Production Candidate:** `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad)
+**MCP Context:** `{ tenantId: '24d53f53-780e-4431-b065-32180c354175', userId: '5a687799-a86d-4ee8-9eb3-eb4e01fb3313' }`
+
+**Executive Summary:**
+Refined the canonical resume tailoring and LaTeX rendering pipeline to mirror the attached reference resume as the visual authority, fixed candidate-declared skill handling (AWS) under strict provenance controls, reinforced canonical project ranking authority with adversarial multi-role discrimination, and enforced semantic freeze and single-page compilation across the real-AI and deterministic pipeline.
+
+**Core Architectural Implementations:**
+1. **Visual Authority & LaTeX Typesetting (`src/services/latex-document-generator.service.js`):**
+   - **Typography:** Adopted classic Latin Modern Roman serif typeface (`lmroman10-regular.otf` with `BoldFont=lmroman10-bold.otf`, `ItalicFont=lmroman10-italic.otf`, `BoldItalicFont=lmroman10-bolditalic.otf`, `Ligatures=NoCommon`, and `lmodern` pdfLaTeX fallback).
+   - **Header Hierarchy:** Implemented centered 4-tier header layout: `\Huge\bfseries` candidate name, `\large` professional headline, contact line with `$\cdot$` separators, and compact profile links (`LinkedIn · GitHub · Portfolio · LeetCode`).
+   - **Section Headings:** Uppercase bold serif headings with thin 0.4pt horizontal rule (`\vspace{1.5pt}\hrule height 0.4pt\vspace{\atsHeadingToContent}`).
+   - **Project Layout:** Reference structure: Line 1 `<Project Name> \hfill {\small <links>}`, Line 2 `{\textit{<Technologies>}}`, followed by itemized bullets.
+   - **Compact Project Links:** Created `formatProjectLinksLatex(repoUrl, liveUrl)` rendering compact labels (`\textbf{GitHub}`, `\textbf{GitHub} $\cdot$ \textbf{Live Demo}`) with underlying clickable real URLs (`\href`). Prohibited raw repository URLs from visible text.
+   - **Page Budget & Spacing:** Geometry set to 0.52in margins, micro-tuned vertical gaps (`\atsSectionToSection = 8pt`, `\atsHeadingToContent = 3.5pt`, `\atsBulletToBullet = 1.2pt`), producing balanced 1-page output.
+
+2. **Candidate-Declared Skills / AWS Provenance (`src/services/candidate-artifact-content.service.js`, `src/services/structured-resume.service.js`, `src/services/resume-claim-validation.service.js`):**
+   - Candidate `additionalSkills` (including AWS) are incorporated into the candidate skill pool during skill selection.
+   - Normalized `SELF_DECLARED` to `USER_PROVIDED` for internal provenance.
+   - Boosted relevance for cloud platforms for Cloud/DevOps jobs (+20 score), allowing AWS to be selected into "Cloud, DevOps & Systems".
+   - Sorted scored skills descending before assigning categories and capped `USER_PROVIDED` skills at max 2 per category group.
+   - Preserved `provenanceStatus: 'USER_PROVIDED'` and `confidenceScore: 0.7` (NEVER upgraded to `VERIFIED`).
+   - **Accomplishment Claim Anti-Fabrication Boundary:** In `resume-claim-validation.service.js`, `_buildAuthorizedTechSet` excludes `USER_PROVIDED` and `SELF_DECLARED` skills from authorizing accomplishment claims. Only `VERIFIED` and `CORROBORATED` skills (or project-specific evidence) can authorize claims. Unsupported accomplishment claims ("Deployed AWS infrastructure for Project X") are strictly rejected with `UNAUTHORIZED_TECHNOLOGY`.
+
+3. **Authoritative Project Ranking & Adversarial Discrimination (`src/services/structured-resume.service.js`):**
+   - Preserved single authoritative workflow: `candidate project pool -> canonical rankProjectsForJob -> top N projects (N=2) -> structured resume -> AI content generation for selected projects -> renderer`.
+   - Downstream stages (optimizer, AI generator, renderer) cannot alter, re-rank, replace, or drop selected projects (`finalProjectIds === authoritativeTopNProjectIds`).
+   - Verified ranking discrimination across 5 distinct job roles using real candidate projects:
+     - Role 1 (Python / AI Backend): Rank 1 = AI-Powered Code Review Assistant, Rank 2 = Collaborative Task Manager
+     - Role 2 (Realtime Collaboration): Rank 1 = Collaborative Task Manager, Rank 2 = AI-Powered Code Review Assistant
+     - Role 3 (Enterprise NestJS / Data): Rank 1 = Collaborative Task Manager, Rank 2 = Product Data Explorer
+     - Role 4 (DevOps / Infrastructure): Rank 1 = Product Data Explorer, Rank 2 = Collaborative Task Manager
+     - Role 5 (Web Full-Stack): Rank 1 = Collaborative Task Manager, Rank 2 = AI-Powered Code Review Assistant
+
+4. **Semantic Freeze & Cross-Surface Parity:**
+   - Preserved SHA-256 fingerprint invariance across optimizer runs.
+   - Verified 100% semantic parity between Extension handoff and MCP `handleGenerateTailoredResume`.
+   - All 5 distinct job resumes compiled to exactly 1 page PDF via Tectonic engine.
+
+**Verification & Test Suites Run:**
+- `tests/unit/p50-production-resume-tailoring.test.js`: **17/17 PASS** (Visual styling, AWS provenance, anti-fabrication rejection, ranking authority invariance across 5 roles, ranking discrimination, semantic freeze invariance, Tectonic 1-page compilation).
+- `tests/unit/p16-001f2-structured-latex-migration.test.js`: **26/26 PASS** (Structured resume to controlled LaTeX renderer migration).
+- `tests/unit/latex-document-generator.test.js`: **6/6 PASS** (LaTeX escaping, authentic identity, truth provenance, formal cover letter, determinism).
+- `tests/unit/p16-003-pdf-acceptance.test.js`: **10/10 PASS** (All 10 archetypes compile to exactly 1 page PDF with zero leakage via Tectonic).
+- `tests/unit/job1-mcp-extension-parity.test.js`: **2/2 PASS** (MCP tool vs Extension prepare-handoff produce identical semantic output).
+- **Total Tests Passed:** **61/61 PASS (0 Failures)** across all affected suites.
+
 ### PART 49: AI Resume Content Generation Quality & Job-Adaptive Synthesis (Factual Grounding & Traceability)
 
 **Status:** COMPLETE & VERIFIED (Deterministic Baseline & Real AI Provider Gate: 100% PASS)  

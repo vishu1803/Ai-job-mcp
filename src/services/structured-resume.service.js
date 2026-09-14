@@ -27,6 +27,7 @@ import {
 import {
   CandidateArtifactContentService,
   countDistinctCanonicalFacts,
+  formatProjectDisplayName,
 } from './candidate-artifact-content.service.js';
 import {
   composeStructuredResumeDocument,
@@ -484,7 +485,11 @@ export function buildStructuredResumeDocument({
     canonicalJob?.projectRankings ||
     canonicalJob?.jobFitAnalysis?.projectRankings ||
     canonicalJob?.jobFitAnalysis?.topRelevantProjects ||
-    null;
+    (canonicalJob && typeof candidateContentService?.rankProjectsForJob === 'function'
+      ? candidateContentService.rankProjectsForJob(source, canonicalJob, {
+          maxProjects: structuralProjectCapacity,
+        })?.selectedProjects
+      : null);
 
   if (Array.isArray(incomingPlan?.selectedProjectIds) || Array.isArray(options?.selectedProjectIds)) {
     // An explicit incoming plan's project selection is authoritative; it is bounded
@@ -592,7 +597,11 @@ export function buildStructuredResumeDocument({
     }
   }
 
-  const rawSkills = meta.skills || source.skills || [];
+  const rawSkills = [
+    ...(Array.isArray(meta.skills) ? meta.skills : Array.isArray(source.skills) ? source.skills : []),
+    ...(Array.isArray(source.additionalSkills) ? source.additionalSkills : []),
+    ...(Array.isArray(meta.additionalSkills) ? meta.additionalSkills : []),
+  ];
 
   const skillSelectionResult = candidateContentService.selectAndCategorizeSkillsForJob(
     { skills: rawSkills, projects: rawProjects },
@@ -606,7 +615,7 @@ export function buildStructuredResumeDocument({
       : skillSelectionResult.selectedSkillSlugs;
 
   // Invariant: finalSkillIds ⊆ verifiedCandidateSkillIds
-  // Only skills already present in the candidate's verified skill inventory may appear in the final Technical Skills section.
+  // Only skills already present in the candidate's verified/declared skill inventory may appear in the final Technical Skills section.
   const verifiedCandidateSkillNames = new Set(
     rawSkills
       .map((s) => (typeof s === 'string' ? s : s.name || s.skillName || ''))
@@ -633,6 +642,8 @@ export function buildStructuredResumeDocument({
             [
               ...(Array.isArray(canonicalJob?.skills) ? canonicalJob.skills : []),
               ...(Array.isArray(canonicalJob?.requirements) ? canonicalJob.requirements : []),
+              ...(canonicalJob?.title ? [canonicalJob.title] : []),
+              ...(canonicalJob?.description ? canonicalJob.description.split(/\s+/) : []),
             ]
               .map((item) =>
                 String(
@@ -662,6 +673,7 @@ export function buildStructuredResumeDocument({
               .replace(/[^a-z0-9+#.]/g, '');
             return (
               skill.matchedRequirementId ||
+              skill.relevanceScore >= 20 ||
               [...jobSkillTerms].some((term) => term === token || term.includes(token) || token.includes(term)) ||
               selectedProjectTechnologyTerms.has(token)
             );
@@ -1036,7 +1048,7 @@ export function buildStructuredResumeDocument({
     return {
       projectId: selectedId,
       name: proj.name || proj.title || `Project ${idx + 1}`,
-      displayName: proj.displayName || proj.name || proj.title || `Project ${idx + 1}`,
+      displayName: proj.displayName || formatProjectDisplayName(proj.title || proj.name) || `Project ${idx + 1}`,
       repositoryUrl: proj.repositoryUrl || proj.url || null,
       liveUrl: proj.liveUrl || null,
       technologies: rawTechs.length > 0

@@ -29,11 +29,11 @@ export const TEMPLATE_METADATA_CATALOG = {
       'Single-column, linear visual flow, standard typography optimized for maximum ATS parser compliance.',
     category: 'ATS',
     // Truthful renderer mapping: the canonical structured LaTeX renderer embeds
-    // TeX Gyre Heros (metric-compatible Arial clone) via XeTeX/fontspec with
+    // Latin Modern Roman (classic serif typeface) via XeTeX/fontspec with
     // common ligatures disabled so PDF text extraction never produces 'fi'/'fl'
     // ligature artifacts.
-    defaultFont: 'Arial (rendered as TeX Gyre Heros, Arial-metric)',
-    renderedFontFamily: 'TeX Gyre Heros',
+    defaultFont: 'Latin Modern Roman (Computer Modern Serif)',
+    renderedFontFamily: 'Latin Modern Roman',
     supportsMultiColumn: false,
     isAtsOptimized: true,
   },

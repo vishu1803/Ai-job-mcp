@@ -102,6 +102,31 @@ export function escapeLatexUrl(url) {
 }
 
 /**
+ * Formats compact human-readable project link labels for LaTeX rendering:
+ * "GitHub" / "GitHub $\\cdot$ Live Demo" (or "GitLab", "Repository", etc.)
+ * Underlying hyperlink target remains the authentic candidate URL.
+ * Long raw repository URLs are never displayed in visible PDF text.
+ *
+ * @param {string|null} repoUrl Authentic candidate repository URL
+ * @param {string|null} liveUrl Authentic candidate live demo URL (if present)
+ * @returns {string} LaTeX-formatted compact link string (or empty)
+ */
+export function formatProjectLinksLatex(repoUrl, liveUrl) {
+  const linkParts = [];
+  if (repoUrl && isRealUrl(repoUrl)) {
+    let repoLabel = 'GitHub';
+    if (/gitlab/i.test(repoUrl)) repoLabel = 'GitLab';
+    else if (/bitbucket/i.test(repoUrl)) repoLabel = 'Bitbucket';
+    else if (!/github/i.test(repoUrl)) repoLabel = 'Repository';
+    linkParts.push(`\\href{${escapeLatexUrl(repoUrl)}}{\\textbf{${repoLabel}}}`);
+  }
+  if (liveUrl && isRealUrl(liveUrl)) {
+    linkParts.push(`\\href{${escapeLatexUrl(liveUrl)}}{\\textbf{Live Demo}}`);
+  }
+  return linkParts.join(' $\\cdot$ ');
+}
+
+/**
  * Normalizes multiline markdown bullet content into clean LaTeX itemize entries.
  *
  * @param {string | Array<string>} bullets Raw markdown or array of bullet strings
@@ -275,7 +300,7 @@ export class LatexDocumentGenerator {
 
     const candidatePhone = identity.phone || '';
     const candidateLocation = identity.location || '';
-    const candidateHeadline = targetRole || identity.headline || '';
+    const candidateHeadline = identity.headline || targetRole || '';
 
     // Contact line
     const contactElements = [];
@@ -286,18 +311,22 @@ export class LatexDocumentGenerator {
         `\\href{mailto:${escapeLatexUrl(candidateEmail)}}{${escapeLatex(candidateEmail)}}`
       );
     }
-    const contactLine = contactElements.join(' \\textbullet{} ');
+    const contactLine = contactElements.join(' $\\cdot$ ');
 
-    // Profile links directly from snapshot (zero hardcoded fallbacks)
+    // Profile links directly from snapshot (compact human-readable labels)
     const profileLinkElements = [];
     const links = Array.isArray(identity.links) ? identity.links : [];
     for (const link of links) {
       if (link && link.url && isRealUrl(link.url)) {
-        const label = link.label || link.platform || 'Link';
+        let label = link.label || link.platform || 'Link';
+        if (/^linkedin$/i.test(label)) label = 'LinkedIn';
+        else if (/^github$/i.test(label)) label = 'GitHub';
+        else if (/^portfolio$/i.test(label)) label = 'Portfolio';
+        else if (/^leetcode$/i.test(label)) label = 'LeetCode';
         profileLinkElements.push(`\\href{${escapeLatexUrl(link.url)}}{${escapeLatex(label)}}`);
       }
     }
-    const profileLinksLine = profileLinkElements.join(' \\textbullet{} ');
+    const profileLinksLine = profileLinkElements.join(' $\\cdot$ ');
 
     // 2. Summary
     const summaryText = structuredResume.summary?.text || '';
@@ -330,7 +359,7 @@ export class LatexDocumentGenerator {
     let projectsLatexSection = '';
     if (projects.length > 0) {
       const projectEntries = projects.map((p, index) => {
-        const pName = escapeLatex(p.displayName || p.name || 'Project');
+        const pName = escapeLatex(p.displayName || (p.name ? formatProjectDisplayName(p.name) : 'Project'));
         const repoUrl = p.repositoryUrl || null;
         const liveUrl = p.liveUrl || null;
 
@@ -338,24 +367,11 @@ export class LatexDocumentGenerator {
         const cleanTechs = cleanResumeFacingTechnologies(rawTechs);
         const techs = cleanTechs.map((t) => escapeLatex(t)).join(', ');
 
-        const linkParts = [];
-        // ATS link parity: link text MUST be the real URL (visible, extractable)
-        // rather than a bare "GitHub" label so URL identity survives PDF text
-        // extraction. Clickable target preserved via \href.
-        if (repoUrl && isRealUrl(repoUrl)) {
-          linkParts.push(`\\href{${escapeLatexUrl(repoUrl)}}{\\small\\textbf{${escapeLatex(displayUrlForLink(repoUrl))}}}`);
-        }
-        if (liveUrl && isRealUrl(liveUrl)) {
-          linkParts.push(`\\href{${escapeLatexUrl(liveUrl)}}{\\small\\textbf{${escapeLatex(displayUrlForLink(liveUrl))}}}`);
-        }
-        const linksStr = linkParts.join(' \\textbullet{} ');
+        const linksStr = formatProjectLinksLatex(repoUrl, liveUrl);
 
         let headerLine = `\\textbf{${pName}}`;
-        if (techs) {
-          headerLine += ` | \\textit{${techs}}`;
-        }
         if (linksStr) {
-          headerLine += ` \\hfill ${linksStr}`;
+          headerLine += ` \\hfill {\\small ${linksStr}}`;
         }
 
         const rawBullets = Array.isArray(p.bullets) ? p.bullets : [];
@@ -368,6 +384,10 @@ export class LatexDocumentGenerator {
         const pBullets = formatLatexBullets(cleanBullets);
 
         const entryLines = [`${headerLine}\\par`];
+        if (techs) {
+          entryLines.push('\\vspace{\\atsProjectTitleToTech}');
+          entryLines.push(`{\\textit{${techs}}}\\par`);
+        }
         entryLines.push('\\vspace{\\atsProjectTechToBullets}');
         if (pBullets) entryLines.push(pBullets);
 
@@ -392,10 +412,14 @@ export class LatexDocumentGenerator {
         ? dsa.subtitle.trim()
         : 'Data Structures & Algorithms';
 
-      const cleanLeetcodeDisplay = dsaUrl ? dsaUrl.replace(/^https?:\/\/(www\.)?/, '') : '';
-      const headerRight = dsaUrl
-        ? `\\href{${escapeLatexUrl(dsaUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}`
-        : '';
+      let headerRight = '';
+      if (dsaUrl) {
+        let dsaLabel = 'LeetCode';
+        if (/hackerrank/i.test(dsaUrl)) dsaLabel = 'HackerRank';
+        else if (/codeforces/i.test(dsaUrl)) dsaLabel = 'Codeforces';
+        else if (!/leetcode/i.test(dsaUrl)) dsaLabel = 'Profile';
+        headerRight = `\\href{${escapeLatexUrl(dsaUrl)}}{\\small\\textbf{${escapeLatex(dsaLabel)}}}`;
+      }
 
       const bulletTex = formatLatexBullets(dsaBullets);
 
@@ -690,39 +714,33 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
   }) {
     // Phase 8/9 → P16-006 — Canonical ATS template configuration:
     // - single column, linear order, no tables/textboxes/icons (unchanged)
-    // - margins 0.55in (tighter for higher density; parser-safe)
+    // - margins 0.52in (tighter for higher density; parser-safe)
     // - candidate name ≈17pt (\LARGE ≈ 17.28pt), section headings ≈12pt via
     //   \large (≈12pt at 10pt base), body 10pt
-    // - Unicode-safe font path: XeTeX/fontspec renders TeX Gyre Heros (Arial
-    //   metrics, matching the ATS_FOCUSED template metadata) with common
+    // - Classic serif typography matching reference visual authority:
+    //   XeTeX/fontspec renders Latin Modern Roman (lmroman10) with common
     //   ligatures DISABLED so "fi"/"fl" extract as real letters (Cloudflare,
-    //   workflows), and fontspec's OpenType font writes correct ToUnicode CMaps
-    //   for full-text extraction fidelity
-    // - pdfLaTeX fallback keeps T1 + glyphtounicode so ligatures still map
-    //   to correct Unicode codepoints when the fallback engine is used
+    //   workflows), and fontspec writes correct ToUnicode CMaps for full extraction fidelity.
+    // - pdfLaTeX fallback keeps T1 + lmodern + glyphtounicode.
     return `\\documentclass[10pt,letterpaper]{article}
-\\usepackage{iftex}    \\ifxetex
+\\usepackage{iftex}
+\\ifxetex
   \\usepackage{fontspec}
-  % File-based loading: resolves via the TeX bundle regardless of system
-  % fontconfig availability (Tectonic on CI/minimal hosts).
-  \\setmainfont{texgyreheros-regular.otf}[
-    BoldFont=texgyreheros-bold.otf,
+  % File-based loading: Latin Modern Roman classic serif typeface matching visual authority
+  \\setmainfont{lmroman10-regular.otf}[
+    BoldFont=lmroman10-bold.otf,
+    ItalicFont=lmroman10-italic.otf,
+    BoldItalicFont=lmroman10-bolditalic.otf,
     Ligatures=NoCommon
   ]
-  \\setsansfont{texgyreheros-regular.otf}[
-    BoldFont=texgyreheros-bold.otf,
-    Ligatures=NoCommon
-  ]
-  \\renewcommand{\\familydefault}{\\sfdefault}
 \\else
   \\usepackage[utf8]{inputenc}
   \\usepackage[T1]{fontenc}
   \\usepackage{lmodern}
-  \\renewcommand{\\familydefault}{\\sfdefault}
   \\input{glyphtounicode.tex}
   \\pdfgentounicode=1
 \\fi
-\\usepackage[margin=0.55in]{geometry}
+\\usepackage[margin=0.52in]{geometry}
 \\usepackage{hyperref}
 \\pagestyle{empty}
 \\setlength{\\parindent}{0pt}
@@ -756,16 +774,16 @@ ${optional.awards.map((a) => `  \\item ${escapeLatex(typeof a === 'string' ? a :
 \\newcommand{\\atsentrygap}{\\vspace{\\atsEntryToEntry}}
 \\newcommand{\\atsentryheadgap}{\\vspace{\\atsProjectTechToBullets}}
 
-% Clean, ATS-Compliant Section Dividers (heading size \u224812pt via \large at 10pt base)
+% Clean, ATS-Compliant Section Dividers with subtle rule matching reference resume
 \\newcommand{\\atssection}[1]{%
   \\vspace{\\atsSectionToSection}%
   {\\noindent\\large\\bfseries\\uppercase{#1}}\\par
-  \\vspace{1pt}\\hrule height 0.6pt\\vspace{\\atsHeadingToContent}%
+  \\vspace{1.5pt}\\hrule height 0.4pt\\vspace{\\atsHeadingToContent}%
 }
 \\newcommand{\\atsfirstsection}[1]{%
   \\vspace{\\atsHeaderToSection}%
   {\\noindent\\large\\bfseries\\uppercase{#1}}\\par
-  \\vspace{1pt}\\hrule height 0.6pt\\vspace{\\atsHeadingToContent}%
+  \\vspace{1.5pt}\\hrule height 0.4pt\\vspace{\\atsHeadingToContent}%
 }
 
 \\begin{document}

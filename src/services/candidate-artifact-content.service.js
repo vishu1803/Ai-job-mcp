@@ -2220,9 +2220,13 @@ export class CandidateArtifactContentService {
       'class transformer',
     ]);
 
-    // Build unique skill candidate set (merge candidateSkills, normalize canonical aliases, prefer VERIFIED)
+    // Build unique skill candidate set (merge candidateSkills and additionalSkills, normalize canonical aliases, prefer VERIFIED)
     const skillMap = new Map();
-    for (const s of candidateData.skills || []) {
+    const allCandidateSkillsList = [
+      ...(Array.isArray(candidateData.skills) ? candidateData.skills : []),
+      ...(Array.isArray(candidateData.additionalSkills) ? candidateData.additionalSkills : []),
+    ];
+    for (const s of allCandidateSkillsList) {
       const rawName = s.name || s.skillName;
       if (!rawName) continue;
       const lower = rawName.toLowerCase().trim();
@@ -2234,6 +2238,12 @@ export class CandidateArtifactContentService {
       const evidenceId = s.evidenceId || s.primaryEvidenceId || s.primaryEvidence?.id || null;
       const sourceSkillId = s.id || s.skillId || null;
 
+      let rawProvenance = s.provenanceStatus || s.provenance;
+      if (!rawProvenance) {
+        rawProvenance = s.source === 'CANDIDATE_DECLARED' || s.isUserClaim ? 'CLAIMED' : 'VERIFIED';
+      }
+      if (rawProvenance === 'SELF_DECLARED') rawProvenance = 'USER_PROVIDED';
+
       const existing = skillMap.get(key);
       if (!existing) {
         skillMap.set(key, {
@@ -2241,7 +2251,7 @@ export class CandidateArtifactContentService {
           name: canonical,
           slug: s.slug || key.replace(/[^a-z0-9-]/g, '-'),
           category: getCategory(canonical, s.category),
-          provenanceStatus: s.provenanceStatus || (s.isUserClaim ? 'CLAIMED' : 'VERIFIED'),
+          provenanceStatus: rawProvenance,
           evidenceCount,
           evidenceId,
           sourceSkillId,
@@ -2250,7 +2260,7 @@ export class CandidateArtifactContentService {
         const existingVerified =
           existing.provenanceStatus === 'VERIFIED' || existing.provenanceStatus === 'CORROBORATED';
         if (!existingVerified && isVerified) {
-          existing.provenanceStatus = s.provenanceStatus || 'VERIFIED';
+          existing.provenanceStatus = rawProvenance || 'VERIFIED';
         }
         existing.evidenceCount = Math.max(existing.evidenceCount || 0, evidenceCount);
         if (!existing.evidenceId && evidenceId) existing.evidenceId = evidenceId;
@@ -2377,15 +2387,26 @@ export class CandidateArtifactContentService {
       if (provenance === 'VERIFIED' || provenance === 'CORROBORATED') {
         score += 10;
         if (evidenceCount > 0) score += Math.min(5, evidenceCount);
-      } else if (provenance === 'SELF_DECLARED') {
+      } else if (provenance === 'SELF_DECLARED' || provenance === 'USER_PROVIDED') {
         // Candidate self-declared skill: evaluate relevance to role
+        const lowerName = name.toLowerCase();
+        const isCloudDevOpsTarget =
+          /cloud|devops|infrastructure|platform|sre|systems/i.test(jobTitle) ||
+          /cloud|devops|infrastructure|platform|aws/i.test(jobDesc) ||
+          jobSkillTokens.has('aws') ||
+          jobSkillTokens.has('cloud') ||
+          jobSkillTokens.has('devops');
+
         if (category === 'Cloud, DevOps & Systems') {
-          const lowerName = name.toLowerCase();
           if (lowerName === 'aws' || lowerName === 'docker') {
-            score += 8;
-            if (!matchReason) matchReason = 'Relevant candidate-declared cloud / DevOps platform';
+            score += isCloudDevOpsTarget ? 20 : 10;
+            if (!matchReason) {
+              matchReason = isCloudDevOpsTarget
+                ? 'Candidate-declared cloud / DevOps platform relevant to target role'
+                : 'Relevant candidate-declared cloud / DevOps platform';
+            }
           } else {
-            score += 0;
+            score += isCloudDevOpsTarget ? 15 : 5;
             if (!matchReason) matchReason = 'Candidate-declared secondary infrastructure skill';
           }
         } else {
@@ -2416,7 +2437,11 @@ export class CandidateArtifactContentService {
       'Cloud, DevOps & Systems': [],
     };
 
-    for (const s of scoredSkills) {
+    const sortedScoredSkills = scoredSkills
+      .slice()
+      .sort((a, b) => (b.score || 0) - (a.score || 0) || (b.evidenceCount || 0) - (a.evidenceCount || 0));
+
+    for (const s of sortedScoredSkills) {
       const isNoise =
         (backendNoise.has(s.name.toLowerCase()) ||
           s.category === 'Developer Tooling' ||
@@ -2425,10 +2450,11 @@ export class CandidateArtifactContentService {
             !s.matchedRequirementId &&
             !featuredProjectTechs.has(s.name.toLowerCase()))) &&
         !s.isDirectMatch;
-      const isSelfDeclaredUnverified = s.provenance === 'SELF_DECLARED' && s.score < 15;
+      const isSelfDeclared = s.provenance === 'SELF_DECLARED' || s.provenance === 'USER_PROVIDED';
+      const isSelfDeclaredUnverified = isSelfDeclared && s.score < 15;
       const isClaimedBackendWithoutEvidence =
         s.category === 'Backend & APIs' &&
-        (s.provenance === 'CLAIMED' || s.provenance === 'SELF_DECLARED') &&
+        (s.provenance === 'CLAIMED' || isSelfDeclared) &&
         s.evidenceCount === 0 &&
         !s.isDirectMatch &&
         !jobDesc.includes(s.name.toLowerCase()) &&
@@ -2436,7 +2462,7 @@ export class CandidateArtifactContentService {
 
       // Redundancy check for self-declared cloud providers: if AWS is selected, avoid dumping Azure/GCP/Cloudflare
       const isRedundantCloudProvider =
-        s.provenance === 'SELF_DECLARED' &&
+        isSelfDeclared &&
         s.category === 'Cloud, DevOps & Systems' &&
         ['microsoft azure', 'google cloud platform', 'cloudflare', 'gitlab ci/cd'].includes(
           s.name.toLowerCase()
@@ -2481,11 +2507,11 @@ export class CandidateArtifactContentService {
           reason: 'Self-declared without repository evidence or direct job requirement',
         });
       } else if (s.score >= 15 && categoryGroups[s.category]) {
-        // Enforce max 2 self-declared skills per category group to preserve evidence balance
+        // Enforce max 2 self-declared/user-provided skills per category group to preserve evidence balance
         const existingSelfDeclared = categoryGroups[s.category].filter(
-          (ex) => ex.provenance === 'SELF_DECLARED'
+          (ex) => ex.provenance === 'SELF_DECLARED' || ex.provenance === 'USER_PROVIDED'
         ).length;
-        if (s.provenance === 'SELF_DECLARED' && existingSelfDeclared >= 2) {
+        if (isSelfDeclared && existingSelfDeclared >= 2) {
           skillAudit.push({
             skill: s.name,
             category: s.category,

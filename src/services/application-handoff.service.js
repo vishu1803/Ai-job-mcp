@@ -549,12 +549,15 @@ export class ApplicationHandoffService {
           const t = clean(typeof tech === 'string' ? tech : tech?.name);
           if (t) expected.projectTechnologies.push(t);
         }
-        for (const urlKey of ['repositoryUrl', 'liveUrl']) {
-          if (p[urlKey] && typeof p[urlKey] === 'string') {
-            expected.links.push(
-              p[urlKey].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
-            );
-          }
+        if (p.repositoryUrl && typeof p.repositoryUrl === 'string') {
+          let repoLabel = 'GitHub';
+          if (/gitlab/i.test(p.repositoryUrl)) repoLabel = 'GitLab';
+          else if (/bitbucket/i.test(p.repositoryUrl)) repoLabel = 'Bitbucket';
+          else if (!/github/i.test(p.repositoryUrl)) repoLabel = 'Repository';
+          expected.links.push(repoLabel);
+        }
+        if (p.liveUrl && typeof p.liveUrl === 'string') {
+          expected.links.push('Live Demo');
         }
       }
       for (const e of Array.isArray(snapshot.experience) ? snapshot.experience : []) {
@@ -598,8 +601,11 @@ export class ApplicationHandoffService {
         }
       }
       if (snapshot.dsa?.profileUrl && typeof snapshot.dsa.profileUrl === 'string') {
-        const dsaDisplay = snapshot.dsa.profileUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
-        if (dsaDisplay) expected.links.push(dsaDisplay);
+        let dsaLabel = 'LeetCode';
+        if (/hackerrank/i.test(snapshot.dsa.profileUrl)) dsaLabel = 'HackerRank';
+        else if (/codeforces/i.test(snapshot.dsa.profileUrl)) dsaLabel = 'Codeforces';
+        else if (!/leetcode/i.test(snapshot.dsa.profileUrl)) dsaLabel = 'Profile';
+        expected.links.push(dsaLabel);
       }
       if (snapshot.dsa && Array.isArray(snapshot.dsa.bullets)) {
         for (const b of snapshot.dsa.bullets) {

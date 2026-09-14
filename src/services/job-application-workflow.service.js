@@ -960,7 +960,7 @@ export class JobApplicationWorkflowService {
         candidateProfile: candidateProfileInput,
         targetJobPosting,
         selectedProjects: topSelectedProjects,
-        selectedSkills: verifiedSkills,
+        selectedSkills: verifiedSkills.concat(claimedSkills),
         factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
         aiProvider: this.aiProvider,
       });
@@ -1553,7 +1553,7 @@ export class JobApplicationWorkflowService {
         candidateProfile: candidateProfileInput,
         targetJobPosting: jobPosting,
         selectedProjects: topDraftSelectedProjects,
-        selectedSkills: verifiedSkills,
+        selectedSkills: verifiedSkills.concat(claimedSkills),
         factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
         aiProvider: this.aiProvider,
       });
