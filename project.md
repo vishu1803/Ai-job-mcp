@@ -21,8 +21,9 @@ In `src/services/structured-resume.service.js` (lines 245 & 1275), `candidateIde
 1. **Schema Authority (`src/domain/career/resume.schemas.js`):**
    - Added optional `masterHeadline` and `tailoredHeadline` properties to `CandidateIdentitySnapshotSchema` to formally distinguish the unconditioned candidate source-of-truth baseline from the conditioned tailored headline under `.strict()` Zod validation.
 2. **Canonical Tailoring Logic (`src/services/resume-content-strategy.service.js`):**
-   - In `deriveTargetRoleHeading`, conditioned role titles dynamically across five major job families: Full-Stack (`Full-Stack Developer` / `Full-Stack Software Engineer`), Python Backend (`Python Backend Developer` / `Python Backend Engineer`), Frontend (`Frontend Developer` / `Frontend Engineer`), DevOps / Platform (`DevOps / Platform Engineer`), and Distributed Systems (`Distributed Systems Engineer`).
-   - Grounded each role in candidate capabilities (`hasFullStackEvidence`, `hasBackendEvidence`, `hasFrontendEvidence`, `hasDevOpsEvidence`, `hasDistributedEvidence`, `hasPythonEvidence`).
+   - Implemented Broad Explicit Role Precedence: When a posting explicitly supplies a broad professional role title (`isBroadSoftwareRole`, e.g. "Software Engineer", "Software Developer", "Software Development Engineer", "Software Engineer, Service Monetization", "Software Engineer — Backend Services"), that explicit role identity is preserved directly (`Software Engineer` / `Software Developer`) and is NOT overridden by inferred specializations or candidate archetype merely because the job description mentions backend/frontend/cloud technologies.
+   - Conditioned specialized role titles dynamically across five major job families: Full-Stack (`Full-Stack Developer` / `Full-Stack Software Engineer`), Python Backend (`Python Backend Developer` / `Python Backend Engineer`), Frontend (`Frontend Developer` / `Frontend Engineer`), DevOps / Platform (`DevOps / Platform Engineer`), and Distributed Systems (`Distributed Systems Engineer`).
+   - Grounded each specialized role in candidate capabilities (`hasFullStackEvidence`, `hasBackendEvidence`, `hasFrontendEvidence`, `hasDevOpsEvidence`, `hasDistributedEvidence`, `hasPythonEvidence`).
    - Enforced seniority inflation protection: freshers have Senior/Principal/Lead/Staff stripped from headings (`seniorityAdjusted = true`). Experienced senior candidates legitimately preserve seniority (`Senior Backend Engineer`).
    - Preserved zero-fabrication: candidates applying to unsupported domains (e.g., Mobile/iOS without Swift evidence, ML without ML evidence) safely fall back to authentic candidate profile headline or general `Software Engineer`.
    - Added support for `profile.candidate?.headline` when resolving candidate bundle structures.
@@ -38,15 +39,19 @@ In `src/services/structured-resume.service.js` (lines 245 & 1275), `candidateIde
    - Only the tailored headline text rendered in the header tier changes dynamically per target job.
 
 **Verification & Test Results:**
-- `tests/unit/p51-headline-conditioning.test.js`: **16/16 PASS** (5 distinct job families, churn stability across slight wording variations, seniority inflation protection, legitimate senior preservation, zero-fabrication fallbacks, master profile immutability, MCP/Extension parity).
+- `tests/unit/p51-headline-conditioning.test.js`: **19/19 PASS** (5 distinct job families, churn stability across slight wording variations, seniority inflation protection, legitimate senior preservation, zero-fabrication fallbacks, master profile immutability, MCP/Extension parity, broad explicit role precedence, and critical negative test).
 - `tests/unit/job-conditioned-heading.test.js`: **14/14 PASS** (Role normalization, contrasting roles, safe evidence fallbacks).
 - `tests/unit/p19-authoritative-pipeline.test.js`: **24/24 PASS** (Tests A through X including Test O and Test P).
 - `tests/unit/p16-001e-heading-section-order.test.js`: **17/17 PASS** (Tests A through Q).
 - `tests/unit/p50-production-resume-tailoring.test.js`: **17/17 PASS** (Visual styling, ranking authority, Tectonic compilation).
+- **Critical Negative Test Verification:**
+  - Job: Title `"Software Engineer"`, Description mentioning Python, Node.js, PostgreSQL, AWS, distributed systems.
+  - Result: Headline is strictly `"Software Engineer"` (NOT `"Backend Engineer"`, NOT `"Full-Stack & Backend Developer"`, NOT `"DevOps / Platform Engineer"`).
 - **Representative PDF Visual Regression (Tectonic Engine):**
-  - Job 1: DevOps / Platform -> Headline: `"DevOps / Platform Engineer"` | 1 Page Strict: PASS
-  - Job 2: Python Backend -> Headline: `"Python Backend Engineer"` | 1 Page Strict: PASS
-  - Job 3: Full-Stack -> Headline: `"Full-Stack Developer"` | 1 Page Strict: PASS
+  - Job 1: Crunchyroll ("Software Engineer, Service Monetization") -> Headline: `"Software Engineer"` | 1 Page Strict: PASS
+  - Job 2: DevOps / Platform -> Headline: `"DevOps / Platform Engineer"` | 1 Page Strict: PASS
+  - Job 3: Python Backend -> Headline: `"Python Backend Engineer"` | 1 Page Strict: PASS
+  - Job 4: Full-Stack -> Headline: `"Full-Stack Developer"` | 1 Page Strict: PASS
   - Verified layout is visually identical, header alignment identical, no text clipping or overflow.
 
 ### PART 50: Production-Grade Resume Rendering & Tailoring Refinement

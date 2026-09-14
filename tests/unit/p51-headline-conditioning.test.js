@@ -366,4 +366,83 @@ describe('P51: Tailored Professional Headline Conditioning Regression Suite', ()
       );
     });
   });
+
+  describe('7. Broad Explicit Role Precedence & Critical Negative Test', () => {
+    it('CRITICAL NEGATIVE TEST: broad explicit title "Software Engineer" retains "Software Engineer" despite backend/cloud description', () => {
+      const jobPosting = {
+        title: 'Software Engineer',
+        description:
+          'Build robust backend services using Python, Node.js, PostgreSQL, AWS, distributed systems, and cloud infrastructure.',
+      };
+
+      const snap = buildStructuredResumeSnapshot({
+        candidateProfile,
+        jobPosting,
+      });
+
+      const headline = snap.structuredResume.candidateIdentity.headline;
+      const masterHeadline = snap.structuredResume.candidateIdentity.masterHeadline;
+
+      // 1. Expected headline MUST be "Software Engineer"
+      assert.strictEqual(
+        headline,
+        'Software Engineer',
+        'Explicit broad role title must NOT be overridden by inferred specialization'
+      );
+
+      // 2. Prohibited outcomes
+      assert.notStrictEqual(headline, 'Backend Engineer');
+      assert.notStrictEqual(headline, 'Full-Stack & Backend Developer');
+      assert.notStrictEqual(headline, 'DevOps / Platform Engineer');
+
+      // 3. Master headline remains unmutated
+      assert.strictEqual(masterHeadline, 'Full-Stack & Backend Developer');
+
+      // 4. Target role in tailoring plan matches explicit role
+      assert.strictEqual(snap.structuredResume.targetRole, 'Software Engineer');
+
+      // 5. Summary remains job-conditioned
+      assert.ok(snap.structuredResume.summary?.text, 'Summary must be present');
+
+      // 6. Project selection remains authoritative
+      assert.ok(Array.isArray(snap.structuredResume.projects));
+      assert.strictEqual(snap.structuredResume.projects.length, 2);
+    });
+
+    it('retains "Software Engineer" for Crunchyroll-style comma-separated role specifier', () => {
+      const snap = buildStructuredResumeSnapshot({
+        candidateProfile,
+        jobPosting: {
+          title: 'Software Engineer, Service Monetization',
+          description: 'Backend subscription services, Python, TypeScript, Node.js, databases, cloud, reliability',
+        },
+      });
+
+      assert.strictEqual(
+        snap.structuredResume.candidateIdentity.headline,
+        'Software Engineer',
+        '"Software Engineer, Service Monetization" must remain fundamentally Software Engineer'
+      );
+    });
+
+    it('retains "Software Engineer" for dash-separated specialty without becoming Full-Stack & Backend Developer', () => {
+      const snap = buildStructuredResumeSnapshot({
+        candidateProfile,
+        jobPosting: {
+          title: 'Software Engineer — Backend Services',
+          description: 'Core backend platform services and microservices',
+        },
+      });
+
+      assert.strictEqual(
+        snap.structuredResume.candidateIdentity.headline,
+        'Software Engineer',
+        '"Software Engineer — Backend Services" must remain Software Engineer and avoid headline churn'
+      );
+      assert.notStrictEqual(
+        snap.structuredResume.candidateIdentity.headline,
+        'Full-Stack & Backend Developer'
+      );
+    });
+  });
 });

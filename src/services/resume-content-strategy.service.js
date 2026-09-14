@@ -836,6 +836,15 @@ export function deriveTargetRoleHeading({
       ? `${seniorWordMatch[0].charAt(0).toUpperCase() + seniorWordMatch[0].slice(1).toLowerCase()} `
       : '';
 
+    const coreRole = normalized
+      .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
+      .trim();
+
+    const isBroadSoftwareRole =
+      /^(?:software\s+(?:engineer|developer|development\s+engineer)|developer|engineer|programmer)$/i.test(
+        coreRole
+      );
+
     const isFullStackRole = /\bfull[- ]?stack\b/i.test(normalized);
     const isFrontendRole = /\bfront[- ]?end\b/i.test(normalized) && !isFullStackRole;
     const isPythonRole = /\bpython\b/i.test(normalized);
@@ -844,8 +853,13 @@ export function deriveTargetRoleHeading({
     const isDevOpsRole = /\b(?:devops|platform|infrastructure|sre|site reliability|cloud)\b/i.test(normalized);
     const isMobileRole = /\b(?:ios|android|swift|kotlin|mobile|flutter|react native)\b/i.test(normalized);
 
-    // Role conditioning & evidence compatibility check:
-    if (isFullStackRole) {
+    // Headline Precedence Rule:
+    // 1. Broad explicit role identity in posting (e.g. "Software Engineer") must NOT be
+    //    narrowed to an inferred specialization merely because job description mentions backend/cloud.
+    // 2. Specialized role identities are conditioned to candidate-backed capabilities.
+    if (isBroadSoftwareRole) {
+      normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Software Developer' : 'Software Engineer'}`;
+    } else if (isFullStackRole) {
       if (hasFullStackEvidence) {
         normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Full-Stack Developer' : 'Full-Stack Software Engineer'}`;
       } else if (curatedProfileHeadline) {
@@ -919,7 +933,7 @@ export function deriveTargetRoleHeading({
         jobTerms.some((term) =>
           allCandidateCapabilities.some((c) => c.includes(term) || term.includes(c))
         );
-      if (!hasJobTermEvidence && curatedProfileHeadline) {
+      if (jobTerms.length > 0 && !hasJobTermEvidence && curatedProfileHeadline) {
         normalized = curatedProfileHeadline;
       }
     }
