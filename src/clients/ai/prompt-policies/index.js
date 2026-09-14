@@ -19,11 +19,13 @@ import { CareerCoachingPolicy } from './career-coaching.policy.js';
 import { ProjectCaseStudyPolicy } from './project-case-study.policy.js';
 import { ProjectImprovementPolicy } from './project-improvement.policy.js';
 import { ResumeEntityResolutionPolicy } from './resume-entity-resolution.policy.js';
+import { ResumeSummaryPolicy } from './resume-summary.policy.js';
 
 export {
   BasePromptPolicy,
   ResumeWordingPolicy,
   ResumeAccomplishmentPolicy,
+  ResumeSummaryPolicy,
   CoverLetterPolicy,
   JobExplanationPolicy,
   CareerCoachingPolicy,
@@ -41,10 +43,11 @@ export {
 export class PromptPolicyRegistry {
   constructor() {
     const accomplishmentPolicy = new ResumeAccomplishmentPolicy();
+    const summaryPolicy = new ResumeSummaryPolicy();
     this._policies = new Map([
       ['RESUME_WORDING', new ResumeWordingPolicy()],
       ['RESUME_ACCOMPLISHMENT_SYNTHESIS', accomplishmentPolicy],
-      ['RESUME_SUMMARY_SYNTHESIS', accomplishmentPolicy],
+      ['RESUME_SUMMARY_SYNTHESIS', summaryPolicy],
       ['RESUME_EXPERIENCE_SYNTHESIS', accomplishmentPolicy],
       ['RESUME_DSA_SYNTHESIS', accomplishmentPolicy],
       ['RESUME_CLAIM_REPAIR', accomplishmentPolicy],

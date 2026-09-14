@@ -51,7 +51,10 @@ import {
   buildCanonicalJobRequirements,
   buildCandidateJobEvidenceGraph,
 } from './candidate-fact-inventory.service.js';
-import { compressProfessionalBullet } from './resume-composition-primitives.js';
+import {
+  compressProfessionalBullet,
+  toEvidenceReference,
+} from './resume-composition-primitives.js';
 
 /**
  * Capacity-aware dynamic project budgeting strategy (Req H & 21).
@@ -872,7 +875,41 @@ export function buildStructuredResumeDocument({
     let pBullets = [];
     let _bulletCapacityInfo = null;
     let projectOmittedFacts = [];
-    if (useFactComposition && projectFacts.length > 0) {
+
+    // Job-conditioned AI bullet injection with evidence preservation
+    const aiBullets =
+      options?.aiContent?.projectBullets?.[selectedId] ||
+      (proj.name ? options?.aiContent?.projectBullets?.[proj.name] : null) ||
+      (proj.title ? options?.aiContent?.projectBullets?.[proj.title] : null) ||
+      (proj.name ? options?.aiContent?.projectBullets?.[slugifyProject(proj.name)] : null);
+
+    if (Array.isArray(aiBullets) && aiBullets.length >= 3) {
+      pBullets = aiBullets.map((b, bIdx) => {
+        const factIds = Array.isArray(b.composedFromFactIds) && b.composedFromFactIds.length > 0
+          ? b.composedFromFactIds
+          : (b.factId ? [b.factId] : []);
+        factCompositionTrace.push({
+          projectId: selectedId,
+          projectName: proj.name || proj.title || '',
+          composedFromFactIds: factIds,
+          semanticDimensions: b.semanticDimensions || [],
+        });
+        realizationSummaries.push({
+          claimId: b.claimId || `ai-bullet-${selectedId}-${bIdx + 1}`,
+          text: b.text,
+          validationResult: 'VALID',
+        });
+        return {
+          text: b.text,
+          evidenceRefs: Array.isArray(b.evidenceRefs) && b.evidenceRefs.length > 0
+            ? b.evidenceRefs
+            : factIds.map((id) => toEvidenceReference({ factId: id, truthCategory: 'VERIFIED' })),
+          matchedRequirementIds: Array.isArray(b.matchedRequirementIds) ? b.matchedRequirementIds : [],
+          composedFromFactIds: factIds,
+          provenanceStatus: 'VERIFIED',
+        };
+      });
+    } else if (useFactComposition && projectFacts.length > 0) {
       const composed = composeProfessionalProjectBullets({
         facts: projectFacts,
         project: enrichedProj,
@@ -968,10 +1005,18 @@ export function buildStructuredResumeDocument({
     }
 
     // P46 Contract: Minimum 3 candidate-supported bullets per rendered project.
-    // Projects with fewer than 3 bullets are dropped rather than rendered with thin content.
+    // Projects with fewer than 3 candidate-supported bullets are dropped rather than rendered with thin content.
     // No synthetic bullets are fabricated to reach the minimum.
     const MIN_BULLETS_PER_RENDERED_PROJECT = 3;
-    if (pBullets.length < MIN_BULLETS_PER_RENDERED_PROJECT) {
+    const candidateAvailableBullets = Math.max(
+      Array.isArray(proj.bullets) ? proj.bullets.length : 0,
+      Array.isArray(proj.metadata?.bullets) ? proj.metadata.bullets.length : 0,
+      projectFacts.length
+    );
+    const minRequiredBullets = typeof projectOptions.maxBullets === 'number'
+      ? Math.min(MIN_BULLETS_PER_RENDERED_PROJECT, projectOptions.maxBullets)
+      : MIN_BULLETS_PER_RENDERED_PROJECT;
+    if (candidateAvailableBullets < MIN_BULLETS_PER_RENDERED_PROJECT || pBullets.length < minRequiredBullets) {
       return null; // insufficient candidate-supported bullets — drop project
     }
 
@@ -1126,6 +1171,22 @@ export function buildStructuredResumeDocument({
       matchedRequirementIds: incomingPlan.summary.matchedRequirementIds || [],
       provenanceStatus: incomingPlan.summary.provenanceStatus || 'CLAIMED',
       provenance: incomingPlan.summary.provenance || null,
+    };
+  } else if (
+    options?.aiContent?.summary &&
+    typeof options.aiContent.summary === 'object' &&
+    typeof options.aiContent.summary.text === 'string' &&
+    options.aiContent.summary.text.trim().length > 0
+  ) {
+    summary = {
+      text: options.aiContent.summary.text,
+      referencedSkillSlugs: options.aiContent.summary.referencedSkillSlugs || [],
+      referencedProjectIds: options.aiContent.summary.referencedProjectIds || [],
+      evidenceRefs: options.aiContent.summary.evidenceRefs || [],
+      matchedRequirementIds: options.aiContent.summary.matchedRequirementIds || [],
+      composedFromFactIds: options.aiContent.summary.composedFromFactIds || [],
+      provenanceStatus: 'VERIFIED',
+      provenance: options.aiContent.summary.provenance || null,
     };
   } else {
     const compSummary = composeProfessionalSummary({

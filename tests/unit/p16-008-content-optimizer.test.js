@@ -358,6 +358,7 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
 
       const authenticBullet1 = 'Architected event-driven microservices using Apache Kafka and PostgreSQL.';
       const authenticBullet2 = 'Implemented partition consumer pools with fault-tolerant checkpointing.';
+      const authenticBullet3 = 'Engineered distributed consumer groups with automatic partition rebalancing.';
       const candidateProfile = {
         candidate: { displayName: 'Carol Candidate', canonicalEmail: 'carol@domain.org' },
         projects: [
@@ -365,7 +366,7 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
             id: 'proj-kafka',
             name: 'Kafka Engine',
             technologies: ['Kafka', 'PostgreSQL'],
-            bullets: [authenticBullet1, authenticBullet2],
+            bullets: [authenticBullet1, authenticBullet2, authenticBullet3],
           },
         ],
         skills: [{ name: 'Kafka' }],
@@ -399,7 +400,8 @@ describe('P16-008: Bounded Content-Utilization Optimizer & Physical PDF Quality'
             b.includes('event-driven') ||
             b.includes('PostgreSQL') ||
             b.includes('partition consumer') ||
-            b.includes('checkpointing'),
+            b.includes('checkpointing') ||
+            b.includes('rebalancing'),
           `Rendered unexpected bullet text: "${b}"`
         );
       }

@@ -163,6 +163,21 @@ export class ResumeContentOptimizer {
       currentStructuredResume = snap.structuredResume || snap;
     }
 
+    // Preserve AI summary and project bullets across optimizer iterations for semantic freeze
+    if (!initialOptions.aiContent && currentStructuredResume) {
+      const projBullets = {};
+      if (Array.isArray(currentStructuredResume.projects)) {
+        for (const p of currentStructuredResume.projects) {
+          if (p.projectId) projBullets[p.projectId] = p.bullets;
+          if (p.name) projBullets[p.name] = p.bullets;
+        }
+      }
+      initialOptions.aiContent = {
+        summary: currentStructuredResume.summary,
+        projectBullets: projBullets,
+      };
+    }
+
     // Step 0: Introduce explicit semantic-freeze boundary (Issue 2 Contract)
     // The semantic resume is frozen; optimizer may only perform presentation/layout transformations.
     const baselineSemantic = freezeSemanticResume(currentStructuredResume);

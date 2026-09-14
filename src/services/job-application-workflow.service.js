@@ -36,6 +36,7 @@ import {
   DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
 } from '../domain/job/job-workflow.schemas.js';
 import { buildStructuredResumeSnapshot } from './structured-resume.service.js';
+import { defaultAiResumeContentGenerator } from './ai-resume-content-generator.service.js';
 import {
   StructuredResumeDocumentSchema,
   ResumeTailoringPlanSchema,
@@ -935,12 +936,34 @@ export class JobApplicationWorkflowService {
       };
     }
 
+    // Generate AI-conditioned Professional Summary and Project Bullets (Content Generation Quality)
+    const topSelectedProjects = (selectedProjectsList.length > 0
+      ? selectedProjectsList
+      : authoritativeRankings
+    ).slice(0, 2);
+
+    let aiContent = null;
+    try {
+      aiContent = await defaultAiResumeContentGenerator.generateResumeAiContent({
+        candidateProfile: candidateProfileInput,
+        targetJobPosting,
+        selectedProjects: topSelectedProjects,
+        selectedSkills: verifiedSkills,
+        factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
+        aiProvider: this.aiProvider,
+      });
+    } catch (aiErr) {
+      this.logger.warn({ error: aiErr.message }, 'AI resume content generation failed; falling back to deterministic baseline');
+      aiContent = null;
+    }
+
     const structuredSnapshot = buildStructuredResumeSnapshot({
       candidateProfile: candidateProfileInput,
       jobPosting: targetJobPosting,
       options: {
         projectRankings: authoritativeRankings,
         matchAnalysis: jobFitAnalysis?.matchAnalysis,
+        aiContent,
       },
     });
 
@@ -1496,12 +1519,28 @@ export class JobApplicationWorkflowService {
       currentPkg?.jobFitAnalysis?.topRelevantProjects ||
       [];
 
+    let aiContent = null;
+    try {
+      aiContent = await defaultAiResumeContentGenerator.generateResumeAiContent({
+        candidateProfile: candidateProfileInput,
+        targetJobPosting: jobPosting,
+        selectedProjects: selectedProjectsList.slice(0, 2),
+        selectedSkills: verifiedSkills,
+        factInventory: candidateProfileInput.facts || cand.profileMetadata?.factInventory || [],
+        aiProvider: this.aiProvider,
+      });
+    } catch (aiErr) {
+      this.logger.warn({ error: aiErr.message }, 'AI resume content generation failed during regeneration; falling back to deterministic baseline');
+      aiContent = null;
+    }
+
     const structuredSnapshot = buildStructuredResumeSnapshot({
       candidateProfile: candidateProfileInput,
       jobPosting,
       options: {
         projectRankings: authoritativeDraftRankings,
         matchAnalysis: currentPkg?.jobFitAnalysis?.matchAnalysis,
+        aiContent,
       },
     });
 
