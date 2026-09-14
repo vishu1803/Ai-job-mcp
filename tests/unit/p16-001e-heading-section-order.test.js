@@ -256,7 +256,8 @@ describe('P16-001E: Job-Tailored Heading & Dynamic Section Ordering', () => {
     });
 
     assert.strictEqual(doc.targetRole, doc.tailoringPlan.targetRoleTitle);
-    assert.strictEqual(doc.candidateIdentity.headline, 'Software Developer');
+    assert.strictEqual(doc.candidateIdentity.masterHeadline, 'Software Developer');
+    assert.strictEqual(doc.candidateIdentity.headline, 'Backend Engineer');
   });
 
   it('Test H: Entry-level project-heavy ordering is valid', () => {

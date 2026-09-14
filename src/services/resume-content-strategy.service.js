@@ -681,7 +681,7 @@ export function deriveTargetRoleHeading({
     )
   );
   const hasSeniorHeadline = /\b(senior|sr\.?|principal|lead|staff|architect|director)\b/i.test(
-    profile.headline || meta.headline || ''
+    profile.headline || profile.candidate?.headline || meta.headline || ''
   );
 
   const isFresher =
@@ -689,10 +689,26 @@ export function deriveTargetRoleHeading({
     !hasSeniorHeadline &&
     (careerStatus === 'FRESHER' ||
       profile.careerStatus === 'FRESHER' ||
+      profile.candidate?.careerStatus === 'FRESHER' ||
       meta.careerStatus === 'FRESHER' ||
       candidateSeniority === 'ENTRY_LEVEL' ||
       candidateSeniority === 'INTERN' ||
       (tenureMetrics.professionalTenureYears < 1.0 && experiences.length === 0));
+
+  const rawProfileHeadline =
+    profile.headline ||
+    profile.candidate?.headline ||
+    meta.headline ||
+    meta.userCustom?.headline;
+  let curatedProfileHeadline = '';
+  if (rawProfileHeadline && typeof rawProfileHeadline === 'string' && rawProfileHeadline.trim()) {
+    curatedProfileHeadline = rawProfileHeadline.trim();
+    if (isFresher) {
+      curatedProfileHeadline = curatedProfileHeadline
+        .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
+        .trim();
+    }
+  }
 
   // 2. Candidate evidence capabilities
   const candidateSkills = new Set(
@@ -751,24 +767,23 @@ export function deriveTargetRoleHeading({
   );
   const hasFullStackEvidence = hasBackendEvidence && hasFrontendEvidence;
 
-  const hasDistributedEvidence =
-    allCandidateCapabilities.some((s) =>
-      [
-        'distributed',
-        'distributed-systems',
-        'redis',
-        'concurrency',
-        'microservices',
-        'async',
-        'asynchronous',
-        'docker',
-        'clustering',
-        'socketio',
-        'socket.io',
-        'kafka',
-        'rabbitmq',
-      ].includes(s)
-    ) || hasBackendEvidence;
+  const hasDistributedEvidence = allCandidateCapabilities.some((s) =>
+    [
+      'distributed',
+      'distributed-systems',
+      'redis',
+      'concurrency',
+      'microservices',
+      'async',
+      'asynchronous',
+      'docker',
+      'clustering',
+      'socketio',
+      'socket.io',
+      'kafka',
+      'rabbitmq',
+    ].includes(s)
+  );
 
   const hasDevOpsEvidence = allCandidateCapabilities.some((s) =>
     [
@@ -816,6 +831,11 @@ export function deriveTargetRoleHeading({
       seniorityAdjusted = true;
     }
 
+    const seniorWordMatch = normalized.match(/\b(senior|lead|staff|principal)\b/i);
+    const validSeniorPrefix = (!isFresher && seniorWordMatch)
+      ? `${seniorWordMatch[0].charAt(0).toUpperCase() + seniorWordMatch[0].slice(1).toLowerCase()} `
+      : '';
+
     const isFullStackRole = /\bfull[- ]?stack\b/i.test(normalized);
     const isFrontendRole = /\bfront[- ]?end\b/i.test(normalized) && !isFullStackRole;
     const isPythonRole = /\bpython\b/i.test(normalized);
@@ -827,42 +847,80 @@ export function deriveTargetRoleHeading({
     // Role conditioning & evidence compatibility check:
     if (isFullStackRole) {
       if (hasFullStackEvidence) {
-        normalized = /developer/i.test(normalized) ? 'Full-Stack Developer' : 'Full-Stack Software Engineer';
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Full-Stack Developer' : 'Full-Stack Software Engineer'}`;
+      } else if (curatedProfileHeadline) {
+        normalized = curatedProfileHeadline;
       } else if (hasBackendEvidence) {
-        normalized = /developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer';
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer'}`;
       } else if (hasFrontendEvidence) {
-        normalized = /developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer';
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer'}`;
       } else {
-        normalized = 'Software Engineer';
+        normalized = `${validSeniorPrefix}Software Engineer`.trim();
       }
-    } else if (isDistributedRole && hasDistributedEvidence) {
-      normalized = 'Distributed Systems Engineer';
-    } else if (isDevOpsRole && hasDevOpsEvidence) {
-      normalized = 'DevOps / Platform Engineer';
+    } else if (isDistributedRole) {
+      if (hasDistributedEvidence) {
+        normalized = `${validSeniorPrefix}Distributed Systems Engineer`;
+      } else if (curatedProfileHeadline) {
+        normalized = curatedProfileHeadline;
+      } else if (hasBackendEvidence) {
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer'}`;
+      } else {
+        normalized = `${validSeniorPrefix}Software Engineer`.trim();
+      }
+    } else if (isDevOpsRole) {
+      if (hasDevOpsEvidence) {
+        normalized = `${validSeniorPrefix}DevOps / Platform Engineer`;
+      } else if (curatedProfileHeadline) {
+        normalized = curatedProfileHeadline;
+      } else if (hasBackendEvidence) {
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer'}`;
+      } else {
+        normalized = `${validSeniorPrefix}Software Engineer`.trim();
+      }
     } else if (isBackendRole) {
       if (isPythonRole && hasPythonEvidence) {
-        normalized = /developer/i.test(normalized) ? 'Python Backend Developer' : 'Python Backend Engineer';
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Python Backend Developer' : 'Python Backend Engineer'}`;
       } else if (hasBackendEvidence) {
-        normalized = /developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer';
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer'}`;
+      } else if (curatedProfileHeadline) {
+        normalized = curatedProfileHeadline;
       } else if (hasFrontendEvidence) {
-        normalized = /developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer';
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer'}`;
       } else {
-        normalized = 'Software Engineer';
+        normalized = `${validSeniorPrefix}Software Engineer`.trim();
       }
     } else if (isFrontendRole) {
       if (hasFrontendEvidence) {
-        normalized = /developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer';
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Frontend Developer' : 'Frontend Engineer'}`;
       } else if (hasBackendEvidence) {
-        normalized = /developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer';
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Backend Developer' : 'Backend Engineer'}`;
+      } else if (curatedProfileHeadline) {
+        normalized = curatedProfileHeadline;
       } else {
-        normalized = 'Software Engineer';
+        normalized = `${validSeniorPrefix}Software Engineer`.trim();
       }
     } else if (isMobileRole) {
       const hasMobileEvidence = allCandidateCapabilities.some((s) =>
         ['ios', 'swift', 'swiftui', 'android', 'kotlin', 'react-native', 'flutter'].includes(s)
       );
-      if (!hasMobileEvidence) {
-        normalized = 'Software Engineer';
+      if (hasMobileEvidence) {
+        normalized = `${validSeniorPrefix}${/developer/i.test(normalized) ? 'Mobile Developer' : 'Mobile Engineer'}`;
+      } else {
+        normalized = `${validSeniorPrefix}Software Engineer`.trim();
+      }
+    } else {
+      // General role or specialized role: verify candidate has evidence
+      const jobTerms = normalized
+        .toLowerCase()
+        .split(/[\s/—–-]+/)
+        .filter((t) => !['engineer', 'developer', 'software', 'senior', 'junior', 'lead', 'staff'].includes(t));
+      const hasJobTermEvidence =
+        jobTerms.length > 0 &&
+        jobTerms.some((term) =>
+          allCandidateCapabilities.some((c) => c.includes(term) || term.includes(c))
+        );
+      if (!hasJobTermEvidence && curatedProfileHeadline) {
+        normalized = curatedProfileHeadline;
       }
     }
 
@@ -875,15 +933,8 @@ export function deriveTargetRoleHeading({
     heading = normalized;
   } else {
     // No job posting provided: use candidate profile headline safely
-    const profileHeadline = profile.headline || meta.headline || meta.userCustom?.headline;
-    if (profileHeadline && typeof profileHeadline === 'string' && profileHeadline.trim()) {
-      let curated = profileHeadline.trim();
-      if (isFresher) {
-        curated = curated
-          .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
-          .trim();
-      }
-      heading = curated;
+    if (curatedProfileHeadline) {
+      heading = curatedProfileHeadline;
     } else if (hasFullStackEvidence) {
       heading = 'Full-Stack Software Engineer';
     } else if (hasBackendEvidence) {
@@ -902,27 +953,13 @@ export function deriveTargetRoleHeading({
         ? 'FRESHER'
         : 'EXPERIENCED';
 
-  // P19: Derive candidate-owned headline that is stable across target jobs.
-  // The candidateHeadline comes from the candidate's stored profile and evidence,
-  // NOT from the target job title. Seniority inflation protection is applied.
-  let candidateHeadline = '';
-  const profileHeadline = profile.headline || meta.headline || meta.userCustom?.headline;
-  if (profileHeadline && typeof profileHeadline === 'string' && profileHeadline.trim()) {
-    let curated = profileHeadline.trim();
-    if (isFresher) {
-      curated = curated
-        .replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '')
-        .trim();
-    }
-    candidateHeadline = curated;
-  } else if (hasFullStackEvidence) {
-    candidateHeadline = 'Full-Stack Software Engineer';
-  } else if (hasBackendEvidence) {
-    candidateHeadline = 'Backend Engineer';
-  } else if (hasFrontendEvidence) {
-    candidateHeadline = 'Frontend Engineer';
-  } else {
-    candidateHeadline = 'Software Engineer';
+  // Candidate base/master headline (stable unconditioned headline with seniority protection)
+  let candidateHeadline = curatedProfileHeadline;
+  if (!candidateHeadline) {
+    if (hasFullStackEvidence) candidateHeadline = 'Full-Stack Software Engineer';
+    else if (hasBackendEvidence) candidateHeadline = 'Backend Engineer';
+    else if (hasFrontendEvidence) candidateHeadline = 'Frontend Engineer';
+    else candidateHeadline = 'Software Engineer';
   }
 
   // P19: targetRoleFamily — normalized domain classification from evidence
@@ -938,9 +975,18 @@ export function deriveTargetRoleHeading({
     seniorityAdjusted,
     candidateSeniority,
     candidateArchetype,
-    // P19 additions: semantic separation of candidate identity from job tailoring
+    // Master headline: unconditioned candidate profile headline
+    masterHeadline: candidateHeadline,
+    // candidateHeadline: preserved for backward compatibility
     candidateHeadline,
-    targetRole: heading,
+    // Target role from job posting (seniority-adjusted if fresher)
+    targetRole: rawJobTitle
+      ? (isFresher
+          ? normalizeTargetRoleTitle(rawJobTitle).replace(/\b(senior|sr\.?|principal|lead|staff|director|head of|vp)\b\s*/gi, '').trim()
+          : normalizeTargetRoleTitle(rawJobTitle))
+      : heading,
+    // Tailored headline: role-conditioned and evidence-grounded
+    tailoredHeadline: heading,
     targetRoleFamily,
   };
 }

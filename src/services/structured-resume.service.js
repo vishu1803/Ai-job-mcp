@@ -233,6 +233,7 @@ export function buildStructuredResumeDocument({
   });
 
   // 1. Candidate Identity Snapshot (Immutable Source Data)
+  const isTailoredJob = Boolean(jobPosting && (jobPosting.title || jobPosting.rawTitle));
   const candidateIdentity = {
     displayName:
       source.displayName ||
@@ -240,9 +241,15 @@ export function buildStructuredResumeDocument({
       source.candidate?.displayName ||
       source.candidate?.name ||
       'Candidate',
-    // P19: Use candidate-owned headline, NOT the target job title.
-    // candidateHeadline is stable across jobs; heading is job-derived.
-    headline: tailoredHeadingInfo.candidateHeadline || tailoredHeadingInfo.heading,
+    // Tailored resume headline: job-conditioned and evidence-grounded for tailored jobs;
+    // masterHeadline when unconditioned or when target job is unsupported by candidate evidence.
+    headline: isTailoredJob
+      ? (tailoredHeadingInfo.tailoredHeadline || tailoredHeadingInfo.heading || tailoredHeadingInfo.masterHeadline || tailoredHeadingInfo.candidateHeadline || 'Software Engineer')
+      : (tailoredHeadingInfo.masterHeadline || tailoredHeadingInfo.candidateHeadline || source.headline || 'Software Engineer'),
+    masterHeadline: tailoredHeadingInfo.masterHeadline || tailoredHeadingInfo.candidateHeadline || source.headline || null,
+    tailoredHeadline: isTailoredJob
+      ? (tailoredHeadingInfo.tailoredHeadline || tailoredHeadingInfo.heading || null)
+      : null,
     email:
       source.canonicalEmail ||
       source.email ||
@@ -730,7 +737,7 @@ export function buildStructuredResumeDocument({
   const basePlan = {
     planId: crypto.randomUUID(),
     targetJobId: canonicalJob?.id || null,
-    targetRoleTitle: tailoredHeadingInfo.heading,
+    targetRoleTitle: tailoredHeadingInfo.targetRole || tailoredHeadingInfo.heading,
     targetCompany: canonicalJob?.company || null,
     candidateArchetype: tailoredHeadingInfo.candidateArchetype || 'EXPERIENCED',
     pageTarget: 'ONE_PAGE_STRICT',
@@ -1271,8 +1278,13 @@ export function buildStructuredResumeDocument({
     sectionOrder: parsedPlan.sectionOrder,
     candidateIdentity: {
       ...candidateIdentity,
-      // P19: Use candidate-owned headline, NOT target role title
-      headline: tailoredHeadingInfo?.candidateHeadline || candidateIdentity.headline || parsedPlan.targetRoleTitle,
+      headline: isTailoredJob
+        ? (tailoredHeadingInfo?.tailoredHeadline || tailoredHeadingInfo?.heading || candidateIdentity.headline)
+        : (candidateIdentity.headline || tailoredHeadingInfo?.masterHeadline || tailoredHeadingInfo?.candidateHeadline),
+      masterHeadline: candidateIdentity.masterHeadline || tailoredHeadingInfo?.masterHeadline || tailoredHeadingInfo?.candidateHeadline || null,
+      tailoredHeadline: isTailoredJob
+        ? (tailoredHeadingInfo?.tailoredHeadline || tailoredHeadingInfo?.heading || candidateIdentity.headline)
+        : null,
     },
     summary,
     skills: {

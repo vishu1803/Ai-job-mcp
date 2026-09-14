@@ -3,6 +3,52 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-14*
 
+### PART 51: Tailored Professional Headline Conditioning & Evidence-Based Dynamic Selection
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-14
+**Remote HEAD Base:** `86d7685` (`main`, `origin/main`)
+**Production Candidate:** `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad)
+**MCP Context:** `{ tenantId: '24d53f53-780e-4431-b065-32180c354175', userId: '9dd8e4fb-456b-4104-9cb1-c839a544b721' }`
+
+**Executive Summary:**
+Resolved the static headline issue where tailored resumes permanently reused the candidate's master profile headline ("Full-Stack & Backend Developer") across materially different job roles. Implemented dynamic headline conditioning in the canonical pipeline (`deriveTargetRoleHeading` -> `buildStructuredResumeDocument` -> LaTeX generator) based on target job role semantics, candidate-owned evidence, and actual candidate seniority. Maintained complete visual freeze of the reference LaTeX layout, fonts, styling, spacing, project links, and single-page budget, while distinguishing `MASTER_HEADLINE` (unmutated source of truth) from `TAILORED_HEADLINE`.
+
+**Root Cause Analysis:**
+In `src/services/structured-resume.service.js` (lines 245 & 1275), `candidateIdentity.headline` was set as `tailoredHeadingInfo.candidateHeadline || tailoredHeadingInfo.heading`. Because `tailoredHeadingInfo.candidateHeadline` always reflected the static master profile headline (`"Full-Stack & Backend Developer"`), the role-conditioned `heading` derived from job semantics was unconditionally masked and discarded.
+
+**Core Architectural Implementations:**
+1. **Schema Authority (`src/domain/career/resume.schemas.js`):**
+   - Added optional `masterHeadline` and `tailoredHeadline` properties to `CandidateIdentitySnapshotSchema` to formally distinguish the unconditioned candidate source-of-truth baseline from the conditioned tailored headline under `.strict()` Zod validation.
+2. **Canonical Tailoring Logic (`src/services/resume-content-strategy.service.js`):**
+   - In `deriveTargetRoleHeading`, conditioned role titles dynamically across five major job families: Full-Stack (`Full-Stack Developer` / `Full-Stack Software Engineer`), Python Backend (`Python Backend Developer` / `Python Backend Engineer`), Frontend (`Frontend Developer` / `Frontend Engineer`), DevOps / Platform (`DevOps / Platform Engineer`), and Distributed Systems (`Distributed Systems Engineer`).
+   - Grounded each role in candidate capabilities (`hasFullStackEvidence`, `hasBackendEvidence`, `hasFrontendEvidence`, `hasDevOpsEvidence`, `hasDistributedEvidence`, `hasPythonEvidence`).
+   - Enforced seniority inflation protection: freshers have Senior/Principal/Lead/Staff stripped from headings (`seniorityAdjusted = true`). Experienced senior candidates legitimately preserve seniority (`Senior Backend Engineer`).
+   - Preserved zero-fabrication: candidates applying to unsupported domains (e.g., Mobile/iOS without Swift evidence, ML without ML evidence) safely fall back to authentic candidate profile headline or general `Software Engineer`.
+   - Added support for `profile.candidate?.headline` when resolving candidate bundle structures.
+   - Returned `{ heading, rawTitle, seniorityAdjusted, candidateSeniority, candidateArchetype, masterHeadline, candidateHeadline, targetRole, tailoredHeadline, targetRoleFamily }`.
+3. **Structured Resume Assembly (`src/services/structured-resume.service.js`):**
+   - Flagged `isTailoredJob = Boolean(jobPosting && (jobPosting.title || jobPosting.rawTitle))`.
+   - Populated `candidateIdentity.masterHeadline` with the authentic candidate profile headline (immutable source of truth).
+   - Populated `candidateIdentity.tailoredHeadline` with the conditioned headline for tailored resumes.
+   - Set `candidateIdentity.headline` to `tailoredHeadline` when tailored, and `masterHeadline` when unconditioned.
+   - Retained 100% parity across MCP and Extension pathways.
+4. **Visual & Renderer Preservation (`src/services/latex-document-generator.service.js`):**
+   - 100% frozen LaTeX template: font family, font size, margins (0.52in), sections, ordering, horizontal rules, vertical spacing, project links (`formatProjectLinksLatex`), DSA, experience, education, and single-page budget left completely intact.
+   - Only the tailored headline text rendered in the header tier changes dynamically per target job.
+
+**Verification & Test Results:**
+- `tests/unit/p51-headline-conditioning.test.js`: **16/16 PASS** (5 distinct job families, churn stability across slight wording variations, seniority inflation protection, legitimate senior preservation, zero-fabrication fallbacks, master profile immutability, MCP/Extension parity).
+- `tests/unit/job-conditioned-heading.test.js`: **14/14 PASS** (Role normalization, contrasting roles, safe evidence fallbacks).
+- `tests/unit/p19-authoritative-pipeline.test.js`: **24/24 PASS** (Tests A through X including Test O and Test P).
+- `tests/unit/p16-001e-heading-section-order.test.js`: **17/17 PASS** (Tests A through Q).
+- `tests/unit/p50-production-resume-tailoring.test.js`: **17/17 PASS** (Visual styling, ranking authority, Tectonic compilation).
+- **Representative PDF Visual Regression (Tectonic Engine):**
+  - Job 1: DevOps / Platform -> Headline: `"DevOps / Platform Engineer"` | 1 Page Strict: PASS
+  - Job 2: Python Backend -> Headline: `"Python Backend Engineer"` | 1 Page Strict: PASS
+  - Job 3: Full-Stack -> Headline: `"Full-Stack Developer"` | 1 Page Strict: PASS
+  - Verified layout is visually identical, header alignment identical, no text clipping or overflow.
+
 ### PART 50: Production-Grade Resume Rendering & Tailoring Refinement
 
 **Status:** COMPLETE & VERIFIED

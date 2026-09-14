@@ -486,6 +486,8 @@ export const CandidateIdentitySnapshotSchema = z
   .object({
     displayName: z.string().trim().min(1).max(255),
     headline: z.string().trim().min(1).max(500),
+    masterHeadline: z.string().trim().max(500).nullable().optional(),
+    tailoredHeadline: z.string().trim().max(500).nullable().optional(),
     email: z.string().trim().email(),
     phone: z.string().trim().max(50).nullable().optional(),
     location: z.string().trim().max(255).nullable().optional(),
