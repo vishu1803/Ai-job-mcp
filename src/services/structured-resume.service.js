@@ -259,7 +259,10 @@ export function buildStructuredResumeDocument({
     phone:
       source.phone ||
       source.phoneNumber ||
+      source.candidate?.profileMetadata?.userCustom?.phone ||
+      source.candidate?.profileMetadata?.phone ||
       source.candidate?.phone ||
+      meta.userCustom?.phone ||
       meta.identity?.phone ||
       meta.phone ||
       null,

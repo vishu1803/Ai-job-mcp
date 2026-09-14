@@ -43,6 +43,7 @@ import { EducationNormalizer } from '../utils/education-normalizer.js';
 import { TenureCalculator } from '../utils/tenure-calculator.js';
 import { CareerStatusDerivation } from '../utils/career-status-derivation.js';
 import { resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
+import { normalizePhoneRecord, parseStoredPhone } from '../utils/phone-country-codes.js';
 
 export class CandidateProfileService {
   /**
@@ -1274,10 +1275,29 @@ export class CandidateProfileService {
       updatedCustom.location = loc;
       currentMeta.location = loc;
     }
-    if (rawInput.phone !== undefined) {
-      const ph = rawInput.phone ? String(rawInput.phone).trim().slice(0, 50) : null;
-      updatedCustom.phone = ph;
-      currentMeta.phone = ph;
+    if (
+      rawInput.phone !== undefined ||
+      rawInput.countryCode !== undefined ||
+      rawInput.phoneNumber !== undefined
+    ) {
+      const normalizedPhone = normalizePhoneRecord({
+        countryCode: rawInput.countryCode,
+        phoneNumber: rawInput.phoneNumber,
+        rawPhone: rawInput.phone,
+        existing: {
+          countryCode: existingCustom.countryCode || currentMeta.countryCode,
+          phoneNumber: existingCustom.phoneNumber || currentMeta.phoneNumber,
+          phone: existingCustom.phone || currentMeta.phone,
+        },
+      });
+
+      updatedCustom.countryCode = normalizedPhone.countryCode;
+      updatedCustom.phoneNumber = normalizedPhone.phoneNumber;
+      updatedCustom.phone = normalizedPhone.phone;
+
+      currentMeta.countryCode = normalizedPhone.countryCode;
+      currentMeta.phoneNumber = normalizedPhone.phoneNumber;
+      currentMeta.phone = normalizedPhone.phone;
     }
 
     // 2. Career Status & Current Employment
@@ -1597,6 +1617,40 @@ export class CandidateProfileService {
       resolvedUserEmail,
       { allowNullable: true }
     );
+
+    // Resolve authoritative phone information (preserves legacy un-prefixed records without hallucinating)
+    const rawStoredPhone =
+      userCustom.phone ||
+      candidate.profileMetadata?.phone ||
+      resumeData?.identity?.phone ||
+      null;
+    const rawCountryCode =
+      userCustom.countryCode ||
+      candidate.profileMetadata?.countryCode ||
+      null;
+    const rawPhoneNumber =
+      userCustom.phoneNumber ||
+      candidate.profileMetadata?.phoneNumber ||
+      null;
+
+    let phone = rawStoredPhone;
+    let countryCode = rawCountryCode;
+    let phoneNumber = rawPhoneNumber;
+
+    if (rawCountryCode && rawPhoneNumber) {
+      phone = `${rawCountryCode} ${rawPhoneNumber}`;
+    } else if (rawStoredPhone) {
+      const parsed = parseStoredPhone(rawStoredPhone);
+      if (parsed.countryCode) {
+        countryCode = parsed.countryCode;
+        phoneNumber = parsed.phoneNumber;
+        phone = parsed.phone;
+      } else {
+        countryCode = null;
+        phoneNumber = parsed.phoneNumber;
+        phone = parsed.phone;
+      }
+    }
 
     // 4. Portfolio Links Deduplication
     const portfolioLinksMap = new Map();
@@ -2156,6 +2210,9 @@ export class CandidateProfileService {
       seniority,
       yearsOfExperience,
       canonicalEmail,
+      phone,
+      countryCode,
+      phoneNumber,
       portfolioLinks,
       jobPreferences,
       verifiedSkillsSummary,

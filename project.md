@@ -3,6 +3,64 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-14*
 
+### PART 52: Candidate Profile Phone Number Country-Code Selector & Normalization
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-14
+**Remote HEAD Base:** `e5e1f63` (`main`, `origin/main`)
+**Production Candidate:** `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad)
+**MCP Context:** `{ tenantId: '24d53f53-780e-4431-b065-32180c354175', userId: '9dd8e4fb-456b-4104-9cb1-c839a544b721' }`
+
+**Executive Summary:**
+Implemented a first-class Country Calling Code selector and phone normalization enhancement for candidate profiles. The UI separates country calling code selection (`[ Country code selector ]`) from the local phone number (`[ Phone number ]`), backed by a comprehensive ISO 3166-1 international calling codes catalog. The data model stores canonical `countryCode` (`+<digits>`) and `phoneNumber` (digits) separately while maintaining 100% backward compatibility with legacy single-string records, preventing silent hallucination for un-prefixed records, and delivering consistent normalized representations across Profile UI, MCP, Extension, and ATS LaTeX resume rendering without modifying any visual layout, fonts, margins, or styling.
+
+**Core Architectural Implementations:**
+1. **Generic Country Calling Code Catalog (`src/utils/phone-country-codes.js`):**
+   - Implemented `COUNTRY_CALLING_CODES`: 120 international ISO 3166-1 country calling codes with flags, sorted alphabetically by country name. No country (including India) is hardcoded as the sole option.
+   - Built pure normalization and validation utilities:
+     - `normalizeCountryCode(code)`: Normalizes to canonical `+<digits>`.
+     - `normalizePhoneNumber(num)`: Normalizes digits, stripping punctuation/spaces while preserving all digits.
+     - `isValidCallingCode(code)`: Validates code against the international catalog.
+     - `parseStoredPhone(phone)`: Intelligently splits legacy combined strings (e.g. `+91 7905087928`, `+1-555-0199`) into `{ countryCode, phoneNumber, phone }`. Never guesses country codes for ambiguous raw numbers (e.g. `7905087928` -> `{ countryCode: null, phoneNumber: '7905087928' }`).
+     - `normalizePhoneRecord({ countryCode, phoneNumber, rawPhone, existing })`: Normalizes inputs at save time, enforcing `ValidationError` on unrecognized calling codes.
+     - `formatPhoneDisplay(record)`: Formats for readable single-line display.
+2. **Schema Authority & Data Model (`src/domain/candidate/career-preferences.schemas.js`):**
+   - Added optional `phone`, `countryCode`, and `phoneNumber` to `CandidateCareerProfileSchema`.
+3. **Candidate Profile Service (`src/services/candidate-profile.service.js`):**
+   - `updateUserProfileSections`: Accepts separate `countryCode` and `phoneNumber` (or legacy `phone`), executes strict normalization, and persists `countryCode`, `phoneNumber`, and composite `phone` in both `userCustom` and `profileMetadata`. Rejects invalid calling codes with `ValidationError`.
+   - `getCareerProfile`: Resolves authoritative phone information from `userCustom`, `profileMetadata`, or `resumeData`, parsing stored values and returning separate `countryCode` and `phoneNumber` fields alongside composite `phone`.
+4. **Web Routes & API Validation (`src/routes/web.routes.js`):**
+   - Updated `PATCH /api/profile` and `POST /profile` to accept `countryCode` and `phoneNumber`.
+   - Wrapped updates in try/catch to return HTTP 400 on `ValidationError`.
+   - Updated handoff kit package assembly to prioritize `userCustom.phone` and `profileMetadata.phone`.
+5. **Profile Page UI (`src/views/profile.page.js`):**
+   - Replaced single text input with dual-input layout: `[ Country code select (flex: 0 0 160px) ] [ Phone number input (flex: 1) ]`.
+   - Populated `<select>` with international flags and names: `<option value="+91">🇮🇳 India (+91)</option>`.
+   - Implemented tripartite readiness pill: `✓ Ready` (both code and number present), `⚠ Select Code` (number present but code unselected), `⚠ Missing` (both empty).
+   - Updated client-side dirty checking, baseline snapshot capture, discard/revert, and JSON save payloads.
+6. **Downstream Pipeline & LaTeX Renderer Integrity (`src/services/structured-resume.service.js`, `src/services/job-application-workflow.service.js`):**
+   - Updated phone resolution across resume building and application preparation to inspect `userCustom.phone` and `profileMetadata.phone`.
+   - 100% frozen LaTeX template: font family, font size, margins (0.52in), sections, ordering, and single-page budget left completely intact. Phone renders cleanly on contact info line: `{\small +91 7905087928 $\cdot$ Gorakhpur, India $\cdot$ ...}`.
+   - MCP and Chrome Extension receive the identical normalized phone representation.
+
+**Verification & Test Results:**
+- `tests/unit/profile-phone-country-code.test.js`: **10/10 PASS**
+  1. Existing `+91` candidate number remains valid.
+  2. User can change country code (e.g. from `+91` to `+1` or `+44`).
+  3. User can change local number and formatting is normalized without losing digits.
+  4. Country code and local number are stored separately without flag or label in values.
+  5. Existing legacy combined numbers remain backwards compatible without corruption.
+  6. Invalid country codes are rejected with `ValidationError`.
+  7. Empty/invalid phone values behave safely.
+  8. Resume generation correctly renders normalized number without altering LaTeX structure.
+  9. MCP and Extension receive the same normalized phone representation.
+  10. Candidate source-of-truth remains unchanged except for an explicit user profile phone update.
+- `tests/unit/step1g-career-profile-reconciliation.test.js`: **6/6 PASS**
+- `tests/unit/p16-001f2-structured-latex-migration.test.js`: **26/26 PASS**
+- `tests/unit/p16-008-content-optimizer.test.js`: **12/12 PASS**
+- `tests/unit/p16-007-reference-quality-content-pipeline.test.js`: **8/8 PASS**
+- **Tectonic Compilation Test:** Verified end-to-end PDF generation with `+91 7905087928` compiled successfully via Tectonic (16,492 bytes, 1 page strict, clean header line).
+
 ### PART 51: Tailored Professional Headline Conditioning & Evidence-Based Dynamic Selection
 
 **Status:** COMPLETE & VERIFIED

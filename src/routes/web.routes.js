@@ -2340,6 +2340,11 @@ export default async function webRoutes(app, opts = {}) {
       currentRole: body.currentRole,
       location: body.location,
       careerStatus: body.careerStatus,
+      phone: body.phone !== undefined ? body.phone : body.contactPhone,
+      countryCode:
+        body.countryCode !== undefined ? body.countryCode : body.contactCountryCode,
+      phoneNumber:
+        body.phoneNumber !== undefined ? body.phoneNumber : body.contactPhoneNumber,
       currentEmployment: parseJsonField(body.currentEmployment, undefined),
       experience: parseJsonField(body.experience, undefined),
       education: parseJsonField(body.education, undefined),
@@ -2572,10 +2577,18 @@ export default async function webRoutes(app, opts = {}) {
       if (sections.identity.careerStatus !== undefined)
         sectionUpdates.careerStatus = sections.identity.careerStatus;
       if (sections.identity.phone !== undefined) sectionUpdates.phone = sections.identity.phone;
+      if (sections.identity.countryCode !== undefined)
+        sectionUpdates.countryCode = sections.identity.countryCode;
+      if (sections.identity.phoneNumber !== undefined)
+        sectionUpdates.phoneNumber = sections.identity.phoneNumber;
     }
 
     if (sections.contact) {
       if (sections.contact.phone !== undefined) sectionUpdates.phone = sections.contact.phone;
+      if (sections.contact.countryCode !== undefined)
+        sectionUpdates.countryCode = sections.contact.countryCode;
+      if (sections.contact.phoneNumber !== undefined)
+        sectionUpdates.phoneNumber = sections.contact.phoneNumber;
     }
 
     if (sections.currentEmployment !== undefined) {
@@ -2650,23 +2663,31 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     // Save profile sections via existing service
-    const updatedProfile = await candidateProfileService.updateUserProfileSections(
-      context,
-      candidate.id,
-      sectionUpdates,
-      { minimalResponse: true }
-    );
+    try {
+      const updatedProfile = await candidateProfileService.updateUserProfileSections(
+        context,
+        candidate.id,
+        sectionUpdates,
+        { minimalResponse: true }
+      );
 
-    return reply.status(200).send({
-      ok: true,
-      saved: true,
-      updatedAt: updatedProfile.updatedAt
-        ? new Date(updatedProfile.updatedAt).toISOString()
-        : new Date().toISOString(),
-      displayName: updatedProfile.displayName,
-      candidateId: updatedProfile.candidateId,
-      additionalSkills: additionalSkillsResult,
-    });
+      return reply.status(200).send({
+        ok: true,
+        saved: true,
+        updatedAt: updatedProfile.updatedAt
+          ? new Date(updatedProfile.updatedAt).toISOString()
+          : new Date().toISOString(),
+        displayName: updatedProfile.displayName,
+        candidateId: updatedProfile.candidateId,
+        additionalSkills: additionalSkillsResult,
+      });
+    } catch (err) {
+      req.log.warn({ err, candidateId: candidate.id }, 'Profile section update failed');
+      return reply.status(err.statusCode || 400).send({
+        ok: false,
+        error: err.message || 'Failed to update profile section',
+      });
+    }
   });
 
   // -------------------------------------------------------------------------
@@ -2969,9 +2990,11 @@ export default async function webRoutes(app, opts = {}) {
           },
           candidateEmail: candidate.canonicalEmail || user.email,
           candidatePhone:
+            candidate.profileMetadata?.userCustom?.phone ||
+            candidate.profileMetadata?.phone ||
             candidate.profileMetadata?.contact?.phone ||
             candidate.profileMetadata?.identity?.phone ||
-            candidate.profileMetadata?.userCustom?.phone ||
+            candidate.phone ||
             undefined,
         });
       } catch (contentErr) {
@@ -2992,9 +3015,11 @@ export default async function webRoutes(app, opts = {}) {
         candidateName: candidate.displayName || user.displayName,
         candidateEmail: candidate.canonicalEmail || user.email,
         candidatePhone:
+          candidate.profileMetadata?.userCustom?.phone ||
+          candidate.profileMetadata?.phone ||
           candidate.profileMetadata?.contact?.phone ||
           candidate.profileMetadata?.identity?.phone ||
-          candidate.profileMetadata?.userCustom?.phone ||
+          candidate.phone ||
           '',
         targetJob: {
           id: application.id,

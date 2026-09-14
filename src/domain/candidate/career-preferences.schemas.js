@@ -187,6 +187,9 @@ export const CandidateCareerProfileSchema = z.strictObject({
   seniority: SeniorityLevelEnum.optional().nullable(),
   yearsOfExperience: z.number().nonnegative().optional().nullable(),
   canonicalEmail: z.string().email().optional().nullable(),
+  phone: z.string().max(50).optional().nullable(),
+  countryCode: z.string().max(10).optional().nullable(),
+  phoneNumber: z.string().max(40).optional().nullable(),
   portfolioLinks: z
     .array(
       z.object({

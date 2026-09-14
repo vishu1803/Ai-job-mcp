@@ -17,6 +17,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { COUNTRY_CALLING_CODES, parseStoredPhone } from '../utils/phone-country-codes.js';
 
 /**
  * Renders the Career Profile & Preferences page HTML.
@@ -123,10 +124,38 @@ export function renderProfilePage({
   const authenticEmail = profile?.canonicalEmail || candidate?.canonicalEmail || user?.email || '';
 
   const candidatePhone =
+    profile?.phone ||
     candidate?.profileMetadata?.userCustom?.phone ||
     candidate?.profileMetadata?.phone ||
     candidate?.profileMetadata?.resumeData?.identity?.phone ||
     '';
+
+  const storedCountryCode =
+    profile?.countryCode ||
+    candidate?.profileMetadata?.userCustom?.countryCode ||
+    candidate?.profileMetadata?.countryCode ||
+    '';
+  const storedPhoneNumber =
+    profile?.phoneNumber ||
+    candidate?.profileMetadata?.userCustom?.phoneNumber ||
+    candidate?.profileMetadata?.phoneNumber ||
+    '';
+
+  let initialCountryCode = storedCountryCode;
+  let initialPhoneNumber = storedPhoneNumber;
+
+  if (storedCountryCode && storedPhoneNumber) {
+    // Already cleanly separated
+  } else if (candidatePhone) {
+    const parsed = parseStoredPhone(candidatePhone);
+    if (parsed.countryCode) {
+      initialCountryCode = parsed.countryCode;
+      initialPhoneNumber = parsed.phoneNumber;
+    } else {
+      initialCountryCode = '';
+      initialPhoneNumber = parsed.phoneNumber || candidatePhone;
+    }
+  }
 
   // Professional links extraction from authoritative map
   const linkedInLink = portfolioLinksList.find(
@@ -1437,21 +1466,41 @@ export function renderProfilePage({
             <div class="contact-channel-card">
               <div class="channel-header">
                 <span class="channel-label">Phone Number</span>
-                <span id="phoneReadinessPill" class="readiness-pill ${candidatePhone ? 'ready' : 'missing'}">
-                  ${candidatePhone ? '✓ Ready' : '⚠ Missing'}
+                <span id="phoneReadinessPill" class="readiness-pill ${initialCountryCode && initialPhoneNumber ? 'ready' : (initialPhoneNumber ? 'needs-confirmation' : 'missing')}">
+                  ${initialCountryCode && initialPhoneNumber ? '✓ Ready' : (initialPhoneNumber ? '⚠ Select Code' : '⚠ Missing')}
                 </span>
               </div>
-              <div style="margin-top: 0.25rem;">
-                <input
-                  type="tel"
-                  id="contactPhoneInput"
-                  name="contactPhone"
-                  value="${escapeHtml(candidatePhone)}"
-                  placeholder="e.g. +1 555-0199 or 7905087928"
-                  class="form-input"
-                  style="font-size: 0.85rem; padding: 0.35rem 0.6rem;"
-                  oninput="checkSectionDirty('contact'); updateContactReadinessPills();"
-                />
+              <div style="margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center;">
+                <div style="flex: 0 0 160px; max-width: 48%;">
+                  <select
+                    id="contactCountryCodeSelect"
+                    name="contactCountryCode"
+                    class="form-input form-select"
+                    style="font-size: 0.82rem; padding: 0.35rem 0.5rem; width: 100%; text-overflow: ellipsis; cursor: pointer; background: #111827; color: #f8fafc;"
+                    onchange="checkSectionDirty('contact'); updateContactReadinessPills();"
+                    title="Country Calling Code"
+                  >
+                    <option value="" ${!initialCountryCode ? 'selected' : ''}>Choose code...</option>
+                    ${COUNTRY_CALLING_CODES.map(
+                      (c) => `
+                    <option value="${c.dialCode}" ${initialCountryCode === c.dialCode ? 'selected' : ''}>
+                      ${c.flag ? c.flag + ' ' : ''}${escapeHtml(c.name)} (${c.dialCode})
+                    </option>`
+                    ).join('')}
+                  </select>
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                  <input
+                    type="tel"
+                    id="contactPhoneInput"
+                    name="contactPhone"
+                    value="${escapeHtml(initialPhoneNumber)}"
+                    placeholder="e.g. 7905087928"
+                    class="form-input"
+                    style="font-size: 0.85rem; padding: 0.35rem 0.6rem; width: 100%;"
+                    oninput="checkSectionDirty('contact'); updateContactReadinessPills();"
+                  />
+                </div>
               </div>
               <div class="channel-note">Direct recruiter reachout phone used in job applications.</div>
             </div>
@@ -2631,7 +2680,8 @@ export function renderProfilePage({
         }
         if (sectionId === 'contact') {
           return {
-            phone: (document.getElementById('contactPhoneInput')?.value || '').trim(),
+            countryCode: (document.getElementById('contactCountryCodeSelect')?.value || '').trim(),
+            phoneNumber: (document.getElementById('contactPhoneInput')?.value || '').trim(),
             linkedin: (document.getElementById('contactLinkedinInput')?.value || '').trim(),
             github: (document.getElementById('contactGithubInput')?.value || '').trim(),
             portfolio: (document.getElementById('contactPortfolioInput')?.value || '').trim(),
@@ -2681,7 +2731,8 @@ export function renderProfilePage({
             JSON.stringify(current.currentEmployment) !== JSON.stringify(baseline.currentEmployment);
         } else if (sectionId === 'contact') {
           isDirty =
-            current.phone !== baseline.phone ||
+            current.countryCode !== baseline.countryCode ||
+            current.phoneNumber !== baseline.phoneNumber ||
             current.linkedin !== baseline.linkedin ||
             current.github !== baseline.github ||
             current.portfolio !== baseline.portfolio;
@@ -2730,7 +2781,9 @@ export function renderProfilePage({
           profileState.currentEmployment = baseline.currentEmployment ? JSON.parse(JSON.stringify(baseline.currentEmployment)) : null;
           updateCurrentEmploymentDisplay();
         } else if (sectionId === 'contact') {
-          document.getElementById('contactPhoneInput').value = baseline.phone || '';
+          const ccEl = document.getElementById('contactCountryCodeSelect');
+          if (ccEl) ccEl.value = baseline.countryCode || '';
+          document.getElementById('contactPhoneInput').value = baseline.phoneNumber || '';
           document.getElementById('contactLinkedinInput').value = baseline.linkedin || '';
           document.getElementById('contactGithubInput').value = baseline.github || '';
           document.getElementById('contactPortfolioInput').value = baseline.portfolio || '';
@@ -2795,15 +2848,24 @@ export function renderProfilePage({
       }
 
       function updateContactReadinessPills() {
-        const phone = (document.getElementById('contactPhoneInput')?.value || '').trim();
+        const countryCode = (document.getElementById('contactCountryCodeSelect')?.value || '').trim();
+        const phoneNumber = (document.getElementById('contactPhoneInput')?.value || '').trim();
         const linkedin = (document.getElementById('contactLinkedinInput')?.value || '').trim();
         const github = (document.getElementById('contactGithubInput')?.value || '').trim();
         const portfolio = (document.getElementById('contactPortfolioInput')?.value || '').trim();
 
         const phonePill = document.getElementById('phoneReadinessPill');
         if (phonePill) {
-          phonePill.className = 'readiness-pill ' + (phone ? 'ready' : 'missing');
-          phonePill.textContent = phone ? '✓ Ready' : '⚠ Missing';
+          const isComplete = Boolean(countryCode && phoneNumber);
+          const hasNumberOnly = Boolean(!countryCode && phoneNumber);
+          phonePill.className =
+            'readiness-pill ' +
+            (isComplete ? 'ready' : hasNumberOnly ? 'needs-confirmation' : 'missing');
+          phonePill.textContent = isComplete
+            ? '✓ Ready'
+            : hasNumberOnly
+              ? '⚠ Select Code'
+              : '⚠ Missing';
         }
 
         const linkedinPill = document.getElementById('linkedinReadinessPill');
@@ -2888,8 +2950,12 @@ export function renderProfilePage({
           };
           payload.sections.currentEmployment = profileState.currentEmployment;
         } else if (sectionId === 'contact') {
+          const countryCode = (document.getElementById('contactCountryCodeSelect')?.value || '').trim();
+          const phoneNumber = (document.getElementById('contactPhoneInput')?.value || '').trim();
           payload.sections.contact = {
-            phone: (document.getElementById('contactPhoneInput')?.value || '').trim(),
+            countryCode,
+            phoneNumber,
+            phone: countryCode && phoneNumber ? (countryCode + ' ' + phoneNumber) : (phoneNumber || ''),
           };
           payload.sections.portfolioLinks = buildContactPortfolioLinks();
         } else if (sectionId === 'readiness') {

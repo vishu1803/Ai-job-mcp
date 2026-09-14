@@ -718,9 +718,11 @@ export class JobApplicationWorkflowService {
         candidateProfileInput = {
           ...profileView.candidate,
           phone:
-            profileView.candidate?.phone ||
-            profileView.candidate?.profileMetadata?.identity?.phone ||
+            profileView.candidate?.profileMetadata?.userCustom?.phone ||
             profileView.candidate?.profileMetadata?.phone ||
+            profileView.candidate?.phone ||
+            cand.profileMetadata?.userCustom?.phone ||
+            cand.profileMetadata?.phone ||
             cand.phone ||
             cand.profileMetadata?.identity?.phone ||
             null,
@@ -849,7 +851,14 @@ export class JobApplicationWorkflowService {
         candidateId,
         jobPosting: targetJobPosting,
         candidateEmail,
-        candidatePhone: cand.phone || cand.profileMetadata?.identity?.phone || undefined,
+        candidatePhone:
+          profileView?.candidate?.profileMetadata?.userCustom?.phone ||
+          profileView?.candidate?.profileMetadata?.phone ||
+          cand.profileMetadata?.userCustom?.phone ||
+          cand.profileMetadata?.phone ||
+          cand.phone ||
+          cand.profileMetadata?.identity?.phone ||
+          undefined,
         options: {
           projectRankings: authoritativeRankings,
           matchAnalysis: jobFitAnalysis?.matchAnalysis,
@@ -1003,7 +1012,14 @@ export class JobApplicationWorkflowService {
       candidateId,
       candidateName: cand.displayName || 'Candidate',
       candidateEmail,
-      candidatePhone: cand.phone || cand.profileMetadata?.identity?.phone || undefined,
+      candidatePhone:
+        profileView?.candidate?.profileMetadata?.userCustom?.phone ||
+        profileView?.candidate?.profileMetadata?.phone ||
+        cand.profileMetadata?.userCustom?.phone ||
+        cand.profileMetadata?.phone ||
+        cand.phone ||
+        cand.profileMetadata?.identity?.phone ||
+        undefined,
       targetJob: targetJobPosting,
       tailoredResume: {
         documentId: tailoredResumeResult.documentId || undefined,
@@ -1357,7 +1373,12 @@ export class JobApplicationWorkflowService {
         candidateId,
         jobPosting,
         candidateEmail,
-        candidatePhone: cand.phone || undefined,
+        candidatePhone:
+          cand.profileMetadata?.userCustom?.phone ||
+          cand.profileMetadata?.phone ||
+          cand.phone ||
+          cand.profileMetadata?.identity?.phone ||
+          undefined,
       }
     );
 
