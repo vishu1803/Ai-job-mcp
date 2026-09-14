@@ -124,7 +124,11 @@ export function classifyRequirement(raw, text, defaultSection = null) {
   if (REQUIREMENT_CLASS_BY_CATEGORY[category]) return REQUIREMENT_CLASS_BY_CATEGORY[category];
   if (defaultSection === 'RESPONSIBILITIES') return 'RESPONSIBILITY';
   if (/\b(certif|degree|bachelor|master|phd|education)[a-z]*\b/i.test(text)) return 'EDUCATION';
-  if (/\b(lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor)[a-z]*\b/i.test(text)) {
+  if (/\b(lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute)[a-z]*\b/i.test(text)) {
+    return 'RESPONSIBILITY';
+  }
+  // Sentential prose (> 4 words or > 40 chars) cannot be a standalone TECHNOLOGY
+  if (text.trim().split(/\s+/).length > 4 || text.length > 40) {
     return 'RESPONSIBILITY';
   }
   return 'TECHNOLOGY';
@@ -235,6 +239,32 @@ export function parseJobDescriptionSections(description) {
       continue;
     }
 
+    // Non-requirement section headers (Company overview, culture, values, EEO/diversity, compensation/benefits)
+    if (
+      /^(?:#{1,6}\s*)?(?:about\s+(?:the\s+)?(?:company|us|our\s+mission)|about\s+(?!the\s+(?:role|position|job)|you\b)[a-zA-Z0-9_-]+|who\s+we\s+are|why\s+[a-zA-Z0-9_-]+|company\s+overview|company\s+description|our\s+mission|our\s+story|our\s+culture|life\s+at\s+[a-zA-Z0-9_-]+|employer\s+brand|our\s+values?|core\s+values?|company\s+values?|our\s+culture)[:\s-]*/i.test(
+        line
+      )
+    ) {
+      currentSection = 'NON_REQUIREMENT_ABOUT_COMPANY';
+      continue;
+    }
+    if (
+      /^(?:#{1,6}\s*)?(?:equal\s+(?:opportunity|employment)|eeo(?:\s+statement)?|diversity|inclusion|legal|privacy|notice|accommodations?|our\s+commitment\s+to\s+diversity)[:\s-]*/i.test(
+        line
+      )
+    ) {
+      currentSection = 'NON_REQUIREMENT_EEO_LEGAL';
+      continue;
+    }
+    if (
+      /^(?:#{1,6}\s*)?(?:compensation|salary(?:\s+range)?|benefits|perks|what\s+we\s+offer|total\s+rewards)[:\s-]*/i.test(
+        line
+      )
+    ) {
+      currentSection = 'NON_REQUIREMENT_COMPENSATION';
+      continue;
+    }
+
     if (/^(?:requirements?|qualifications?|must[\s-]have|skills?):?$/i.test(line)) {
       currentSection = 'REQUIREMENTS';
       continue;
@@ -245,6 +275,15 @@ export function parseJobDescriptionSections(description) {
     }
     if (/^(?:responsibilities|duties):?$/i.test(line)) {
       currentSection = 'RESPONSIBILITIES';
+      continue;
+    }
+
+    // Skip all lines belonging to non-requirement sections
+    if (
+      currentSection === 'NON_REQUIREMENT_ABOUT_COMPANY' ||
+      currentSection === 'NON_REQUIREMENT_EEO_LEGAL' ||
+      currentSection === 'NON_REQUIREMENT_COMPENSATION'
+    ) {
       continue;
     }
 
@@ -259,14 +298,24 @@ export function parseJobDescriptionSections(description) {
     } else if (currentSection === 'RESPONSIBILITIES') {
       items.push({ text: cleanLine, importance: 'REQUIRED', category: 'EXPERIENCE', sectionContext: 'RESPONSIBILITIES' });
     } else if (isBullet) {
-      items.push({ text: cleanLine, importance: 'REQUIRED', category: 'SKILL', sectionContext: 'REQUIREMENTS' });
+      // Pre-header bullet: only keep if not company prose and has technical or requirement cues
+      if (!JobDescriptionParser._isCompanyProse(cleanLine)) {
+        const hasCue =
+          JobDescriptionParser.extractSkillsFromLine(cleanLine).length > 0 ||
+          /\b(?:lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute|must|require|need|experience|proficien|knowledge|degree|years?)\b/i.test(
+            cleanLine
+          );
+        if (hasCue) {
+          items.push({ text: cleanLine, importance: 'REQUIRED', category: 'SKILL', sectionContext: 'REQUIREMENTS' });
+        }
+      }
     }
   }
 
   if (items.length === 0) {
     for (const line of lines) {
       const clean = line.replace(/^[-*•]\s*/, '').replace(/\.$/, '').trim();
-      if (clean) {
+      if (clean && !JobDescriptionParser._isCompanyProse(clean)) {
         items.push({ text: clean, importance: 'REQUIRED', category: 'SKILL', sectionContext: 'REQUIREMENTS' });
       }
     }
@@ -428,6 +477,9 @@ export function normalizeJobInput(jobInput) {
     const descText = String(jp.description || jp.jobDescriptionText || jp.rawText || '').trim();
     const extracted = parseJobDescriptionSections(descText);
     for (const item of extracted) {
+      if (JobDescriptionParser._isCompanyProse(item.text)) {
+        continue;
+      }
       const isProse = item.text.includes(' ') && item.text.length > 20;
       const foundSkills = isProse ? JobDescriptionParser.extractSkillsFromLine(item.text) : [];
       if (foundSkills.length > 0) {
@@ -443,7 +495,13 @@ export function normalizeJobInput(jobInput) {
           });
         }
       } else {
-        itemsToProcess.push({ raw: item, defaultSection: item.sectionContext });
+        const hasReqOrRespCue =
+          /\b(?:lead|mentor|collaborat|communicat|own|design|debug|maintain|build|develop|operat|monitor|manage|architect|implement|scale|write|create|deliver|support|coordinate|drive|execute|must|require|need|experience|proficien|knowledge|degree|years?)\b/i.test(
+            item.text
+          );
+        if (!isProse || hasReqOrRespCue) {
+          itemsToProcess.push({ raw: item, defaultSection: item.sectionContext });
+        }
       }
     }
   }

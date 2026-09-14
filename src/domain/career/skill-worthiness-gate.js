@@ -280,8 +280,27 @@ export class SkillWorthinessGate {
     const norm = rawInput.toLowerCase().trim();
     const slug = norm.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-    // 1. Natural language check
+    // 1. Natural language check (spoken languages or full sentential prose/clauses)
     if (NATURAL_LANGUAGES.has(norm) || NATURAL_LANGUAGES.has(slug)) {
+      return SKILL_CLASSIFICATIONS.NATURAL_LANGUAGE;
+    }
+
+    const words = norm.split(/\s+/).filter(Boolean);
+    const slugParts = slug.split('-').filter(Boolean);
+    const hasProsePronoun =
+      /\b(?:we|our|us|you|your|they|their|them)\b/i.test(norm) ||
+      /(?:^|-)(?:we|our|us|you|your|they|their|them)(?:-|$)/.test(slug);
+    const hasSententialVerb =
+      /\b(?:is|are|was|were|will|shall|would|could|should|can|may|might|do\s+not|does\s+not|serve|serving|helping|reflects|belong|discriminate)\b/i.test(
+        norm
+      ) ||
+      /(?:^|-)(?:is|are|was|were|serve|serving|helping|reflects|belong|discriminate)(?:-|$)/.test(
+        slug
+      );
+    const isProseStructure =
+      words.length >= 6 || slugParts.length >= 6 || hasProsePronoun || hasSententialVerb;
+
+    if (isProseStructure) {
       return SKILL_CLASSIFICATIONS.NATURAL_LANGUAGE;
     }
 

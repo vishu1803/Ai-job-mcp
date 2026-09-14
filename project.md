@@ -3,6 +3,58 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-14*
 
+### PART 53: Production Defect Resolution — Taxonomy Noise Boundary & Extension Prepare-Handoff Scope Fix
+
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-14
+**Remote HEAD Base:** `ba20e68` (`main`, `origin/main`)
+**Production Candidate:** `10a2b51b-09bf-4090-8040-1f60ebeb89c9` (Vishwanath Nishad)
+**Target Snapshots / Jobs:** Snapshot `73c04a18-b039-4f82-bb70-a650089a61dd`, Canonical Job `f40827e6-d6a7-47b8-8df8-e33a40fded22`
+
+**Executive Summary:**
+Fixed two production runtime defects identified in runtime telemetry without altering resume layout, typography, project ranking authority, single-page budget, headline logic, or phone country code functionality:
+1. **Defect 1 (Taxonomy Noise from Job Description):** Eliminated unwanted `taxonomy.unknown_term_observed` telemetry warnings caused by non-technical job description prose (company overviews, values statements, diversity/EEO declarations, legal disclaimers) being parsed and slugified as uncataloged technical taxonomy terms (e.g. `service-we-serve-our-community-with-humility-enabl`, `our-commitment-to-diversity-and-inclusion`). Established a generic natural language boundary without hardcoded phrase ignore lists, while ensuring genuine uncataloged technologies still trigger telemetry and canonical technologies (e.g. `Python`, `Node.js`, `TypeScript`, `AWS`, `API Gateway`, `Lambda`, `EC2`, `RDS`, `ECS`, `PostgreSQL`, `MariaDB`, `DynamoDB`, `MongoDB`, `REST APIs`, `distributed systems`, `operational excellence`, `incident management`) are properly extracted and normalized.
+2. **Defect 2 (Extension Prepare-Handoff 500 ReferenceError):** Fixed an uncaught `ReferenceError: profileView is not defined` (HTTP 500) in `POST /api/extension/prepare-handoff` that occurred after binding an authoritative analysis snapshot. Hoisted `profileView` in `JobApplicationWorkflowService.prepareJobApplication` alongside `candidateProfileInput` and resolved `candidatePhone` reliably from the single authoritative profile source (`candidateProfileInput?.phone || profileView?.candidate?.profileMetadata...`) without dummy fallback objects or secondary loading paths.
+
+**Core Architectural Implementations:**
+1. **Generic Natural Language Boundary (`src/domain/career/skill-worthiness-gate.js`):**
+   - Enhanced `SkillWorthinessGate.classify(rawInput)` to detect natural language sentential clauses based on linguistic structure: presence of prose pronouns (`we`, `our`, `us`, `you`, `your`, `they`, `their`, `them`), sentential verbs (`is`, `are`, `was`, `were`, `will`, `shall`, `would`, `could`, `should`, `can`, `may`, `might`, `serve`, `helping`, `reflects`, `belong`, `discriminate`), or sentential length (`>= 6` words / slug parts).
+   - Classifies these items as `SKILL_CLASSIFICATIONS.NATURAL_LANGUAGE`.
+   - In `isPlausibleSkill`: Returns `false` for `NATURAL_LANGUAGE`, cleanly suppressing unknown-term telemetry for prose while preserving it for genuine unknown technologies (e.g., `triton-inference-server`).
+2. **Taxonomy Engine Noise Handling & Canonical Skills (`src/domain/career/skill-taxonomy.js`):**
+   - In `SkillTaxonomyEngine.normalizeSkill`: If gate classification evaluates to `NATURAL_LANGUAGE`, immediately returns `{ category: 'NOISE', isNoise: true, isCustom: false, isSkillWorthy: false }` and bypasses unknown term observation.
+   - Cataloged genuine technologies in `CANONICAL_SKILLS`: `lambda` (`CLOUD_DEVOPS`), `api-gateway` (`CLOUD_DEVOPS`), `ec2` (`CLOUD_DEVOPS`), `ecs` (`CLOUD_DEVOPS`), `mariadb` (`DATABASE`), `dynamodb` (`DATABASE`), `rds` (`DATABASE`), `operational-excellence` (`CONCEPT`), and `incident-management` (`CONCEPT`). Added aliases for `rest-apis` to canonical `rest-api`.
+   - Validated taxonomy graph integrity: 181 skills, 592 aliases, 470 relationships, 0 dangling edges.
+3. **Job Description Section Partitioning & Extraction Boundary (`src/services/job-normalization.service.js`):**
+   - Added section boundary detection in `parseJobDescriptionSections` for non-requirement sections: `NON_REQUIREMENT_ABOUT_COMPANY` (About Company, Our Mission, Who We Are, Culture, Values), `NON_REQUIREMENT_EEO_LEGAL` (EEO, Diversity, Inclusion, Legal, Accommodations), and `NON_REQUIREMENT_COMPENSATION` (Compensation, Salary Range, Benefits, Perks).
+   - Skips all lines in non-requirement sections during extraction.
+   - Guarded pre-header bullet items to verify they contain requirement/skill cues before inclusion.
+   - In `normalizeJobInput`: Skips `JobDescriptionParser._isCompanyProse(item.text)` and ensures prose without requirement/responsibility cues is omitted.
+   - In `classifyRequirement`: Sentential prose (`> 4 words` or `> 40 chars`) is classified as `RESPONSIBILITY`, never `TECHNOLOGY`.
+4. **Scope Resolution in Prepare Handoff (`src/services/job-application-workflow.service.js`):**
+   - In `JobApplicationWorkflowService.prepareJobApplication`: Hoisted `let profileView = null;` alongside `let candidateProfileInput = null;` before the profile resolution `try` block.
+   - Updated `candidatePhone` resolution in document assembly (line 857) and handoff response building (line 1022) to resolve via `candidateProfileInput?.phone || profileView?.candidate?.profileMetadata?.userCustom?.phone || profileView?.candidate?.profileMetadata?.phone || cand.profileMetadata?.userCustom?.phone || cand.profileMetadata?.phone || null`.
+   - In requirement normalization (line 508): Guarded slug generation so only genuine technical skills/technologies are normalized to taxonomy slugs.
+
+**Verification & Test Results:**
+- `tests/unit/p53-taxonomy-noise-boundary.test.js`: **30/30 PASS**
+  1. Section partitioning filters About Company, Values, Diversity, and Legal sections.
+  2. `normalizeJobInput` extracts only genuine technical and engineering concepts without prose sentences.
+  3. `SkillWorthinessGate` classifies ordinary prose samples as `NATURAL_LANGUAGE` and suppresses unknown-term telemetry, while keeping `isPlausibleSkill = true` for genuine unknown technologies.
+  4. `SkillTaxonomyEngine` normalizes all genuine technologies (Python, Node.js, TypeScript, AWS, Lambda, API Gateway, EC2, RDS, ECS, PostgreSQL, MariaDB, DynamoDB, MongoDB, REST APIs, distributed systems, operational excellence, incident management) to canonical slugs/categories and rejects ordinary prose as `NOISE`.
+  5. Taxonomy graph integrity verified with 0 dangling edges.
+- `tests/unit/extension-prepare-handoff-regression.test.js`: **3/3 PASS**
+  1. Authenticated candidate calls prepare-handoff: binds snapshot, resolves profile without ReferenceError, returns HTTP 200, generates application package and download URLs.
+  2. Candidate source-of-truth remains completely unchanged in database (`profileMetadata` unmutated).
+  3. Unauthorized candidate cannot access another candidate snapshot (returns 403 `CROSS_CANDIDATE_ACCESS_DENIED`).
+- `tests/unit/skill-taxonomy.test.js`: **64/64 PASS**
+- `tests/unit/profile-phone-country-code.test.js`: **10/10 PASS**
+- `tests/unit/p51-headline-conditioning.test.js`: **19/19 PASS**
+- **Live Local HTTP Execution Verification (`POST http://localhost:3000/api/extension/prepare-handoff`):**
+  - Bound authoritative snapshot `73c04a18-b039-4f82-bb70-a650089a61dd` with canonical job `f40827e6-d6a7-47b8-8df8-e33a40fded22`.
+  - Result: HTTP 200 OK, `packageStatus: SAVED`, `artifactStatus: READY`, `auditReport: { overallScore: 100, verdict: PASS }`, `evidenceBackedCoverage: { score: 100 }`, `layoutDiagnostics: { pageCount: 1, dsaRendered: true, dsaVerificationStatus: PASS }`.
+  - Zero `ReferenceError: profileView is not defined` and zero taxonomy noise warnings observed in logs.
+
 ### PART 52: Candidate Profile Phone Number Country-Code Selector & Normalization
 
 **Status:** COMPLETE & VERIFIED

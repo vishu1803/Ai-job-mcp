@@ -504,11 +504,15 @@ export class JobApplicationWorkflowService {
         const jobId = isJobIdUuid ? targetJobPosting.id : crypto.randomUUID();
 
         extractedRequirements = canonical.normalizedRequirements.map((r) => {
-          const safeSlug = r.normalizedConcept
-            ? (SkillTaxonomyEngine.normalizeSkill(r.normalizedConcept)?.canonicalSlug ||
-               SkillTaxonomyEngine.generateSafeSlug(r.normalizedConcept) ||
-               null)
+          const isTech = r.class === 'TECHNOLOGY' || r.category === 'SKILL';
+          const normSkill = (isTech && r.normalizedConcept)
+            ? SkillTaxonomyEngine.normalizeSkill(r.normalizedConcept)
             : null;
+          const safeSlug = (normSkill && !normSkill.isNoise)
+            ? normSkill.canonicalSlug
+            : (isTech && r.normalizedConcept && r.normalizedConcept.split(/\s+/).length <= 4)
+              ? SkillTaxonomyEngine.generateSafeSlug(r.normalizedConcept)
+              : null;
           return {
             id: r.id,
             requirementId: r.id,
@@ -709,8 +713,9 @@ export class JobApplicationWorkflowService {
 
     // 2b. Fetch candidate profile view for canonical ranking and document generation
     let candidateProfileInput = null;
+    let profileView = null;
     try {
-      const profileView = await this.candidateProfileService.getProfile(
+      profileView = await this.candidateProfileService.getProfile(
         { tenantId, userId: cand.userId, role: 'MEMBER' },
         candidateId
       );
@@ -852,6 +857,7 @@ export class JobApplicationWorkflowService {
         jobPosting: targetJobPosting,
         candidateEmail,
         candidatePhone:
+          candidateProfileInput?.phone ||
           profileView?.candidate?.profileMetadata?.userCustom?.phone ||
           profileView?.candidate?.profileMetadata?.phone ||
           cand.profileMetadata?.userCustom?.phone ||
@@ -1013,6 +1019,7 @@ export class JobApplicationWorkflowService {
       candidateName: cand.displayName || 'Candidate',
       candidateEmail,
       candidatePhone:
+        candidateProfileInput?.phone ||
         profileView?.candidate?.profileMetadata?.userCustom?.phone ||
         profileView?.candidate?.profileMetadata?.phone ||
         cand.profileMetadata?.userCustom?.phone ||

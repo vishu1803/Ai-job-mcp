@@ -755,6 +755,52 @@ export const CANONICAL_SKILLS = Object.freeze({
       parentOf: [],
     },
   },
+  mariadb: {
+    slug: 'mariadb',
+    name: 'MariaDB',
+    category: 'DATABASE',
+    description: 'Community-developed, commercially supported fork of the MySQL relational database.',
+    aliases: ['mariadb', 'maria-db', 'mariadb-server'],
+    relationships: {
+      builtOn: ['c', 'cpp'],
+      ecosystemOf: ['relational-database'],
+      implements: ['relational-database', 'database', 'sql'],
+      parentOf: [],
+    },
+  },
+  dynamodb: {
+    slug: 'dynamodb',
+    name: 'Amazon DynamoDB',
+    category: 'DATABASE',
+    description: 'Fully managed serverless, key-value NoSQL database designed for high performance.',
+    aliases: [
+      'dynamodb',
+      'dynamo-db',
+      'aws dynamodb',
+      'aws-dynamodb',
+      'amazon dynamodb',
+      '@aws-sdk/client-dynamodb',
+    ],
+    relationships: {
+      builtOn: ['aws'],
+      ecosystemOf: ['aws', 'nosql-database'],
+      implements: ['database', 'nosql-database', 'serverless', 'cloud-computing'],
+      parentOf: [],
+    },
+  },
+  rds: {
+    slug: 'rds',
+    name: 'AWS RDS',
+    category: 'DATABASE',
+    description: 'Amazon Relational Database Service for managing relational databases in the cloud.',
+    aliases: ['rds', 'aws rds', 'aws-rds', 'amazon rds'],
+    relationships: {
+      builtOn: ['aws'],
+      ecosystemOf: ['aws', 'relational-database'],
+      implements: ['database', 'relational-database', 'cloud-computing'],
+      parentOf: [],
+    },
+  },
   sqlite: {
     slug: 'sqlite',
     name: 'SQLite',
@@ -912,6 +958,60 @@ export const CANONICAL_SKILLS = Object.freeze({
       builtOn: [],
       ecosystemOf: ['cloud-computing'],
       implements: ['cloud-computing', 'serverless'],
+      parentOf: [],
+    },
+  },
+  lambda: {
+    slug: 'lambda',
+    name: 'AWS Lambda',
+    category: 'CLOUD_DEVOPS',
+    description: 'Serverless, event-driven compute service provided by Amazon Web Services.',
+    aliases: ['lambda', 'aws-lambda', 'aws lambda', '@aws-sdk/client-lambda'],
+    relationships: {
+      builtOn: ['aws'],
+      ecosystemOf: ['aws', 'cloud-computing'],
+      implements: ['serverless', 'cloud-computing'],
+      parentOf: [],
+    },
+  },
+  'api-gateway': {
+    slug: 'api-gateway',
+    name: 'AWS API Gateway',
+    category: 'CLOUD_DEVOPS',
+    description:
+      'Fully managed service that makes it easy to create, publish, maintain, and secure APIs.',
+    aliases: ['api-gateway', 'aws api gateway', 'aws-api-gateway', 'amazon api gateway'],
+    relationships: {
+      builtOn: ['aws'],
+      ecosystemOf: ['aws', 'cloud-computing'],
+      implements: ['rest-api', 'cloud-computing'],
+      parentOf: [],
+    },
+  },
+  ec2: {
+    slug: 'ec2',
+    name: 'AWS EC2',
+    category: 'CLOUD_DEVOPS',
+    description: 'Amazon Elastic Compute Cloud providing scalable computing capacity in the AWS Cloud.',
+    aliases: ['ec2', 'aws ec2', 'aws-ec2', 'amazon ec2'],
+    relationships: {
+      builtOn: ['aws'],
+      ecosystemOf: ['aws', 'cloud-computing'],
+      implements: ['cloud-computing'],
+      parentOf: [],
+    },
+  },
+  ecs: {
+    slug: 'ecs',
+    name: 'AWS ECS',
+    category: 'CLOUD_DEVOPS',
+    description:
+      'Amazon Elastic Container Service — fully managed container orchestration service.',
+    aliases: ['ecs', 'aws ecs', 'aws-ecs', 'amazon ecs'],
+    relationships: {
+      builtOn: ['aws', 'docker'],
+      ecosystemOf: ['aws', 'containers'],
+      implements: ['containerization', 'cloud-computing'],
       parentOf: [],
     },
   },
@@ -1344,7 +1444,15 @@ export const CANONICAL_SKILLS = Object.freeze({
     category: 'ARCHITECTURE',
     description:
       'Representational State Transfer architectural style for distributed hypermedia systems.',
-    aliases: ['rest-api', 'rest', 'restful', 'restful-api', 'rest-services'],
+    aliases: [
+      'rest-api',
+      'rest',
+      'restful',
+      'restful-api',
+      'rest-services',
+      'rest-apis',
+      'rest apis',
+    ],
     relationships: {
       builtOn: [],
       ecosystemOf: ['http'],
@@ -2530,6 +2638,38 @@ export const CANONICAL_SKILLS = Object.freeze({
       parentOf: [],
     },
   },
+  'operational-excellence': {
+    slug: 'operational-excellence',
+    name: 'Operational Excellence',
+    category: 'CONCEPT',
+    description:
+      'Engineering practices focusing on running systems effectively and continuous improvement.',
+    aliases: ['operational-excellence', 'operational excellence'],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: [],
+      parentOf: [],
+    },
+  },
+  'incident-management': {
+    slug: 'incident-management',
+    name: 'Incident Management',
+    category: 'CONCEPT',
+    description: 'Practices for responding to, mitigating, and resolving operational outages.',
+    aliases: [
+      'incident-management',
+      'incident management',
+      'incident-response',
+      'incident response',
+    ],
+    relationships: {
+      builtOn: [],
+      ecosystemOf: [],
+      implements: [],
+      parentOf: [],
+    },
+  },
 });
 
 /**
@@ -2731,6 +2871,29 @@ export class SkillTaxonomyEngine {
 
     // Skill-Worthiness Gate evaluation for metadata annotation
     const gateEval = SkillWorthinessGate.evaluate(cleaned);
+
+    // Reject natural language sentences and prose from becoming technology skills
+    if (gateEval.classification === SKILL_CLASSIFICATIONS.NATURAL_LANGUAGE) {
+      return {
+        canonicalSlug: safeSlug,
+        canonicalName: SkillTaxonomyEngine.formatDisplayName(safeSlug),
+        category: 'NOISE',
+        normalizationConfidence: 0.0,
+        matchedAlias: null,
+        isKnown: false,
+        isNoise: true,
+        isCustom: false,
+        isSkillWorthy: false,
+        classification: SKILL_CLASSIFICATIONS.NATURAL_LANGUAGE,
+        requiresReview: false,
+        relationships: {
+          builtOn: [],
+          ecosystemOf: [],
+          implements: [],
+          parentOf: [],
+        },
+      };
+    }
 
     const parsedCategory = SKILL_CATEGORIES.includes(categoryHint) ? categoryHint : 'TOOL';
     const fineCategory = SkillTaxonomyEngine.classifyCategory(safeSlug, parsedCategory);
