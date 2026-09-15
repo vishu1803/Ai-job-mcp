@@ -470,15 +470,75 @@ export default async function extensionRoutes(app, opts = {}) {
       return false;
     });
 
+    let existingHandoff = null;
     if (match) {
+      const existingKit = match.metadata?.handoffKit || match.metadata?.handoffPackage || null;
+      const effectiveTitle = match.jobTitle || match.title || title;
+      const effectiveCompany = match.companyName || match.company || company;
+      const pkgHash = match.metadata?.currentPackageHash || existingKit?.packageHash || null;
+      const pkgVer = existingKit?.packageVersion || match.metadata?.currentPackageVersion || 1;
+
+      if (existingKit && pkgHash) {
+        existingHandoff = {
+          applicationId: match.id,
+          canonicalJobId: match.canonicalJobId || canonicalJobId,
+          analysisSnapshotId: null,
+          packageVersion: pkgVer,
+          packageHash: pkgHash,
+          packageStatus: match.status || 'SAVED',
+          artifactStatus:
+            existingKit.status === 'HANDOFF_READY' || existingKit.resume?.storageKey
+              ? 'READY'
+              : 'UNPREPARED',
+          lifecycleAction: 'REUSED',
+          candidateName: candidate.displayName,
+          targetJob: existingKit.targetJob || {
+            title: effectiveTitle,
+            company: effectiveCompany,
+          },
+          artifacts: {
+            resume: {
+              filename:
+                existingKit.resume?.filename ||
+                buildApplicationArtifactFilename({
+                  candidateName: candidate.displayName,
+                  jobTitle: effectiveTitle,
+                  artifactType: 'resume',
+                }),
+              ready: Boolean(existingKit.resume?.storageKey || existingKit.resume?.contentHash),
+              downloadUrl: `/api/applications/${match.id}/artifacts/resume/download?packageHash=${pkgHash}`,
+              viewUrl: `/api/applications/${match.id}/artifacts/resume/view`,
+            },
+            coverLetter: {
+              filename:
+                existingKit.coverLetter?.filename ||
+                buildApplicationArtifactFilename({
+                  candidateName: candidate.displayName,
+                  jobTitle: effectiveTitle,
+                  artifactType: 'cover-letter',
+                }),
+              ready: Boolean(existingKit.coverLetter?.storageKey || existingKit.coverLetter?.contentHash),
+              downloadUrl: `/api/applications/${match.id}/artifacts/cover-letter/download?packageHash=${pkgHash}`,
+              viewUrl: `/api/applications/${match.id}/artifacts/cover-letter/view`,
+            },
+            bundle: {
+              filename: `handoff-kit-${match.id.slice(0, 8)}.zip`,
+              ready: Boolean(existingKit.resume && existingKit.coverLetter),
+              downloadUrl: `/api/applications/${match.id}/artifacts/bundle/download?packageHash=${pkgHash}`,
+            },
+          },
+        };
+      }
+
       existingApp = {
         id: match.id,
         status: match.status,
-        company: match.company,
-        title: match.title,
+        company: effectiveCompany,
+        title: effectiveTitle,
         appliedAt: match.appliedAt,
-        packageHash: match.metadata?.currentPackageHash || null,
-        packageVersion: match.metadata?.currentPackageVersion || 1,
+        packageHash: pkgHash,
+        packageVersion: pkgVer,
+        handoffData: existingHandoff,
       };
 
       if (isSubmittedApplication(match)) {
@@ -684,6 +744,9 @@ export default async function extensionRoutes(app, opts = {}) {
       });
 
       analysisSnapshotId = snapshot?.id || null;
+      if (existingHandoff && analysisSnapshotId) {
+        existingHandoff.analysisSnapshotId = analysisSnapshotId;
+      }
     } catch (snapErr) {
       req.log.warn({ error: snapErr.message }, 'Failed to persist job analysis snapshot');
     }
@@ -723,6 +786,7 @@ export default async function extensionRoutes(app, opts = {}) {
         provider: job.provider || 'COMPANY_CAREERS',
       },
       existingApplication: existingApp,
+      existingHandoff: existingHandoff,
       isSubmitted,
       fitAnalysis: {
         score: resolvedScore,

@@ -140,6 +140,10 @@ class SidebarController {
       prepareHandoffBtn: document.getElementById('prepareHandoffBtn'),
       prepareSpinner: document.getElementById('prepareSpinner'),
       prepareBtnText: document.getElementById('prepareBtnText'),
+      regenerateHandoffBtn: document.getElementById('regenerateHandoffBtn'),
+      regenerateConfirmBox: document.getElementById('regenerateConfirmBox'),
+      cancelRegenerateBtn: document.getElementById('cancelRegenerateBtn'),
+      confirmRegenerateBtn: document.getElementById('confirmRegenerateBtn'),
       artifactsContainer: document.getElementById('artifactsContainer'),
       reviewResumeBtn: document.getElementById('reviewResumeBtn'),
       downloadResumeBtn: document.getElementById('downloadResumeBtn'),
@@ -201,13 +205,38 @@ class SidebarController {
       await this.runAnalyzeJob();
     });
 
-    // Primary Next Action CTA in Analysis Card
+    // Primary Next Action CTA in Analysis Card (deprecated in P62 in favor of single authoritative CTA)
     this.elements.ctaPrepareHandoffBtn?.addEventListener('click', async () => {
-      await this.runPrepareHandoff();
+      const handoffState = this.getHandoffState();
+      if (handoffState === 'EXISTING') {
+        await this.viewHandoffKit();
+      } else {
+        await this.runPrepareHandoff();
+      }
     });
 
+    // Single Authoritative Handoff CTA (P62)
     this.elements.prepareHandoffBtn?.addEventListener('click', async () => {
-      await this.runPrepareHandoff();
+      const handoffState = this.getHandoffState();
+      if (handoffState === 'EXISTING') {
+        await this.viewHandoffKit();
+      } else {
+        await this.runPrepareHandoff();
+      }
+    });
+
+    // Deliberate Secondary Regeneration & In-card Confirmation (P62)
+    this.elements.regenerateHandoffBtn?.addEventListener('click', () => {
+      this.elements.regenerateConfirmBox?.classList.remove('hidden');
+    });
+
+    this.elements.cancelRegenerateBtn?.addEventListener('click', () => {
+      this.elements.regenerateConfirmBox?.classList.add('hidden');
+    });
+
+    this.elements.confirmRegenerateBtn?.addEventListener('click', async () => {
+      this.elements.regenerateConfirmBox?.classList.add('hidden');
+      await this.runPrepareHandoff({ isRegeneration: true });
     });
 
     this.elements.retryHandoffBtn?.addEventListener('click', async () => {
@@ -250,6 +279,32 @@ class SidebarController {
       this.cachedState?.lockState === 'LOCKED' ||
       this.cachedState?.isLocked === true
     );
+  }
+
+  getHandoffState(state = this.cachedState) {
+    if (this.stateMachine?.state === WORKFLOW_STATES.APPLICATION_PREPARING) {
+      return 'PREPARING';
+    }
+    const hasHandoff = Boolean(state?.handoffData && (state?.applicationId || state?.handoffData?.applicationId));
+    if (hasHandoff) {
+      return 'EXISTING';
+    }
+    if (state?.workflowState === WORKFLOW_STATES.APPLICATION_READY && state?.handoffData) {
+      return 'EXISTING';
+    }
+    if (state?.workflowState === WORKFLOW_STATES.ANALYSIS_READY || state?.fitAnalysis) {
+      return 'AVAILABLE';
+    }
+    return 'UNAVAILABLE';
+  }
+
+  async viewHandoffKit() {
+    if (this.elements.artifactsContainer) {
+      this.elements.artifactsContainer.classList.remove('hidden');
+      if (typeof this.elements.artifactsContainer.scrollIntoView === 'function') {
+        this.elements.artifactsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
   }
 
   _listenToRuntimeMessages() {
@@ -985,7 +1040,13 @@ class SidebarController {
       }
 
       if (this.elements.prepareBtnText) {
-        this.elements.prepareBtnText.textContent = 'Regenerate Handoff Kit';
+        this.elements.prepareBtnText.textContent = 'View Handoff Kit';
+      }
+      if (this.elements.prepareHandoffBtn) {
+        this.elements.prepareHandoffBtn.disabled = false;
+      }
+      if (this.elements.regenerateHandoffBtn) {
+        this.elements.regenerateHandoffBtn.classList.remove('hidden');
       }
       if (this.elements.handoffStatusBadge) {
         this.elements.handoffStatusBadge.textContent = 'KIT READY';
@@ -998,6 +1059,10 @@ class SidebarController {
       if (this.elements.prepareBtnText) {
         this.elements.prepareBtnText.textContent = 'Prepare Handoff Kit';
       }
+      if (this.elements.regenerateHandoffBtn) {
+        this.elements.regenerateHandoffBtn.classList.add('hidden');
+      }
+      this.elements.regenerateConfirmBox?.classList.add('hidden');
       if (this.elements.handoffStatusBadge) {
         this.elements.handoffStatusBadge.textContent = 'UNPREPARED';
         this.elements.handoffStatusBadge.className = 'status-badge-sm';
@@ -1066,8 +1131,23 @@ class SidebarController {
           this.cachedState.applicationId = result.existingApplication.id;
         }
 
-        this.cachedState.workflowState = WORKFLOW_STATES.ANALYSIS_READY;
-        this.stateMachine.state = WORKFLOW_STATES.ANALYSIS_READY;
+        const existingHandoff = result.existingHandoff || result.existingApplication?.handoffData;
+        if (existingHandoff && (existingHandoff.applicationId || result.existingApplication?.id)) {
+          // Canonical application handoff kit already exists! Re-use without preparing/regenerating.
+          this.cachedState.handoffData = existingHandoff;
+          this.cachedState.applicationId = existingHandoff.applicationId || result.existingApplication.id;
+          if (this.currentUser?.id) {
+            this.cachedState.userId = this.currentUser.id;
+          }
+          this.cachedState.workflowState = WORKFLOW_STATES.APPLICATION_READY;
+          this.cachedState.lockState = 'LOCKED';
+          this.cachedState.isLocked = true;
+          this.stateMachine.state = WORKFLOW_STATES.APPLICATION_READY;
+          this.stateMachine.lock();
+        } else {
+          this.cachedState.workflowState = WORKFLOW_STATES.ANALYSIS_READY;
+          this.stateMachine.state = WORKFLOW_STATES.ANALYSIS_READY;
+        }
 
         await this.store.saveTabState(this.activeTabId, this.cachedState);
         this._renderAllFromState(this.cachedState);
@@ -1096,7 +1176,7 @@ class SidebarController {
   }
 
   // Action: Prepare Handoff Kit
-  async runPrepareHandoff() {
+  async runPrepareHandoff(options = {}) {
     // Authenticate gate
     if (!this.isAuthenticated) {
       this._handleSessionExpired();
@@ -1105,10 +1185,15 @@ class SidebarController {
 
     if (!this.activeJob) return;
 
+    const isRegen = options.isRegeneration === true;
+
     if (this.elements.prepareHandoffBtn) this.elements.prepareHandoffBtn.disabled = true;
+    if (this.elements.regenerateHandoffBtn) this.elements.regenerateHandoffBtn.disabled = true;
     if (this.elements.ctaPrepareHandoffBtn) this.elements.ctaPrepareHandoffBtn.disabled = true;
     this.elements.prepareSpinner?.classList.remove('hidden');
-    if (this.elements.prepareBtnText) this.elements.prepareBtnText.textContent = 'Preparing Handoff Kit...';
+    if (this.elements.prepareBtnText) {
+      this.elements.prepareBtnText.textContent = isRegen ? 'Regenerating Handoff Kit...' : 'Preparing Handoff Kit...';
+    }
     this.elements.handoffErrorBanner?.classList.add('hidden');
 
     this.stateMachine.state = WORKFLOW_STATES.APPLICATION_PREPARING;
@@ -1151,15 +1236,20 @@ class SidebarController {
       if (err.status === 401 || err.code === 'UNAUTHENTICATED') {
         this._handleSessionExpired();
       } else {
-        this.stateMachine.state = WORKFLOW_STATES.ANALYSIS_READY;
+        const prevState = (this.cachedState?.handoffData && this.cachedState?.applicationId)
+          ? WORKFLOW_STATES.APPLICATION_READY
+          : WORKFLOW_STATES.ANALYSIS_READY;
+        this.stateMachine.state = prevState;
         this._showHandoffError(err.message || 'Failed to prepare handoff kit. Please retry.');
       }
     } finally {
       if (this.elements.prepareHandoffBtn) this.elements.prepareHandoffBtn.disabled = false;
+      if (this.elements.regenerateHandoffBtn) this.elements.regenerateHandoffBtn.disabled = false;
       if (this.elements.ctaPrepareHandoffBtn) this.elements.ctaPrepareHandoffBtn.disabled = false;
       this.elements.prepareSpinner?.classList.add('hidden');
       if (this.elements.prepareBtnText) {
-        this.elements.prepareBtnText.textContent = this.cachedState?.handoffData ? 'Regenerate Handoff Kit' : 'Prepare Handoff Kit';
+        const isExisting = Boolean(this.cachedState?.handoffData && this.cachedState?.applicationId);
+        this.elements.prepareBtnText.textContent = isExisting ? 'View Handoff Kit' : 'Prepare Handoff Kit';
       }
     }
   }
@@ -1236,6 +1326,11 @@ class SidebarController {
     this._hidePendingJobNotification();
     this.elements.workflowLockBanner?.classList.add('hidden');
     this.elements.workflowLockedBadge?.classList.add('hidden');
+    this.elements.regenerateConfirmBox?.classList.add('hidden');
+    this.elements.regenerateHandoffBtn?.classList.add('hidden');
+    if (this.elements.prepareBtnText) {
+      this.elements.prepareBtnText.textContent = 'Prepare Handoff Kit';
+    }
     if (this.elements.reanalyzeBtn) {
       this.elements.reanalyzeBtn.disabled = false;
       this.elements.reanalyzeBtn.classList.remove('disabled');

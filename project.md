@@ -3,6 +3,87 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-15*
 
+### PART 62: Existing Handoff Reuse, Single Primary CTA & Explicit Regeneration
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-15  
+**Scope:** Single Authoritative Primary Handoff Action (Elimination of duplicate Prepare Handoff Kit button in Analysis Card), Existing Handoff Kit Reuse on Same Job Analysis (Adoption of existing application and handoff artifacts without re-running generation), Deliberate Secondary Regeneration with In-Card Confirmation Prompt (`Regenerate Handoff Kit?` `[Cancel]` `[Regenerate]`), Non-Destructive Invariants on Rescan/Reset/View/Download, Idempotent Package Versioning & Hash Updates, 100% Frozen PDF Layouts / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Refined the P57-P61 Chrome extension and canonical MCP application backend to eliminate duplicate preparation actions, enforce reuse of completed handoff kits, and require deliberate confirmation before regenerating artifacts:
+1. **Single Authoritative Primary Handoff Action:**
+   - Removed the redundant `<button id="ctaPrepareHandoffBtn">` from `#analysisCard` while retaining `#analysisNextActionBox` for informative status copy.
+   - Standardized on `#prepareHandoffBtn` in `#handoffCard` as the single authoritative primary action across the entire extension lifecycle.
+   - Enforced the invariant that at every state (`IDLE`, `JOB_DETECTED`, `ANALYSIS_READY`, `APPLICATION_READY`, and `LOCKED`), exactly ONE primary handoff action exists in the DOM.
+2. **Existing Handoff Kit Reuse on Same Canonical Job:**
+   - Backend enrichment (`src/routes/extension.routes.js` in `POST /api/extension/analyze-job`): when an existing application with a completed handoff package matches the canonical job, enriches response with `existingHandoff` containing canonical artifact links, hashes, version, and status.
+   - Extension controller (`extension/sidebar/sidebar.js`): upon receiving existing handoff data, immediately transitions to `APPLICATION_READY` + `LOCKED`, adopts existing `applicationId`, package hash, and package version, and updates the primary CTA text to `[View Handoff Kit]`.
+   - Zero automatic preparation or regeneration calls occur upon re-analyzing or reloading an existing job.
+3. **Non-Destructive View Action:**
+   - Clicking `[View Handoff Kit]` runs `viewHandoffKit()`, which unhides and scrolls to `#artifactsContainer` where resume, cover letter, and zip review/download actions reside.
+   - Makes ZERO network calls, creates ZERO applications, and triggers ZERO artifact generation.
+4. **Deliberate Secondary Regeneration with In-Card Confirmation:**
+   - When a handoff kit exists, renders a secondary button `[Regenerate Handoff Kit]` (`#regenerateHandoffBtn`) styled with a restrained secondary ghost style below the primary CTA.
+   - Clicking `[Regenerate Handoff Kit]` does NOT immediately call the backend; it reveals an in-card confirmation banner (`#regenerateConfirmBox`) with the prompt *"Regenerate Handoff Kit? A handoff kit already exists for this job. Regenerating will create a new package version."* and buttons `[Cancel]` and `[Regenerate]`.
+   - Clicking `[Cancel]` dismisses the banner without any network calls, leaving existing application records and package versions untouched.
+   - Clicking `[Regenerate]` confirms and calls the canonical backend `prepareHandoff` with the existing `applicationId`, generating version `v2`, updating package hash, and preserving application identity.
+5. **Non-Destructive Operations & Zero Data Loss:**
+   - Verified that Rescan, Reset, View, and Download perform ZERO destructive calls (`DELETE`) and never delete or mutate existing MCP application records in PostgreSQL.
+6. **Layout & Scoring Continuity:**
+   - Maintained 100% frozen LaTeX templates, 0.52in margins, 1-page resume geometry, and deterministic ATS fit scoring.
+
+**Verification & Test Results:**
+- `tests/unit/p62-existing-handoff-reuse.test.js`: **19/19 PASS (100% across all 4 suites)**
+  1. Single Primary Handoff Action & No Duplicate CTAs:
+     - New job, no existing application -> single primary CTA is `[Prepare Handoff Kit]`.
+     - Analysis card does NOT expose duplicate prepare handoff CTA.
+  2. Same Job Existing Handoff Reuse:
+     - Same job with existing handoff -> transitions to `APPLICATION_READY` and `LOCKED`.
+     - Primary CTA text is `[View Handoff Kit]`.
+     - Secondary button `[Regenerate Handoff Kit]` is visible.
+     - Prepare-handoff endpoint is NOT called on analysis (0 calls).
+     - Clicking `[View Handoff Kit]` reveals artifacts container with 0 backend calls.
+     - Clicking `[View Handoff Kit]` preserves packageHash, packageVersion, and applicationId.
+     - Package metadata matches existing application records.
+     - Re-analyzing same job re-attaches existing handoff with 0 generation calls.
+     - Reloading sidebar on existing job restores `APPLICATION_READY`, `LOCKED`, and `[View Handoff Kit]`.
+     - Session expiry and re-auth preserve existing handoff kit and `[View Handoff Kit]`.
+  3. Non-Destructive Invariants on Rescan & Reset:
+     - Rescan to another job does NOT delete or mutate Application A.
+     - Reset workflow does NOT delete or mutate any application or handoff kit in the database.
+  4. Deliberate Secondary Regeneration with In-Card Confirmation:
+     - Clicking `[Regenerate Handoff Kit]` opens confirmation prompt with 0 immediate backend calls.
+     - Canceling regeneration leaves existing handoff kit untouched.
+     - Confirming regeneration triggers canonical prepare-handoff with existing applicationId.
+     - Regenerated handoff increments packageVersion to v2, updates packageHash, preserves application ID.
+     - MCP application list reflects the same single application with updated package metadata.
+- **Full Regression Test Suite:**
+  - `p61-calm-workflow-and-ui.test.js`: **20/20 PASS**
+  - `p60-identity-and-workflow-lock.test.js`: **22/22 PASS**
+  - `p59-sidebar-workflow.test.js`: **18/18 PASS**
+  - `p57-extension-architecture.test.js`: **6/6 PASS**
+  - `p58-canonical-fit-engine.test.js`: **6/6 PASS**
+  - `p58-portal-detection.test.js`: **6/6 PASS**
+  - **Total Passing Unit Tests:** **102/102 PASS (0 Failures)**
+- **Real Chrome MV3 E2E Verification (`scripts/verify-p62-real-chrome.mjs`):**
+  - Step 1: Authenticated with canonical user session (`vishwanatnishad@gmail.com`).
+  - Step 2: Verified single primary CTA invariant in DOM: `#ctaPrepareHandoffBtn` exists = false, `#prepareHandoffBtn` exists = true.
+  - Step 3: Detected & analyzed Job A -> `ANALYSIS_READY`, primary CTA: `[Prepare Handoff Kit]`.
+  - Step 4: Prepared handoff for Job A -> Application A ID `51d892a1-cb4b-4041-8463-c4a724b48bd7`, status badge `KIT READY`, primary CTA text `[View Handoff Kit]`, secondary `[Regenerate Handoff Kit]` visible.
+  - Step 5: Clicked `[View Handoff Kit]` -> unhid `#artifactsContainer`, 0 backend generation calls.
+  - Step 6: Re-analyzed Job A -> existing handoff reused without regeneration, state `APPLICATION_READY` + `LOCKED`, Application A ID preserved, 0 preparation calls.
+  - Step 7: Navigated to Job B -> minimal pending banner shown, clicked Rescan -> Application A verified intact in PostgreSQL database.
+  - Step 8: Prepared handoff for Job B -> Application B ID `9a6aa19d-4aeb-44e3-bcd0-132174eb7867`, package `v1`.
+  - Step 9: Clicked `[Regenerate Handoff Kit]` -> confirmation box `#regenerateConfirmBox` unhidden with Cancel and Regenerate buttons. Clicked Cancel -> confirmation dismissed, package version remained `v1`.
+  - Step 10: Clicked `[Regenerate]`, confirmed -> regeneration completed with package `v2`, Application B ID preserved, Application A status `SAVED` and untouched in database.
+  - Output: `ALL PART 62 REAL CHROME CDP VERIFICATION CHECKS PASSED!`.
+- **Visual Artifacts Captured:**
+  - `p62-01-initial-handoff-ready.png`: Initial handoff kit ready with `KIT READY` badge, single primary CTA `[View Handoff Kit]`, and secondary `[Regenerate Handoff Kit]`.
+  - `p62-02-reused-existing-handoff.png`: Post-analysis existing handoff reuse showing locked workflow, identical application ID, and zero regeneration.
+  - `p62-03-regeneration-confirmation.png`: Deliberate in-card confirmation banner with prompt and Cancel / Regenerate buttons.
+  - `p62-04-regenerated-handoff-ready.png`: Successfully regenerated handoff kit showing package version `v2`, preserved application ID, and single primary CTA `[View Handoff Kit]`.
+
 ### PART 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & Canonical Artifact Filenames
 
 **Status:** COMPLETE & VERIFIED  

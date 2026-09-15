@@ -177,12 +177,9 @@
         <div id="analysisNextActionBox" class="next-action-container">
           <div class="next-action-header">
             <p class="next-action-desc">
-              Analysis complete. Prepare your tailored resume, cover letter, and handoff package.
+              Analysis complete. Tailored documents and handoff actions are ready below.
             </p>
           </div>
-          <button id="ctaPrepareHandoffBtn" class="btn btn-accent btn-block">
-            Prepare Handoff Kit
-          </button>
         </div>
       </section>
 
@@ -235,11 +232,29 @@
           <button id="retryHandoffBtn" class="btn btn-outline btn-xs">Retry Preparation</button>
         </div>
 
+        <!-- Single Primary Handoff Action & Deliberate Secondary Regeneration (Part 62) -->
         <div class="handoff-actions">
           <button id="prepareHandoffBtn" class="btn btn-accent btn-block">
             <span class="btn-spinner hidden" id="prepareSpinner"></span>
             <span id="prepareBtnText">Prepare Handoff Kit</span>
           </button>
+          <button id="regenerateHandoffBtn" class="btn btn-ghost btn-block btn-secondary-action hidden">
+            Regenerate Handoff Kit
+          </button>
+        </div>
+
+        <!-- In-card Confirmation Box for Deliberate Regeneration (Part 62) -->
+        <div id="regenerateConfirmBox" class="alert-banner confirm-banner hidden">
+          <div class="alert-content">
+            <div class="alert-text">
+              <strong>Regenerate Handoff Kit?</strong>
+              <p>A handoff kit already exists for this job. Regenerating will create a new package version.</p>
+            </div>
+          </div>
+          <div class="confirm-actions">
+            <button id="cancelRegenerateBtn" class="btn btn-outline btn-xs">Cancel</button>
+            <button id="confirmRegenerateBtn" class="btn btn-primary btn-xs">Regenerate</button>
+          </div>
         </div>
 
         <div id="artifactsContainer" class="artifacts-container hidden">
