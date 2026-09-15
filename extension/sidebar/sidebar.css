@@ -708,3 +708,204 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Auth Bar & User States (P59) */
+.auth-bar {
+  margin-top: 4px;
+}
+
+.auth-state-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.auth-state-box.unauthenticated {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.auth-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.auth-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.auth-badge.unauthenticated {
+  color: var(--accent-amber);
+}
+
+.auth-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.user-profile-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar {
+  font-size: 16px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+}
+
+.user-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.user-email {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.logout-btn {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.logout-btn:hover {
+  color: var(--accent-rose);
+}
+
+/* Alert Banners (Warning / Error) */
+.alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.alert-banner.warning {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.alert-banner.error {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #fda4af;
+}
+
+.alert-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.alert-text strong {
+  display: block;
+  font-size: 11px;
+}
+
+.alert-text p {
+  font-size: 10px;
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Next Action Box (Guarantees NO DEAD END) */
+.next-action-container {
+  margin-top: 14px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(56, 189, 248, 0.08));
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.next-action-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.next-action-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+}
+
+.next-action-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Telemetry Details */
+.telemetry-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 10px;
+}
+
+.telemetry-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.telemetry-label {
+  color: var(--text-muted);
+}
+
+.telemetry-value {
+  color: var(--accent-cyan);
+  font-size: 11px;
+}
+
+/* Artifact Actions */
+.artifact-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-handoff-link-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+

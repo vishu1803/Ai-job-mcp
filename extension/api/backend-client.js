@@ -128,6 +128,54 @@ export class BackendClient {
   }
 
   /**
+   * Logs out the user session via canonical POST /auth/logout.
+   *
+   * @returns {Promise<boolean>}
+   */
+  async logout() {
+    try {
+      await this._fetch('/auth/logout', {
+        method: 'POST',
+      });
+      return true;
+    } catch (err) {
+      console.warn('Logout error (session may already be expired):', err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Constructs login URL on the web dashboard.
+   *
+   * @returns {Promise<string>}
+   */
+  async getLoginUrl() {
+    const baseUrl = await this.getBaseUrl();
+    return `${baseUrl}/login`;
+  }
+
+  /**
+   * Constructs dashboard URL.
+   *
+   * @returns {Promise<string>}
+   */
+  async getDashboardUrl() {
+    const baseUrl = await this.getBaseUrl();
+    return `${baseUrl}/dashboard`;
+  }
+
+  /**
+   * Constructs application details URL.
+   *
+   * @param {string} applicationId
+   * @returns {Promise<string>}
+   */
+  async getApplicationViewUrl(applicationId) {
+    const baseUrl = await this.getBaseUrl();
+    return `${baseUrl}/applications/${applicationId}`;
+  }
+
+  /**
    * Checks backend service health via /livez.
    *
    * @returns {Promise<{ status: string, ok: boolean }>}

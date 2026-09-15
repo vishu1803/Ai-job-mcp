@@ -9886,3 +9886,79 @@ Candidate source data is strictly immutable. No synthetic metrics, uncorroborate
 - Same-job extracted PDF text equality: A PASS, B PASS.
 - MCP/extension canonical semantic equality: FAIL; P22 remains IN_PROGRESS.
 - Broad integration probe: BLOCKED by Node heap exhaustion before completion.
+
+---
+
+### PART 59: Sidebar Workflow Completion, Canonical Authentication & Handoff Idempotency
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-15
+**Phase:** Phase 59 — Sidebar Workflow Completion & Canonical Architecture
+
+**Context & Core Architectural Invariants:**
+1. **Authoritative Server Session Lifecycle (`/api/extension/session` & `/auth/logout`):**
+   - Strictly verifies authentication against canonical `/api/extension/session`. No fake "authenticated" state exists.
+   - Unauthenticated state gates actions and displays dedicated Sign In CTA. Authenticated state displays user display name, email, and candidate profile connection.
+   - Logout calls `POST /auth/logout` to revoke session server-side without destroying detected job or application data.
+2. **Non-Destructive Session Expiry & Workflow Protection:**
+   - When a session expires during active analysis or handoff preparation (HTTP 401 or session invalidation), the sidebar gates actions with a prominent session-expired banner.
+   - Crucial safety invariant: The detected job, candidate fit analysis, and handoff application state are strictly preserved in `DurableWorkflowStore` and remain visible in the UI.
+   - Re-authentication restores the workflow state (`ANALYSIS_READY` or `APPLICATION_READY`) with all CTAs immediately available.
+3. **Zero Dead-End Workflow Navigation (State-Action Matrix):**
+   - Eliminated the post-analysis dead end where users were left without a clear primary next action.
+   - Enforced single, authoritative handoff visibility rule: `fitAnalysis` status SUCCESS $\rightarrow$ `ANALYSIS_READY` $\rightarrow$ Handoff Kit card VISIBLE and "📦 Prepare Application Handoff Kit" primary CTA enabled in `#analysisNextActionBox`.
+   - Removed secondary coupling to `portfolioRecommendations.featuredProjects` or auxiliary advisory payloads.
+4. **Canonical Handoff Preparation with Proven Idempotency:**
+   - Gated by authentication, calls the canonical `/api/extension/prepare-handoff` backend route passing `activeJob`, existing `applicationId`, and authoritative `analysisSnapshotId`.
+   - Reuses existing database applications: verified via database queries and repeated requests, creating 0 duplicate application rows in PostgreSQL (`lifecycleAction: REUSED`).
+   - Surfaces real canonical application telemetry: Application ID (`#handoffAppId`), Package Hash & Version (`#handoffPackageMeta`), and Status Badge (`#handoffStatusBadge`).
+5. **Canonical Artifact Review & Download URLs:**
+   - Download and review URLs are constructed directly from canonical application and package identity (`packageHash`).
+   - Added review/preview actions alongside download for tailored resume, cover letter, and handoff bundle.
+6. **Persistent Sidebar Reload & Recovery:**
+   - Chrome MV3 sidebar reload and tab switching restores identical workflow state, application ID, package hash, and artifact actions from `DurableWorkflowStore`.
+
+**State-Action Matrix Verification:**
+| Workflow State | Required Primary Action | Implemented & Verified |
+| :--- | :--- | :--- |
+| `IDLE` | Detect Job / Refresh | Verified |
+| `JOB_DETECTED` | Analyze Job Match | Verified |
+| `ANALYSIS_READY` | 📦 Prepare Application Handoff Kit | Verified (Zero Dead End) |
+| `APPLICATION_PREPARING` | Preparing Handoff Kit... | Verified (Active Progress) |
+| `APPLICATION_READY` | Review / Download Tailored Artifacts | Verified (Review & Download) |
+| `Auth Expired` | Sign In (Preserve Workflow State) | Verified (Non-Destructive) |
+| `Analysis Error` | Retry Analysis | Verified (Actionable Banner) |
+| `Handoff Error` | Retry Preparation | Verified (Actionable Banner) |
+
+**Files Modified / Created:**
+- `extension/api/backend-client.js`: Added canonical `logout()`, `getLoginUrl()`, `getDashboardUrl()`, and `getApplicationViewUrl(appId)`. Ensured `prepareHandoff(job, applicationId, analysisSnapshotId)` passes canonical payload.
+- `extension/sidebar/sidebar.html`: Added Auth Bar in header, non-destructive expired session alert, analysis error retry banner, primary next action CTA inside analysis card, handoff telemetry row, handoff error banner, and artifact review buttons.
+- `extension/sidebar/sidebar.css`: Added responsive styling for auth status pills, next action CTA container, error/warning banners, review buttons, and telemetry tags.
+- `extension/sidebar/sidebar.js`: Integrated authoritative session verification, session loss recovery, dead-end elimination, idempotent handoff preparation, and artifact preview/review actions.
+- `tests/unit/p59-sidebar-workflow.test.js`: 17 comprehensive unit tests verifying all state transitions, auth gating, dead-end elimination, and idempotency logic.
+- `tests/integration/p59-handoff-idempotency-e2e.test.js`: Fastify integration test verifying real server session lifecycle, initial handoff creation, repeated preparation proving zero duplicate DB records, and `/auth/logout` revocation.
+- `scripts/verify-p59-real-chrome.mjs`: Real Chrome E2E test harness exercising all 10 scenarios via CDP in headless/windowed Google Chrome with the live MV3 extension.
+
+**Verification Evidence:**
+- `tests/unit/p59-sidebar-workflow.test.js`: **17/17 PASS (100%)**
+- `tests/integration/p59-handoff-idempotency-e2e.test.js`: **4/4 PASS (100%)**
+- Combined P57/P58/P59 Regression Suite: **68/68 PASS (100%)**
+- Real Chrome E2E Suite (`scripts/verify-p59-real-chrome.mjs`): **10/10 SCENARIOS PASS (100%)**
+  - Unauthenticated $\rightarrow$ Sign In $\rightarrow$ Authenticated: PASS
+  - LinkedIn Job Detection $\rightarrow$ Analyze $\rightarrow$ ANALYSIS_READY: PASS
+  - Zero Dead-End CTA & Handoff Card Visibility: PASS
+  - Session Expiry during ANALYSIS_READY (state preserved): PASS
+  - Re-authentication $\rightarrow$ ANALYSIS_READY restored: PASS
+  - Prepare Handoff Kit $\rightarrow$ APPLICATION_READY: PASS
+  - Sidebar Reload / Recovery from Durable Store: PASS
+  - Repeated Click on Prepare (0 duplicate applications in PostgreSQL): PASS
+  - Canonical Artifact Review / Download URLs: PASS
+  - Non-Destructive Logout (Job & App state preserved): PASS
+- Artifacts & Visual Proof:
+  - `p59-01-unauthenticated.png`
+  - `p59-02-authenticated.png`
+  - `p59-03-job-detected.png`
+  - `p59-04-analysis-ready.png`
+  - `p59-05-session-expired-state-preserved.png`
+  - `p59-06-reauthenticated-analysis-ready.png`
+  - `p59-10-artifact-reviewed.png`
+

@@ -29,9 +29,38 @@
           </button>
         </div>
       </div>
-      <div id="authNotice" class="auth-notice hidden">
-        <span>Not authenticated.</span>
-        <a id="signInLink" href="#" target="_blank">Sign In to Dashboard</a>
+
+      <!-- User Profile / Auth State Bar -->
+      <div id="authBar" class="auth-bar">
+        <div id="authUnauthenticatedState" class="auth-state-box unauthenticated">
+          <div class="auth-status-info">
+            <span class="auth-badge unauthenticated">Not Signed In</span>
+            <span class="auth-hint">Sign in to analyze jobs & prepare kits</span>
+          </div>
+          <button id="loginBtn" class="btn btn-outline btn-xs">Sign In</button>
+        </div>
+        <div id="authAuthenticatedState" class="auth-state-box authenticated hidden">
+          <div class="user-profile-info">
+            <span class="user-avatar" id="userAvatar">👤</span>
+            <div class="user-text">
+              <span id="userName" class="user-name">—</span>
+              <span id="userEmail" class="user-email">—</span>
+            </div>
+          </div>
+          <button id="logoutBtn" class="link-button logout-btn" title="Sign out">Log Out</button>
+        </div>
+      </div>
+
+      <!-- Non-destructive Expired Session Warning -->
+      <div id="sessionExpiredNotice" class="alert-banner warning hidden">
+        <div class="alert-content">
+          <span class="alert-icon">⚠️</span>
+          <div class="alert-text">
+            <strong>Session Expired</strong>
+            <p>Sign in to continue — your job and analysis progress is preserved.</p>
+          </div>
+        </div>
+        <button id="reauthBtn" class="btn btn-primary btn-xs">Sign In</button>
       </div>
     </header>
 
@@ -79,6 +108,16 @@
               <span id="jobType" class="meta-tag">💼 Full-time</span>
               <span id="jobIdTag" class="meta-tag code-font">ID: —</span>
             </div>
+
+            <!-- Analysis Error Banner -->
+            <div id="analysisErrorBanner" class="alert-banner error hidden">
+              <div class="alert-content">
+                <span class="alert-icon">⚠️</span>
+                <span id="analysisErrorMessage">Analysis failed.</span>
+              </div>
+              <button id="retryAnalysisBtn" class="btn btn-outline btn-xs">Retry Analysis</button>
+            </div>
+
             <div class="action-row">
               <button id="analyzeJobBtn" class="btn btn-primary btn-sm">Analyze Job Match</button>
             </div>
@@ -125,6 +164,19 @@
             <div id="missingSkillsList" class="tag-list"></div>
           </div>
         </div>
+
+        <!-- Primary Next Action Container (Guarantees NO DEAD END) -->
+        <div id="analysisNextActionBox" class="next-action-container">
+          <div class="next-action-header">
+            <span class="next-action-badge">RECOMMENDED NEXT ACTION</span>
+            <p class="next-action-desc">
+              ATS fit analysis complete. Prepare your tailored resume, cover letter, and application handoff kit.
+            </p>
+          </div>
+          <button id="ctaPrepareHandoffBtn" class="btn btn-accent btn-block">
+            📦 Prepare Application Handoff Kit
+          </button>
+        </div>
       </section>
 
       <!-- Authoritative Recommended Projects Section (P57 Rule 1 & Rule 2) -->
@@ -151,11 +203,32 @@
             <span class="section-icon">📦</span>
             <h2 class="card-title">Application Handoff Kit</h2>
           </div>
-          <span id="handoffStatusBadge" class="status-badge-sm ready">READY</span>
+          <span id="handoffStatusBadge" class="status-badge-sm">UNPREPARED</span>
         </div>
         <p class="section-desc">
           Generate or retrieve the cryptographically verified application kit tailored with ranked projects.
         </p>
+
+        <!-- Application & Package Metadata Row -->
+        <div id="handoffTelemetryRow" class="telemetry-row hidden">
+          <div class="telemetry-item">
+            <span class="telemetry-label">Application ID:</span>
+            <span id="handoffAppId" class="telemetry-value code-font">—</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Package:</span>
+            <span id="handoffPackageMeta" class="telemetry-value code-font">—</span>
+          </div>
+        </div>
+
+        <!-- Handoff Error & Retry Banner -->
+        <div id="handoffErrorBanner" class="alert-banner error hidden">
+          <div class="alert-content">
+            <span class="alert-icon">⚠️</span>
+            <span id="handoffErrorMessage">Failed to prepare handoff kit.</span>
+          </div>
+          <button id="retryHandoffBtn" class="btn btn-outline btn-xs">Retry Preparation</button>
+        </div>
 
         <div class="handoff-actions">
           <button id="prepareHandoffBtn" class="btn btn-accent btn-block">
@@ -171,7 +244,10 @@
               <div class="artifact-title">Tailored Resume (PDF)</div>
               <div class="artifact-meta" id="resumeMeta">LaTeX Compiled • Verified</div>
             </div>
-            <button id="downloadResumeBtn" class="btn btn-outline btn-xs">Download</button>
+            <div class="artifact-actions">
+              <button id="reviewResumeBtn" class="btn btn-outline btn-xs">Review</button>
+              <button id="downloadResumeBtn" class="btn btn-primary btn-xs">Download</button>
+            </div>
           </div>
           <div class="artifact-item" id="coverLetterArtifact">
             <div class="artifact-icon">✉️</div>
@@ -179,7 +255,10 @@
               <div class="artifact-title">Tailored Cover Letter (PDF)</div>
               <div class="artifact-meta" id="coverLetterMeta">LaTeX Compiled • Verified</div>
             </div>
-            <button id="downloadCoverLetterBtn" class="btn btn-outline btn-xs">Download</button>
+            <div class="artifact-actions">
+              <button id="reviewCoverLetterBtn" class="btn btn-outline btn-xs">Review</button>
+              <button id="downloadCoverLetterBtn" class="btn btn-primary btn-xs">Download</button>
+            </div>
           </div>
           <div class="artifact-item" id="kitZipArtifact">
             <div class="artifact-icon">🗂️</div>
@@ -187,7 +266,12 @@
               <div class="artifact-title">Complete Application Bundle</div>
               <div class="artifact-meta" id="bundleMeta">All artifacts + SHA-256 manifest</div>
             </div>
-            <button id="downloadBundleBtn" class="btn btn-outline btn-xs">Download ZIP</button>
+            <div class="artifact-actions">
+              <button id="downloadBundleBtn" class="btn btn-accent btn-xs">Download ZIP</button>
+            </div>
+          </div>
+          <div class="dashboard-handoff-link-row">
+            <a id="viewAppDashboardLink" href="#" target="_blank" class="link-button">Open Application in Dashboard ↗</a>
           </div>
         </div>
       </section>
