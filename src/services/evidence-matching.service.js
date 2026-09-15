@@ -1508,7 +1508,40 @@ export class EvidenceMatchingService {
       }, 0);
     }
 
-    if (candidateTenureYears !== null && candidateTenureYears > 0) {
+    // Entry-level roles with min=0 years required
+    if (minYearsReq === 0) {
+      const matchConfidence = 0.95;
+      const candYears = candidateTenureYears ?? 0;
+      const match = {
+        requirementId: req.id,
+        category: req.category,
+        importance: req.importance,
+        weight: req.weight ?? 1.0,
+        skillSlug: null,
+        extractedValue: req.extractedValue,
+        matchStatus: 'MATCHED',
+        matchConfidence,
+        isUserClaim: false,
+        claimLabel: null,
+        matchedSkillSlug: null,
+        relationshipType: 'NONE',
+        primaryEvidence: null,
+        supportingEvidence: [],
+        explanation: `MATCHED: Candidate is eligible for entry-level role (0+ years required, candidate demonstrates ${candYears} years).`,
+      };
+
+      const explanation = {
+        requirementId: req.id,
+        status: 'MATCHED',
+        reason: match.explanation,
+        evidenceRefs: [],
+        matchConfidence,
+      };
+
+      return { match, explanation, gap: null };
+    }
+
+    if (candidateTenureYears !== null && candidateTenureYears >= 0) {
       if (candidateTenureYears >= minYearsReq) {
         const matchConfidence = 0.9;
         const match = {
@@ -1540,7 +1573,7 @@ export class EvidenceMatchingService {
         return { match, explanation, gap: null };
       }
 
-      // Partial tenure
+      // Under-tenured candidate (e.g. 1.5 years for 3+ year requirement)
       const matchConfidence = 0.65;
       const match = {
         requirementId: req.id,

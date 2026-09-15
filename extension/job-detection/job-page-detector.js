@@ -85,12 +85,38 @@ export class JobPageDetector {
     const currentUrl = url || (typeof window !== 'undefined' ? window.location.href : '');
 
     // Select matching adapter
-    let matchedAdapter = GenericCareerPageAdapter;
+    let matchedAdapter = null;
     for (const adapter of JobPageDetector.adapters) {
       if (adapter !== GenericCareerPageAdapter && adapter.canHandle(doc, currentUrl)) {
         matchedAdapter = adapter;
         break;
       }
+    }
+
+    if (!matchedAdapter) {
+      if (GenericCareerPageAdapter.canHandle(doc, currentUrl)) {
+        matchedAdapter = GenericCareerPageAdapter;
+      }
+    }
+
+    if (!matchedAdapter) {
+      // Non-job page: do not attempt heuristic extraction
+      return {
+        sourceUrl: currentUrl,
+        provider: 'NONE',
+        externalJobId: null,
+        title: 'Untitled Role',
+        company: 'Company',
+        location: 'Not specified',
+        workplace: 'UNKNOWN',
+        employmentType: 'FULL_TIME',
+        description: '',
+        requirements: [],
+        responsibilities: [],
+        compensation: null,
+        rawText: '',
+        isConfident: false,
+      };
     }
 
     // Extract payload via matched adapter
@@ -152,6 +178,7 @@ export class JobPageDetector {
     return {
       sourceUrl: currentUrl,
       provider: rawPayload.provider,
+      externalJobId: rawPayload.externalJobId || null,
       title: sanitizedTitle,
       company: sanitizedCompany,
       location: sanitizedLocation,

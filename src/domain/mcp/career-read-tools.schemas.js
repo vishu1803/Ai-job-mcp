@@ -702,8 +702,21 @@ export const AnalyzeJobFitOutputSchema = z
         explanation: z.any().nullable().optional(),
         experienceFit: z
           .object({
-            status: z.enum(['MATCHED', 'PARTIAL', 'MISSING', 'UNKNOWN', 'NOT_APPLICABLE']),
-            explanation: z.string(),
+            status: z.enum([
+              'ELIGIBLE',
+              'NOT_ELIGIBLE',
+              'NOT_SPECIFIED',
+              'MATCHED',
+              'PARTIAL',
+              'MISSING',
+              'UNKNOWN',
+              'NOT_APPLICABLE',
+            ]),
+            candidateYears: z.number().nullable().optional(),
+            requiredYears: z.number().nullable().optional(),
+            minYears: z.number().nullable().optional(),
+            maxYears: z.number().nullable().optional(),
+            explanation: z.string().optional(),
           })
           .optional(),
         educationFit: z
@@ -809,6 +822,25 @@ export const AnalyzeJobFitOutputSchema = z
       verifiedSkillsCount: z.number().int().nonnegative(),
       totalEvidenceItemsCited: z.number().int().nonnegative(),
     }),
+    experienceFit: z
+      .object({
+        status: z.enum([
+          'ELIGIBLE',
+          'NOT_ELIGIBLE',
+          'NOT_SPECIFIED',
+          'MATCHED',
+          'PARTIAL',
+          'MISSING',
+          'UNKNOWN',
+          'NOT_APPLICABLE',
+        ]),
+        candidateYears: z.number().nullable().optional(),
+        requiredYears: z.number().nullable().optional(),
+        minYears: z.number().nullable().optional(),
+        maxYears: z.number().nullable().optional(),
+        explanation: z.string().optional(),
+      })
+      .optional(),
     _meta: z
       .object({
         cacheControl: z

@@ -1665,11 +1665,21 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
         const eduReqMatch = requirementLevelMatches.find((m) => m.category === 'EDUCATION');
         const locReqMatch = requirementLevelMatches.find((m) => m.category === 'LOCATION');
 
+        const rawExpMatch = (matchAnalysis.requirementMatches || []).find((m) => m.category === 'EXPERIENCE');
+        const expStatus = rawExpMatch
+          ? (rawExpMatch.eligibilityStatus || (rawExpMatch.matchStatus === 'MATCHED' ? 'ELIGIBLE' : (rawExpMatch.matchStatus === 'MISSING' || rawExpMatch.matchStatus === 'PARTIAL' ? 'NOT_ELIGIBLE' : 'UNKNOWN')))
+          : 'NOT_APPLICABLE';
+        const resolvedExperienceFit = {
+          status: expStatus,
+          candidateYears: rawExpMatch?.candidateTenureYears ?? null,
+          requiredYears: rawExpMatch?.minYearsRequired ?? null,
+          minYears: rawExpMatch?.minYearsRequired ?? null,
+          maxYears: rawExpMatch?.normalizedCriteria?.maxYears ?? null,
+          explanation: expReqMatch ? expReqMatch.explanation : 'No explicit experience duration or development requirements specified in posting.',
+        };
+
         const experienceFit = expReqMatch
-          ? {
-              status: expReqMatch.matchStatus,
-              explanation: expReqMatch.explanation,
-            }
+          ? resolvedExperienceFit
           : {
               status: 'NOT_APPLICABLE',
               explanation:
@@ -1727,6 +1737,20 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
       verifiedSkillsCount,
       totalEvidenceItemsCited: totalEvidenceCited,
     },
+    experienceFit: (() => {
+      const rawExpMatch = (matchAnalysis.requirementMatches || []).find((m) => m.category === 'EXPERIENCE');
+      const expStatus = rawExpMatch
+        ? (rawExpMatch.eligibilityStatus || (rawExpMatch.matchStatus === 'MATCHED' ? 'ELIGIBLE' : (rawExpMatch.matchStatus === 'MISSING' || rawExpMatch.matchStatus === 'PARTIAL' ? 'NOT_ELIGIBLE' : 'UNKNOWN')))
+        : 'NOT_SPECIFIED';
+      return {
+        status: expStatus,
+        candidateYears: rawExpMatch?.candidateTenureYears ?? null,
+        requiredYears: rawExpMatch?.minYearsRequired ?? null,
+        minYears: rawExpMatch?.minYearsRequired ?? null,
+        maxYears: rawExpMatch?.normalizedCriteria?.maxYears ?? null,
+        explanation: rawExpMatch?.explanation || (expStatus === 'NOT_SPECIFIED' ? 'No explicit experience duration specified.' : ''),
+      };
+    })(),
     _meta: {
       cacheControl: DEFAULT_CACHE_CONTROL,
       ui: {

@@ -112,16 +112,24 @@ export class RequirementDecomposer {
       const confidenceScore = importance === 'REQUIRED' ? 0.95 : 0.85;
 
       // 1. Check for Experience Requirement
+      const isEntryLevel =
+        /\b(?:entry[- ]level|fresh[- ]graduate(?:s)?|fresh[- ]grad(?:s)?|new[- ]grad(?:s)?|new[- ]graduate(?:s)?|no[- ]prior[- ]experience|no[- ]experience[- ]required)\b/i.test(
+          cleanLine
+        );
       const expMatch = cleanLine.match(
-        /(?:^|\s|\b)(?:(\d+)(?:\s*[-–—to]\s*(\d+))?|\b(\d+)\+?)\s*(?:years?|yrs?)(?:\s+(?:of\s+)?experience)?(?:\s+(?:in|with|using|building|developing|of)\s+([A-Za-z0-9_#.+ /,-]{1,80}))?\b/i
+        /(?:^|\s|\b)(?:(?:at\s+least|minimum|min)\s+)?(?:(\d+)(?:\s*[-–—to]\s*(\d+))?|\b(\d+)\+?)\s*(?:years?|yrs?)(?:\s+(?:of\s+)?experience)?(?:\s+(?:in|with|using|building|developing|of)\s+([A-Za-z0-9_#.+ /,-]{1,80}))?\b/i
       );
-      if (expMatch) {
-        const minYears = parseInt(expMatch[1] || expMatch[3], 10);
-        const maxYears = expMatch[2] ? parseInt(expMatch[2], 10) : undefined;
-        const targetDomain = expMatch[4] ? expMatch[4].trim() : undefined;
+      if (expMatch || isEntryLevel) {
+        const minYears = isEntryLevel ? 0 : parseInt(expMatch[1] || expMatch[3], 10);
+        const maxYears = isEntryLevel
+          ? null
+          : expMatch?.[2]
+            ? parseInt(expMatch[2], 10)
+            : undefined;
+        const targetDomain = expMatch?.[4] ? expMatch[4].trim() : undefined;
 
         if (!Number.isNaN(minYears)) {
-          const expSig = `EXPERIENCE:${minYears}:${targetDomain || 'general'}`;
+          const expSig = `EXPERIENCE:${minYears}:${targetDomain || (isEntryLevel ? 'entry-level' : 'general')}`;
           if (!seenRequirementSignatures.has(expSig)) {
             seenRequirementSignatures.add(expSig);
             decomposedRequirements.push({
@@ -134,7 +142,9 @@ export class RequirementDecomposer {
               importance,
               weight,
               skillSlug: null,
-              extractedValue: `${minYears}+ years experience${targetDomain ? ` in ${targetDomain}` : ''}`,
+              extractedValue: isEntryLevel
+                ? 'Entry-level (0+ years experience)'
+                : `${minYears}+ years experience${targetDomain ? ` in ${targetDomain}` : ''}`,
               normalizedCriteria: {
                 minYears,
                 ...(maxYears !== undefined ? { maxYears } : {}),

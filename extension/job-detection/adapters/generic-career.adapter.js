@@ -7,16 +7,64 @@
  */
 
 export class GenericCareerPageAdapter {
-  static provider = 'GENERIC';
+  static KNOWN_PORTAL_HOSTS = [
+    'linkedin.com',
+    'greenhouse.io',
+    'lever.co',
+    'myworkdayjobs.com',
+    'workday.com',
+    'indeed.com',
+    'naukri.com',
+    'iimjobs.com',
+    'shine.com',
+    'foundit.in',
+    'foundit.sg',
+    'timesjobs.com',
+    'hirect.in',
+    'cutshort.io',
+    'instahyre.com',
+  ];
+
+  static NON_JOB_ROUTES = [
+    /\/feed\b/i,
+    /\/notifications\b/i,
+    /\/messaging\b/i,
+    /\/settings\b/i,
+    /\/account\b/i,
+    /\/login\b/i,
+    /\/signin\b/i,
+    /\/signup\b/i,
+    /\/terms\b/i,
+    /\/privacy\b/i,
+    /\/in\/[a-z0-9_-]+\/?$/i,
+  ];
 
   /**
-   * Generic adapter can attempt extraction on any page.
+   * Generic adapter can handle company career portals and unrecognized job pages,
+   * but strictly rejects known specialized portals and obvious non-job utility pages.
    *
    * @param {Document} doc
    * @param {string} url
    * @returns {boolean}
    */
-  static canHandle(_doc, _url) {
+  static canHandle(_doc, url) {
+    if (!url) return false;
+    const lowerUrl = url.toLowerCase();
+
+    // Reject known specialized portals so we never misidentify or over-extract them
+    for (const host of GenericCareerPageAdapter.KNOWN_PORTAL_HOSTS) {
+      if (lowerUrl.includes(host)) {
+        return false;
+      }
+    }
+
+    // Reject obvious non-job URLs
+    for (const pattern of GenericCareerPageAdapter.NON_JOB_ROUTES) {
+      if (pattern.test(url)) {
+        return false;
+      }
+    }
+
     return true;
   }
 

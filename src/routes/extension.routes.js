@@ -402,7 +402,13 @@ export default async function extensionRoutes(app, opts = {}) {
       });
     }
 
-    const jobDescriptionText = (job.description || job.rawText || '').trim();
+    let jobDescriptionText = (job.description || job.rawText || '').trim();
+    if (Array.isArray(job.requirements) && job.requirements.length > 0) {
+      const reqText = job.requirements.filter(Boolean).map((r) => `- ${r}`).join('\n');
+      if (reqText && !jobDescriptionText.includes(job.requirements[0])) {
+        jobDescriptionText = `${jobDescriptionText}\n\nRequirements:\n${reqText}`.trim();
+      }
+    }
     const sourceUrl = job.sourceUrl || '';
     const company = job.company || 'Unknown Company';
     const title = job.title || 'Untitled Role';
@@ -567,6 +573,62 @@ export default async function extensionRoutes(app, opts = {}) {
       });
     }
 
+    // Resolve authoritative score & metrics (Zero-defaulting: score is null when data is insufficient)
+    const rawAtsScore =
+      fitAnalysis?.overallFit?.atsScore ?? fitAnalysis?.atsScore ?? fitAnalysis?.score;
+    const resolvedScore =
+      typeof rawAtsScore === 'number' ? Math.round(rawAtsScore) : null;
+    const isInsufficientData =
+      resolvedScore === null ||
+      fitAnalysis?.overallFit?.analysisStatus === 'INSUFFICIENT_DATA';
+
+    const resolvedGrade = isInsufficientData
+      ? 'INSUFFICIENT_DATA'
+      : (fitAnalysis?.overallFit?.matchGrade ??
+        fitAnalysis?.overallFit?.fitGrade ??
+        fitAnalysis?.fitGrade ??
+        fitAnalysis?.grade ??
+        'MODERATE');
+
+    const resolvedRecommendation = isInsufficientData
+      ? 'INSUFFICIENT_DATA'
+      : (fitAnalysis?.overallFit?.recommendation ??
+        fitAnalysis?.recommendation ??
+        (resolvedScore !== null && resolvedScore >= 70 ? 'RECOMMENDED' : 'CONDITIONAL'));
+
+    const matchedSkills =
+      fitAnalysis?.requirementSummary?.keyMatchedSkills ||
+      (fitAnalysis?.requirementMatches || [])
+        .filter((m) => m.matchStatus === 'MATCHED' && m.category === 'SKILL')
+        .map((m) => m.normalizedRequirement || m.extractedValue)
+        .slice(0, 10);
+
+    const missingSkills =
+      fitAnalysis?.requirementSummary?.keyMissingSkills ||
+      (fitAnalysis?.requirementMatches || [])
+        .filter((m) => m.matchStatus === 'MISSING' && m.category === 'SKILL')
+        .map((m) => m.normalizedRequirement || m.extractedValue)
+        .slice(0, 10);
+
+    const rawExpFit =
+      fitAnalysis?.experienceFit || fitAnalysis?.overallFit?.scoreBreakdown?.experienceFit;
+    let experienceFitStr = 'Not specified';
+    if (rawExpFit) {
+      if (typeof rawExpFit === 'string') {
+        experienceFitStr = rawExpFit;
+      } else if (rawExpFit.status === 'ELIGIBLE' || rawExpFit.status === 'MATCHED') {
+        experienceFitStr = 'Eligible';
+      } else if (rawExpFit.status === 'NOT_ELIGIBLE' || rawExpFit.status === 'MISSING') {
+        experienceFitStr = 'Not Eligible';
+      } else if (rawExpFit.status === 'PARTIAL') {
+        experienceFitStr = 'Partial';
+      } else if (rawExpFit.status === 'NOT_SPECIFIED' || rawExpFit.status === 'NOT_APPLICABLE') {
+        experienceFitStr = 'Not specified';
+      } else {
+        experienceFitStr = rawExpFit.status || 'Unknown';
+      }
+    }
+
     // 6. Build and Persist Server-Authoritative Analysis Snapshot (P16-001F-3B)
     const jobContentHash = computeJobContentHash(job);
     let analysisSnapshotId = null;
@@ -598,19 +660,9 @@ export default async function extensionRoutes(app, opts = {}) {
         jobContentHash,
         contractVersion: ANALYSIS_SNAPSHOT_CONTRACT_VERSION,
         overallFit: fitAnalysis?.overallFit || {
-          atsScore: Number(
-            fitAnalysis?.atsScore ??
-              fitAnalysis?.score ??
-              75
-          ),
-          fitBand:
-            fitAnalysis?.matchGrade ??
-            fitAnalysis?.fitGrade ??
-            fitAnalysis?.grade ??
-            'B',
-          recommendation:
-            fitAnalysis?.recommendation ??
-            'MODERATE_FIT',
+          atsScore: resolvedScore,
+          fitBand: resolvedGrade,
+          recommendation: resolvedRecommendation,
         },
         matchAnalysis: {
           requirementMatches: fitAnalysis?.requirementMatches || [],
@@ -669,21 +721,13 @@ export default async function extensionRoutes(app, opts = {}) {
       existingApplication: existingApp,
       isSubmitted,
       fitAnalysis: {
-        score: Number(
-          fitAnalysis?.overallFit?.atsScore ??
-            fitAnalysis?.atsScore ??
-            fitAnalysis?.score ??
-            75
-        ),
-        grade:
-          fitAnalysis?.overallFit?.fitGrade ??
-          fitAnalysis?.fitGrade ??
-          fitAnalysis?.grade ??
-          'B',
-        recommendation:
-          fitAnalysis?.overallFit?.recommendation ??
-          fitAnalysis?.recommendation ??
-          'MODERATE_FIT',
+        score: resolvedScore,
+        grade: resolvedGrade,
+        recommendation: resolvedRecommendation,
+        matchedSkills,
+        missingSkills,
+        experienceFit: experienceFitStr,
+        rawExperienceFit: rawExpFit,
         // P16-001F-5: derive from the authoritative requirementMatches contract
         // (matches/partialMatches/missingRequirements never existed on the MCP output).
         ...serializeRequirementMatchesForExtension(fitAnalysis),

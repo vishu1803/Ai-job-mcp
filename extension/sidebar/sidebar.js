@@ -378,10 +378,16 @@ class SidebarController {
 
     this.elements.analysisCard.classList.remove('hidden');
 
-    const score = Math.round(fitAnalysis.overallScore ?? fitAnalysis.score ?? 0);
-    this.elements.scoreValue.textContent = score;
+    const rawScore = fitAnalysis.overallScore ?? fitAnalysis.score;
+    const isScoreNull = rawScore === null || rawScore === undefined;
+    const score = isScoreNull ? null : Math.round(rawScore);
+    this.elements.scoreValue.textContent = isScoreNull ? '--' : score;
 
-    const band = fitAnalysis.recommendationBand || (score >= 70 ? 'RECOMMENDED' : 'CONDITIONAL');
+    const band = isScoreNull
+      ? (fitAnalysis.grade || 'INSUFFICIENT_DATA')
+      : (fitAnalysis.recommendationBand ||
+        fitAnalysis.grade ||
+        (score >= 70 ? 'RECOMMENDED' : 'CONDITIONAL'));
     this.elements.matchBandBadge.textContent = band;
 
     const matched = fitAnalysis.matchedSkills || fitAnalysis.topMatchedSkills || [];
@@ -389,7 +395,19 @@ class SidebarController {
 
     this.elements.matchedSkillsCount.textContent = matched.length;
     this.elements.missingSkillsCount.textContent = missing.length;
-    this.elements.experienceFitVal.textContent = fitAnalysis.experienceFit || 'Eligible';
+
+    let expFitText = 'Not Specified';
+    if (typeof fitAnalysis.experienceFit === 'string') {
+      expFitText = fitAnalysis.experienceFit;
+    } else if (fitAnalysis.experienceFit && typeof fitAnalysis.experienceFit === 'object') {
+      const status = fitAnalysis.experienceFit.status;
+      if (status === 'ELIGIBLE' || status === 'MATCHED') expFitText = 'Eligible';
+      else if (status === 'NOT_ELIGIBLE' || status === 'MISSING') expFitText = 'Not Eligible';
+      else if (status === 'PARTIAL') expFitText = 'Partial';
+      else if (status === 'NOT_SPECIFIED' || status === 'NOT_APPLICABLE') expFitText = 'Not Specified';
+      else expFitText = status || 'Unknown';
+    }
+    this.elements.experienceFitVal.textContent = expFitText;
 
     // Matched skills tags
     this.elements.matchedSkillsList.innerHTML = '';

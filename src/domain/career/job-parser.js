@@ -625,13 +625,21 @@ export class JobDescriptionParser {
         }
 
         // B. Extract Experience Requirements
+        const isEntryLevel =
+          /\b(?:entry[- ]level|fresh[- ]graduate(?:s)?|fresh[- ]grad(?:s)?|new[- ]grad(?:s)?|new[- ]graduate(?:s)?|no[- ]prior[- ]experience|no[- ]experience[- ]required)\b/i.test(
+            cleanLine
+          );
         const expMatch = cleanLine.match(
-          /\b(?:(\d+)(?:\s*[-–—to]\s*(\d+))?|\b(\d+)\+?)\s*(?:years?|yrs?)(?:\s+(?:of\s+)?experience)?(?:\s+(?:in|with|using|of)\s+([A-Za-z0-9_#.+ -]{1,40}))?\b/i
+          /\b(?:(?:at\s+least|minimum|min)\s+)?(?:(\d+)(?:\s*[-–—to]\s*(\d+))?|\b(\d+)\+?)\s*(?:years?|yrs?)(?:\s+(?:of\s+)?experience)?(?:\s+(?:in|with|using|of)\s+([A-Za-z0-9_#.+ -]{1,40}))?\b/i
         );
-        if (expMatch) {
-          const minYears = parseInt(expMatch[1] || expMatch[3], 10);
-          const maxYears = expMatch[2] ? parseInt(expMatch[2], 10) : undefined;
-          const target = expMatch[4] ? expMatch[4].trim() : undefined;
+        if (expMatch || isEntryLevel) {
+          const minYears = isEntryLevel ? 0 : parseInt(expMatch[1] || expMatch[3], 10);
+          const maxYears = isEntryLevel
+            ? null
+            : expMatch?.[2]
+              ? parseInt(expMatch[2], 10)
+              : undefined;
+          const target = expMatch?.[4] ? expMatch[4].trim() : undefined;
 
           let associatedSkillSlug = undefined;
           if (target) {
@@ -642,7 +650,7 @@ export class JobDescriptionParser {
           }
 
           if (!Number.isNaN(minYears)) {
-            const expKey = `EXPERIENCE:${minYears}:${target || 'general'}`;
+            const expKey = `EXPERIENCE:${minYears}:${target || (isEntryLevel ? 'entry-level' : 'general')}`;
             if (!seenRequirementKeys.has(expKey)) {
               seenRequirementKeys.add(expKey);
               requirements.push({
@@ -655,7 +663,9 @@ export class JobDescriptionParser {
                 skillSlug: associatedSkillSlug || null,
                 rawSnippet: cleanLine.slice(0, 450),
                 originalText: boundRequirementText(cleanLine),
-                extractedValue: `${minYears}+ years experience${target ? ` in ${target}` : ''}`,
+                extractedValue: isEntryLevel
+                  ? 'Entry-level (0+ years experience)'
+                  : `${minYears}+ years experience${target ? ` in ${target}` : ''}`,
                 normalizedCriteria: {
                   minYears,
                   ...(maxYears !== undefined ? { maxYears } : {}),
@@ -669,41 +679,14 @@ export class JobDescriptionParser {
             }
           }
         } else {
-          // Check for qualitative experience requirements (e.g. "Practical experience developing and improving applications written in Node.js.")
+          // Check for broad qualitative engineering experience requirements (e.g. "Practical experience architecting distributed systems")
+          // Pure technical skill familiarity (e.g. "Experience with Python") is already captured as category: 'SKILL'
           const qualExpMatch = cleanLine.match(
-            /\b(?:practical|hands[- ]on|proven|demonstrated|solid|deep|extensive|prior)?\s*experience\s+(?:developing|building|architecting|improving|designing|implementing|maintaining|working\s+with|in|with)\s+([^.,;\n]+)/i
+            /\b(?:practical|hands[- ]on|proven|demonstrated|solid|deep|extensive|prior)\s+experience\s+(?:developing|building|architecting|improving|designing|implementing|maintaining)\s+([^.,;\n]+)/i
           );
           if (qualExpMatch) {
             const mentionedSkills = JobDescriptionParser.extractSkillsFromLine(cleanLine);
-            if (mentionedSkills.length > 0) {
-              for (const skill of mentionedSkills) {
-                const qualKey = `EXPERIENCE:qualitative:${skill.slug}`;
-                if (!seenRequirementKeys.has(qualKey)) {
-                  seenRequirementKeys.add(qualKey);
-                  requirements.push({
-                    id: crypto.randomUUID(),
-                    tenantId,
-                    jobDescriptionId,
-                    category: 'EXPERIENCE',
-                    importance,
-                    weight,
-                    skillSlug: skill.slug,
-                    rawSnippet: cleanLine.slice(0, 450),
-                    originalText: boundRequirementText(cleanLine),
-                    extractedValue: `${skill.name} Application Development Experience`,
-                    normalizedCriteria: {
-                      technology: skill.name,
-                      experienceType: 'PRACTICAL_DEVELOPMENT',
-                      associatedSkillSlug: skill.slug,
-                      context: cleanLine,
-                    },
-                    confidenceScore: 0.9,
-                    sourceSpan,
-                    createdAt: new Date().toISOString(),
-                  });
-                }
-              }
-            } else {
+            if (mentionedSkills.length === 0) {
               const target = qualExpMatch[1].trim();
               const qualKey = `EXPERIENCE:qualitative:${target.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
               if (!seenRequirementKeys.has(qualKey)) {

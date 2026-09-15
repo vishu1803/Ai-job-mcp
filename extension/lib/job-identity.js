@@ -19,7 +19,6 @@ const TRACKING_QUERY_PARAMS = new Set([
   'fbclid',
   'gclid',
   'trackingId',
-  'currentJobId',
   'refId',
 ]);
 

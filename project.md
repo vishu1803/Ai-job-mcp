@@ -1,7 +1,50 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-14*
+*Last Updated: 2026-09-15*
+
+### PART 58: Canonical ATS Fit Analysis & Portal Identity Separation
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-15  
+**Scope:** Canonical ATS Fit Analysis Engine (Provider-Neutral, Zero Hardcoding), Portal Identity vs. Job Detection Decoupling, LinkedIn Dynamic Detection, Cross-Portal Equivalence Matrix  
+**Branch:** `main`  
+
+**Executive Summary:**
+Resolved two completely independent defects across the career platform adhering to strict boundary isolation where the portal layer and career engine meet ONLY at the Normalized Job:
+1. **BUG A — Canonical ATS Fit Analysis Engine Across All Portals:**
+   - **Score Null for Insufficient Data:** Eliminated false positive fallback scoring (`75` / `'B'`) when job parsing/extraction fails or data is sparse; system now strictly returns `score = null`, `grade = 'INSUFFICIENT_DATA'` instead of misleading the user with default arbitrary numbers.
+   - **Skill vs. Experience Extraction Invariant:** Fixed `qualExpMatch` in `src/domain/career/job-parser.js` where technical qualifications mentioning experience (e.g., `experience with Python`) were erroneously categorized as generic `EXPERIENCE` requirements, wiping out candidate technical skill matches. They now correctly retain `category: 'SKILL'`.
+   - **Entry-Level & Fresh-Graduate Experience Invariant:** Configured parser to recognize entry-level requirements (`entry-level`, `fresh graduate`, `no experience required`) as `minYears: 0, maxYears: null` (strictly NOT `max=1`). Candidates with 0+ years evaluate as 100% `ELIGIBLE` / `MATCHED`.
+   - **Accurate Under-Tenure Evaluation:** Handled candidates whose tenure is below required years (`candidateTenureYears < minYearsReq`) as `PARTIAL` with authoritative explanation (`Candidate demonstrates X years of experience, which is below the requested Y+ years`).
+   - **Authoritative `experienceFit` Surfacing:** Exposed `experienceFit` in `AnalyzeJobFitOutputSchema` (`ELIGIBLE`, `NOT_ELIGIBLE`, `NOT_SPECIFIED`, `PARTIAL`) and returned authoritative breakdown in MCP tools and extension routes.
+   - **Sidebar UI Alignment:** Persistent sidebar renders `--` for null scores and dynamic status badges for `experienceFit` instead of defaulting to `Eligible`.
+2. **BUG B — Portal Identity vs. Job Detection Separation & LinkedIn Detection:**
+   - **Decoupled Portal Identity from Job Detection:** Added `resolvePortalIdentity(url, doc)` to `AdapterRegistry` to resolve portal identity (`portalId`, `displayName`) independently of whether an active job is detected. Non-job routes on known portals (e.g., LinkedIn `/feed`, `/in/`, `/messaging`) now correctly report portal identity (`LinkedIn Jobs`, `HIGH` confidence) with `detected: false`, eliminating fallthrough to `Generic Career Portal`.
+   - **Generic Adapter Guard:** Configured `GenericCareerAdapter.canHandle(doc, url)` to strictly reject known portal domains, preventing false positive generic overrides.
+   - **Scoped LinkedIn Extraction:** Added selectors supporting both public guest pages (`.top-card-layout__title`, `.show-more-less-html__markup`) and logged-in feed/jobs pages (`.job-details-jobs-unified-top-card__job-title`, `.jobs-description__content`).
+   - **Preserved `currentJobId` across SPA Navigations:** Removed `currentJobId` from transient tracking query parameters in `JobIdentity` so LinkedIn SPA route navigations produce distinct, accurate job fingerprints.
+3. **Cross-Portal Equivalence:**
+   - Verified that normalized job descriptions fed through the canonical engine produce bit-for-bit identical fit scores, skill matches, missing skills, and experience eligibility regardless of whether the source portal was LinkedIn, Greenhouse, Lever, Workday, or Generic.
+4. **Preserved Frozen Invariants:**
+   - ZERO changes to LaTeX layout, `0.52in` margins, Latin Modern Roman serif typography (`lmroman10`), or candidate grounding data.
+   - Zero portal-specific scoring in the canonical engine; zero candidate/job hardcoding.
+
+**Verification & Test Results:**
+- `tests/unit/p58-canonical-fit-engine.test.js`: **6/6 PASS**
+  1. Controlled normalized job fit correctly matches skills and detects under-tenured candidates.
+  2. Experience parser matrix handles diverse phrasing correctly (`at least 3 years`, `minimum 5 years`, `0-2 years`, `entry level`).
+  3. Entry-level role evaluates candidate with 0 or 1.5 years as 100% `ELIGIBLE`.
+  4. Insufficient data yields `score = null` (NOT `0`, NOT `75`).
+  5. Same normalized job produces bit-for-bit identical fit across LinkedIn, Greenhouse, Lever, Workday, Generic.
+  6. Multi-role regression matrix across 6 roles and seniority levels.
+- `tests/unit/p58-portal-detection.test.js`: **6/6 PASS**
+  1. Strictly separates portal identity from job detection on non-job LinkedIn pages (`detected: false`, portal `linkedin`).
+  2. Extracts real LinkedIn public guest DOM fixture correctly.
+  3. Extracts real LinkedIn logged-in unified card DOM fixture correctly.
+  4. Preserves LinkedIn `currentJobId` across SPA route changes and derives distinct fingerprints.
+  5. Correctly resolves portal identity across Greenhouse, Lever, Workday, and Generic.
+  6. Generic adapter strictly rejects known specialized portal domains.
 
 ### PART 57: Extension Architecture: Persistent Sidebar, Durable State & Dynamic Job-Portal Adapter System
 

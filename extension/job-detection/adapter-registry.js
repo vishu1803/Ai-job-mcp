@@ -184,15 +184,176 @@ export class AdapterRegistry {
   }
 
   /**
-   * Resolves the highest-priority adapter that can handle the page.
+   * Resolves authoritative portal identity and capabilities independently of
+   * whether an active job posting card is currently present on the page.
+   *
+   * @param {string} url
+   * @param {Document} [doc]
+   * @returns {{ adapterId: string, portalName: string, confidence: string, capabilities: object }}
+   */
+  static resolvePortalIdentity(url, doc) {
+    if (!url) {
+      return {
+        adapterId: 'GENERIC',
+        portalName: 'Generic Career Portal',
+        confidence: 'LOW',
+        capabilities: KNOWN_PORTAL_CAPABILITIES.GENERIC.capabilities,
+      };
+    }
+
+    const lowerUrl = url.toLowerCase();
+
+    if (lowerUrl.includes('linkedin.com')) {
+      return {
+        adapterId: 'LINKEDIN',
+        ...KNOWN_PORTAL_CAPABILITIES.LINKEDIN,
+      };
+    }
+    if (
+      lowerUrl.includes('boards.greenhouse.io') ||
+      lowerUrl.includes('job-boards.greenhouse.io') ||
+      lowerUrl.includes('greenhouse.io')
+    ) {
+      return {
+        adapterId: 'GREENHOUSE',
+        ...KNOWN_PORTAL_CAPABILITIES.GREENHOUSE,
+      };
+    }
+    if (lowerUrl.includes('jobs.lever.co') || lowerUrl.includes('lever.co')) {
+      return {
+        adapterId: 'LEVER',
+        ...KNOWN_PORTAL_CAPABILITIES.LEVER,
+      };
+    }
+    if (lowerUrl.includes('myworkdayjobs.com') || lowerUrl.includes('workday.com')) {
+      return {
+        adapterId: 'WORKDAY',
+        ...KNOWN_PORTAL_CAPABILITIES.WORKDAY,
+      };
+    }
+    if (lowerUrl.includes('indeed.com')) {
+      return {
+        adapterId: 'INDEED',
+        ...KNOWN_PORTAL_CAPABILITIES.INDEED,
+      };
+    }
+    if (lowerUrl.includes('naukri.com')) {
+      return {
+        adapterId: 'NAUKRI',
+        ...KNOWN_PORTAL_CAPABILITIES.NAUKRI,
+      };
+    }
+    if (lowerUrl.includes('iimjobs.com')) {
+      return {
+        adapterId: 'IIMJOBS',
+        ...KNOWN_PORTAL_CAPABILITIES.IIMJOBS,
+      };
+    }
+    if (lowerUrl.includes('shine.com')) {
+      return {
+        adapterId: 'SHINE',
+        ...KNOWN_PORTAL_CAPABILITIES.SHINE,
+      };
+    }
+    if (
+      lowerUrl.includes('foundit.in') ||
+      lowerUrl.includes('foundit.sg') ||
+      lowerUrl.includes('monsterindia.com')
+    ) {
+      return {
+        adapterId: 'FOUNDIT',
+        ...KNOWN_PORTAL_CAPABILITIES.FOUNDIT,
+      };
+    }
+    if (lowerUrl.includes('timesjobs.com')) {
+      return {
+        adapterId: 'TIMESJOBS',
+        ...KNOWN_PORTAL_CAPABILITIES.TIMESJOBS,
+      };
+    }
+    if (lowerUrl.includes('hirect.in')) {
+      return {
+        adapterId: 'HIRECT',
+        ...KNOWN_PORTAL_CAPABILITIES.HIRECT,
+      };
+    }
+    if (lowerUrl.includes('cutshort.io')) {
+      return {
+        adapterId: 'CUTSHORT',
+        ...KNOWN_PORTAL_CAPABILITIES.CUTSHORT,
+      };
+    }
+    if (lowerUrl.includes('instahyre.com')) {
+      return {
+        adapterId: 'INSTAHYRE',
+        ...KNOWN_PORTAL_CAPABILITIES.INSTAHYRE,
+      };
+    }
+
+    // Check JSON-LD JobPosting presence
+    const hasJsonLd = Boolean(doc?.querySelector?.('script[type="application/ld+json"]'));
+    if (hasJsonLd) {
+      return {
+        adapterId: 'GENERIC',
+        portalName: 'Structured Web Page (JSON-LD JobPosting)',
+        confidence: 'HIGH',
+        capabilities: KNOWN_PORTAL_CAPABILITIES.GENERIC.capabilities,
+      };
+    }
+
+    // Generic company career pages
+    if (
+      lowerUrl.includes('/careers') ||
+      lowerUrl.includes('/jobs') ||
+      lowerUrl.includes('/apply')
+    ) {
+      return {
+        adapterId: 'GENERIC',
+        portalName: 'Generic Career Portal',
+        confidence: 'MEDIUM',
+        capabilities: KNOWN_PORTAL_CAPABILITIES.GENERIC.capabilities,
+      };
+    }
+
+    return {
+      adapterId: 'GENERIC',
+      ...KNOWN_PORTAL_CAPABILITIES.GENERIC,
+    };
+  }
+
+  /**
+   * Resolves the appropriate adapter and portal metadata for the page.
+   * Separates portal identity (URL/domain) from job detection (active job posting presence).
    *
    * @param {Document} doc
    * @param {string} url
-   * @returns {{ adapterId: string, adapter: object, metadata: object }}
+   * @returns {{ adapterId: string, adapter: object, metadata: object, isJobPage: boolean }}
    */
   static resolve(doc, url) {
+    const portalIdentity = AdapterRegistry.resolvePortalIdentity(url, doc);
     const list = AdapterRegistry.getAdapters().sort((a, b) => b.priority - a.priority);
 
+    // 1. If portal matches a dedicated adapter (e.g. LINKEDIN, GREENHOUSE)
+    if (portalIdentity.adapterId !== 'GENERIC') {
+      const dedicated = list.find((e) => e.id === portalIdentity.adapterId);
+      if (dedicated) {
+        let isJobPage = false;
+        try {
+          isJobPage = typeof dedicated.adapter.canHandle === 'function' && dedicated.adapter.canHandle(doc, url);
+        } catch {
+          isJobPage = false;
+        }
+
+        return {
+          adapterId: dedicated.id,
+          adapter: dedicated.adapter,
+          metadata: portalIdentity,
+          isJobPage,
+        };
+      }
+    }
+
+    // 2. Otherwise check if any specialized adapter can handle by DOM inspection
     for (const entry of list) {
       if (entry.id !== 'GENERIC' && typeof entry.adapter.canHandle === 'function') {
         try {
@@ -206,6 +367,7 @@ export class AdapterRegistry {
               adapterId: entry.id,
               adapter: entry.adapter,
               metadata,
+              isJobPage: true,
             };
           }
         } catch {
@@ -214,20 +376,13 @@ export class AdapterRegistry {
       }
     }
 
-    // Default to generic career adapter
-    const genericMeta = { ...KNOWN_PORTAL_CAPABILITIES.GENERIC };
-
-    // Check if JSON-LD JobPosting is present on the page
-    const hasJsonLd = Boolean(doc?.querySelector?.('script[type="application/ld+json"]'));
-    if (hasJsonLd) {
-      genericMeta.confidence = 'HIGH';
-      genericMeta.portalName = 'Structured Web Page (JSON-LD JobPosting)';
-    }
-
+    // 3. Fallback: Generic career adapter
+    const canGenericHandle = GenericCareerPageAdapter.canHandle(doc, url);
     return {
       adapterId: 'GENERIC',
       adapter: GenericCareerPageAdapter,
-      metadata: genericMeta,
+      metadata: portalIdentity,
+      isJobPage: canGenericHandle,
     };
   }
 }

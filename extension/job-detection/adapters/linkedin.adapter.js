@@ -20,12 +20,43 @@ export class LinkedInAdapter {
    */
   static canHandle(doc, url) {
     if (!url) return false;
-    if (url.toLowerCase().includes('linkedin.com/jobs')) return true;
-    return Boolean(
-      doc.querySelector('.job-details-jobs-unified-top-card') ||
-      doc.querySelector('.jobs-description') ||
-      doc.querySelector('.jobs-details__main-content')
-    );
+    const lowerUrl = url.toLowerCase();
+    if (!lowerUrl.includes('linkedin.com')) return false;
+
+    // Explicit non-job sections on LinkedIn
+    if (
+      lowerUrl.includes('/feed') ||
+      lowerUrl.includes('/in/') ||
+      lowerUrl.includes('/messaging') ||
+      lowerUrl.includes('/notifications') ||
+      lowerUrl.includes('/mynetwork') ||
+      lowerUrl.includes('/settings')
+    ) {
+      return false;
+    }
+
+    // Direct job URL patterns
+    if (
+      lowerUrl.includes('/jobs/view/') ||
+      lowerUrl.includes('/jobs/collections/') ||
+      /[?&]currentjobid=\d+/i.test(url)
+    ) {
+      return true;
+    }
+
+    // DOM job indicators
+    if (doc && typeof doc.querySelector === 'function') {
+      return Boolean(
+        doc.querySelector('.job-details-jobs-unified-top-card') ||
+        doc.querySelector('.jobs-description') ||
+        doc.querySelector('.jobs-details__main-content') ||
+        doc.querySelector('.show-more-less-html__markup') ||
+        doc.querySelector('h1.top-card-layout__title') ||
+        doc.querySelector('[data-job-id]')
+      );
+    }
+
+    return false;
   }
 
   /**
@@ -36,40 +67,59 @@ export class LinkedInAdapter {
    * @returns {object} Normalized job payload
    */
   static extract(doc, url) {
+    let externalJobId = null;
+    const urlMatch = url.match(/\/jobs\/view\/(\d+)/i) || url.match(/[?&]currentJobId=(\d+)/i);
+    if (urlMatch) {
+      externalJobId = urlMatch[1];
+    } else if (doc && typeof doc.querySelector === 'function') {
+      const elWithId = doc.querySelector('[data-job-id], [data-job-runner-job-id]');
+      if (elWithId) {
+        externalJobId =
+          elWithId.getAttribute('data-job-id') || elWithId.getAttribute('data-job-runner-job-id');
+      }
+    }
+
     const titleEl =
       doc.querySelector('.job-details-jobs-unified-top-card__job-title') ||
       doc.querySelector('.jobs-unified-top-card__job-title') ||
       doc.querySelector('h1.top-card-layout__title') ||
+      doc.querySelector('.job-details-jobs-unified-top-card h1') ||
+      doc.querySelector('.jobs-details__main-content h1') ||
+      doc.querySelector('.top-card-layout__title') ||
       doc.querySelector('h1');
 
     const companyEl =
       doc.querySelector('.job-details-jobs-unified-top-card__company-name') ||
       doc.querySelector('.jobs-unified-top-card__company-name') ||
+      doc.querySelector('a.topcard__org-name-link') ||
       doc.querySelector('.topcard__flavor--black-link') ||
-      doc.querySelector('a.topcard__org-name-link');
+      doc.querySelector('.job-details-jobs-unified-top-card__primary-description a');
 
     const locationEl =
       doc.querySelector('.job-details-jobs-unified-top-card__bullet') ||
       doc.querySelector('.jobs-unified-top-card__bullet') ||
+      doc.querySelector('span.topcard__flavor--bullet') ||
       doc.querySelector('.topcard__flavor--bullet');
 
     const descEl =
+      doc.querySelector('.show-more-less-html__markup') ||
       doc.querySelector('#job-details') ||
       doc.querySelector('.jobs-description__content') ||
       doc.querySelector('.jobs-box__html-content') ||
-      doc.querySelector('.show-more-less-html__markup');
+      doc.querySelector('.jobs-description');
 
     const title = titleEl ? titleEl.textContent.trim() : '';
 
-    // P15-002 Batch 3: JSON-LD fallback — when provider-DOM extraction fails
-    // to find a title, use the page's structured JobPosting data (survives
-    // ATS DOM redesigns) while keeping the LINKEDIN provider identity.
+    // Fallback: JSON-LD JobPosting data
     if (!title) {
       const jsonLd = extractJobPostingJsonLd(doc);
       if (jsonLd) {
-        return jsonLdToJobPayload(jsonLd, url, LinkedInAdapter.provider);
+        const payload = jsonLdToJobPayload(jsonLd, url, LinkedInAdapter.provider);
+        if (externalJobId) payload.externalJobId = externalJobId;
+        return payload;
       }
     }
+
     const company = companyEl ? companyEl.textContent.trim() : 'Company';
     const location = locationEl ? locationEl.textContent.trim() : '';
     const description = descEl ? descEl.textContent.trim() : (doc.body ? doc.body.textContent.trim() : '');
@@ -78,7 +128,7 @@ export class LinkedInAdapter {
     if (descEl) {
       descEl.querySelectorAll('li').forEach((li) => {
         const text = li.textContent.trim();
-        if (text.length > 10) requirements.push(text);
+        if (text.length > 5) requirements.push(text);
       });
     }
 
@@ -95,6 +145,7 @@ export class LinkedInAdapter {
     return {
       sourceUrl: url,
       provider: LinkedInAdapter.provider,
+      externalJobId,
       title: title || 'Untitled Role',
       company,
       location: location || 'Not specified',
