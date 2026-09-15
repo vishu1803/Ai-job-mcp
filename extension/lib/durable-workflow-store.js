@@ -60,6 +60,8 @@ export class DurableWorkflowStore {
       userId: null,
       tenantId: null,
       jobIdentity: null,
+      jobData: null,
+      jobFingerprint: null,
       normalizedJob: null,
       fitAnalysis: null,
       recommendedProjects: [],
@@ -67,8 +69,11 @@ export class DurableWorkflowStore {
       existingApplication: null,
       applicationId: null,
       applicationData: null,
+      handoffData: null,
       detectedForm: null,
       portalCapabilities: null,
+      pendingDetectedJob: null,
+      pendingDetectedFingerprint: null,
       lastError: null,
       lastUpdated: new Date().toISOString(),
     };
@@ -123,6 +128,59 @@ export class DurableWorkflowStore {
     newState.workflowGeneration = nextGen;
     if (currentState?.userId) newState.userId = currentState.userId;
     if (currentState?.tenantId) newState.tenantId = currentState.tenantId;
+    newState.pendingDetectedJob = null;
+    newState.pendingDetectedFingerprint = null;
+    await this.saveState(tabId, newState);
+    return newState;
+  }
+
+  async setPendingDetectedJob(tabId, jobData) {
+    const state = await this.loadState(tabId);
+    state.pendingDetectedJob = jobData;
+    state.pendingDetectedFingerprint = jobData ? deriveJobFingerprint(jobData) : null;
+    await this.saveState(tabId, state);
+    return state;
+  }
+
+  async clearPendingDetectedJob(tabId) {
+    const state = await this.loadState(tabId);
+    state.pendingDetectedJob = null;
+    state.pendingDetectedFingerprint = null;
+    await this.saveState(tabId, state);
+    return state;
+  }
+
+  async switchWorkflow(tabId, newJob) {
+    const currentState = await this.loadState(tabId);
+    const nextGen = (currentState?.workflowGeneration || 1) + 1;
+    const newState = this.createInitialState(tabId);
+    newState.workflowGeneration = nextGen;
+    if (currentState?.userId) newState.userId = currentState.userId;
+    if (currentState?.tenantId) newState.tenantId = currentState.tenantId;
+
+    if (newJob) {
+      const fp = deriveJobFingerprint(newJob);
+      newState.normalizedJob = newJob;
+      newState.jobData = newJob;
+      newState.jobFingerprint = fp;
+      newState.jobIdentity = {
+        fingerprint: fp,
+        title: newJob.title,
+        company: newJob.company,
+        url: newJob.sourceUrl || newJob.url || '',
+        provider: newJob.provider,
+        canonicalJobId: newJob.canonicalJobId || null,
+      };
+      newState.workflowState = WORKFLOW_STATES.JOB_DETECTED;
+    } else {
+      newState.workflowState = WORKFLOW_STATES.IDLE;
+    }
+
+    newState.lockState = 'UNLOCKED';
+    newState.isLocked = false;
+    newState.pendingDetectedJob = null;
+    newState.pendingDetectedFingerprint = null;
+
     await this.saveState(tabId, newState);
     return newState;
   }
@@ -156,9 +214,10 @@ export class DurableWorkflowStore {
       if (
         this.isWorkflowLocked(existing) &&
         !this.isWorkflowLocked(state) &&
-        state.workflowState !== WORKFLOW_STATES.IDLE
+        state.workflowState !== WORKFLOW_STATES.IDLE &&
+        (state.workflowGeneration || 1) <= (existing.workflowGeneration || 1)
       ) {
-        // Locked workflow invariant: cannot be replaced by an unlocked job detection!
+        // Locked workflow invariant: cannot be replaced by an unlocked job detection from same or older generation!
         return;
       }
       state.lastUpdated = new Date().toISOString();
@@ -192,9 +251,33 @@ export class DurableWorkflowStore {
 
     const activeState = await this.loadState(tabId);
 
-    // TERMINAL WORKFLOW LOCK INVARIANT (Part 60):
-    // Once locked, URL navigation / SPA route changes / DOM jobs MUST NOT replace activeJob or mutate active workflow.
-    if (this.isWorkflowLocked(activeState)) {
+    // TERMINAL WORKFLOW LOCK & CALM WORKFLOW INVARIANT (Part 60 & Part 61):
+    // Once locked, URL navigation / DOM jobs MUST NOT silently replace activeJob.
+    // Instead, store the different job as pendingDetectedJob!
+    const isLocked = this.isWorkflowLocked(activeState);
+
+    const trackedJob = activeState.normalizedJob || activeState.jobData;
+
+    if (isLocked) {
+      if (detectedJob && trackedJob) {
+        const sameJob = isSameJobIdentity(trackedJob, detectedJob);
+        if (!sameJob) {
+          activeState.pendingDetectedJob = detectedJob;
+          activeState.pendingDetectedFingerprint = deriveJobFingerprint(detectedJob);
+          await this.saveState(tabId, activeState);
+          return {
+            ...activeState,
+            state: activeState,
+            isNewJob: false,
+            reconciled: true,
+            isLocked: true,
+            lockState: 'LOCKED',
+            hasPendingJob: true,
+            pendingDetectedJob: detectedJob,
+            jobFingerprint: activeState.jobIdentity?.fingerprint || activeState.jobFingerprint,
+          };
+        }
+      }
       return {
         ...activeState,
         state: activeState,
@@ -205,8 +288,6 @@ export class DurableWorkflowStore {
         jobFingerprint: activeState.jobIdentity?.fingerprint || activeState.jobFingerprint,
       };
     }
-
-    const trackedJob = activeState.normalizedJob || activeState.jobData;
 
     // If no active job was previously tracked and new job is found
     if (!trackedJob && detectedJob) {

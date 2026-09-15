@@ -183,7 +183,7 @@ describe('ApplicationHandoffService', () => {
     assert.equal(handoffKit.packageHash, mockPkg.packageHash);
     assert.ok(handoffKit.submissionNotice.includes('manual submission'));
     assert.ok(handoffKit.resume);
-    assert.equal(handoffKit.resume.filename, 'tailored-resume.pdf');
+    assert.equal(handoffKit.resume.filename, 'Vishwanath Nishad - Infrastructure Engineer.pdf');
     assert.ok(handoffKit.resume.contentHash);
     assert.ok(handoffKit.resume.storageKey);
     assert.ok(handoffKit.resume.viewUrl.includes('/artifacts/resume/view'));
@@ -192,7 +192,7 @@ describe('ApplicationHandoffService', () => {
     assert.ok(handoffKit.resume.qaAudit.score >= 75);
 
     assert.ok(handoffKit.coverLetter);
-    assert.equal(handoffKit.coverLetter.filename, 'tailored-cover-letter.pdf');
+    assert.equal(handoffKit.coverLetter.filename, 'Vishwanath Nishad - Infrastructure Engineer - Cover Letter.pdf');
     assert.ok(handoffKit.coverLetter.storageKey);
     assert.ok(handoffKit.coverLetter.qaAudit.passed);
 

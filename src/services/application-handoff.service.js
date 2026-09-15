@@ -32,6 +32,7 @@ import {
   LEGACY_GENERATION_CONTRACT_VERSION,
   DEFAULT_STRUCTURED_RESUME_SCHEMA_VERSION,
 } from '../domain/job/job-workflow.schemas.js';
+import { buildApplicationArtifactFilename } from '../utils/artifact-filename-builder.js';
 
 export class ApplicationHandoffService {
   /**
@@ -770,12 +771,35 @@ export class ApplicationHandoffService {
       documentType: 'COVER_LETTER',
     });
 
-    // 7. Secure Encrypted Persistence via DocumentStorageService
+    // 7. Canonical Filename Derivation & Secure Encrypted Persistence (Part 61)
+    const canonicalCandidateName =
+      applicationPackage.candidateName ||
+      candidateProfile?.displayName ||
+      candidateProfile?.name ||
+      'Candidate';
+    const canonicalJobTitle = applicationPackage.targetJob?.title || 'Role';
+
+    const resumeFilename = buildApplicationArtifactFilename({
+      candidateName: canonicalCandidateName,
+      jobTitle: canonicalJobTitle,
+      artifactType: 'resume',
+    });
+    const resumeTexFilename = buildApplicationArtifactFilename({
+      candidateName: canonicalCandidateName,
+      jobTitle: canonicalJobTitle,
+      artifactType: 'resume-tex',
+    });
+    const clFilename = buildApplicationArtifactFilename({
+      candidateName: canonicalCandidateName,
+      jobTitle: canonicalJobTitle,
+      artifactType: 'cover-letter',
+    });
+
     const storedResumePdf = await this.documentStorage.storeEncryptedDocument({
       tenantId,
       candidateId,
       buffer: resumePdfResult.pdfBuffer,
-      originalFileName: 'tailored-resume.pdf',
+      originalFileName: resumeFilename,
       mimeType: 'application/pdf',
     });
 
@@ -783,7 +807,7 @@ export class ApplicationHandoffService {
       tenantId,
       candidateId,
       buffer: Buffer.from(resumeLatexResult.texContent, 'utf8'),
-      originalFileName: 'tailored-resume.tex',
+      originalFileName: resumeTexFilename,
       mimeType: 'text/x-tex',
     });
 
@@ -791,7 +815,7 @@ export class ApplicationHandoffService {
       tenantId,
       candidateId,
       buffer: clPdfResult.pdfBuffer,
-      originalFileName: 'tailored-cover-letter.pdf',
+      originalFileName: clFilename,
       mimeType: 'application/pdf',
     });
 
@@ -825,7 +849,7 @@ export class ApplicationHandoffService {
         directPortalUrl,
       },
       resume: {
-        filename: 'tailored-resume.pdf',
+        filename: resumeFilename,
         mimeType: 'application/pdf',
         contentHash: storedResumePdf.contentHash,
         fileSizeBytes: storedResumePdf.fileSizeBytes,
@@ -848,7 +872,7 @@ export class ApplicationHandoffService {
         layoutDiagnostics,
       },
       coverLetter: {
-        filename: 'tailored-cover-letter.pdf',
+        filename: clFilename,
         mimeType: 'application/pdf',
         contentHash: storedClPdf.contentHash,
         fileSizeBytes: storedClPdf.fileSizeBytes,

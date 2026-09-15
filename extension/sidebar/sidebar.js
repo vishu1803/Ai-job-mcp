@@ -13,6 +13,7 @@ import { BackendClient } from '../api/backend-client.js';
 import { DurableWorkflowStore } from '../lib/durable-workflow-store.js';
 import { WorkflowStateMachine, WORKFLOW_STATES } from '../lib/workflow-state-machine.js';
 import { JobIdentity } from '../lib/job-identity.js';
+import { buildApplicationArtifactFilename } from '../lib/artifact-filename-builder.js';
 
 class SidebarController {
   constructor() {
@@ -22,6 +23,8 @@ class SidebarController {
     this.activeTabId = null;
     this.activeJob = null;
     this.activeJobFingerprint = null;
+    this.pendingDetectedJob = null;
+    this.pendingDetectedFingerprint = null;
     this.cachedState = null;
     this.isAuthenticated = false;
     this.currentUser = null;
@@ -58,6 +61,12 @@ class SidebarController {
       connectionBadge: document.getElementById('connectionBadge'),
       connectionText: document.getElementById('connectionText'),
       refreshBtn: document.getElementById('refreshBtn'),
+      rescanBtn: document.getElementById('rescanBtn'),
+
+      // Pending Job Notification (Part 61)
+      pendingJobNotification: document.getElementById('pendingJobNotification'),
+      pendingJobTitle: document.getElementById('pendingJobTitle'),
+      rescanPendingBtn: document.getElementById('rescanPendingBtn'),
 
       // Auth Elements (P59)
       authBar: document.getElementById('authBar'),
@@ -149,6 +158,14 @@ class SidebarController {
   }
 
   _attachEventListeners() {
+    this.elements.rescanPendingBtn?.addEventListener('click', async () => {
+      await this.rescan();
+    });
+
+    this.elements.rescanBtn?.addEventListener('click', async () => {
+      await this.rescan();
+    });
+
     this.elements.refreshBtn?.addEventListener('click', async () => {
       await this._checkBackendConnection();
       await this._checkAuthStatus();
@@ -247,9 +264,6 @@ class SidebarController {
             this._hydrateFromStore();
           }
         } else if (message.type === 'JOB_DETECTED_ON_PAGE') {
-          if (this.isWorkflowLocked()) {
-            return;
-          }
           if (this.activeTabId && message.tabId && message.tabId !== this.activeTabId) {
             return;
           }
@@ -261,6 +275,32 @@ class SidebarController {
               return;
             }
           }
+          if (!message.jobData || !message.jobData.title) {
+            return;
+          }
+
+          const detectedFingerprint = JobIdentity.deriveJobFingerprint(message.jobData);
+
+          // If same job detected as active workflow: do nothing, no notification, no replacement
+          if (this.activeJobFingerprint && detectedFingerprint === this.activeJobFingerprint) {
+            return;
+          }
+
+          // If an active workflow exists on this tab or state is locked:
+          // DO NOT replace active workflow
+          // DO NOT restart analysis
+          // DO NOT clear fit analysis / recommendations / applicationId
+          // DO NOT create another application
+          // Store as pending job and show minimal non-blocking notification
+          if (this.activeJob || this.isWorkflowLocked()) {
+            this.pendingDetectedJob = message.jobData;
+            this.pendingDetectedFingerprint = detectedFingerprint;
+            this.store.setPendingDetectedJob(this.activeTabId, message.jobData);
+            this._renderPendingJobNotification(message.jobData);
+            return;
+          }
+
+          // No active workflow exists (IDLE / empty): proceed with normal detection
           this._handleJobDetectedEvent(message.jobData);
         } else if (message.type === 'APPLICATION_FORM_DETECTED') {
           if (this.isWorkflowLocked()) {
@@ -435,8 +475,29 @@ class SidebarController {
         this.stateMachine.unlock();
       }
 
+      // Restore pending detected job if present, but NEVER promote it automatically
+      if (durableState.pendingDetectedJob) {
+        this.pendingDetectedJob = durableState.pendingDetectedJob;
+        this.pendingDetectedFingerprint = durableState.pendingDetectedFingerprint;
+        this._renderPendingJobNotification(durableState.pendingDetectedJob);
+      } else {
+        this.pendingDetectedJob = null;
+        this.pendingDetectedFingerprint = null;
+        this._hidePendingJobNotification();
+      }
+
       this._renderAllFromState(durableState);
     } else {
+      if (durableState?.pendingDetectedJob) {
+        this.pendingDetectedJob = durableState.pendingDetectedJob;
+        this.pendingDetectedFingerprint = durableState.pendingDetectedFingerprint;
+        this._renderPendingJobNotification(durableState.pendingDetectedJob);
+      } else {
+        this.pendingDetectedJob = null;
+        this.pendingDetectedFingerprint = null;
+        this._hidePendingJobNotification();
+      }
+
       // Trigger injection and extraction on tab if not locked
       if (!this.isWorkflowLocked()) {
         await this._requestDetectionFromTab();
@@ -444,11 +505,11 @@ class SidebarController {
     }
   }
 
-  async _requestDetectionFromTab() {
+  async _requestDetectionFromTab(isExplicitRescan = false) {
     if (!this.activeTabId) return;
-    if (this.isWorkflowLocked()) return;
+    if (!isExplicitRescan && this.isWorkflowLocked()) return;
 
-    if (this.activeTabId) {
+    if (!isExplicitRescan && this.activeTabId) {
       const persisted = await this.store.getTabState(this.activeTabId);
       if (this.store.isWorkflowLocked(persisted)) {
         this.cachedState = persisted;
@@ -475,20 +536,93 @@ class SidebarController {
         });
 
         if (response && response.success && response.jobData) {
-          await this._handleJobDetectedEvent(response.jobData);
+          if (isExplicitRescan) {
+            await this._switchToJob(response.jobData);
+          } else {
+            await this._handleJobDetectedEvent(response.jobData);
+          }
         } else {
-          this._renderEmptyJobState();
+          if (!this.activeJob) {
+            this._renderEmptyJobState();
+          }
         }
       }
     } catch {
-      this._renderEmptyJobState();
+      if (!this.activeJob) {
+        this._renderEmptyJobState();
+      }
+    }
+  }
+
+  async rescan() {
+    if (this.pendingDetectedJob) {
+      const jobToSwitch = this.pendingDetectedJob;
+      await this._switchToJob(jobToSwitch);
+    } else {
+      await this._requestDetectionFromTab(true);
+    }
+  }
+
+  async _switchToJob(newJob) {
+    if (!newJob || !newJob.title) return;
+    const fingerprint = JobIdentity.deriveJobFingerprint(newJob);
+
+    // Switch active extension workflow to newJob:
+    // increments workflow generation, clears active references, sets JOB_DETECTED, clears pending
+    const switchedState = await this.store.switchWorkflow(this.activeTabId, newJob);
+
+    this.activeJob = newJob;
+    this.activeJobFingerprint = fingerprint;
+    this.pendingDetectedJob = null;
+    this.pendingDetectedFingerprint = null;
+    this.cachedState = switchedState;
+
+    this.stateMachine.unlock();
+    this.stateMachine.state = WORKFLOW_STATES.JOB_DETECTED;
+
+    this._hidePendingJobNotification();
+    this.elements.workflowLockBanner?.classList.add('hidden');
+    this.elements.workflowLockedBadge?.classList.add('hidden');
+
+    this._renderAllFromState(switchedState);
+  }
+
+  _renderPendingJobNotification(jobData) {
+    if (!this.elements.pendingJobNotification) return;
+    if (this.elements.pendingJobTitle) {
+      const title = jobData.title || 'Untitled Role';
+      const company = jobData.company ? ` • ${jobData.company}` : '';
+      this.elements.pendingJobTitle.textContent = `${title}${company}`;
+    }
+    this.elements.pendingJobNotification.classList.remove('hidden');
+  }
+
+  _hidePendingJobNotification() {
+    if (this.elements.pendingJobNotification) {
+      this.elements.pendingJobNotification.classList.add('hidden');
     }
   }
 
   async _handleJobDetectedEvent(jobData) {
-    if (this.isWorkflowLocked()) return;
     if (!jobData || !jobData.title) {
-      this._renderEmptyJobState();
+      if (!this.activeJob) this._renderEmptyJobState();
+      return;
+    }
+
+    const fingerprint = JobIdentity.deriveJobFingerprint(jobData);
+
+    // If same job detected as active, do nothing
+    if (this.activeJobFingerprint && fingerprint === this.activeJobFingerprint) {
+      return;
+    }
+
+    // When detector sees a DIFFERENT job while an active workflow exists or workflow is locked:
+    // preserve active workflow and store pending job
+    if (this.activeJob || this.isWorkflowLocked()) {
+      this.pendingDetectedJob = jobData;
+      this.pendingDetectedFingerprint = fingerprint;
+      await this.store.setPendingDetectedJob(this.activeTabId, jobData);
+      this._renderPendingJobNotification(jobData);
       return;
     }
 
@@ -501,11 +635,17 @@ class SidebarController {
         this.stateMachine.state = persisted.workflowState;
         this.stateMachine.lock();
         this._renderAllFromState(persisted);
+
+        if (fingerprint !== persisted.jobFingerprint) {
+          this.pendingDetectedJob = jobData;
+          this.pendingDetectedFingerprint = fingerprint;
+          await this.store.setPendingDetectedJob(this.activeTabId, jobData);
+          this._renderPendingJobNotification(jobData);
+        }
         return;
       }
     }
 
-    const fingerprint = JobIdentity.deriveJobFingerprint(jobData);
     this.activeJob = jobData;
     this.activeJobFingerprint = fingerprint;
 
@@ -605,12 +745,27 @@ class SidebarController {
   }
 
   _renderWorkflowStatus(stateName, isLocked = false) {
+    const friendlyLabels = {
+      [WORKFLOW_STATES.IDLE]: 'Ready',
+      [WORKFLOW_STATES.JOB_DETECTED]: 'Job detected',
+      [WORKFLOW_STATES.JOB_CONFIRMED]: 'Ready to analyze',
+      [WORKFLOW_STATES.ANALYZING]: 'Analyzing match...',
+      [WORKFLOW_STATES.ANALYSIS_READY]: 'Analysis complete',
+      [WORKFLOW_STATES.APPLICATION_PREPARING]: 'Preparing handoff...',
+      [WORKFLOW_STATES.APPLICATION_READY]: 'Application ready',
+      [WORKFLOW_STATES.FORM_DETECTED]: 'Form detected',
+      'NO_JOB_DETECTED': 'Ready',
+    };
+
+    const displayText = friendlyLabels[stateName] || stateName || 'Ready';
+
     if (this.elements.workflowStateText) {
-      this.elements.workflowStateText.textContent = stateName || 'READY';
+      this.elements.workflowStateText.textContent = displayText;
     }
     const locked = isLocked || this.isWorkflowLocked();
     if (this.elements.workflowLockedBadge) {
       if (locked) {
+        this.elements.workflowLockedBadge.textContent = 'Workflow protected';
         this.elements.workflowLockedBadge.classList.remove('hidden');
       } else {
         this.elements.workflowLockedBadge.classList.add('hidden');
@@ -621,7 +776,7 @@ class SidebarController {
   _renderPortalCard(portalMetadata) {
     if (!portalMetadata || !this.elements.portalName) return;
 
-    this.elements.portalName.textContent = portalMetadata.portalName || 'Generic Career Portal';
+    this.elements.portalName.textContent = portalMetadata.portalName || 'Career Portal';
 
     const confidence = (portalMetadata.confidence || 'medium').toLowerCase();
     if (this.elements.confidenceBadge) {
@@ -640,13 +795,13 @@ class SidebarController {
     if (!element) return;
     if (isSupported === true) {
       element.className = 'capability-pill supported';
-      element.textContent = `✓ ${label}`;
+      element.textContent = `${label}`;
     } else if (isSupported === 'partial') {
       element.className = 'capability-pill partial';
-      element.textContent = `~ ${label} (Partial)`;
+      element.textContent = `${label} (Partial)`;
     } else {
       element.className = 'capability-pill unsupported';
-      element.textContent = `✗ ${label}`;
+      element.textContent = `${label}`;
     }
   }
 
@@ -671,8 +826,8 @@ class SidebarController {
 
     if (this.elements.jobTitle) this.elements.jobTitle.textContent = jobData.title || 'Untitled Role';
     if (this.elements.jobCompany) this.elements.jobCompany.textContent = jobData.company || 'Unknown Company';
-    if (this.elements.jobLocation) this.elements.jobLocation.textContent = `📍 ${jobData.location || 'Remote'}`;
-    if (this.elements.jobType) this.elements.jobType.textContent = `💼 ${jobData.employmentType || 'Full-time'}`;
+    if (this.elements.jobLocation) this.elements.jobLocation.textContent = jobData.location || 'Remote';
+    if (this.elements.jobType) this.elements.jobType.textContent = jobData.employmentType || 'Full-time';
 
     const shortId = (this.activeJobFingerprint || 'unknown').substring(0, 8);
     if (this.elements.jobIdTag) this.elements.jobIdTag.textContent = `ID: ${shortId}`;
@@ -1026,8 +1181,17 @@ class SidebarController {
     const packageHash = this.cachedState?.handoffData?.packageHash || '';
     const url = await this.backendClient.getArtifactDownloadUrl(appId, artifactType, packageHash);
 
-    const ext = artifactType === 'bundle' ? 'zip' : 'pdf';
-    const filename = `application-${appId.substring(0, 8)}-${artifactType}.${ext}`;
+    const candidateName =
+      this.cachedState?.handoffData?.candidateName ||
+      this.currentUser?.displayName ||
+      'Candidate';
+    const jobTitle = this.activeJob?.title || 'Target Role';
+
+    const filename = buildApplicationArtifactFilename({
+      candidateName,
+      jobTitle,
+      artifactType,
+    });
 
     if (typeof chrome !== 'undefined' && chrome.downloads?.download) {
       chrome.downloads.download({ url, filename });
@@ -1061,12 +1225,15 @@ class SidebarController {
     this.stateMachine.unlock();
     this.stateMachine.reset();
 
-    // Clear controller active job and references
+    // Clear controller active job and pending references
     this.activeJob = null;
     this.activeJobFingerprint = null;
+    this.pendingDetectedJob = null;
+    this.pendingDetectedFingerprint = null;
     this.cachedState = freshState;
 
     // Reset UI
+    this._hidePendingJobNotification();
     this.elements.workflowLockBanner?.classList.add('hidden');
     this.elements.workflowLockedBadge?.classList.add('hidden');
     if (this.elements.reanalyzeBtn) {

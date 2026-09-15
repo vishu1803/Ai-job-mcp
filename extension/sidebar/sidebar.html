@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Careers Hub — Persistent Assistant</title>
+  <title>AI Careers Hub</title>
   <link rel="stylesheet" href="sidebar.css">
 </head>
 <body>
@@ -14,14 +14,14 @@
         <div class="brand-identity">
           <span class="brand-dot"></span>
           <span class="brand-title">AI Careers Hub</span>
-          <span class="badge-tag">v2.0 Persistent</span>
         </div>
         <div class="header-actions">
           <span id="connectionBadge" class="status-badge disconnected" title="Backend Connection Status">
             <span class="dot"></span>
             <span id="connectionText">Checking...</span>
           </span>
-          <button id="refreshBtn" class="icon-button" title="Refresh Active Tab State" aria-label="Refresh">
+          <button id="rescanBtn" class="btn btn-ghost btn-xs" title="Scan current browser page">Rescan</button>
+          <button id="refreshBtn" class="icon-button" title="Refresh state" aria-label="Refresh">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M23 4v6h-6M1 20v-6h6"/>
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -34,14 +34,13 @@
       <div id="authBar" class="auth-bar">
         <div id="authUnauthenticatedState" class="auth-state-box unauthenticated">
           <div class="auth-status-info">
-            <span class="auth-badge unauthenticated">Not Signed In</span>
-            <span class="auth-hint">Sign in to analyze jobs & prepare kits</span>
+            <span class="auth-hint">Sign in to analyze jobs and prepare handoff kits</span>
           </div>
           <button id="loginBtn" class="btn btn-outline btn-xs">Sign In</button>
         </div>
         <div id="authAuthenticatedState" class="auth-state-box authenticated hidden">
           <div class="user-profile-info">
-            <span class="user-avatar" id="userAvatar">👤</span>
+            <span class="user-avatar" id="userAvatar"></span>
             <div class="user-text">
               <span id="userName" class="user-name">—</span>
               <span id="userEmail" class="user-email">—</span>
@@ -54,13 +53,23 @@
       <!-- Non-destructive Expired Session Warning -->
       <div id="sessionExpiredNotice" class="alert-banner warning hidden">
         <div class="alert-content">
-          <span class="alert-icon">⚠️</span>
           <div class="alert-text">
             <strong>Session Expired</strong>
-            <p>Sign in to continue — your job and analysis progress is preserved.</p>
+            <p>Sign in to continue — your active job and analysis are preserved.</p>
           </div>
         </div>
         <button id="reauthBtn" class="btn btn-primary btn-xs">Sign In</button>
+      </div>
+
+      <!-- Minimal Non-Blocking Pending Job Notification (Part 61) -->
+      <div id="pendingJobNotification" class="pending-job-banner hidden">
+        <div class="pending-job-content">
+          <div class="pending-job-text">
+            <span class="pending-badge">New job detected</span>
+            <span id="pendingJobTitle" class="pending-subtext">Another job is open on this page.</span>
+          </div>
+          <button id="rescanPendingBtn" class="btn btn-primary btn-xs">Rescan</button>
+        </div>
       </div>
     </header>
 
@@ -69,20 +78,19 @@
       <!-- State / Status Alert Bar -->
       <div id="workflowStatusBar" class="workflow-status-bar">
         <span id="workflowStateText" class="state-text">Ready</span>
-        <span id="workflowLockedBadge" class="workflow-locked-badge hidden">🔒 Workflow Locked</span>
-        <span id="syncIndicator" class="sync-indicator synced" title="State synchronized">Durable State Synced</span>
+        <span id="workflowLockedBadge" class="workflow-locked-badge hidden">Workflow protected</span>
+        <span id="syncIndicator" class="sync-indicator synced" title="State synchronized">Synced</span>
       </div>
 
       <!-- Portal & Adapter Information Card -->
       <section id="portalCard" class="card portal-card">
         <div class="card-header">
           <div class="header-label">
-            <span class="portal-icon">🌐</span>
-            <span id="portalName" class="portal-title">Detecting Portal...</span>
+            <span id="portalName" class="portal-title">Career Portal</span>
           </div>
-          <span id="confidenceBadge" class="confidence-badge low">Confidence: Low</span>
+          <span id="confidenceBadge" class="confidence-badge low hidden">Confidence: Low</span>
         </div>
-        <div class="portal-capabilities" id="portalCapabilities">
+        <div class="portal-capabilities hidden" id="portalCapabilities">
           <span class="capability-pill pending" id="capJob">Job Extraction</span>
           <span class="capability-pill pending" id="capApp">App Detection</span>
           <span class="capability-pill pending" id="capForm">Form Extraction</span>
@@ -93,34 +101,33 @@
       <!-- Active Job Detection Card -->
       <section id="jobCard" class="card job-card">
         <div class="card-header">
-          <h2 class="card-title">Target Position</h2>
-          <button id="reanalyzeBtn" class="link-button" title="Force re-extraction of page">Re-detect</button>
+          <h2 class="card-title">Current Job</h2>
+          <button id="reanalyzeBtn" class="link-button" title="Scan page again">Re-detect</button>
         </div>
         <div id="jobContent" class="job-content">
           <div id="jobNotDetectedState" class="empty-state">
-            <p class="empty-title">No job posting detected on current tab</p>
-            <p class="empty-subtitle">Navigate to a job board (Greenhouse, Lever, Workday, LinkedIn, or any career page) to activate.</p>
+            <p class="empty-title">No job posting detected</p>
+            <p class="empty-subtitle">Navigate to a job board or career page to inspect.</p>
           </div>
           <div id="jobDetectedState" class="job-detected-state hidden">
             <h3 id="jobTitle" class="job-title">—</h3>
             <p id="jobCompany" class="job-company">—</p>
             <div class="job-meta-row">
-              <span id="jobLocation" class="meta-tag">📍 Remote</span>
-              <span id="jobType" class="meta-tag">💼 Full-time</span>
+              <span id="jobLocation" class="meta-tag">Remote</span>
+              <span id="jobType" class="meta-tag">Full-time</span>
               <span id="jobIdTag" class="meta-tag code-font">ID: —</span>
             </div>
 
             <!-- Analysis Error Banner -->
             <div id="analysisErrorBanner" class="alert-banner error hidden">
               <div class="alert-content">
-                <span class="alert-icon">⚠️</span>
                 <span id="analysisErrorMessage">Analysis failed.</span>
               </div>
               <button id="retryAnalysisBtn" class="btn btn-outline btn-xs">Retry Analysis</button>
             </div>
 
             <div class="action-row">
-              <button id="analyzeJobBtn" class="btn btn-primary btn-sm">Analyze Job Match</button>
+              <button id="analyzeJobBtn" class="btn btn-primary btn-sm btn-block">Analyze Job Match</button>
             </div>
           </div>
         </div>
@@ -129,7 +136,7 @@
       <!-- ATS Fit & Match Section -->
       <section id="analysisCard" class="card analysis-card hidden">
         <div class="card-header">
-          <h2 class="card-title">ATS Fit Analysis</h2>
+          <h2 class="card-title">Match Analysis</h2>
           <span id="matchBandBadge" class="match-band-badge">RECOMMENDED</span>
         </div>
         <div class="fit-overview">
@@ -157,11 +164,11 @@
 
         <div class="skills-tags-container">
           <div class="tag-group">
-            <span class="tag-label">Matched Skills:</span>
+            <span class="tag-label">Matched Skills</span>
             <div id="matchedSkillsList" class="tag-list"></div>
           </div>
           <div class="tag-group">
-            <span class="tag-label">Missing / Growth Skills:</span>
+            <span class="tag-label">Missing / Growth Skills</span>
             <div id="missingSkillsList" class="tag-list"></div>
           </div>
         </div>
@@ -169,13 +176,12 @@
         <!-- Primary Next Action Container (Guarantees NO DEAD END) -->
         <div id="analysisNextActionBox" class="next-action-container">
           <div class="next-action-header">
-            <span class="next-action-badge">RECOMMENDED NEXT ACTION</span>
             <p class="next-action-desc">
-              ATS fit analysis complete. Prepare your tailored resume, cover letter, and application handoff kit.
+              Analysis complete. Prepare your tailored resume, cover letter, and handoff package.
             </p>
           </div>
           <button id="ctaPrepareHandoffBtn" class="btn btn-accent btn-block">
-            📦 Prepare Application Handoff Kit
+            Prepare Handoff Kit
           </button>
         </div>
       </section>
@@ -183,15 +189,9 @@
       <!-- Authoritative Recommended Projects Section (P57 Rule 1 & Rule 2) -->
       <section id="projectsCard" class="card projects-card hidden">
         <div class="card-header">
-          <div class="header-label">
-            <span class="section-icon">💼</span>
-            <h2 class="card-title">Recommended Portfolio Projects</h2>
-          </div>
-          <span class="verified-tag">✓ Authoritative Backend Ranking</span>
+          <h2 class="card-title">Recommended Projects</h2>
+          <span class="verified-tag">Ranked</span>
         </div>
-        <p class="section-desc">
-          Top candidate portfolio projects canonically ranked by backend matching algorithms to align with detected job requirements.
-        </p>
         <div id="recommendedProjectsList" class="projects-list">
           <!-- Dynamically populated project cards -->
         </div>
@@ -200,20 +200,14 @@
       <!-- Application & Handoff Kit Section -->
       <section id="handoffCard" class="card handoff-card hidden">
         <div class="card-header">
-          <div class="header-label">
-            <span class="section-icon">📦</span>
-            <h2 class="card-title">Application Handoff Kit</h2>
-          </div>
+          <h2 class="card-title">Application Handoff Kit</h2>
           <span id="handoffStatusBadge" class="status-badge-sm">UNPREPARED</span>
         </div>
-        <p class="section-desc">
-          Generate or retrieve the cryptographically verified application kit tailored with ranked projects.
-        </p>
 
         <!-- Application & Package Metadata Row -->
         <div id="handoffTelemetryRow" class="telemetry-row hidden">
           <div class="telemetry-item">
-            <span class="telemetry-label">Application ID:</span>
+            <span class="telemetry-label">App ID:</span>
             <span id="handoffAppId" class="telemetry-value code-font">—</span>
           </div>
           <div class="telemetry-item">
@@ -222,23 +216,20 @@
           </div>
         </div>
 
-        <!-- Terminal Workflow Lock Banner (Part 60-B) -->
+        <!-- Terminal Workflow Lock / Protected Banner (Part 60-B & Part 61) -->
         <div id="workflowLockBanner" class="alert-banner lock-banner hidden">
           <div class="alert-content">
-            <span class="alert-icon">🔒</span>
             <div class="alert-text">
-              <strong>Application Ready • Workflow Locked</strong>
-              <p>Workflow Locked — navigation will not replace this application.</p>
-              <p class="lock-subtext">Resets only this extension workflow. Your saved application, resume, cover letter, and application data remain saved in the MCP application.</p>
+              <strong>Workflow Protected</strong>
+              <p>Navigation will not replace this application. Your saved records remain safe in MCP.</p>
             </div>
           </div>
-          <button id="resetWorkflowBtn" class="btn btn-outline btn-xs reset-workflow-btn" title="Reset workflow to begin analyzing a new job">Reset Workflow</button>
+          <button id="resetWorkflowBtn" class="btn btn-outline btn-xs reset-workflow-btn" title="Reset extension workflow to neutral IDLE state">Reset Workflow</button>
         </div>
 
         <!-- Handoff Error & Retry Banner -->
         <div id="handoffErrorBanner" class="alert-banner error hidden">
           <div class="alert-content">
-            <span class="alert-icon">⚠️</span>
             <span id="handoffErrorMessage">Failed to prepare handoff kit.</span>
           </div>
           <button id="retryHandoffBtn" class="btn btn-outline btn-xs">Retry Preparation</button>
@@ -253,31 +244,28 @@
 
         <div id="artifactsContainer" class="artifacts-container hidden">
           <div class="artifact-item" id="resumeArtifact">
-            <div class="artifact-icon">📄</div>
             <div class="artifact-details">
-              <div class="artifact-title">Tailored Resume (PDF)</div>
+              <div class="artifact-title">Tailored Resume</div>
               <div class="artifact-meta" id="resumeMeta">LaTeX Compiled • Verified</div>
             </div>
             <div class="artifact-actions">
               <button id="reviewResumeBtn" class="btn btn-outline btn-xs">Review</button>
-              <button id="downloadResumeBtn" class="btn btn-primary btn-xs">Download</button>
+              <button id="downloadResumeBtn" class="btn btn-primary btn-xs">Download PDF</button>
             </div>
           </div>
           <div class="artifact-item" id="coverLetterArtifact">
-            <div class="artifact-icon">✉️</div>
             <div class="artifact-details">
-              <div class="artifact-title">Tailored Cover Letter (PDF)</div>
+              <div class="artifact-title">Tailored Cover Letter</div>
               <div class="artifact-meta" id="coverLetterMeta">LaTeX Compiled • Verified</div>
             </div>
             <div class="artifact-actions">
               <button id="reviewCoverLetterBtn" class="btn btn-outline btn-xs">Review</button>
-              <button id="downloadCoverLetterBtn" class="btn btn-primary btn-xs">Download</button>
+              <button id="downloadCoverLetterBtn" class="btn btn-primary btn-xs">Download PDF</button>
             </div>
           </div>
           <div class="artifact-item" id="kitZipArtifact">
-            <div class="artifact-icon">🗂️</div>
             <div class="artifact-details">
-              <div class="artifact-title">Complete Application Bundle</div>
+              <div class="artifact-title">Application Package</div>
               <div class="artifact-meta" id="bundleMeta">All artifacts + SHA-256 manifest</div>
             </div>
             <div class="artifact-actions">
@@ -285,7 +273,7 @@
             </div>
           </div>
           <div class="dashboard-handoff-link-row">
-            <a id="viewAppDashboardLink" href="#" target="_blank" class="link-button">Open Application in Dashboard ↗</a>
+            <a id="viewAppDashboardLink" href="#" target="_blank" class="link-button">Open in Dashboard ↗</a>
           </div>
         </div>
       </section>
@@ -293,22 +281,19 @@
       <!-- Multi-step Application & Form Autofill Section (P57.6) -->
       <section id="formDetectionCard" class="card form-detection-card hidden">
         <div class="card-header">
-          <div class="header-label">
-            <span class="section-icon">📝</span>
-            <h2 class="card-title">Application Form Assistant</h2>
-          </div>
+          <h2 class="card-title">Application Form Assistant</h2>
           <span id="stepIndicator" class="step-indicator">Step 1</span>
         </div>
         <div class="form-status-body">
           <p id="formStatusMessage" class="form-status-message">
-            Job application form detected. Verified fields mapped from canonical profile.
+            Application form fields detected.
           </p>
           <div id="formFieldsSummary" class="fields-summary">
             <!-- Dynamic field mapping pills -->
           </div>
           <div class="form-actions">
             <button id="autofillFormBtn" class="btn btn-secondary btn-sm" disabled>
-              Fill Verified Fields (User Review Required)
+              Fill Verified Fields
             </button>
           </div>
         </div>
@@ -319,7 +304,7 @@
     <footer class="sidebar-footer">
       <div class="footer-row">
         <span class="footer-note">Evidence-Based • Multi-Tenant Isolated</span>
-        <a id="dashboardLink" href="http://localhost:3000" target="_blank" class="footer-link">Open Dashboard</a>
+        <a id="dashboardLink" href="http://localhost:3000" target="_blank" class="footer-link">Dashboard</a>
       </div>
     </footer>
   </div>

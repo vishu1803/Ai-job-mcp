@@ -984,3 +984,54 @@ body {
   box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
 }
 
+/* Part 61 — Minimal Non-Blocking Pending Job Banner */
+.pending-job-banner {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.pending-job-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pending-job-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pending-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.pending-subtext {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.btn-ghost:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+

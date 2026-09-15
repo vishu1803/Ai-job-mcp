@@ -49,6 +49,7 @@ import { JobApplicationWorkflowService } from '../services/job-application-workf
 import { CandidateArtifactContentService } from '../services/candidate-artifact-content.service.js';
 import { DocumentStorageService } from '../services/document-storage.service.js';
 import { createZipArchive } from '../utils/zip-packager.js';
+import { buildApplicationArtifactFilename } from '../utils/artifact-filename-builder.js';
 import { renderLandingPage } from '../views/landing.page.js';
 import { renderLoginPage } from '../views/login.page.js';
 import { renderDashboardPage } from '../views/dashboard.page.js';
@@ -3487,8 +3488,13 @@ export default async function webRoutes(app, opts = {}) {
             tenantId: tenant.id,
             storageKey: resumeKey,
           });
+          const defaultResumeName = buildApplicationArtifactFilename({
+            candidateName: candidate.displayName,
+            jobTitle: application.title,
+            artifactType: 'resume',
+          });
           entries.push({
-            name: handoffKit?.resume?.filename || 'tailored-resume.pdf',
+            name: handoffKit?.resume?.filename || defaultResumeName,
             data: resumeBuf,
           });
         } catch (err) {
@@ -3504,8 +3510,13 @@ export default async function webRoutes(app, opts = {}) {
             tenantId: tenant.id,
             storageKey: clKey,
           });
+          const defaultClName = buildApplicationArtifactFilename({
+            candidateName: candidate.displayName,
+            jobTitle: application.title,
+            artifactType: 'cover-letter',
+          });
           entries.push({
-            name: handoffKit?.coverLetter?.filename || 'tailored-cover-letter.pdf',
+            name: handoffKit?.coverLetter?.filename || defaultClName,
             data: clBuf,
           });
         } catch (err) {
@@ -3521,8 +3532,13 @@ export default async function webRoutes(app, opts = {}) {
             tenantId: tenant.id,
             storageKey: texKey,
           });
+          const defaultTexName = buildApplicationArtifactFilename({
+            candidateName: candidate.displayName,
+            jobTitle: application.title,
+            artifactType: 'resume-tex',
+          });
           entries.push({
-            name: 'tailored-resume.tex',
+            name: defaultTexName,
             data: texBuf,
           });
         } catch (err) {
@@ -3646,13 +3662,29 @@ export default async function webRoutes(app, opts = {}) {
         resolvedPackageHash = resolvedPackageHash || handoffKit.packageHash;
         if (artifactType === 'resume') {
           storageKey = handoffKit.resume?.storageKey;
-          filename = handoffKit.resume?.filename || 'tailored-resume.pdf';
+          filename =
+            handoffKit.resume?.filename ||
+            buildApplicationArtifactFilename({
+              candidateName: candidate.displayName,
+              jobTitle: application.title,
+              artifactType: 'resume',
+            });
         } else if (artifactType === 'cover-letter') {
           storageKey = handoffKit.coverLetter?.storageKey;
-          filename = handoffKit.coverLetter?.filename || 'tailored-cover-letter.pdf';
+          filename =
+            handoffKit.coverLetter?.filename ||
+            buildApplicationArtifactFilename({
+              candidateName: candidate.displayName,
+              jobTitle: application.title,
+              artifactType: 'cover-letter',
+            });
         } else if (artifactType === 'resume-tex') {
           storageKey = handoffKit.resume?.texStorageKey;
-          filename = 'tailored-resume.tex';
+          filename = buildApplicationArtifactFilename({
+            candidateName: candidate.displayName,
+            jobTitle: application.title,
+            artifactType: 'resume-tex',
+          });
           mimeType = 'text/plain; charset=utf-8';
         }
       }

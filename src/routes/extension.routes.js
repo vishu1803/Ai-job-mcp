@@ -30,6 +30,7 @@ import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.j
 import { resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 import { generateCanonicalJobId } from '../services/job-discovery.service.js';
 import { SecretScrubber } from '../extractors/github/security/secret-scrubber.js';
+import { buildApplicationArtifactFilename } from '../utils/artifact-filename-builder.js';
 import { JobApplicationWorkflowService } from '../services/job-application-workflow.service.js';
 import { ApplicationTrackingService } from '../services/application-tracking.service.js';
 import { handleAnalyzeJobFit } from '../mcp/tools/career-read-tools.js';
@@ -994,12 +995,24 @@ export default async function extensionRoutes(app, opts = {}) {
         },
         artifacts: {
           resume: {
-            filename: resumeArt?.filename || 'tailored-resume.pdf',
+            filename:
+              resumeArt?.filename ||
+              buildApplicationArtifactFilename({
+                candidateName: candidate.displayName,
+                jobTitle: targetJob.title,
+                artifactType: 'resume',
+              }),
             ready: resumeArt?.availabilityStatus === 'READY',
             downloadUrl: `/api/applications/${appId}/artifacts/resume/download?packageHash=${packageHash}`,
           },
           coverLetter: {
-            filename: coverLetterArt?.filename || 'tailored-cover-letter.pdf',
+            filename:
+              coverLetterArt?.filename ||
+              buildApplicationArtifactFilename({
+                candidateName: candidate.displayName,
+                jobTitle: targetJob.title,
+                artifactType: 'cover-letter',
+              }),
             ready: coverLetterArt?.availabilityStatus === 'READY',
             downloadUrl: `/api/applications/${appId}/artifacts/cover-letter/download?packageHash=${packageHash}`,
           },
@@ -1192,8 +1205,20 @@ export default async function extensionRoutes(app, opts = {}) {
           },
           projects: appPackage.portfolioLinks || [],
           documents: {
-            resume: appPackage.tailoredResume?.artifact?.filename || 'tailored-resume.pdf',
-            coverLetter: appPackage.coverLetter?.artifact?.filename || 'tailored-cover-letter.pdf',
+            resume:
+              appPackage.tailoredResume?.artifact?.filename ||
+              buildApplicationArtifactFilename({
+                candidateName: candidate.displayName,
+                jobTitle: targetJob?.title || 'Role',
+                artifactType: 'resume',
+              }),
+            coverLetter:
+              appPackage.coverLetter?.artifact?.filename ||
+              buildApplicationArtifactFilename({
+                candidateName: candidate.displayName,
+                jobTitle: targetJob?.title || 'Role',
+                artifactType: 'cover-letter',
+              }),
             documentsStatus: appPackage.documentsStatus || 'DOCUMENTS_READY',
             artifactsReady: Boolean(appPackage.artifactsReady),
           },

@@ -3,6 +3,97 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-15*
 
+### PART 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & Canonical Artifact Filenames
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-15  
+**Scope:** Calm Background Job Detection (Zero Silent Workflow Replacement, Single Pending Job Banner), Explicit Secondary Rescan Workflow Switch, Non-Destructive Reset Workflow Semantics, Durable Workflow Generation & Stale Event Protection, Multi-Tab / Multi-User Isolation, Calm UI Redesign conforming to DESIGN.md (Removed Diagnostic Sprawl, Emoji Noise, Raw Capabilities Pills, Replaced with Clean Human State Language), Canonical Artifact Filename Builder (`buildApplicationArtifactFilename`), Canonical Filename Propagation through Handoff Kit, Storage, and Download Headers (`<Candidate Name> - <Job Profile>.pdf` and `<Candidate Name> - <Job Profile> - Cover Letter.pdf`), 100% Frozen PDF Layout / Typography / Margin Budgets (0.52in) / Candidate Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Refined the P57-P60 Chrome extension architecture and canonical MCP application backend to ensure the extension acts as a calm, non-intrusive copilot rather than aggressively overwriting user work upon navigation:
+1. **Calm Background Detection Invariant (Part 1-3):**
+   - Active extension workflow (Job A) is never silently replaced when the browser navigates to Job B.
+   - The detector observes Job B, verifies `detectedFingerprint !== activeFingerprint`, and stores Job B locally as `pendingDetectedJob` and `pendingDetectedFingerprint` without starting analysis, preparing handoffs, or modifying `applicationId`.
+   - Displays exactly ONE minimal, non-blocking notification banner (`#pendingJobNotification`) with the detected job title and an inline `[Rescan]` button.
+   - Repeated detections of the same pending job produce zero additional notifications or UI spam.
+   - Same-job navigation (`detectedFingerprint === activeFingerprint`) produces zero UI noise and preserves all existing state.
+2. **Explicit Rescan Action (Part 4-5):**
+   - Rescan (`rescan()`) provides the user's explicit permission to inspect or switch to the current page.
+   - Available persistently in the header as a visually secondary button, never competing with primary CTAs ("Analyze Job Match", "Prepare Handoff Kit").
+   - When clicked with `pendingDetectedJob`: promotes Job B to active workflow, sets state to `JOB_DETECTED`, increments `workflowGeneration`, clears `pendingDetectedJob`, and clears previous active tab references.
+   - When clicked without pending job: triggers an immediate scan of the current page.
+   - Invariant: Rescan performs ZERO destructive backend operations. Previous MCP applications (Application A, its applicationId, resume, cover letter, handoff package, package hash, and artifacts) remain completely intact in the PostgreSQL database and MCP Application List.
+3. **Non-Destructive Reset Workflow (Part 6):**
+   - Reset Workflow explicitly returns only the local Chrome extension to `IDLE` state.
+   - Hard invariant enforced: `RESET WORKFLOW != DELETE APPLICATION`, `RESET WORKFLOW != DELETE DATABASE DATA`, and `RESET WORKFLOW != REMOVE APPLICATION FROM MCP`.
+   - Reset performs ZERO backend `DELETE` requests and makes ZERO database modifications. Previous applications, packages, resumes, cover letters, and artifacts remain 100% intact.
+   - Advances `workflowGeneration` so late detector events cannot resurrect the reset state.
+4. **Lock Semantics & Durable Store (Part 7-10):**
+   - Corrected lock interpretation: `LOCKED` means the active workflow cannot be silently replaced, not that background detection is blind.
+   - `DurableWorkflowStore` persists `pendingDetectedJob`, `pendingDetectedFingerprint`, and `workflowGeneration` in `chrome.storage.local`.
+   - Reloading the sidebar or page restores active Job A and preserves pending Job B; pending jobs are NEVER automatically promoted without explicit Rescan.
+   - Multi-tab and multi-user isolation strictly verified: Tab B never inherits Tab A's locked application, and resetting Tab A has zero impact on Tab B.
+5. **Calm UI Redesign Conforming to DESIGN.md (Part 11-17):**
+   - Followed `DESIGN.md` authority: deep canvas (`#0B0F19`), slate surfaces (`#111827`), 1px borders (`#1E293B`), restrained indigo accent (`#2563EB`).
+   - Eliminated technical enum noise (`JOB_DETECTED`, `ANALYSIS_READY`, `APPLICATION_READY`) and replaced with human-friendly user language ("Ready", "Job detected", "Analyzing match...", "Analysis complete", "Application ready", "Workflow protected").
+   - Eliminated emoji-heavy labels (`🔒`, `📍`, `💼`, `📦`, `🔍`, `✓ Job Extraction`) and removed capability badge clutter.
+   - Refined visual hierarchy: Primary action has strongest weight; Rescan and Reset remain distinct, calm, and secondary.
+6. **Canonical Artifact Filenames (Part 18-21):**
+   - Built canonical filename builder `buildApplicationArtifactFilename({ candidateName, jobTitle, artifactType })` in both backend (`src/utils/artifact-filename-builder.js`) and extension (`extension/lib/artifact-filename-builder.js`).
+   - Sanitizes illegal filesystem characters (`/ \ : * ? " < > |`), control characters, path traversal (`..`), and repeated whitespace with a safe length limit.
+   - Output format:
+     - Resume: `<Candidate Name> - <Job Profile>.pdf` (e.g. `Vishwanath Nishad - Senior Backend Engineer.pdf`)
+     - Cover Letter: `<Candidate Name> - <Job Profile> - Cover Letter.pdf` (e.g. `Vishwanath Nishad - Senior Backend Engineer - Cover Letter.pdf`)
+   - Propagated through handoff kit, document storage metadata, download endpoints (`Content-Disposition: attachment; filename="..."`), and Chrome downloads.
+   - Completely froze LaTeX templates, fonts, margins (0.52in), scoring, and 1-page budgets.
+7. **Identity Integrity (Part 22):**
+   - Maintained P60 canonical identity resolution: authenticated user -> candidate -> canonical profile (`Vishwanath Nishad`, `vishwanatnishad@gmail.com`). Zero mock emails, zero client-side fake detection.
+
+**Verification & Test Results:**
+- `tests/unit/p61-calm-workflow-and-ui.test.js`: **20/20 PASS (100% across all 45 Part 23 items)**
+  1. Background detection: Job A active, detector sees Job A again -> nothing changes, no noise.
+  2. Detector sees Job B while Job A active/analyzed/ready -> Job A preserved, Job B pending, zero auto-actions.
+  3. Repeated Job B detection creates only ONE pending notification (no spam).
+  4. Rescan switches active workflow to Job B, clears pending job, advances generation, zero destructive calls.
+  5. Previous Application A remains intact; old applicationId is not reused for Job B.
+  6. Reset returns extension to IDLE, clears active pointers, does not delete Application A or any artifacts.
+  7. Active workflow and pending job survive reload; pending job NEVER auto-promoted.
+  8. Tab B cannot inherit Tab A locked application; Reset in Tab A does not delete Tab B data.
+  9. Canonical filenames generated deterministically, sanitized against traversal and illegal characters.
+  10. Filenames propagate through handoff and download headers without altering application identity or idempotency.
+  11. UI translations verified: human state labels, no raw diagnostic pills, emoji noise eliminated, Rescan secondary, Reset distinct.
+- **Regression Test Suites:**
+  - `p60-identity-and-workflow-lock.test.js`: **22/22 PASS**
+  - `p59-sidebar-workflow.test.js`: **18/18 PASS**
+  - `p57-extension-architecture.test.js`: **6/6 PASS**
+  - `p58-canonical-fit-engine.test.js`: **6/6 PASS**
+  - `p58-portal-detection.test.js`: **6/6 PASS**
+  - `canonical-email-resolution.test.js`: **7/7 PASS**
+  - `application-handoff.test.js`: **7/7 PASS**
+  - **Total Passing Tests:** **86 unit tests PASS (0 Failures)**
+- **Real Chrome MV3 E2E Verification (`scripts/verify-p61-real-chrome.mjs`):**
+  - Automated 36 real Chrome browser steps using real extension and live database session:
+    - Steps 1-2: Authenticate and verify canonical user identity (`Vishwanath Nishad`, `vishwanatnishad@gmail.com`).
+    - Steps 3-5: Detect Job A ("Senior Backend Engineer"), analyze match score (11).
+    - Steps 6-8: Prepare handoff kit -> Application A ID `87309ca9-a4be-4b64-b950-4b29e37b1347`, verify canonical resume download header (`Content-Disposition: attachment; filename="Vishwanath Nishad - Senior Backend Engineer.pdf"`).
+    - Steps 9-17: Navigate to Job B ("Staff Platform Architect") -> Job A active workflow preserved intact, single minimal "New job detected" banner displayed, Rescan button present.
+    - Steps 18-21: Click Rescan -> switches active workflow to Job B, pending banner hidden, Application A verified intact in PostgreSQL database. Analyzed Job B.
+    - Steps 22-25: Close and reopen sidebar -> Job B workflow restored accurately.
+    - Steps 26-33: Click Reset Workflow -> extension workflow returns to IDLE, ZERO deletion of Application A records or artifacts.
+    - Steps 34-36: Detect Job C ("AI Solutions Engineer") -> starts genuinely new workflow, Application A verified intact.
+  - Output: `ALL PART 61 REAL CHROME ACCEPTANCE VERIFICATIONS PASSED 100%`.
+- **Database & MCP Data Integrity Audit (Part 26):**
+  - Captured exact application baseline: ID `87309ca9-a4be-4b64-b950-4b29e37b1347`, status `SAVED`, resume and cover letter present.
+  - Re-queried database after Rescan, after Reset, and after Job C detection: all records, hashes, and artifacts remained intact without modification.
+- **Visual Artifacts Captured:**
+  - `p61-01-canonical-identity.png`: Clean authenticated identity header and READY state.
+  - `p61-02-normal-current-workflow.png`: Job A detected with dominant primary "Analyze Job Match" CTA.
+  - `p61-03-application-ready.png`: Application ready with subtle "Workflow protected" badge.
+  - `p61-04-pending-new-job-notification.png`: Calm minimal banner showing "New job detected • Staff Platform Architect" with secondary `[Rescan]` button while preserving Job A.
+  - `p61-05-rescan-state.png`: Clean active Job B after explicit user Rescan.
+  - `p61-06-reset-idle-state.png`: Clean IDLE state ready for fresh detection with zero data loss.
+
 ### PART 60: Canonical User Identity & Terminal Extension Workflow Lock
 
 **Status:** COMPLETE & VERIFIED  
