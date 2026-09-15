@@ -121,7 +121,6 @@ class SidebarController {
       matchedSkillsList: document.getElementById('matchedSkillsList'),
       missingSkillsList: document.getElementById('missingSkillsList'),
       analysisNextActionBox: document.getElementById('analysisNextActionBox'),
-      ctaPrepareHandoffBtn: document.getElementById('ctaPrepareHandoffBtn'),
 
       // Recommended Projects Card
       projectsCard: document.getElementById('projectsCard'),
@@ -203,16 +202,6 @@ class SidebarController {
 
     this.elements.retryAnalysisBtn?.addEventListener('click', async () => {
       await this.runAnalyzeJob();
-    });
-
-    // Primary Next Action CTA in Analysis Card (deprecated in P62 in favor of single authoritative CTA)
-    this.elements.ctaPrepareHandoffBtn?.addEventListener('click', async () => {
-      const handoffState = this.getHandoffState();
-      if (handoffState === 'EXISTING') {
-        await this.viewHandoffKit();
-      } else {
-        await this.runPrepareHandoff();
-      }
     });
 
     // Single Authoritative Handoff CTA (P62)
@@ -1209,7 +1198,6 @@ class SidebarController {
 
     if (this.elements.prepareHandoffBtn) this.elements.prepareHandoffBtn.disabled = true;
     if (this.elements.regenerateHandoffBtn) this.elements.regenerateHandoffBtn.disabled = true;
-    if (this.elements.ctaPrepareHandoffBtn) this.elements.ctaPrepareHandoffBtn.disabled = true;
     this.elements.prepareSpinner?.classList.remove('hidden');
     if (this.elements.prepareBtnText) {
       this.elements.prepareBtnText.textContent = isRegen ? 'Regenerating Handoff Kit...' : 'Preparing Handoff Kit...';
@@ -1265,7 +1253,6 @@ class SidebarController {
     } finally {
       if (this.elements.prepareHandoffBtn) this.elements.prepareHandoffBtn.disabled = false;
       if (this.elements.regenerateHandoffBtn) this.elements.regenerateHandoffBtn.disabled = false;
-      if (this.elements.ctaPrepareHandoffBtn) this.elements.ctaPrepareHandoffBtn.disabled = false;
       this.elements.prepareSpinner?.classList.add('hidden');
       if (this.elements.prepareBtnText) {
         const isExisting = Boolean(this.cachedState?.handoffData && this.cachedState?.applicationId);

@@ -889,7 +889,12 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error('\n❌ VERIFICATION SCRIPT FAILED:', err);
-  process.exit(1);
-});
+run()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('\n❌ VERIFICATION SCRIPT FAILED:', err);
+    process.exit(1);
+  });
+

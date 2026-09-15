@@ -315,6 +315,74 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
       assert.strictEqual(detection.detected, true);
       assert.strictEqual(detection.jobData.title, 'Lead Infrastructure Engineer');
     });
+
+    it('strictly rejects non-JobPosting JSON-LD (Article, WebSite, Product, Organization)', () => {
+      const nonJobSchemas = [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Article',
+          headline: '10 Tips for Software Architecture in 2026',
+          title: '10 Tips for Software Architecture in 2026',
+          description: 'A comprehensive guide to modern distributed architectures.',
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: 'TechBlog World',
+          description: 'The latest news and insights in enterprise software.',
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: 'CloudScale Database Server',
+          description: 'High performance database engine for modern cloud applications.',
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: 'Acme Technologies',
+          description: 'Global provider of enterprise cloud solutions.',
+        },
+      ];
+
+      for (const schema of nonJobSchemas) {
+        const dom = createMockDocument({
+          scripts: [schema],
+          bodyText: `${schema.title || schema.name} - ${schema.description}`,
+        });
+        const url = 'https://techblog.example.com/posts/architecture-2026';
+
+        const canHandle = GenericCareerPageAdapter.canHandle(dom, url);
+        assert.strictEqual(canHandle, false, `Generic adapter should reject non-JobPosting @type=${schema['@type']}`);
+
+        const portalId = AdapterRegistry.resolvePortalIdentity(url, dom);
+        assert.notStrictEqual(portalId.portalName, 'Structured Web Page (JSON-LD JobPosting)');
+
+        const detection = JobDetectionEngine.evaluate(dom, url);
+        assert.strictEqual(detection.detected, false);
+      }
+    });
+
+    it('positively detects JobPosting with schema URI or array types', () => {
+      const schemaUriJob = {
+        '@context': 'https://schema.org',
+        '@type': 'https://schema.org/JobPosting',
+        title: 'Principal Systems Architect',
+        description: 'Design and build next-generation distributed transaction systems.',
+        hiringOrganization: { name: 'HyperScale Systems' },
+      };
+
+      const dom = createMockDocument({
+        scripts: [schemaUriJob],
+        bodyText: 'Careers at HyperScale Systems',
+      });
+      const url = 'https://hyperscale.io/careers/principal-architect';
+
+      assert.strictEqual(GenericCareerPageAdapter.canHandle(dom, url), true);
+      const detection = JobDetectionEngine.evaluate(dom, url);
+      assert.strictEqual(detection.detected, true);
+      assert.strictEqual(detection.jobData.title, 'Principal Systems Architect');
+    });
   });
 
   describe('3. Local-Only Detection & Strict Server Call Boundary (Parts 1 & 2 & 15 & 18)', () => {

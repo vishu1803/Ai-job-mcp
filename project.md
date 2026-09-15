@@ -3,6 +3,31 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-15*
 
+### PART 64: Minimal Detection Hardening & Stale Handoff Cleanup
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-15  
+**Scope:** Schema.org `JobPosting` Structured Data Validation Hardening, Rejection of Non-Job JSON-LD (`Article`, `WebSite`, `Product`, `Organization` with title/name/description), Preserved LinkedIn and Portal JSON-LD Invariants, Removal of Stale P62 `ctaPrepareHandoffBtn` References and Listeners, Single Primary Handoff CTA Preservation, Zero Network Calls on Passive Detection/Rescan, Exactly 1 Server Call on Explicit Analyze, Two-Tab Independent Workflow Isolation, 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Hardened the local detection pipeline and purged dead UI references following P63 acceptance verification:
+1. **JSON-LD `JobPosting` Hardening:**
+   - Implemented `isJobPostingType(type)` and `isJobPostingObject(obj)` in `extension/job-detection/json-ld.js` to strictly validate schema `@type` against `JobPosting`, `https://schema.org/JobPosting`, `schema:JobPosting`, and array definitions.
+   - Refactored `GenericCareerPageAdapter.extractJsonLd(doc)` to delegate to `extractJobPostingJsonLd(doc)` and added `GenericCareerPageAdapter.isJobPosting(item)`.
+   - Updated `GenericCareerPageAdapter.canHandle(doc, url)` and `extract(doc, url)` to require positive verification via `isJobPosting(jsonLd)`.
+   - Updated `AdapterRegistry.resolvePortalIdentity(url, doc)` to require `isJobPosting` validation on extracted JSON-LD, strictly preventing non-job structured pages (such as news articles, blogs, e-commerce products, or corporate sites with `title`, `name`, or `description`) from being classified as job postings.
+   - Preserved all existing LinkedIn and ATS portal JSON-LD behavior.
+2. **Stale Handoff Code Elimination:**
+   - Completely removed unused `ctaPrepareHandoffBtn` references and event listeners from `extension/sidebar/sidebar.js`.
+   - Preserved single authoritative primary handoff CTA in `#handoffCard` without introducing any secondary or duplicate CTA buttons.
+3. **Verification & Regression Results:**
+   - Added unit test coverage for non-JobPosting JSON-LD rejection and schema URI JobPosting acceptance.
+   - Ran full unit test suite (`P57–P63`): **121/121 PASS (0 failures, 100% pass rate)**.
+   - Executed real Chrome MV3 CDP verification script (`scripts/verify-p63-real-chrome.mjs`): **10/10 E2E flows PASSED** including ChatGPT non-job rejection, LinkedIn feed rejection, LinkedIn Job A detection, explicit single-call analyze with double-click protection, SPA navigation with pending notice, rescan promotion, two-tab workflow isolation, and tab-scoped reset.
+
+---
+
 ### PART 63: Accurate Job Detection, Tab-Scoped Workflows, Explicit Analyze Boundary & Calm Extension UX
 
 **Status:** COMPLETE & VERIFIED  

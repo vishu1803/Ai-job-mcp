@@ -6,7 +6,19 @@
  * via schema.org/JobPosting JSON-LD, OpenGraph metadata, and semantic DOM parsing.
  */
 
+import { extractJobPostingJsonLd, isJobPostingObject } from '../json-ld.js';
+
 export class GenericCareerPageAdapter {
+  /**
+   * Checks whether an object represents a schema.org JobPosting.
+   *
+   * @param {unknown} item
+   * @returns {boolean}
+   */
+  static isJobPosting(item) {
+    return isJobPostingObject(item);
+  }
+
   static KNOWN_PORTAL_HOSTS = [
     'linkedin.com',
     'greenhouse.io',
@@ -83,7 +95,7 @@ export class GenericCareerPageAdapter {
     // 1. Check for schema.org/JobPosting JSON-LD structured data (strongest positive signal)
     if (doc && typeof doc.querySelectorAll === 'function') {
       const jsonLd = GenericCareerPageAdapter.extractJsonLd(doc);
-      if (jsonLd && (jsonLd.title || jsonLd.name || jsonLd.description)) {
+      if (jsonLd && GenericCareerPageAdapter.isJobPosting(jsonLd) && (jsonLd.title || jsonLd.name || jsonLd.description)) {
         return true;
       }
     }
@@ -159,26 +171,7 @@ export class GenericCareerPageAdapter {
    * @returns {object|null}
    */
   static extractJsonLd(doc) {
-    const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
-    for (const script of scripts) {
-      try {
-        const text = script.textContent.trim();
-        if (!text) continue;
-        const parsed = JSON.parse(text);
-        if (parsed['@type'] === 'JobPosting') return parsed;
-        if (Array.isArray(parsed)) {
-          const found = parsed.find((item) => item?.['@type'] === 'JobPosting');
-          if (found) return found;
-        }
-        if (parsed['@graph'] && Array.isArray(parsed['@graph'])) {
-          const found = parsed['@graph'].find((item) => item?.['@type'] === 'JobPosting');
-          if (found) return found;
-        }
-      } catch {
-        /* ignore JSON parse errors in inline scripts */
-      }
-    }
-    return null;
+    return extractJobPostingJsonLd(doc);
   }
 
   /**
@@ -212,7 +205,7 @@ export class GenericCareerPageAdapter {
   static extract(doc, url) {
     // 1. Try structured JSON-LD first
     const jsonLd = GenericCareerPageAdapter.extractJsonLd(doc);
-    if (jsonLd) {
+    if (jsonLd && GenericCareerPageAdapter.isJobPosting(jsonLd)) {
       const title = jsonLd.title || jsonLd.name || '';
       let company = '';
       if (typeof jsonLd.hiringOrganization === 'string') {

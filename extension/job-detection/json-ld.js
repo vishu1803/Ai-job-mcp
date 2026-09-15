@@ -8,6 +8,35 @@
  */
 
 /**
+ * Checks whether a schema.org @type value represents a JobPosting.
+ *
+ * @param {unknown} type
+ * @returns {boolean}
+ */
+export function isJobPostingType(type) {
+  if (!type) return false;
+  if (typeof type === 'string') {
+    const clean = type.trim();
+    return clean === 'JobPosting' || clean.endsWith('/JobPosting') || clean === 'schema:JobPosting';
+  }
+  if (Array.isArray(type)) {
+    return type.some(isJobPostingType);
+  }
+  return false;
+}
+
+/**
+ * Checks whether an object represents a schema.org JobPosting.
+ *
+ * @param {unknown} obj
+ * @returns {boolean}
+ */
+export function isJobPostingObject(obj) {
+  if (!obj || typeof obj !== 'object') return false;
+  return isJobPostingType(obj['@type']);
+}
+
+/**
  * Finds the first JSON-LD `JobPosting` object in the document.
  *
  * Handles: direct object, top-level arrays, and `@graph` wrappers.
@@ -16,20 +45,23 @@
  * @returns {object|null} JobPosting object or null
  */
 export function extractJobPostingJsonLd(doc) {
-  if (!doc || typeof doc.querySelectorAll !== 'function') return null;
-  const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+  if (!doc) return null;
+  const scripts = typeof doc.querySelectorAll === 'function'
+    ? Array.from(doc.querySelectorAll('script[type="application/ld+json"]') || [])
+    : (typeof doc.querySelector === 'function' ? [doc.querySelector('script[type="application/ld+json"]')].filter(Boolean) : []);
+
   for (const script of scripts) {
     try {
-      const text = script.textContent.trim();
+      const text = script?.textContent?.trim();
       if (!text) continue;
       const parsed = JSON.parse(text);
-      if (parsed?.['@type'] === 'JobPosting') return parsed;
+      if (isJobPostingObject(parsed)) return parsed;
       if (Array.isArray(parsed)) {
-        const found = parsed.find((item) => item?.['@type'] === 'JobPosting');
+        const found = parsed.find(isJobPostingObject);
         if (found) return found;
       }
       if (parsed?.['@graph'] && Array.isArray(parsed['@graph'])) {
-        const found = parsed['@graph'].find((item) => item?.['@type'] === 'JobPosting');
+        const found = parsed['@graph'].find(isJobPostingObject);
         if (found) return found;
       }
     } catch {

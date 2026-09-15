@@ -19,6 +19,7 @@ import { HirectAdapter } from './adapters/hirect.adapter.js';
 import { CutshortAdapter } from './adapters/cutshort.adapter.js';
 import { InstahyreAdapter } from './adapters/instahyre.adapter.js';
 import { GenericCareerPageAdapter } from './adapters/generic-career.adapter.js';
+import { isJobPostingObject } from './json-ld.js';
 
 export const KNOWN_PORTAL_CAPABILITIES = {
   GREENHOUSE: {
@@ -296,7 +297,7 @@ export class AdapterRegistry {
       if (typeof doc.querySelectorAll === 'function') {
         try {
           const jsonLd = GenericCareerPageAdapter.extractJsonLd(doc);
-          if (jsonLd && (jsonLd.title || jsonLd.name || jsonLd.description)) {
+          if (jsonLd && GenericCareerPageAdapter.isJobPosting(jsonLd) && (jsonLd.title || jsonLd.name || jsonLd.description)) {
             hasJobPostingJsonLd = true;
           }
         } catch {
@@ -309,8 +310,11 @@ export class AdapterRegistry {
           if (scriptEl.textContent) {
             try {
               const parsed = JSON.parse(scriptEl.textContent.trim());
-              const type = parsed?.['@type'];
-              if (type === 'JobPosting' || (Array.isArray(type) && type.includes('JobPosting'))) {
+              if (
+                isJobPostingObject(parsed) ||
+                (Array.isArray(parsed) && parsed.some(isJobPostingObject)) ||
+                (parsed?.['@graph'] && parsed['@graph'].some(isJobPostingObject))
+              ) {
                 hasJobPostingJsonLd = true;
               }
             } catch {
