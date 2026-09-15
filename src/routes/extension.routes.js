@@ -27,6 +27,7 @@ import {
 import { validateSession, getSessionCookieOptions } from '../security/session.service.js';
 import { config } from '../config/env.js';
 import { normalizeJobUrl, deriveCanonicalJobId } from '../utils/url-normalizer.js';
+import { resolveCandidateEmail } from '../utils/candidate-email-resolver.js';
 import { generateCanonicalJobId } from '../services/job-discovery.service.js';
 import { SecretScrubber } from '../extractors/github/security/secret-scrubber.js';
 import { JobApplicationWorkflowService } from '../services/job-application-workflow.service.js';
@@ -344,6 +345,8 @@ export default async function extensionRoutes(app, opts = {}) {
 
     const { user, tenant } = sessionContext;
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const resolvedCanonicalEmail =
+      resolveCandidateEmail(candidate, user.email, { allowNullable: true }) || user.email;
 
     return reply.send({
       status: 'AUTHENTICATED',
@@ -361,7 +364,7 @@ export default async function extensionRoutes(app, opts = {}) {
       candidate: {
         id: candidate.id,
         displayName: candidate.displayName,
-        canonicalEmail: candidate.canonicalEmail,
+        canonicalEmail: resolvedCanonicalEmail,
         status: candidate.status,
         isConnected: true,
       },

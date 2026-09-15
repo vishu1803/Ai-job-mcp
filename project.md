@@ -3,6 +3,82 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-15*
 
+### PART 60: Canonical User Identity & Terminal Extension Workflow Lock
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-15  
+**Scope:** Canonical User Identity Server-Side Resolution (Tenant/User Scoped, Zero Synthetic Email Filtering, Zero Mock Leakage), Terminal Extension Workflow Lock (`APPLICATION_READY` + `LOCKED`), Durable Lock Persistence, Multi-Tab / Multi-User Isolation, Non-Destructive Reset Workflow Semantics  
+**Branch:** `main`  
+
+**Executive Summary:**
+Implemented Part 60 as a thin extension/workflow completion layer over the existing MCP application architecture, preserving all existing P57, P58, and P59 contracts without introducing parallel business logic or second databases/engines:
+1. **PART A — Canonical User Identity Architecture:**
+   - **Root Cause & Fix:** Resolved the identity-integrity defect where authenticated candidates with synthetic fallback emails in `candidates.canonical_email` leaked mock emails (`vishw@example.com`) to the client.
+   - **Server-Side Canonical Invariant:** Replaced raw fallback with server-side resolution via `resolveCandidateEmail(candidate, user.email, { allowNullable: true }) || user.email` in `src/routes/extension.routes.js` (`GET /api/extension/session` and alias `/auth-status`).
+   - **Tenant & User Scoping:** Strict chain: `Authenticated Session -> Authenticated User -> User-to-Candidate Relationship -> Canonical Candidate -> Canonical Profile -> Sidebar Identity`. Zero first-user/first-candidate fallback, zero fixed UUIDs, zero hardcoding of names/emails in production code.
+   - **Extension Client Discipline:** Removed client-side `isSynthetic(email)` filtering. The extension strictly displays server-returned canonical identity. When unauthenticated: `userName = '—'`, `userEmail = '—'`, `currentUser = null`. Zero mock or cached candidate identity remains visible upon logout or session expiry.
+2. **PART B — Terminal Extension Workflow Lock (`APPLICATION_READY` + `LOCKED`):**
+   - **Terminal Lock State:** When handoff preparation succeeds, the workflow transitions to `APPLICATION_READY` with `lockState = 'LOCKED'` and `isLocked = true`.
+   - **Lock Invariant:** Once locked, the extension workflow is immutable against external page events. URL navigation, SPA route changes, DOM mutations, new jobs appearing in DOM, detector polling, active tab switching, and browser refresh are observed internally but MUST NOT overwrite the active workflow, trigger new analyses, or create duplicate applications.
+   - **Durable Lock Persistence:** Supported in `DurableWorkflowStore` (`chrome.storage.local`). The lock survives sidebar close/reopen, page refresh, SPA navigation, and session expiration.
+   - **Authentication + Lock Interaction:** Expiration of an authentication session switches UI to unauthenticated notice but preserves the locked workflow intact. Upon re-authentication, `APPLICATION_READY` + `LOCKED` is fully restored.
+3. **PART C — Reset Workflow Semantics (Non-Destructive Extension Workflow Reset):**
+   - **Explicit Invariant:** `RESET WORKFLOW != DELETE APPLICATION`, `RESET WORKFLOW != DELETE DATABASE DATA`, and `RESET WORKFLOW != REMOVE FROM MCP APPLICATION LIST`.
+   - **Reset Implementation:** `resetWorkflow(tabId)` in `DurableWorkflowStore` increments `workflowGeneration`, clears only the extension tab's active workflow pointer, resets the state machine to `IDLE`, and unlocks detection.
+   - **Zero Destructive Calls:** Zero `DELETE` calls to the database or backend. Previous applications, resumes, cover letters, handoff packages, and MCP application list records remain completely intact in PostgreSQL.
+   - **Stale Event Protection:** Incremented generation/epoch ensures that detector events belonging to previous generations cannot resurrect old jobs or overwrite fresh workflows.
+4. **PART D — Multi-User & Multi-Tab Isolation:**
+   - Tabs are strictly isolated: Tab A reaching `LOCKED` on Job A does not bleed into Tab B.
+   - Resetting Tab A does not destroy Tab B's active workflow or application data.
+   - User A cannot load or restore User B's locked workflow.
+5. **Sidebar UI Alignment:**
+   - Added prominent lock badge `#workflowLockedBadge` ("🔒 Locked") in the status bar.
+   - Added `#workflowLockBanner` ("Application Ready • Workflow Locked: Navigation will not replace this application") with `#resetWorkflowBtn`.
+   - Disabled re-analyze and re-detect controls while locked.
+
+**Verification & Test Results:**
+- `tests/unit/p60-identity-and-workflow-lock.test.js`: **22/22 PASS**
+  - Canonical candidate email resolution from authenticated user relationship.
+  - Candidate lookup follows authenticated user relationship with no first-user fallback.
+  - Sidebar displays server-returned canonical email directly without client synthetic-email substitution.
+  - Logout clears authenticated identity (`userName = —`, `userEmail = —`, `currentUser = null`).
+  - Session expiry does not replace identity with mock data.
+  - Re-authentication restores canonical identity.
+  - Successful handoff produces `APPLICATION_READY` + `LOCKED` in both stateMachine and durable store.
+  - Locked workflow cannot be replaced by URL navigation (`reconcileNavigation`).
+  - Locked workflow cannot be replaced by SPA navigation.
+  - Locked workflow cannot be replaced by detector events.
+  - Sidebar reload restores locked workflow.
+  - Browser refresh preserves locked workflow in `DurableWorkflowStore`.
+  - Session expiry preserves locked workflow.
+  - Re-authentication restores locked workflow.
+  - Reset returns extension workflow to `IDLE` and clears only extension active state.
+  - Reset does NOT delete application, resume, cover letter, handoff kit, or MCP Application List records.
+  - After reset, fresh detection is allowed.
+  - Old detector events cannot resurrect previous workflow (generation check).
+  - New workflow does not inherit old `applicationId`.
+  - User A cannot restore User B locked workflow (multi-user isolation).
+  - Tab B cannot inherit Tab A unrelated locked workflow.
+  - Reset in Tab A does not delete Tab B persisted application data.
+- **Full Regression Test Suite:** **67/67 PASS** across:
+  - `tests/unit/p60-identity-and-workflow-lock.test.js` (22 tests)
+  - `tests/unit/p59-sidebar-workflow.test.js` (17 tests)
+  - `tests/unit/p58-canonical-fit-engine.test.js` (6 tests)
+  - `tests/unit/p58-portal-detection.test.js` (6 tests)
+  - `tests/unit/p57-extension-architecture.test.js` (7 tests)
+  - `tests/unit/canonical-email-resolution.test.js` (9 tests)
+- **Real Chrome E2E Acceptance Verification (`scripts/verify-p60-real-chrome.mjs`):** **33/33 STEPS PASS (100%)**
+  - Real Google Chrome (`Chrome/152.0.7977.82`) running real MV3 extension with Chrome DevTools Protocol against real PostgreSQL backend and session infrastructure.
+  - Screenshots Captured:
+    1. `p60-01-canonical-identity.png`: Real canonical identity (`vishwanatnishad@gmail.com`) displayed without mock leakage.
+    2. `p60-02-application-ready.png`: Job A analyzed and prepared to `APPLICATION_READY`.
+    3. `p60-03-locked-workflow.png`: `lockState = 'LOCKED'`, lock banner & badge visible, re-detect controls disabled.
+    4. `p60-04-navigation-while-locked.png`: Navigation to Job B while locked strictly preserved Job A and Application A without duplicate applications.
+    5. `p60-05-restored-locked-workflow.png`: Close/reopen sidebar restored `APPLICATION_READY` + `LOCKED` workflow.
+    6. `p60-06-reset-state.png`: Reset Workflow cleanly returned extension to unlocked `IDLE` state.
+    7. `p60-07-old-app-available-after-reset.png`: Application A, resume, cover letter, and handoff package confirmed 100% intact in database.
+    8. `p60-08-new-workflow-after-reset.png`: Fresh detection of Job B allowed and analyzed independently; Application A untouched.
+
 ### PART 58: Canonical ATS Fit Analysis & Portal Identity Separation
 
 **Status:** COMPLETE & VERIFIED  

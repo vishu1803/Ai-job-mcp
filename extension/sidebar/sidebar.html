@@ -69,6 +69,7 @@
       <!-- State / Status Alert Bar -->
       <div id="workflowStatusBar" class="workflow-status-bar">
         <span id="workflowStateText" class="state-text">Ready</span>
+        <span id="workflowLockedBadge" class="workflow-locked-badge hidden">🔒 Workflow Locked</span>
         <span id="syncIndicator" class="sync-indicator synced" title="State synchronized">Durable State Synced</span>
       </div>
 
@@ -219,6 +220,19 @@
             <span class="telemetry-label">Package:</span>
             <span id="handoffPackageMeta" class="telemetry-value code-font">—</span>
           </div>
+        </div>
+
+        <!-- Terminal Workflow Lock Banner (Part 60-B) -->
+        <div id="workflowLockBanner" class="alert-banner lock-banner hidden">
+          <div class="alert-content">
+            <span class="alert-icon">🔒</span>
+            <div class="alert-text">
+              <strong>Application Ready • Workflow Locked</strong>
+              <p>Workflow Locked — navigation will not replace this application.</p>
+              <p class="lock-subtext">Resets only this extension workflow. Your saved application, resume, cover letter, and application data remain saved in the MCP application.</p>
+            </div>
+          </div>
+          <button id="resetWorkflowBtn" class="btn btn-outline btn-xs reset-workflow-btn" title="Reset workflow to begin analyzing a new job">Reset Workflow</button>
         </div>
 
         <!-- Handoff Error & Retry Banner -->

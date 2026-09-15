@@ -74,6 +74,7 @@ class SidebarController {
       // Status Bar
       workflowStatusBar: document.getElementById('workflowStatusBar'),
       workflowStateText: document.getElementById('workflowStateText'),
+      workflowLockedBadge: document.getElementById('workflowLockedBadge'),
       syncIndicator: document.getElementById('syncIndicator'),
 
       // Portal Card
@@ -122,6 +123,8 @@ class SidebarController {
       handoffTelemetryRow: document.getElementById('handoffTelemetryRow'),
       handoffAppId: document.getElementById('handoffAppId'),
       handoffPackageMeta: document.getElementById('handoffPackageMeta'),
+      workflowLockBanner: document.getElementById('workflowLockBanner'),
+      resetWorkflowBtn: document.getElementById('resetWorkflowBtn'),
       handoffErrorBanner: document.getElementById('handoffErrorBanner'),
       handoffErrorMessage: document.getElementById('handoffErrorMessage'),
       retryHandoffBtn: document.getElementById('retryHandoffBtn'),
@@ -150,7 +153,9 @@ class SidebarController {
       await this._checkBackendConnection();
       await this._checkAuthStatus();
       await this._syncActiveTab();
-      await this._requestDetectionFromTab();
+      if (!this.isWorkflowLocked()) {
+        await this._requestDetectionFromTab();
+      }
     });
 
     this.elements.loginBtn?.addEventListener('click', async () => {
@@ -166,10 +171,12 @@ class SidebarController {
     });
 
     this.elements.reanalyzeBtn?.addEventListener('click', async () => {
+      if (this.isWorkflowLocked()) return;
       await this._requestDetectionFromTab();
     });
 
     this.elements.analyzeJobBtn?.addEventListener('click', async () => {
+      if (this.isWorkflowLocked()) return;
       await this.runAnalyzeJob();
     });
 
@@ -214,19 +221,62 @@ class SidebarController {
       e.preventDefault();
       await this._openDashboardApplication();
     });
+
+    this.elements.resetWorkflowBtn?.addEventListener('click', async () => {
+      await this.resetWorkflow();
+    });
+  }
+
+  isWorkflowLocked() {
+    return (
+      this.stateMachine?.isLocked === true ||
+      this.cachedState?.lockState === 'LOCKED' ||
+      this.cachedState?.isLocked === true
+    );
   }
 
   _listenToRuntimeMessages() {
     if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-      chrome.runtime.onMessage.addListener((message) => {
+      chrome.runtime.onMessage.addListener((message, sender) => {
         if (message.type === 'ACTIVE_TAB_CHANGED') {
+          if (this.pinnedTabId) {
+            return;
+          }
           if (message.tabId && message.tabId !== this.activeTabId) {
             this.activeTabId = message.tabId;
             this._hydrateFromStore();
           }
         } else if (message.type === 'JOB_DETECTED_ON_PAGE') {
+          if (this.isWorkflowLocked()) {
+            return;
+          }
+          if (this.activeTabId && message.tabId && message.tabId !== this.activeTabId) {
+            return;
+          }
+          if (this.activeTabId && sender?.tab?.id && sender.tab.id !== this.activeTabId) {
+            return;
+          }
+          if (message.generation !== undefined && this.cachedState?.workflowGeneration !== undefined) {
+            if (message.generation < this.cachedState.workflowGeneration) {
+              return;
+            }
+          }
           this._handleJobDetectedEvent(message.jobData);
         } else if (message.type === 'APPLICATION_FORM_DETECTED') {
+          if (this.isWorkflowLocked()) {
+            return;
+          }
+          if (this.activeTabId && message.tabId && message.tabId !== this.activeTabId) {
+            return;
+          }
+          if (this.activeTabId && sender?.tab?.id && sender.tab.id !== this.activeTabId) {
+            return;
+          }
+          if (message.generation !== undefined && this.cachedState?.workflowGeneration !== undefined) {
+            if (message.generation < this.cachedState.workflowGeneration) {
+              return;
+            }
+          }
           this._handleFormDetectedEvent(message.formData);
         }
       });
@@ -235,6 +285,16 @@ class SidebarController {
 
   async _syncActiveTab() {
     try {
+      if (typeof window !== 'undefined' && window.location?.search) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramTabId = urlParams.get('tabId');
+        if (paramTabId) {
+          this.activeTabId = parseInt(paramTabId, 10) || paramTabId;
+          this.pinnedTabId = this.activeTabId;
+          return;
+        }
+      }
+
       if (typeof chrome !== 'undefined' && chrome.tabs?.query) {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) {
@@ -324,6 +384,8 @@ class SidebarController {
     } else {
       this.elements.authUnauthenticatedState?.classList.remove('hidden');
       this.elements.authAuthenticatedState?.classList.add('hidden');
+      if (this.elements.userName) this.elements.userName.textContent = '—';
+      if (this.elements.userEmail) this.elements.userEmail.textContent = '—';
     }
   }
 
@@ -359,22 +421,45 @@ class SidebarController {
   async _hydrateFromStore() {
     if (!this.activeTabId) return;
 
-    const durableState = await this.store.getTabState(this.activeTabId);
+    const currentUserId = this.currentUser?.id || null;
+    const durableState = await this.store.getTabState(this.activeTabId, currentUserId);
     if (durableState && durableState.jobData) {
       this.cachedState = durableState;
       this.activeJob = durableState.jobData;
       this.activeJobFingerprint = durableState.jobFingerprint;
       this.stateMachine.state = durableState.workflowState || WORKFLOW_STATES.JOB_DETECTED;
 
+      if (durableState.lockState === 'LOCKED' || durableState.isLocked === true) {
+        this.stateMachine.lock();
+      } else {
+        this.stateMachine.unlock();
+      }
+
       this._renderAllFromState(durableState);
     } else {
-      // Trigger injection and extraction on tab
-      await this._requestDetectionFromTab();
+      // Trigger injection and extraction on tab if not locked
+      if (!this.isWorkflowLocked()) {
+        await this._requestDetectionFromTab();
+      }
     }
   }
 
   async _requestDetectionFromTab() {
     if (!this.activeTabId) return;
+    if (this.isWorkflowLocked()) return;
+
+    if (this.activeTabId) {
+      const persisted = await this.store.getTabState(this.activeTabId);
+      if (this.store.isWorkflowLocked(persisted)) {
+        this.cachedState = persisted;
+        this.activeJob = persisted.jobData;
+        this.activeJobFingerprint = persisted.jobFingerprint;
+        this.stateMachine.state = persisted.workflowState;
+        this.stateMachine.lock();
+        this._renderAllFromState(persisted);
+        return;
+      }
+    }
 
     try {
       if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
@@ -401,9 +486,23 @@ class SidebarController {
   }
 
   async _handleJobDetectedEvent(jobData) {
+    if (this.isWorkflowLocked()) return;
     if (!jobData || !jobData.title) {
       this._renderEmptyJobState();
       return;
+    }
+
+    if (this.activeTabId) {
+      const persisted = await this.store.getTabState(this.activeTabId);
+      if (this.store.isWorkflowLocked(persisted)) {
+        this.cachedState = persisted;
+        this.activeJob = persisted.jobData;
+        this.activeJobFingerprint = persisted.jobFingerprint;
+        this.stateMachine.state = persisted.workflowState;
+        this.stateMachine.lock();
+        this._renderAllFromState(persisted);
+        return;
+      }
     }
 
     const fingerprint = JobIdentity.deriveJobFingerprint(jobData);
@@ -414,6 +513,10 @@ class SidebarController {
 
     let stateToSave = {
       tabId: this.activeTabId,
+      userId: this.currentUser?.id || null,
+      workflowGeneration: this.cachedState?.workflowGeneration || 1,
+      lockState: 'UNLOCKED',
+      isLocked: false,
       jobData,
       jobFingerprint: fingerprint,
       workflowState: existingJobState?.workflowState || WORKFLOW_STATES.JOB_DETECTED,
@@ -452,9 +555,27 @@ class SidebarController {
   }
 
   _renderAllFromState(state) {
-    this._renderWorkflowStatus(state.workflowState);
+    const isLocked = this.isWorkflowLocked() || state.lockState === 'LOCKED' || state.isLocked === true;
+
+    this._renderWorkflowStatus(state.workflowState, isLocked);
     this._renderPortalCard(state.portalMetadata || state.jobData?.portalMetadata);
     this._renderJobCard(state.jobData);
+
+    // Disable reanalyze and analyze controls when locked
+    if (this.elements.reanalyzeBtn) {
+      if (isLocked) {
+        this.elements.reanalyzeBtn.disabled = true;
+        this.elements.reanalyzeBtn.classList.add('disabled');
+      } else {
+        this.elements.reanalyzeBtn.disabled = false;
+        this.elements.reanalyzeBtn.classList.remove('disabled');
+      }
+    }
+    if (this.elements.analyzeJobBtn) {
+      if (isLocked) {
+        this.elements.analyzeJobBtn.disabled = true;
+      }
+    }
 
     // Render ATS Fit Analysis if present
     if (state.fitAnalysis) {
@@ -473,7 +594,7 @@ class SidebarController {
     // HARD INVARIANT: fitAnalysis exists -> ANALYSIS_READY -> Handoff Kit card is ALWAYS visible!
     // Never depends on portfolioRecommendations.featuredProjects or any secondary response.
     if (state.fitAnalysis || state.handoffData || state.applicationId) {
-      this._renderHandoffCard(state);
+      this._renderHandoffCard(state, isLocked);
     } else {
       this.elements.handoffCard?.classList.add('hidden');
     }
@@ -483,9 +604,17 @@ class SidebarController {
     }
   }
 
-  _renderWorkflowStatus(stateName) {
+  _renderWorkflowStatus(stateName, isLocked = false) {
     if (this.elements.workflowStateText) {
       this.elements.workflowStateText.textContent = stateName || 'READY';
+    }
+    const locked = isLocked || this.isWorkflowLocked();
+    if (this.elements.workflowLockedBadge) {
+      if (locked) {
+        this.elements.workflowLockedBadge.classList.remove('hidden');
+      } else {
+        this.elements.workflowLockedBadge.classList.add('hidden');
+      }
     }
   }
 
@@ -671,12 +800,19 @@ class SidebarController {
     }
   }
 
-  _renderHandoffCard(state) {
+  _renderHandoffCard(state, isLocked = false) {
     if (!this.elements.handoffCard) return;
     this.elements.handoffCard.classList.remove('hidden');
 
     const handoffData = state.handoffData;
     const appId = state.applicationId || handoffData?.applicationId;
+    const locked = isLocked || this.isWorkflowLocked() || state.lockState === 'LOCKED' || state.isLocked === true;
+
+    if (locked) {
+      this.elements.workflowLockBanner?.classList.remove('hidden');
+    } else {
+      this.elements.workflowLockBanner?.classList.add('hidden');
+    }
 
     if (handoffData && appId) {
       // Handoff is prepared
@@ -837,6 +973,9 @@ class SidebarController {
       if (result) {
         this.cachedState.handoffData = result;
         this.cachedState.applicationId = result.applicationId;
+        if (this.currentUser?.id) {
+          this.cachedState.userId = this.currentUser.id;
+        }
         if (result.analysisSnapshotId) {
           this.cachedState.analysisSnapshotId = result.analysisSnapshotId;
         }
@@ -844,7 +983,10 @@ class SidebarController {
           this.cachedState.recommendedProjects = result.recommendedProjects;
         }
         this.cachedState.workflowState = WORKFLOW_STATES.APPLICATION_READY;
+        this.cachedState.lockState = 'LOCKED';
+        this.cachedState.isLocked = true;
         this.stateMachine.state = WORKFLOW_STATES.APPLICATION_READY;
+        this.stateMachine.lock();
 
         await this.store.saveTabState(this.activeTabId, this.cachedState);
         this._renderAllFromState(this.cachedState);
@@ -907,6 +1049,35 @@ class SidebarController {
     if (typeof window !== 'undefined') {
       window.open(url, '_blank');
     }
+  }
+
+  async resetWorkflow() {
+    if (!this.activeTabId) return;
+
+    // Reset workflow in durable store (increments generation, clears active tab state, preserves DB)
+    const freshState = await this.store.resetWorkflow(this.activeTabId);
+
+    // Reset state machine
+    this.stateMachine.unlock();
+    this.stateMachine.reset();
+
+    // Clear controller active job and references
+    this.activeJob = null;
+    this.activeJobFingerprint = null;
+    this.cachedState = freshState;
+
+    // Reset UI
+    this.elements.workflowLockBanner?.classList.add('hidden');
+    this.elements.workflowLockedBadge?.classList.add('hidden');
+    if (this.elements.reanalyzeBtn) {
+      this.elements.reanalyzeBtn.disabled = false;
+      this.elements.reanalyzeBtn.classList.remove('disabled');
+    }
+    this._renderEmptyJobState();
+    this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
+
+    // Resume fresh job detection on current page
+    await this._requestDetectionFromTab();
   }
 
   async _openDashboardApplication() {

@@ -54,6 +54,11 @@ export class DurableWorkflowStore {
       version: 1,
       tabId,
       workflowState: WORKFLOW_STATES.IDLE,
+      lockState: 'UNLOCKED',
+      isLocked: false,
+      workflowGeneration: 1,
+      userId: null,
+      tenantId: null,
       jobIdentity: null,
       normalizedJob: null,
       fitAnalysis: null,
@@ -69,25 +74,61 @@ export class DurableWorkflowStore {
     };
   }
 
+  isWorkflowLocked(state) {
+    if (!state) return false;
+    return state.lockState === 'LOCKED' || state.isLocked === true;
+  }
+
   /**
    * Loads state for a given tab ID, attempting to recover by job fingerprint if available.
    *
    * @param {number|string} tabId
    * @returns {Promise<object>}
    */
-  async loadState(tabId) {
+  async loadState(tabId, currentUserId = null) {
     if (!tabId) return this.createInitialState();
 
     const tabState = await this._get(`${STORAGE_PREFIX_TAB}${tabId}`);
     if (tabState) {
+      // Multi-user safety: User A cannot restore User B's locked workflow
+      if (currentUserId && tabState.userId && tabState.userId !== currentUserId) {
+        return this.createInitialState(tabId);
+      }
       return tabState;
     }
 
     return this.createInitialState(tabId);
   }
 
-  async getTabState(tabId) {
-    return this.loadState(tabId);
+  async lockWorkflow(tabId) {
+    const state = await this.loadState(tabId);
+    state.lockState = 'LOCKED';
+    state.isLocked = true;
+    await this.saveState(tabId, state);
+    return state;
+  }
+
+  async unlockWorkflow(tabId) {
+    const state = await this.loadState(tabId);
+    state.lockState = 'UNLOCKED';
+    state.isLocked = false;
+    await this.saveState(tabId, state);
+    return state;
+  }
+
+  async resetWorkflow(tabId) {
+    const currentState = await this.loadState(tabId);
+    const nextGen = (currentState?.workflowGeneration || 1) + 1;
+    const newState = this.createInitialState(tabId);
+    newState.workflowGeneration = nextGen;
+    if (currentState?.userId) newState.userId = currentState.userId;
+    if (currentState?.tenantId) newState.tenantId = currentState.tenantId;
+    await this.saveState(tabId, newState);
+    return newState;
+  }
+
+  async getTabState(tabId, currentUserId = null) {
+    return this.loadState(tabId, currentUserId);
   }
 
   async getJobState(fingerprint) {
@@ -109,9 +150,18 @@ export class DurableWorkflowStore {
    */
   async saveState(tabId, state) {
     if (!state) return;
-    state.lastUpdated = new Date().toISOString();
 
     if (tabId) {
+      const existing = await this._get(`${STORAGE_PREFIX_TAB}${tabId}`);
+      if (
+        this.isWorkflowLocked(existing) &&
+        !this.isWorkflowLocked(state) &&
+        state.workflowState !== WORKFLOW_STATES.IDLE
+      ) {
+        // Locked workflow invariant: cannot be replaced by an unlocked job detection!
+        return;
+      }
+      state.lastUpdated = new Date().toISOString();
       await this._set(`${STORAGE_PREFIX_TAB}${tabId}`, state);
     }
 
@@ -141,6 +191,21 @@ export class DurableWorkflowStore {
     }
 
     const activeState = await this.loadState(tabId);
+
+    // TERMINAL WORKFLOW LOCK INVARIANT (Part 60):
+    // Once locked, URL navigation / SPA route changes / DOM jobs MUST NOT replace activeJob or mutate active workflow.
+    if (this.isWorkflowLocked(activeState)) {
+      return {
+        ...activeState,
+        state: activeState,
+        isNewJob: false,
+        reconciled: true,
+        isLocked: true,
+        lockState: 'LOCKED',
+        jobFingerprint: activeState.jobIdentity?.fingerprint || activeState.jobFingerprint,
+      };
+    }
+
     const trackedJob = activeState.normalizedJob || activeState.jobData;
 
     // If no active job was previously tracked and new job is found

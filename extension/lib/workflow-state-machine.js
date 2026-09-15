@@ -36,6 +36,8 @@ export const WORKFLOW_EVENTS = Object.freeze({
   FORM_FOUND: 'FORM_FOUND',
   FIELDS_MAPPED: 'FIELDS_MAPPED',
   REVIEW_COMPLETE: 'REVIEW_COMPLETE',
+  LOCK_WORKFLOW: 'LOCK_WORKFLOW',
+  UNLOCK_WORKFLOW: 'UNLOCK_WORKFLOW',
   RESET: 'RESET',
 });
 
@@ -116,6 +118,7 @@ export class WorkflowStateMachine {
     this.currentState = initialState;
     this.listener = listener;
     this.history = [initialState];
+    this.lockState = initialState === WORKFLOW_STATES.APPLICATION_READY ? 'LOCKED' : 'UNLOCKED';
   }
 
   get state() {
@@ -124,10 +127,30 @@ export class WorkflowStateMachine {
 
   set state(newState) {
     this.currentState = newState;
+    if (newState === WORKFLOW_STATES.APPLICATION_READY) {
+      this.lockState = 'LOCKED';
+    } else if (newState === WORKFLOW_STATES.IDLE) {
+      this.lockState = 'UNLOCKED';
+    }
+  }
+
+  get isLocked() {
+    return this.lockState === 'LOCKED';
+  }
+
+  lock() {
+    this.lockState = 'LOCKED';
+    return true;
+  }
+
+  unlock() {
+    this.lockState = 'UNLOCKED';
+    return true;
   }
 
   reset() {
     this.currentState = WORKFLOW_STATES.IDLE;
+    this.lockState = 'UNLOCKED';
     this.history.push(WORKFLOW_STATES.IDLE);
     return true;
   }
@@ -137,6 +160,16 @@ export class WorkflowStateMachine {
    */
   canTrigger(event) {
     if (event === WORKFLOW_EVENTS.RESET) return true;
+    if (this.isLocked) {
+      // While locked, detector/analysis events cannot mutate workflow; only reset or manual prepare allowed
+      return event === WORKFLOW_EVENTS.UNLOCK_WORKFLOW || event === WORKFLOW_EVENTS.START_PREPARE;
+    }
+    if (event === WORKFLOW_EVENTS.LOCK_WORKFLOW) {
+      return this.currentState === WORKFLOW_STATES.APPLICATION_READY;
+    }
+    if (event === WORKFLOW_EVENTS.UNLOCK_WORKFLOW) {
+      return this.isLocked;
+    }
     const allowed = VALID_TRANSITIONS[this.currentState] || [];
     return allowed.includes(event);
   }
@@ -187,6 +220,11 @@ export class WorkflowStateMachine {
       if (!this.canTransition(eventOrState)) {
         return false;
       }
+      if (eventOrState === WORKFLOW_STATES.APPLICATION_READY) {
+        this.lockState = 'LOCKED';
+      } else if (eventOrState === WORKFLOW_STATES.IDLE) {
+        this.lockState = 'UNLOCKED';
+      }
       const previousState = this.currentState;
       this.currentState = eventOrState;
       this.history.push(eventOrState);
@@ -233,9 +271,16 @@ export class WorkflowStateMachine {
         break;
       case WORKFLOW_EVENTS.PREPARE_SUCCESS:
         nextState = WORKFLOW_STATES.APPLICATION_READY;
+        this.lockState = 'LOCKED';
         break;
       case WORKFLOW_EVENTS.PREPARE_FAIL:
         nextState = WORKFLOW_STATES.ANALYSIS_READY;
+        break;
+      case WORKFLOW_EVENTS.LOCK_WORKFLOW:
+        this.lockState = 'LOCKED';
+        break;
+      case WORKFLOW_EVENTS.UNLOCK_WORKFLOW:
+        this.lockState = 'UNLOCKED';
         break;
       case WORKFLOW_EVENTS.ENTER_APPLICATION:
         nextState = WORKFLOW_STATES.IN_APPLICATION;
@@ -251,6 +296,7 @@ export class WorkflowStateMachine {
         break;
       case WORKFLOW_EVENTS.RESET:
         nextState = WORKFLOW_STATES.IDLE;
+        this.lockState = 'UNLOCKED';
         break;
       default:
         nextState = this.currentState;
