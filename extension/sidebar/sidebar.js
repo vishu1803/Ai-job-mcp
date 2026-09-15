@@ -55,6 +55,9 @@ class SidebarController {
 
     // Hydrate state from durable store
     await this._hydrateFromStore();
+
+    // Reconcile with real page in current active tab
+    await this._requestDetectionFromTab();
   }
 
   _bindElements() {
@@ -305,13 +308,24 @@ class SidebarController {
           }
           if (message.tabId && message.tabId !== this.activeTabId) {
             this.activeTabId = message.tabId;
-            this._hydrateFromStore();
+            this._clearTransientTabState();
+            (async () => {
+              await this._hydrateFromStore();
+              await this._requestDetectionFromTab();
+            })();
           }
-        } else if (message.type === 'JOB_DETECTED_ON_PAGE') {
-          if (this.activeTabId && message.tabId && message.tabId !== this.activeTabId) {
+        } else if (message.type === 'TAB_UPDATED') {
+          if (this.pinnedTabId && message.tabId !== this.pinnedTabId) {
             return;
           }
-          if (this.activeTabId && sender?.tab?.id && sender.tab.id !== this.activeTabId) {
+          if (message.tabId === this.activeTabId && (message.status === 'complete' || message.url)) {
+            (async () => {
+              await this._requestDetectionFromTab();
+            })();
+          }
+        } else if (message.type === 'JOB_DETECTED_ON_PAGE') {
+          const msgTabId = message.tabId || sender?.tab?.id;
+          if (this.activeTabId && msgTabId && msgTabId !== this.activeTabId) {
             return;
           }
           if (message.generation !== undefined && this.cachedState?.workflowGeneration !== undefined) {
@@ -323,29 +337,9 @@ class SidebarController {
             return;
           }
 
-          const detectedFingerprint = JobIdentity.deriveJobFingerprint(message.jobData);
-
-          // If same job detected as active workflow: do nothing, no notification, no replacement
-          if (this.activeJobFingerprint && detectedFingerprint === this.activeJobFingerprint) {
-            return;
-          }
-
-          // If an active workflow exists on this tab or state is locked:
-          // DO NOT replace active workflow
-          // DO NOT restart analysis
-          // DO NOT clear fit analysis / recommendations / applicationId
-          // DO NOT create another application
-          // Store as pending job and show minimal non-blocking notification
-          if (this.activeJob || this.isWorkflowLocked()) {
-            this.pendingDetectedJob = message.jobData;
-            this.pendingDetectedFingerprint = detectedFingerprint;
-            this.store.setPendingDetectedJob(this.activeTabId, message.jobData);
-            this._renderPendingJobNotification(message.jobData);
-            return;
-          }
-
-          // No active workflow exists (IDLE / empty): proceed with normal detection
-          this._handleJobDetectedEvent(message.jobData);
+          (async () => {
+            await this._reconcileDetectedJob(message.jobData);
+          })();
         } else if (message.type === 'APPLICATION_FORM_DETECTED') {
           if (this.isWorkflowLocked()) {
             return;
@@ -502,6 +496,21 @@ class SidebarController {
     // Note: Detected job on the current page remains visible.
   }
 
+  _clearTransientTabState() {
+    this.activeJob = null;
+    this.activeJobFingerprint = null;
+    this.pendingDetectedJob = null;
+    this.pendingDetectedFingerprint = null;
+    this.cachedState = null;
+    this.stateMachine.reset();
+    if (this.elements.jobTitle) this.elements.jobTitle.textContent = '—';
+    if (this.elements.jobCompany) this.elements.jobCompany.textContent = '—';
+    this._renderEmptyJobState();
+    this._hidePendingJobNotification();
+    this.elements.workflowLockBanner?.classList.add('hidden');
+    this.elements.workflowLockedBadge?.classList.add('hidden');
+  }
+
   async _hydrateFromStore() {
     if (!this.activeTabId) return;
 
@@ -536,31 +545,48 @@ class SidebarController {
     } else {
       this._renderEmptyJobState();
       this._renderWorkflowStatus(this.stateMachine.state, this.isWorkflowLocked());
-      if (!this.isWorkflowLocked()) {
-        await this._requestDetectionFromTab();
-      }
     }
   }
 
-  async _requestDetectionFromTab(isExplicitRescan = false) {
-    if (!this.activeTabId) return;
-    if (!isExplicitRescan && this.isWorkflowLocked()) return;
+  _reconcileDetectedJob(jobData) {
+    if (!jobData || !jobData.title) return;
+    const detectedFingerprint = JobIdentity.deriveJobFingerprint(jobData);
 
-    if (!isExplicitRescan && this.activeTabId) {
-      const persisted = await this.store.getTabState(this.activeTabId);
-      if (this.store.isWorkflowLocked(persisted)) {
-        this.cachedState = persisted;
-        this.activeJob = persisted.jobData;
-        this.activeJobFingerprint = persisted.jobFingerprint;
-        this.stateMachine.state = persisted.workflowState;
-        this.stateMachine.lock();
-        this._renderAllFromState(persisted);
-        return;
+    // If same job detected as active workflow: idempotent no-op, clear any matching pending notice
+    if (this.activeJobFingerprint && detectedFingerprint === this.activeJobFingerprint) {
+      if (this.pendingDetectedFingerprint === detectedFingerprint) {
+        this.pendingDetectedJob = null;
+        this.pendingDetectedFingerprint = null;
+        this.store.setPendingDetectedJob(this.activeTabId, null);
+        this._hidePendingJobNotification();
       }
+      return;
     }
 
+    // If an active workflow exists on this tab or state is locked on a different job:
+    // DO NOT replace active workflow
+    // DO NOT restart analysis
+    // Store as pending job and show minimal non-blocking notification
+    if (this.activeJob || this.isWorkflowLocked()) {
+      this.pendingDetectedJob = jobData;
+      this.pendingDetectedFingerprint = detectedFingerprint;
+      this.store.setPendingDetectedJob(this.activeTabId, jobData);
+      this._renderPendingJobNotification(jobData);
+      return;
+    }
+
+    // No active workflow exists (IDLE / empty): adopt as active job
+    this._handleJobDetectedEvent(jobData);
+  }
+
+  async _requestDetectionFromTab(isExplicitRescan = false) {
+    if (!this.activeTabId) return false;
+
+    const requestTabId = this.activeTabId;
+    const requestGeneration = this.cachedState?.workflowGeneration || 0;
+
     try {
-      const sendWithTimeout = (promise, ms = 2000) =>
+      const sendWithTimeout = (promise, ms = 2500) =>
         Promise.race([
           promise,
           new Promise((_, reject) => setTimeout(() => reject(new Error('Detection request timed out')), ms)),
@@ -570,45 +596,98 @@ class SidebarController {
         await sendWithTimeout(
           chrome.runtime.sendMessage({
             type: 'ENSURE_CONTENT_SCRIPT',
-            tabId: this.activeTabId,
+            tabId: requestTabId,
           })
         ).catch(() => null);
       }
 
+      // Check if user switched tabs while ENSURE_CONTENT_SCRIPT was in flight
+      if (this.activeTabId !== requestTabId) {
+        return false;
+      }
+
       if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
         const response = await sendWithTimeout(
-          chrome.tabs.sendMessage(this.activeTabId, {
+          chrome.tabs.sendMessage(requestTabId, {
             type: 'DETECT_JOB_PAGE',
           })
         ).catch(() => null);
+
+        // Check if user switched tabs while DETECT_JOB_PAGE was in flight
+        if (this.activeTabId !== requestTabId) {
+          return false;
+        }
+        if (!isExplicitRescan && (this.cachedState?.workflowGeneration || 0) > requestGeneration) {
+          return false;
+        }
 
         if (response && response.success && response.jobData) {
           if (isExplicitRescan) {
             await this._switchToJob(response.jobData);
           } else {
-            await this._handleJobDetectedEvent(response.jobData);
+            this._reconcileDetectedJob(response.jobData);
           }
+          return true;
+        } else if (response && response.detected === false) {
+          // Explicit confirmation from content script that current page is not a job
+          if (isExplicitRescan) {
+            this.pendingDetectedJob = null;
+            this.pendingDetectedFingerprint = null;
+            this.store.setPendingDetectedJob(requestTabId, null);
+            this._hidePendingJobNotification();
+
+            if (!this.isWorkflowLocked()) {
+              this.activeJob = null;
+              this.activeJobFingerprint = null;
+              this.stateMachine.reset();
+              if (this.cachedState) {
+                this.cachedState.jobData = null;
+                this.cachedState.jobFingerprint = null;
+                this.cachedState.workflowState = WORKFLOW_STATES.IDLE;
+                this.store.saveTabState(requestTabId, this.cachedState);
+              }
+              this._renderEmptyJobState();
+              this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
+            }
+          } else {
+            if (!this.activeJob && !this.isWorkflowLocked()) {
+              this._renderEmptyJobState();
+            }
+          }
+          return false;
+        } else if (isExplicitRescan && this.pendingDetectedJob) {
+          // Fallback for mocked test environments where DETECT_JOB_PAGE doesn't return jobData
+          const jobToSwitch = this.pendingDetectedJob;
+          await this._switchToJob(jobToSwitch);
+          return true;
         } else {
-          if (!this.activeJob) {
+          if (!this.activeJob && !this.isWorkflowLocked()) {
             this._renderEmptyJobState();
           }
+          return false;
         }
+      } else if (isExplicitRescan && this.pendingDetectedJob) {
+        const jobToSwitch = this.pendingDetectedJob;
+        await this._switchToJob(jobToSwitch);
+        return true;
       }
     } catch {
-      if (!this.activeJob) {
+      if (this.activeTabId === requestTabId && !this.activeJob && !this.isWorkflowLocked()) {
         this._renderEmptyJobState();
       }
+      return false;
     }
   }
 
   async rescan() {
-    if (this.pendingDetectedJob) {
-      const jobToSwitch = this.pendingDetectedJob;
-      await this._switchToJob(jobToSwitch);
-    } else {
-      await this._requestDetectionFromTab(true);
+    if (!this.activeTabId) {
+      await this._syncActiveTab();
     }
+    if (!this.activeTabId) return;
+
+    await this._requestDetectionFromTab(true);
   }
+
 
   async _switchToJob(newJob) {
     if (!newJob || !newJob.title) return;
@@ -870,6 +949,8 @@ class SidebarController {
     this.elements.projectsCard?.classList.add('hidden');
     this.elements.handoffCard?.classList.add('hidden');
     this.elements.formDetectionCard?.classList.add('hidden');
+    if (this.elements.jobTitle) this.elements.jobTitle.textContent = '—';
+    if (this.elements.jobCompany) this.elements.jobCompany.textContent = '—';
     this._renderWorkflowStatus('NO_JOB_DETECTED');
   }
 

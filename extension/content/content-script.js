@@ -24,6 +24,10 @@ if (!window.__aicareershub_content_script_loaded) {
         return;
       }
       lastNotifiedFingerprint = fp;
+      activeJobData = jobData;
+      if (navigationObserver) {
+        navigationObserver.setActiveJob(activeJobData);
+      }
 
       chrome.runtime.sendMessage({
         type: 'JOB_DETECTED_ON_PAGE',
@@ -127,13 +131,22 @@ if (!window.__aicareershub_content_script_loaded) {
 
       navigationObserver.start();
 
-      // Initial local detection on document idle
+      // Initial local detection on document idle (immediate and fallback for late hydration)
       setTimeout(async () => {
         const result = await performDetection();
         if (result.detected && result.jobData) {
           await notifyJobDetected(result.jobData);
         }
-      }, 300);
+      }, 100);
+
+      setTimeout(async () => {
+        if (!activeJobData) {
+          const result = await performDetection();
+          if (result.detected && result.jobData) {
+            await notifyJobDetected(result.jobData);
+          }
+        }
+      }, 500);
     } catch (err) {
       console.warn('Could not initialize NavigationObserver:', err);
     }
@@ -147,7 +160,15 @@ if (!window.__aicareershub_content_script_loaded) {
     }
 
     if (message.type === 'DETECT_JOB_PAGE') {
-      performDetection().then((res) => sendResponse(res));
+      performDetection().then((res) => {
+        if (res.detected && res.jobData) {
+          activeJobData = res.jobData;
+          if (navigationObserver) {
+            navigationObserver.setActiveJob(activeJobData);
+          }
+        }
+        sendResponse(res);
+      });
       return true;
     }
 

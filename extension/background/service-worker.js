@@ -70,7 +70,21 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
   }
 });
 
-// Listener for messages from popup or other extension pages
+// Forward active tab page reload or URL navigation
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' || changeInfo.url) {
+    chrome.runtime.sendMessage({
+      type: 'TAB_UPDATED',
+      tabId,
+      url: tab?.url || changeInfo.url,
+      status: changeInfo.status,
+    }).catch(() => {
+      // No listener active, ignore
+    });
+  }
+});
+
+// Listener for messages from popup, content scripts, or side panel
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'OPEN_SIDE_PANEL') {
     (async () => {
@@ -106,7 +120,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           return;
         }
 
-        // Check if content script is responsive
+        // Check if content script is already responsive
         try {
           const pong = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
           if (pong?.status === 'PONG') {
@@ -123,11 +137,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
 
         sendResponse({ success: true, injected: true });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
+      }
+    })();
+    return true;
+  }
+
   if (message.type === 'JOB_DETECTED_ON_PAGE') {
     (async () => {
       try {
         const tabId = sender?.tab?.id || message.tabId;
-        if (!tabId || !message.jobData) return;
+        if (!tabId || !message.jobData) {
+          sendResponse({ success: false, error: 'Missing tabId or jobData' });
+          return;
+        }
 
         const { DurableWorkflowStore } = await import('../lib/durable-workflow-store.js');
         const { JobIdentity } = await import('../lib/job-identity.js');
@@ -136,26 +160,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const isLocked = store.isWorkflowLocked(tabState);
         const hasActiveJob = Boolean(tabState?.jobData?.title);
+        const detectedFp = JobIdentity.deriveJobFingerprint(message.jobData);
+        const activeFp =
+          tabState?.jobFingerprint ||
+          (tabState?.jobData ? JobIdentity.deriveJobFingerprint(tabState.jobData) : null);
 
         if (isLocked || hasActiveJob) {
-          const activeFp = tabState.jobFingerprint || (tabState.jobData ? JobIdentity.deriveJobFingerprint(tabState.jobData) : null);
-          const detectedFp = JobIdentity.deriveJobFingerprint(message.jobData);
           if (detectedFp && detectedFp !== activeFp) {
             await store.setPendingDetectedJob(tabId, message.jobData);
           }
         } else {
-          const detectedFp = JobIdentity.deriveJobFingerprint(message.jobData);
           tabState.jobData = message.jobData;
           tabState.jobFingerprint = detectedFp;
           tabState.normalizedJob = message.jobData;
           tabState.workflowState = 'JOB_DETECTED';
           await store.saveTabState(tabId, tabState);
         }
-      } catch {
-        // Background persistence failures ignored
+
+        // Forward to runtime so sidebar is immediately aware of this tab's detection
+        chrome.runtime.sendMessage({
+          type: 'JOB_DETECTED_ON_PAGE',
+          tabId,
+          jobData: message.jobData,
+          url: message.url || sender?.tab?.url,
+          generation: tabState?.workflowGeneration || 0,
+        }).catch(() => {});
+
+        sendResponse({ success: true, tabId });
+      } catch (err) {
+        sendResponse({ success: false, error: err.message });
       }
     })();
-    return false;
+    return true;
   }
 });
+
 

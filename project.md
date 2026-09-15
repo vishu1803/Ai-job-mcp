@@ -1,7 +1,47 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-15*
+*Last Updated: 2026-09-16*
+
+### PART 65: Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Scope:** Single Source of Current Page Detection, Background Forwarding of Content Script Events, Tab Switch Real-Page Reconciliation, Prior Tab Transient State Cleanup (`_clearTransientTabState`), Page Reload Real-Page Reconciliation (`TAB_UPDATED` with Complete Status Handling without Timing Luck), Deterministic Manual Rescan (Ensures Content Script, Calls `DETECT_JOB_PAGE`, Immediate Reconciliation, Empty State on Non-Job), Resilient LinkedIn Adapter (`h2.job-details-jobs-unified-top-card__job-title`, `.jobs-details__main-content a[href*="/company/"]`, `article.jobs-description__container`, `/jobs/view/<id>`, `currentJobId` query parameter, Non-Job Section Rejection), Strict Server Boundary (Passive Detection/Tab Switch/Reload/Rescan = 0 `/api/extension/analyze-job` Calls, Explicit Analyze = Exactly 1 Call with Double-Click Protection), Race Condition Protection (Stale In-Flight Responses Discarded on Tab Switch via Generation & Tab ID Check), 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Resolved the real-world lifecycle and delivery synchronization issues across tabs, page reloads, and LinkedIn job detail panes:
+1. **Single Source of Current Page Detection:**
+   - Content script strictly owns local page detection and communicates via `JOB_DETECTED_ON_PAGE`.
+   - Background service worker persists detection state in `DurableWorkflowStore` and reliably forwards `JOB_DETECTED_ON_PAGE` events to the active sidebar runtime with tabId and workflow generation.
+   - Same-job detection remains strictly idempotent and prevents DOM thrashing.
+   - Detecting a different job while an active workflow exists preserves the active workflow and exposes the new job via the calm pending notification banner.
+2. **Deterministic Tab Switch Reconciliation:**
+   - On `ACTIVE_TAB_CHANGED`, the sidebar immediately wipes transient in-memory state of the prior tab via `_clearTransientTabState()`, resets title/company placeholders to clean defaults, hydrates target tab state from store, and requests fresh local detection from the active tab.
+   - If the active tab has a job and no workflow was started, it displays that job; if an active workflow exists, it displays that workflow; if on a non-job page, it cleanly renders the empty job state.
+3. **Deterministic Page Reload Reconciliation:**
+   - Background service worker observes tab reloads via `chrome.tabs.onUpdated` (`changeInfo.status === 'complete'`) and dispatches `TAB_UPDATED`.
+   - Sidebar handles `TAB_UPDATED` by querying the content script once page is ready, completely eliminating reliance on timing luck.
+4. **Deterministic Manual Rescan:**
+   - Manual Rescan always targets the current active tab, calls `ENSURE_CONTENT_SCRIPT` if needed, and dispatches `DETECT_JOB_PAGE`.
+   - If a job is detected on page: immediately updates and promotes active job and clears pending notification.
+   - If no job is detected on page: explicitly clears unlocked active job and renders empty state.
+   - Manual Rescan generates zero calls to `/api/extension/analyze-job` and causes zero automatic modifications to existing applications.
+5. **LinkedIn Delivery Fix:**
+   - Expanded resilient selectors in `LinkedInAdapter`:
+     - Title: `h2.job-details-jobs-unified-top-card__job-title`, `.jobs-details__main-content h1/h2`, `h1.topcard__title`, `h1.t-24`.
+     - Company: `.jobs-details__main-content a[href*="/company/"]`, `[data-tracking-control-name*="company"]`.
+     - Description: `article.jobs-description__container`, `.jobs-description__content`, `#job-details`.
+   - Seamlessly handles both canonical `/jobs/view/<id>` URLs and search listing pages with `currentJobId=<id>`.
+   - Strictly rejects non-job sections: `/feed`, `/in/`, `/messaging`, `/notifications`, `/mynetwork`.
+6. **Race Condition Protection:**
+   - If the user switches from Tab A to Tab B while Tab A detection is in flight, Tab A's response checks `this.activeTabId === requestTabId` and generation counter; stale responses are safely discarded without overwriting Tab B.
+7. **Verification & Regression Results:**
+   - Full Unit Test Suite (`P57–P65`): **134/134 PASS (0 failures, 100% pass rate)**.
+   - Real Chrome MV3 CDP verification script (`scripts/verify-p65-real-chrome.mjs`): **8/8 E2E checks PASSED**, verifying canonical authentication, zero passive server calls, clean tab switch reconciliation, reload re-detection, manual rescan promotion and clearing, double-click analyze guard, and state isolation.
+
+---
 
 ### PART 64: Minimal Detection Hardening & Stale Handoff Cleanup
 

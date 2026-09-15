@@ -114,20 +114,29 @@ export class LinkedInAdapter {
     }
 
     const titleEl =
+      doc.querySelector('h2.job-details-jobs-unified-top-card__job-title') ||
       doc.querySelector('.job-details-jobs-unified-top-card__job-title') ||
       doc.querySelector('.jobs-unified-top-card__job-title') ||
       doc.querySelector('h1.top-card-layout__title') ||
       doc.querySelector('.job-details-jobs-unified-top-card h1') ||
+      doc.querySelector('.job-details-jobs-unified-top-card h2') ||
       doc.querySelector('.jobs-details__main-content h1') ||
-      doc.querySelector('.top-card-layout__title') ||
-      doc.querySelector('h1');
+      doc.querySelector('.jobs-details__main-content h2') ||
+      doc.querySelector('.job-view-layout h1') ||
+      doc.querySelector('[data-view-name="job-details"] h1') ||
+      doc.querySelector('.jobs-search__job-details h1') ||
+      doc.querySelector('h1.topcard__title') ||
+      doc.querySelector('h1.t-24') ||
+      doc.querySelector('.top-card-layout__title');
 
     const companyEl =
       doc.querySelector('.job-details-jobs-unified-top-card__company-name') ||
       doc.querySelector('.jobs-unified-top-card__company-name') ||
       doc.querySelector('a.topcard__org-name-link') ||
       doc.querySelector('.topcard__flavor--black-link') ||
-      doc.querySelector('.job-details-jobs-unified-top-card__primary-description a');
+      doc.querySelector('.job-details-jobs-unified-top-card__primary-description a') ||
+      doc.querySelector('.jobs-details__main-content a[href*="/company/"]') ||
+      doc.querySelector('.jobs-details__main-content [data-tracking-control-name*="company"]');
 
     const locationEl =
       doc.querySelector('.job-details-jobs-unified-top-card__bullet') ||
@@ -140,7 +149,8 @@ export class LinkedInAdapter {
       doc.querySelector('#job-details') ||
       doc.querySelector('.jobs-description__content') ||
       doc.querySelector('.jobs-box__html-content') ||
-      doc.querySelector('.jobs-description');
+      doc.querySelector('.jobs-description') ||
+      doc.querySelector('article.jobs-description__container');
 
     const title = titleEl ? titleEl.textContent.trim() : '';
 
