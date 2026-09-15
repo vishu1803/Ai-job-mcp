@@ -79,7 +79,7 @@
       <div id="workflowStatusBar" class="workflow-status-bar">
         <span id="workflowStateText" class="state-text">Ready</span>
         <span id="workflowLockedBadge" class="workflow-locked-badge hidden">Workflow protected</span>
-        <span id="syncIndicator" class="sync-indicator synced" title="State synchronized">Synced</span>
+        <span id="syncIndicator" class="sync-indicator synced hidden" style="display: none;" title="State synchronized">Synced</span>
       </div>
 
       <!-- Portal & Adapter Information Card -->
@@ -88,9 +88,9 @@
           <div class="header-label">
             <span id="portalName" class="portal-title">Career Portal</span>
           </div>
-          <span id="confidenceBadge" class="confidence-badge low hidden">Confidence: Low</span>
+          <span id="confidenceBadge" class="confidence-badge low hidden" style="display: none;">Confidence: Low</span>
         </div>
-        <div class="portal-capabilities hidden" id="portalCapabilities">
+        <div class="portal-capabilities hidden" id="portalCapabilities" style="display: none;">
           <span class="capability-pill pending" id="capJob">Job Extraction</span>
           <span class="capability-pill pending" id="capApp">App Detection</span>
           <span class="capability-pill pending" id="capForm">Form Extraction</span>
@@ -102,7 +102,7 @@
       <section id="jobCard" class="card job-card">
         <div class="card-header">
           <h2 class="card-title">Current Job</h2>
-          <button id="reanalyzeBtn" class="link-button" title="Scan page again">Re-detect</button>
+          <button id="reanalyzeBtn" class="link-button hidden" style="display: none;" title="Scan page again">Re-detect</button>
         </div>
         <div id="jobContent" class="job-content">
           <div id="jobNotDetectedState" class="empty-state">
@@ -115,7 +115,7 @@
             <div class="job-meta-row">
               <span id="jobLocation" class="meta-tag">Remote</span>
               <span id="jobType" class="meta-tag">Full-time</span>
-              <span id="jobIdTag" class="meta-tag code-font">ID: —</span>
+              <span id="jobIdTag" class="meta-tag code-font hidden" style="display: none;">ID: —</span>
             </div>
 
             <!-- Analysis Error Banner -->

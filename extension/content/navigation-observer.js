@@ -13,10 +13,12 @@ export class NavigationObserver {
    * @param {object} options
    * @param {Function} options.onNavigation Callback invoked when URL or route changes
    * @param {Function} options.onFormDetected Callback invoked when an application form appears
+   * @param {Function} options.onJobUpdated Callback invoked when DOM mutations indicate job updates/hydration
    */
-  constructor({ onNavigation, onFormDetected } = {}) {
+  constructor({ onNavigation, onFormDetected, onJobUpdated } = {}) {
     this.onNavigation = onNavigation;
     this.onFormDetected = onFormDetected;
+    this.onJobUpdated = onJobUpdated;
     this.currentUrl = typeof window !== 'undefined' ? window.location.href : '';
     this.activeJobData = null;
     this.mutationTimeout = null;
@@ -85,7 +87,10 @@ export class NavigationObserver {
         if (typeof this.onFormDetected === 'function') {
           this.onFormDetected();
         }
-      }, 500);
+        if (typeof this.onJobUpdated === 'function') {
+          this.onJobUpdated();
+        }
+      }, 400);
     });
 
     observer.observe(document.body, {

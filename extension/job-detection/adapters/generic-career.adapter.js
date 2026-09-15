@@ -39,15 +39,30 @@ export class GenericCareerPageAdapter {
     /\/in\/[a-z0-9_-]+\/?$/i,
   ];
 
+  static provider = 'GENERIC';
+
+  static CAREER_URL_PATTERNS = [
+    /jobs\.ashbyhq\.com\//i,
+    /[a-z0-9_-]+\.bamboohr\.com\/careers\//i,
+    /[a-z0-9_-]+\.workable\.com\/j\//i,
+    /[a-z0-9_-]+\.smartrecruiters\.com\//i,
+    /jobs\.jobvite\.com\//i,
+    /jobs\.lever\.co\//i,
+    /boards\.greenhouse\.io\//i,
+    /\/(?:careers?|jobs?|openings?|positions?|apply)\/[a-z0-9_-]+/i,
+    /\/(?:job-detail|job-posting|view-job|job-description)\b/i,
+  ];
+
   /**
    * Generic adapter can handle company career portals and unrecognized job pages,
-   * but strictly rejects known specialized portals and obvious non-job utility pages.
+   * but strictly rejects known specialized portals, non-job utility pages,
+   * and generic web pages lacking sufficient independent job evidence.
    *
    * @param {Document} doc
    * @param {string} url
    * @returns {boolean}
    */
-  static canHandle(_doc, url) {
+  static canHandle(doc, url) {
     if (!url) return false;
     const lowerUrl = url.toLowerCase();
 
@@ -65,7 +80,76 @@ export class GenericCareerPageAdapter {
       }
     }
 
-    return true;
+    // 1. Check for schema.org/JobPosting JSON-LD structured data (strongest positive signal)
+    if (doc && typeof doc.querySelectorAll === 'function') {
+      const jsonLd = GenericCareerPageAdapter.extractJsonLd(doc);
+      if (jsonLd && (jsonLd.title || jsonLd.name || jsonLd.description)) {
+        return true;
+      }
+    }
+
+    // 2. Check for career/job URL patterns
+    const isCareerUrl = GenericCareerPageAdapter.CAREER_URL_PATTERNS.some((p) => p.test(url));
+    if (isCareerUrl) {
+      if (!doc) return true; // URL-only evaluation passes for recognized career routes
+      // If doc is available, verify it's not an empty page or search index
+      const hasJobContent = Boolean(
+        doc.querySelector?.('button[class*="apply" i]') ||
+        doc.querySelector?.('a[class*="apply" i]') ||
+        doc.querySelector?.('[data-qa*="apply" i]') ||
+        doc.querySelector?.('input[type="submit"]') ||
+        doc.querySelector?.('h1') ||
+        doc.querySelector?.('h2')
+      );
+      if (hasJobContent) return true;
+    }
+
+    // 3. Without job-specific URL or JSON-LD: require strong independent DOM semantic signals
+    // Normal content pages (ChatGPT, GitHub repo/issue, Google, articles, docs) MUST NOT match!
+    if (!doc || typeof doc.querySelector !== 'function') {
+      return false;
+    }
+
+    // Signal A: Explicit Application CTA (button or link to apply)
+    const applyCta = Boolean(
+      doc.querySelector?.('button[class*="apply" i]') ||
+      doc.querySelector?.('a[class*="apply" i]') ||
+      doc.querySelector?.('[data-qa*="apply" i]') ||
+      doc.querySelector?.('[aria-label*="apply" i]')
+    );
+
+    // Signal B: Job description/requirements section heading
+    const headings = [
+      ...(doc.querySelectorAll?.('h1') || []),
+      ...(doc.querySelectorAll?.('h2') || []),
+      ...(doc.querySelectorAll?.('h3') || []),
+      ...(doc.querySelectorAll?.('h4') || []),
+    ];
+    const JOB_HEADING_REGEX =
+      /^(?:job description|about the role|requirements?|qualifications?|responsibilities?|what you('ll| will) do|what we('re| are) looking for|role overview)$/i;
+    const hasJobHeading = headings.some((h) => JOB_HEADING_REGEX.test((h.textContent || '').trim()));
+
+    // Signal C: Substantive requirements/responsibilities list items
+    const listItems = Array.from(doc.querySelectorAll?.('li') || []);
+    const candidateBullets = listItems.filter((li) => {
+      const t = (li.textContent || '').trim();
+      return t.length > 20 && t.length < 400;
+    });
+    const hasBullets = candidateBullets.length >= 3;
+
+    // Signal D: Job metadata container (workplace, employment type, location)
+    const hasJobMeta = Boolean(
+      doc.querySelector?.(
+        '[class*="job-meta" i], [class*="job-info" i], [class*="job-header" i], [class*="posting-header" i]'
+      )
+    );
+
+    // Require combination of Application CTA + Job Heading + (Bullets or Job Meta)
+    if (applyCta && hasJobHeading && (hasBullets || hasJobMeta)) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -229,14 +313,16 @@ export class GenericCareerPageAdapter {
     const requirements = [];
 
     if (mainContainer) {
-      const listItems = mainContainer.querySelectorAll('li');
+      const listItems = typeof mainContainer.querySelectorAll === 'function'
+        ? mainContainer.querySelectorAll('li')
+        : (typeof doc.querySelectorAll === 'function' ? doc.querySelectorAll('li') : []);
       listItems.forEach((li) => {
-        const text = li.textContent.trim();
+        const text = (li.textContent || '').trim();
         if (text.length > 15 && text.length < 500) {
           requirements.push(text);
         }
       });
-      description = mainContainer.textContent.trim().replace(/\s+/g, ' ');
+      description = (mainContainer.textContent || '').trim().replace(/\s+/g, ' ');
     } else {
       description = ogDesc || '';
     }

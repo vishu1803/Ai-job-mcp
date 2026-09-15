@@ -123,11 +123,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
 
         sendResponse({ success: true, injected: true });
-      } catch (err) {
-        sendResponse({ success: false, error: err.message });
+  if (message.type === 'JOB_DETECTED_ON_PAGE') {
+    (async () => {
+      try {
+        const tabId = sender?.tab?.id || message.tabId;
+        if (!tabId || !message.jobData) return;
+
+        const { DurableWorkflowStore } = await import('../lib/durable-workflow-store.js');
+        const { JobIdentity } = await import('../lib/job-identity.js');
+        const store = new DurableWorkflowStore();
+        const tabState = await store.getTabState(tabId);
+
+        const isLocked = store.isWorkflowLocked(tabState);
+        const hasActiveJob = Boolean(tabState?.jobData?.title);
+
+        if (isLocked || hasActiveJob) {
+          const activeFp = tabState.jobFingerprint || (tabState.jobData ? JobIdentity.deriveJobFingerprint(tabState.jobData) : null);
+          const detectedFp = JobIdentity.deriveJobFingerprint(message.jobData);
+          if (detectedFp && detectedFp !== activeFp) {
+            await store.setPendingDetectedJob(tabId, message.jobData);
+          }
+        } else {
+          const detectedFp = JobIdentity.deriveJobFingerprint(message.jobData);
+          tabState.jobData = message.jobData;
+          tabState.jobFingerprint = detectedFp;
+          tabState.normalizedJob = message.jobData;
+          tabState.workflowState = 'JOB_DETECTED';
+          await store.saveTabState(tabId, tabState);
+        }
+      } catch {
+        // Background persistence failures ignored
       }
     })();
-    return true; // Keep channel open for async response
+    return false;
   }
 });
 

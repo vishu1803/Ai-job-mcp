@@ -30,30 +30,64 @@ export class LinkedInAdapter {
       lowerUrl.includes('/messaging') ||
       lowerUrl.includes('/notifications') ||
       lowerUrl.includes('/mynetwork') ||
-      lowerUrl.includes('/settings')
+      lowerUrl.includes('/settings') ||
+      lowerUrl.includes('/learning') ||
+      lowerUrl.includes('/pulse') ||
+      lowerUrl.includes('/groups')
     ) {
       return false;
     }
 
-    // Direct job URL patterns
-    if (
+    // Company homepages / posts (unless specifically viewing job details)
+    if (lowerUrl.includes('/company/') && !lowerUrl.includes('/jobs') && !lowerUrl.includes('currentjobid=')) {
+      return false;
+    }
+
+    // Priority 1 — Canonical URL identity
+    const hasCanonicalUrl =
       lowerUrl.includes('/jobs/view/') ||
-      lowerUrl.includes('/jobs/collections/') ||
-      /[?&]currentjobid=\d+/i.test(url)
-    ) {
+      /[?&]currentjobid=\d+/i.test(url);
+
+    if (hasCanonicalUrl) {
       return true;
     }
 
-    // DOM job indicators
+    // Priority 3 — Structured data (JSON-LD JobPosting)
+    if (doc && typeof doc.querySelectorAll === 'function') {
+      const jsonLd = extractJobPostingJsonLd(doc);
+      if (jsonLd && (jsonLd.title || jsonLd.name || jsonLd.description)) {
+        return true;
+      }
+    }
+
+    // Priority 4 — Active Job-specific DOM structure
+    // On search or collections pages, require an ACTIVE job details pane or top-card
+    // (a raw search result listing without an active selected job does not count)
     if (doc && typeof doc.querySelector === 'function') {
-      return Boolean(
+      const hasActiveTopCard = Boolean(
         doc.querySelector('.job-details-jobs-unified-top-card') ||
-        doc.querySelector('.jobs-description') ||
         doc.querySelector('.jobs-details__main-content') ||
-        doc.querySelector('.show-more-less-html__markup') ||
-        doc.querySelector('h1.top-card-layout__title') ||
-        doc.querySelector('[data-job-id]')
+        doc.querySelector('.jobs-search__job-details') ||
+        doc.querySelector('.job-view-layout') ||
+        doc.querySelector('[data-view-name="job-details"]') ||
+        doc.querySelector('h1.top-card-layout__title')
       );
+
+      const hasJobDescription = Boolean(
+        doc.querySelector('.show-more-less-html__markup') ||
+        doc.querySelector('#job-details') ||
+        doc.querySelector('.jobs-description__content') ||
+        doc.querySelector('.jobs-description')
+      );
+
+      if (hasActiveTopCard || hasJobDescription) {
+        return true;
+      }
+
+      // Check for standalone active job container with job ID
+      if (doc.querySelector('[data-job-id].jobs-search-results-list__list-item--active')) {
+        return true;
+      }
     }
 
     return false;

@@ -11,6 +11,29 @@ if (!window.__aicareershub_content_script_loaded) {
 
   let activeJobData = null;
   let navigationObserver = null;
+  let lastNotifiedFingerprint = null;
+
+  async function notifyJobDetected(jobData) {
+    if (!jobData || !jobData.title) return;
+    try {
+      const { JobIdentity } = await import(
+        chrome.runtime.getURL('lib/job-identity.js')
+      );
+      const fp = JobIdentity.deriveJobFingerprint(jobData);
+      if (fp === lastNotifiedFingerprint) {
+        return;
+      }
+      lastNotifiedFingerprint = fp;
+
+      chrome.runtime.sendMessage({
+        type: 'JOB_DETECTED_ON_PAGE',
+        jobData,
+        url: window.location.href,
+      }).catch(() => {});
+    } catch {
+      // Ignore background transmission errors if port closed
+    }
+  }
 
   async function performDetection() {
     try {
@@ -55,7 +78,7 @@ if (!window.__aicareershub_content_script_loaded) {
     }
   }
 
-  // Setup Navigation Observer
+  // Setup Navigation Observer & Initial Local Page Detection
   (async () => {
     try {
       const { NavigationObserver } = await import(
@@ -77,14 +100,18 @@ if (!window.__aicareershub_content_script_loaded) {
               }).catch(() => {});
             }
           } else {
-            // New job page navigation: re-evaluate
+            // New job page navigation: re-evaluate locally
             const result = await performDetection();
             if (result.detected && result.jobData) {
-              chrome.runtime.sendMessage({
-                type: 'JOB_DETECTED_ON_PAGE',
-                jobData: result.jobData,
-              }).catch(() => {});
+              await notifyJobDetected(result.jobData);
             }
+          }
+        },
+        onJobUpdated: async () => {
+          // Late DOM hydration or dynamic panel replacement
+          const result = await performDetection();
+          if (result.detected && result.jobData) {
+            await notifyJobDetected(result.jobData);
           }
         },
         onFormDetected: async () => {
@@ -99,6 +126,14 @@ if (!window.__aicareershub_content_script_loaded) {
       });
 
       navigationObserver.start();
+
+      // Initial local detection on document idle
+      setTimeout(async () => {
+        const result = await performDetection();
+        if (result.detected && result.jobData) {
+          await notifyJobDetected(result.jobData);
+        }
+      }, 300);
     } catch (err) {
       console.warn('Could not initialize NavigationObserver:', err);
     }

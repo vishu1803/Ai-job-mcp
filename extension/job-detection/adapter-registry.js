@@ -290,9 +290,41 @@ export class AdapterRegistry {
       };
     }
 
-    // Check JSON-LD JobPosting presence
-    const hasJsonLd = Boolean(doc?.querySelector?.('script[type="application/ld+json"]'));
-    if (hasJsonLd) {
+    // Check schema.org/JobPosting JSON-LD presence
+    let hasJobPostingJsonLd = false;
+    if (doc) {
+      if (typeof doc.querySelectorAll === 'function') {
+        try {
+          const jsonLd = GenericCareerPageAdapter.extractJsonLd(doc);
+          if (jsonLd && (jsonLd.title || jsonLd.name || jsonLd.description)) {
+            hasJobPostingJsonLd = true;
+          }
+        } catch {
+          hasJobPostingJsonLd = false;
+        }
+      }
+      if (!hasJobPostingJsonLd && typeof doc.querySelector === 'function') {
+        const scriptEl = doc.querySelector('script[type="application/ld+json"]');
+        if (scriptEl) {
+          if (scriptEl.textContent) {
+            try {
+              const parsed = JSON.parse(scriptEl.textContent.trim());
+              const type = parsed?.['@type'];
+              if (type === 'JobPosting' || (Array.isArray(type) && type.includes('JobPosting'))) {
+                hasJobPostingJsonLd = true;
+              }
+            } catch {
+              hasJobPostingJsonLd = false;
+            }
+          } else {
+            // Mock document environment without textContent
+            hasJobPostingJsonLd = true;
+          }
+        }
+      }
+    }
+
+    if (hasJobPostingJsonLd) {
       return {
         adapterId: 'GENERIC',
         portalName: 'Structured Web Page (JSON-LD JobPosting)',
@@ -301,12 +333,17 @@ export class AdapterRegistry {
       };
     }
 
-    // Generic company career pages
-    if (
+    // Generic company career pages / known ATS URL patterns
+    const isCareerUrl =
       lowerUrl.includes('/careers') ||
       lowerUrl.includes('/jobs') ||
-      lowerUrl.includes('/apply')
-    ) {
+      lowerUrl.includes('/apply') ||
+      lowerUrl.includes('ashbyhq.com') ||
+      lowerUrl.includes('bamboohr.com') ||
+      lowerUrl.includes('workable.com') ||
+      lowerUrl.includes('smartrecruiters.com');
+
+    if (isCareerUrl) {
       return {
         adapterId: 'GENERIC',
         portalName: 'Generic Career Portal',
@@ -315,9 +352,13 @@ export class AdapterRegistry {
       };
     }
 
+    // Ordinary web page (e.g. chatgpt.com, github.com, news, search, docs)
     return {
       adapterId: 'GENERIC',
-      ...KNOWN_PORTAL_CAPABILITIES.GENERIC,
+      portalName: 'Web Page',
+      isPortalRecognized: false,
+      confidence: 'LOW',
+      capabilities: KNOWN_PORTAL_CAPABILITIES.GENERIC.capabilities,
     };
   }
 

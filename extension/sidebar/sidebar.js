@@ -28,6 +28,7 @@ class SidebarController {
     this.cachedState = null;
     this.isAuthenticated = false;
     this.currentUser = null;
+    this._isAnalyzing = false;
 
     // DOM Elements
     this.elements = {};
@@ -197,7 +198,6 @@ class SidebarController {
     });
 
     this.elements.analyzeJobBtn?.addEventListener('click', async () => {
-      if (this.isWorkflowLocked()) return;
       await this.runAnalyzeJob();
     });
 
@@ -518,42 +518,35 @@ class SidebarController {
 
     const currentUserId = this.currentUser?.id || null;
     const durableState = await this.store.getTabState(this.activeTabId, currentUserId);
+
+    // Completely switch in-memory controller state to this tab's state:
+    this.cachedState = durableState || this.store.createInitialState(this.activeTabId);
+    this.activeJob = durableState?.jobData || null;
+    this.activeJobFingerprint = durableState?.jobFingerprint || null;
+    this.stateMachine.state = durableState?.workflowState || WORKFLOW_STATES.IDLE;
+
+    if (durableState?.lockState === 'LOCKED' || durableState?.isLocked === true) {
+      this.stateMachine.lock();
+    } else {
+      this.stateMachine.unlock();
+    }
+
+    // Scoped pending detected job
+    if (durableState?.pendingDetectedJob) {
+      this.pendingDetectedJob = durableState.pendingDetectedJob;
+      this.pendingDetectedFingerprint = durableState.pendingDetectedFingerprint;
+      this._renderPendingJobNotification(durableState.pendingDetectedJob);
+    } else {
+      this.pendingDetectedJob = null;
+      this.pendingDetectedFingerprint = null;
+      this._hidePendingJobNotification();
+    }
+
     if (durableState && durableState.jobData) {
-      this.cachedState = durableState;
-      this.activeJob = durableState.jobData;
-      this.activeJobFingerprint = durableState.jobFingerprint;
-      this.stateMachine.state = durableState.workflowState || WORKFLOW_STATES.JOB_DETECTED;
-
-      if (durableState.lockState === 'LOCKED' || durableState.isLocked === true) {
-        this.stateMachine.lock();
-      } else {
-        this.stateMachine.unlock();
-      }
-
-      // Restore pending detected job if present, but NEVER promote it automatically
-      if (durableState.pendingDetectedJob) {
-        this.pendingDetectedJob = durableState.pendingDetectedJob;
-        this.pendingDetectedFingerprint = durableState.pendingDetectedFingerprint;
-        this._renderPendingJobNotification(durableState.pendingDetectedJob);
-      } else {
-        this.pendingDetectedJob = null;
-        this.pendingDetectedFingerprint = null;
-        this._hidePendingJobNotification();
-      }
-
       this._renderAllFromState(durableState);
     } else {
-      if (durableState?.pendingDetectedJob) {
-        this.pendingDetectedJob = durableState.pendingDetectedJob;
-        this.pendingDetectedFingerprint = durableState.pendingDetectedFingerprint;
-        this._renderPendingJobNotification(durableState.pendingDetectedJob);
-      } else {
-        this.pendingDetectedJob = null;
-        this.pendingDetectedFingerprint = null;
-        this._hidePendingJobNotification();
-      }
-
-      // Trigger injection and extraction on tab if not locked
+      this._renderEmptyJobState();
+      this._renderWorkflowStatus(this.stateMachine.state, this.isWorkflowLocked());
       if (!this.isWorkflowLocked()) {
         await this._requestDetectionFromTab();
       }
@@ -578,17 +571,27 @@ class SidebarController {
     }
 
     try {
+      const sendWithTimeout = (promise, ms = 2000) =>
+        Promise.race([
+          promise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Detection request timed out')), ms)),
+        ]);
+
       if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
-        await chrome.runtime.sendMessage({
-          type: 'ENSURE_CONTENT_SCRIPT',
-          tabId: this.activeTabId,
-        });
+        await sendWithTimeout(
+          chrome.runtime.sendMessage({
+            type: 'ENSURE_CONTENT_SCRIPT',
+            tabId: this.activeTabId,
+          })
+        ).catch(() => null);
       }
 
       if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
-        const response = await chrome.tabs.sendMessage(this.activeTabId, {
-          type: 'DETECT_JOB_PAGE',
-        });
+        const response = await sendWithTimeout(
+          chrome.tabs.sendMessage(this.activeTabId, {
+            type: 'DETECT_JOB_PAGE',
+          })
+        ).catch(() => null);
 
         if (response && response.success && response.jobData) {
           if (isExplicitRescan) {
@@ -756,7 +759,7 @@ class SidebarController {
     this._renderPortalCard(state.portalMetadata || state.jobData?.portalMetadata);
     this._renderJobCard(state.jobData);
 
-    // Disable reanalyze and analyze controls when locked
+    // Disable reanalyze control when locked
     if (this.elements.reanalyzeBtn) {
       if (isLocked) {
         this.elements.reanalyzeBtn.disabled = true;
@@ -766,9 +769,21 @@ class SidebarController {
         this.elements.reanalyzeBtn.classList.remove('disabled');
       }
     }
+
+    // Dynamic Analyze Button state scoped to THIS tab (Parts 13 & 14)
     if (this.elements.analyzeJobBtn) {
-      if (isLocked) {
-        this.elements.analyzeJobBtn.disabled = true;
+      const hasValidJob = Boolean(state.jobData?.title || this.activeJob?.title);
+      const isAnalyzing = this._isAnalyzing || state.workflowState === WORKFLOW_STATES.ANALYZING;
+      const isPreparing = state.workflowState === WORKFLOW_STATES.APPLICATION_PREPARING;
+      const canAnalyze = hasValidJob && this.isAuthenticated && !isAnalyzing && !isPreparing;
+
+      this.elements.analyzeJobBtn.disabled = !canAnalyze;
+      if (isAnalyzing) {
+        this.elements.analyzeJobBtn.textContent = 'Analyzing Match...';
+      } else if (state.fitAnalysis || state.workflowState === WORKFLOW_STATES.APPLICATION_READY || isLocked) {
+        this.elements.analyzeJobBtn.textContent = 'Analyze Again';
+      } else {
+        this.elements.analyzeJobBtn.textContent = 'Analyze Job Match';
       }
     }
 
@@ -831,19 +846,18 @@ class SidebarController {
   _renderPortalCard(portalMetadata) {
     if (!portalMetadata || !this.elements.portalName) return;
 
-    this.elements.portalName.textContent = portalMetadata.portalName || 'Career Portal';
-
-    const confidence = (portalMetadata.confidence || 'medium').toLowerCase();
-    if (this.elements.confidenceBadge) {
-      this.elements.confidenceBadge.className = `confidence-badge ${confidence}`;
-      this.elements.confidenceBadge.textContent = `Confidence: ${confidence.toUpperCase()}`;
+    // Display clean recognized portal name without diagnostic noise (Part 12)
+    const name = portalMetadata.portalName;
+    if (portalMetadata.isPortalRecognized === false || name === 'Web Page') {
+      this.elements.portalName.textContent = 'Web Page';
+    } else {
+      this.elements.portalName.textContent = name || 'Career Portal';
     }
 
-    const caps = portalMetadata.capabilities || {};
-    this._updateCapPill(this.elements.capJob, caps.jobExtraction, 'Job Extraction');
-    this._updateCapPill(this.elements.capApp, caps.applicationDetection, 'App Detection');
-    this._updateCapPill(this.elements.capForm, caps.formExtraction, 'Form Extraction');
-    this._updateCapPill(this.elements.capAutofill, caps.automaticFieldMapping, 'Field Mapping');
+    // Keep raw diagnostic and capability badges hidden
+    this.elements.confidenceBadge?.classList.add('hidden');
+    const portalCapsEl = typeof document !== 'undefined' ? document.getElementById('portalCapabilities') : null;
+    portalCapsEl?.classList.add('hidden');
   }
 
   _updateCapPill(element, isSupported, label) {
@@ -1107,6 +1121,10 @@ class SidebarController {
 
     if (!this.activeJob) return;
 
+    // Double-click protection (Parts 15 & 18): only 1 request at a time
+    if (this._isAnalyzing) return;
+    this._isAnalyzing = true;
+
     if (this.elements.analyzeJobBtn) {
       this.elements.analyzeJobBtn.disabled = true;
       this.elements.analyzeJobBtn.textContent = 'Analyzing Match...';
@@ -1161,9 +1179,11 @@ class SidebarController {
         this._showAnalysisError(err.message || 'Analysis failed. Please check connection and retry.');
       }
     } finally {
+      this._isAnalyzing = false;
       if (this.elements.analyzeJobBtn) {
+        const hasExistingAnalysis = Boolean(this.cachedState?.fitAnalysis);
         this.elements.analyzeJobBtn.disabled = false;
-        this.elements.analyzeJobBtn.textContent = 'Analyze Job Match';
+        this.elements.analyzeJobBtn.textContent = hasExistingAnalysis ? 'Analyze Again' : 'Analyze Job Match';
       }
     }
   }
@@ -1354,13 +1374,20 @@ class SidebarController {
 }
 
 if (typeof document !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', () => {
+  const initSidebar = () => {
+    if (typeof window !== 'undefined' && window.__sidebarController) return;
     const controller = new SidebarController();
-    controller.init();
     if (typeof window !== 'undefined') {
       window.__sidebarController = controller;
     }
-  });
+    controller.init();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebar);
+  } else {
+    initSidebar();
+  }
 }
 
 export { SidebarController };
