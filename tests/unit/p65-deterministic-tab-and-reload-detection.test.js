@@ -196,14 +196,7 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
       };
 
-      global.chrome.runtime.onMessage.dispatch({
-        type: 'JOB_DETECTED_ON_PAGE',
-        tabId: 101,
-        jobData: job,
-        generation: 1,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await controller._reconcileDetectedJob(job);
 
       assert.strictEqual(controller.activeJob.title, 'Staff Platform Engineer');
       assert.strictEqual(controller.stateMachine.state, WORKFLOW_STATES.JOB_DETECTED);
@@ -220,13 +213,8 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
       await controller._handleJobDetectedEvent(job);
       const fp1 = controller.activeJobFingerprint;
 
-      // Dispatch identical job detection
-      global.chrome.runtime.onMessage.dispatch({
-        type: 'JOB_DETECTED_ON_PAGE',
-        tabId: 101,
-        jobData: job,
-        generation: 1,
-      });
+      // Reconcile identical job detection
+      await controller._reconcileDetectedJob(job);
 
       assert.strictEqual(controller.activeJobFingerprint, fp1);
       assert.strictEqual(controller.pendingDetectedJob, null);
@@ -249,12 +237,7 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
       assert.strictEqual(controller.activeJob.title, jobA.title);
 
       // Job B detected on page
-      global.chrome.runtime.onMessage.dispatch({
-        type: 'JOB_DETECTED_ON_PAGE',
-        tabId: 101,
-        jobData: jobB,
-        generation: 1,
-      });
+      await controller._reconcileDetectedJob(jobB);
 
       assert.strictEqual(controller.activeJob.title, jobA.title, 'Active job must be preserved');
       assert.strictEqual(controller.pendingDetectedJob.title, jobB.title, 'Job B must be stored as pending');

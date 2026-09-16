@@ -172,6 +172,9 @@ export class LinkedInAdapter {
     }
 
     let company = companyEl ? companyEl.textContent.trim() : '';
+    if (company && company.length > 80) {
+      company = '';
+    }
     if ((!company || company === 'Company') && jsonLd?.hiringOrganization?.name) {
       company = jsonLd.hiringOrganization.name.trim();
     }
@@ -186,6 +189,9 @@ export class LinkedInAdapter {
           company = atMatch[2].trim();
         }
       }
+    }
+    if (company && company.length > 80) {
+      company = '';
     }
     let location = locationEl ? locationEl.textContent.trim() : '';
     if (!location && jsonLd?.jobLocation) {
@@ -224,8 +230,8 @@ export class LinkedInAdapter {
     const hasValidTitle = Boolean(title && title !== 'Untitled Role');
     const isReady = Boolean(externalJobId && hasValidTitle && (hasMeaningfulCompany || hasMeaningfulDescription));
 
-    if (!company && isReady) {
-      company = 'Company';
+    if (company === 'Company') {
+      company = '';
     }
 
     let workplace = 'UNKNOWN';

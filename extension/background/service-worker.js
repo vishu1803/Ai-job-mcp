@@ -155,20 +155,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'JOB_DETECTED_ON_PAGE') {
-    // P66: Single authoritative pipeline - background forwards event without mutating workflow state
-    const tabId = sender?.tab?.id || message.tabId;
-    if (tabId && message.jobData) {
-      chrome.runtime.sendMessage({
-        type: 'JOB_DETECTED_ON_PAGE',
-        tabId,
-        jobData: message.jobData,
-        url: message.url || sender?.tab?.url,
-        timestamp: Date.now(),
-      }).catch(() => {});
-      sendResponse({ success: true, forwarded: true, tabId });
-    } else {
-      sendResponse({ success: false, error: 'Missing tabId or jobData' });
-    }
+    // P68: Duplicate forwarding path removed. DETECT_JOB_PAGE is the sole authoritative delivery path.
+    sendResponse({ success: true, passive: true });
     return true;
   }
 });

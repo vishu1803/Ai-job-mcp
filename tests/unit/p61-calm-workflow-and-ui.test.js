@@ -365,12 +365,13 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
       assert.strictEqual(initialScore, 88);
       assert.strictEqual(controller.isWorkflowLocked(), true);
 
-      // Detector sees Job B
+      // Reconciles Job B via authoritative reconciliation
       global.chrome.runtime.onMessage.dispatch({
         type: 'JOB_DETECTED_ON_PAGE',
         tabId: 101,
         jobData: sampleJobB,
       });
+      controller._reconcileDetectedJob(sampleJobB);
 
       // 5. Job A remains active
       assert.strictEqual(controller.activeJob.title, sampleJobA.title);
@@ -401,13 +402,14 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
       await controller.init();
       await controller._handleJobDetectedEvent(sampleJobA);
 
-      // Dispatch Job B detection 5 times
+      // Authoritative reconciliation of Job B 5 times
       for (let i = 0; i < 5; i++) {
         global.chrome.runtime.onMessage.dispatch({
           type: 'JOB_DETECTED_ON_PAGE',
           tabId: 101,
           jobData: sampleJobB,
         });
+        controller._reconcileDetectedJob(sampleJobB);
       }
 
       assert.strictEqual(controller.pendingDetectedJob.title, sampleJobB.title);
@@ -515,12 +517,13 @@ describe('Part 61: Calm Extension Workflow, Explicit Rescan, Design-System UI & 
       await controller.runAnalyzeJob();
       await controller.runPrepareHandoff();
 
-      // Background detector registers Job B as pending
+      // Reconciles Job B as pending and updates tab mock
       global.chrome.runtime.onMessage.dispatch({
         type: 'JOB_DETECTED_ON_PAGE',
         tabId: 101,
         jobData: sampleJobB,
       });
+      controller._reconcileDetectedJob(sampleJobB);
 
       assert.strictEqual(controller.pendingDetectedJob.title, sampleJobB.title);
 

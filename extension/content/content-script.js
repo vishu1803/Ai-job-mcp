@@ -28,14 +28,9 @@ if (!window.__aicareershub_content_script_loaded) {
       if (navigationObserver) {
         navigationObserver.setActiveJob(activeJobData);
       }
-
-      chrome.runtime.sendMessage({
-        type: 'JOB_DETECTED_ON_PAGE',
-        jobData,
-        url: window.location.href,
-      }).catch(() => {});
+      // P68: Passive forwarding removed. DETECT_JOB_PAGE is the sole authoritative delivery path.
     } catch {
-      // Ignore background transmission errors if port closed
+      // Ignore background errors
     }
   }
 
@@ -130,23 +125,6 @@ if (!window.__aicareershub_content_script_loaded) {
       });
 
       navigationObserver.start();
-
-      // Initial local detection on document idle (immediate and fallback for late hydration)
-      setTimeout(async () => {
-        const result = await performDetection();
-        if (result.detected && result.jobData) {
-          await notifyJobDetected(result.jobData);
-        }
-      }, 100);
-
-      setTimeout(async () => {
-        if (!activeJobData) {
-          const result = await performDetection();
-          if (result.detected && result.jobData) {
-            await notifyJobDetected(result.jobData);
-          }
-        }
-      }, 500);
     } catch (err) {
       console.warn('Could not initialize NavigationObserver:', err);
     }

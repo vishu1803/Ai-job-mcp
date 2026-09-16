@@ -3,6 +3,59 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 68: Final Detection Race Elimination & Repeated Live Reliability
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Scope:** Single Authoritative Delivery Path (`DETECT_JOB_PAGE` sole current-page authority, passive `JOB_DETECTED_ON_PAGE` rendered explicit no-op in sidebar, removed from background runtime forwarding, removed from document-idle in content script), Zero Passive State Mutation (late/duplicate passive events cannot mutate or reconcile sidebar state after authoritative detection completes), LinkedIn Readiness Without Synthetic Company Data (eliminated any synthesis of `company = 'Company'`, requires `externalJobId` + real title + real company OR substantive description >= 50 chars, preserves `company: ""` when unavailable, UI renders `" — "`), In-Flight Tab Switch & Reload Stale Invalidation (`_detectionRequestId` synchronously increments, stale responses discarded on arrival without state corruption), Rescan Determinism (queries active tab directly, strictly zero fallback to `pendingDetectedJob` or cached state on non-job page), 10-Cycle Live LinkedIn Stress Verification on Actual `linkedin.com` (Job A General Motors `4419969671` & Job B Morgan Corp `4419969660`), Natural LinkedIn DOM Hydration, Strict Server Call Boundary (0 passive calls across all 10 cycles, hydration, tab switch, reload, SPA navigation, and rescan; exactly 1 call upon explicit user click on `[Analyze Job Match]` with single-inflight double-click guard), 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Delivered the definitive elimination of detection delivery races and synthetic company placeholders, backed by repeated live stress verification on actual `linkedin.com` in real Chrome:
+1. **Single Authoritative Delivery Path & Passive Event Immunity:**
+   - In `extension/sidebar/sidebar.js`, `JOB_DETECTED_ON_PAGE` listener is an explicit no-op (`return;`), completely decoupling sidebar state reconciliation from passive runtime broadcasts.
+   - In `extension/content/content-script.js`, removed passive `chrome.runtime.sendMessage({ type: 'JOB_DETECTED_ON_PAGE' })` from detection loops and removed automatic document-idle dispatch.
+   - In `extension/background/service-worker.js`, removed passive `JOB_DETECTED_ON_PAGE` forwarding to runtime listeners.
+   - Authoritative `DETECT_JOB_PAGE` direct response is the sole reconciliation pathway. Late or duplicate passive events cannot overwrite or mutate sidebar state.
+2. **LinkedIn Readiness Without Synthetic Company Data:**
+   - In `extension/job-detection/adapters/linkedin.adapter.js`, eliminated synthesis of `company = 'Company'`. Required evidence: `externalJobId`, non-placeholder title, and real company OR substantive description (>= 50 chars).
+   - Sanitizes any raw `'Company'` string to `""` and preserves `company: ""` when company is unavailable.
+   - Added guard against runaway description selectors matching into company (`company.length > 80` reset to `""`).
+   - In `extension/sidebar/sidebar.js`, updated `_renderJobCard`: if `jobData.company` is empty or `'Company'`, renders `" — "` without fabricating data.
+3. **In-Flight Tab Switch & Reload Invariants:**
+   - When tab switches while `DETECT_JOB_PAGE` is in flight, `this._detectionRequestId` increments synchronously and `_clearTransientTabState()` cleans in-memory state.
+   - Arriving response is discarded: `response.requestId !== this._detectionRequestId || response.tabId !== this.activeTabId`.
+4. **Rescan Determinism & Zero Substitution:**
+   - Manual Rescan queries active tab directly via `DETECT_JOB_PAGE`.
+   - Strictly never substitutes `pendingDetectedJob` or cached tab data when current page is not a job.
+   - On non-job pages (e.g. `/feed`), resets active job to `null`, workflow state to `IDLE`, and UI title/company to `" — "`.
+5. **Real LinkedIn Stress Verification (10 Cycles on Real Chrome MV3):**
+   - Executed via `scripts/verify-p68-live-linkedin.mjs` against live `linkedin.com` on CDP port 9367:
+     - **Cycle 1 (Initial Open Job A, ID 4419969671):** Title: `"Senior Software Engineer – Go (Golang)"`, Company: `"General Motors"`, Ext ID: `4419969671`, Latency: `654ms`, Analyze calls: `0`.
+     - **Cycle 2 (Hard Reload Job A):** Re-detected in `4081ms`, Sidebar Title: `"Senior Software Engineer – Go (Golang)"`, Company: `"General Motors"`, Analyze calls: `0`.
+     - **Cycle 3 (Second Reload Job A):** Re-detected in `4059ms`, Sidebar Title: `"Senior Software Engineer – Go (Golang)"`, Company: `"General Motors"`, Analyze calls: `0`.
+     - **Cycle 4 (Switch to GitHub & Return to Job A):** Reconciled in `1372ms`, Sidebar Title: `"Senior Software Engineer – Go (Golang)"`, Company: `"General Motors"`, Analyze calls: `0`.
+     - **Cycle 5 (Manual Rescan Job A):** Re-detected in `559ms`, Sidebar Title: `"Senior Software Engineer – Go (Golang)"`, Company: `"General Motors"`, Analyze calls: `0`.
+     - **Cycle 6 (Navigate Job A -> Job B, ID 4419969660):** Detected `"Construction Manager"` (`"Morgan Corp."`, ID: `4419969660`) in `5858ms`, Analyze calls: `0`.
+     - **Cycle 7 (Switch to GitHub & Return to Job B):** Reconciled in `1441ms`, Sidebar Title: `"Construction Manager"`, Company: `"Morgan Corp."`, Analyze calls: `0`.
+     - **Cycle 8 (Manual Rescan Job B):** Re-detected in `541ms`, Sidebar Title: `"Construction Manager"`, Company: `"Morgan Corp."`, Analyze calls: `0`.
+     - **Cycle 9 (Navigate Job B -> Job A):** Detected `"Senior Software Engineer – Go (Golang)"` (`"General Motors"`, ID: `4419969671`) in `6396ms`, Analyze calls: `0`.
+     - **Cycle 10 (Manual Rescan Job A):** Re-detected in `529ms`, Sidebar Title: `"Senior Software Engineer – Go (Golang)"`, Company: `"General Motors"`, Analyze calls: `0`.
+     - **In-Flight Tab Switch Race Check:** PASS (Stale result discarded cleanly).
+     - **Non-Job Feed Regression (`/feed`):** `activeJob: null`, UI Title: `" — "`, UI Company: `" — "`, Analyze calls: `0`.
+     - **Server Boundary & Double-Click Protection:** Rapid double-click on `[Analyze Job Match]` produced **EXACTLY 1** call to `/api/extension/analyze-job`. State transitioned to `ANALYZING` and verified.
+     - **Visual Proof Artifacts Saved:**
+       - `p68-01-live-linkedin-job-a-cycle1.png`
+       - `p68-02-live-linkedin-job-a-reload.png`
+       - `p68-03-live-linkedin-job-b-cycle6.png`
+       - `p68-04-live-linkedin-nonjob-cleared.png`
+       - `p68-05-live-linkedin-analyzed-single-call.png`
+6. **Regression Test Suite:**
+   - Full Unit Regression Suite (`P57–P68`): **174/174 PASS (62 suites, 0 failures, 100% pass rate)**.
+   - Dedicated Part 68 Suite (`tests/unit/p68-final-detection-race-and-hydration.test.js`): **15/15 PASS**.
+
+---
+
 ### PART 67: Detection Delivery Convergence & LinkedIn Hydration Reliability
 
 **Status:** COMPLETE & VERIFIED  

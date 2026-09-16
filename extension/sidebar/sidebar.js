@@ -349,24 +349,9 @@ class SidebarController {
             })();
           }
         } else if (message.type === 'JOB_DETECTED_ON_PAGE') {
-          const msgTabId = message.tabId || sender?.tab?.id;
-          if (this.activeTabId && msgTabId && msgTabId !== this.activeTabId) {
-            return;
-          }
-          // P67: Ignore passive event if authoritative detection is in-flight
-          if (this._isDetectingInFlight) {
-            return;
-          }
-          if (message.generation !== undefined && this.cachedState?.workflowGeneration !== undefined) {
-            if (message.generation < this.cachedState.workflowGeneration) {
-              return;
-            }
-          }
-          if (!message.jobData || !message.jobData.title || message.jobData.title === 'Untitled Role') {
-            return;
-          }
-
-          this._reconcileDetectedJob(message.jobData);
+          // P68: Passive event must NEVER mutate or reconcile sidebar state.
+          // DETECT_JOB_PAGE is the ONLY authoritative current-page reconciliation result.
+          return;
         } else if (message.type === 'APPLICATION_FORM_DETECTED') {
           if (this.isWorkflowLocked()) {
             return;
@@ -998,7 +983,9 @@ class SidebarController {
     this.elements.jobDetectedState?.classList.remove('hidden');
 
     if (this.elements.jobTitle) this.elements.jobTitle.textContent = jobData.title || 'Untitled Role';
-    if (this.elements.jobCompany) this.elements.jobCompany.textContent = jobData.company || 'Unknown Company';
+    if (this.elements.jobCompany) {
+      this.elements.jobCompany.textContent = jobData.company && jobData.company !== 'Company' ? jobData.company : '—';
+    }
     if (this.elements.jobLocation) this.elements.jobLocation.textContent = jobData.location || 'Remote';
     if (this.elements.jobType) this.elements.jobType.textContent = jobData.employmentType || 'Full-time';
 

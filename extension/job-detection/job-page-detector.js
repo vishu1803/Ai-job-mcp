@@ -106,7 +106,7 @@ export class JobPageDetector {
         provider: 'NONE',
         externalJobId: null,
         title: 'Untitled Role',
-        company: 'Company',
+        company: '',
         location: 'Not specified',
         workplace: 'UNKNOWN',
         employmentType: 'FULL_TIME',
@@ -124,7 +124,8 @@ export class JobPageDetector {
 
     // Sanitize all extracted textual fields
     const sanitizedTitle = JobPageDetector.sanitizeText(rawPayload.title) || 'Untitled Role';
-    const sanitizedCompany = JobPageDetector.sanitizeText(rawPayload.company) || 'Company';
+    const rawCompany = JobPageDetector.sanitizeText(rawPayload.company);
+    const sanitizedCompany = rawCompany && rawCompany !== 'Company' ? rawCompany : '';
     const sanitizedLocation = JobPageDetector.sanitizeText(rawPayload.location) || 'Not specified';
     const sanitizedDescription = JobPageDetector.sanitizeText(rawPayload.description);
     const sanitizedRawText = JobPageDetector.sanitizeText(rawPayload.rawText || rawPayload.description);

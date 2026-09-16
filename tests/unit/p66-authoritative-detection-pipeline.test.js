@@ -236,14 +236,14 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
       assert.strictEqual(analyzeCalls, 0, 'Detection must make ZERO analyze calls');
     });
 
-    it('background forwarding of JOB_DETECTED_ON_PAGE notifies sidebar without mutating workflow store', async () => {
+    it('passive JOB_DETECTED_ON_PAGE does not mutate or reconcile sidebar state (DETECT_JOB_PAGE is sole authority)', async () => {
       const jobA = {
         title: 'Cloud Systems Architect',
         company: 'Apex Systems',
         sourceUrl: 'https://www.linkedin.com/jobs/view/5555',
       };
 
-      // Dispatched by service worker forwarder
+      // Dispatched by passive event
       global.chrome.runtime.onMessage.dispatch({
         type: 'JOB_DETECTED_ON_PAGE',
         tabId: 101,
@@ -252,8 +252,8 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
 
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      assert.strictEqual(controller.activeJob.title, jobA.title);
-      assert.strictEqual(controller.stateMachine.state, WORKFLOW_STATES.JOB_DETECTED);
+      assert.strictEqual(controller.activeJob, null, 'Passive event must not mutate activeJob');
+      assert.strictEqual(controller.stateMachine.state, WORKFLOW_STATES.IDLE, 'State must remain IDLE');
       assert.strictEqual(analyzeCalls, 0);
     });
   });
