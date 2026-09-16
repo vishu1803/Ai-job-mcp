@@ -14,6 +14,7 @@ import { DurableWorkflowStore } from '../lib/durable-workflow-store.js';
 import { WorkflowStateMachine, WORKFLOW_STATES } from '../lib/workflow-state-machine.js';
 import { JobIdentity } from '../lib/job-identity.js';
 import { buildApplicationArtifactFilename } from '../lib/artifact-filename-builder.js';
+import { DETECTION_REQUEST_TIMEOUT_MS } from '../lib/detection-timeouts.js';
 
 class SidebarController {
   constructor() {
@@ -303,27 +304,7 @@ class SidebarController {
     }
   }
 
-  _clearTransientTabState() {
-    this.activeJob = null;
-    this.activeJobFingerprint = null;
-    this.pendingDetectedJob = null;
-    this.pendingDetectedFingerprint = null;
-    this.cachedState = null;
-    this._isAnalyzing = false;
-    this._isDetectingInFlight = false;
-
-    this._hidePendingJobNotification();
-    this._renderEmptyJobState();
-    this.elements.workflowLockBanner?.classList.add('hidden');
-    this.elements.workflowLockedBadge?.classList.add('hidden');
-    this.elements.regenerateConfirmBox?.classList.add('hidden');
-    this.elements.regenerateHandoffBtn?.classList.add('hidden');
-    this.elements.analysisErrorBanner?.classList.add('hidden');
-    this.elements.handoffErrorBanner?.classList.add('hidden');
-
-    if (this.elements.jobTitle) this.elements.jobTitle.textContent = '—';
-    if (this.elements.jobCompany) this.elements.jobCompany.textContent = '—';
-  }
+  // _clearTransientTabState is defined after logout() below — single canonical definition (P71)
 
   _listenToRuntimeMessages() {
     if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
@@ -516,17 +497,19 @@ class SidebarController {
     this.pendingDetectedJob = null;
     this.pendingDetectedFingerprint = null;
     this.cachedState = null;
+    this._isAnalyzing = false;
+    this._isDetectingInFlight = false;
     this.stateMachine.reset();
     if (this.elements.jobTitle) this.elements.jobTitle.textContent = '—';
     if (this.elements.jobCompany) this.elements.jobCompany.textContent = '—';
     this._renderEmptyJobState();
     this._hidePendingJobNotification();
-    if (this._hydrationPollTimers) {
-      this._hydrationPollTimers.forEach(clearTimeout);
-      this._hydrationPollTimers = [];
-    }
     this.elements.workflowLockBanner?.classList.add('hidden');
     this.elements.workflowLockedBadge?.classList.add('hidden');
+    this.elements.regenerateConfirmBox?.classList.add('hidden');
+    this.elements.regenerateHandoffBtn?.classList.add('hidden');
+    this.elements.analysisErrorBanner?.classList.add('hidden');
+    this.elements.handoffErrorBanner?.classList.add('hidden');
   }
 
   async _hydrateFromStore() {
@@ -640,7 +623,8 @@ class SidebarController {
     };
 
     try {
-      const sendWithTimeout = (promise, ms = 4000) =>
+      // P71: Use shared timeout constant (7000ms > content-script 5000ms hydration deadline)
+      const sendWithTimeout = (promise, ms = DETECTION_REQUEST_TIMEOUT_MS) =>
         Promise.race([
           promise,
           new Promise((_, reject) => setTimeout(() => reject(new Error('Detection request timed out')), ms)),
@@ -740,9 +724,20 @@ class SidebarController {
           return false;
         }
       }
-    } catch {
-      if (!isStale() && !this.activeJob && !this.isWorkflowLocked()) {
-        this._renderEmptyJobState();
+    } catch (err) {
+      // P71: Transport timeout or error is NOT a confirmed non-job.
+      // Preserve existing state — only an actual response.detected === false may clear.
+      if (!isStale()) {
+        if (!this.activeJob && !this.isWorkflowLocked()) {
+          // No existing job state to preserve — show neutral loading/retry state
+          if (this.elements.descriptionLoadingNotice) {
+            this.elements.descriptionLoadingNotice.classList.remove('hidden');
+            if (this.elements.descriptionLoadingText) {
+              this.elements.descriptionLoadingText.textContent = 'Detection still loading — click Rescan to retry';
+            }
+          }
+        }
+        // If activeJob exists, preserve it silently — do NOT clear, do NOT render Web Page
       }
       return false;
     } finally {
@@ -786,10 +781,7 @@ class SidebarController {
 
     this._renderAllFromState(switchedState);
 
-    const desc = (newJob.description || '').trim();
-    if (desc.length < 50) {
-      this._scheduleDescriptionHydrationPoll(this.activeTabId, fingerprint);
-    }
+    // P71: Content script is sole hydration owner — no sidebar hydration poll.
   }
 
   _renderPendingJobNotification(jobData) {
@@ -888,40 +880,12 @@ class SidebarController {
 
     this._renderAllFromState(stateToSave);
 
-    const desc = (jobData.description || '').trim();
-    if (desc.length < 50) {
-      this._scheduleDescriptionHydrationPoll(this.activeTabId, fingerprint);
-    }
+    // P71: Content script is sole hydration owner — no sidebar hydration poll.
   }
 
-  _scheduleDescriptionHydrationPoll(tabId, expectedFingerprint) {
-    if (this._hydrationPollTimers) {
-      this._hydrationPollTimers.forEach(clearTimeout);
-    }
-    this._hydrationPollTimers = [];
-
-    const delays = [800, 1800, 3200, 4800];
-    delays.forEach((delay) => {
-      const tid = setTimeout(async () => {
-        if (this.activeTabId !== tabId || this.activeJobFingerprint !== expectedFingerprint) {
-          return;
-        }
-        const currentDesc = (this.activeJob?.description || '').trim();
-        if (currentDesc.length >= 50) return;
-
-        if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
-          const res = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_JOB' }).catch(() => null);
-          if (res?.success && res.job && this.activeJobFingerprint === expectedFingerprint) {
-            const newDesc = (res.job.description || '').trim();
-            if (newDesc.length >= 50) {
-              this._reconcileDetectedJob(res.job);
-            }
-          }
-        }
-      }, delay);
-      this._hydrationPollTimers.push(tid);
-    });
-  }
+  // P71: _scheduleDescriptionHydrationPoll REMOVED.
+  // Content script performDetectionWithHydration() is the sole hydration owner.
+  // Sidebar does not maintain a second independent hydration loop.
 
   async _handleFormDetectedEvent(formData) {
     if (!this.cachedState) return;

@@ -484,6 +484,8 @@ describe('Part 65 — Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
         title: 'Distributed Systems Engineer',
         company: 'CloudScale',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
+        description: 'We are looking for a senior distributed systems engineer to join our infrastructure team and build resilient services.',
+        analysisReady: true,
       };
 
       await controller._handleJobDetectedEvent(job);

@@ -3,6 +3,65 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 71: Fix Detection Timeout Race & Unify LinkedIn Hydration
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Scope:** Shared Detection Timeout Constants (`DETECTION_MAX_DURATION_MS = 5000`, `DETECTION_REQUEST_TIMEOUT_MS = 7000`, invariant enforced at import time), Sidebar Request Timeout Fix (from 4000ms to 7000ms via shared constant, eliminating deterministic race where valid LinkedIn results arriving between 4000–5000ms were discarded), Timeout ≠ Non-Job Semantic Fix (transport timeout/error preserves existing `activeJob` state, only `response.detected === false` may clear job, shows neutral "Detection still loading" notice instead of false Web Page state), Single Hydration Owner (`_scheduleDescriptionHydrationPoll()` completely removed — content script `performDetectionWithHydration()` is sole hydration authority, no dual-owner hydration loops), Consolidated `_clearTransientTabState()` (merged two duplicate method definitions into single canonical version), Pre-existing P65 Test Fix (added description field to satisfy P70 analyze gate), 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Fixed the deterministic detection timeout race that caused intermittent LinkedIn job detection failures, and unified the hydration ownership model:
+1. **Shared Detection Timeout Contract:**
+   - Created `extension/lib/detection-timeouts.js` with `DETECTION_MAX_DURATION_MS = 5000` and `DETECTION_REQUEST_TIMEOUT_MS = 7000`.
+   - Static invariant assertion fails at import time if `DETECTION_REQUEST_TIMEOUT_MS <= DETECTION_MAX_DURATION_MS`.
+   - Content script imports `DETECTION_MAX_DURATION_MS` via dynamic import (fallback to 5000).
+   - Sidebar imports `DETECTION_REQUEST_TIMEOUT_MS` statically.
+   - Eliminates all hardcoded timeout magic numbers.
+2. **Sidebar Timeout Fix (4000ms → 7000ms):**
+   - `sendWithTimeout()` default changed from hardcoded `4000` to `DETECTION_REQUEST_TIMEOUT_MS` (7000ms).
+   - Valid LinkedIn detection results completing at 4100ms, 4500ms, or 4800ms are now accepted instead of being discarded by the premature sidebar timeout.
+3. **Timeout ≠ Non-Job (Critical Semantic Fix):**
+   - The `catch` block in `_requestDetectionFromTab()` no longer calls `_renderEmptyJobState()` or clears `activeJob` on timeout/error.
+   - When `activeJob` exists: state is preserved silently — no false "Web Page" portal rendering.
+   - When no `activeJob` exists: shows neutral "Detection still loading — click Rescan to retry" notice.
+   - Only an actual response with `response.detected === false` may establish confirmed non-job and clear state.
+4. **Single Hydration Owner (Content Script Authority):**
+   - Completely removed `_scheduleDescriptionHydrationPoll()` method and all call sites from sidebar.js.
+   - Removed calls from `_switchToJob()` and `_handleJobDetectedEvent()`.
+   - Content script's `performDetectionWithHydration()` (bounded MutationObserver + exponential backoff up to `DETECTION_MAX_DURATION_MS`) is the sole hydration authority.
+   - Eliminated dual-owner hydration race between sidebar EXTRACT_JOB polling and content script DETECT_JOB_PAGE hydration.
+5. **Consolidated _clearTransientTabState():**
+   - Merged two duplicate method definitions (lines 306 and 513) into a single canonical version with complete cleanup including `_isAnalyzing`, `_isDetectingInFlight`, error banners, and UI elements.
+6. **Pre-existing Test Fix:**
+   - Fixed P65 test `passive operations produce ZERO /analyze-job calls, explicit Analyze produces 1` which broke under P70's description >= 50 gate by adding substantive description to test job data.
+
+**Files Changed:**
+- `extension/lib/detection-timeouts.js` [NEW]: Shared timeout constants with invariant
+- `extension/sidebar/sidebar.js` [MODIFIED]: Import shared constants, fix timeout (4000→7000), fix timeout-as-non-job, remove hydration poll, consolidate duplicate methods
+- `extension/content/content-script.js` [MODIFIED]: Import shared `DETECTION_MAX_DURATION_MS` constant
+- `tests/unit/p71-detection-timeout-race.test.js` [NEW]: 17 regression tests across 12 suites
+- `tests/unit/p65-deterministic-tab-and-reload-detection.test.js` [MODIFIED]: Added description to test job data
+
+**Verification & Regression Results:**
+- P71 Unit Test Suite: **17/17 PASS (12 suites, 0 failures, 100% pass rate)**
+  1. Shared constants: `DETECTION_MAX_DURATION_MS=5000`, `DETECTION_REQUEST_TIMEOUT_MS=7000`, invariant enforced
+  2. Detection at 4100ms → accepted
+  3. Detection at 4800ms → accepted
+  4. Request timeout only at 7000ms
+  5. Timeout preserves existing `activeJob`
+  6. Stale request invalidation via `_detectionRequestId`
+  7. Late response discarded when newer request started
+  8. LinkedIn `analysisReady=false` accepted
+  9. Description hydration to ≥50 updates active job
+  10. Analyze disabled until `analysisReady=true`
+  11. Confirmed non-job (`detected:false`) clears unlocked state
+  12. Locked workflow preserved on confirmed non-job
+  13. Transport timeout ≠ confirmed non-job (semantic distinction)
+  14. `_scheduleDescriptionHydrationPoll` confirmed removed
+- Full P57–P71 Regression Suite: **219/219 PASS (84 suites, 0 failures, 100% pass rate)**
+
+---
 ### PART 68: Final Detection Race Elimination & Repeated Live Reliability
 
 **Status:** COMPLETE & VERIFIED  

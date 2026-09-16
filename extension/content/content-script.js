@@ -172,11 +172,22 @@ if (!window.__aicareershub_content_script_loaded) {
       return res;
     }
 
+    // P71: Import shared detection timeout constant
+    let HYDRATION_DEADLINE = 5000;
+    try {
+      const { DETECTION_MAX_DURATION_MS } = await import(
+        chrome.runtime.getURL('lib/detection-timeouts.js')
+      );
+      HYDRATION_DEADLINE = DETECTION_MAX_DURATION_MS;
+    } catch {
+      // Fallback to default if import fails
+    }
+
     return new Promise((resolve) => {
       let isResolved = false;
       let observer = null;
       const timerIds = [];
-      const MAX_DURATION_MS = 5000;
+      const MAX_DURATION_MS = HYDRATION_DEADLINE;
       const startTime = Date.now();
 
       const finish = (result) => {
