@@ -3,6 +3,63 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 74: Fix LinkedIn Wrong-Title Extraction & Marketing Heading Suppression
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-17  
+**Scope:** LinkedIn Dedicated Root Priority Ranking (`findActiveLinkedInJobRoot` outranking generic `main#main-content`/`main.main`/`main` with dedicated job containers `[data-testid="lazy-column"]`, `[data-view-name="job-details"]`, `.jobs-search__job-details`, `.jobs-details__main-content`, `.job-view-layout`, `.job-details-jobs-unified-top-card`, `.details`, `section.core-rail`), Elimination of Generic Headings (Removed `querySelector('h1')` and `querySelector('h2')` from primary title extraction; replaced with 44 scoped `EXPLICIT_JOB_TITLE_SELECTORS`), Heading Validation & Marketing Suppression (`isValidLinkedInTitleCandidate` suppressing marketing, upsell, and recommendation containers `aside`, `similar`, `recommend`, `modal`, `sign-in`, `upsell`, `premium`, `promo`, `marketing`, `alert`, `banner`, `nav`, `footer`), Document Order Position Validation (`isElementAfter` strictly rejecting heading candidates positioned below the job description container), Company/Title Pair Validation (Rejects candidate titles outside active top card when company is inside top card), Resilient `document.title` Fallback (Parses pipe formats, hiring format, at format, and dash format `Title - Company | LinkedIn` only when active job context is confirmed), Diagnostics Reporting (`selectedRootSelector`, `selectedRootTag`, `selectedRootClass`, `titleSelectorUsed`, `companySelectorUsed`, `descriptionSelectorUsed` tracked on extraction payload, detector, and sidebar), Required Negative Regressions (Feed, profile, ChatGPT, GitHub), Full Unit Test Regression (321/321 PASS across P57–P74), Real Chrome for Testing (CFT) Live LinkedIn Acceptance Test (`https://www.linkedin.com/jobs/view/4466448213/`, *Backend Software Engineer (Remote)* at *Quik Hire Staffing*, marketing heading *"Take the next step in your job search"* completely suppressed, tab transition Job A -> Job B -> Job A, page reload persistence, 4 screenshots captured to brain artifact directory).  
+**Branch:** `main`  
+
+**Executive Summary:**
+Fixed the live LinkedIn wrong-title bug where marketing/upsell headings (*"Take the next step in your job search"*) were selected as the job title instead of the authentic job title (*"Backend Software Engineer (Remote)"* at *"Quik Hire Staffing"*) on `https://www.linkedin.com/jobs/view/4466448213/`:
+1. **Dedicated Root Discovery Priority Ranking (`findActiveLinkedInJobRoot`):**
+   - Configured dedicated job-detail layouts (`[data-testid="lazy-column"]`, `[data-view-name="job-details"]`, `.jobs-search__job-details`, `.jobs-details__main-content`, `.job-view-layout`, `.job-details-jobs-unified-top-card`, `.details`, `section.core-rail`) to strictly outrank broad containers (`main#main-content`, `main.main`, `main`).
+   - Broad containers are now evaluated only as a last-resort fallback and require both explicit title and company.
+2. **Explicit Title Selectors (`EXPLICIT_JOB_TITLE_SELECTORS`):**
+   - Removed generic `querySelector('h1')` and `querySelector('h2')` fallbacks from primary LinkedIn title extraction.
+   - Standardized on 44 explicit, scoped title selectors (e.g. `h1.job-details-jobs-unified-top-card__job-title`, `.top-card-layout__title`, `.job-details-jobs-unified-top-card h1`, `[data-view-name="job-details"] h1`, etc.).
+3. **Heading Validation & Non-Job Suppression (`isValidLinkedInTitleCandidate`):**
+   - Structural container suppression: Rejects headings inside `aside`, `similar`, `recommend`, `modal`, `sign-in`, `upsell`, `premium`, `promo`, `marketing`, `alert`, `banner`, `nav`, `footer`.
+   - Document order validation (`isElementAfter`): Compares candidate element position against the job description container (`#job-details`, `.jobs-description__content`, `.show-more-less-html__markup`, etc.) and rejects any candidate below the description.
+   - Pair validation: If the company element is in the top card, any candidate title from outside the top card is rejected.
+4. **Resilient `document.title` Fallback:**
+   - Evaluated strictly as a fallback when DOM title extraction yields no candidate and active job context is confirmed.
+   - Reordered pattern matching to prioritize 3-part pipe (`Title | Company | LinkedIn`), hiring pattern (`Company hiring Title in Location | LinkedIn`), and at pattern (`Title at Company | LinkedIn`), with structured dash-separated fallback (`Title - Company | LinkedIn`).
+5. **Diagnostics Extraction:**
+   - Extraction payloads now expose `selectedRootSelector`, `selectedRootTag`, `selectedRootClass`, `titleSelectorUsed`, `companySelectorUsed`, `descriptionSelectorUsed`.
+   - `JobPageDetector.detect` forwards these diagnostic properties to consumers.
+6. **Real Chrome for Testing E2E Acceptance Verification:**
+   - Ran `scripts/verify-p74-live-linkedin-title.mjs` against real Chrome for Testing on live LinkedIn posting `https://www.linkedin.com/jobs/view/4466448213/`:
+     - Discovered live DOM: Generic `main#main-content` present alongside dedicated layout `.details` with top card `.top-card-layout`.
+     - Detected authentic title: `Backend Software Engineer (Remote)`.
+     - Detected authentic company: `Quik Hire Staffing`.
+     - Suppressed marketing heading: `Take the next step in your job search` (Assertion 1 PASS).
+     - Provider / Portal: `LinkedIn Jobs` (Assertion 4 PASS).
+     - Tab transition: Switched to Job B (`4464770430`), switched back to Job A -> restored cleanly (Assertion 5 PASS).
+     - Page reload persistence: Reloaded live page -> preserved authentic title and company without regressing to marketing heading (Assertion 6 PASS).
+     - Visual proof screenshots saved in brain artifact directory:
+       - `p74-live-linkedin-page.png`
+       - `p74-live-sidebar-detected.png`
+       - `p74-live-tab-transition.png`
+       - `p74-live-reloaded-persistence.png`
+
+**Files Changed:**
+- `extension/job-detection/adapters/linkedin.adapter.js` [MODIFIED]: Implemented dedicated root priority ranking, `EXPLICIT_JOB_TITLE_SELECTORS`, `isValidLinkedInTitleCandidate`, `isElementAfter`, `NON_JOB_CONTAINER_SELECTORS`, refined `document.title` fallback, and diagnostics extraction.
+- `extension/job-detection/job-page-detector.js` [MODIFIED]: Forwarded `selectedRootSelector`, `selectedRootTag`, `selectedRootClass`, `titleSelectorUsed`, `companySelectorUsed`, and `descriptionSelectorUsed`.
+- `tests/unit/p74-linkedin-title-extraction.test.js` [NEW]: 16 unit tests covering root ranking, marketing heading suppression, pair validation, `document.title` fallback, and diagnostics.
+- `scripts/verify-p74-live-linkedin-title.mjs` [NEW]: Real Chrome for Testing CDP verification script for live target job `4466448213`, marketing heading suppression, tab transition, and reload persistence.
+
+**Verification & Regression Results:**
+- P74 Unit Test Suite: **16/16 PASS (9 suites, 0 failures, 100% pass rate)**
+- Full P57–P74 Unit Regression Suite: **321/321 PASS (115 suites, 0 failures, 100% pass rate)**
+- Real Chrome Live Acceptance Test: **PASS (6/6 assertions pass, exit code 0)**
+  - Authentic title extracted: `"Backend Software Engineer (Remote)"`
+  - Authentic company extracted: `"Quik Hire Staffing"`
+  - Marketing heading suppressed: `"Take the next step in your job search"` rejected
+  - Tab transition and page reload verified with full state preservation
+
+---
+
 ### PART 73: LinkedIn Active Job Root + Semantic Description Extraction
 
 **Status:** COMPLETE & VERIFIED  

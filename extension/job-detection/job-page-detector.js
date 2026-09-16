@@ -212,6 +212,12 @@ export class JobPageDetector {
       descriptionSource: rawPayload.descriptionSource || (sanitizedDescription ? 'SELECTOR' : 'NONE'),
       jobRootSource: rawPayload.jobRootSource || null,
       descriptionLength: typeof rawPayload.descriptionLength === 'number' ? rawPayload.descriptionLength : sanitizedDescription.length,
+      selectedRootSelector: rawPayload.selectedRootSelector || rawPayload.jobRootSource || null,
+      selectedRootTag: rawPayload.selectedRootTag || null,
+      selectedRootClass: rawPayload.selectedRootClass || null,
+      titleSelectorUsed: rawPayload.titleSelectorUsed || 'NONE',
+      companySelectorUsed: rawPayload.companySelectorUsed || 'NONE',
+      descriptionSelectorUsed: rawPayload.descriptionSelectorUsed || rawPayload.descriptionSource || 'NONE',
     };
   }
 }
