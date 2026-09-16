@@ -3,6 +3,58 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 67: Detection Delivery Convergence & LinkedIn Hydration Reliability
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Scope:** Single Authoritative Delivery Path (`DETECT_JOB_PAGE` direct response authority, passive events strictly guarded and ignored during in-flight detections), Bounded MutationObserver + Exponential Backoff LinkedIn Hydration Loop (50ms, 150ms, 350ms, 700ms, 1200ms, max 2200ms deadline, zero continuous polling, instantaneous reaction on DOM ready), Strict Detection Readiness (`externalJobId` + valid title + meaningful company OR substantive description >= 50 chars, elimination of premature `'Company'` fallback), Request/Response Context Contract (`requestId`, `tabId`, `generation` echoed and validated against sidebar context), Tab Switch Synchronization & UI Transient State Cleanup (`_clearTransientTabState` resets placeholders to clean `" — "`), Page Reload Determinism (`TAB_UPDATED` readiness handshake + fresh query), Rescan Authority & Zero-Substitution Guarantee, Multi-Job Navigation (Job A -> Job B -> Job A), Non-Job Regressions (LinkedIn Feed, Search, ChatGPT, GitHub), Strict Server Call Boundary (0 passive calls, exactly 1 explicit analyze call, double-click protection), 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Delivered the definitive detection delivery convergence and LinkedIn hydration reliability pipeline, verified across repeated lifecycles, multiple live jobs, non-job regressions, and server call boundaries on actual `linkedin.com` in real Chrome:
+1. **Single Authoritative Delivery Path:**
+   - Sidebar strictly treats `DETECT_JOB_PAGE` response as the sole authority for active tab page state.
+   - Introduced `this._isDetectingInFlight` boolean guard in `SidebarController`. Any passive `JOB_DETECTED_ON_PAGE` event arriving while an authoritative detection is in flight is ignored.
+   - Background forwarding can never compete with or overwrite newer tab state.
+2. **Bounded MutationObserver + Exponential Hydration Loop:**
+   - Replaced fixed timer sleeps in `content-script.js` with `performDetectionWithHydration()`.
+   - Executes immediate detection; if usable job evidence is present, resolves instantaneously.
+   - If evidence is pending on a potential job URL, mounts a `MutationObserver` on `document.body` paired with bounded exponential timers (50ms, 150ms, 350ms, 700ms, 1200ms) up to a 2200ms max deadline.
+   - Resolves immediately upon DOM node insertion, cleanly disconnecting observer and clearing timers. Never creates continuous polling.
+3. **Strict Detection Readiness:**
+   - A canonical URL alone (`/jobs/view/<id>`) does NOT trigger detection without verified job detail evidence.
+   - Required evidence: valid `externalJobId`, non-empty title (not `'Untitled Role'`), and meaningful company (not `'Company'`) OR substantive description (length >= 50).
+   - In `LinkedInAdapter.extract`, eliminated premature `'Company'` fallback when evidence is incomplete, returning `isReady: false`.
+   - In `JobPageDetector.detect` and `JobDetectionEngine.evaluate`, gated confidence and detection on `rawPayload.isReady !== false`.
+4. **Request/Response Context Pass-Through:**
+   - Every `DETECT_JOB_PAGE` request includes `{ requestId, tabId, generation }`.
+   - Content script echoes context back in the response.
+   - Sidebar validates: `response.requestId === this._detectionRequestId`, `response.tabId === this.activeTabId`, and `response.generation >= currentGeneration`. Stale responses from prior tabs or earlier requests are discarded without state thrashing.
+5. **Tab Switch UI Transient State Cleanup:**
+   - Implemented `_clearTransientTabState()` in `SidebarController`.
+   - On `ACTIVE_TAB_CHANGED`, `this._detectionRequestId++` increments synchronously, in-memory fields are cleared (`activeJob = null`, `activeJobFingerprint = null`, `pendingDetectedJob = null`, `cachedState = null`), and UI placeholders are reset to `" — "`.
+6. **Live LinkedIn Acceptance Evidence (Real Chrome MV3 CDP):**
+   - Executed against actual `linkedin.com` via `scripts/verify-p67-live-linkedin.mjs`:
+     - **Cycle 1 (Initial Open Job A, ID 4419969671):** Title: `"Senior Software Engineer – Go (Golang)"`, Company: `"General Motors"`, Latency: `1505ms`, Analyze calls: `0`.
+     - **Cycle 2 (Hard Reload Job A):** Re-detected in `725ms`, Analyze calls: `0`.
+     - **Cycle 3 (Second Reload Job A):** Re-detected in `669ms`, Analyze calls: `0`.
+     - **Cycle 4 (Switch Away to GitHub & Return):** Re-detected in `668ms`, Analyze calls: `0`.
+     - **Cycle 5 (Navigate to Job B, ID 4419969660):** Reconciled in `683ms`, Analyze calls: `0`.
+     - **Cycle 6 (Manual Rescan Job B):** Detected `"Construction Manager"` (`"Morgan Corp."`, ID: `4419969660`) in `2076ms`, Analyze calls: `0`.
+     - **Cycle 7 (Return to Job A and Rescan):** Detected `"Senior Software Engineer – Go (Golang)"` (ID: `4419969671`) in `2046ms`, Analyze calls: `0`.
+     - **Non-Job Rejection (LinkedIn Feed `/feed`):** Active job cleared to `null`, title placeholder reset to `" — "`, Analyze calls: `0`.
+     - **Server Boundary & Double-Click Protection:** Rapid double-click on `[Analyze Job Match]` produced **EXACTLY 1** call to `/api/extension/analyze-job`. State adapted to `ANALYSIS_READY` with `Matched Skills: 3`.
+     - **Artifacts Saved:**
+       - `p67-01-live-linkedin-job-a-detected.png`
+       - `p67-02-live-linkedin-job-a-reloaded.png`
+       - `p67-03-live-linkedin-job-b-detected.png`
+       - `p67-04-live-linkedin-nonjob-rejected.png`
+       - `p67-05-live-linkedin-analyzed-single-call.png`
+7. **Regression Test Suite:**
+   - Full Unit Regression Suite (`P57–P67`): **159/159 PASS (55 suites, 0 failures, 100% pass rate)**.
+
+---
+
 ### PART 66: Real LinkedIn Detection & Single Detection Reconciliation Pipeline
 
 **Status:** COMPLETE & VERIFIED  

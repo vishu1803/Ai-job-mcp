@@ -152,6 +152,96 @@ if (!window.__aicareershub_content_script_loaded) {
     }
   })();
 
+  async function performDetectionWithHydration() {
+    let res = await performDetection();
+
+    const isFullyReady = (result) =>
+      Boolean(
+        result &&
+        result.detected &&
+        result.ready !== false &&
+        result.jobData &&
+        result.jobData.title &&
+        result.jobData.title !== 'Untitled Role' &&
+        (result.jobData.externalJobId || result.jobData.sourceUrl) &&
+        ((result.jobData.company && result.jobData.company !== 'Company') ||
+          (result.jobData.description && result.jobData.description.length >= 50))
+      );
+
+    if (isFullyReady(res)) {
+      return res;
+    }
+
+    if (typeof window === 'undefined' || !window.location) {
+      return res;
+    }
+
+    const href = window.location.href.toLowerCase();
+    const isPotentialJobUrl =
+      href.includes('/jobs/view/') ||
+      /[?&]currentjobid=\d+/i.test(window.location.search) ||
+      href.includes('/careers/') ||
+      href.includes('/posting/');
+
+    if (!isPotentialJobUrl) {
+      return res;
+    }
+
+    return new Promise((resolve) => {
+      let isResolved = false;
+      let observer = null;
+      const timerIds = [];
+      const MAX_DURATION_MS = 2200;
+      const startTime = Date.now();
+
+      const finish = (result) => {
+        if (isResolved) return;
+        isResolved = true;
+        if (observer) {
+          try { observer.disconnect(); } catch {}
+          observer = null;
+        }
+        timerIds.forEach((t) => clearTimeout(t));
+        timerIds.length = 0;
+        resolve(result);
+      };
+
+      const checkNow = async () => {
+        if (isResolved) return;
+        const currentRes = await performDetection();
+        if (isFullyReady(currentRes)) {
+          finish(currentRes);
+        } else if (Date.now() - startTime >= MAX_DURATION_MS) {
+          finish(currentRes);
+        }
+      };
+
+      if (typeof MutationObserver !== 'undefined' && document.body) {
+        observer = new MutationObserver(() => {
+          checkNow();
+        });
+        try {
+          observer.observe(document.body, { childList: true, subtree: true });
+        } catch {}
+      }
+
+      // Bounded backoff delays: 50ms, 150ms, 350ms, 700ms, 1200ms
+      const delays = [50, 150, 350, 700, 1200];
+      delays.forEach((delay) => {
+        const tid = setTimeout(checkNow, delay);
+        timerIds.push(tid);
+      });
+
+      const maxTid = setTimeout(async () => {
+        if (!isResolved) {
+          const finalRes = await performDetection();
+          finish(finalRes);
+        }
+      }, MAX_DURATION_MS);
+      timerIds.push(maxTid);
+    });
+  }
+
   // Message listener
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'PING') {
@@ -161,23 +251,7 @@ if (!window.__aicareershub_content_script_loaded) {
 
     if (message.type === 'DETECT_JOB_PAGE') {
       (async () => {
-        let res = await performDetection();
-
-        // P66: Delayed hydration grace period for SPA / LinkedIn job detail URLs
-        if (!res.detected && typeof window !== 'undefined' && window.location) {
-          const href = window.location.href.toLowerCase();
-          const isPotentialJobUrl =
-            href.includes('/jobs/view/') ||
-            /[?&]currentjobid=\d+/i.test(window.location.search) ||
-            href.includes('/careers/') ||
-            href.includes('/posting/');
-
-          if (isPotentialJobUrl) {
-            // Wait 350ms for React DOM / detail pane hydration and retry once
-            await new Promise((resolve) => setTimeout(resolve, 350));
-            res = await performDetection();
-          }
-        }
+        const res = await performDetectionWithHydration();
 
         if (res.detected && res.jobData) {
           activeJobData = res.jobData;
@@ -185,7 +259,12 @@ if (!window.__aicareershub_content_script_loaded) {
             navigationObserver.setActiveJob(activeJobData);
           }
         }
-        sendResponse(res);
+        sendResponse({
+          ...res,
+          requestId: message.requestId,
+          tabId: message.tabId,
+          generation: message.generation,
+        });
       })();
       return true;
     }

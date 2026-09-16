@@ -187,8 +187,6 @@ export class LinkedInAdapter {
         }
       }
     }
-    if (!company) company = 'Company';
-
     let location = locationEl ? locationEl.textContent.trim() : '';
     if (!location && jsonLd?.jobLocation) {
       const locObj = jsonLd.jobLocation;
@@ -209,7 +207,7 @@ export class LinkedInAdapter {
         description = cleanJsonLdDesc;
       }
     }
-    if (!description && doc.body) {
+    if (!description && doc?.body) {
       description = doc.body.textContent.trim();
     }
 
@@ -219,6 +217,15 @@ export class LinkedInAdapter {
         const text = li.textContent.trim();
         if (text.length > 5) requirements.push(text);
       });
+    }
+
+    const hasMeaningfulCompany = Boolean(company && company !== 'Company');
+    const hasMeaningfulDescription = Boolean(description && description.length >= 50);
+    const hasValidTitle = Boolean(title && title !== 'Untitled Role');
+    const isReady = Boolean(externalJobId && hasValidTitle && (hasMeaningfulCompany || hasMeaningfulDescription));
+
+    if (!company && isReady) {
+      company = 'Company';
     }
 
     let workplace = 'UNKNOWN';
@@ -236,7 +243,7 @@ export class LinkedInAdapter {
       provider: LinkedInAdapter.provider,
       externalJobId,
       title: title || 'Untitled Role',
-      company,
+      company: company || '',
       location: location || 'Not specified',
       workplace,
       employmentType: classifyEmploymentType(combinedText),
@@ -245,6 +252,7 @@ export class LinkedInAdapter {
       responsibilities: [],
       compensation: null,
       rawText: description,
+      isReady,
     };
   }
 }

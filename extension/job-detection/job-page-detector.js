@@ -169,10 +169,13 @@ export class JobPageDetector {
       sanitizedRequirements.length > 0 ||
       (rawPayload.employmentType && rawPayload.employmentType !== 'FULL_TIME');
 
+    const isReady = rawPayload.isReady !== false;
+
     const isConfidentExtraction = Boolean(
       sanitizedTitle !== 'Untitled Role' &&
       sanitizedDescription.length >= 50 &&
-      (isStructuredProvider || hasJobSignals)
+      (isStructuredProvider || hasJobSignals) &&
+      isReady
     );
 
     return {
@@ -190,6 +193,7 @@ export class JobPageDetector {
       compensation: rawPayload.compensation || null,
       rawText: sanitizedRawText,
       isConfident: isConfidentExtraction,
+      isReady,
     };
   }
 }

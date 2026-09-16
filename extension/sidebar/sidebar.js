@@ -30,6 +30,7 @@ class SidebarController {
     this.currentUser = null;
     this._isAnalyzing = false;
     this._detectionRequestId = 0;
+    this._isDetectingInFlight = false;
 
     // DOM Elements
     this.elements = {};
@@ -300,6 +301,28 @@ class SidebarController {
     }
   }
 
+  _clearTransientTabState() {
+    this.activeJob = null;
+    this.activeJobFingerprint = null;
+    this.pendingDetectedJob = null;
+    this.pendingDetectedFingerprint = null;
+    this.cachedState = null;
+    this._isAnalyzing = false;
+    this._isDetectingInFlight = false;
+
+    this._hidePendingJobNotification();
+    this._renderEmptyJobState();
+    this.elements.workflowLockBanner?.classList.add('hidden');
+    this.elements.workflowLockedBadge?.classList.add('hidden');
+    this.elements.regenerateConfirmBox?.classList.add('hidden');
+    this.elements.regenerateHandoffBtn?.classList.add('hidden');
+    this.elements.analysisErrorBanner?.classList.add('hidden');
+    this.elements.handoffErrorBanner?.classList.add('hidden');
+
+    if (this.elements.jobTitle) this.elements.jobTitle.textContent = '—';
+    if (this.elements.jobCompany) this.elements.jobCompany.textContent = '—';
+  }
+
   _listenToRuntimeMessages() {
     if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
       chrome.runtime.onMessage.addListener((message, sender) => {
@@ -330,12 +353,16 @@ class SidebarController {
           if (this.activeTabId && msgTabId && msgTabId !== this.activeTabId) {
             return;
           }
+          // P67: Ignore passive event if authoritative detection is in-flight
+          if (this._isDetectingInFlight) {
+            return;
+          }
           if (message.generation !== undefined && this.cachedState?.workflowGeneration !== undefined) {
             if (message.generation < this.cachedState.workflowGeneration) {
               return;
             }
           }
-          if (!message.jobData || !message.jobData.title) {
+          if (!message.jobData || !message.jobData.title || message.jobData.title === 'Untitled Role') {
             return;
           }
 
@@ -585,14 +612,22 @@ class SidebarController {
     const requestId = ++this._detectionRequestId;
     const requestTabId = this.activeTabId;
     const requestGeneration = this.cachedState?.workflowGeneration || 0;
+    this._isDetectingInFlight = true;
 
-    const isStale = () =>
-      this._detectionRequestId !== requestId ||
-      this.activeTabId !== requestTabId ||
-      (!isExplicitRescan && (this.cachedState?.workflowGeneration || 0) > requestGeneration);
+    const isStale = (resp = null) => {
+      if (this._detectionRequestId !== requestId) return true;
+      if (this.activeTabId !== requestTabId) return true;
+      if (!isExplicitRescan && (this.cachedState?.workflowGeneration || 0) > requestGeneration) return true;
+      if (resp) {
+        if (resp.requestId !== undefined && resp.requestId !== requestId) return true;
+        if (resp.tabId !== undefined && resp.tabId !== requestTabId) return true;
+        if (!isExplicitRescan && resp.generation !== undefined && (this.cachedState?.workflowGeneration || 0) > resp.generation) return true;
+      }
+      return false;
+    };
 
     try {
-      const sendWithTimeout = (promise, ms = 3000) =>
+      const sendWithTimeout = (promise, ms = 4000) =>
         Promise.race([
           promise,
           new Promise((_, reject) => setTimeout(() => reject(new Error('Detection request timed out')), ms)),
@@ -616,14 +651,16 @@ class SidebarController {
           chrome.tabs.sendMessage(requestTabId, {
             type: 'DETECT_JOB_PAGE',
             requestId,
+            tabId: requestTabId,
+            generation: requestGeneration,
           })
         ).catch(() => null);
 
-        if (isStale()) {
+        if (isStale(response)) {
           return false;
         }
 
-        if (response && response.detected && response.jobData && response.jobData.title) {
+        if (response && response.detected && response.jobData && response.jobData.title && response.jobData.title !== 'Untitled Role') {
           if (isExplicitRescan) {
             await this._switchToJob(response.jobData);
           } else {
@@ -668,6 +705,10 @@ class SidebarController {
         this._renderEmptyJobState();
       }
       return false;
+    } finally {
+      if (this._detectionRequestId === requestId) {
+        this._isDetectingInFlight = false;
+      }
     }
     return false;
   }

@@ -97,7 +97,7 @@ export class JobDetectionEngine {
       confidence = 'MEDIUM';
     }
 
-    const isDetected = score >= 35 && normalizedPayload.isConfident;
+    const isDetected = score >= 35 && normalizedPayload.isConfident && (normalizedPayload.isReady !== false);
 
     // Attach portal metadata to payload
     normalizedPayload.portalMetadata = {
@@ -108,6 +108,7 @@ export class JobDetectionEngine {
 
     return {
       detected: isDetected,
+      ready: isDetected && (normalizedPayload.isReady !== false),
       confidence,
       confidenceScore: score,
       jobData: isDetected ? normalizedPayload : null,
