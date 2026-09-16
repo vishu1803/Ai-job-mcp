@@ -583,6 +583,15 @@ class SidebarController {
       if (jobData.company && (!this.activeJob.company || this.activeJob.company === 'Company')) {
         this.activeJob.company = jobData.company;
       }
+      if (jobData.descriptionSource) {
+        this.activeJob.descriptionSource = jobData.descriptionSource;
+      }
+      if (jobData.jobRootSource) {
+        this.activeJob.jobRootSource = jobData.jobRootSource;
+      }
+      if (jobData.descriptionLength !== undefined) {
+        this.activeJob.descriptionLength = jobData.descriptionLength;
+      }
     }
 
     if (this.pendingDetectedFingerprint === jobFingerprint) {

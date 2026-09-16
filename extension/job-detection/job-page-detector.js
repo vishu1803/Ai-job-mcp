@@ -209,6 +209,9 @@ export class JobPageDetector {
       isConfident: isConfidentExtraction,
       isReady,
       analysisReady,
+      descriptionSource: rawPayload.descriptionSource || (sanitizedDescription ? 'SELECTOR' : 'NONE'),
+      jobRootSource: rawPayload.jobRootSource || null,
+      descriptionLength: typeof rawPayload.descriptionLength === 'number' ? rawPayload.descriptionLength : sanitizedDescription.length,
     };
   }
 }

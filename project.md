@@ -3,6 +3,71 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 73: LinkedIn Active Job Root + Semantic Description Extraction
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Scope:** Active LinkedIn Job Root Discovery (`findActiveLinkedInJobRoot(doc)` resolving smallest layout container owning title + company + detail content across `[data-testid="lazy-column"]`, `.jobs-search__job-details`, `.job-details-jobs-unified-top-card`, `.jobs-details__main-content`, `.job-view-layout`, `[data-view-name="job-details"]`, guest view layouts `.details`, `.decorated-job-posting__details`, `section.core-rail`, strictly never returning `document.body` or `document.documentElement`), 4-Tier Scoped Description Extraction (`extractLinkedInDescription(activeJobRoot, doc)` prioritizing Priority 1: localized selectors inside active root -> `descriptionSource: 'SELECTOR'`, Priority 2: semantic "About the job" heading -> section -> content block -> `descriptionSource: 'ABOUT_THE_JOB'`, Priority 3: schema.org JSON-LD JobPosting -> `descriptionSource: 'JSON_LD'`, Priority 4: empty string -> `descriptionSource: 'NONE'`), Extraction Provenance Tracking (`descriptionSource`, `jobRootSource`, `descriptionLength` tracked on payload, persisted to `DurableWorkflowStore`, exposed in sidebar state), Separation of Job Detection vs Analysis Readiness (`isReady = true` when identity confirmed, `analysisReady = true` only when description length >= 50), Single Hydration Controller (Sole hydration authority in `JobHydrationLifecycle`, single in-flight lock `isExtractionInFlight`, DOM observation on active root once found, immediate termination upon reaching >= 50 chars), Service Worker Durable Store Integration (Persists hydrated state to `DurableWorkflowStore` upon `JOB_DESCRIPTION_HYDRATED`), Required Negative Tests (ChatGPT false, GitHub false, LinkedIn feed false, LinkedIn profile false, LinkedIn jobs search with no active job false), Working Portal Regressions (Greenhouse, Wellfound, Generic career portals), Real Chrome Live LinkedIn Verification (`https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430`, Appinventiv Software Engineer, 559 chars description extracted, `descriptionSource = SELECTOR`, Analyze button enabled, notice hidden, strict 0 passive analyze calls, explicit click HTTP 200, Tab switch Job A -> Job B -> Job A, page reload test, 4 screenshots captured), 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Resolved the persistent "Job description is still loading..." failure on real LinkedIn pages (specifically `https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430`) by replacing broad DOM polling with active job-root scoping and semantic multi-tier description extraction:
+1. **Active Job Root Discovery (`findActiveLinkedInJobRoot`):**
+   - Implemented and exported `findActiveLinkedInJobRoot(doc)` in `extension/job-detection/adapters/linkedin.adapter.js`.
+   - Supports member view containers (`[data-testid="lazy-column"]`, `.jobs-search__job-details`, `.job-details-jobs-unified-top-card`, `.jobs-details__main-content`, `.job-view-layout`, `[data-view-name="job-details"]`) and public guest layouts (`.details`, `.decorated-job-posting__details`, `section.core-rail`).
+   - Ranks candidate containers by completeness: Tier 1 (title + company + detail), Tier 2 (title + detail), Tier 3 (title + company), Tier 4 (title or detail).
+   - Resolves the smallest container that clearly owns the active role, and strictly returns `null` rather than `document.body` or `document.documentElement`.
+2. **Root-Scoped Description Extraction (`extractLinkedInDescription`):**
+   - Implemented 4-tier extraction hierarchy:
+     - **Priority 1 (Selectors):** Scans dedicated containers inside active root (`#job-details`, `.jobs-description__content`, `.show-more-less-html__markup`, `.jobs-box__html-content`, `.jobs-description`, `article.jobs-description__container`, `.description__text`, `div[class*="jobs-description"]`, `div[class*="description__text"]`, `section[class*="description" i]`, `[data-job-description]`, `article`). Returns `descriptionSource: 'SELECTOR'` when text >= 50 chars.
+     - **Priority 2 (Semantic "About the job"):** Finds semantic heading matching `/^about the (?:job|role)/i`, resolves closest container section/article, and extracts first substantive non-UI sibling content block (ignoring recruiter cards, sign-in banners, and show-more buttons). Returns `descriptionSource: 'ABOUT_THE_JOB'`.
+     - **Priority 3 (JSON-LD):** Structured `schema.org/JobPosting` fallback. Returns `descriptionSource: 'JSON_LD'`.
+     - **Priority 4 (Fallback):** Returns empty string with `descriptionSource: 'NONE'`.
+3. **Extraction Provenance Tracking:**
+   - Populates `descriptionSource`, `jobRootSource`, and `descriptionLength` throughout `LinkedInAdapter.extract`, `JobPageDetector.detect`, `JobDetectionEngine.evaluate`, `service-worker.js`, and `sidebar.js`.
+4. **Hydration Controller Consolidation & Observation:**
+   - Simplified `content-script.js` to rely exclusively on `JobHydrationLifecycle` as the sole hydration authority.
+   - Observes the `activeJobRoot` directly; if absent during initial load, temporarily observes `document.body` and switches observation target to `activeJobRoot` upon first appearance.
+   - Halts observer and timer schedule immediately once `description.length >= 50`.
+5. **Durable Persistence & Service Worker State:**
+   - In `extension/background/service-worker.js`, on `JOB_DESCRIPTION_HYDRATED`, persists the hydrated job state with `analysisReady: true` into `DurableWorkflowStore` for `sender.tab.id`.
+   - Ensures sidebar reopen, navigation reconciliation, and page reload instantly restore the hydrated description without re-entering the loading state.
+6. **Real Chrome for Testing E2E Verification:**
+   - Ran `scripts/verify-p73-live-linkedin-active-root.mjs` against real Chrome CDP on live Appinventiv job:
+     - Verified title = `Software Engineer`, company = `Appinventiv`.
+     - Extracted 559-character description with `descriptionSource = SELECTOR`.
+     - `analysisReady = true`, loading notice hidden, `[Analyze Job Match]` enabled.
+     - Strict 0 server analyze calls before user interaction.
+     - Explicit user click on `[Analyze Job Match]` succeeded with HTTP 200 (exactly 1 analyze call).
+     - Tab switch: Navigated to General Motors job (`https://www.linkedin.com/jobs/view/4419969671/`) -> Sidebar detected Job B cleanly without state leakage -> Navigated back to Appinventiv -> Restored Job A cleanly.
+     - Reload test: Hard page reload maintained title, description, and enabled Analyze button via durable workflow store.
+     - 4 visual proof screenshots captured to brain artifact directory:
+       - `p73-01-live-appinventiv-extracted.png`
+       - `p73-02-live-appinventiv-analyzed.png`
+       - `p73-03-live-tab-switch.png`
+       - `p73-04-live-reloaded.png`
+
+**Files Changed:**
+- `extension/job-detection/adapters/linkedin.adapter.js` [MODIFIED]: Implemented `findActiveLinkedInJobRoot`, `extractLinkedInDescription`, `deriveJobRootSource`, active root title fallback, and provenance tracking.
+- `extension/job-detection/job-page-detector.js` [MODIFIED]: Forwarded `descriptionSource`, `jobRootSource`, and `descriptionLength` through `JobPageDetector.detect`.
+- `extension/content/content-script.js` [MODIFIED]: Consolidated hydration to single `JobHydrationLifecycle` controller, active root DOM observer, and immediate termination on `>= 50` chars.
+- `extension/background/service-worker.js` [MODIFIED]: Integrated `DurableWorkflowStore` to persist hydrated state for `sender.tab.id` upon `JOB_DESCRIPTION_HYDRATED`.
+- `extension/sidebar/sidebar.js` [MODIFIED]: Preserved provenance properties (`descriptionSource`, `jobRootSource`, `descriptionLength`) in `activeJob` and `cachedState`.
+- `tests/unit/p73-linkedin-active-root-extraction.test.js` [NEW]: 35 unit tests covering active root discovery, 4-tier extraction, provenance tracking, negative tests, and portal regressions.
+- `scripts/verify-p73-live-linkedin-active-root.mjs` [NEW]: Real Chrome for Testing CDP verification script for live Appinventiv job, tab switching, and page reloading.
+
+**Verification & Regression Results:**
+- P73 Unit Test Suite: **35/35 PASS (12 suites, 0 failures, 100% pass rate)**
+- Full P57–P73 Regression Suite: **305/305 PASS (106 suites, 0 failures, 100% pass rate)**
+- Real Chrome Live LinkedIn Test: **PASS**
+  - Appinventiv Software Engineer detected, 559-char description extracted via active root
+  - `descriptionSource = SELECTOR`, `analysisReady = true`
+  - Analyze button enabled, notice hidden, 0 analyze calls before click
+  - Explicit click triggered 1 analyze call returning HTTP 200
+  - Tab switch and page reload cycles verified with full state isolation
+
+---
+
 ### PART 72-FIX: Make Late LinkedIn Hydration Reach Sidebar
 
 **Status:** COMPLETE & VERIFIED  

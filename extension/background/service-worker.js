@@ -7,6 +7,7 @@
  */
 
 import { EXTENSION_ENV, PROD_BACKEND_URL, validateBackendUrl } from '../config.js';
+import { DurableWorkflowStore } from '../lib/durable-workflow-store.js';
 
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
@@ -161,10 +162,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'JOB_DESCRIPTION_HYDRATED') {
-    // P72-FIX: Service worker receives JOB_DESCRIPTION_HYDRATED from content script and forwards it to the sidebar.
+    // P72-FIX & P73: Service worker receives JOB_DESCRIPTION_HYDRATED from content script,
+    // persists the hydrated state to DurableWorkflowStore for the tab, and forwards it to sidebar.
     // Safe sender verification: strictly use sender.tab.id as the authoritative tab identity.
     const senderTabId = sender?.tab?.id;
     if (senderTabId) {
+      (async () => {
+        try {
+          const store = new DurableWorkflowStore();
+          const tabState = await store.getTabState(senderTabId);
+          if (tabState) {
+            tabState.jobData = {
+              ...(tabState.jobData || {}),
+              ...message.jobData,
+              analysisReady: true,
+            };
+            tabState.normalizedJob = tabState.jobData;
+            if (message.jobFingerprint) {
+              tabState.jobFingerprint = message.jobFingerprint;
+            }
+            await store.saveTabState(senderTabId, tabState);
+          }
+        } catch (err) {
+          console.warn('Could not persist hydrated state in service worker:', err);
+        }
+      })();
+
       chrome.runtime.sendMessage({
         type: 'JOB_DESCRIPTION_HYDRATED',
         tabId: senderTabId,
