@@ -10592,3 +10592,81 @@ Candidate source data is strictly immutable. No synthetic metrics, uncorroborate
   - `p69-05-live-career-portals.png`
   - `p69-06-live-linkedin-analyzed.png`
 
+---
+
+### PART 70: LinkedIn Description Readiness & Analyze Contract
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Phase:** Phase 70 — LinkedIn Description Readiness & Analyze Contract  
+**Target Main SHA:** Working Tree on `main`  
+
+**Context & Core Architectural Invariants Accomplished:**
+1. **Separation of Detection Ready vs Analysis Ready:**
+   - Resolved contract bug where valid job identity (`title: 'Software Engineer'`, `company: 'Appinventiv'`) allowed `[Analyze Job Match]` to be clicked before substantive job description hydrated, triggering HTTP 503 validation errors (`jobDescriptionText must contain at least 50 characters`).
+   - Defined strict domain boundaries:
+     - `JOB_DETECTED`: valid job identity (provider, title, company/context).
+     - `ANALYSIS_READY`: valid detected job AND substantive job description length >= 50 characters.
+   - Preserved `isReady: true` for detection while introducing `analysisReady: Boolean(hasValidTitle && hasMeaningfulDescription)` across `LinkedInAdapter`, `JobPageDetector`, and `DetectionEngine`.
+2. **Localized Description Extraction & Location Suffix Stripping:**
+   - Extracted job descriptions solely from verified active containers: `.show-more-less-html__markup`, `#job-details`, `.jobs-description__content`, and `.jobs-box__html-content`. Zero unlocalized `document.body.textContent` fallbacks.
+   - Enhanced company name extraction to strip trailing location suffixes separated by em-dashes (`—`) or hyphens (`-`), e.g. `"Software Engineer at Appinventiv — India | LinkedIn Jobs"` correctly resolves company to `"Appinventiv"`.
+3. **Natural LinkedIn Description Hydration in Content Script:**
+   - In `content-script.js`, extended `performDetectionWithHydration()` with progressive polling intervals (50ms, 150ms, 350ms, 700ms, 1200ms, 1800ms) up to a 5000ms deadline.
+   - Gated `isFullyReady` on `(description || rawText).trim().length >= 50`.
+4. **Sidebar Analyze Button Contract & Neutral Loading Notice:**
+   - When a job is detected but description has not yet hydrated (length < 50):
+     - `#analyzeJobBtn` is strictly disabled (`disabled = true`).
+     - Neutral `#descriptionLoadingNotice` is displayed with `"Job description is still loading..."` and a subtle spinner.
+     - Strictly NO error banner is displayed (`#analysisErrorBanner` remains hidden).
+   - Once description hydrates to >= 50 characters:
+     - `#analyzeJobBtn` is dynamically enabled.
+     - `#descriptionLoadingNotice` is cleanly hidden.
+   - In `_reconcileDetectedJob`, when a hydrated description mounts for the current active job, `activeJob.description`, `activeJob.analysisReady`, the durable store, and the sidebar UI are reconciled without interrupting workflow.
+5. **Server Boundary & Server-Side Defense:**
+   - Local defense: `runAnalyzeJob()` in `sidebar.js` checks `(this.activeJob?.description || '').trim().length >= 50` prior to dispatch, aborting immediately with 0 server calls if insufficient.
+   - Backend defense: `POST /api/extension/analyze-job` strictly validates `jobDescriptionText.length >= 50`, returning HTTP 400 Bad Request with code `INVALID_JOB_DESCRIPTION` (instead of 503 internal error), and passes verified description text directly to `analyzeJobFit()`.
+6. **Real Live Acceptance Evidence (Real Chrome MV3 CDP):**
+   - Verified on real live LinkedIn Appinventiv posting (`https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430` / `4464770430`) with ZERO DOM injection.
+   - Verified on real live General Motors posting (`4419969671`).
+   - Verified structural rejection of ChatGPT and GitHub (Analyze disabled, 0 server calls).
+   - Verified preservation of Greenhouse / Career Portals.
+   - Verified description hydration contract and neutral notice visibility.
+
+**State & Verification Results Table:**
+| Step | Description | Ext ID | Detected | Portal | Title | Company | Desc Len | Btn Dis | Analyze Calls |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | Real Live LinkedIn Appinventiv (`4464770430`) | — | YES | LinkedIn Jobs | Software Engineer | Appinventiv | 559 | NO | 1 (HTTP 200) |
+| 2 | Live LinkedIn General Motors (`4419969671`) | `4419969671` | YES | LinkedIn Jobs | Senior Software Engineer – Go (Golang) | General Motors | 6409 | NO | 1 |
+| 3 | ChatGPT Rejection (False Positive Prevention) | — | NO | Web Page | — | — | 0 | YES | 1 |
+| 4 | GitHub Rejection (False Positive Prevention) | — | NO | Web Page | — | — | 0 | YES | 1 |
+| 5 | Career Portal / Greenhouse Preservation | — | YES | Greenhouse ATS | Senior Backend Engineer - Core Payments | Stripe | 284 | NO | 1 |
+| 6 | Description Hydration Contract & Loading Notice | `99887766` | YES | LinkedIn Jobs | Staff Platform Engineer | HyperScale Systems | 153 | NO | 1 |
+
+**Files Modified / Created:**
+- `extension/job-detection/adapters/linkedin.adapter.js`: Location suffix stripping; localized description extraction; `analysisReady` derivation.
+- `extension/job-detection/job-page-detector.js`: `analysisReady` propagation.
+- `extension/job-detection/detection-engine.js`: Emits `analysisReady` in normalized payload.
+- `extension/content/content-script.js`: Bounded description hydration (5000ms max) with progressive intervals.
+- `extension/sidebar/sidebar.html`: Neutral `#descriptionLoadingNotice` with `#descriptionLoadingText` and spinner.
+- `extension/sidebar/sidebar.css`: Styling for `.loading-hint` and `.loading-spinner-sm`.
+- `extension/sidebar/sidebar.js`: Bindings, analyze button readiness check, notice toggle, description reconciliation, and local pre-dispatch abort.
+- `src/routes/extension.routes.js`: 400 Bad Request validation for description < 50 chars with `INVALID_JOB_DESCRIPTION`; direct description pass-through to fit analysis.
+- `tests/unit/p63-detection-and-server-boundary.test.js`: Added substantive descriptions to mock jobs.
+- `tests/unit/p66-authoritative-detection-pipeline.test.js`: Added substantive description to mock job.
+- `tests/unit/p70-linkedin-description-readiness.test.js` [NEW]: 12 unit tests verifying separation of readiness, localized extraction, em-dash suffix stripping, sidebar state, local abort defense, and hydration reconciliation.
+- `scripts/verify-p70-live-stress.mjs` [NEW]: Real Chrome MV3 live CDP test harness verifying real live Appinventiv job (zero synthetic DOM), live General Motors job, ChatGPT/GitHub rejections, Greenhouse preservation, and hydration contract.
+
+**Verification Evidence:**
+- `tests/unit/p70-linkedin-description-readiness.test.js`: **12/12 PASS (100%)**
+- Combined Regression Suite (`p57`, `p58`, `p60`, `p63`, `p66`, `p67`, `p68`, `p69`, `p70`): **138/138 PASS across 47 suites (100%)**
+- Secrets Audit (`npm run scan:secrets`): **Zero exposed secrets detected (100% PASS)**
+- Real Chrome MV3 Live Stress Verification (`scripts/verify-p70-live-stress.mjs`): **100% PASS across all 6 live test steps**
+- Visual Evidence Artifacts:
+  - `p70-01-live-linkedin-appinventiv-analyzed.png`
+  - `p70-02-live-linkedin-general-motors.png`
+  - `p70-03-live-chatgpt-rejected.png`
+  - `p70-04-live-github-rejected.png`
+  - `p70-05-live-career-portals.png`
+  - `p70-06-live-description-hydration-contract.png`
+
+

@@ -413,6 +413,15 @@ export default async function extensionRoutes(app, opts = {}) {
         jobDescriptionText = `${jobDescriptionText}\n\nRequirements:\n${reqText}`.trim();
       }
     }
+
+    if (jobDescriptionText.length < 50) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        code: 'INVALID_JOB_DESCRIPTION',
+        message: 'Job description must contain at least 50 characters for fit analysis',
+      });
+    }
+
     const sourceUrl = job.sourceUrl || '';
     const company = job.company || 'Unknown Company';
     const title = job.title || 'Untitled Role';
@@ -561,7 +570,7 @@ export default async function extensionRoutes(app, opts = {}) {
     let analysisError = null;
     try {
       const fitResult = await analyzeJobFit(mcpContext, {
-        jobDescriptionText: jobDescriptionText || `${title} at ${company}`,
+        jobDescriptionText,
         jobTitle: title,
         companyName: company,
       });

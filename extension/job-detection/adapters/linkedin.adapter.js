@@ -238,7 +238,12 @@ export class LinkedInAdapter {
         const atMatch = docTitle.match(/^(.+?)\s+at\s+([^|]+?)\s*\|\s*LinkedIn/i);
         if (atMatch) {
           if (!title) title = atMatch[1].trim();
-          if (!company || company === 'Company') company = atMatch[2].trim();
+          if (!company || company === 'Company') {
+            let matchedCompany = atMatch[2].trim();
+            // Clean location suffix e.g. "Appinventiv — India" or "Appinventiv - Noida"
+            matchedCompany = matchedCompany.replace(/\s*[\u2014\u2013-]\s*.*$/, '').trim();
+            company = matchedCompany;
+          }
         }
       }
 
@@ -296,8 +301,10 @@ export class LinkedInAdapter {
     const hasValidTitle = Boolean(title && title !== 'Untitled Role');
 
     // Readiness gate: strong job-detail context + valid title + substantive content.
-    // externalJobId is preferred but does not block detection when title and substantive content exist.
+    // Detection readiness: valid identity, title, and company or description.
     const isReady = Boolean(hasValidTitle && (hasMeaningfulCompany || hasMeaningfulDescription));
+    // Analysis readiness (P70): valid detected job with substantive description >= 50 chars.
+    const analysisReady = Boolean(hasValidTitle && hasMeaningfulDescription);
 
     let workplace = 'UNKNOWN';
     const combinedText = `${title} ${location} ${description}`.toLowerCase();
@@ -325,6 +332,7 @@ export class LinkedInAdapter {
       rawText: description,
       hasApplyCta,
       isReady,
+      analysisReady,
     };
   }
 }

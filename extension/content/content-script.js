@@ -133,21 +133,15 @@ if (!window.__aicareershub_content_script_loaded) {
   async function performDetectionWithHydration() {
     let res = await performDetection();
 
+    // P70: Fully ready requires substantive description >= 50 chars for analysis
     const isFullyReady = (result) => {
-      if (!result || !result.detected || result.ready === false || !result.jobData) {
+      if (!result || !result.detected || !result.jobData) {
         return false;
       }
       const jd = result.jobData;
       if (!jd.title || jd.title === 'Untitled Role') return false;
-      if (jd.provider === 'LINKEDIN') {
-        const hasSubstantiveDesc = jd.description && jd.description.length >= 50;
-        const hasCompany = jd.company && jd.company !== 'Company';
-        return Boolean(hasSubstantiveDesc || (hasCompany && jd.externalJobId));
-      }
-      return Boolean(
-        (jd.externalJobId || jd.sourceUrl) &&
-        ((jd.company && jd.company !== 'Company') || (jd.description && jd.description.length >= 50))
-      );
+      const desc = (jd.description || jd.rawText || '').trim();
+      return desc.length >= 50;
     };
 
     if (isFullyReady(res)) {
@@ -170,7 +164,7 @@ if (!window.__aicareershub_content_script_loaded) {
         typeof document !== 'undefined' &&
         document.querySelector &&
         document.querySelector(
-          '.jobs-search-results-list__list-item--active, [data-occludable-job-id], .job-details-jobs-unified-top-card, .jobs-description__content, #job-details, .job-posting, [itemtype*="JobPosting"]'
+          '.jobs-search-results-list__list-item--active, [data-occludable-job-id], .job-details-jobs-unified-top-card, .jobs-description__content, #job-details, .show-more-less-html__markup, .job-posting, [itemtype*="JobPosting"]'
         )
       );
 
@@ -182,7 +176,7 @@ if (!window.__aicareershub_content_script_loaded) {
       let isResolved = false;
       let observer = null;
       const timerIds = [];
-      const MAX_DURATION_MS = 2200;
+      const MAX_DURATION_MS = 5000;
       const startTime = Date.now();
 
       const finish = (result) => {
@@ -212,12 +206,12 @@ if (!window.__aicareershub_content_script_loaded) {
           checkNow();
         });
         try {
-          observer.observe(document.body, { childList: true, subtree: true });
+          observer.observe(document.body, { childList: true, subtree: true, characterData: true });
         } catch {}
       }
 
-      // Bounded backoff delays: 50ms, 150ms, 350ms, 700ms, 1200ms
-      const delays = [50, 150, 350, 700, 1200];
+      // Bounded backoff retry delays
+      const delays = [100, 250, 500, 900, 1500, 2500, 3800];
       delays.forEach((delay) => {
         const tid = setTimeout(checkNow, delay);
         timerIds.push(tid);

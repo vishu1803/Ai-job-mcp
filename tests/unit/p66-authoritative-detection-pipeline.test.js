@@ -515,6 +515,7 @@ describe('Part 66 — Real LinkedIn Detection & Single Detection Reconciliation 
         title: 'Staff Site Reliability Engineer',
         company: 'CloudScale Infrastructure',
         sourceUrl: 'https://www.linkedin.com/jobs/view/8899',
+        description: 'Staff Site Reliability Engineer wanted to scale distributed infrastructure across Kubernetes clusters with high availability requirements.',
       };
 
       tabMessageHandlers.set(101, async (msg) => {

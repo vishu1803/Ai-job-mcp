@@ -469,6 +469,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Backend Engineer',
         company: 'Apex Scale',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
+        description: 'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
+        analysisReady: true,
       };
 
       // Emulate detector discovering job
@@ -524,11 +526,15 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Job A - Senior Backend',
         company: 'Company A',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
+        description: 'Job A requirements: 5+ years of distributed backend systems with Go.',
+        analysisReady: true,
       };
       const jobB = {
         title: 'Job B - Staff Architect',
         company: 'Company B',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1002',
+        description: 'Job B requirements: 8+ years architecting enterprise scale systems with Kubernetes.',
+        analysisReady: true,
       };
 
       await controller._handleJobDetectedEvent(jobA);
@@ -549,6 +555,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Backend Engineer',
         company: 'Apex Scale',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
+        description: 'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
+        analysisReady: true,
       };
 
       await controller._handleJobDetectedEvent(sampleJob);
@@ -567,6 +575,8 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         title: 'Backend Engineer',
         company: 'Apex Scale',
         sourceUrl: 'https://www.linkedin.com/jobs/view/1001',
+        description: 'Requires 5+ years experience building scalable backend microservices with Node.js and TypeScript.',
+        analysisReady: true,
       };
 
       await controller._handleJobDetectedEvent(sampleJob);
@@ -630,8 +640,18 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
       const tabAId = 101;
       const tabBId = 202;
 
-      const jobA = { title: 'Engineer A', company: 'Corp A', sourceUrl: 'https://site.com/a' };
-      const jobB = { title: 'Engineer B', company: 'Corp B', sourceUrl: 'https://site.com/b' };
+      const jobA = {
+        title: 'Engineer A',
+        company: 'Corp A',
+        sourceUrl: 'https://site.com/a',
+        description: 'Engineer A role requiring scalable systems design, API engineering, and distributed services maintenance for enterprise cloud platforms.',
+      };
+      const jobB = {
+        title: 'Engineer B',
+        company: 'Corp B',
+        sourceUrl: 'https://site.com/b',
+        description: 'Engineer B role requiring distributed backend services, reliability engineering, and continuous integration workflows.',
+      };
 
       // Set up Tab A with completed handoff -> locked
       const tabAState = store.createInitialState(tabAId);
@@ -743,7 +763,11 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
       controller.activeTabId = 555;
       controller.isAuthenticated = true;
       controller.currentUser = { id: 'usr-canon' };
-      controller.activeJob = { title: 'Principal Architect', company: 'Vanguard' };
+      controller.activeJob = {
+        title: 'Principal Architect',
+        company: 'Vanguard',
+        description: 'Principal Architect role with more than 50 characters of substantive technical requirements for high availability distributed systems.',
+      };
       controller.cachedState = controller.store.createInitialState(555);
       controller.elements = {
         workflowStateText: { textContent: '' },

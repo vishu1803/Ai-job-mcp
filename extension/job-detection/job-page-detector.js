@@ -117,6 +117,7 @@ export class JobPageDetector {
         rawText: '',
         isConfident: false,
         isReady: false,
+        analysisReady: false,
       };
     }
 
@@ -183,6 +184,13 @@ export class JobPageDetector {
       isReady
     );
 
+    // Analysis readiness (P70): valid detected job with substantive description >= 50 chars
+    const analysisReady = Boolean(
+      isConfidentExtraction &&
+      sanitizedDescription.length >= 50 &&
+      rawPayload.analysisReady !== false
+    );
+
     return {
       sourceUrl: currentUrl,
       provider: rawPayload.provider,
@@ -200,6 +208,7 @@ export class JobPageDetector {
       hasApplyCta: Boolean(rawPayload.hasApplyCta),
       isConfident: isConfidentExtraction,
       isReady,
+      analysisReady,
     };
   }
 }
