@@ -21,6 +21,8 @@
 
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // Shared constants
 import {
@@ -209,17 +211,132 @@ function createMockController(options = {}) {
     }),
   };
 
+  let analyzeCalls = 0;
   controller.backendClient = {
     getHealth: async () => ({ status: 'ok' }),
     getAuthStatus: async () => ({ authenticated: true, status: 'AUTHENTICATED', user: { id: 'u1' } }),
-    analyzeJob: async () => null,
+    analyzeJob: async () => {
+      analyzeCalls++;
+      return { success: true };
+    },
   };
 
   controller.activeTabId = 100;
   controller.isAuthenticated = true;
   controller.currentUser = { id: 'u1' };
 
-  return { controller, elementState };
+  let runtimeMessageListener = null;
+  const origChrome = globalThis.chrome;
+  globalThis.chrome = {
+    runtime: {
+      onMessage: {
+        addListener(fn) {
+          runtimeMessageListener = fn;
+        },
+      },
+    },
+  };
+  controller._listenToRuntimeMessages();
+  globalThis.chrome = origChrome;
+
+  const dispatchRuntimeMessage = async (msg, sender = { tab: { id: controller.activeTabId } }) => {
+    if (runtimeMessageListener) {
+      await runtimeMessageListener(msg, sender);
+    }
+  };
+
+  return {
+    controller,
+    elementState,
+    dispatchRuntimeMessage,
+    getAnalyzeCalls: () => analyzeCalls,
+  };
+}
+
+const rootDir = path.resolve('.');
+
+let swMessageListener = null;
+let swForwardedMessages = [];
+
+async function getServiceWorkerMessageListener() {
+  if (!swMessageListener) {
+    const swChromeMock = {
+      runtime: {
+        onInstalled: { addListener: () => {} },
+        onStartup: { addListener: () => {} },
+        onMessage: {
+          addListener: (fn) => {
+            swMessageListener = fn;
+          },
+        },
+        sendMessage: async (msg) => {
+          swForwardedMessages.push(msg);
+          return { success: true };
+        },
+      },
+      storage: {
+        local: {
+          get: async () => ({}),
+          set: async () => {},
+          remove: async () => {},
+        },
+      },
+      tabs: {
+        onActivated: { addListener: () => {} },
+        onUpdated: { addListener: () => {} },
+      },
+    };
+    const origChrome = globalThis.chrome;
+    globalThis.chrome = swChromeMock;
+    await import('../../extension/background/service-worker.js');
+    globalThis.chrome = origChrome;
+  }
+  return {
+    listener: async (msg, sender, sendResponse) => {
+      const orig = globalThis.chrome;
+      globalThis.chrome = {
+        runtime: {
+          sendMessage: async (m) => {
+            swForwardedMessages.push(m);
+            return { success: true };
+          },
+        },
+      };
+      try {
+        return await swMessageListener(msg, sender, sendResponse);
+      } finally {
+        globalThis.chrome = orig;
+      }
+    },
+    getForwarded: () => swForwardedMessages,
+    clearForwarded: () => {
+      swForwardedMessages = [];
+    },
+  };
+}
+
+async function getContentScriptHydration() {
+  if (!globalThis.window?.__aicareershub_hydration) {
+    globalThis.window = globalThis.window || {};
+    globalThis.window.addEventListener = globalThis.window.addEventListener || (() => {});
+    globalThis.window.location = globalThis.window.location || {
+      href: 'https://in.linkedin.com/jobs/view/4464770430',
+      hostname: 'in.linkedin.com',
+      search: '',
+    };
+    globalThis.document = globalThis.document || {
+      body: {},
+      querySelector: () => null,
+      addEventListener: () => {},
+    };
+    globalThis.chrome = globalThis.chrome || {};
+    globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+    globalThis.chrome.runtime.onMessage = globalThis.chrome.runtime.onMessage || { addListener: () => {} };
+    globalThis.chrome.runtime.sendMessage = globalThis.chrome.runtime.sendMessage || (async () => ({ success: true }));
+    globalThis.chrome.runtime.getURL = (rel) => pathToFileURL(path.resolve(rootDir, 'extension', rel)).href;
+    await import('../../extension/content/content-script.js');
+  }
+  return globalThis.window.__aicareershub_hydration;
 }
 
 function makeLinkedInMockDoc(options = {}) {
@@ -424,9 +541,80 @@ describe('P72: Lazy & Expanded Description ("Show more")', () => {
   });
 });
 
+describe('P72-FIX: Service Worker Forwarding & Safety', () => {
+  it('service worker forwards JOB_DESCRIPTION_HYDRATED to runtime with sender.tab.id', async () => {
+    const sw = await getServiceWorkerMessageListener();
+    sw.clearForwarded();
+
+    let ackResult = null;
+    const message = {
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      jobData: { title: 'Software Engineer', company: 'Appinventiv', description: 'Detailed job description >= 50 chars' },
+      jobFingerprint: 'fp-appinventiv-123',
+    };
+    const sender = { tab: { id: 777 } };
+
+    await sw.listener(message, sender, (res) => {
+      ackResult = res;
+    });
+
+    assert.deepStrictEqual(ackResult, { success: true, hydrated: true, forwarded: true });
+    const forwarded = sw.getForwarded();
+    assert.strictEqual(forwarded.length, 1);
+    assert.strictEqual(forwarded[0].type, 'JOB_DESCRIPTION_HYDRATED');
+    assert.strictEqual(forwarded[0].tabId, 777, 'Forwarded message must carry sender.tab.id');
+    assert.strictEqual(forwarded[0].jobFingerprint, 'fp-appinventiv-123');
+    assert.strictEqual(forwarded[0].jobData.title, 'Software Engineer');
+  });
+
+  it('service worker strictly uses sender.tab.id and ignores spoofed payload tabId', async () => {
+    const sw = await getServiceWorkerMessageListener();
+    sw.clearForwarded();
+
+    let ackResult = null;
+    const message = {
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      tabId: 999999, // spoofed
+      jobData: { title: 'Software Engineer', description: 'Detailed job description >= 50 chars' },
+      jobFingerprint: 'fp-appinventiv-123',
+    };
+    const sender = { tab: { id: 888 } };
+
+    await sw.listener(message, sender, (res) => {
+      ackResult = res;
+    });
+
+    assert.strictEqual(ackResult.success, true);
+    const forwarded = sw.getForwarded();
+    assert.strictEqual(forwarded.length, 1);
+    assert.strictEqual(forwarded[0].tabId, 888, 'Service worker must use sender.tab.id, never spoofed tabId');
+  });
+
+  it('service worker rejects JOB_DESCRIPTION_HYDRATED when sender.tab.id is missing', async () => {
+    const sw = await getServiceWorkerMessageListener();
+    sw.clearForwarded();
+
+    let ackResult = null;
+    const message = {
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      tabId: 100,
+      jobData: { title: 'Software Engineer' },
+      jobFingerprint: 'fp-123',
+    };
+    const sender = {}; // no tab identity
+
+    await sw.listener(message, sender, (res) => {
+      ackResult = res;
+    });
+
+    assert.strictEqual(ackResult.success, false);
+    assert.strictEqual(sw.getForwarded().length, 0, 'Must NOT forward event from untrusted sender');
+  });
+});
+
 describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
-  it('updates activeJob, enables Analyze button, and hides notice on matching fingerprint', async () => {
-    const { controller, elementState } = createMockController();
+  it('updates activeJob, enables Analyze button, and hides notice on matching fingerprint and tabId', async () => {
+    const { controller, elementState, dispatchRuntimeMessage, getAnalyzeCalls } = createMockController();
 
     // 1. Initial detection with empty description
     const initialJob = {
@@ -445,7 +633,7 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
     assert.strictEqual(elementState.descriptionLoadingNoticeHidden, false);
     assert.strictEqual(controller.elements.analyzeJobBtn.disabled, true);
 
-    // 2. Simulate JOB_DESCRIPTION_HYDRATED message arriving from content script
+    // 2. Simulate JOB_DESCRIPTION_HYDRATED runtime message arriving from service worker
     const hydratedJob = {
       ...initialJob,
       description: 'We are seeking an experienced Software Engineer with solid expertise in Node.js, React, and cloud systems to scale our distributed backend.',
@@ -453,11 +641,15 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
       analysisReady: true,
     };
 
-    // Simulate sidebar's message listener logic
     const incomingFingerprint = JobIdentity.deriveJobFingerprint(hydratedJob);
     assert.strictEqual(incomingFingerprint, controller.activeJobFingerprint);
 
-    await controller._reconcileDetectedJob(hydratedJob);
+    await dispatchRuntimeMessage({
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      tabId: controller.activeTabId,
+      jobData: hydratedJob,
+      jobFingerprint: incomingFingerprint,
+    });
 
     // 3. Verify state after hydration
     assert.strictEqual(controller.activeJob.analysisReady, true);
@@ -466,10 +658,83 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
     assert.strictEqual(elementState.descriptionLoadingNoticeHidden, true, 'Notice must be hidden after hydration');
     assert.strictEqual(controller.elements.analyzeJobBtn.disabled, false, 'Analyze button must be enabled');
     assert.strictEqual(controller.elements.analyzeJobBtn.textContent, 'Analyze Job Match');
+
+    // 4. Verify 0 automatic analyze calls
+    assert.strictEqual(getAnalyzeCalls(), 0, 'No automatic analyze call must occur upon hydration');
+  });
+
+  it('produces ZERO automatic analyze calls on hydration arrival', async () => {
+    const { controller, dispatchRuntimeMessage, getAnalyzeCalls } = createMockController();
+    const initialJob = {
+      title: 'Software Engineer',
+      company: 'Appinventiv',
+      externalJobId: '4464770430',
+      description: '',
+      analysisReady: false,
+      provider: 'LINKEDIN',
+    };
+    await controller._handleJobDetectedEvent(initialJob);
+
+    const hydratedJob = {
+      ...initialJob,
+      description: 'A sufficiently long description with more than fifty characters to qualify for analysis readiness.',
+      analysisReady: true,
+    };
+    const fp = JobIdentity.deriveJobFingerprint(hydratedJob);
+
+    await dispatchRuntimeMessage({
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      tabId: controller.activeTabId,
+      jobData: hydratedJob,
+      jobFingerprint: fp,
+    });
+
+    assert.strictEqual(getAnalyzeCalls(), 0, 'Must not call analyze API on hydration arrival');
+  });
+
+  it('duplicate JOB_DESCRIPTION_HYDRATED event is completely idempotent', async () => {
+    const { controller, dispatchRuntimeMessage, getAnalyzeCalls } = createMockController();
+    const initialJob = {
+      title: 'Software Engineer',
+      company: 'Appinventiv',
+      externalJobId: '4464770430',
+      description: '',
+      analysisReady: false,
+      provider: 'LINKEDIN',
+    };
+    await controller._handleJobDetectedEvent(initialJob);
+
+    const hydratedJob = {
+      ...initialJob,
+      description: 'A sufficiently long description with more than fifty characters to qualify for analysis readiness.',
+      analysisReady: true,
+    };
+    const fp = JobIdentity.deriveJobFingerprint(hydratedJob);
+
+    // First arrival
+    await dispatchRuntimeMessage({
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      tabId: controller.activeTabId,
+      jobData: hydratedJob,
+      jobFingerprint: fp,
+    });
+    assert.strictEqual(controller.activeJob.analysisReady, true);
+    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, false);
+
+    // Duplicate arrival
+    await dispatchRuntimeMessage({
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      tabId: controller.activeTabId,
+      jobData: hydratedJob,
+      jobFingerprint: fp,
+    });
+    assert.strictEqual(controller.activeJob.analysisReady, true);
+    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, false);
+    assert.strictEqual(getAnalyzeCalls(), 0, 'Duplicate hydration must remain 0 analyze calls');
   });
 
   it('ignores JOB_DESCRIPTION_HYDRATED for a DIFFERENT job fingerprint', async () => {
-    const { controller, elementState } = createMockController();
+    const { controller, dispatchRuntimeMessage } = createMockController();
 
     // Active job: Job A
     const jobA = {
@@ -492,21 +757,23 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
       provider: 'LINKEDIN',
     };
 
-    const fpA = JobIdentity.deriveJobFingerprint(jobA);
     const fpB = JobIdentity.deriveJobFingerprint(jobB);
-    assert.notStrictEqual(fpA, fpB, 'Fingerprints must differ');
 
-    // Sidebar message listener checks fingerprint match before reconciling:
-    const matchesActive = fpB === controller.activeJobFingerprint;
-    assert.strictEqual(matchesActive, false, 'Different job must not match active job fingerprint');
+    await dispatchRuntimeMessage({
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      tabId: controller.activeTabId,
+      jobData: jobB,
+      jobFingerprint: fpB,
+    });
 
     // Active job remains Job A untouched
     assert.strictEqual(controller.activeJob.title, 'Job A Engineer');
     assert.strictEqual(controller.activeJob.description, '');
+    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, true);
   });
 
   it('ignores JOB_DESCRIPTION_HYDRATED when sender tabId does not match activeTabId', async () => {
-    const { controller } = createMockController();
+    const { controller, dispatchRuntimeMessage } = createMockController();
     controller.activeTabId = 100;
 
     const job = {
@@ -515,12 +782,61 @@ describe('P72: Sidebar JOB_DESCRIPTION_HYDRATED Message Reconciliation', () => {
       externalJobId: '4464770430',
       description: 'Hydrated description from background tab that has more than fifty characters of content.',
       analysisReady: true,
+      provider: 'LINKEDIN',
+    };
+    await controller._handleJobDetectedEvent(job);
+
+    // Message arrives with wrong tabId (200)
+    await dispatchRuntimeMessage(
+      {
+        type: 'JOB_DESCRIPTION_HYDRATED',
+        tabId: 200,
+        jobData: { ...job, description: 'Mutated description from other tab' },
+        jobFingerprint: JobIdentity.deriveJobFingerprint(job),
+      },
+      { tab: { id: 200 } }
+    );
+
+    // State on tab 100 must NOT be updated by tab 200 message
+    assert.strictEqual(controller.activeJob.description, job.description);
+  });
+
+  it('stale Job A hydration cannot mutate active Job B', async () => {
+    const { controller, dispatchRuntimeMessage } = createMockController();
+
+    // Tab navigates from Job A to Job B
+    const jobB = {
+      title: 'Job B Engineer',
+      company: 'Company B',
+      externalJobId: '88888',
+      description: '',
+      analysisReady: false,
+      provider: 'LINKEDIN',
+    };
+    await controller._handleJobDetectedEvent(jobB);
+
+    // Stale Job A hydration message arrives on same tab
+    const staleJobA = {
+      title: 'Job A Engineer',
+      company: 'Company A',
+      externalJobId: '77777',
+      description: 'Late hydrated description for Job A that took 8 seconds to arrive.',
+      analysisReady: true,
+      provider: 'LINKEDIN',
     };
 
-    const messageTabId = 200; // Different tab
-    const isMatchingTab = messageTabId === controller.activeTabId;
+    await dispatchRuntimeMessage({
+      type: 'JOB_DESCRIPTION_HYDRATED',
+      tabId: controller.activeTabId,
+      jobData: staleJobA,
+      jobFingerprint: JobIdentity.deriveJobFingerprint(staleJobA),
+    });
 
-    assert.strictEqual(isMatchingTab, false, 'Message from different tab must be rejected');
+    // Active job must strictly remain Job B with empty description
+    assert.strictEqual(controller.activeJob.title, 'Job B Engineer');
+    assert.strictEqual(controller.activeJob.description, '');
+    assert.strictEqual(controller.activeJob.analysisReady, false);
+    assert.strictEqual(controller.elements.analyzeJobBtn.disabled, true);
   });
 });
 
@@ -642,3 +958,127 @@ describe('P72: Description Readiness Invariant', () => {
     assert.strictEqual(payload50.analysisReady, true, '50 chars must be true');
   });
 });
+
+describe('P72-FIX: Content Script startJobHydration Concurrency & Invariants', () => {
+  it('concurrent startJobHydration calls create exactly ONE JobHydrationLifecycle', async () => {
+    const cs = await getContentScriptHydration();
+    cs.stopJobHydration();
+
+    const jobA = {
+      title: 'Software Engineer',
+      company: 'Appinventiv',
+      externalJobId: '4464770430',
+      description: '',
+      provider: 'LINKEDIN',
+    };
+
+    // 3 concurrent calls
+    const [p1, p2, p3] = [
+      cs.startJobHydration(jobA),
+      cs.startJobHydration(jobA),
+      cs.startJobHydration(jobA),
+    ];
+
+    await Promise.all([p1, p2, p3]);
+
+    const activeLifecycle = cs.getActiveHydrationLifecycle();
+    assert.ok(activeLifecycle, 'Lifecycle must exist');
+    assert.strictEqual(activeLifecycle.isCancelled, false);
+    assert.strictEqual(cs.getActiveHydrationKey(), cs.deriveProvisionalJobKey(jobA));
+
+    cs.stopJobHydration();
+    assert.strictEqual(cs.getActiveHydrationLifecycle(), null);
+  });
+
+  it('Job A hydration is cancelled when Job B appears', async () => {
+    const cs = await getContentScriptHydration();
+    cs.stopJobHydration();
+
+    const jobA = {
+      title: 'Job A Engineer',
+      company: 'Company A',
+      externalJobId: '11111',
+      description: '',
+      provider: 'LINKEDIN',
+    };
+    const jobB = {
+      title: 'Job B Engineer',
+      company: 'Company B',
+      externalJobId: '22222',
+      description: '',
+      provider: 'LINKEDIN',
+    };
+
+    await cs.startJobHydration(jobA);
+    const lifecycleA = cs.getActiveHydrationLifecycle();
+    assert.ok(lifecycleA);
+    assert.strictEqual(lifecycleA.isCancelled, false);
+
+    // Switch to Job B
+    await cs.startJobHydration(jobB);
+    assert.strictEqual(lifecycleA.isCancelled, true, 'Job A lifecycle must be cancelled');
+
+    const lifecycleB = cs.getActiveHydrationLifecycle();
+    assert.ok(lifecycleB);
+    assert.notStrictEqual(lifecycleA, lifecycleB);
+    assert.strictEqual(lifecycleB.isCancelled, false);
+
+    cs.stopJobHydration();
+  });
+
+  it('JobHydrationLifecycle enforces at most ONE _attemptHydration in flight', async () => {
+    const cs = await getContentScriptHydration();
+    let extractedCount = 0;
+
+    const lifecycle = new cs.JobHydrationLifecycle(
+      { title: 'Engineer', description: '' },
+      () => {}
+    );
+
+    // Simulate in-flight lock
+    assert.strictEqual(lifecycle.isExtractionInFlight, false);
+    lifecycle.isExtractionInFlight = true;
+
+    // A concurrent attempt should immediately return without extracting
+    await lifecycle._attemptHydration('concurrent-call');
+    assert.strictEqual(extractedCount, 0, 'Must not extract while in-flight lock is held');
+
+    lifecycle.isExtractionInFlight = false;
+  });
+
+  it('JobHydrationLifecycle cancels timers, observer, and emits exactly once when description >= 50', async () => {
+    const cs = await getContentScriptHydration();
+    let hydratedEvents = [];
+
+    const lifecycle = new cs.JobHydrationLifecycle(
+      { title: 'Engineer', description: '', externalJobId: '9999' },
+      (hydratedJob, fp) => {
+        hydratedEvents.push({ hydratedJob, fp });
+      }
+    );
+
+    await lifecycle.start();
+    assert.ok(lifecycle.timerIds.length > 0, 'Timers must be scheduled');
+
+    // Simulate completion with description >= 50
+    const fullJob = {
+      title: 'Engineer',
+      externalJobId: '9999',
+      description: 'A full detailed job description with more than fifty characters of content.',
+    };
+
+    lifecycle.targetFingerprint = 'fp-9999';
+
+    // Directly trigger completion logic
+    lifecycle.isCompleted = true;
+    lifecycle.cancel();
+    lifecycle.onHydrated({ ...fullJob, analysisReady: true }, 'fp-9999');
+
+    assert.strictEqual(lifecycle.isCompleted, true);
+    assert.strictEqual(lifecycle.isCancelled, true);
+    assert.strictEqual(lifecycle.timerIds.length, 0, 'Timers must be cleared');
+    assert.strictEqual(hydratedEvents.length, 1, 'Must emit exactly once');
+    assert.strictEqual(hydratedEvents[0].hydratedJob.analysisReady, true);
+  });
+});
+

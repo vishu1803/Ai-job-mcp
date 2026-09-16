@@ -336,22 +336,23 @@ class SidebarController {
           // DETECT_JOB_PAGE is the ONLY authoritative current-page reconciliation result.
           return;
         } else if (message.type === 'JOB_DESCRIPTION_HYDRATED') {
-          // P72: Content-script informs sidebar of late-hydrated description for the active job.
-          if (this.activeTabId && message.tabId && message.tabId !== this.activeTabId) {
+          // P72-FIX: Sidebar validation:
+          // Accept only when message.tabId === activeTabId AND message.jobFingerprint === activeJobFingerprint
+          if (!this.activeTabId || !message.tabId || message.tabId !== this.activeTabId) {
             return;
           }
-          if (this.activeTabId && sender?.tab?.id && sender.tab.id !== this.activeTabId) {
+          if (sender?.tab?.id && sender.tab.id !== this.activeTabId) {
+            return;
+          }
+          if (!this.activeJobFingerprint || !message.jobFingerprint || message.jobFingerprint !== this.activeJobFingerprint) {
             return;
           }
           if (!message.jobData || !message.jobData.title || message.jobData.title === 'Untitled Role') {
             return;
           }
-          const incomingFingerprint = JobIdentity.deriveJobFingerprint(message.jobData);
-          if (this.activeJobFingerprint && incomingFingerprint === this.activeJobFingerprint) {
-            (async () => {
-              await this._reconcileDetectedJob(message.jobData);
-            })();
-          }
+          (async () => {
+            await this._handleHydratedDescription(message.jobData, message.jobFingerprint);
+          })();
         } else if (message.type === 'APPLICATION_FORM_DETECTED') {
           if (this.isWorkflowLocked()) {
             return;
@@ -566,6 +567,62 @@ class SidebarController {
     }
   }
 
+  async _handleHydratedDescription(jobData, jobFingerprint) {
+    if (!jobData || !jobFingerprint) return;
+    if (!this.activeJobFingerprint || jobFingerprint !== this.activeJobFingerprint) return;
+
+    if (!this.activeJob) {
+      this.activeJob = { ...jobData };
+    } else {
+      this.activeJob.description = jobData.description || '';
+      this.activeJob.rawText = jobData.rawText || jobData.description || '';
+      this.activeJob.analysisReady = true;
+      if (jobData.requirements && Array.isArray(jobData.requirements) && jobData.requirements.length > 0) {
+        this.activeJob.requirements = jobData.requirements;
+      }
+      if (jobData.company && (!this.activeJob.company || this.activeJob.company === 'Company')) {
+        this.activeJob.company = jobData.company;
+      }
+    }
+
+    if (this.pendingDetectedFingerprint === jobFingerprint) {
+      this.pendingDetectedJob = null;
+      this.pendingDetectedFingerprint = null;
+      await this.store.setPendingDetectedJob(this.activeTabId, null);
+      this._hidePendingJobNotification();
+    }
+
+    if (this.cachedState) {
+      this.cachedState.jobData = this.activeJob;
+      this.cachedState.jobFingerprint = this.activeJobFingerprint;
+      await this.store.saveTabState(this.activeTabId, this.cachedState);
+    } else {
+      const stateToSave = {
+        tabId: this.activeTabId,
+        userId: this.currentUser?.id || null,
+        workflowGeneration: 1,
+        lockState: 'UNLOCKED',
+        isLocked: false,
+        jobData: this.activeJob,
+        jobFingerprint: this.activeJobFingerprint,
+        workflowState: WORKFLOW_STATES.JOB_DETECTED,
+        fitAnalysis: null,
+        recommendedProjects: [],
+        applicationId: null,
+        analysisSnapshotId: null,
+        handoffData: null,
+        portalMetadata: jobData.portalMetadata || {
+          portalName: 'Generic Career Portal',
+          confidence: 'MEDIUM',
+        },
+      };
+      this.cachedState = stateToSave;
+      await this.store.saveTabState(this.activeTabId, stateToSave);
+    }
+
+    this._renderAllFromState(this.cachedState);
+  }
+
   _reconcileDetectedJob(jobData) {
     if (!jobData || !jobData.title) return;
     const detectedFingerprint = JobIdentity.deriveJobFingerprint(jobData);
@@ -579,26 +636,11 @@ class SidebarController {
         this._hidePendingJobNotification();
       }
 
-      // P70: If active job was missing substantive description and new jobData has hydrated it:
+      // P70 & P72: If active job was missing substantive description and new jobData has hydrated it:
       const existingDesc = (this.activeJob?.description || '').trim();
       const newDesc = (jobData.description || '').trim();
       if (newDesc.length >= 50 && (existingDesc.length < 50 || !this.activeJob?.analysisReady)) {
-        if (!this.activeJob) {
-          this.activeJob = { ...jobData };
-        } else {
-          this.activeJob.description = jobData.description;
-          this.activeJob.rawText = jobData.rawText || jobData.description;
-          this.activeJob.analysisReady = true;
-          if (jobData.requirements?.length) this.activeJob.requirements = jobData.requirements;
-          if (jobData.company && (!this.activeJob.company || this.activeJob.company === 'Company')) {
-            this.activeJob.company = jobData.company;
-          }
-        }
-        if (this.cachedState) {
-          this.cachedState.jobData = this.activeJob;
-          this.store.saveTabState(this.activeTabId, this.cachedState);
-        }
-        this._renderAllFromState(this.cachedState || { jobData: this.activeJob });
+        return this._handleHydratedDescription(jobData, detectedFingerprint);
       }
       return;
     }

@@ -3,6 +3,63 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 72-FIX: Make Late LinkedIn Hydration Reach Sidebar
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Scope:** Message Routing Fix (Service worker forwards `JOB_DESCRIPTION_HYDRATED` via `chrome.runtime.sendMessage` with `tabId: sender.tab.id`), Tab Scoping & Identity Security (Content script transmits `tabId: currentTabId`, Service Worker validates `sender?.tab?.id` and discards messages from untrusted senders lacking tab identity, rejects spoofed payload tabId), Content Script Concurrency Guard (Guaranteed exactly one `JobHydrationLifecycle` instance per job via provisional job key lock and `activeHydrationStartPromise` guard before dynamic imports), Sidebar Presentation/Consumer Reconciliation (Validates `activeTabId === message.tabId` and `activeJobFingerprint === message.jobFingerprint`, safely updates `activeJob.description`, `activeJob.rawText`, `activeJob.analysisReady = true`, requirements, company, saves to `DurableWorkflowStore`, hides loading notice, enables `[Analyze Job Match]`), Strict Zero Passive Analyze Calls (0 automatic network calls on hydration arrival; exactly 1 call upon explicit user click), Real Chrome Live LinkedIn E2E Verification (`https://in.linkedin.com/jobs/view/software-engineer-at-appinventiv-4464770430`, Appinventiv Software Engineer, natural description hydration 559 chars, Analyze HTTP 200, Tab switch invalidation, Real reload verification), 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Fixed the critical delivery break where P72 content-script emitted `JOB_DESCRIPTION_HYDRATED` but the background service worker was ack-only and did not forward the message to the sidebar, leaving late-hydrating LinkedIn job descriptions stranded and the Analyze button permanently disabled:
+1. **Service Worker Message Routing & Tab Identity:**
+   - In `extension/background/service-worker.js`, updated `JOB_DESCRIPTION_HYDRATED` handler from passive ack to active forwarding: broadcasts `{ type: 'JOB_DESCRIPTION_HYDRATED', tabId: sender.tab.id, jobData: message.jobData, jobFingerprint: message.jobFingerprint }` via `chrome.runtime.sendMessage()`.
+   - Strictly enforces trusted sender identity: uses `sender.tab.id` exclusively and rejects any message where `sender.tab.id` is missing.
+2. **Content Script Tab Identification & Lifecycle Concurrency:**
+   - In `extension/content/content-script.js`, tracked `currentTabId` from incoming `DETECT_JOB_PAGE` messages and attached `tabId: currentTabId` to outbound `JOB_DESCRIPTION_HYDRATED` messages.
+   - Added concurrency lock in `startJobHydration(jobData)`: derives `provisionalKey = deriveProvisionalJobKey(jobData)` and stores `activeHydrationStartPromise`. Concurrent invocations during dynamic `import()` await the existing promise rather than spawning duplicate `JobHydrationLifecycle` instances.
+   - Cancels previous lifecycle immediately upon job identity changes (Job A → Job B).
+   - Wrapped window listeners and `chrome.runtime.onMessage` in safety checks and exposed testing hooks on `window.__aicareershub_hydration`.
+3. **Sidebar Hydration Reconciliation & Zero Network Invariant:**
+   - In `extension/sidebar/sidebar.js`, updated runtime message listener to strictly filter `JOB_DESCRIPTION_HYDRATED` events:
+     - Drops event if `message.tabId !== this.activeTabId` or if `sender.tab.id` exists and doesn't match `this.activeTabId`.
+     - Drops event if `message.jobFingerprint !== this.activeJobFingerprint`.
+   - Implemented `_handleHydratedDescription(jobData, jobFingerprint)`: updates `activeJob.description`, `activeJob.rawText`, sets `activeJob.analysisReady = true`, merges requirements and company, clears pending job notification, saves tab state to `DurableWorkflowStore`, and calls `_renderAllFromState()`.
+   - Preserves 0 passive analyze calls on hydration arrival.
+   - Kept `_reconcileDetectedJob()` synchronous to maintain backward compatibility with existing unit tests.
+4. **Real Chrome for Testing E2E Verification:**
+   - Ran `scripts/verify-p72-live-linkedin-hydration.mjs` against real Chrome for Testing connected to live LinkedIn and backend (`http://localhost:3000`).
+   - Verified live Appinventiv job:
+     - `provider = LINKEDIN`, `title = "Software Engineer"`, `company = "Appinventiv"`.
+     - Natural DOM hydration: description length 559 chars >= 50.
+     - `analysisReady = true`, loading notice hidden, `[Analyze Job Match]` enabled.
+     - Server analyze calls before click: **0 (Strict Zero)**.
+     - Clicked `[Analyze Job Match]`: received HTTP 200, exactly 1 server analyze call.
+     - Tab switch test: Navigated to General Motors job (`https://www.linkedin.com/jobs/view/4419969671/`) → Sidebar detected Job B as pending without corrupting Job A → Navigated back to Appinventiv → Sidebar restored Job A cleanly.
+     - Reload test: Hard-reloaded Appinventiv page → Content script hydrated DOM → Sidebar enabled Analyze button without duplicate events.
+     - 4 visual proof screenshots captured to brain artifact directory:
+       - `p72-01-live-appinventiv-hydrated.png`
+       - `p72-02-live-appinventiv-analyzed.png`
+       - `p72-03-live-tab-switch.png`
+       - `p72-04-live-reload.png`
+
+**Files Changed:**
+- `extension/background/service-worker.js` [MODIFIED]: Added forwarding of `JOB_DESCRIPTION_HYDRATED` via `chrome.runtime.sendMessage` with `sender.tab.id`.
+- `extension/content/content-script.js` [MODIFIED]: Added `currentTabId` tracking, tabId propagation, concurrent startup collapse guard, and cleanup helpers.
+- `extension/sidebar/sidebar.js` [MODIFIED]: Added strict tab/fingerprint validation and `_handleHydratedDescription` state reconciliation.
+- `tests/unit/p72-linkedin-description-hydration.test.js` [MODIFIED]: Added Service Worker forwarding suite, Sidebar message reconciliation suite, and Content Script concurrency suite (expanded to 46 tests).
+- `scripts/verify-p72-live-linkedin-hydration.mjs` [NEW]: Real Chrome for Testing CDP automation script for live LinkedIn verification, tab switching, and reload testing.
+
+**Verification & Regression Results:**
+- P72 Unit Test Suite: **46/46 PASS (9 suites, 0 failures, 100% pass rate)**
+- Full P57–P72 Regression Suite: **270/270 PASS (94 suites, 0 failures, 100% pass rate)**
+- Real Chrome Live LinkedIn Test: **PASS**
+  - Appinventiv Software Engineer detected, 559-char description hydrated naturally
+  - Analyze button enabled, notice hidden, 0 analyze calls before click
+  - Explicit click triggered 1 analyze call returning HTTP 200
+  - Tab switch and page reload cycles verified with full state isolation
+
+---
 ### PART 72: LinkedIn Description Hydration Never-Stuck Fix
 
 **Status:** COMPLETE & VERIFIED  

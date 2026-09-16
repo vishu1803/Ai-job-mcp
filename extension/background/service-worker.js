@@ -161,8 +161,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'JOB_DESCRIPTION_HYDRATED') {
-    // P72: Content-script informs sidebar of hydrated description for the active job
-    sendResponse({ success: true, hydrated: true });
+    // P72-FIX: Service worker receives JOB_DESCRIPTION_HYDRATED from content script and forwards it to the sidebar.
+    // Safe sender verification: strictly use sender.tab.id as the authoritative tab identity.
+    const senderTabId = sender?.tab?.id;
+    if (senderTabId) {
+      chrome.runtime.sendMessage({
+        type: 'JOB_DESCRIPTION_HYDRATED',
+        tabId: senderTabId,
+        jobData: message.jobData,
+        jobFingerprint: message.jobFingerprint,
+      }).catch(() => {
+        // No listener active (e.g. sidebar closed), ignore
+      });
+      sendResponse({ success: true, hydrated: true, forwarded: true });
+    } else {
+      sendResponse({ success: false, error: 'Missing or invalid sender tab identity' });
+    }
     return true;
   }
 });

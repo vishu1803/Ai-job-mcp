@@ -12,14 +12,34 @@ if (!window.__aicareershub_content_script_loaded) {
   let activeJobData = null;
   let navigationObserver = null;
   let lastNotifiedFingerprint = null;
+  let currentTabId = null;
+
+  let jobIdentityModulePromise = null;
+  function getJobIdentityModule() {
+    if (!jobIdentityModulePromise) {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+          jobIdentityModulePromise = import(chrome.runtime.getURL('lib/job-identity.js')).catch(() => null);
+        } else {
+          jobIdentityModulePromise = Promise.resolve(null);
+        }
+      } catch {
+        jobIdentityModulePromise = Promise.resolve(null);
+      }
+    }
+    return jobIdentityModulePromise;
+  }
 
   async function notifyJobDetected(jobData) {
     if (!jobData || !jobData.title) return;
     try {
-      const { JobIdentity } = await import(
-        chrome.runtime.getURL('lib/job-identity.js')
-      );
-      const fp = JobIdentity.deriveJobFingerprint(jobData);
+      const mod = await getJobIdentityModule();
+      let fp = null;
+      if (mod && mod.JobIdentity) {
+        fp = mod.JobIdentity.deriveJobFingerprint(jobData);
+      } else {
+        fp = jobData.externalJobId || jobData.title;
+      }
       if (fp === lastNotifiedFingerprint) {
         return;
       }
@@ -163,10 +183,12 @@ if (!window.__aicareershub_content_script_loaded) {
 
     async start() {
       try {
-        const { JobIdentity } = await import(
-          chrome.runtime.getURL('lib/job-identity.js')
-        );
-        this.targetFingerprint = JobIdentity.deriveJobFingerprint(this.targetJobData);
+        const mod = await getJobIdentityModule();
+        if (mod && mod.JobIdentity) {
+          this.targetFingerprint = mod.JobIdentity.deriveJobFingerprint(this.targetJobData);
+        } else {
+          this.targetFingerprint = this.targetJobData.externalJobId || this.targetJobData.title;
+        }
       } catch {
         this.targetFingerprint = this.targetJobData.externalJobId || this.targetJobData.title;
       }
@@ -237,10 +259,12 @@ if (!window.__aicareershub_content_script_loaded) {
 
         let currentFingerprint = null;
         try {
-          const { JobIdentity } = await import(
-            chrome.runtime.getURL('lib/job-identity.js')
-          );
-          currentFingerprint = JobIdentity.deriveJobFingerprint(result.jobData);
+          const mod = await getJobIdentityModule();
+          if (mod && mod.JobIdentity) {
+            currentFingerprint = mod.JobIdentity.deriveJobFingerprint(result.jobData);
+          } else {
+            currentFingerprint = result.jobData.externalJobId || result.jobData.title;
+          }
         } catch {
           currentFingerprint = result.jobData.externalJobId || result.jobData.title;
         }
@@ -288,8 +312,22 @@ if (!window.__aicareershub_content_script_loaded) {
     }
   }
 
+  function deriveProvisionalJobKey(jobData) {
+    if (!jobData) return '';
+    const provider = (jobData.provider || '').trim().toLowerCase();
+    const extId = (jobData.externalJobId || '').trim();
+    const title = (jobData.title || '').trim().toLowerCase();
+    const company = (jobData.company || '').trim().toLowerCase();
+    if (provider && extId) {
+      return `${provider}:${extId}`;
+    }
+    return `${provider}:${title}:${company}`;
+  }
+
+  let activeHydrationKey = null;
   let activeHydrationFingerprint = null;
   let activeHydrationLifecycle = null;
+  let activeHydrationStartPromise = null;
 
   function stopJobHydration() {
     if (activeHydrationLifecycle) {
@@ -297,59 +335,113 @@ if (!window.__aicareershub_content_script_loaded) {
       activeHydrationLifecycle = null;
     }
     activeHydrationFingerprint = null;
+    activeHydrationKey = null;
+    activeHydrationStartPromise = null;
   }
 
-  async function startJobHydration(jobData) {
+  function startJobHydration(jobData) {
     if (!jobData || !jobData.title || jobData.title === 'Untitled Role') {
       stopJobHydration();
-      return;
+      return Promise.resolve();
     }
 
     const desc = (jobData.description || jobData.rawText || '').trim();
     if (desc.length >= 50) {
       stopJobHydration();
-      return;
+      return Promise.resolve();
     }
 
-    let fp = null;
-    try {
-      const { JobIdentity } = await import(
-        chrome.runtime.getURL('lib/job-identity.js')
-      );
-      fp = JobIdentity.deriveJobFingerprint(jobData);
-    } catch {
-      fp = jobData.externalJobId || jobData.title;
-    }
+    const provisionalKey = deriveProvisionalJobKey(jobData);
 
+    // If an active uncancelled lifecycle already exists for this exact job:
     if (
+      activeHydrationKey === provisionalKey &&
       activeHydrationLifecycle &&
-      activeHydrationFingerprint === fp &&
       !activeHydrationLifecycle.isCancelled &&
       !activeHydrationLifecycle.isCompleted
     ) {
-      return;
+      return Promise.resolve(activeHydrationLifecycle);
     }
 
-    stopJobHydration();
+    // P72-FIX: If a start promise is currently in flight for this exact job, reuse it:
+    if (activeHydrationKey === provisionalKey && activeHydrationStartPromise) {
+      return activeHydrationStartPromise;
+    }
 
-    activeHydrationFingerprint = fp;
-    activeHydrationLifecycle = new JobHydrationLifecycle(jobData, (hydratedJob, fingerprint) => {
-      activeJobData = hydratedJob;
-      if (navigationObserver) {
-        navigationObserver.setActiveJob(activeJobData);
-      }
+    // Different job or new lifecycle needed: cancel old lifecycle immediately
+    if (activeHydrationLifecycle) {
+      activeHydrationLifecycle.cancel();
+      activeHydrationLifecycle = null;
+    }
+    activeHydrationKey = provisionalKey;
+    activeHydrationFingerprint = null;
+
+    const currentKey = provisionalKey;
+    const startPromise = (async () => {
       try {
-        chrome.runtime.sendMessage({
-          type: 'JOB_DESCRIPTION_HYDRATED',
-          jobData: hydratedJob,
-          jobFingerprint: fingerprint,
-        }).catch(() => {});
-      } catch {}
-    });
-    activeHydrationLifecycle.start();
+        let fp = null;
+        try {
+          const mod = await getJobIdentityModule();
+          if (mod && mod.JobIdentity) {
+            fp = mod.JobIdentity.deriveJobFingerprint(jobData);
+          } else {
+            fp = jobData.externalJobId || jobData.title;
+          }
+        } catch {
+          fp = jobData.externalJobId || jobData.title;
+        }
+
+        // Check if aborted, superseded, or changed while awaiting import
+        if (activeHydrationKey !== currentKey) {
+          return null;
+        }
+
+        // Check if an uncancelled/uncompleted lifecycle was already assigned
+        if (
+          activeHydrationLifecycle &&
+          activeHydrationFingerprint === fp &&
+          !activeHydrationLifecycle.isCancelled &&
+          !activeHydrationLifecycle.isCompleted
+        ) {
+          return activeHydrationLifecycle;
+        }
+
+        if (activeHydrationLifecycle) {
+          activeHydrationLifecycle.cancel();
+          activeHydrationLifecycle = null;
+        }
+
+        activeHydrationFingerprint = fp;
+        const lifecycle = new JobHydrationLifecycle(jobData, (hydratedJob, fingerprint) => {
+          activeJobData = hydratedJob;
+          if (navigationObserver) {
+            navigationObserver.setActiveJob(activeJobData);
+          }
+          try {
+            chrome.runtime.sendMessage({
+              type: 'JOB_DESCRIPTION_HYDRATED',
+              tabId: currentTabId,
+              jobData: hydratedJob,
+              jobFingerprint: fingerprint,
+            }).catch(() => {});
+          } catch {}
+        });
+
+        activeHydrationLifecycle = lifecycle;
+        await lifecycle.start();
+        return lifecycle;
+      } finally {
+        if (activeHydrationStartPromise === startPromise) {
+          activeHydrationStartPromise = null;
+        }
+      }
+    })();
+
+    activeHydrationStartPromise = startPromise;
+    return startPromise;
   }
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('beforeunload', () => stopJobHydration());
     window.addEventListener('pagehide', () => stopJobHydration());
   }
@@ -480,59 +572,77 @@ if (!window.__aicareershub_content_script_loaded) {
   }
 
   // Message listener
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'PING') {
-      sendResponse({ status: 'PONG', loaded: true });
-      return true;
-    }
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage?.addListener) {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.type === 'PING') {
+        sendResponse({ status: 'PONG', loaded: true });
+        return true;
+      }
 
-    if (message.type === 'DETECT_JOB_PAGE') {
-      (async () => {
-        const res = await performDetectionWithHydration();
-
-        if (res.detected && res.jobData) {
-          activeJobData = res.jobData;
-          if (navigationObserver) {
-            navigationObserver.setActiveJob(activeJobData);
-          }
-          // P72: If job is detected with description < 50, ensure background hydration lifecycle is running
-          const desc = (res.jobData.description || res.jobData.rawText || '').trim();
-          if (desc.length < 50) {
-            startJobHydration(res.jobData);
-          }
-        } else {
-          activeJobData = null;
-          stopJobHydration();
-          if (navigationObserver) {
-            navigationObserver.setActiveJob(null);
-          }
+      if (message.type === 'DETECT_JOB_PAGE') {
+        if (message.tabId) {
+          currentTabId = message.tabId;
         }
-        sendResponse({
-          ...res,
-          requestId: message.requestId,
-          tabId: message.tabId,
-          generation: message.generation,
-        });
-      })();
-      return true;
-    }
+        (async () => {
+          const res = await performDetectionWithHydration();
 
-    if (message.type === 'EXTRACT_JOB') {
-      performDetection().then((res) => {
-        sendResponse({
-          success: res.success && res.detected,
-          job: res.jobData,
-          error: res.error,
-        });
-      });
-      return true;
-    }
+          if (res.detected && res.jobData) {
+            activeJobData = res.jobData;
+            if (navigationObserver) {
+              navigationObserver.setActiveJob(activeJobData);
+            }
+            // P72: If job is detected with description < 50, ensure background hydration lifecycle is running
+            const desc = (res.jobData.description || res.jobData.rawText || '').trim();
+            if (desc.length < 50) {
+              startJobHydration(res.jobData);
+            }
+          } else {
+            activeJobData = null;
+            stopJobHydration();
+            if (navigationObserver) {
+              navigationObserver.setActiveJob(null);
+            }
+          }
+          sendResponse({
+            ...res,
+            requestId: message.requestId,
+            tabId: message.tabId,
+            generation: message.generation,
+          });
+        })();
+        return true;
+      }
 
-    if (message.type === 'DETECT_FORM') {
-      performFormDetection().then((formInfo) => {
-        sendResponse({ success: true, formInfo });
-      });
-      return true;
-    }
-  });
+      if (message.type === 'EXTRACT_JOB') {
+        performDetection().then((res) => {
+          sendResponse({
+            success: res.success && res.detected,
+            job: res.jobData,
+            error: res.error,
+          });
+        });
+        return true;
+      }
+
+      if (message.type === 'DETECT_FORM') {
+        performFormDetection().then((formInfo) => {
+          sendResponse({ success: true, formInfo });
+        });
+        return true;
+      }
+    });
+  }
+  if (typeof window !== 'undefined') {
+    window.__aicareershub_hydration = {
+      JobHydrationLifecycle,
+      startJobHydration,
+      stopJobHydration,
+      getActiveHydrationLifecycle: () => activeHydrationLifecycle,
+      getActiveHydrationFingerprint: () => activeHydrationFingerprint,
+      getActiveHydrationKey: () => activeHydrationKey,
+      deriveProvisionalJobKey,
+      setCurrentTabId: (id) => { currentTabId = id; },
+      getCurrentTabId: () => currentTabId,
+    };
+  }
 }
