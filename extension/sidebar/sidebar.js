@@ -646,6 +646,9 @@ class SidebarController {
         }
 
         if (response && response.detected && response.jobData && response.jobData.title && response.jobData.title !== 'Untitled Role') {
+          if (response.portalMetadata) {
+            this._renderPortalCard(response.portalMetadata);
+          }
           if (isExplicitRescan) {
             await this._switchToJob(response.jobData);
           } else {
@@ -654,6 +657,12 @@ class SidebarController {
           return true;
         } else {
           // Page is confirmed NOT a job (or detection returned detected: false / empty)
+          if (response && response.portalMetadata) {
+            this._renderPortalCard(response.portalMetadata);
+          } else if (!this.activeJob) {
+            this._renderPortalCard({ portalName: 'Web Page', isPortalRecognized: false });
+          }
+
           if (isExplicitRescan) {
             // Requirement 4: clear stale unlocked job state when current page is not a job
             // and never use pendingDetectedJob as a substitute for fresh page detection
@@ -677,7 +686,25 @@ class SidebarController {
               this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
             }
           } else {
-            if (!this.activeJob && !this.isWorkflowLocked()) {
+            if (!this.isWorkflowLocked()) {
+              this.pendingDetectedJob = null;
+              this.pendingDetectedFingerprint = null;
+              await this.store.setPendingDetectedJob(requestTabId, null);
+              this._hidePendingJobNotification();
+
+              this.activeJob = null;
+              this.activeJobFingerprint = null;
+              this.stateMachine.reset();
+              if (this.cachedState) {
+                this.cachedState.jobData = null;
+                this.cachedState.jobFingerprint = null;
+                this.cachedState.normalizedJob = null;
+                this.cachedState.workflowState = WORKFLOW_STATES.IDLE;
+                await this.store.saveTabState(requestTabId, this.cachedState);
+              }
+              this._renderEmptyJobState();
+              this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
+            } else if (!this.activeJob) {
               this._renderEmptyJobState();
               this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
             }

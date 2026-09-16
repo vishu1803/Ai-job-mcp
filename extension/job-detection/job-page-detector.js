@@ -116,6 +116,7 @@ export class JobPageDetector {
         compensation: null,
         rawText: '',
         isConfident: false,
+        isReady: false,
       };
     }
 
@@ -172,10 +173,13 @@ export class JobPageDetector {
 
     const isReady = rawPayload.isReady !== false;
 
+    const hasSufficientContent = isStructuredProvider
+      ? Boolean(sanitizedCompany || sanitizedDescription.length >= 50)
+      : Boolean(sanitizedDescription.length >= 50 && hasJobSignals);
+
     const isConfidentExtraction = Boolean(
       sanitizedTitle !== 'Untitled Role' &&
-      sanitizedDescription.length >= 50 &&
-      (isStructuredProvider || hasJobSignals) &&
+      hasSufficientContent &&
       isReady
     );
 
@@ -193,6 +197,7 @@ export class JobPageDetector {
       responsibilities: sanitizedResponsibilities,
       compensation: rawPayload.compensation || null,
       rawText: sanitizedRawText,
+      hasApplyCta: Boolean(rawPayload.hasApplyCta),
       isConfident: isConfidentExtraction,
       isReady,
     };

@@ -61,6 +61,8 @@ export class GenericCareerPageAdapter {
     /jobs\.jobvite\.com\//i,
     /jobs\.lever\.co\//i,
     /boards\.greenhouse\.io\//i,
+    /wellfound\.com\/jobs\b/i,
+    /wellfound\.com\/company\/[a-z0-9_-]+\/jobs\b/i,
     /\/(?:careers?|jobs?|openings?|positions?|apply)\/[a-z0-9_-]+/i,
     /\/(?:job-detail|job-posting|view-job|job-description)\b/i,
   ];
@@ -68,7 +70,10 @@ export class GenericCareerPageAdapter {
   /**
    * Generic adapter can handle company career portals and unrecognized job pages,
    * but strictly rejects known specialized portals, non-job utility pages,
-   * and generic web pages lacking sufficient independent job evidence.
+   * and generic web pages lacking sufficient independent structural job evidence.
+   *
+   * Golden Rule: JOB LANGUAGE ≠ JOB PAGE.
+   * Keyword density alone is never sufficient.
    *
    * @param {Document} doc
    * @param {string} url
@@ -78,7 +83,7 @@ export class GenericCareerPageAdapter {
     if (!url) return false;
     const lowerUrl = url.toLowerCase();
 
-    // Reject known specialized portals so we never misidentify or over-extract them
+    // Reject known specialized portals so dedicated adapters own them
     for (const host of GenericCareerPageAdapter.KNOWN_PORTAL_HOSTS) {
       if (lowerUrl.includes(host)) {
         return false;
@@ -95,69 +100,109 @@ export class GenericCareerPageAdapter {
     // 1. Check for schema.org/JobPosting JSON-LD structured data (strongest positive signal)
     if (doc && typeof doc.querySelectorAll === 'function') {
       const jsonLd = GenericCareerPageAdapter.extractJsonLd(doc);
-      if (jsonLd && GenericCareerPageAdapter.isJobPosting(jsonLd) && (jsonLd.title || jsonLd.name || jsonLd.description)) {
+      if (
+        jsonLd &&
+        GenericCareerPageAdapter.isJobPosting(jsonLd) &&
+        (jsonLd.title || jsonLd.name) &&
+        (jsonLd.description && jsonLd.description.length >= 30)
+      ) {
         return true;
       }
     }
 
-    // 2. Check for career/job URL patterns
+    // 2. Check for career/job URL patterns + concrete job-specific DOM
     const isCareerUrl = GenericCareerPageAdapter.CAREER_URL_PATTERNS.some((p) => p.test(url));
     if (isCareerUrl) {
-      if (!doc) return true; // URL-only evaluation passes for recognized career routes
-      // If doc is available, verify it's not an empty page or search index
-      const hasJobContent = Boolean(
+      if (!doc) return true; // URL-only evaluation passes in unit test mocks without DOM
+      // A URL pattern alone NEVER establishes job detection without confirmation.
+      // Must have job title heading + job details/description container
+      const hasJobTitle = Boolean(
+        doc.querySelector?.('h1[class*="job" i]') ||
+        doc.querySelector?.('h1[class*="title" i]') ||
+        doc.querySelector?.('h1[class*="posting" i]') ||
+        doc.querySelector?.('[data-qa*="title" i]') ||
+        doc.querySelector?.('[class*="job-title" i]') ||
+        doc.querySelector?.('h1')
+      );
+      const hasJobDetails = Boolean(
+        doc.querySelector?.('.job-description') ||
+        doc.querySelector?.('[class*="job-description" i]') ||
+        doc.querySelector?.('#job-description') ||
+        doc.querySelector?.('[id*="job-description" i]') ||
+        doc.querySelector?.('.posting-content') ||
+        doc.querySelector?.('[class*="posting-content" i]') ||
+        doc.querySelector?.('.job-details') ||
+        doc.querySelector?.('[class*="job-details" i]') ||
+        doc.querySelector?.('#job-details') ||
+        doc.querySelector?.('[data-qa*="description" i]') ||
+        doc.querySelector?.('article')
+      );
+      const hasApplyOrMeta = Boolean(
         doc.querySelector?.('button[class*="apply" i]') ||
         doc.querySelector?.('a[class*="apply" i]') ||
         doc.querySelector?.('[data-qa*="apply" i]') ||
-        doc.querySelector?.('input[type="submit"]') ||
-        doc.querySelector?.('h1') ||
-        doc.querySelector?.('h2')
+        doc.querySelector?.('a[href*="apply" i]') ||
+        doc.querySelector?.('[class*="job-meta" i]') ||
+        doc.querySelector?.('[class*="job-info" i]') ||
+        doc.querySelector?.('[class*="posting-header" i]')
       );
-      if (hasJobContent) return true;
+
+      if (hasJobTitle && (hasJobDetails || hasApplyOrMeta)) {
+        return true;
+      }
     }
 
-    // 3. Without job-specific URL or JSON-LD: require strong independent DOM semantic signals
-    // Normal content pages (ChatGPT, GitHub repo/issue, Google, articles, docs) MUST NOT match!
+    // 3. For arbitrary domains without career URL or JSON-LD:
+    // Strictly require all 3 structural pillars to prevent false positives on
+    // ChatGPT, GitHub, Google, articles, documentation, or search pages.
     if (!doc || typeof doc.querySelector !== 'function') {
       return false;
     }
 
-    // Signal A: Explicit Application CTA (button or link to apply)
-    const applyCta = Boolean(
-      doc.querySelector?.('button[class*="apply" i]') ||
-      doc.querySelector?.('a[class*="apply" i]') ||
-      doc.querySelector?.('[data-qa*="apply" i]') ||
-      doc.querySelector?.('[aria-label*="apply" i]')
+    // Pillar 1: Explicit dedicated application CTA or form
+    const hasApplicationForm = Boolean(
+      doc.querySelector?.('form[action*="apply" i]') ||
+      doc.querySelector?.('form[id*="application" i]') ||
+      doc.querySelector?.('form[class*="application" i]')
     );
 
-    // Signal B: Job description/requirements section heading
-    const headings = [
-      ...(doc.querySelectorAll?.('h1') || []),
-      ...(doc.querySelectorAll?.('h2') || []),
-      ...(doc.querySelectorAll?.('h3') || []),
-      ...(doc.querySelectorAll?.('h4') || []),
-    ];
-    const JOB_HEADING_REGEX =
-      /^(?:job description|about the role|requirements?|qualifications?|responsibilities?|what you('ll| will) do|what we('re| are) looking for|role overview)$/i;
-    const hasJobHeading = headings.some((h) => JOB_HEADING_REGEX.test((h.textContent || '').trim()));
+    let hasDedicatedApplyCta = false;
+    const candidateButtons = Array.from(
+      doc.querySelectorAll?.('button, a[role="button"], a.btn, a[class*="apply" i], button[class*="apply" i]') || []
+    );
+    const DEDICATED_APPLY_REGEX = /^(?:apply(?:\s+(?:now|for\s+this\s+(?:job|role|position)))?|submit\s+application)$/i;
+    hasDedicatedApplyCta = candidateButtons.some((b) => DEDICATED_APPLY_REGEX.test((b.textContent || '').trim()));
 
-    // Signal C: Substantive requirements/responsibilities list items
-    const listItems = Array.from(doc.querySelectorAll?.('li') || []);
-    const candidateBullets = listItems.filter((li) => {
-      const t = (li.textContent || '').trim();
-      return t.length > 20 && t.length < 400;
-    });
-    const hasBullets = candidateBullets.length >= 3;
+    const hasApplyControl = hasApplicationForm || hasDedicatedApplyCta;
 
-    // Signal D: Job metadata container (workplace, employment type, location)
-    const hasJobMeta = Boolean(
+    // Pillar 2: Concrete job metadata container (not arbitrary page text)
+    const hasJobMetaContainer = Boolean(
       doc.querySelector?.(
-        '[class*="job-meta" i], [class*="job-info" i], [class*="job-header" i], [class*="posting-header" i]'
+        '[class*="job-meta" i], [class*="job-info" i], [class*="job-header" i], [class*="posting-header" i], [data-qa*="job-info" i]'
       )
     );
 
-    // Require combination of Application CTA + Job Heading + (Bullets or Job Meta)
-    if (applyCta && hasJobHeading && (hasBullets || hasJobMeta)) {
+    // Pillar 3: Dedicated substantive job description container
+    const descContainer = doc.querySelector?.(
+      '[class*="job-description" i], [id*="job-description" i], [class*="posting-description" i], [class*="posting-content" i], [data-qa*="job-description" i], #job-details'
+    );
+    let hasSubstantiveJobDescription = false;
+    if (descContainer) {
+      const listItems = Array.from(descContainer.querySelectorAll?.('li') || []);
+      const candidateBullets = listItems.filter((li) => {
+        const t = (li.textContent || '').trim();
+        return t.length > 15 && t.length < 500;
+      });
+      hasSubstantiveJobDescription = candidateBullets.length >= 3;
+    }
+
+    // Pillar 4: Recognized ATS structural signature
+    const hasAtsSignature = Boolean(
+      doc.querySelector?.('[data-qa="job-detail"], [data-qa="posting-headline"], .ashby-job-posting-app, .bamboo-job-detail')
+    );
+
+    // Require ALL THREE structural pillars OR recognized ATS signature
+    if ((hasApplyControl && hasJobMetaContainer && hasSubstantiveJobDescription) || hasAtsSignature) {
       return true;
     }
 
@@ -241,7 +286,7 @@ export class GenericCareerPageAdapter {
         sourceUrl: url,
         provider: 'GENERIC_JSONLD',
         title: title || 'Untitled Role',
-        company: company || 'Company',
+        company: company && company !== 'Company' ? company : '',
         location: location || 'Not specified',
         workplace,
         employmentType: jsonLd.employmentType || 'FULL_TIME',
@@ -250,19 +295,23 @@ export class GenericCareerPageAdapter {
         responsibilities: [],
         compensation: jsonLd.baseSalary ? JSON.stringify(jsonLd.baseSalary) : null,
         rawText: description,
+        isReady: Boolean(title && description.length >= 30),
       };
     }
 
-    // 2. DOM-based heuristic extraction
-    const ogTitle = doc.querySelector('meta[property="og:title"]')?.content;
-    const ogSiteName = doc.querySelector('meta[property="og:site_name"]')?.content;
-    const ogDesc = doc.querySelector('meta[property="og:description"]')?.content;
+    // 2. DOM-based heuristic extraction from dedicated job containers
+    const ogTitle = doc.querySelector?.('meta[property="og:title"]')?.content;
+    const ogSiteName = doc.querySelector?.('meta[property="og:site_name"]')?.content;
+    const ogDesc = doc.querySelector?.('meta[property="og:description"]')?.content;
 
     const titleEl =
-      doc.querySelector('h1[class*="title"]') ||
-      doc.querySelector('h1[class*="job"]') ||
-      doc.querySelector('h1') ||
-      doc.querySelector('h2');
+      doc.querySelector?.('h1[class*="job" i]') ||
+      doc.querySelector?.('h1[class*="title" i]') ||
+      doc.querySelector?.('h1[class*="posting" i]') ||
+      doc.querySelector?.('[data-qa*="title" i]') ||
+      doc.querySelector?.('[class*="job-title" i]') ||
+      doc.querySelector?.('h1') ||
+      doc.querySelector?.('h2[class*="job-title" i]');
 
     let title = titleEl ? titleEl.textContent.trim() : (ogTitle || '');
 
@@ -274,50 +323,52 @@ export class GenericCareerPageAdapter {
       }
     }
 
-    let company = ogSiteName || '';
-    if (!company && url) {
-      try {
-        const parsed = new URL(url);
-        const host = parsed.hostname.replace(/^www\./, '');
-        const hostPart = host.split('.')[0];
-        if (hostPart) {
-          company = hostPart.charAt(0).toUpperCase() + hostPart.slice(1);
-        }
-      } catch {
-        /* ignore */
-      }
+    const companyEl =
+      doc.querySelector?.('[class*="company-name" i]') ||
+      doc.querySelector?.('[class*="posting-company" i]') ||
+      doc.querySelector?.('[data-qa*="company" i]') ||
+      doc.querySelector?.('[class*="organization" i]');
+
+    let company = companyEl ? companyEl.textContent.trim() : (ogSiteName || '');
+    if (company === 'Company') {
+      company = '';
     }
 
-    // Candidate description containers
+    // Dedicated job description containers (NEVER doc.body)
     const candidateContainers = [
-      doc.querySelector('main'),
-      doc.querySelector('article'),
-      doc.querySelector('[class*="job-description"]'),
-      doc.querySelector('[id*="job-description"]'),
-      doc.querySelector('[class*="description"]'),
-      doc.querySelector('.content'),
-      doc.body,
+      doc.querySelector?.('[class*="job-description" i]'),
+      doc.querySelector?.('[id*="job-description" i]'),
+      doc.querySelector?.('[class*="posting-description" i]'),
+      doc.querySelector?.('[class*="posting-content" i]'),
+      doc.querySelector?.('[class*="job-details" i]'),
+      doc.querySelector?.('#job-details'),
+      doc.querySelector?.('[data-qa*="description" i]'),
+      doc.querySelector?.('article'),
     ].filter(Boolean);
 
-    const mainContainer = candidateContainers[0] || doc.body;
+    const descContainer = candidateContainers[0] || null;
 
-    // Clone and clean scripts/styles to avoid noise
     let description = '';
     const requirements = [];
 
-    if (mainContainer) {
-      const listItems = typeof mainContainer.querySelectorAll === 'function'
-        ? mainContainer.querySelectorAll('li')
-        : (typeof doc.querySelectorAll === 'function' ? doc.querySelectorAll('li') : []);
+    if (descContainer) {
+      const listItems = typeof descContainer.querySelectorAll === 'function'
+        ? descContainer.querySelectorAll('li')
+        : [];
       listItems.forEach((li) => {
         const text = (li.textContent || '').trim();
         if (text.length > 15 && text.length < 500) {
           requirements.push(text);
         }
       });
-      description = (mainContainer.textContent || '').trim().replace(/\s+/g, ' ');
+      description = (descContainer.textContent || '').trim().replace(/\s+/g, ' ');
+    } else if (ogDesc) {
+      description = ogDesc;
     } else {
-      description = ogDesc || '';
+      const isCareerUrl = GenericCareerPageAdapter.CAREER_URL_PATTERNS.some((p) => p.test(url));
+      if (isCareerUrl && doc.body?.textContent) {
+        description = doc.body.textContent.trim().replace(/\s+/g, ' ');
+      }
     }
 
     let workplace = 'UNKNOWN';
@@ -328,19 +379,22 @@ export class GenericCareerPageAdapter {
       workplace = 'HYBRID';
     }
 
+    const isReady = Boolean(title && title !== 'Untitled Role' && description.length >= 50);
+
     return {
       sourceUrl: url,
       provider: GenericCareerPageAdapter.provider,
-      title: title || 'Job Posting',
-      company: company || 'Company',
+      title: title || 'Untitled Role',
+      company: company || '',
       location: 'Not specified',
       workplace,
       employmentType: 'FULL_TIME',
-      description: description || ogDesc || '',
+      description: description || '',
       requirements: requirements.slice(0, 30),
       responsibilities: [],
       compensation: null,
-      rawText: description || ogDesc || '',
+      rawText: description || '',
+      isReady,
     };
   }
 }

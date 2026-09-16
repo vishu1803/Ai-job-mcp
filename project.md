@@ -10525,3 +10525,70 @@ Candidate source data is strictly immutable. No synthetic metrics, uncorroborate
   - `p59-06-reauthenticated-analysis-ready.png`
   - `p59-10-artifact-reviewed.png`
 
+---
+
+### PART 69: Fix LinkedIn False Negatives & ChatGPT False Positives
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Phase:** Phase 69 — Fix LinkedIn False Negatives & ChatGPT False Positives  
+**Target Main SHA:** Working Tree on `main`  
+
+**Context & Core Architectural Invariants Accomplished:**
+1. **Live LinkedIn False Negative Elimination:**
+   - Identified root cause of missed LinkedIn job postings (e.g. *Appinventiv Software Engineer* and *General Motors 4419969671*): desktop `document.title` delimiter formats (`Title | Company | LinkedIn`), missing `externalJobId` in canonical paths vs search collections (`?currentJobId=...` or rail container attributes), and overly brittle readiness gates requiring both company and description before allowing ready status.
+   - Expanded title parser regex to support pipe delimiters (`Title | Company | LinkedIn`), "Company hiring Title in Location", and "Title at Company".
+   - Added rail item `[data-occludable-job-id]` extraction fallback when URL lacks job ID.
+   - Fixed JavaScript Temporal Dead Zone bug in `linkedin.adapter.js` where `location` was referenced before declaration in regex fallback.
+   - Softened readiness gate: `isReady = Boolean(hasValidTitle && (hasMeaningfulCompany || hasMeaningfulDescription))`.
+   - Completely eradicated `doc.body.textContent` fallback on LinkedIn: all extraction is strictly localized to job containers (`.jobs-description__content`, `.jobs-box__html-content`, `article`, `main`).
+2. **ChatGPT & Web Page False Positive Elimination (Zero Domain Blacklists):**
+   - Re-architected `generic-career.adapter.js` to eliminate false positives on ordinary web pages (e.g. ChatGPT conversations discussing job posts, GitHub issues/PRs, tech blogs) without any hardcoded domain blacklist (`chatgpt.com`).
+   - Rejection is 100% structural: generic adapter strictly requires affirmative posting evidence:
+     - Standard JSON-LD `JobPosting` schema; OR
+     - Explicit career URL structure (`/careers/`, `/jobs/`, `/apply/`) combined with job DOM headers; OR
+     - Comprehensive DOM structure: explicit apply CTA + metadata container + job description container containing `>= 3` bullet list items.
+   - Guarded fallback extraction in generic adapter so unlocalized `doc.body.textContent` is never evaluated unless `isCareerUrl === true`.
+3. **Four-Stage Detection Architecture:**
+   - Stage 1 (Provider / Page Identity): Resolves adapter identity (`LINKEDIN`, `GREENHOUSE`, `GENERIC`) or `NONE` for ordinary web pages.
+   - Stage 2 (Job Context Detection): Evaluates `isJobPage` boolean via adapter's dedicated `canHandle()` or structural posting evidence.
+   - Stage 3 (Localized Extraction): Pulls localized container text; returns null on non-job pages.
+   - Stage 4 (Readiness & Validation): Evaluates `isReady` and `isConfident`; detection engine emits `detected: false, ready: false, jobData: null` when not a job page.
+4. **Sidebar UI & Server Call Boundary Invariants:**
+   - On ordinary non-job pages, sidebar renders `portalName: "Web Page"`, `Title: "—"`, `Company: "—"`, and disables `[Analyze Job Match]`.
+   - Strictly 0 server calls made during passive detection, page reloads, tab navigation, or on non-job pages.
+   - Explicit user click on `[Analyze Job Match]` is guarded against double-clicking and makes exactly 1 call to `/api/extension/analyze-job`.
+
+**State & Verification Results Table:**
+| Step | Description | Ext ID | Detected | Portal | Title | Company | Latency | Analyze Calls |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | Appinventiv Software Engineer Live Fixture | `4419969671` | YES | LinkedIn Jobs | Software Engineer | Appinventiv | 1932ms | 0 |
+| 2 | Live LinkedIn General Motors (`4419969671`) | `4419969671` | YES | LinkedIn Jobs | Senior Software Engineer – Go (Golang) | General Motors | 6451ms | 0 |
+| 3 | ChatGPT Rejection (False Positive Prevention) | — | NO | Web Page | — | — | 520ms | 0 |
+| 4 | GitHub Rejection (False Positive Prevention) | — | NO | Web Page | — | — | 6694ms | 0 |
+| 5 | Career Portal / Greenhouse Preservation | — | YES | Greenhouse ATS | Senior Backend Engineer - Core Payments | Stripe | 1631ms | 0 |
+| 6 | Live LinkedIn Return & Double-Click Analyze | `4419969671` | YES | LinkedIn Jobs | Senior Software Engineer – Go (Golang) | General Motors | — | 1 |
+
+**Files Modified / Created:**
+- `extension/job-detection/adapters/generic-career.adapter.js`: Re-architected structural evidence requirements; eliminated loose text matching.
+- `extension/job-detection/adapters/linkedin.adapter.js`: Fixed desktop pipe title regex; added currentJobId and rail occludable ID fallbacks; eliminated body fallback; resolved TDZ bug; softened readiness gate.
+- `extension/job-detection/adapter-registry.js`: Implemented 4-stage pipeline; returns `adapterId: 'NONE'`, `portalName: 'Web Page'` for ordinary pages.
+- `extension/job-detection/detection-engine.js`: Rejects non-job payloads cleanly (`detected: false, ready: false, jobData: null`).
+- `extension/job-detection/job-page-detector.js`: Enforced structural readiness and provider sufficiency without synthesized placeholders.
+- `extension/content/content-script.js`: Integrated `isPotentialJobContext` check; clears active job on non-job pages.
+- `extension/sidebar/sidebar.js`: Updates portal card for non-job responses; clears unlocked state on non-job navigation.
+- `tests/unit/p69-linkedin-readiness-and-generic-false-positives.test.js` [NEW]: 21 comprehensive unit tests covering 4-stage resolution, LinkedIn edge cases, ChatGPT/GitHub structural rejections, and sidebar state.
+- `scripts/verify-p69-live-stress.mjs` [NEW]: Real Chrome MV3 live CDP test harness verifying live LinkedIn jobs, ChatGPT rejection, GitHub rejection, Greenhouse preservation, and analyze server call idempotency.
+
+**Verification Evidence:**
+- `tests/unit/p69-linkedin-readiness-and-generic-false-positives.test.js`: **21/21 PASS (100%)**
+- Combined Regression Suite (`p57`, `p58`, `p60`, `p63`, `p66`, `p67`, `p68`, `p69`): **126/126 PASS across 42 suites (100%)**
+- Secrets Audit (`npm run scan:secrets`): **Zero exposed secrets detected (100% PASS)**
+- Real Chrome MV3 Live Stress Verification (`scripts/verify-p69-live-stress.mjs`): **100% PASS across all 6 live test steps**
+- Visual Evidence Artifacts:
+  - `p69-01-live-linkedin-appinventiv.png`
+  - `p69-02-live-linkedin-general-motors.png`
+  - `p69-03-live-chatgpt-rejected.png`
+  - `p69-04-live-github-rejected.png`
+  - `p69-05-live-career-portals.png`
+  - `p69-06-live-linkedin-analyzed.png`
+

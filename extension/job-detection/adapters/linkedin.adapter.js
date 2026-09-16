@@ -52,7 +52,7 @@ export class LinkedInAdapter {
       return true;
     }
 
-    // Priority 3 — Structured data (JSON-LD JobPosting)
+    // Priority 2 — Structured data (JSON-LD JobPosting)
     if (doc && typeof doc.querySelectorAll === 'function') {
       const jsonLd = extractJobPostingJsonLd(doc);
       if (jsonLd && (jsonLd.title || jsonLd.name || jsonLd.description)) {
@@ -60,9 +60,7 @@ export class LinkedInAdapter {
       }
     }
 
-    // Priority 4 — Active Job-specific DOM structure
-    // On search or collections pages, require an ACTIVE job details pane or top-card
-    // (a raw search result listing without an active selected job does not count)
+    // Priority 3 — Active Job-specific DOM structure
     if (doc && typeof doc.querySelector === 'function') {
       const hasActiveTopCard = Boolean(
         doc.querySelector('.job-details-jobs-unified-top-card') ||
@@ -77,15 +75,12 @@ export class LinkedInAdapter {
         doc.querySelector('.show-more-less-html__markup') ||
         doc.querySelector('#job-details') ||
         doc.querySelector('.jobs-description__content') ||
-        doc.querySelector('.jobs-description')
+        doc.querySelector('.jobs-box__html-content') ||
+        doc.querySelector('.jobs-description') ||
+        doc.querySelector('article.jobs-description__container')
       );
 
       if (hasActiveTopCard || hasJobDescription) {
-        return true;
-      }
-
-      // Check for standalone active job container with job ID
-      if (doc.querySelector('[data-job-id].jobs-search-results-list__list-item--active')) {
         return true;
       }
     }
@@ -106,94 +101,160 @@ export class LinkedInAdapter {
     if (urlMatch) {
       externalJobId = urlMatch[1];
     } else if (doc && typeof doc.querySelector === 'function') {
-      const elWithId = doc.querySelector('[data-job-id], [data-job-runner-job-id]');
+      const activeRailItem =
+        doc.querySelector('.jobs-search-results-list__list-item--active') ||
+        doc.querySelector('[data-occludable-job-id]');
+      const elWithId =
+        activeRailItem ||
+        doc.querySelector('.jobs-search-results-list__list-item--active[data-occludable-job-id]') ||
+        doc.querySelector('.jobs-search-results-list__list-item--active[data-job-id]') ||
+        doc.querySelector('[data-view-name="job-details"] [data-job-id]') ||
+        doc.querySelector('.job-details-jobs-unified-top-card [data-job-id]') ||
+        doc.querySelector('[data-current-job-id]') ||
+        doc.querySelector('[data-job-id], [data-job-runner-job-id]');
       if (elWithId) {
         externalJobId =
-          elWithId.getAttribute('data-job-id') || elWithId.getAttribute('data-job-runner-job-id');
+          elWithId.getAttribute?.('data-occludable-job-id') ||
+          elWithId.getAttribute?.('data-current-job-id') ||
+          elWithId.getAttribute?.('data-job-id') ||
+          elWithId.getAttribute?.('data-job-runner-job-id');
       }
     }
 
+    // Title candidates organized by priority
     const titleEl =
+      doc.querySelector('h1.job-details-jobs-unified-top-card__job-title') ||
       doc.querySelector('h2.job-details-jobs-unified-top-card__job-title') ||
+      doc.querySelector('.job-details-jobs-unified-top-card__job-title-link') ||
+      doc.querySelector('.job-details-jobs-unified-top-card__job-title-link a') ||
       doc.querySelector('.job-details-jobs-unified-top-card__job-title') ||
       doc.querySelector('.jobs-unified-top-card__job-title') ||
       doc.querySelector('h1.top-card-layout__title') ||
+      doc.querySelector('h1.topcard__title') ||
       doc.querySelector('.job-details-jobs-unified-top-card h1') ||
       doc.querySelector('.job-details-jobs-unified-top-card h2') ||
+      doc.querySelector('[data-view-name="job-details"] h1') ||
+      doc.querySelector('[data-view-name="job-details"] h2') ||
       doc.querySelector('.jobs-details__main-content h1') ||
       doc.querySelector('.jobs-details__main-content h2') ||
       doc.querySelector('.job-view-layout h1') ||
-      doc.querySelector('[data-view-name="job-details"] h1') ||
       doc.querySelector('.jobs-search__job-details h1') ||
-      doc.querySelector('h1.topcard__title') ||
       doc.querySelector('h1.t-24') ||
-      doc.querySelector('.top-card-layout__title');
+      doc.querySelector('h2.t-24') ||
+      doc.querySelector('.top-card-layout__title') ||
+      doc.querySelector('[data-view-name="job-details"] [class*="title" i]') ||
+      doc.querySelector('.jobs-details__main-content [class*="title" i]');
 
+    // Company candidates organized by priority
     const companyEl =
+      doc.querySelector('.job-details-jobs-unified-top-card__company-name a') ||
       doc.querySelector('.job-details-jobs-unified-top-card__company-name') ||
+      doc.querySelector('.jobs-unified-top-card__company-name a') ||
       doc.querySelector('.jobs-unified-top-card__company-name') ||
+      doc.querySelector('.job-details-jobs-unified-top-card__subtitle-primary-grouping a') ||
+      doc.querySelector('.job-details-jobs-unified-top-card__subtitle-grouping a') ||
+      doc.querySelector('.jobs-unified-top-card__subtitle-primary-grouping a') ||
       doc.querySelector('a.topcard__org-name-link') ||
+      doc.querySelector('a[data-tracking-control-name*="org-name"]') ||
       doc.querySelector('.topcard__flavor--black-link') ||
-      doc.querySelector('.job-details-jobs-unified-top-card__primary-description a') ||
+      doc.querySelector('.job-details-jobs-unified-top-card__primary-description a[href*="/company/"]') ||
       doc.querySelector('.jobs-details__main-content a[href*="/company/"]') ||
-      doc.querySelector('.jobs-details__main-content [data-tracking-control-name*="company"]');
+      doc.querySelector('[data-view-name="job-details"] a[href*="/company/"]') ||
+      doc.querySelector('.jobs-details__main-content [data-tracking-control-name*="company"]') ||
+      doc.querySelector('[data-view-name="job-details"] [class*="company" i]');
 
     const locationEl =
       doc.querySelector('.job-details-jobs-unified-top-card__bullet') ||
       doc.querySelector('.jobs-unified-top-card__bullet') ||
+      doc.querySelector('.job-details-jobs-unified-top-card__primary-description-container span.tvm__text') ||
       doc.querySelector('span.topcard__flavor--bullet') ||
-      doc.querySelector('.topcard__flavor--bullet');
+      doc.querySelector('.topcard__flavor--bullet') ||
+      doc.querySelector('[data-view-name="job-details"] [class*="bullet" i]');
 
+    let location = locationEl ? locationEl.textContent.trim() : '';
+
+    // Description candidates (STRICTLY localized job-detail regions, NEVER doc.body)
     const descEl =
       doc.querySelector('.show-more-less-html__markup') ||
       doc.querySelector('#job-details') ||
       doc.querySelector('.jobs-description__content') ||
       doc.querySelector('.jobs-box__html-content') ||
       doc.querySelector('.jobs-description') ||
-      doc.querySelector('article.jobs-description__container');
+      doc.querySelector('article.jobs-description__container') ||
+      doc.querySelector('[data-view-name="job-details"] article') ||
+      doc.querySelector('[data-view-name="job-details"] [class*="description" i]') ||
+      doc.querySelector('.jobs-details__main-content article') ||
+      doc.querySelector('.jobs-details__main-content [class*="description" i]') ||
+      doc.querySelector('.jobs-description-content__text') ||
+      doc.querySelector('[data-job-description]');
 
     const jsonLd = doc && typeof doc.querySelectorAll === 'function' ? extractJobPostingJsonLd(doc) : null;
 
     let title = titleEl ? titleEl.textContent.trim() : '';
-    if (!title && jsonLd && (jsonLd.title || jsonLd.name)) {
-      title = (jsonLd.title || jsonLd.name).trim();
-    }
-    if (!title && doc?.title && typeof doc.title === 'string') {
-      const docTitle = doc.title.trim();
-      const hiringMatch = docTitle.match(/^(.+?)\s+hiring\s+(.+?)(?:\s+in\s+[^|]+)?\s*\|\s*LinkedIn/i);
-      if (hiringMatch) {
-        title = hiringMatch[2].trim();
-      } else {
-        const atMatch = docTitle.match(/^(.+?)\s+(?:at|–|-)\s+(.+?)\s*\|\s*LinkedIn/i);
-        if (atMatch) {
-          title = atMatch[1].trim();
-        }
+    let company = companyEl ? companyEl.textContent.trim() : '';
+
+    if (company) {
+      if (company.includes('\n')) {
+        company = company.split('\n')[0].trim();
+      }
+      if (company.length > 80) {
+        company = '';
       }
     }
 
-    let company = companyEl ? companyEl.textContent.trim() : '';
-    if (company && company.length > 80) {
-      company = '';
+    // JSON-LD upfront fallbacks
+    if (!title && jsonLd && (jsonLd.title || jsonLd.name)) {
+      title = (jsonLd.title || jsonLd.name).trim();
     }
     if ((!company || company === 'Company') && jsonLd?.hiringOrganization?.name) {
       company = jsonLd.hiringOrganization.name.trim();
     }
-    if ((!company || company === 'Company') && doc?.title && typeof doc.title === 'string') {
+
+    // Resilient document.title fallback (Pipe format, Hiring format, At format)
+    if ((!title || !company) && doc?.title && typeof doc.title === 'string') {
       const docTitle = doc.title.trim();
-      const hiringMatch = docTitle.match(/^(.+?)\s+hiring\s+(.+?)(?:\s+in\s+[^|]+)?\s*\|\s*LinkedIn/i);
-      if (hiringMatch) {
-        company = hiringMatch[1].trim();
-      } else {
-        const atMatch = docTitle.match(/^(.+?)\s+(?:at|–|-)\s+(.+?)\s*\|\s*LinkedIn/i);
-        if (atMatch) {
-          company = atMatch[2].trim();
+
+      // Pattern 1: Title | Company | LinkedIn (Standard 3-part desktop LinkedIn pipe format)
+      const pipeParts = docTitle.split('|').map((s) => s.trim()).filter(Boolean);
+      if (pipeParts.length >= 3 && pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')) {
+        if (!title) title = pipeParts[0];
+        if (!company || company === 'Company') company = pipeParts[1];
+      }
+
+      // Pattern 2: Company hiring Title in Location | LinkedIn
+      if (!title || !company) {
+        const hiringMatch = docTitle.match(/^(.+?)\s+hiring\s+(.+?)(?:\s+in\s+([^|]+?))?\s*\|\s*LinkedIn/i);
+        if (hiringMatch) {
+          if (!company || company === 'Company') company = hiringMatch[1].trim();
+          if (!title) title = hiringMatch[2].trim();
+          if (hiringMatch[3] && (!locationEl || !locationEl.textContent.trim())) {
+            location = hiringMatch[3].trim();
+          }
         }
       }
+
+      // Pattern 3: Title at Company | LinkedIn
+      if (!title || !company) {
+        const atMatch = docTitle.match(/^(.+?)\s+at\s+([^|]+?)\s*\|\s*LinkedIn/i);
+        if (atMatch) {
+          if (!title) title = atMatch[1].trim();
+          if (!company || company === 'Company') company = atMatch[2].trim();
+        }
+      }
+
+      // Pattern 4: Title | LinkedIn (2-part fallback)
+      if (!title && pipeParts.length === 2 && pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')) {
+        title = pipeParts[0];
+      }
     }
+
     if (company && company.length > 80) {
       company = '';
     }
-    let location = locationEl ? locationEl.textContent.trim() : '';
+    if (company === 'Company') {
+      company = '';
+    }
+
     if (!location && jsonLd?.jobLocation) {
       const locObj = jsonLd.jobLocation;
       const addr = locObj.address || locObj;
@@ -206,15 +267,13 @@ export class LinkedInAdapter {
       }
     }
 
-    let description = descEl ? descEl.textContent.trim() : '';
+    // Description extraction strictly from localized container or JSON-LD (NEVER doc.body)
+    let description = descEl ? descEl.textContent.trim().replace(/\s+/g, ' ') : '';
     if (description.length < 50 && jsonLd?.description) {
       const cleanJsonLdDesc = jsonLd.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
       if (cleanJsonLdDesc.length > description.length) {
         description = cleanJsonLdDesc;
       }
-    }
-    if (!description && doc?.body) {
-      description = doc.body.textContent.trim();
     }
 
     const requirements = [];
@@ -225,14 +284,20 @@ export class LinkedInAdapter {
       });
     }
 
+    // Optional supporting signal: Easy Apply / Apply button presence
+    const hasApplyCta = Boolean(
+      doc.querySelector?.(
+        '.jobs-apply-button, button[class*="jobs-apply-button" i], button[data-job-id], [data-view-name="job-apply-button"], [aria-label*="Easy Apply" i], [aria-label*="Apply to" i]'
+      )
+    );
+
     const hasMeaningfulCompany = Boolean(company && company !== 'Company');
     const hasMeaningfulDescription = Boolean(description && description.length >= 50);
     const hasValidTitle = Boolean(title && title !== 'Untitled Role');
-    const isReady = Boolean(externalJobId && hasValidTitle && (hasMeaningfulCompany || hasMeaningfulDescription));
 
-    if (company === 'Company') {
-      company = '';
-    }
+    // Readiness gate: strong job-detail context + valid title + substantive content.
+    // externalJobId is preferred but does not block detection when title and substantive content exist.
+    const isReady = Boolean(hasValidTitle && (hasMeaningfulCompany || hasMeaningfulDescription));
 
     let workplace = 'UNKNOWN';
     const combinedText = `${title} ${location} ${description}`.toLowerCase();
@@ -247,7 +312,7 @@ export class LinkedInAdapter {
     return {
       sourceUrl: url,
       provider: LinkedInAdapter.provider,
-      externalJobId,
+      externalJobId: externalJobId || null,
       title: title || 'Untitled Role',
       company: company || '',
       location: location || 'Not specified',
@@ -258,6 +323,7 @@ export class LinkedInAdapter {
       responsibilities: [],
       compensation: null,
       rawText: description,
+      hasApplyCta,
       isReady,
     };
   }

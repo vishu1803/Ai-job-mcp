@@ -133,18 +133,22 @@ if (!window.__aicareershub_content_script_loaded) {
   async function performDetectionWithHydration() {
     let res = await performDetection();
 
-    const isFullyReady = (result) =>
-      Boolean(
-        result &&
-        result.detected &&
-        result.ready !== false &&
-        result.jobData &&
-        result.jobData.title &&
-        result.jobData.title !== 'Untitled Role' &&
-        (result.jobData.externalJobId || result.jobData.sourceUrl) &&
-        ((result.jobData.company && result.jobData.company !== 'Company') ||
-          (result.jobData.description && result.jobData.description.length >= 50))
+    const isFullyReady = (result) => {
+      if (!result || !result.detected || result.ready === false || !result.jobData) {
+        return false;
+      }
+      const jd = result.jobData;
+      if (!jd.title || jd.title === 'Untitled Role') return false;
+      if (jd.provider === 'LINKEDIN') {
+        const hasSubstantiveDesc = jd.description && jd.description.length >= 50;
+        const hasCompany = jd.company && jd.company !== 'Company';
+        return Boolean(hasSubstantiveDesc || (hasCompany && jd.externalJobId));
+      }
+      return Boolean(
+        (jd.externalJobId || jd.sourceUrl) &&
+        ((jd.company && jd.company !== 'Company') || (jd.description && jd.description.length >= 50))
       );
+    };
 
     if (isFullyReady(res)) {
       return res;
@@ -154,14 +158,23 @@ if (!window.__aicareershub_content_script_loaded) {
       return res;
     }
 
+    const hostname = window.location.hostname.toLowerCase();
     const href = window.location.href.toLowerCase();
-    const isPotentialJobUrl =
+    const isPotentialJobContext =
       href.includes('/jobs/view/') ||
       /[?&]currentjobid=\d+/i.test(window.location.search) ||
+      (hostname.includes('linkedin.com') && href.includes('/jobs/')) ||
       href.includes('/careers/') ||
-      href.includes('/posting/');
+      href.includes('/posting/') ||
+      Boolean(
+        typeof document !== 'undefined' &&
+        document.querySelector &&
+        document.querySelector(
+          '.jobs-search-results-list__list-item--active, [data-occludable-job-id], .job-details-jobs-unified-top-card, .jobs-description__content, #job-details, .job-posting, [itemtype*="JobPosting"]'
+        )
+      );
 
-    if (!isPotentialJobUrl) {
+    if (!isPotentialJobContext) {
       return res;
     }
 
@@ -235,6 +248,11 @@ if (!window.__aicareershub_content_script_loaded) {
           activeJobData = res.jobData;
           if (navigationObserver) {
             navigationObserver.setActiveJob(activeJobData);
+          }
+        } else {
+          activeJobData = null;
+          if (navigationObserver) {
+            navigationObserver.setActiveJob(null);
           }
         }
         sendResponse({

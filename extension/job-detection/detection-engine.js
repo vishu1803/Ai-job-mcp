@@ -32,10 +32,11 @@ export class JobDetectionEngine {
     const currentUrl = url || (typeof window !== 'undefined' ? window.location.href : '');
     const { adapterId, adapter, metadata, isJobPage } = AdapterRegistry.resolve(doc, currentUrl);
 
-    // If portal adapter explicitly flags this as NOT a job page (e.g. LinkedIn feed/profile)
+    // If portal adapter explicitly flags this as NOT a job page (e.g. LinkedIn feed/profile or generic web page)
     if (isJobPage === false) {
       return {
         detected: false,
+        ready: false,
         confidence: 'LOW',
         confidenceScore: 0,
         jobData: null,

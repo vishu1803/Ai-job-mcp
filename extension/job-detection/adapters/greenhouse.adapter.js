@@ -122,7 +122,7 @@ export class GreenhouseAdapter {
     // Extract bullet points for requirements/responsibilities
     const requirements = [];
     const responsibilities = [];
-    if (descEl) {
+    if (descEl && typeof descEl.querySelectorAll === 'function') {
       const listItems = descEl.querySelectorAll('li');
       listItems.forEach((li) => {
         const text = li.textContent.trim();

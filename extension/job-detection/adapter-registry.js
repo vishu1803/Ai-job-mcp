@@ -345,6 +345,7 @@ export class AdapterRegistry {
       lowerUrl.includes('ashbyhq.com') ||
       lowerUrl.includes('bamboohr.com') ||
       lowerUrl.includes('workable.com') ||
+      lowerUrl.includes('wellfound.com') ||
       lowerUrl.includes('smartrecruiters.com');
 
     if (isCareerUrl) {
@@ -358,11 +359,16 @@ export class AdapterRegistry {
 
     // Ordinary web page (e.g. chatgpt.com, github.com, news, search, docs)
     return {
-      adapterId: 'GENERIC',
+      adapterId: 'NONE',
       portalName: 'Web Page',
       isPortalRecognized: false,
       confidence: 'LOW',
-      capabilities: KNOWN_PORTAL_CAPABILITIES.GENERIC.capabilities,
+      capabilities: {
+        jobExtraction: false,
+        applicationDetection: false,
+        formExtraction: false,
+        automaticFieldMapping: false,
+      },
     };
   }
 
@@ -370,16 +376,22 @@ export class AdapterRegistry {
    * Resolves the appropriate adapter and portal metadata for the page.
    * Separates portal identity (URL/domain) from job detection (active job posting presence).
    *
+   * 4-Stage Architecture:
+   * 1. Dedicated Provider -> determines isJobPage via adapter.canHandle(doc, url)
+   * 2. Specialized DOM adapter -> if custom domain has ATS signature
+   * 3. Generic Career structural evidence -> schema.org JSON-LD or validated posting structure
+   * 4. Ordinary Web Page -> adapterId: 'NONE', isJobPage: false, portalName: 'Web Page'
+   *
    * @param {Document} doc
    * @param {string} url
-   * @returns {{ adapterId: string, adapter: object, metadata: object, isJobPage: boolean }}
+   * @returns {{ adapterId: string, adapter: object|null, metadata: object, isJobPage: boolean }}
    */
   static resolve(doc, url) {
     const portalIdentity = AdapterRegistry.resolvePortalIdentity(url, doc);
     const list = AdapterRegistry.getAdapters().sort((a, b) => b.priority - a.priority);
 
-    // 1. If portal matches a dedicated adapter (e.g. LINKEDIN, GREENHOUSE)
-    if (portalIdentity.adapterId !== 'GENERIC') {
+    // 1. If portal matches a dedicated adapter (e.g. LINKEDIN, GREENHOUSE, LEVER)
+    if (portalIdentity.adapterId && portalIdentity.adapterId !== 'GENERIC' && portalIdentity.adapterId !== 'NONE') {
       const dedicated = list.find((e) => e.id === portalIdentity.adapterId);
       if (dedicated) {
         let isJobPage = false;
@@ -398,9 +410,9 @@ export class AdapterRegistry {
       }
     }
 
-    // 2. Otherwise check if any specialized adapter can handle by DOM inspection
+    // 2. Specialized adapter by DOM inspection (e.g. custom domain hosting Greenhouse/Lever/etc.)
     for (const entry of list) {
-      if (entry.id !== 'GENERIC' && typeof entry.adapter.canHandle === 'function') {
+      if (entry.id !== 'GENERIC' && entry.id !== 'NONE' && typeof entry.adapter.canHandle === 'function') {
         try {
           if (entry.adapter.canHandle(doc, url)) {
             const metadata = KNOWN_PORTAL_CAPABILITIES[entry.id] || {
@@ -421,13 +433,53 @@ export class AdapterRegistry {
       }
     }
 
-    // 3. Fallback: Generic career adapter
+    // 3. Generic career adapter: requires strong structural job evidence
     const canGenericHandle = GenericCareerPageAdapter.canHandle(doc, url);
+    if (canGenericHandle) {
+      const jsonLd = doc ? GenericCareerPageAdapter.extractJsonLd(doc) : null;
+      const isJsonLd = Boolean(jsonLd && GenericCareerPageAdapter.isJobPosting(jsonLd));
+      const metadata = {
+        adapterId: 'GENERIC',
+        portalName: isJsonLd
+          ? 'Structured Web Page (JSON-LD JobPosting)'
+          : (portalIdentity.portalName === 'Web Page' ? 'Generic Career Portal' : portalIdentity.portalName),
+        confidence: isJsonLd ? 'HIGH' : 'MEDIUM',
+        capabilities: KNOWN_PORTAL_CAPABILITIES.GENERIC.capabilities,
+      };
+      return {
+        adapterId: 'GENERIC',
+        adapter: GenericCareerPageAdapter,
+        metadata,
+        isJobPage: true,
+      };
+    }
+
+    // 4. Portal identity was recognized as career page, but DOM lacks job-posting evidence
+    if (portalIdentity.adapterId === 'GENERIC') {
+      return {
+        adapterId: 'GENERIC',
+        adapter: GenericCareerPageAdapter,
+        metadata: portalIdentity,
+        isJobPage: false,
+      };
+    }
+
+    // 5. Ordinary Web Page without structural job evidence (ChatGPT, GitHub, Google, docs, etc.)
     return {
-      adapterId: 'GENERIC',
-      adapter: GenericCareerPageAdapter,
-      metadata: portalIdentity,
-      isJobPage: canGenericHandle,
+      adapterId: 'NONE',
+      adapter: null,
+      metadata: {
+        portalName: 'Web Page',
+        isPortalRecognized: false,
+        confidence: 'LOW',
+        capabilities: {
+          jobExtraction: false,
+          applicationDetection: false,
+          formExtraction: false,
+          automaticFieldMapping: false,
+        },
+      },
+      isJobPage: false,
     };
   }
 }
