@@ -186,7 +186,14 @@ export class LinkedInAdapter {
       doc.querySelector('.jobs-details__main-content article') ||
       doc.querySelector('.jobs-details__main-content [class*="description" i]') ||
       doc.querySelector('.jobs-description-content__text') ||
+      doc.querySelector('.jobs-search__job-details article') ||
+      doc.querySelector('.jobs-search__job-details [class*="description" i]') ||
+      doc.querySelector('.job-view-layout [class*="description" i]') ||
+      doc.querySelector('div[class*="jobs-description"]') ||
+      doc.querySelector('div[class*="description__text"]') ||
+      doc.querySelector('section[class*="description" i]') ||
       doc.querySelector('[data-job-description]');
+
 
     const jsonLd = doc && typeof doc.querySelectorAll === 'function' ? extractJobPostingJsonLd(doc) : null;
 

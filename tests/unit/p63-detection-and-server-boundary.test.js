@@ -421,7 +421,15 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         },
       };
 
-      mockStore = new DurableWorkflowStore();
+      const storageData = {};
+      const mockStorage = {
+        get: async (k) => (typeof k === 'string' ? { [k]: storageData[k] } : storageData),
+        set: async (obj) => Object.assign(storageData, obj),
+        remove: async (k) => delete storageData[k],
+        clear: async () => { for (const k of Object.keys(storageData)) delete storageData[k]; },
+      };
+
+      mockStore = new DurableWorkflowStore(mockStorage);
       controller = new SidebarController();
       controller.backendClient = mockBackendClient;
       controller.store = mockStore;
@@ -448,6 +456,9 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
       };
 
       global.chrome = {
+        storage: {
+          local: mockStorage,
+        },
         runtime: {
           sendMessage: async () => ({ success: true }),
         },

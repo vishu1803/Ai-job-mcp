@@ -159,6 +159,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true, passive: true });
     return true;
   }
+
+  if (message.type === 'JOB_DESCRIPTION_HYDRATED') {
+    // P72: Content-script informs sidebar of hydrated description for the active job
+    sendResponse({ success: true, hydrated: true });
+    return true;
+  }
 });
 
 

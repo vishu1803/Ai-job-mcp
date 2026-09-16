@@ -335,6 +335,23 @@ class SidebarController {
           // P68: Passive event must NEVER mutate or reconcile sidebar state.
           // DETECT_JOB_PAGE is the ONLY authoritative current-page reconciliation result.
           return;
+        } else if (message.type === 'JOB_DESCRIPTION_HYDRATED') {
+          // P72: Content-script informs sidebar of late-hydrated description for the active job.
+          if (this.activeTabId && message.tabId && message.tabId !== this.activeTabId) {
+            return;
+          }
+          if (this.activeTabId && sender?.tab?.id && sender.tab.id !== this.activeTabId) {
+            return;
+          }
+          if (!message.jobData || !message.jobData.title || message.jobData.title === 'Untitled Role') {
+            return;
+          }
+          const incomingFingerprint = JobIdentity.deriveJobFingerprint(message.jobData);
+          if (this.activeJobFingerprint && incomingFingerprint === this.activeJobFingerprint) {
+            (async () => {
+              await this._reconcileDetectedJob(message.jobData);
+            })();
+          }
         } else if (message.type === 'APPLICATION_FORM_DETECTED') {
           if (this.isWorkflowLocked()) {
             return;

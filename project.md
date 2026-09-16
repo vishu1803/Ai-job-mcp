@@ -3,6 +3,68 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 72: LinkedIn Description Hydration Never-Stuck Fix
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Scope:** Separation of JOB_DETECTED and ANALYSIS_READY (`JOB_DETECTED=true` and `ANALYSIS_READY=false` when title/company confirmed but description pending), Job-Scoped Hydration Lifecycle in Content Script (`JobHydrationLifecycle` class, attempts at `[100, 250, 500, 900, 1500, 2500, 4000, 6000, 8000]` ms, bounded max lifetime `HYDRATION_MAX_LIFETIME_MS = 10000`, single in-flight lock `isExtractionInFlight`, debounced MutationObserver ~150ms), Background Hydration Never-Killed at 5s Deadline (initial `DETECT_JOB_PAGE` resolves within 5000ms so sidebar renders without timeout, while background hydration lifecycle continues observing DOM up to 10s), Lazy & Expanded Description Support (comprehensive localized selectors in `linkedin.adapter.js` covering modern React layouts and "Show more" expansions, strictly localized, never `document.body.textContent`), Presentation/Consumer Sidebar Update (`JOB_DESCRIPTION_HYDRATED` runtime listener reconciles `activeJob.description`, `activeJob.rawText`, sets `activeJob.analysisReady = true`, persists to `DurableWorkflowStore`, hides loading notice, enables `[Analyze Job Match]`), Form Detection Independence (`APPLICATION_FORM_DETECTED` independent from description hydration, neither blocks nor replaces the other), Description Readiness Invariant (strictly `description.length >= 50 chars`), 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Resolved the live LinkedIn issue where jobs with valid title and company remained permanently in *"Job description is still loading..."* with the Analyze button disabled because the content script observer stopped permanently after the 5-second deadline:
+1. **Separation of JOB_DETECTED and ANALYSIS_READY:**
+   - Valid LinkedIn jobs with confirmed title and company are recognized as `detected: true` immediately, even when the description container is absent or empty.
+   - `analysisReady` remains `false` until substantive description (>= 50 chars) is present.
+   - Prevents premature non-job conversion or false Web Page rendering while waiting for lazy-loaded description containers.
+2. **Job-Scoped Content Script Hydration Lifecycle:**
+   - Implemented `JobHydrationLifecycle` in `extension/content/content-script.js`.
+   - Tied strictly to target job fingerprint (`targetFingerprint`).
+   - Scheduled attempt delays: `[100, 250, 500, 900, 1500, 2500, 4000, 6000, 8000]` ms with `HYDRATION_MAX_LIFETIME_MS = 10000` (10s bounded ceiling).
+   - Debounced `MutationObserver` (150ms) with a single in-flight lock (`isExtractionInFlight`) preventing concurrent extraction requests.
+   - Crucial fix: The background hydration lifecycle is NOT killed when the initial 5-second `DETECT_JOB_PAGE` response window completes. It continues actively observing and polling up to 10 seconds.
+   - Invalidation: Immediately cancels timers and disconnects observer when navigating to a new job (Job A → Job B), tab changes, or on page unload (`beforeunload`, `pagehide`).
+3. **Localized Description Extraction Across Modern LinkedIn Selectors:**
+   - Expanded localized description candidates in `extension/job-detection/adapters/linkedin.adapter.js`:
+     `.jobs-description__content`, `#job-details`, `.show-more-less-html__markup`, `article.jobs-description__container`, `.jobs-box__html-content`, `.jobs-description`, `[data-view-name="job-details"] article`, `[data-view-name="job-details"] [class*="description" i]`, `.jobs-details__main-content article`, `.jobs-details__main-content [class*="description" i]`, `.jobs-description-content__text`, `[data-job-description]`, `div[class*="description__text"]`, `section[class*="description" i]`.
+   - Strictly avoids `document.body.textContent`.
+   - Seamlessly handles clamped descriptions expanded via "Show more" or React re-renders.
+4. **Sidebar Presentation/Consumer Reconciliation:**
+   - Sidebar maintains zero polling (respecting P71 single-owner architecture).
+   - Added `JOB_DESCRIPTION_HYDRATED` listener in `extension/sidebar/sidebar.js`.
+   - Validates matching active tab and active job fingerprint.
+   - Reconciles `activeJob.description`, `activeJob.rawText`, sets `activeJob.analysisReady = true`, updates `cachedState.jobData`, saves to `DurableWorkflowStore`, and re-renders.
+   - Hides description loading notice and immediately enables **[Analyze Job Match]**.
+5. **Form Detection Independence:**
+   - Application form detection (`APPLICATION_FORM_DETECTED`) operates independently from description hydration.
+   - When form arrives before description hydration: form card is rendered, description continues hydrating, Analyze enables once description arrives.
+   - When description hydrates before form arrives: Analyze enables, subsequent form detection renders form card without breaking analysis state.
+6. **Shared Constants Export:**
+   - `HYDRATION_DELAYS` and `HYDRATION_MAX_LIFETIME_MS = 10000` exported from `extension/lib/detection-timeouts.js`.
+
+**Files Changed:**
+- `extension/lib/detection-timeouts.js` [MODIFIED]: Added `HYDRATION_DELAYS` and `HYDRATION_MAX_LIFETIME_MS` constants.
+- `extension/job-detection/adapters/linkedin.adapter.js` [MODIFIED]: Added comprehensive localized description candidate selectors.
+- `extension/content/content-script.js` [MODIFIED]: Implemented `JobHydrationLifecycle`, debounced observer, in-flight guard, lifecycle management, background continuation.
+- `extension/background/service-worker.js` [MODIFIED]: Added acknowledgement for `JOB_DESCRIPTION_HYDRATED`.
+- `extension/sidebar/sidebar.js` [MODIFIED]: Added `JOB_DESCRIPTION_HYDRATED` runtime listener and active job description reconciliation.
+- `tests/unit/p63-detection-and-server-boundary.test.js` [MODIFIED]: Added storage mock isolation in beforeEach to prevent test pollution.
+- `tests/unit/p72-linkedin-description-hydration.test.js` [NEW]: 36 tests across 7 suites covering all requirements.
+
+**Verification & Regression Results:**
+- P72 Unit Test Suite: **36/36 PASS (7 suites, 0 failures, 100% pass rate)**
+  1. Shared constants (`HYDRATION_DELAYS`, `HYDRATION_MAX_LIFETIME_MS = 10000 > 5000`)
+  2. Separation of JOB_DETECTED and ANALYSIS_READY (missing/short description)
+  3. Sidebar renders detected state with loading notice and disabled button
+  4. Localized description extraction across 18 modern LinkedIn selectors
+  5. Negative test: description outside localized selectors never extracted from document.body
+  6. Lazy/expanded description ("Show more" clamped to expanded)
+  7. Sidebar `JOB_DESCRIPTION_HYDRATED` updates activeJob, enables button, hides notice
+  8. Sidebar rejects `JOB_DESCRIPTION_HYDRATED` for mismatched fingerprint or tabId
+  9. Form detection independence (form before hydration, form after hydration)
+  10. Description readiness invariant (strictly description >= 50 chars)
+- Full P57–P72 Regression Suite: **260/260 PASS (92 suites, 0 failures, 100% pass rate)**
+
+---
 ### PART 71: Fix Detection Timeout Race & Unify LinkedIn Hydration
 
 **Status:** COMPLETE & VERIFIED  

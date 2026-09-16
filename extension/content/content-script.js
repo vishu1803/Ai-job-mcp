@@ -86,6 +86,9 @@ if (!window.__aicareershub_content_script_loaded) {
 
       navigationObserver = new NavigationObserver({
         onNavigation: async ({ oldUrl, newUrl, isSameJob }) => {
+          if (!isSameJob) {
+            stopJobHydration();
+          }
           if (isSameJob) {
             // Check if application form appeared on navigation (e.g. /jobs/123 -> /jobs/123/apply)
             const formInfo = await performFormDetection();
@@ -103,6 +106,10 @@ if (!window.__aicareershub_content_script_loaded) {
             const result = await performDetection();
             if (result.detected && result.jobData) {
               await notifyJobDetected(result.jobData);
+              const desc = (result.jobData.description || result.jobData.rawText || '').trim();
+              if (desc.length < 50) {
+                startJobHydration(result.jobData);
+              }
             }
           }
         },
@@ -111,6 +118,10 @@ if (!window.__aicareershub_content_script_loaded) {
           const result = await performDetection();
           if (result.detected && result.jobData) {
             await notifyJobDetected(result.jobData);
+            const desc = (result.jobData.description || result.jobData.rawText || '').trim();
+            if (desc.length < 50) {
+              startJobHydration(result.jobData);
+            }
           }
         },
         onFormDetected: async () => {
@@ -130,10 +141,223 @@ if (!window.__aicareershub_content_script_loaded) {
     }
   })();
 
+  /**
+   * P72: Job-Scoped Description Hydration Lifecycle.
+   *
+   * Coordinates bounded hydration retries and debounced DOM observation for a specific
+   * job fingerprint. Ensures description hydration is observed even if delayed past 5s,
+   * while preventing concurrent extraction thrash, stale cross-job leakage, or unbounded polling.
+   */
+  class JobHydrationLifecycle {
+    constructor(targetJobData, onHydrated) {
+      this.targetJobData = targetJobData;
+      this.onHydrated = onHydrated;
+      this.targetFingerprint = null;
+      this.isCancelled = false;
+      this.isCompleted = false;
+      this.isExtractionInFlight = false;
+      this.timerIds = [];
+      this.observer = null;
+      this.mutationDebounceTimer = null;
+    }
+
+    async start() {
+      try {
+        const { JobIdentity } = await import(
+          chrome.runtime.getURL('lib/job-identity.js')
+        );
+        this.targetFingerprint = JobIdentity.deriveJobFingerprint(this.targetJobData);
+      } catch {
+        this.targetFingerprint = this.targetJobData.externalJobId || this.targetJobData.title;
+      }
+
+      if (this.isCancelled) return;
+
+      const desc = (this.targetJobData.description || this.targetJobData.rawText || '').trim();
+      if (desc.length >= 50) {
+        this.isCompleted = true;
+        return;
+      }
+
+      // Scheduled hydration attempts (100ms, 250ms, 500ms, 900ms, 1500ms, 2500ms, 4000ms, 6000ms, 8000ms)
+      let delays = [100, 250, 500, 900, 1500, 2500, 4000, 6000, 8000];
+      let maxLifetime = 10000;
+      try {
+        const timeouts = await import(chrome.runtime.getURL('lib/detection-timeouts.js'));
+        if (Array.isArray(timeouts.HYDRATION_DELAYS)) delays = timeouts.HYDRATION_DELAYS;
+        if (timeouts.HYDRATION_MAX_LIFETIME_MS) maxLifetime = timeouts.HYDRATION_MAX_LIFETIME_MS;
+      } catch {}
+
+      delays.forEach((delay) => {
+        const tid = setTimeout(() => {
+          this._attemptHydration(`delay-${delay}`);
+        }, delay);
+        this.timerIds.push(tid);
+      });
+
+      const maxTid = setTimeout(() => {
+        this.cancel();
+      }, maxLifetime);
+      this.timerIds.push(maxTid);
+
+      // Debounced MutationObserver with localized extraction (at most one extraction in flight)
+      if (typeof MutationObserver !== 'undefined' && document.body) {
+        this.observer = new MutationObserver(() => {
+          if (this.isCancelled || this.isCompleted) return;
+          if (this.mutationDebounceTimer) {
+            clearTimeout(this.mutationDebounceTimer);
+          }
+          this.mutationDebounceTimer = setTimeout(() => {
+            this._attemptHydration('mutation');
+          }, 150);
+        });
+
+        try {
+          this.observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+          });
+        } catch {}
+      }
+    }
+
+    async _attemptHydration(source = 'timer') {
+      if (this.isCancelled || this.isCompleted) return;
+      if (this.isExtractionInFlight) return;
+
+      this.isExtractionInFlight = true;
+      try {
+        const result = await performDetection();
+        if (this.isCancelled || this.isCompleted) return;
+
+        if (!result || !result.detected || !result.jobData) {
+          return;
+        }
+
+        let currentFingerprint = null;
+        try {
+          const { JobIdentity } = await import(
+            chrome.runtime.getURL('lib/job-identity.js')
+          );
+          currentFingerprint = JobIdentity.deriveJobFingerprint(result.jobData);
+        } catch {
+          currentFingerprint = result.jobData.externalJobId || result.jobData.title;
+        }
+
+        // Invalidate if page navigated to a different job
+        if (this.targetFingerprint && currentFingerprint && currentFingerprint !== this.targetFingerprint) {
+          this.cancel();
+          startJobHydration(result.jobData);
+          return;
+        }
+
+        const currentDesc = (result.jobData.description || result.jobData.rawText || '').trim();
+        if (currentDesc.length >= 50) {
+          this.isCompleted = true;
+          this.cancel();
+
+          const hydratedJob = {
+            ...result.jobData,
+            analysisReady: true,
+          };
+
+          if (typeof this.onHydrated === 'function') {
+            this.onHydrated(hydratedJob, this.targetFingerprint);
+          }
+        }
+      } catch (err) {
+        // Safe ignore
+      } finally {
+        this.isExtractionInFlight = false;
+      }
+    }
+
+    cancel() {
+      this.isCancelled = true;
+      if (this.observer) {
+        try { this.observer.disconnect(); } catch {}
+        this.observer = null;
+      }
+      if (this.mutationDebounceTimer) {
+        clearTimeout(this.mutationDebounceTimer);
+        this.mutationDebounceTimer = null;
+      }
+      this.timerIds.forEach((t) => clearTimeout(t));
+      this.timerIds.length = 0;
+    }
+  }
+
+  let activeHydrationFingerprint = null;
+  let activeHydrationLifecycle = null;
+
+  function stopJobHydration() {
+    if (activeHydrationLifecycle) {
+      activeHydrationLifecycle.cancel();
+      activeHydrationLifecycle = null;
+    }
+    activeHydrationFingerprint = null;
+  }
+
+  async function startJobHydration(jobData) {
+    if (!jobData || !jobData.title || jobData.title === 'Untitled Role') {
+      stopJobHydration();
+      return;
+    }
+
+    const desc = (jobData.description || jobData.rawText || '').trim();
+    if (desc.length >= 50) {
+      stopJobHydration();
+      return;
+    }
+
+    let fp = null;
+    try {
+      const { JobIdentity } = await import(
+        chrome.runtime.getURL('lib/job-identity.js')
+      );
+      fp = JobIdentity.deriveJobFingerprint(jobData);
+    } catch {
+      fp = jobData.externalJobId || jobData.title;
+    }
+
+    if (
+      activeHydrationLifecycle &&
+      activeHydrationFingerprint === fp &&
+      !activeHydrationLifecycle.isCancelled &&
+      !activeHydrationLifecycle.isCompleted
+    ) {
+      return;
+    }
+
+    stopJobHydration();
+
+    activeHydrationFingerprint = fp;
+    activeHydrationLifecycle = new JobHydrationLifecycle(jobData, (hydratedJob, fingerprint) => {
+      activeJobData = hydratedJob;
+      if (navigationObserver) {
+        navigationObserver.setActiveJob(activeJobData);
+      }
+      try {
+        chrome.runtime.sendMessage({
+          type: 'JOB_DESCRIPTION_HYDRATED',
+          jobData: hydratedJob,
+          jobFingerprint: fingerprint,
+        }).catch(() => {});
+      } catch {}
+    });
+    activeHydrationLifecycle.start();
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => stopJobHydration());
+    window.addEventListener('pagehide', () => stopJobHydration());
+  }
+
   async function performDetectionWithHydration() {
     let res = await performDetection();
 
-    // P70: Fully ready requires substantive description >= 50 chars for analysis
+    // P70 & P72: Fully ready requires substantive description >= 50 chars for analysis
     const isFullyReady = (result) => {
       if (!result || !result.detected || !result.jobData) {
         return false;
@@ -145,6 +369,7 @@ if (!window.__aicareershub_content_script_loaded) {
     };
 
     if (isFullyReady(res)) {
+      stopJobHydration();
       return res;
     }
 
@@ -169,7 +394,13 @@ if (!window.__aicareershub_content_script_loaded) {
       );
 
     if (!isPotentialJobContext) {
+      stopJobHydration();
       return res;
+    }
+
+    // P72: Start job-scoped background hydration immediately if job is detected with description < 50
+    if (res.detected && res.jobData) {
+      startJobHydration(res.jobData);
     }
 
     // P71: Import shared detection timeout constant
@@ -199,6 +430,16 @@ if (!window.__aicareershub_content_script_loaded) {
         }
         timerIds.forEach((t) => clearTimeout(t));
         timerIds.length = 0;
+
+        // P72: Do NOT kill background hydration if description is still loading!
+        if (result.detected && result.jobData) {
+          const desc = (result.jobData.description || result.jobData.rawText || '').trim();
+          if (desc.length < 50) {
+            startJobHydration(result.jobData);
+          } else {
+            stopJobHydration();
+          }
+        }
         resolve(result);
       };
 
@@ -221,7 +462,7 @@ if (!window.__aicareershub_content_script_loaded) {
         } catch {}
       }
 
-      // Bounded backoff retry delays
+      // Bounded backoff retry delays within initial request window
       const delays = [100, 250, 500, 900, 1500, 2500, 3800];
       delays.forEach((delay) => {
         const tid = setTimeout(checkNow, delay);
@@ -254,8 +495,14 @@ if (!window.__aicareershub_content_script_loaded) {
           if (navigationObserver) {
             navigationObserver.setActiveJob(activeJobData);
           }
+          // P72: If job is detected with description < 50, ensure background hydration lifecycle is running
+          const desc = (res.jobData.description || res.jobData.rawText || '').trim();
+          if (desc.length < 50) {
+            startJobHydration(res.jobData);
+          }
         } else {
           activeJobData = null;
+          stopJobHydration();
           if (navigationObserver) {
             navigationObserver.setActiveJob(null);
           }
