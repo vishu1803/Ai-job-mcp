@@ -136,6 +136,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           files: ['content/content-script.js'],
         });
 
+        // Verify readiness after injection
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            const pong = await chrome.tabs.sendMessage(tabId, { type: 'PING' });
+            if (pong?.status === 'PONG') break;
+          } catch {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+        }
+
         sendResponse({ success: true, injected: true });
       } catch (err) {
         sendResponse({ success: false, error: err.message });
@@ -145,52 +155,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'JOB_DETECTED_ON_PAGE') {
-    (async () => {
-      try {
-        const tabId = sender?.tab?.id || message.tabId;
-        if (!tabId || !message.jobData) {
-          sendResponse({ success: false, error: 'Missing tabId or jobData' });
-          return;
-        }
-
-        const { DurableWorkflowStore } = await import('../lib/durable-workflow-store.js');
-        const { JobIdentity } = await import('../lib/job-identity.js');
-        const store = new DurableWorkflowStore();
-        const tabState = await store.getTabState(tabId);
-
-        const isLocked = store.isWorkflowLocked(tabState);
-        const hasActiveJob = Boolean(tabState?.jobData?.title);
-        const detectedFp = JobIdentity.deriveJobFingerprint(message.jobData);
-        const activeFp =
-          tabState?.jobFingerprint ||
-          (tabState?.jobData ? JobIdentity.deriveJobFingerprint(tabState.jobData) : null);
-
-        if (isLocked || hasActiveJob) {
-          if (detectedFp && detectedFp !== activeFp) {
-            await store.setPendingDetectedJob(tabId, message.jobData);
-          }
-        } else {
-          tabState.jobData = message.jobData;
-          tabState.jobFingerprint = detectedFp;
-          tabState.normalizedJob = message.jobData;
-          tabState.workflowState = 'JOB_DETECTED';
-          await store.saveTabState(tabId, tabState);
-        }
-
-        // Forward to runtime so sidebar is immediately aware of this tab's detection
-        chrome.runtime.sendMessage({
-          type: 'JOB_DETECTED_ON_PAGE',
-          tabId,
-          jobData: message.jobData,
-          url: message.url || sender?.tab?.url,
-          generation: tabState?.workflowGeneration || 0,
-        }).catch(() => {});
-
-        sendResponse({ success: true, tabId });
-      } catch (err) {
-        sendResponse({ success: false, error: err.message });
-      }
-    })();
+    // P66: Single authoritative pipeline - background forwards event without mutating workflow state
+    const tabId = sender?.tab?.id || message.tabId;
+    if (tabId && message.jobData) {
+      chrome.runtime.sendMessage({
+        type: 'JOB_DETECTED_ON_PAGE',
+        tabId,
+        jobData: message.jobData,
+        url: message.url || sender?.tab?.url,
+        timestamp: Date.now(),
+      }).catch(() => {});
+      sendResponse({ success: true, forwarded: true, tabId });
+    } else {
+      sendResponse({ success: false, error: 'Missing tabId or jobData' });
+    }
     return true;
   }
 });

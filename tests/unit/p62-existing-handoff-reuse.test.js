@@ -183,6 +183,7 @@ function setupMockDocument() {
   };
 
   const storageMap = new Map();
+  let lastDetectedJobOnTab = null;
   global.chrome = {
     runtime: {
       onMessage: {
@@ -191,6 +192,9 @@ function setupMockDocument() {
           this._listeners.push(fn);
         },
         dispatch(msg, sender = {}) {
+          if (msg.type === 'JOB_DETECTED_ON_PAGE' && msg.jobData) {
+            lastDetectedJobOnTab = msg.jobData;
+          }
           for (const l of this._listeners) l(msg, sender);
         },
       },
@@ -198,7 +202,12 @@ function setupMockDocument() {
     },
     tabs: {
       query: async () => [{ id: 101, url: 'https://careers.cloudcorp.com/jobs/8801' }],
-      sendMessage: async () => ({ success: true }),
+      sendMessage: async (_tabId, msg) => {
+        if (msg?.type === 'DETECT_JOB_PAGE') {
+          return { success: true, detected: Boolean(lastDetectedJobOnTab), jobData: lastDetectedJobOnTab };
+        }
+        return { success: true };
+      },
       create: async () => {},
     },
     storage: {

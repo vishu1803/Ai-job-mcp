@@ -29,6 +29,7 @@ class SidebarController {
     this.isAuthenticated = false;
     this.currentUser = null;
     this._isAnalyzing = false;
+    this._detectionRequestId = 0;
 
     // DOM Elements
     this.elements = {};
@@ -307,6 +308,7 @@ class SidebarController {
             return;
           }
           if (message.tabId && message.tabId !== this.activeTabId) {
+            this._detectionRequestId++;
             this.activeTabId = message.tabId;
             this._clearTransientTabState();
             (async () => {
@@ -337,9 +339,7 @@ class SidebarController {
             return;
           }
 
-          (async () => {
-            await this._reconcileDetectedJob(message.jobData);
-          })();
+          this._reconcileDetectedJob(message.jobData);
         } else if (message.type === 'APPLICATION_FORM_DETECTED') {
           if (this.isWorkflowLocked()) {
             return;
@@ -576,17 +576,23 @@ class SidebarController {
     }
 
     // No active workflow exists (IDLE / empty): adopt as active job
-    this._handleJobDetectedEvent(jobData);
+    return this._handleJobDetectedEvent(jobData);
   }
 
   async _requestDetectionFromTab(isExplicitRescan = false) {
     if (!this.activeTabId) return false;
 
+    const requestId = ++this._detectionRequestId;
     const requestTabId = this.activeTabId;
     const requestGeneration = this.cachedState?.workflowGeneration || 0;
 
+    const isStale = () =>
+      this._detectionRequestId !== requestId ||
+      this.activeTabId !== requestTabId ||
+      (!isExplicitRescan && (this.cachedState?.workflowGeneration || 0) > requestGeneration);
+
     try {
-      const sendWithTimeout = (promise, ms = 2500) =>
+      const sendWithTimeout = (promise, ms = 3000) =>
         Promise.race([
           promise,
           new Promise((_, reject) => setTimeout(() => reject(new Error('Detection request timed out')), ms)),
@@ -601,8 +607,7 @@ class SidebarController {
         ).catch(() => null);
       }
 
-      // Check if user switched tabs while ENSURE_CONTENT_SCRIPT was in flight
-      if (this.activeTabId !== requestTabId) {
+      if (isStale()) {
         return false;
       }
 
@@ -610,30 +615,29 @@ class SidebarController {
         const response = await sendWithTimeout(
           chrome.tabs.sendMessage(requestTabId, {
             type: 'DETECT_JOB_PAGE',
+            requestId,
           })
         ).catch(() => null);
 
-        // Check if user switched tabs while DETECT_JOB_PAGE was in flight
-        if (this.activeTabId !== requestTabId) {
-          return false;
-        }
-        if (!isExplicitRescan && (this.cachedState?.workflowGeneration || 0) > requestGeneration) {
+        if (isStale()) {
           return false;
         }
 
-        if (response && response.success && response.jobData) {
+        if (response && response.detected && response.jobData && response.jobData.title) {
           if (isExplicitRescan) {
             await this._switchToJob(response.jobData);
           } else {
-            this._reconcileDetectedJob(response.jobData);
+            await this._reconcileDetectedJob(response.jobData);
           }
           return true;
-        } else if (response && response.detected === false) {
-          // Explicit confirmation from content script that current page is not a job
+        } else {
+          // Page is confirmed NOT a job (or detection returned detected: false / empty)
           if (isExplicitRescan) {
+            // Requirement 4: clear stale unlocked job state when current page is not a job
+            // and never use pendingDetectedJob as a substitute for fresh page detection
             this.pendingDetectedJob = null;
             this.pendingDetectedFingerprint = null;
-            this.store.setPendingDetectedJob(requestTabId, null);
+            await this.store.setPendingDetectedJob(requestTabId, null);
             this._hidePendingJobNotification();
 
             if (!this.isWorkflowLocked()) {
@@ -643,8 +647,9 @@ class SidebarController {
               if (this.cachedState) {
                 this.cachedState.jobData = null;
                 this.cachedState.jobFingerprint = null;
+                this.cachedState.normalizedJob = null;
                 this.cachedState.workflowState = WORKFLOW_STATES.IDLE;
-                this.store.saveTabState(requestTabId, this.cachedState);
+                await this.store.saveTabState(requestTabId, this.cachedState);
               }
               this._renderEmptyJobState();
               this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
@@ -652,31 +657,19 @@ class SidebarController {
           } else {
             if (!this.activeJob && !this.isWorkflowLocked()) {
               this._renderEmptyJobState();
+              this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
             }
           }
           return false;
-        } else if (isExplicitRescan && this.pendingDetectedJob) {
-          // Fallback for mocked test environments where DETECT_JOB_PAGE doesn't return jobData
-          const jobToSwitch = this.pendingDetectedJob;
-          await this._switchToJob(jobToSwitch);
-          return true;
-        } else {
-          if (!this.activeJob && !this.isWorkflowLocked()) {
-            this._renderEmptyJobState();
-          }
-          return false;
         }
-      } else if (isExplicitRescan && this.pendingDetectedJob) {
-        const jobToSwitch = this.pendingDetectedJob;
-        await this._switchToJob(jobToSwitch);
-        return true;
       }
     } catch {
-      if (this.activeTabId === requestTabId && !this.activeJob && !this.isWorkflowLocked()) {
+      if (!isStale() && !this.activeJob && !this.isWorkflowLocked()) {
         this._renderEmptyJobState();
       }
       return false;
     }
+    return false;
   }
 
   async rescan() {
@@ -923,9 +916,9 @@ class SidebarController {
     }
 
     // Keep raw diagnostic and capability badges hidden
-    this.elements.confidenceBadge?.classList.add('hidden');
+    this.elements.confidenceBadge?.classList?.add('hidden');
     const portalCapsEl = typeof document !== 'undefined' ? document.getElementById('portalCapabilities') : null;
-    portalCapsEl?.classList.add('hidden');
+    portalCapsEl?.classList?.add('hidden');
   }
 
   _updateCapPill(element, isSupported, label) {

@@ -446,6 +446,22 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         prepareHandoffBtn: { disabled: false },
         prepareBtnText: { textContent: '' },
       };
+
+      global.chrome = {
+        runtime: {
+          sendMessage: async () => ({ success: true }),
+        },
+        tabs: {
+          query: async () => [{ id: 101, url: 'https://www.linkedin.com/jobs/view/1001' }],
+          sendMessage: async (_tabId, msg) => {
+            if (msg?.type === 'DETECT_JOB_PAGE') {
+              const job = controller.pendingDetectedJob || controller.activeJob;
+              return { success: true, detected: Boolean(job), jobData: job };
+            }
+            return { success: true };
+          },
+        },
+      };
     });
 
     it('page detection generates ZERO server calls to /api/extension/analyze-job', async () => {
@@ -599,6 +615,15 @@ describe('Part 63 — Accurate Job Detection & Server Boundary', () => {
         }),
       };
       controller.backendClient = mockBackendClient;
+
+      global.chrome = {
+        runtime: {
+          sendMessage: async () => ({ success: true }),
+        },
+        tabs: {
+          sendMessage: async () => ({ success: true, detected: false, jobData: null }),
+        },
+      };
     });
 
     it('tab A and tab B maintain strictly independent workflow states and locks', async () => {

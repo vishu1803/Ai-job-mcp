@@ -3,6 +3,56 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 66: Real LinkedIn Detection & Single Detection Reconciliation Pipeline
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-16  
+**Scope:** Real LinkedIn Detection on actual `linkedin.com` (not localhost fixtures), Single Authoritative Detection Pipeline (Current Tab -> content script `DETECT_JOB_PAGE` -> sidebar receives result -> sidebar reconciles/persists tab state), Removal of Competing Background Store Mutations (Background purely forwards `JOB_DETECTED_ON_PAGE`), Content Script Readiness Loop via PING/PONG Confirmation, Content Script Late-Hydration Grace Period (350ms), Resilient Multi-Layer LinkedIn Adapter (JSON-LD JobPosting upfront parsing fallback, Semantic DOM selectors, document.title regex fallback), Tab Switch Stale Request Invalidation via Generation & Incrementing `_detectionRequestId`, Page Reload Determinism (`TAB_UPDATED` status=complete queries active tab), Rescan Authority (Direct page query, strictly NO `pendingDetectedJob` substitution, immediate unlocked state clearing on non-job pages), Strict Server Boundary (0 `/api/extension/analyze-job` calls on passive operations, exactly 1 on explicit user click), 100% Frozen PDF Layout / 0.52in Margins / LaTeX Templates / ATS Scoring.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Delivered the definitive single authoritative detection reconciliation pipeline and verified detection, reload, rescan, and explicit analyze on live `linkedin.com` in real Chrome:
+1. **Single Authoritative Detection Flow:**
+   - Unified the detection pipeline so that the active tab's content script is the sole authority for page state: `Current Tab -> content script DETECT_JOB_PAGE -> sidebar receives result -> sidebar reconciles and persists tab state`.
+   - Refactored `extension/background/service-worker.js` to purely forward `JOB_DETECTED_ON_PAGE` events to runtime listeners without modifying `DurableWorkflowStore` or state machines, preventing conflicting background state updates.
+   - Refactored `ENSURE_CONTENT_SCRIPT` in background service worker to verify content script readiness via a 5-attempt PING/PONG loop after script injection.
+2. **Deterministic Tab Switching & Stale Invalidation:**
+   - Introduced `this._detectionRequestId` in `SidebarController`.
+   - On `ACTIVE_TAB_CHANGED`, `_detectionRequestId` increments immediately. Any in-flight detection response from previous tabs or earlier requests is discarded upon arrival (`requestId !== this._detectionRequestId || activeTabId !== this.activeTabId || workflowGeneration < currentGeneration`).
+3. **Deterministic Page Reload Reconciliation:**
+   - Background service worker observes tab completion (`chrome.tabs.onUpdated` with `status === 'complete'`) and sends `TAB_UPDATED`.
+   - Sidebar handles `TAB_UPDATED` by verifying content script readiness and requesting authoritative `DETECT_JOB_PAGE`, reconciling only if still the active tab.
+4. **Rescan Authority & Zero-Substitution Guarantee:**
+   - Manual Rescan requests fresh `DETECT_JOB_PAGE` directly from the active tab.
+   - Rescan NEVER uses `pendingDetectedJob` as a substitute when the active page returns `detected: false`.
+   - On non-job pages, Rescan explicitly clears unlocked active job and pending detected job, resets the state machine to `IDLE`, saves to store, and renders empty state.
+5. **Resilient Real LinkedIn Adapter:**
+   - Layer 1: Canonical URL pattern `/jobs/view/<id>` and query parameter `currentJobId`.
+   - Layer 2: JSON-LD upfront parsing fallback extracting title, company, location, and description.
+   - Layer 3: Semantic DOM selectors (`h2.job-details-jobs-unified-top-card__job-title`, `.jobs-details__main-content a[href*="/company/"]`, `article.jobs-description__container`).
+   - Layer 4: `document.title` fallback regex matching `Company hiring Role in Location | LinkedIn` and `Role at Company | LinkedIn`.
+   - Layer 5: Grace period in content script (350ms) to allow LinkedIn client-side SPA DOM hydration.
+   - Strictly rejects non-job sections: `/feed`, `/in/`, `/messaging`, `/notifications`, `/mynetwork`.
+6. **Live LinkedIn Verification Evidence (Real Chrome MV3 CDP):**
+   - **Target Page:** Actual live LinkedIn job posting `https://www.linkedin.com/jobs/view/4419969671/` (General Motors)
+   - **Detected Title:** `Senior Software Engineer – Go (Golang)`
+   - **Detected Company:** `General Motors`
+   - **External Job ID:** `4419969671`
+   - **Provider:** `LINKEDIN`
+   - **Detection Timestamp:** `2026-09-16T04:22:21.409Z`
+   - **Passive Operations Server Calls:** `0 /api/extension/analyze-job calls` (Detection: 0, Reload: 0, Rescan: 0)
+   - **Explicit User Analyze:** Exactly `1 /api/extension/analyze-job call` triggered upon clicking `[Analyze Job Match]`.
+   - **Analysis Render State:** Matched Skills = 3, Workflow State = `ANALYSIS_READY`.
+   - **Artifacts Generated & Preserved:**
+     - `p66-01-live-linkedin-detected.png` (Initial live detection)
+     - `p66-02-live-linkedin-reloaded.png` (Page reload determinism)
+     - `p66-03-live-linkedin-rescanned.png` (Manual rescan determinism)
+     - `p66-04-live-linkedin-analyzed.png` (Explicit analyze server boundary)
+7. **Regression Test Suite:**
+   - Full Unit Regression Suite (`P57–P66`): **146/146 PASS (47 suites, 0 failures, 100% pass rate)**.
+
+---
+
 ### PART 65: Deterministic Tab/Reload Detection & LinkedIn Delivery Fix
 
 **Status:** COMPLETE & VERIFIED  

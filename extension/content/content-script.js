@@ -160,7 +160,25 @@ if (!window.__aicareershub_content_script_loaded) {
     }
 
     if (message.type === 'DETECT_JOB_PAGE') {
-      performDetection().then((res) => {
+      (async () => {
+        let res = await performDetection();
+
+        // P66: Delayed hydration grace period for SPA / LinkedIn job detail URLs
+        if (!res.detected && typeof window !== 'undefined' && window.location) {
+          const href = window.location.href.toLowerCase();
+          const isPotentialJobUrl =
+            href.includes('/jobs/view/') ||
+            /[?&]currentjobid=\d+/i.test(window.location.search) ||
+            href.includes('/careers/') ||
+            href.includes('/posting/');
+
+          if (isPotentialJobUrl) {
+            // Wait 350ms for React DOM / detail pane hydration and retry once
+            await new Promise((resolve) => setTimeout(resolve, 350));
+            res = await performDetection();
+          }
+        }
+
         if (res.detected && res.jobData) {
           activeJobData = res.jobData;
           if (navigationObserver) {
@@ -168,7 +186,7 @@ if (!window.__aicareershub_content_script_loaded) {
           }
         }
         sendResponse(res);
-      });
+      })();
       return true;
     }
 

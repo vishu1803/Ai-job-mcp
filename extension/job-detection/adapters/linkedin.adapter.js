@@ -152,24 +152,69 @@ export class LinkedInAdapter {
       doc.querySelector('.jobs-description') ||
       doc.querySelector('article.jobs-description__container');
 
-    const title = titleEl ? titleEl.textContent.trim() : '';
+    const jsonLd = doc && typeof doc.querySelectorAll === 'function' ? extractJobPostingJsonLd(doc) : null;
 
-    // Fallback: JSON-LD JobPosting data
-    if (!title) {
-      const jsonLd = extractJobPostingJsonLd(doc);
-      if (jsonLd) {
-        const payload = jsonLdToJobPayload(jsonLd, url, LinkedInAdapter.provider);
-        if (externalJobId) payload.externalJobId = externalJobId;
-        return payload;
+    let title = titleEl ? titleEl.textContent.trim() : '';
+    if (!title && jsonLd && (jsonLd.title || jsonLd.name)) {
+      title = (jsonLd.title || jsonLd.name).trim();
+    }
+    if (!title && doc?.title && typeof doc.title === 'string') {
+      const docTitle = doc.title.trim();
+      const hiringMatch = docTitle.match(/^(.+?)\s+hiring\s+(.+?)(?:\s+in\s+[^|]+)?\s*\|\s*LinkedIn/i);
+      if (hiringMatch) {
+        title = hiringMatch[2].trim();
+      } else {
+        const atMatch = docTitle.match(/^(.+?)\s+(?:at|–|-)\s+(.+?)\s*\|\s*LinkedIn/i);
+        if (atMatch) {
+          title = atMatch[1].trim();
+        }
       }
     }
 
-    const company = companyEl ? companyEl.textContent.trim() : 'Company';
-    const location = locationEl ? locationEl.textContent.trim() : '';
-    const description = descEl ? descEl.textContent.trim() : (doc.body ? doc.body.textContent.trim() : '');
+    let company = companyEl ? companyEl.textContent.trim() : '';
+    if ((!company || company === 'Company') && jsonLd?.hiringOrganization?.name) {
+      company = jsonLd.hiringOrganization.name.trim();
+    }
+    if ((!company || company === 'Company') && doc?.title && typeof doc.title === 'string') {
+      const docTitle = doc.title.trim();
+      const hiringMatch = docTitle.match(/^(.+?)\s+hiring\s+(.+?)(?:\s+in\s+[^|]+)?\s*\|\s*LinkedIn/i);
+      if (hiringMatch) {
+        company = hiringMatch[1].trim();
+      } else {
+        const atMatch = docTitle.match(/^(.+?)\s+(?:at|–|-)\s+(.+?)\s*\|\s*LinkedIn/i);
+        if (atMatch) {
+          company = atMatch[2].trim();
+        }
+      }
+    }
+    if (!company) company = 'Company';
+
+    let location = locationEl ? locationEl.textContent.trim() : '';
+    if (!location && jsonLd?.jobLocation) {
+      const locObj = jsonLd.jobLocation;
+      const addr = locObj.address || locObj;
+      location = [addr.addressLocality, addr.addressRegion, addr.addressCountry].filter(Boolean).join(', ');
+    }
+    if (!location && doc?.title && typeof doc.title === 'string') {
+      const inMatch = doc.title.match(/\s+in\s+([^|]+)\s*\|\s*LinkedIn/i);
+      if (inMatch) {
+        location = inMatch[1].trim();
+      }
+    }
+
+    let description = descEl ? descEl.textContent.trim() : '';
+    if (description.length < 50 && jsonLd?.description) {
+      const cleanJsonLdDesc = jsonLd.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (cleanJsonLdDesc.length > description.length) {
+        description = cleanJsonLdDesc;
+      }
+    }
+    if (!description && doc.body) {
+      description = doc.body.textContent.trim();
+    }
 
     const requirements = [];
-    if (descEl) {
+    if (descEl && typeof descEl.querySelectorAll === 'function') {
       descEl.querySelectorAll('li').forEach((li) => {
         const text = li.textContent.trim();
         if (text.length > 5) requirements.push(text);
