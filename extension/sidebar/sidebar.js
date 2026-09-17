@@ -719,7 +719,7 @@ class SidebarController {
             tabId: requestTabId,
             generation: requestGeneration,
           })
-        ).catch(() => null);
+        );
 
         if (isStale(response)) {
           return false;
@@ -759,6 +759,9 @@ class SidebarController {
                 this.cachedState.jobData = null;
                 this.cachedState.jobFingerprint = null;
                 this.cachedState.normalizedJob = null;
+                this.cachedState.fitAnalysis = null;
+                this.cachedState.recommendedProjects = null;
+                this.cachedState.analysisSnapshotId = null;
                 this.cachedState.workflowState = WORKFLOW_STATES.IDLE;
                 await this.store.saveTabState(requestTabId, this.cachedState);
               }
@@ -766,7 +769,21 @@ class SidebarController {
               this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
             }
           } else {
-            if (!this.isWorkflowLocked()) {
+            // Passive detection from TAB_UPDATED or hydration.
+            // NEVER wipe analyzed results or locked workflows during passive background checks!
+            const hasAnalysis = Boolean(
+              this.cachedState?.fitAnalysis ||
+              this.cachedState?.workflowState === WORKFLOW_STATES.ANALYSIS_READY
+            );
+
+            if (hasAnalysis || this.isWorkflowLocked()) {
+              // Preserve existing job and analysis state!
+              // Do not overwrite activeJob, do not reset stateMachine, do not render empty job state.
+              if (this.cachedState && (this.cachedState.jobData || this.activeJob)) {
+                this._renderJobCard(this.cachedState.jobData || this.activeJob);
+              }
+            } else {
+              // Unanalyzed, unlocked job: reload into confirmed non-job clears stale state (P75)
               this.pendingDetectedJob = null;
               this.pendingDetectedFingerprint = null;
               await this.store.setPendingDetectedJob(requestTabId, null);
@@ -782,9 +799,6 @@ class SidebarController {
                 this.cachedState.workflowState = WORKFLOW_STATES.IDLE;
                 await this.store.saveTabState(requestTabId, this.cachedState);
               }
-              this._renderEmptyJobState();
-              this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
-            } else if (!this.activeJob) {
               this._renderEmptyJobState();
               this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
             }
@@ -1383,6 +1397,26 @@ class SidebarController {
         const fitAnalysis = result.fitAnalysis || result;
         const recommendedProjects = result.recommendedProjects || [];
 
+        // Ensure canonical job identity is preserved and reinforced
+        const canonicalJob = result.canonicalJob || result.jobData || {};
+        const mergedJob = {
+          ...(this.activeJob || {}),
+          ...(this.cachedState?.jobData || {}),
+          ...canonicalJob,
+        };
+        if (result.title && !mergedJob.title) mergedJob.title = result.title;
+        if (result.company && !mergedJob.company) mergedJob.company = result.company;
+
+        this.activeJob = mergedJob;
+        this.cachedState.jobData = mergedJob;
+        if (mergedJob.title) {
+          this.cachedState.jobIdentity = {
+            title: mergedJob.title,
+            company: mergedJob.company || '',
+            jobFingerprint: this.activeJobFingerprint || this.cachedState?.jobFingerprint,
+          };
+        }
+
         // Update state in durable store
         this.cachedState.fitAnalysis = fitAnalysis;
         this.cachedState.recommendedProjects = recommendedProjects;
@@ -1488,6 +1522,26 @@ class SidebarController {
         if (result.recommendedProjects && result.recommendedProjects.length > 0) {
           this.cachedState.recommendedProjects = result.recommendedProjects;
         }
+
+        // Ensure jobData and activeJob retain title and company
+        const handoffTarget = result.targetJob || {};
+        const mergedJob = {
+          ...(this.activeJob || {}),
+          ...(this.cachedState?.jobData || {}),
+          ...handoffTarget,
+        };
+        if (result.title && !mergedJob.title) mergedJob.title = result.title;
+        if (result.company && !mergedJob.company) mergedJob.company = result.company;
+        this.activeJob = mergedJob;
+        this.cachedState.jobData = mergedJob;
+        if (mergedJob.title) {
+          this.cachedState.jobIdentity = {
+            title: mergedJob.title,
+            company: mergedJob.company || '',
+            jobFingerprint: this.activeJobFingerprint || this.cachedState?.jobFingerprint,
+          };
+        }
+
         this.cachedState.workflowState = WORKFLOW_STATES.APPLICATION_READY;
         this.cachedState.lockState = 'LOCKED';
         this.cachedState.isLocked = true;

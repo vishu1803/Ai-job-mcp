@@ -3,6 +3,47 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-17*
 
+### PART 78: Post-Analysis Title Preservation & Passive Detection Protection
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-17  
+**Scope:** Elimination of the root cause bug where active job title (`"Full Stack Engineer"` on live LinkedIn Job ID `4466834190`) was replaced by `null`/`undefined`/`'—'` after job fit analysis. Identified forensic root causes:
+1. `extension/sidebar/sidebar.js`: In `_requestDetectionFromTab()`, `sendWithTimeout(chrome.tabs.sendMessage(...)).catch(() => null)` converted any transport timeout, background network delay, or port disconnection into `response = null`, bypassing `catch (err)` and dropping into the non-job branch.
+2. In the non-job branch, `!this.isWorkflowLocked()` evaluated to `true` during `ANALYSIS_READY` (as workflow lock only engages on application handoff). When passive background events (`TAB_UPDATED`, scroll, focus) occurred, lines 769–786 unconditionally executed `this.activeJob = null; this.cachedState.jobData = null; this.stateMachine.reset(); this._renderEmptyJobState()`, replacing `"Full Stack Engineer"` with `'—'`.
+3. `runAnalyzeJob()` failed to explicitly merge and reinforce `activeJob` and `cachedState.jobData` with backend-returned canonical job information (`result.canonicalJob`, `result.jobData`).
+4. `runPrepareHandoff()` omitted jobData synchronization.
+5. Backend endpoints `/api/extension/analyze-job` and `/api/extension/prepare-handoff` lacked top-level `title`, `company`, `jobData`, and `targetJob` anchors.
+
+Implementation & Architecture:
+- Fixed `extension/sidebar/sidebar.js`:
+  - Removed `.catch(() => null)` on `sendWithTimeout` so transport errors/timeouts safely trigger `catch (err)`, where state is preserved (P71 contract).
+  - Refined passive detection branch (`!isExplicitRescan`) to safeguard analyzed or locked workflows (`hasAnalysis || this.isWorkflowLocked()`), preserving active job identity and job card rendering while allowing unanalyzed reload on non-job pages to reset to IDLE (P75 contract).
+  - Updated `runAnalyzeJob()` to merge and anchor `activeJob`, `cachedState.jobData`, and `cachedState.jobIdentity` with `result.canonicalJob` / `result.jobData`.
+  - Updated `runPrepareHandoff()` to merge and anchor `activeJob` and `cachedState.jobData` with `result.targetJob`.
+- Fixed `src/routes/extension.routes.js`:
+  - Enriched `/api/extension/analyze-job` response with top-level `title`, `company`, `jobData: { title, company, location, workplace, employmentType, provider, canonicalJobId, normalizedJobUrl }`, and populated `fitAnalysis.title` / `fitAnalysis.jobTitle` / `fitAnalysis.company` / `fitAnalysis.companyName`.
+  - Enriched `/api/extension/prepare-handoff` response with top-level `title`, `jobTitle`, `company`, `companyName`, and `targetJob: { title, company, location, directPortalUrl }`.
+- Created automated test suite: `tests/unit/p78-analysis-title-preservation.test.js` (5 tests passing).
+- Verified full regression suite: 361 tests passing across 140 suites (0 failures).
+- Real Chrome for Testing (CFT) live acceptance test: 15-second continuous polling during and after analysis of live Job ID `4466834190` proved `domJobTitle` strictly remained `"Full Stack Engineer"`, `domJobCompany` remained `"Jobgether"`, `scoreValue` rendered `"25"`, `matchBand` rendered `"LOW"`, and `workflowState` transitioned to `ANALYSIS_READY`.
+- Secrets scan: zero secrets or private tokens detected.
+
+**Files Changed / Created:**
+- `src/routes/extension.routes.js` [MODIFIED]: Added top-level `title`, `company`, `jobData`, and `targetJob` anchors on `/api/extension/analyze-job` and `/api/extension/prepare-handoff`.
+- `extension/sidebar/sidebar.js` [MODIFIED]: Removed `.catch(() => null)` transport swallow, protected analyzed/locked state from passive detection reset, and reinforced canonical job merging in `runAnalyzeJob()` and `runPrepareHandoff()`.
+- `tests/unit/p78-analysis-title-preservation.test.js` [NEW]: Unit tests asserting title preservation across analysis, transport errors, passive non-job detection, explicit rescan reset, and handoff kit preparation.
+- `scripts/verify-p78-live-analysis-title.mjs` [NEW]: Live Chrome for Testing script verifying continuous title preservation and fit analysis rendering across 15 seconds.
+- `project.md` [MODIFIED]: Recorded execution ledger and verification evidence.
+
+**Verification Evidence:**
+- P78 Unit Tests (`node --test tests/unit/p78-analysis-title-preservation.test.js`): **5/5 PASS (100% pass rate)**
+- Full P57–P78 Extension Suite (`node --test tests/unit/p57-*.test.js ... tests/unit/p78-*.test.js`): **361/361 PASS across 140 suites (0 failures, 100% pass rate)**
+- Real Chrome for Testing Live Acceptance Test (`scripts/verify-p78-live-analysis-title.mjs`): **PASS (All 15 seconds polled confirmed `domJobTitle === "Full Stack Engineer"`, `scoreValue === "25"`, `workflowState === "ANALYSIS_READY"`)**
+- Visual Evidence Screenshot: `debug-4466834190-analyzed.png`
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+
+---
+
 ### PART 77: Production Side-Panel Parity (Job ID 4466834190) & Same-Company Navigation
 
 **Status:** COMPLETE & VERIFIED  

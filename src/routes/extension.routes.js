@@ -784,6 +784,18 @@ export default async function extensionRoutes(app, opts = {}) {
 
     return reply.send({
       analysisSnapshotId,
+      title,
+      company,
+      jobData: {
+        title,
+        company,
+        location: job.location || 'Not specified',
+        workplace: job.workplace || 'UNKNOWN',
+        employmentType: job.employmentType || 'FULL_TIME',
+        provider: job.provider || 'COMPANY_CAREERS',
+        canonicalJobId,
+        normalizedJobUrl,
+      },
       canonicalJob: {
         canonicalJobId,
         normalizedJobUrl,
@@ -798,6 +810,10 @@ export default async function extensionRoutes(app, opts = {}) {
       existingHandoff: existingHandoff,
       isSubmitted,
       fitAnalysis: {
+        title,
+        jobTitle: title,
+        company,
+        companyName: company,
         score: resolvedScore,
         grade: resolvedGrade,
         recommendation: resolvedRecommendation,
@@ -1055,6 +1071,16 @@ export default async function extensionRoutes(app, opts = {}) {
         applicationId: appId,
         canonicalJobId: preparedResult.jobId || preparedResult.canonicalJobId || null,
         analysisSnapshotId: authoritativeJobFit?.snapshotId || null,
+        title: targetJob.title,
+        jobTitle: targetJob.title,
+        company: targetJob.company,
+        companyName: targetJob.company,
+        targetJob: {
+          title: targetJob.title,
+          company: targetJob.company,
+          location: targetJob.location,
+          directPortalUrl: targetJob.directPortalUrl || targetJob.applicationUrl,
+        },
         packageVersion: preparedResult.packageVersion || preparedResult.version || 1,
         packageHash,
         packageStatus: preparedResult.packageStatus || 'SAVED',
