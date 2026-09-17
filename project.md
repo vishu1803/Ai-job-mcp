@@ -1,7 +1,69 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-16*
+*Last Updated: 2026-09-17*
+
+### PART 76: LinkedIn Adapter Extraction and Metadata Normalization
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-17  
+**Scope:** Elimination of metadata extraction and classification bugs discovered during forensic analysis of live LinkedIn Job ID `4466834190` (`https://www.linkedin.com/jobs/view/4466834190/`, *Full Stack Engineer* at *Jobgether*). Hardening of `employmentType` classification against GDPR/legal boilerplate and establishing strict 3-tier precedence (`structured DOM criteria` -> `JSON-LD` -> `sanitized free-text fallback`). Extraction and normalization of LinkedIn structured criteria (`seniorityLevel`, `jobFunction`, `industries`, `employmentType`). Extraction of topcard metrics (`postedAgo`, `applicantCount`). Section-aware list classification routing duties/accountabilities to `responsibilities`, qualifications to `requirements`, and excluding benefits/perks. Expansion of `hasApplyCta` to cover public LinkedIn CTA buttons (`.apply-button`, `.top-card-layout__cta`). Forwarding of enriched metadata through `JobPageDetector.detect` return schema. Verification via 12 unit tests, 346 regression tests, real Chrome for Testing live CDP inspection, and zero secrets detected.  
+**Branch:** `main`  
+
+**Executive Summary:**
+Resolved the production LinkedIn metadata corruption and deficiency discovered during live inspection of Job ID `4466834190`:
+1. **Employment Type Order of Precedence & Regex Hardening:**
+   - **Precedence Hierarchy:**
+     1. Structured DOM criteria (`.description__job-criteria-item`, `[class*="job-criteria"] li`, `.job-details-jobs-unified-top-card__job-insight`)
+     2. JSON-LD metadata (`employmentType` schema)
+     3. Sanitized description free-text fallback (with legal, GDPR, and privacy notices stripped)
+   - **GDPR Boilerplate Immunity:** Hardened `CONTRACT_REGEX` with negative lookbehind `(?<![\w-])` so that legal clauses like *"pre-contractual measures under applicable data protection laws"* cannot match `contractual` as a contract job type.
+   - **Normalized Values:** Added `normalizeEmploymentType(value)` mapping explicit terms (`Full-time` $\rightarrow$ `FULL_TIME`, `Part-time` $\rightarrow$ `PART_TIME`, `Contract` $\rightarrow$ `CONTRACT`, `Internship` $\rightarrow$ `INTERN`, `Temporary` $\rightarrow$ `CONTRACT`).
+2. **Structured Criteria Extraction (`extractLinkedInCriteria`):**
+   - Extracted `seniorityLevel` (`"Mid-Senior level"`), `jobFunction` (`"Engineering and Information Technology"`), and `industries` (`"Internet Marketplace Platforms"`).
+   - Supports both public layout criteria items and logged-in unified topcard bullet insight items.
+3. **Topcard Metrics Extraction (`extractLinkedInTopcardMetrics`):**
+   - Extracted `postedAgo` (`"1 day ago"` from `.posted-time-ago__text`) and `applicantCount` (`"Over 200 applicants"` from `.num-applicants__figure`).
+4. **Section-Aware Duties vs Requirements Classification:**
+   - Updated `extractLinkedInDescription` with heading classification (`isResponsibilityHeading`, `isRequirementHeading`, `isIgnoredHeading`).
+   - Accountabilities / duties are now routed to `responsibilities` (16 items extracted on Jobgether).
+   - Qualifications are routed to `requirements` (14 items extracted on Jobgether).
+   - Benefits and perks sections are strictly excluded from requirements.
+5. **Public Apply CTA Detection:**
+   - Expanded `hasApplyCta` selector to check `.jobs-apply-button`, `.apply-button`, `.top-card-layout__cta`, and `.top-card-layout__cta--primary`. Correctly detected `hasApplyCta: true` on public LinkedIn job view.
+6. **Detector Schema Forwarding:**
+   - Updated `JobPageDetector.detect()` return object to forward `seniorityLevel`, `jobFunction`, `industries`, `postedAgo`, and `applicantCount` so downstream consumers receive the complete metadata payload.
+
+**Files Changed / Created:**
+- `extension/job-detection/employment-type.js` [MODIFIED]: Hardened `CONTRACT_REGEX` with negative lookbehind; exported `normalizeEmploymentType`.
+- `extension/job-detection/adapters/linkedin.adapter.js` [MODIFIED]: Added `extractLinkedInCriteria`, `extractLinkedInTopcardMetrics`, section-aware heading classification for responsibilities/requirements, public apply CTA detection, and 3-tier employment type precedence.
+- `extension/job-detection/job-page-detector.js` [MODIFIED]: Forwarded `seniorityLevel`, `jobFunction`, `industries`, `postedAgo`, `applicantCount` in `detect()` return payload.
+- `tests/unit/p76-linkedin-adapter-normalization.test.js` [NEW]: 12 unit tests verifying precedence, GDPR immunity, criteria extraction, topcard metrics, section separation, public CTA, live Jobgether 4466834190 fixture, and detector forwarding.
+- `scripts/inspect-job-4466834190.mjs` [NEW]: Real Chrome for Testing CDP inspection script for Job ID `4466834190`.
+- `project.md` [MODIFIED]: Recorded execution ledger and verification evidence.
+
+**Verification Evidence:**
+- P76 Unit Test Suite (`node --test tests/unit/p76-linkedin-adapter-normalization.test.js`): **12/12 PASS (8 suites, 0 failures, 100% pass rate)**
+- Full P57–P76 Regression Suite (`node --test tests/unit/p57-*.test.js ... tests/unit/p76-*.test.js`): **346/346 PASS (133 suites, 0 failures, 100% pass rate)**
+- Real Chrome for Testing Live Job ID 4466834190 CDP Inspection (`scripts/inspect-job-4466834190.mjs`):
+  - `title`: `"Full Stack Engineer"` (PASS)
+  - `company`: `"Jobgether"` (PASS)
+  - `employmentType`: `"FULL_TIME"` (Fixed: was `"CONTRACT"`) (PASS)
+  - `seniorityLevel`: `"Mid-Senior level"` (Fixed: was omitted) (PASS)
+  - `jobFunction`: `"Engineering and Information Technology"` (Fixed: was omitted) (PASS)
+  - `industries`: `"Internet Marketplace Platforms"` (Fixed: was omitted) (PASS)
+  - `postedAgo`: `"1 day ago"` (Fixed: was omitted) (PASS)
+  - `applicantCount`: `"Over 200 applicants"` (Fixed: was omitted) (PASS)
+  - `hasApplyCta`: `true` (Fixed: was `false`) (PASS)
+  - `responsibilities`: 16 clean accountability items (Fixed: was empty `[]`) (PASS)
+  - `requirements`: 14 clean qualification items (Fixed: no longer contaminated with duties) (PASS)
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+- Visual Artifacts in Brain Directory:
+  - `inspect-4466834190-page.png`
+  - `inspect-4466834190-sidebar.png`
+  - `job_4466834190_detection_forensics.md`
+
+---
 
 ### PART 75: Production Side Panel Parity & Fresh-State Verification
 

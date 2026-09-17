@@ -1,4 +1,4 @@
-import { classifyEmploymentType } from '../employment-type.js';
+import { classifyEmploymentType, normalizeEmploymentType } from '../employment-type.js';
 import { extractJobPostingJsonLd, jsonLdToJobPayload } from '../json-ld.js';
 
 /**
@@ -514,15 +514,114 @@ export function extractLinkedInDescription(root, doc = null) {
     return str.replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
   };
 
-  const extractRequirementsFromEl = (el) => {
-    const reqs = [];
-    if (el && typeof el.querySelectorAll === 'function') {
+  const isResponsibilityHeading = (text) => {
+    if (!text || typeof text !== 'string') return false;
+    const t = text.trim().toLowerCase();
+    return (
+      t.includes('accountabilit') ||
+      t.includes('responsibilit') ||
+      t.includes('what you\'ll do') ||
+      t.includes('what you will do') ||
+      t.includes('duties') ||
+      t.includes('your role') ||
+      t.includes('scope of work') ||
+      t.includes('core duties') ||
+      t.includes('day to day')
+    );
+  };
+
+  const isRequirementHeading = (text) => {
+    if (!text || typeof text !== 'string') return false;
+    const t = text.trim().toLowerCase();
+    return (
+      t.includes('requirement') ||
+      t.includes('qualification') ||
+      t.includes('what we\'re looking for') ||
+      t.includes('what we are looking for') ||
+      t.includes('who you are') ||
+      t.includes('skills') ||
+      t.includes('must have') ||
+      t.includes('nice to have') ||
+      t.includes('what you need') ||
+      t.includes('what you bring') ||
+      t.includes('profile')
+    );
+  };
+
+  const isIgnoredHeading = (text) => {
+    if (!text || typeof text !== 'string') return false;
+    const t = text.trim().toLowerCase();
+    return (
+      t.includes('benefit') ||
+      t.includes('perk') ||
+      t.includes('what we offer') ||
+      t.includes('why join') ||
+      t.includes('privacy') ||
+      t.includes('how jobgether works') ||
+      t.includes('why apply') ||
+      t.includes('about us') ||
+      t.includes('about the company') ||
+      t.includes('equal opportunity')
+    );
+  };
+
+  const extractRequirementsAndResponsibilities = (el) => {
+    const requirements = [];
+    const responsibilities = [];
+    if (!el || typeof el.querySelectorAll !== 'function') {
+      return { requirements, responsibilities };
+    }
+
+    const allLists = Array.from(el.querySelectorAll('ul, ol'));
+    if (allLists.length > 0) {
+      for (const list of allLists) {
+        let headingText = '';
+        let prev = list.previousElementSibling;
+        let depth = 0;
+        while (prev && depth < 3 && !headingText) {
+          const t = cleanText(prev.textContent);
+          if (t) headingText = t;
+          prev = prev.previousElementSibling;
+          depth++;
+        }
+        if (!headingText && list.parentElement && list.parentElement !== el) {
+          let parentPrev = list.parentElement.previousElementSibling;
+          depth = 0;
+          while (parentPrev && depth < 2 && !headingText) {
+            const t = cleanText(parentPrev.textContent);
+            if (t) headingText = t;
+            parentPrev = parentPrev.previousElementSibling;
+            depth++;
+          }
+        }
+
+        const items = [];
+        list.querySelectorAll('li').forEach((li) => {
+          const t = cleanText(li.textContent);
+          if (t.length > 5) items.push(t);
+        });
+
+        if (isIgnoredHeading(headingText)) {
+          continue;
+        } else if (isResponsibilityHeading(headingText)) {
+          responsibilities.push(...items);
+        } else if (isRequirementHeading(headingText)) {
+          requirements.push(...items);
+        } else {
+          requirements.push(...items);
+        }
+      }
+    } else {
       el.querySelectorAll('li').forEach((li) => {
         const t = cleanText(li.textContent);
-        if (t.length > 5) reqs.push(t);
+        if (t.length > 5) requirements.push(t);
       });
     }
-    return reqs;
+
+    return {
+      requirements: requirements.slice(0, 30),
+      responsibilities: responsibilities.slice(0, 30),
+    };
   };
 
   const searchScope = (root && typeof root.querySelector === 'function')
@@ -567,12 +666,14 @@ export function extractLinkedInDescription(root, doc = null) {
         if (el) {
           const text = cleanText(el.textContent);
           if (text.length >= 50) {
+            const { requirements, responsibilities } = extractRequirementsAndResponsibilities(el);
             return {
               description: text,
               descriptionSource: 'SELECTOR',
               descriptionLength: text.length,
               descriptionSelectorUsed: sel,
-              requirements: extractRequirementsFromEl(el),
+              requirements,
+              responsibilities,
             };
           }
         }
@@ -677,12 +778,14 @@ export function extractLinkedInDescription(root, doc = null) {
         if (contentEl) {
           const text = cleanText(contentEl.textContent);
           if (text.length >= 50) {
+            const { requirements, responsibilities } = extractRequirementsAndResponsibilities(contentEl);
             return {
               description: text,
               descriptionSource: 'ABOUT_THE_JOB',
               descriptionLength: text.length,
               descriptionSelectorUsed: 'ABOUT_THE_JOB',
-              requirements: extractRequirementsFromEl(contentEl),
+              requirements,
+              responsibilities,
             };
           }
         }
@@ -706,6 +809,7 @@ export function extractLinkedInDescription(root, doc = null) {
             descriptionLength: cleanJsonLdDesc.length,
             descriptionSelectorUsed: 'JSON_LD',
             requirements: [],
+            responsibilities: [],
           };
         }
       }
@@ -719,6 +823,127 @@ export function extractLinkedInDescription(root, doc = null) {
     descriptionLength: 0,
     descriptionSelectorUsed: 'NONE',
     requirements: [],
+    responsibilities: [],
+  };
+}
+
+/**
+ * Extracts structured job criteria (Seniority, Employment type, Job function, Industries)
+ * from LinkedIn DOM or JSON-LD fallback.
+ *
+ * @param {Element|null} root
+ * @param {Document|null} doc
+ * @param {object|null} jsonLd
+ * @returns {{ seniorityLevel: string|null, employmentType: 'FULL_TIME'|'PART_TIME'|'CONTRACT'|'INTERN'|null, rawEmploymentType: string|null, jobFunction: string|null, industries: string|null }}
+ */
+export function extractLinkedInCriteria(root, doc = null, jsonLd = null) {
+  const clean = (s) => (s && typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : null);
+
+  let seniorityLevel = null;
+  let rawEmploymentType = null;
+  let jobFunction = null;
+  let industries = null;
+
+  const searchScope = root || doc;
+  if (searchScope && typeof searchScope.querySelectorAll === 'function') {
+    // 1. Check dedicated criteria items (Public/Guest layout: .description__job-criteria-item)
+    const criteriaItems = searchScope.querySelectorAll('.description__job-criteria-item, [class*="job-criteria"] li');
+    for (const item of criteriaItems) {
+      const header = clean(item.querySelector('h3, [class*="subheader"]')?.textContent)?.toLowerCase() || '';
+      const val = clean(item.querySelector('span, [class*="text"], div')?.textContent);
+      if (!val) continue;
+
+      if (header.includes('seniority') && !seniorityLevel) {
+        seniorityLevel = val;
+      } else if (header.includes('employment') && !rawEmploymentType) {
+        rawEmploymentType = val;
+      } else if (header.includes('function') && !jobFunction) {
+        jobFunction = val;
+      } else if (header.includes('industr') && !industries) {
+        industries = val;
+      }
+    }
+
+    // 2. Check Unified / Logged-in insights (e.g. "Full-time · Mid-Senior level")
+    if (!seniorityLevel || !rawEmploymentType || !jobFunction || !industries) {
+      const insights = searchScope.querySelectorAll(
+        '.job-details-jobs-unified-top-card__job-insight, .jobs-unified-top-card__job-insight, [class*="job-insight"]'
+      );
+      for (const ins of insights) {
+        const text = clean(ins.textContent);
+        if (!text) continue;
+        const parts = text.split(/[\u00b7\u2022|]/).map((p) => clean(p)).filter(Boolean);
+        for (const p of parts) {
+          const lower = p.toLowerCase();
+          if (!rawEmploymentType && (lower.includes('full-time') || lower.includes('part-time') || lower.includes('contract') || lower.includes('internship'))) {
+            rawEmploymentType = p;
+          } else if (!seniorityLevel && (lower.includes('entry level') || lower.includes('mid-senior') || lower.includes('associate') || lower.includes('director') || lower.includes('executive') || lower.includes('internship'))) {
+            seniorityLevel = p;
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Fallbacks from JSON-LD
+  if (!rawEmploymentType && jsonLd?.employmentType) {
+    rawEmploymentType = Array.isArray(jsonLd.employmentType) ? jsonLd.employmentType[0] : jsonLd.employmentType;
+  }
+  if (!seniorityLevel && (jsonLd?.experienceRequirements || jsonLd?.experienceLevel)) {
+    seniorityLevel = clean(jsonLd.experienceRequirements || jsonLd.experienceLevel);
+  }
+  if (!jobFunction && jsonLd?.occupationalCategory) {
+    jobFunction = clean(jsonLd.occupationalCategory);
+  }
+  if (!industries && jsonLd?.industry) {
+    industries = clean(jsonLd.industry);
+  }
+
+  const normalizedEmploymentType = normalizeEmploymentType(rawEmploymentType);
+
+  return {
+    seniorityLevel,
+    employmentType: normalizedEmploymentType,
+    rawEmploymentType,
+    jobFunction,
+    industries,
+  };
+}
+
+/**
+ * Extracts top card timing and applicant metrics.
+ *
+ * @param {Element|null} root
+ * @param {Document|null} doc
+ * @param {object|null} jsonLd
+ * @returns {{ postedAgo: string|null, applicantCount: string|null }}
+ */
+export function extractLinkedInTopcardMetrics(root, doc = null, jsonLd = null) {
+  const clean = (s) => (s && typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : null);
+
+  let postedAgo = null;
+  let applicantCount = null;
+
+  const searchScope = root || doc;
+  if (searchScope && typeof searchScope.querySelector === 'function') {
+    const postedEl = searchScope.querySelector(
+      '.posted-time-ago__text, .job-details-jobs-unified-top-card__posted-date, [class*="posted-date" i], [class*="posted-time" i]'
+    );
+    if (postedEl) postedAgo = clean(postedEl.textContent);
+
+    const applicantEl = searchScope.querySelector(
+      '.num-applicants__figure, [class*="num-applicants" i], [class*="applicant-count" i]'
+    );
+    if (applicantEl) applicantCount = clean(applicantEl.textContent);
+  }
+
+  if (!postedAgo && jsonLd?.datePosted) {
+    postedAgo = clean(jsonLd.datePosted);
+  }
+
+  return {
+    postedAgo,
+    applicantCount,
   };
 }
 
@@ -726,6 +951,8 @@ export class LinkedInAdapter {
   static provider = 'LINKEDIN';
   static findActiveLinkedInJobRoot = findActiveLinkedInJobRoot;
   static extractLinkedInDescription = extractLinkedInDescription;
+  static extractLinkedInCriteria = extractLinkedInCriteria;
+  static extractLinkedInTopcardMetrics = extractLinkedInTopcardMetrics;
   static deriveJobRootSource = deriveJobRootSource;
   static EXPLICIT_JOB_TITLE_SELECTORS = EXPLICIT_JOB_TITLE_SELECTORS;
   static isValidLinkedInTitleCandidate = isValidLinkedInTitleCandidate;
@@ -1099,20 +1326,25 @@ export class LinkedInAdapter {
       }
     }
 
-    // Root-scoped description extraction with 4-tier priority hierarchy (P73)
+    // Root-scoped description extraction with 4-tier priority hierarchy (P73 / P76)
     const {
       description,
       descriptionSource,
       descriptionLength,
       descriptionSelectorUsed,
       requirements,
+      responsibilities,
     } = extractLinkedInDescription(root, doc);
 
-    // Optional supporting signal: Easy Apply / Apply button presence
+    // Structured criteria extraction (P76)
+    const criteria = extractLinkedInCriteria(root, doc, jsonLd);
+    const topcardMetrics = extractLinkedInTopcardMetrics(root, doc, jsonLd);
+
+    // Optional supporting signal: Easy Apply / Apply button presence (P76 expanded)
     const applyScope = root || doc;
     const hasApplyCta = Boolean(
       applyScope?.querySelector?.(
-        '.jobs-apply-button, button[class*="jobs-apply-button" i], button[data-job-id], [data-view-name="job-apply-button"], [aria-label*="Easy Apply" i], [aria-label*="Apply to" i]'
+        '.jobs-apply-button, button[class*="jobs-apply-button" i], button[data-job-id], [data-view-name="job-apply-button"], [aria-label*="Easy Apply" i], [aria-label*="Apply to" i], .apply-button, button[class*="apply" i], a[class*="apply" i], [data-tracking-control-name*="apply" i], .top-card-layout__cta--primary'
       )
     );
 
@@ -1128,12 +1360,26 @@ export class LinkedInAdapter {
 
     let workplace = 'UNKNOWN';
     const combinedText = `${title} ${location} ${description}`.toLowerCase();
-    if (combinedText.includes('remote')) {
+    if (combinedText.includes('remote') || combinedText.includes('work from home')) {
       workplace = 'REMOTE';
     } else if (combinedText.includes('hybrid')) {
       workplace = 'HYBRID';
     } else if (location) {
       workplace = 'ON_SITE';
+    }
+
+    // Employment type order of precedence (P76):
+    // 1. Explicit structured criteria from DOM (.description__job-criteria-item or .job-insight)
+    // 2. Structured JSON-LD employmentType
+    // 3. Free-text classification on title + summary (stripped of GDPR/privacy boilerplate)
+    let finalEmploymentType = criteria.employmentType;
+    if (!finalEmploymentType) {
+      const cleanDescriptionForType = description
+        .replace(/Data Privacy Notice:[\s\S]*$/i, '')
+        .replace(/Privacy Policy:[\s\S]*$/i, '')
+        .replace(/Equal Opportunity Employer[\s\S]*$/i, '');
+      const textToClassify = `${title} ${location} ${cleanDescriptionForType}`;
+      finalEmploymentType = classifyEmploymentType(textToClassify);
     }
 
     const selectedRootSelector = jobRootSource;
@@ -1148,10 +1394,15 @@ export class LinkedInAdapter {
       company: company || '',
       location: location || 'Not specified',
       workplace,
-      employmentType: classifyEmploymentType(combinedText),
+      employmentType: finalEmploymentType,
+      seniorityLevel: criteria.seniorityLevel || null,
+      jobFunction: criteria.jobFunction || null,
+      industries: criteria.industries || null,
+      postedAgo: topcardMetrics.postedAgo || null,
+      applicantCount: topcardMetrics.applicantCount || null,
       description,
       requirements: requirements.slice(0, 30),
-      responsibilities: [],
+      responsibilities: responsibilities.slice(0, 30),
       compensation: null,
       rawText: description,
       hasApplyCta,
