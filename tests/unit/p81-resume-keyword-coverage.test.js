@@ -243,4 +243,120 @@ describe('P81: Resume Keyword Coverage Engine', () => {
     assert.ok(warning.occurrences >= 4);
     assert.ok(warning.reason.includes('keyword stuffing'));
   });
+
+  it('dual-property visibility: identifies KEYWORD_NOT_RENDERED when keyword is in structured resume but missing from PDF text', () => {
+    const jobDescription = {
+      title: 'Full Stack Engineer',
+      requirements: [
+        { skill: 'Go', importance: 'REQUIRED' },
+        { skill: 'PostgreSQL', importance: 'REQUIRED' },
+      ],
+    };
+
+    // Artifact extracted text only contains Go, omitting PostgreSQL
+    const extractedPdfText = 'Backend engineer specializing in Go distributed systems.';
+
+    const report = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription,
+      structuredResume: cleanStructuredResume,
+      extractedText: extractedPdfText,
+    });
+
+    assert.ok(report.unrenderedTerms.includes('PostgreSQL'));
+    const pgTerm = report.termBreakdown.find((t) => t.term === 'PostgreSQL');
+    assert.ok(pgTerm);
+    assert.equal(pgTerm.intendedPresence, true);
+    assert.equal(pgTerm.artifactPresence, false);
+    assert.equal(pgTerm.isRendered, false);
+    assert.equal(pgTerm.satisfiesRequirement, false);
+    assert.ok(pgTerm.explanation.includes('KEYWORD_NOT_RENDERED'));
+    assert.equal(report.renderedCoveragePercent < report.intendedCoveragePercent, true);
+  });
+
+  it('candidate profile verification: classifies unbacked resume claim as UNSUPPORTED_CANDIDATE', () => {
+    const jobDescription = {
+      title: 'Cloud Engineer',
+      requirements: [{ skill: 'Kubernetes', importance: 'REQUIRED' }],
+    };
+
+    // Candidate profile only has Go and PostgreSQL, lacks Kubernetes
+    const candidateProfile = {
+      displayName: 'Morgan Chen',
+      profileMetadata: {
+        skills: [{ name: 'Go' }, { name: 'PostgreSQL' }],
+        projects: [],
+      },
+    };
+
+    const resumeWithClaim = {
+      summary: { text: 'Engineered cloud solutions using Kubernetes.' },
+      skills: { categories: [{ categoryName: 'Tools', skills: [{ name: 'Kubernetes' }] }] },
+      experience: [],
+      projects: [],
+    };
+
+    const report = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription,
+      structuredResume: resumeWithClaim,
+      candidateProfile,
+    });
+
+    const k8sTerm = report.termBreakdown.find((t) => t.term === 'Kubernetes');
+    assert.ok(k8sTerm);
+    assert.equal(k8sTerm.matchType, 'UNSUPPORTED_CANDIDATE');
+    assert.equal(k8sTerm.satisfiesRequirement, false);
+    assert.ok(k8sTerm.explanation.includes('without backing evidence in candidate profile'));
+  });
+
+  it('scoped stuffing detection: does not flag common English function words repeated in natural sentences', () => {
+    const naturalResume = {
+      summary: {
+        // "and" and "with" appear multiple times naturally
+        text: 'Software engineer with experience in distributed systems and cloud infrastructure and microservices with high availability and resilience with Go.',
+      },
+      skills: { categories: [{ categoryName: 'Languages', skills: [{ name: 'Go' }] }] },
+      experience: [],
+      projects: [],
+    };
+
+    const jobDescription = {
+      title: 'Go Engineer',
+      requirements: [{ skill: 'Go', importance: 'REQUIRED' }],
+    };
+
+    const report = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription,
+      structuredResume: naturalResume,
+    });
+
+    // Should NOT flag "and" or "with" as keyword stuffing
+    assert.equal(report.stuffingWarnings.length, 0);
+  });
+
+  it('dynamic confidence: reports 0.95 for PDF buffer, 0.85 for extracted text, 0.75 for structured resume', () => {
+    const jobDescription = {
+      title: 'Go Engineer',
+      requirements: [{ skill: 'Go', importance: 'REQUIRED' }],
+    };
+
+    const reportStructured = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription,
+      structuredResume: cleanStructuredResume,
+    });
+    assert.equal(reportStructured.confidence, 0.75);
+
+    const reportExtracted = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription,
+      structuredResume: cleanStructuredResume,
+      extractedText: 'Go software engineer.',
+    });
+    assert.equal(reportExtracted.confidence, 0.85);
+
+    const reportPdf = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription,
+      structuredResume: cleanStructuredResume,
+      pdfBuffer: Buffer.alloc(100, 0),
+    });
+    assert.equal(reportPdf.confidence, 0.95);
+  });
 });

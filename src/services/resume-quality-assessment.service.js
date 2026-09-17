@@ -122,10 +122,8 @@ function textContains(haystack, needle) {
   const canon = (s) => s.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
   const canonHay = canon(haystack);
   const canonNeedle = canon(n);
-  if (canonHay.includes(canonNeedle)) return true;
-  const tokens = canonNeedle.split(' ').filter((t) => t.length >= 3);
-  if (tokens.length < 2) return false;
-  return tokens.every((t) => canonHay.includes(t));
+  // Strict contiguous phrase match — never bag-of-tokens across disconnected text regions
+  return canonHay.includes(canonNeedle);
 }
 
 /**
@@ -955,6 +953,8 @@ export function generateUnifiedQualityReport({
   claimValidationReport = null,
   analyzedAt = null,
 } = {}) {
+  const auditedAt = analyzedAt ? new Date(analyzedAt).toISOString() : new Date().toISOString();
+
   // Dimension 1: ATS Parseability
   const atsParseabilityScore =
     typeof atsParseabilityReport.atsParseabilityScore === 'number'
@@ -980,26 +980,66 @@ export function generateUnifiedQualityReport({
   // Dimension 3: Keyword Coverage (ResumeKeywordCoverageService)
   // RULE 21: Keyword Coverage is NOT double-counted in the headline score!
   const keywordCoverageScore =
-    typeof keywordCoverageReport.overallCoverage === 'number'
-      ? keywordCoverageReport.overallCoverage
-      : (typeof keywordCoverageReport.score === 'number' ? keywordCoverageReport.score : 0);
+    typeof keywordCoverageReport.overallCoveragePercent === 'number'
+      ? keywordCoverageReport.overallCoveragePercent
+      : (typeof keywordCoverageReport.overallCoverage === 'number'
+          ? keywordCoverageReport.overallCoverage
+          : (typeof keywordCoverageReport.score === 'number' ? keywordCoverageReport.score : 0));
+
+  const keywordFindings = [];
+  if (
+    keywordCoverageReport &&
+    (keywordCoverageReport.totalJobTerms || 0) > 0 &&
+    keywordCoverageScore < 50
+  ) {
+    keywordFindings.push({
+      code: 'LOW_JOB_KEYWORD_COVERAGE',
+      severity: 'WARN',
+      message: `Resume covers less than 50% of target job keywords (${keywordCoverageScore}%).`,
+      recommendation:
+        'Target missing job keywords that can be backed by authentic candidate evidence.',
+    });
+  }
 
   // Dimension 4: Content Quality (ResumeWritingQualityService)
   const contentQualityScore =
     typeof contentQualityReport.writingQualityScore === 'number'
       ? contentQualityReport.writingQualityScore
       : (typeof contentQualityReport.score === 'number' ? contentQualityReport.score : 0);
-  const contentQualityConfidence = 0.90;
+  const contentQualityConfidence =
+    typeof contentQualityReport.confidence === 'number'
+      ? contentQualityReport.confidence
+      : 0.90;
 
-  // Dimension 5: Evidence Integrity Safety Gate (Rule 24)
-  const validationPassed = claimValidationReport
-    ? (claimValidationReport.valid !== false && !claimValidationReport.rejected)
-    : true;
-  const gateViolations = claimValidationReport?.violations || [];
+  // Dimension 5: Evidence Integrity Safety Gate (Rule 24 - Fail Closed)
+  let validationPassed = false;
+  let gateStatus = 'BLOCKED_BY_INTEGRITY_GATE';
+  let gateViolations = [];
+
+  if (!claimValidationReport) {
+    // Fail-Closed: Missing claim validation MUST NOT pass!
+    validationPassed = false;
+    gateStatus = 'BLOCKED_BY_INTEGRITY_GATE';
+    gateViolations = [
+      {
+        code: 'MISSING_CLAIM_VALIDATION',
+        message:
+          'Claim validation report is required to verify evidence grounding. Evaluation blocked by fail-closed integrity gate (Rule 24).',
+      },
+    ];
+  } else {
+    validationPassed =
+      claimValidationReport.valid !== false &&
+      !claimValidationReport.rejected &&
+      (!Array.isArray(claimValidationReport.violations) ||
+        claimValidationReport.violations.length === 0);
+    gateStatus = validationPassed ? 'PASSED' : 'BLOCKED_BY_INTEGRITY_GATE';
+    gateViolations = claimValidationReport.violations || [];
+  }
 
   const evidenceIntegrityGate = {
     passed: validationPassed,
-    status: validationPassed ? 'PASSED' : 'BLOCKED_BY_INTEGRITY_GATE',
+    status: gateStatus,
     violations: gateViolations,
     disclaimer:
       'Evidence integrity is a hard safety gate. Resumes containing unsupported or fabricated claims are blocked.',
@@ -1023,12 +1063,43 @@ export function generateUnifiedQualityReport({
   const aggregateConfidence =
     Math.round(((atsConfidence + jobMatchConfidence + contentQualityConfidence) / 3) * 100) / 100;
 
+  // Provenance object
+  const provenance = {
+    engineVersion: '2.0.0-hardened',
+    analyzedAt: auditedAt,
+    weights: {
+      atsParseability: 0.35,
+      jobMatch: 0.35,
+      keywordCoverage: 0.0,
+      contentQuality: 0.3,
+    },
+    inputs: {
+      hasAtsParseabilityReport: Boolean(
+        atsParseabilityReport && Object.keys(atsParseabilityReport).length > 0
+      ),
+      hasJobMatchReport: Boolean(jobMatchReport && Object.keys(jobMatchReport).length > 0),
+      hasKeywordCoverageReport: Boolean(
+        keywordCoverageReport && Object.keys(keywordCoverageReport).length > 0
+      ),
+      hasContentQualityReport: Boolean(
+        contentQualityReport && Object.keys(contentQualityReport).length > 0
+      ),
+      hasClaimValidationReport: Boolean(claimValidationReport),
+    },
+    integrityGate: {
+      passed: validationPassed,
+      status: gateStatus,
+      violations: gateViolations,
+    },
+  };
+
   return {
     headlineScore: finalHeadlineScore,
     rawScore: rawHeadlineScore,
     status: overallStatus,
     confidence: aggregateConfidence,
-    auditedAt: analyzedAt || new Date().toISOString(),
+    auditedAt,
+    provenance,
     invariantsCompliant: {
       rule21_noDoubleCountingKeywordCoverage: true,
       rule24_evidenceIntegritySafetyGate: true,
@@ -1054,7 +1125,11 @@ export function generateUnifiedQualityReport({
       },
       keywordCoverage: {
         score: keywordCoverageScore,
+        intendedCoverage: keywordCoverageReport.intendedCoveragePercent ?? keywordCoverageScore,
+        renderedCoverage: keywordCoverageReport.renderedCoveragePercent ?? keywordCoverageScore,
+        unrenderedTerms: keywordCoverageReport.unrenderedTerms || [],
         breakdown: keywordCoverageReport.breakdown || null,
+        findings: keywordFindings,
         stuffingWarnings: keywordCoverageReport.stuffingWarnings || [],
         weightInHeadline: 0.0, // RULE 21: Not double counted
         note: 'Keyword coverage is an informational analytical breakdown and is not double-counted in the headline score.',

@@ -351,4 +351,61 @@ describe('P81: Job Match Score & Requirement Distinction Engine', () => {
     assert.equal(result.scoreBreakdown.requiredSkillsScore, 40.0);
     assert.equal(result.scoreBreakdown.preferredSkillsScore, 15.0);
   });
+
+  it('provides an auditable denominatorAudit breakdown with earnedPoints and possiblePoints', () => {
+    const candidateMatch = {
+      tenantId,
+      candidateId,
+      jobDescriptionId,
+      requirementMatches: [
+        {
+          requirementId: randomUUID(),
+          category: 'SKILL',
+          importance: 'REQUIRED',
+          extractedValue: 'Go',
+          matchStatus: 'MATCHED',
+          weight: 1.0,
+        },
+        {
+          requirementId: randomUUID(),
+          category: 'EDUCATION',
+          importance: 'REQUIRED',
+          extractedValue: 'BS Computer Science',
+          matchStatus: 'UNKNOWN',
+          weight: 1.0,
+        },
+      ],
+      skillGaps: [],
+    };
+
+    const result = calculateJobMatchScore(
+      mockContext,
+      mockJobDescription,
+      candidateMatch,
+      createValidProjectAnalysis(),
+      mockCandidateProfile
+    );
+
+    const audit = result.scoreBreakdown.denominatorAudit;
+    assert.ok(audit, 'denominatorAudit must be present');
+    assert.equal(audit.requiredSkills.status, 'EVALUATED');
+    assert.equal(audit.requiredSkills.possiblePoints, 40.0);
+    assert.equal(audit.requiredSkills.earnedPoints, 40.0);
+
+    assert.equal(audit.education.status, 'UNKNOWN');
+    assert.equal(audit.education.possiblePoints, 5.0);
+    assert.equal(audit.education.earnedPoints, 0.0);
+
+    assert.equal(audit.preferredSkills.status, 'NOT_APPLICABLE');
+    assert.equal(audit.preferredSkills.possiblePoints, 0.0);
+
+    assert.equal(audit.location.status, 'NOT_APPLICABLE');
+    assert.equal(audit.location.possiblePoints, 0.0);
+
+    assert.equal(audit.experience.status, 'NOT_APPLICABLE');
+    assert.equal(audit.experience.possiblePoints, 0.0);
+
+    // Denominator should only sum applicable items (requiredSkills: 40, education: 5, projectRelevance: 20, evidenceConfidence: 5 = 70.0)
+    assert.equal(audit.totalPossiblePoints, 70.0);
+  });
 });

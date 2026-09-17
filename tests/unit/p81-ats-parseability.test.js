@@ -148,4 +148,82 @@ B.S. in Computer Science
     assert.equal(glyphCheck.passed, false);
     assert.equal(report.passed, false);
   });
+
+  it('Rule 25: fails contact completeness if email missing from PDF text even when structuredResume has it', () => {
+    const textMissingEmail = `
+Jane Doe
++1 (555) 123-4567 | San Francisco, CA
+
+Professional Summary
+Senior Software Engineer.
+
+Technical Skills
+TypeScript, Go, PostgreSQL
+
+Professional Experience
+• Engineered backend services.
+• Optimized queries.
+• Deployed containers.
+
+Education
+B.S. in Computer Science
+`;
+    const mockStructuredResume = {
+      candidateIdentity: {
+        displayName: 'Jane Doe',
+        email: 'jane.doe@example.com',
+      },
+    };
+
+    const report = service.evaluateAtsParseability({
+      extractedText: textMissingEmail,
+      structuredResume: mockStructuredResume,
+    });
+
+    const contactCheck = report.checks.find((c) => c.checkId === 'CONTACT_COMPLETENESS');
+    assert.ok(contactCheck);
+    assert.equal(contactCheck.passed, false);
+    const unrenderedFinding = report.findings.find((f) => f.finding === 'EMAIL_NOT_RENDERED');
+    assert.ok(unrenderedFinding);
+    assert.equal(unrenderedFinding.expected, 'jane.doe@example.com');
+  });
+
+  it('Rule 25: fails bullet check if PDF lacks bullet markers even when structuredResume has bullets', () => {
+    const textLackingBulletMarkers = `
+Jane Doe
+jane.doe@example.com | San Francisco, CA
+
+Professional Summary
+Senior Software Engineer.
+
+Technical Skills
+TypeScript, Go, PostgreSQL
+
+Professional Experience
+Engineered backend services without any bullet marker character.
+Optimized queries without bullet markers.
+
+Education
+B.S. in Computer Science
+`;
+    const mockStructuredResume = {
+      projects: [
+        {
+          name: 'Project 1',
+          bullets: [{ text: 'Bullet 1' }, { text: 'Bullet 2' }, { text: 'Bullet 3' }],
+        },
+      ],
+    };
+
+    const report = service.evaluateAtsParseability({
+      extractedText: textLackingBulletMarkers,
+      structuredResume: mockStructuredResume,
+    });
+
+    const bulletCheck = report.checks.find((c) => c.checkId === 'BULLET_BOUNDARIES');
+    assert.ok(bulletCheck);
+    assert.equal(bulletCheck.passed, false);
+    const unrenderedBullets = report.findings.find((f) => f.finding === 'BULLETS_NOT_RENDERED');
+    assert.ok(unrenderedBullets);
+  });
 });

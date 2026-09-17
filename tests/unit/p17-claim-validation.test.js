@@ -300,4 +300,54 @@ describe('P17: ResumeClaimValidationService', () => {
     assert.equal(res.valid, false);
     assert.ok(res.violations.some((v) => v.code === 'LATEX_LEAKAGE'));
   });
+
+  it('accepts mathematically DERIVED percentage metrics from baseline facts while rejecting unbacked numbers', () => {
+    const factsWithBaseline = [
+      {
+        factId: 'f-perf-1',
+        candidateId: 'cand-123',
+        association: { projectId: 'proj-dist-kv' },
+        ownerId: 'proj-dist-kv',
+        text: 'Reduced latency from 1000ms to 600ms on core endpoints.',
+        technologies: ['Go', 'Redis'],
+        provenance: 'VERIFIED',
+        candidateAuthored: true,
+        sourceType: 'candidate_project_bullet',
+      },
+    ];
+
+    // Derived: (1000 - 600) / 1000 = 40%
+    const validDerivedClaim = {
+      claimId: 'claim-derived-1',
+      factIds: ['f-perf-1'],
+      text: 'Optimized query latency by 40% across core endpoints using Go and Redis.',
+    };
+
+    const validRes = defaultResumeClaimValidationService.validateClaim(validDerivedClaim, {
+      factInventory: factsWithBaseline,
+      candidateProfile: sampleCandidate,
+      sectionOwnerType: 'PROJECT',
+      sectionOwnerId: 'proj-dist-kv',
+    });
+
+    assert.equal(validRes.valid, true);
+    assert.equal(validRes.rejected, false);
+
+    // Unbacked: 73%
+    const invalidDerivedClaim = {
+      claimId: 'claim-derived-2',
+      factIds: ['f-perf-1'],
+      text: 'Optimized query latency by 73% across core endpoints using Go and Redis.',
+    };
+
+    const invalidRes = defaultResumeClaimValidationService.validateClaim(invalidDerivedClaim, {
+      factInventory: factsWithBaseline,
+      candidateProfile: sampleCandidate,
+      sectionOwnerType: 'PROJECT',
+      sectionOwnerId: 'proj-dist-kv',
+    });
+
+    assert.equal(invalidRes.valid, false);
+    assert.ok(invalidRes.violations.some((v) => v.code === 'UNSUPPORTED_METRIC'));
+  });
 });

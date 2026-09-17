@@ -25,6 +25,7 @@ import {
 import {
   ResumeKeywordCoverageReportSchema,
 } from '../domain/career/resume-keyword-coverage.schemas.js';
+import { defaultAtsParseabilityService } from './resume-ats-parseability.service.js';
 
 export class ResumeKeywordCoverageService {
   /**
@@ -40,6 +41,9 @@ export class ResumeKeywordCoverageService {
     jobDescription,
     structuredResume,
     candidateProfile = null,
+    pdfBuffer = null,
+    extractedText = null,
+    analyzedAt = null,
   }) {
     if (!jobDescription || typeof jobDescription !== 'object') {
       throw new Error('jobDescription must be a valid object');
@@ -54,10 +58,41 @@ export class ResumeKeywordCoverageService {
     // 2. Extract plain text and explicit term sets partitioned by section
     const sectionData = ResumeKeywordCoverageService._extractSectionData(structuredResume);
 
+    // 2b. Extract artifact text if PDF buffer or extracted text provided
+    let artifactText = extractedText || '';
+    if (!artifactText && Buffer.isBuffer(pdfBuffer) && pdfBuffer.length > 50) {
+      if (typeof defaultAtsParseabilityService?.pdfObserver?._extractTextStreams === 'function') {
+        artifactText = defaultAtsParseabilityService.pdfObserver._extractTextStreams(pdfBuffer);
+      }
+    }
+
+    // 2c. Candidate profile verified skill inventory
+    const candidateSkills = new Set();
+    if (candidateProfile) {
+      const profSkills =
+        candidateProfile.profileMetadata?.skills || candidateProfile.skills || [];
+      for (const s of profSkills) {
+        const sName = typeof s === 'string' ? s : s.name;
+        if (sName) {
+          const norm = SkillTaxonomyEngine.normalizeSkill(sName);
+          if (norm?.canonicalSlug) candidateSkills.add(norm.canonicalSlug);
+        }
+      }
+      const profProjects =
+        candidateProfile.profileMetadata?.projects || candidateProfile.projects || [];
+      for (const p of profProjects) {
+        for (const t of p.technologies || []) {
+          const norm = SkillTaxonomyEngine.normalizeSkill(t);
+          if (norm?.canonicalSlug) candidateSkills.add(norm.canonicalSlug);
+        }
+      }
+    }
+
     // 3. Evaluate each job term against the section data
     const termBreakdown = [];
     const stuffingWarnings = [];
     const placementMap = new Map();
+    const unrenderedTerms = [];
 
     let exactMatches = 0;
     let taxonomyMatches = 0;
@@ -67,8 +102,9 @@ export class ResumeKeywordCoverageService {
 
     let requiredTerms = 0;
     let preferredTerms = 0;
-    let totalSatisfiedWeight = 0;
     let totalPossibleWeight = 0;
+    let intendedSatisfiedWeight = 0;
+    let renderedSatisfiedWeight = 0;
 
     for (const jobTerm of jobTerms) {
       const isRequired = jobTerm.importance === 'REQUIRED';
@@ -83,21 +119,73 @@ export class ResumeKeywordCoverageService {
         sectionData
       );
 
+      // Candidate authorization check: skill claimed on resume must have backing in candidate profile
+      if (
+        candidateProfile &&
+        (evalResult.matchType === 'EXACT' || evalResult.matchType === 'TAXONOMY_EQUIVALENT')
+      ) {
+        const isAuthorizedByCandidate =
+          candidateSkills.has(evalResult.canonicalSlug) ||
+          candidateSkills.has(jobTerm.canonicalSlug);
+        if (!isAuthorizedByCandidate) {
+          evalResult.matchType = 'UNSUPPORTED_CANDIDATE';
+          evalResult.satisfiesRequirement = false;
+          evalResult.explanation = `Claimed in resume without backing evidence in candidate profile for technology '${jobTerm.term}'.`;
+        }
+      }
+
+      // Dual-Property Visibility Tracking (Rules 25 & 27)
+      const intendedPresence = evalResult.occurrences > 0;
+      evalResult.intendedPresence = intendedPresence;
+
+      let artifactPresence = intendedPresence;
+      let isRendered = true;
+
+      if (artifactText) {
+        const cleanArtifact = artifactText.toLowerCase();
+        const rawCheck = (str) => {
+          const escaped = str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return new RegExp(`(?:^|[^a-zA-Z0-9+#.])${escaped}(?:$|[^a-zA-Z0-9+#.])`, 'i').test(
+            cleanArtifact
+          );
+        };
+
+        artifactPresence = rawCheck(jobTerm.term) || rawCheck(evalResult.canonicalName);
+        if (!artifactPresence && evalResult.matchedResumeTerm) {
+          artifactPresence = rawCheck(evalResult.matchedResumeTerm);
+        }
+        isRendered = artifactPresence;
+        evalResult.artifactPresence = artifactPresence;
+        evalResult.isRendered = isRendered;
+
+        if (intendedPresence && !artifactPresence) {
+          unrenderedTerms.push(jobTerm.term);
+          evalResult.explanation += ` [KEYWORD_NOT_RENDERED: Planned in structured resume but missing from compiled PDF artifact]`;
+          evalResult.satisfiesRequirement = false;
+        }
+      } else {
+        evalResult.artifactPresence = intendedPresence;
+        evalResult.isRendered = true;
+      }
+
       termBreakdown.push(evalResult);
 
       if (evalResult.matchType === 'EXACT') {
         exactMatches++;
-        totalSatisfiedWeight += termWeight;
+        if (evalResult.intendedPresence) intendedSatisfiedWeight += termWeight;
+        if (evalResult.isRendered) renderedSatisfiedWeight += termWeight;
       } else if (evalResult.matchType === 'TAXONOMY_EQUIVALENT') {
         taxonomyMatches++;
-        totalSatisfiedWeight += termWeight;
+        if (evalResult.intendedPresence) intendedSatisfiedWeight += termWeight;
+        if (evalResult.isRendered) renderedSatisfiedWeight += termWeight;
       } else if (evalResult.matchType === 'RELATED') {
         semanticMatches++;
         // Rule 27: RELATED semantic matches cannot satisfy exact required technologies!
         if (!isRequired) {
-          totalSatisfiedWeight += termWeight * 0.5; // Partial credit only for preferred skills
+          if (evalResult.intendedPresence) intendedSatisfiedWeight += termWeight * 0.5;
+          if (evalResult.isRendered) renderedSatisfiedWeight += termWeight * 0.5;
         }
-      } else if (evalResult.matchType === 'MISSING') {
+      } else if (evalResult.matchType === 'MISSING' || evalResult.matchType === 'UNSUPPORTED_CANDIDATE') {
         missingTerms++;
         if (isRequired) {
           criticalMissingTerms++;
@@ -120,14 +208,26 @@ export class ResumeKeywordCoverageService {
     }
 
     // 4. Rule 28: Heuristic explainable keyword stuffing detection
+    // Restricted strictly to target job terms or canonical technology definitions
     for (const [sectionKey, sData] of Object.entries(sectionData.sections)) {
       const wordCount = sData.wordCount;
       if (wordCount < 15) continue; // Too short for statistical density check
 
       for (const [token, count] of sData.termCounts.entries()) {
         if (count >= 4) {
+          const isJdTermOrTech =
+            jobTerms.some(
+              (jt) =>
+                jt.canonicalSlug === token ||
+                jt.term.toLowerCase() === token ||
+                jt.canonicalName.toLowerCase() === token
+            ) ||
+            CANONICAL_SKILLS[token] !== undefined ||
+            CANONICAL_TECH_MAP[token] !== undefined;
+
+          if (!isJdTermOrTech) continue;
+
           const density = (count * token.split(/\s+/).length) / wordCount;
-          // If a term occupies > 15% of words in a section of 15+ words, flag explainable warning
           if (density > 0.15 && wordCount >= 15) {
             const warning = {
               term: token,
@@ -150,14 +250,34 @@ export class ResumeKeywordCoverageService {
 
     const keywordPlacements = Array.from(placementMap.values());
 
-    // 5. Compute overall coverage percentage
-    const overallCoveragePercent =
+    // 5. Compute intended and rendered coverage percentages
+    const intendedCoveragePercent =
       totalPossibleWeight > 0
-        ? Math.min(100, Math.max(0, Math.round((totalSatisfiedWeight / totalPossibleWeight) * 100)))
+        ? Math.min(
+            100,
+            Math.max(0, Math.round((intendedSatisfiedWeight / totalPossibleWeight) * 100))
+          )
         : 100;
+
+    const renderedCoveragePercent =
+      totalPossibleWeight > 0
+        ? Math.min(
+            100,
+            Math.max(0, Math.round((renderedSatisfiedWeight / totalPossibleWeight) * 100))
+          )
+        : 100;
+
+    // The rendered PDF is the final ground truth (Rule 25)
+    const overallCoveragePercent = artifactText
+      ? renderedCoveragePercent
+      : intendedCoveragePercent;
+
+    const confidence = pdfBuffer ? 0.95 : extractedText ? 0.85 : 0.75;
 
     const report = {
       overallCoveragePercent,
+      intendedCoveragePercent,
+      renderedCoveragePercent,
       totalJobTerms: jobTerms.length,
       requiredTerms,
       preferredTerms,
@@ -166,11 +286,14 @@ export class ResumeKeywordCoverageService {
       semanticMatches,
       missingTerms,
       criticalMissingTerms,
+      unrenderedTerms,
       termBreakdown,
       keywordPlacements,
       stuffingWarnings,
-      confidence: 1.0,
-      analyzedAt: new Date().toISOString(),
+      confidence,
+      analyzedAt: analyzedAt
+        ? new Date(analyzedAt).toISOString()
+        : new Date().toISOString(),
     };
 
     return ResumeKeywordCoverageReportSchema.parse(report);

@@ -96,6 +96,47 @@ export const FitScoreBreakdownSchema = z.strictObject({
     .max(100.0, { message: 'atsFitScore cannot exceed 100.0' })
     .nullable()
     .optional(),
+  denominatorAudit: z
+    .strictObject({
+      requiredSkills: z.strictObject({
+        earnedPoints: z.number().min(0.0),
+        possiblePoints: z.number().min(0.0),
+        status: z.enum(['EVALUATED', 'UNKNOWN', 'NOT_APPLICABLE', 'MISSING']),
+      }),
+      preferredSkills: z.strictObject({
+        earnedPoints: z.number().min(0.0),
+        possiblePoints: z.number().min(0.0),
+        status: z.enum(['EVALUATED', 'UNKNOWN', 'NOT_APPLICABLE', 'MISSING']),
+      }),
+      projectRelevance: z.strictObject({
+        earnedPoints: z.number().min(0.0),
+        possiblePoints: z.number().min(0.0),
+        status: z.enum(['EVALUATED', 'UNKNOWN', 'NOT_APPLICABLE', 'MISSING']),
+      }),
+      experience: z.strictObject({
+        earnedPoints: z.number().min(0.0),
+        possiblePoints: z.number().min(0.0),
+        status: z.enum(['EVALUATED', 'UNKNOWN', 'NOT_APPLICABLE', 'MISSING']),
+      }),
+      education: z.strictObject({
+        earnedPoints: z.number().min(0.0),
+        possiblePoints: z.number().min(0.0),
+        status: z.enum(['EVALUATED', 'UNKNOWN', 'NOT_APPLICABLE', 'MISSING']),
+      }),
+      location: z.strictObject({
+        earnedPoints: z.number().min(0.0),
+        possiblePoints: z.number().min(0.0),
+        status: z.enum(['EVALUATED', 'UNKNOWN', 'NOT_APPLICABLE', 'MISSING']),
+      }),
+      evidenceConfidence: z.strictObject({
+        earnedPoints: z.number().min(0.0),
+        possiblePoints: z.number().min(0.0),
+        status: z.enum(['EVALUATED', 'UNKNOWN', 'NOT_APPLICABLE', 'MISSING']),
+      }),
+      totalEarnedPoints: z.number().min(0.0),
+      totalPossiblePoints: z.number().min(0.0),
+    })
+    .optional(),
 });
 
 // ---------------------------------------------------------------------------

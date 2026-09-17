@@ -169,6 +169,18 @@ export class AtsFitScoreService {
     // ZERO-REQUIREMENT FAIL-CLOSED GUARD
     // -------------------------------------------------------------------------
     if (requirementMatches.length === 0) {
+      const zeroDenominatorAudit = {
+        requiredSkills: { earnedPoints: 0.0, possiblePoints: 0.0, status: 'NOT_APPLICABLE' },
+        preferredSkills: { earnedPoints: 0.0, possiblePoints: 0.0, status: 'NOT_APPLICABLE' },
+        projectRelevance: { earnedPoints: 0.0, possiblePoints: 0.0, status: 'NOT_APPLICABLE' },
+        experience: { earnedPoints: 0.0, possiblePoints: 0.0, status: 'NOT_APPLICABLE' },
+        education: { earnedPoints: 0.0, possiblePoints: 0.0, status: 'NOT_APPLICABLE' },
+        location: { earnedPoints: 0.0, possiblePoints: 0.0, status: 'NOT_APPLICABLE' },
+        evidenceConfidence: { earnedPoints: 0.0, possiblePoints: 0.0, status: 'NOT_APPLICABLE' },
+        totalEarnedPoints: 0.0,
+        totalPossiblePoints: 0.0,
+      };
+
       const zeroBreakdown = {
         requiredSkillsScore: 0.0,
         preferredSkillsScore: 0.0,
@@ -182,6 +194,7 @@ export class AtsFitScoreService {
         overallScore: null,
         jobMatchScore: null,
         atsFitScore: null,
+        denominatorAudit: zeroDenominatorAudit,
       };
 
       const zeroWarning =
@@ -352,7 +365,7 @@ export class AtsFitScoreService {
         } else if (match.matchStatus === 'PARTIAL') {
           expScoreSum += 0.5;
         } else if (match.matchStatus === 'UNKNOWN') {
-          expScoreSum += 1.0; // Neutral baseline
+          expScoreSum += 0.0; // Rule 23: Insufficient evidence earns 0.0, never full credit
         } else if (match.matchStatus === 'MISSING') {
           expScoreSum += 0.0;
         }
@@ -375,7 +388,7 @@ export class AtsFitScoreService {
         } else if (match.matchStatus === 'PARTIAL') {
           eduScoreSum += 0.6; // Adjacent degree / STEM field
         } else if (match.matchStatus === 'UNKNOWN') {
-          eduScoreSum += 1.0; // Unstated education -> neutral baseline
+          eduScoreSum += 0.0; // Rule 23: Insufficient evidence earns 0.0, never full credit
         } else if (match.matchStatus === 'MISSING') {
           eduScoreSum += 0.0;
         }
@@ -400,7 +413,7 @@ export class AtsFitScoreService {
         } else if (match.matchStatus === 'PARTIAL') {
           locScoreSum += 0.75; // Commutable hybrid or relocation
         } else if (match.matchStatus === 'UNKNOWN') {
-          locScoreSum += 1.0; // Unstated location -> neutral baseline
+          locScoreSum += 0.0; // Rule 23: Insufficient evidence earns 0.0, never full credit
         } else if (match.matchStatus === 'MISSING') {
           locScoreSum += 0.0;
         }
@@ -451,24 +464,119 @@ export class AtsFitScoreService {
     }
 
     // -------------------------------------------------------------------------
-    // 9. Raw Score Calculation
+    // 9. Auditable Denominator Points Model & Raw Score Calculation (Rules 22, 23)
     // -------------------------------------------------------------------------
-    const rawScore = round(
-      Math.min(
-        100.0,
-        Math.max(
-          0.0,
-          requiredSkillsScore +
-            preferredSkillsScore +
-            projectRelevanceScore +
-            experienceFitScore +
-            educationFitScore +
-            locationFitScore +
-            evidenceConfidenceScore
-        )
-      ),
+    let reqPossible = 0.0;
+    let reqEarned = 0.0;
+    let reqStatus = 'NOT_APPLICABLE';
+    if (requiredSkillMatches.length > 0) {
+      reqPossible = 40.0;
+      reqEarned = requiredSkillsScore;
+      if (reqEarned > 0) {
+        reqStatus = 'EVALUATED';
+      } else if (requiredSkillMatches.every((m) => m.matchStatus === 'UNKNOWN')) {
+        reqStatus = 'UNKNOWN';
+      } else {
+        reqStatus = 'MISSING';
+      }
+    }
+
+    let prefPossible = 0.0;
+    let prefEarned = 0.0;
+    let prefStatus = 'NOT_APPLICABLE';
+    if (preferredMatches.length > 0) {
+      prefPossible = 15.0;
+      prefEarned = preferredSkillsScore;
+      if (prefEarned > 0) {
+        prefStatus = 'EVALUATED';
+      } else if (preferredMatches.every((m) => m.matchStatus === 'UNKNOWN')) {
+        prefStatus = 'UNKNOWN';
+      } else {
+        prefStatus = 'MISSING';
+      }
+    }
+
+    const projPossible = 20.0;
+    const projEarned = projectRelevanceScore;
+    const projStatus = 'EVALUATED';
+
+    let expPossible = 0.0;
+    let expEarned = 0.0;
+    let expStatus = 'NOT_APPLICABLE';
+    if (experienceMatches.length > 0) {
+      expPossible = 10.0;
+      expEarned = experienceFitScore;
+      if (expEarned > 0) {
+        expStatus = 'EVALUATED';
+      } else if (experienceMatches.every((m) => m.matchStatus === 'UNKNOWN')) {
+        expStatus = 'UNKNOWN';
+      } else {
+        expStatus = 'MISSING';
+      }
+    }
+
+    let eduPossible = 0.0;
+    let eduEarned = 0.0;
+    let eduStatus = 'NOT_APPLICABLE';
+    if (educationMatches.length > 0) {
+      eduPossible = 5.0;
+      eduEarned = educationFitScore;
+      if (eduEarned > 0) {
+        eduStatus = 'EVALUATED';
+      } else if (educationMatches.every((m) => m.matchStatus === 'UNKNOWN')) {
+        eduStatus = 'UNKNOWN';
+      } else {
+        eduStatus = 'MISSING';
+      }
+    }
+
+    let locPossible = 0.0;
+    let locEarned = 0.0;
+    let locStatus = 'NOT_APPLICABLE';
+    if (locationMatches.length > 0) {
+      locPossible = 5.0;
+      locEarned = locationFitScore;
+      if (locEarned > 0) {
+        locStatus = 'EVALUATED';
+      } else if (locationMatches.every((m) => m.matchStatus === 'UNKNOWN')) {
+        locStatus = 'UNKNOWN';
+      } else {
+        locStatus = 'MISSING';
+      }
+    }
+
+    const evPossible = 5.0;
+    const evEarned = evidenceConfidenceScore;
+    const evStatus = uniqueCitedEvidence.length > 0 ? 'EVALUATED' : 'MISSING';
+
+    const totalEarnedPoints = round(
+      reqEarned + prefEarned + projEarned + expEarned + eduEarned + locEarned + evEarned,
       2
     );
+    const totalPossiblePoints = round(
+      reqPossible + prefPossible + projPossible + expPossible + eduPossible + locPossible + evPossible,
+      2
+    );
+
+    const denominatorAudit = {
+      requiredSkills: { earnedPoints: reqEarned, possiblePoints: reqPossible, status: reqStatus },
+      preferredSkills: { earnedPoints: prefEarned, possiblePoints: prefPossible, status: prefStatus },
+      projectRelevance: { earnedPoints: projEarned, possiblePoints: projPossible, status: projStatus },
+      experience: { earnedPoints: expEarned, possiblePoints: expPossible, status: expStatus },
+      education: { earnedPoints: eduEarned, possiblePoints: eduPossible, status: eduStatus },
+      location: { earnedPoints: locEarned, possiblePoints: locPossible, status: locStatus },
+      evidenceConfidence: { earnedPoints: evEarned, possiblePoints: evPossible, status: evStatus },
+      totalEarnedPoints,
+      totalPossiblePoints,
+    };
+
+    const rawScore =
+      totalPossiblePoints > 0
+        ? round(
+            Math.min(100.0, Math.max(0.0, (totalEarnedPoints / totalPossiblePoints) * 100.0)),
+            2
+          )
+        : 0.0;
 
     // -------------------------------------------------------------------------
     // 10. Required Skill Safety Gate (Hard Score Ceiling)
@@ -682,6 +790,7 @@ export class AtsFitScoreService {
         overallScore,
         jobMatchScore: overallScore,
         atsFitScore: overallScore,
+        denominatorAudit,
       },
       criticalGapCount,
       highGapCount,

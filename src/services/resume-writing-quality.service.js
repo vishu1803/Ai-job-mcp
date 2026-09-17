@@ -26,6 +26,7 @@ import {
   determineFactAgency,
 } from './candidate-fact-inventory.service.js';
 import { calculateFactSemanticOverlap } from './resume-composition-primitives.js';
+import { isMetricAuthorizedByFacts } from './resume-claim-validation.service.js';
 
 // Strong active engineering verbs
 const STRONG_ACTION_VERBS = new Set([
@@ -338,31 +339,81 @@ export function evaluateResumeWritingQuality({
   }
   const resultCoverage = Math.round(Math.min(100, (resultCount / totalBullets) * 100));
 
-  // 5. Authentic Metric Usage
+  const inventoryFacts =
+    factInventory?.facts || (Array.isArray(factInventory) ? factInventory : []);
+
+  // 5. Authentic Metric Usage & Bullet-by-Bullet Authorization
   // INVARIANT: Do NOT penalize a candidate merely because they lack metrics. Reward authentic metrics only when available.
   const METRIC_PATTERN =
     /\b\d+[\d,]*(?:\.\d+)?%|\b\d+[\d,]*(?:\s*(?:ms|x|qps|rps|users|queries|stars|commits|requests(?:\/sec)?))\b/i;
   let bulletsWithMetrics = 0;
-  for (const b of allBullets) {
-    if (METRIC_PATTERN.test(b.text)) bulletsWithMetrics++;
+  let verifiedMetricBulletCount = 0;
+
+  for (let i = 0; i < allBullets.length; i++) {
+    const b = allBullets[i];
+    const metricMatch = b.text.match(METRIC_PATTERN);
+    if (metricMatch) {
+      bulletsWithMetrics++;
+      const metricStr = metricMatch[0];
+
+      if (inventoryFacts.length > 0) {
+        const bulletContributingFacts = inventoryFacts.filter(
+          (f) =>
+            (b.composedFromFactIds && b.composedFromFactIds.includes(f.id)) ||
+            (b.evidenceRefs && b.evidenceRefs.some((er) => er.id === f.id || er.resourceId === f.id))
+        );
+
+        if (bulletContributingFacts.length > 0) {
+          const authResult = isMetricAuthorizedByFacts(metricStr, bulletContributingFacts);
+          if (authResult.authorized) {
+            verifiedMetricBulletCount++;
+          } else {
+            findings.push({
+              code: 'UNAUTHORIZED_METRIC_CLAIM',
+              severity: 'WARN',
+              bulletIndex: i,
+              text: b.text.slice(0, 100),
+              message: `Bullet contains metric "${metricStr}" which is not authorized by canonical candidate facts`,
+              recommendation:
+                'Remove or substantiate metric with canonical candidate facts',
+            });
+          }
+        } else {
+          findings.push({
+            code: 'UNAUTHORIZED_METRIC_CLAIM',
+            severity: 'WARN',
+            bulletIndex: i,
+            text: b.text.slice(0, 100),
+            message: `Bullet contains metric "${metricStr}" without any backing candidate facts`,
+            recommendation: 'Attach contributing facts or remove metric claim',
+          });
+        }
+      } else {
+        verifiedMetricBulletCount++;
+      }
+    }
   }
 
   // Check if candidate source had authentic metrics
-  const candidateHasMetrics = factInventory
-    ? factInventory.facts.some((f) => f.metrics && Object.keys(f.metrics).length > 0)
-    : false;
+  const candidateHasMetrics = inventoryFacts.some(
+    (f) => f.metrics && Object.keys(f.metrics).length > 0
+  );
 
-  let authenticMetricScore = 85; // neutral baseline
+  let authenticMetricScore = 100; // unpenalized baseline when candidate lacks metrics
   if (candidateHasMetrics) {
     if (bulletsWithMetrics > 0) {
-      authenticMetricScore = 95;
-      strengths.push('Authentic quantitative metrics utilized effectively');
+      authenticMetricScore = Math.round(
+        (verifiedMetricBulletCount / bulletsWithMetrics) * 100
+      );
+      if (verifiedMetricBulletCount > 0) {
+        strengths.push('Authentic quantitative metrics utilized effectively');
+      }
     } else {
-      authenticMetricScore = 75; // had authentic metrics but didn't highlight any
+      authenticMetricScore = 70;
     }
   } else {
-    // No authentic metrics available in source: neutral 85, no penalty
-    authenticMetricScore = 85;
+    // Rule 29: No authentic metrics available in source: 100, no penalty
+    authenticMetricScore = 100;
   }
 
   // 6. Semantic Diversity & Redundancy
@@ -497,8 +548,6 @@ export function evaluateResumeWritingQuality({
 
   // 11. Evidence Traceability
   let tracedBullets = 0;
-  const inventoryFacts =
-    factInventory?.facts || (Array.isArray(factInventory) ? factInventory : []);
   for (const b of allBullets) {
     const hasRefs =
       (b.evidenceRefs && b.evidenceRefs.length > 0) ||
@@ -520,17 +569,23 @@ export function evaluateResumeWritingQuality({
   // Summary Quality Check
   const summaryLength = summary.length;
   const summarySentenceCount = (summary.match(/[^.!?]+[.!?]+/g) || []).length;
-  const summaryGrounded =
-    summaryLength > 40 && summarySentenceCount >= 1 && summarySentenceCount <= 4;
+
+  let summaryQuality = 0;
+  if (summaryLength > 0) {
+    const lengthScore = Math.min(50, Math.round((summaryLength / 120) * 50));
+    const sentenceScore =
+      summarySentenceCount >= 1 && summarySentenceCount <= 4 ? 50 : 25;
+    summaryQuality = lengthScore + sentenceScore;
+  }
 
   const quantificationRate =
     totalBullets > 0 ? Math.round((bulletsWithMetrics / totalBullets) * 1000) / 10 : 0;
   const quantification = {
     totalBullets,
     quantifiedBulletCount: bulletsWithMetrics,
-    verifiedQuantifiedBullets: candidateHasMetrics ? bulletsWithMetrics : 0,
+    verifiedQuantifiedBullets: verifiedMetricBulletCount,
     quantificationRate,
-    verifiedMetricCount: candidateHasMetrics ? bulletsWithMetrics : 0,
+    verifiedMetricCount: verifiedMetricBulletCount,
   };
 
   const dimensions = {
@@ -546,12 +601,14 @@ export function evaluateResumeWritingQuality({
     verbosity: verbosityScore,
     jobRelevance: jobRelevanceScore,
     evidenceTraceability,
-    summaryQuality: summaryGrounded ? 90 : 60,
-    atsParseability: evidenceDerived ? evidenceDerived.atsParseabilityScore : 90,
+    summaryQuality,
+    atsParseability: evidenceDerived
+      ? evidenceDerived.atsParseabilityScore
+      : Math.max(50, 100 - fragmentCount * 10 - excessiveLengthCount * 10),
     factUtilizationIntegrity: evidenceDerived?.factUtilization
       ? Math.round((evidenceDerived.factUtilization.utilizationRate || 0) * 100)
-      : 90,
-    sectionCoherence: descriptionOnlyRatio > 25 ? 70 : 95,
+      : 100,
+    sectionCoherence: Math.round(Math.max(0, 100 - descriptionOnlyRatio)),
     descriptionOnlyRatio,
     candidateContributionRatio,
     narrativeCompleteness,

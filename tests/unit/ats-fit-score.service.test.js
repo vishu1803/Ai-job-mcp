@@ -743,10 +743,10 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
   });
 
   // -------------------------------------------------------------------------
-  // 5. UNKNOWN != MISSING Neutrality
+  // 5. UNKNOWN != MISSING Neutrality & Denominator Model (Rule 23)
   // -------------------------------------------------------------------------
-  describe('5. UNKNOWN != MISSING Neutrality', () => {
-    it('awards neutral baseline credit for UNKNOWN education without penalizing candidate', () => {
+  describe('5. UNKNOWN != MISSING Neutrality & Denominator Model', () => {
+    it('Rule 23: awards 0.0 earned credit for UNKNOWN education without inflating score', () => {
       const job = createMockJob();
       const profile = createMockProfile();
       const matchAnalysis = createMockMatchAnalysis({
@@ -767,12 +767,15 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
       const res = calculateCandidateJobFit(context, job, matchAnalysis, projectAnalysis, profile);
       assert.strictEqual(
         res.scoreBreakdown.educationFitScore,
-        5.0,
-        'UNKNOWN education must yield full 5.0 baseline'
+        0.0,
+        'Rule 23: UNKNOWN education must yield 0.0 earned points'
       );
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.education.status, 'UNKNOWN');
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.education.possiblePoints, 5.0);
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.education.earnedPoints, 0.0);
     });
 
-    it('awards neutral baseline credit for UNKNOWN location without penalizing candidate', () => {
+    it('Rule 23: awards 0.0 earned credit for UNKNOWN location without inflating score', () => {
       const job = createMockJob();
       const profile = createMockProfile();
       const matchAnalysis = createMockMatchAnalysis({
@@ -793,9 +796,37 @@ describe('ATS Fit Score Calculator Unit Tests (P5-005)', () => {
       const res = calculateCandidateJobFit(context, job, matchAnalysis, projectAnalysis, profile);
       assert.strictEqual(
         res.scoreBreakdown.locationFitScore,
-        5.0,
-        'UNKNOWN location must yield full 5.0 baseline'
+        0.0,
+        'Rule 23: UNKNOWN location must yield 0.0 earned points'
       );
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.location.status, 'UNKNOWN');
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.location.possiblePoints, 5.0);
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.location.earnedPoints, 0.0);
+    });
+
+    it('excludes unmentioned categories from the denominator with NOT_APPLICABLE status', () => {
+      const job = createMockJob();
+      const profile = createMockProfile();
+      const matchAnalysis = createMockMatchAnalysis({
+        requirementMatches: [
+          {
+            requirementId: randomUUID(),
+            category: 'SKILL',
+            importance: 'REQUIRED',
+            weight: 1.0,
+            matchStatus: 'MATCHED',
+            matchConfidence: 1.0,
+            supportingEvidence: [],
+          },
+        ],
+      });
+      const projectAnalysis = createMockProjectAnalysis();
+
+      const res = calculateCandidateJobFit(context, job, matchAnalysis, projectAnalysis, profile);
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.education.status, 'NOT_APPLICABLE');
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.education.possiblePoints, 0.0);
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.location.status, 'NOT_APPLICABLE');
+      assert.strictEqual(res.scoreBreakdown.denominatorAudit.location.possiblePoints, 0.0);
     });
 
     it('fails closed with INSUFFICIENT_DATA when JD has 0 total requirements', () => {

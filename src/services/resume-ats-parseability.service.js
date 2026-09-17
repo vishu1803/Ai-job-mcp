@@ -79,6 +79,7 @@ export class AtsParseabilityService {
     texContent = '',
     structuredResume = null,
     candidateProfile = null,
+    analyzedAt = null,
   } = {}) {
     let text = extractedText || '';
     let pdfObservation = null;
@@ -132,12 +133,67 @@ export class AtsParseabilityService {
       candidateProfile?.displayName ||
       candidateProfile?.name ||
       '';
-    const nameMatch = Boolean(candidateName) && text.toLowerCase().includes(candidateName.toLowerCase());
+    const firstLine = (text.split('\n')[0] || '').trim();
+    const isHeadingFirstLine = STANDARD_ATS_HEADINGS.some((h) => h.pattern.test(firstLine));
+    const nameMatch = candidateName
+      ? text.toLowerCase().includes(candidateName.toLowerCase())
+      : (!isHeadingFirstLine && firstLine.length >= 3 && !/^(professional\s+summary|summary|technical\s+skills|skills|experience|projects|education)/i.test(firstLine));
 
-    const hasEmail = Boolean(emailMatch || structuredResume?.candidateIdentity?.email || structuredResume?.header?.email);
-    const hasName = Boolean(nameMatch || structuredResume?.candidateIdentity?.displayName || structuredResume?.header?.name);
+    // RULE: Artifact parseability requires actual presence in the extracted PDF text stream.
+    // Structured resume values cannot make a missing artifact field pass.
+    const hasEmail = Boolean(emailMatch);
+    const hasName = Boolean(nameMatch);
     const contactScoreEarned = (hasEmail ? 8 : 0) + (hasName ? 7 : 0);
     const contactPass = hasEmail && hasName;
+
+    const expectedEmail = structuredResume?.candidateIdentity?.email || structuredResume?.header?.email;
+    if (expectedEmail && !hasEmail) {
+      findings.push({
+        dimension: 'contact',
+        severity: 'FAIL',
+        finding: 'EMAIL_NOT_RENDERED',
+        expected: expectedEmail,
+        observed: null,
+        source: 'PDF_EXTRACTION',
+        rule: 'P25_CONTACT_EMAIL',
+        message: 'Contact email is present in structured resume but missing from compiled PDF artifact',
+      });
+    } else if (!hasEmail) {
+      findings.push({
+        dimension: 'contact',
+        severity: 'WARN',
+        finding: 'EMAIL_MISSING',
+        expected: 'Valid contact email',
+        observed: null,
+        source: 'PDF_EXTRACTION',
+        rule: 'P25_CONTACT_EMAIL',
+        message: 'No contact email detected in extracted PDF text',
+      });
+    }
+
+    if (candidateName && !hasName) {
+      findings.push({
+        dimension: 'contact',
+        severity: 'FAIL',
+        finding: 'NAME_NOT_RENDERED',
+        expected: candidateName,
+        observed: null,
+        source: 'PDF_EXTRACTION',
+        rule: 'P25_CANDIDATE_NAME',
+        message: 'Candidate name is present in structured resume but missing from compiled PDF artifact',
+      });
+    } else if (!hasName) {
+      findings.push({
+        dimension: 'contact',
+        severity: 'WARN',
+        finding: 'NAME_MISSING',
+        expected: 'Candidate name in header',
+        observed: null,
+        source: 'PDF_EXTRACTION',
+        rule: 'P25_CANDIDATE_NAME',
+        message: 'Candidate name not detected in document header',
+      });
+    }
 
     checks.push({
       checkId: 'CONTACT_COMPLETENESS',
@@ -147,14 +203,8 @@ export class AtsParseabilityService {
       earnedWeight: contactScoreEarned,
       message: contactPass
         ? 'Identified candidate name and contact email in document header'
-        : `Missing essential contact info: ${!hasName ? 'Candidate Name ' : ''}${!hasEmail ? 'Email' : ''}`.trim(),
+        : `Missing essential contact info in PDF: ${!hasName ? 'Candidate Name ' : ''}${!hasEmail ? 'Email' : ''}`.trim(),
     });
-    if (!hasEmail) {
-      findings.push({ dimension: 'contact', severity: 'WARN', message: 'No contact email detected' });
-    }
-    if (!hasName) {
-      findings.push({ dimension: 'contact', severity: 'WARN', message: 'Candidate name not detected in header' });
-    }
 
     // ── 3. Standard Section Headings (15 pts) ─────────────────────────────────
     const detectedHeadings = [];
@@ -207,17 +257,33 @@ export class AtsParseabilityService {
     }
 
     // ── 5. Bullet Boundaries & List Structure (10 pts) ────────────────────────
+    // RULE: Only actual selectable bullet markers in the extracted PDF artifact establish bullet pass.
     const bulletMarkers = (text.match(/[\u2022\u25E6\u2023\u2219-]\s+/g) || []).length;
-    const texItemizeCount = (texContent.match(/\\begin\{itemize\}/g) || []).length;
-    const bulletPass = bulletMarkers >= 3 || texItemizeCount >= 1 || (structuredResume?.projects?.some((p) => p.bullets?.length > 0));
+    const bulletPass = bulletMarkers >= 3;
+    const expectedBulletCount =
+      structuredResume?.projects?.reduce((acc, p) => acc + (p.bullets?.length || 0), 0) || 0;
+
+    if (expectedBulletCount >= 3 && bulletMarkers < 3) {
+      findings.push({
+        dimension: 'bullets',
+        severity: 'FAIL',
+        finding: 'BULLETS_NOT_RENDERED',
+        expected: `${expectedBulletCount} bullet markers`,
+        observed: `${bulletMarkers} bullet markers`,
+        source: 'PDF_EXTRACTION',
+        rule: 'P25_BULLET_BOUNDARIES',
+        message: 'Bullet points defined in structured resume were not extractable from the compiled PDF artifact',
+      });
+    }
+
     checks.push({
       checkId: 'BULLET_BOUNDARIES',
       name: 'Bullet Boundaries & List Structure',
       weight: ATS_CHECK_WEIGHTS.BULLET_BOUNDARIES,
       passed: Boolean(bulletPass),
       message: bulletPass
-        ? `Recognized consistent list structures (${bulletMarkers} markers, ${texItemizeCount} itemize blocks)`
-        : 'Sparse or irregular bullet structure detected',
+        ? `Recognized consistent list structures (${bulletMarkers} markers in extracted PDF)`
+        : `Sparse or irregular bullet structure detected in PDF (${bulletMarkers} markers)`,
     });
 
     // ── 6. URL Safety & Formatting (10 pts) ───────────────────────────────────
@@ -330,6 +396,7 @@ export class AtsParseabilityService {
       atsParseabilityScore,
       passed: atsParseabilityScore >= 75 && latexPass && !hasReplacementGlyphs,
       confidence,
+      auditedAt: analyzedAt || '1970-01-01T00:00:00.000Z',
       version: ATS_PARSEABILITY_VERSION,
       checks,
       findings,

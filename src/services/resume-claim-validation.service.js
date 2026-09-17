@@ -83,7 +83,103 @@ const UNSUPPORTED_ACTOR_PATTERNS = [
   /\b(?:serving|reaching)\s+\d+[\d,]*\+?\s+(?:users|customers|clients)\b/i,
 ];
 
+/**
+ * Validates whether a metric in a bullet claim is authorized by contributing facts,
+ * supporting both EXPLICIT facts and mathematically DERIVED percentage/multiplier facts.
+ *
+ * @param {string} metricRaw
+ * @param {Array<object>} contributingFacts
+ * @returns {{ authorized: boolean, type: 'EXPLICIT'|'DERIVED'|'UNSUPPORTED', source?: string, formula?: string }}
+ */
+export function isMetricAuthorizedByFacts(metricRaw, contributingFacts = []) {
+  if (!metricRaw) return { authorized: false, type: 'UNSUPPORTED' };
+  const cleanTm = String(metricRaw).toLowerCase().replace(/\s+/g, '');
+
+  for (const fact of contributingFacts) {
+    if (!fact) continue;
+    // 1. Explicit metrics in fact.metrics array
+    if (Array.isArray(fact.metrics)) {
+      for (const m of fact.metrics) {
+        const cleanM = String(m.raw || m.value || m).toLowerCase().replace(/\s+/g, '');
+        if (cleanM === cleanTm || cleanM.includes(cleanTm) || cleanTm.includes(cleanM)) {
+          return { authorized: true, type: 'EXPLICIT', source: fact.factId };
+        }
+      }
+    }
+    // 2. Explicit metric string in fact text
+    const cleanFactText = String(fact.text || '').toLowerCase().replace(/\s+/g, '');
+    if (cleanFactText.includes(cleanTm)) {
+      return { authorized: true, type: 'EXPLICIT', source: fact.factId };
+    }
+
+    // 3. Derived metrics: percentage reduction or improvement
+    const pctMatch = cleanTm.match(/^(\d+(?:\.\d+)?)%$/);
+    if (pctMatch) {
+      const targetPct = Math.round(parseFloat(pctMatch[1]));
+      // Extract numbers regardless of adjacent units (ms, sec, kb, etc.) or commas
+      const numbersInFact = (fact.text.match(/\d+[\d,]*(?:\.\d+)?/g) || []).map((n) =>
+        Number(n.replace(/,/g, ''))
+      );
+      if (numbersInFact.length >= 2) {
+        for (let i = 0; i < numbersInFact.length; i++) {
+          for (let j = 0; j < numbersInFact.length; j++) {
+            if (i === j) continue;
+            const a = numbersInFact[i];
+            const b = numbersInFact[j];
+            if (a > 0) {
+              const diffPct = Math.round((Math.abs(a - b) / a) * 100);
+              if (diffPct === targetPct) {
+                return {
+                  authorized: true,
+                  type: 'DERIVED',
+                  source: fact.factId,
+                  formula: `|${a} - ${b}| / ${a} = ${targetPct}%`,
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Derived metrics: multiplier (e.g. 2x, 3x)
+    const multMatch = cleanTm.match(/^(\d+(?:\.\d+)?)x$/);
+    if (multMatch) {
+      const targetMult = parseFloat(multMatch[1]);
+      const numbersInFact = (fact.text.match(/\d+[\d,]*(?:\.\d+)?/g) || []).map((n) =>
+        Number(n.replace(/,/g, ''))
+      );
+      if (numbersInFact.length >= 2) {
+        for (let i = 0; i < numbersInFact.length; i++) {
+          for (let j = 0; j < numbersInFact.length; j++) {
+            if (i === j) continue;
+            const a = numbersInFact[i];
+            const b = numbersInFact[j];
+            if (b > 0 && Math.round((a / b) * 10) / 10 === targetMult) {
+              return {
+                authorized: true,
+                type: 'DERIVED',
+                source: fact.factId,
+                formula: `${a} / ${b} = ${targetMult}x`,
+              };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { authorized: false, type: 'UNSUPPORTED' };
+}
+
 export class ResumeClaimValidationService {
+  /**
+   * Static helper to validate a candidate claim against invariants.
+   */
+  static validateClaim(claim, context = {}) {
+    return new ResumeClaimValidationService().validateClaim(claim, context);
+  }
+
   /**
    * Validates a candidate claim against the 13 strict invariants.
    *
@@ -207,30 +303,10 @@ export class ResumeClaimValidationService {
     // ── 4. Every metric in text exists in authorized evidence ─────────────────
     if (isMeasurableFact(text)) {
       const textMetrics = extractAuthenticMetrics(text);
-      const authorizedMetrics = new Set();
-
-      for (const fact of contributingFacts) {
-        if (Array.isArray(fact.metrics)) {
-          for (const m of fact.metrics) {
-            authorizedMetrics.add(
-              String(m.raw || m.value || m)
-                .toLowerCase()
-                .replace(/\s+/g, '')
-            );
-          }
-        }
-        // Check raw fact text for the metric tokens
-        for (const tm of textMetrics) {
-          const cleanTm = tm.raw.toLowerCase().replace(/\s+/g, '');
-          if (fact.text.toLowerCase().replace(/\s+/g, '').includes(cleanTm)) {
-            authorizedMetrics.add(cleanTm);
-          }
-        }
-      }
 
       for (const tm of textMetrics) {
-        const cleanTm = tm.raw.toLowerCase().replace(/\s+/g, '');
-        if (!authorizedMetrics.has(cleanTm)) {
+        const auth = isMetricAuthorizedByFacts(tm.raw, contributingFacts);
+        if (!auth.authorized) {
           violations.push({
             code: 'UNSUPPORTED_METRIC',
             message: `Metric "${tm.raw}" in claim text does not exist in authorized contributing facts`,

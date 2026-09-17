@@ -169,4 +169,78 @@ describe('P81: Resume Content Quality & Measurable Content Engine', () => {
     assert.ok(redFinding);
     assert.ok(report.dimensions.redundancy < 80);
   });
+
+  it('detects unauthorized metric claims and emits UNAUTHORIZED_METRIC_CLAIM finding', () => {
+    const factInventory = {
+      facts: [
+        {
+          id: 'fact-1',
+          text: 'Scaled cluster to handle 10,000 requests/sec',
+          metrics: { throughput: '10,000 requests/sec' },
+        },
+      ],
+    };
+
+    const resumeWithUnauthorizedMetric = {
+      summary: { text: 'Backend engineer.' },
+      projects: [
+        {
+          name: 'Cluster',
+          bullets: [
+            {
+              text: 'Scaled distributed cluster achieving 99.99% availability and 75,000 requests/sec via Kubernetes.',
+              composedFromFactIds: ['fact-1'],
+            },
+          ],
+        },
+      ],
+    };
+
+    const report = evaluateResumeWritingQuality({
+      structuredResume: resumeWithUnauthorizedMetric,
+      factInventory,
+    });
+
+    const unauthFinding = report.findings.find((f) => f.code === 'UNAUTHORIZED_METRIC_CLAIM');
+    assert.ok(unauthFinding, 'Must emit UNAUTHORIZED_METRIC_CLAIM for unbacked 99.99% or 75,000 requests/sec');
+    assert.equal(report.quantification.verifiedMetricCount, 0);
+    assert.equal(report.dimensions.authenticMetricUsage, 0);
+  });
+
+  it('verifies authorized derived percentage metrics without unauthorized warnings', () => {
+    const factInventory = {
+      facts: [
+        {
+          id: 'fact-latency',
+          text: 'Reduced response time from 1000ms to 600ms',
+          metrics: { baselineLatency: '1000ms', finalLatency: '600ms' },
+        },
+      ],
+    };
+
+    const resumeWithDerivedMetric = {
+      summary: { text: 'Backend engineer.' },
+      projects: [
+        {
+          name: 'Optimizer',
+          bullets: [
+            {
+              text: 'Optimized query planner reducing response time by 40% via index hints.',
+              composedFromFactIds: ['fact-latency'],
+            },
+          ],
+        },
+      ],
+    };
+
+    const report = evaluateResumeWritingQuality({
+      structuredResume: resumeWithDerivedMetric,
+      factInventory,
+    });
+
+    const unauthFinding = report.findings.find((f) => f.code === 'UNAUTHORIZED_METRIC_CLAIM');
+    assert.equal(unauthFinding, undefined, 'Authorized derived metric must not trigger unauthorized finding');
+    assert.equal(report.quantification.verifiedMetricCount, 1);
+    assert.equal(report.dimensions.authenticMetricUsage, 100);
+  });
 });

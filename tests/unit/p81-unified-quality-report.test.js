@@ -182,4 +182,73 @@ describe('P81: Unified Quality Report & Safety Gate Engine', () => {
     const expectedScore = Math.round(92 * 0.35 + 84 * 0.35 + 88 * 0.30);
     assert.equal(normalReport.headlineScore, expectedScore);
   });
+
+  it('Rule 24 Fail-Closed: Missing claimValidationReport blocks report with 0 score and BLOCKED_BY_INTEGRITY_GATE', () => {
+    const report = generateUnifiedQualityReport({
+      atsParseabilityReport: mockAtsReport,
+      jobMatchReport: mockJobMatchReport,
+      keywordCoverageReport: mockKeywordReport,
+      contentQualityReport: mockContentQualityReport,
+      // claimValidationReport omitted
+      analyzedAt: '2026-09-18T00:00:00.000Z',
+    });
+
+    assert.equal(report.headlineScore, 0);
+    assert.equal(report.status, 'REJECTED_BY_INTEGRITY_GATE');
+    assert.equal(report.dimensions.evidenceIntegrityGate.passed, false);
+    assert.equal(report.dimensions.evidenceIntegrityGate.status, 'BLOCKED_BY_INTEGRITY_GATE');
+    assert.ok(
+      report.dimensions.evidenceIntegrityGate.violations.some((v) =>
+        v.code.includes('MISSING_CLAIM_VALIDATION')
+      )
+    );
+  });
+
+  it('Rule 21: Surfaces LOW_JOB_KEYWORD_COVERAGE warning when keyword coverage < 50% without altering headline score', () => {
+    const lowKeywordReport = {
+      overallCoveragePercent: 30,
+      totalJobTerms: 10,
+      termBreakdown: [],
+    };
+
+    const report = generateUnifiedQualityReport({
+      atsParseabilityReport: mockAtsReport,
+      jobMatchReport: mockJobMatchReport,
+      keywordCoverageReport: lowKeywordReport,
+      contentQualityReport: mockContentQualityReport,
+      claimValidationReport: mockClaimValidationPassing,
+      analyzedAt: '2026-09-18T00:00:00.000Z',
+    });
+
+    const expectedHeadline = Math.round(92 * 0.35 + 84 * 0.35 + 88 * 0.30);
+    assert.equal(report.headlineScore, expectedHeadline);
+    const lowKwFinding = report.dimensions.keywordCoverage.findings.find(
+      (f) => f.code === 'LOW_JOB_KEYWORD_COVERAGE'
+    );
+    assert.ok(lowKwFinding, 'Must emit LOW_JOB_KEYWORD_COVERAGE');
+    assert.ok(lowKwFinding.message.includes('30%'));
+  });
+
+  it('Audit Provenance: Populates transparent provenance object with engine version, weights, inputs, and integrity gate', () => {
+    const report = generateUnifiedQualityReport({
+      atsParseabilityReport: mockAtsReport,
+      jobMatchReport: mockJobMatchReport,
+      keywordCoverageReport: mockKeywordReport,
+      contentQualityReport: mockContentQualityReport,
+      claimValidationReport: mockClaimValidationPassing,
+      analyzedAt: '2026-09-18T00:00:00.000Z',
+    });
+
+    assert.ok(report.provenance);
+    assert.equal(report.provenance.engineVersion, '2.0.0-hardened');
+    assert.equal(report.provenance.analyzedAt, '2026-09-18T00:00:00.000Z');
+    assert.deepEqual(report.provenance.weights, {
+      atsParseability: 0.35,
+      jobMatch: 0.35,
+      keywordCoverage: 0.0,
+      contentQuality: 0.3,
+    });
+    assert.equal(report.provenance.inputs.hasClaimValidationReport, true);
+    assert.equal(report.provenance.integrityGate.passed, true);
+  });
 });

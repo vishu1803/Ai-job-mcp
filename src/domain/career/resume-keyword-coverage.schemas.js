@@ -50,6 +50,9 @@ export const TermCoverageItemSchema = z.strictObject({
   occurrences: z.number().int().nonnegative().default(0),
   relationshipType: z.string().nullable().default(null),
   explanation: z.string().trim().min(1),
+  intendedPresence: z.boolean().optional(),
+  artifactPresence: z.boolean().optional(),
+  isRendered: z.boolean().optional(),
 });
 
 export const KeywordStuffingWarningSchema = z.strictObject({
@@ -62,6 +65,8 @@ export const KeywordStuffingWarningSchema = z.strictObject({
 
 export const ResumeKeywordCoverageReportSchema = z.strictObject({
   overallCoveragePercent: z.number().min(0).max(100),
+  intendedCoveragePercent: z.number().min(0).max(100).optional(),
+  renderedCoveragePercent: z.number().min(0).max(100).optional(),
   totalJobTerms: z.number().int().nonnegative(),
   requiredTerms: z.number().int().nonnegative(),
   preferredTerms: z.number().int().nonnegative(),
@@ -70,6 +75,7 @@ export const ResumeKeywordCoverageReportSchema = z.strictObject({
   semanticMatches: z.number().int().nonnegative(),
   missingTerms: z.number().int().nonnegative(),
   criticalMissingTerms: z.number().int().nonnegative(),
+  unrenderedTerms: z.array(z.string()).default([]),
   termBreakdown: z.array(TermCoverageItemSchema).default([]),
   keywordPlacements: z.array(KeywordPlacementSchema).default([]),
   stuffingWarnings: z.array(KeywordStuffingWarningSchema).default([]),
