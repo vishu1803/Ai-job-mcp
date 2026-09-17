@@ -253,10 +253,18 @@ export function isSameJobIdentity(jobA, jobB) {
   return Boolean(titleA && titleB && compA && compB && titleA === titleB && compA === compB);
 }
 
+export {
+  CanonicalJobIdentity,
+  JobIdentityAuthority,
+  TRANSITION_ACTIONS,
+  SIGNAL_TYPES,
+} from './job-identity-authority.js';
+
 export const JobIdentity = {
   normalizeJobUrl: normalizeJobPostingUrl,
   normalizeJobPostingUrl,
   deriveJobFingerprint,
   isSameJobIdentity,
 };
+
 

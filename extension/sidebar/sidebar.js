@@ -12,7 +12,13 @@
 import { BackendClient } from '../api/backend-client.js';
 import { DurableWorkflowStore } from '../lib/durable-workflow-store.js';
 import { WorkflowStateMachine, WORKFLOW_STATES } from '../lib/workflow-state-machine.js';
-import { JobIdentity } from '../lib/job-identity.js';
+import {
+  JobIdentity,
+  JobIdentityAuthority,
+  CanonicalJobIdentity,
+  TRANSITION_ACTIONS,
+  SIGNAL_TYPES,
+} from '../lib/job-identity.js';
 import { buildApplicationArtifactFilename } from '../lib/artifact-filename-builder.js';
 import { DETECTION_REQUEST_TIMEOUT_MS } from '../lib/detection-timeouts.js';
 
@@ -634,11 +640,24 @@ class SidebarController {
 
   _reconcileDetectedJob(jobData) {
     if (!jobData || !jobData.title) return;
-    const detectedFingerprint = JobIdentity.deriveJobFingerprint(jobData);
 
-    // If same job detected as active workflow: check for description hydration update
-    if (this.activeJobFingerprint && detectedFingerprint === this.activeJobFingerprint) {
-      if (this.pendingDetectedFingerprint === detectedFingerprint) {
+    const decision = JobIdentityAuthority.evaluateTransition(
+      {
+        activeJob: this.activeJob,
+        cachedState: this.cachedState,
+        stateMachineState: this.stateMachine?.state,
+        isLocked: this.isWorkflowLocked(),
+        pendingDetectedJob: this.pendingDetectedJob,
+      },
+      {
+        type: SIGNAL_TYPES.DETECTION_RESULT,
+        detectedJob: jobData,
+        isExplicitUserAction: false,
+      }
+    );
+
+    if (decision.action === TRANSITION_ACTIONS.RETAIN_AND_ENRICH) {
+      if (this.pendingDetectedFingerprint === decision.canonicalIdentity?.fingerprint) {
         this.pendingDetectedJob = null;
         this.pendingDetectedFingerprint = null;
         this.store.setPendingDetectedJob(this.activeTabId, null);
@@ -649,20 +668,16 @@ class SidebarController {
       const existingDesc = (this.activeJob?.description || '').trim();
       const newDesc = (jobData.description || '').trim();
       if (newDesc.length >= 50 && (existingDesc.length < 50 || !this.activeJob?.analysisReady)) {
-        return this._handleHydratedDescription(jobData, detectedFingerprint);
+        return this._handleHydratedDescription(jobData, decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint);
       }
       return;
     }
 
-    // If an active workflow exists on this tab or state is locked on a different job:
-    // DO NOT replace active workflow
-    // DO NOT restart analysis
-    // Store as pending job and show minimal non-blocking notification
-    if (this.activeJob || this.isWorkflowLocked()) {
-      this.pendingDetectedJob = jobData;
-      this.pendingDetectedFingerprint = detectedFingerprint;
-      this.store.setPendingDetectedJob(this.activeTabId, jobData);
-      this._renderPendingJobNotification(jobData);
+    if (decision.action === TRANSITION_ACTIONS.QUEUE_PENDING_JOB) {
+      this.pendingDetectedJob = decision.pendingDetectedJob;
+      this.pendingDetectedFingerprint = decision.pendingDetectedFingerprint;
+      this.store.setPendingDetectedJob(this.activeTabId, decision.pendingDetectedJob);
+      this._renderPendingJobNotification(decision.pendingDetectedJob);
       return;
     }
 
@@ -712,106 +727,122 @@ class SidebarController {
       }
 
       if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
-        const response = await sendWithTimeout(
-          chrome.tabs.sendMessage(requestTabId, {
-            type: 'DETECT_JOB_PAGE',
-            requestId,
-            tabId: requestTabId,
-            generation: requestGeneration,
-          })
-        );
+        let response = null;
+        let isTransportError = false;
+        try {
+          response = await sendWithTimeout(
+            chrome.tabs.sendMessage(requestTabId, {
+              type: 'DETECT_JOB_PAGE',
+              requestId,
+              tabId: requestTabId,
+              generation: requestGeneration,
+            })
+          );
+        } catch (err) {
+          isTransportError = true;
+        }
 
         if (isStale(response)) {
           return false;
         }
 
-        if (response && response.detected && response.jobData && response.jobData.title && response.jobData.title !== 'Untitled Role') {
-          if (response.portalMetadata) {
-            this._renderPortalCard(response.portalMetadata);
+        if (response?.portalMetadata) {
+          this._renderPortalCard(response.portalMetadata);
+        } else if (!this.activeJob) {
+          this._renderPortalCard({ portalName: 'Web Page', isPortalRecognized: false });
+        }
+
+        const decision = JobIdentityAuthority.evaluateTransition(
+          {
+            activeJob: this.activeJob,
+            cachedState: this.cachedState,
+            stateMachineState: this.stateMachine?.state,
+            isLocked: this.isWorkflowLocked(),
+            pendingDetectedJob: this.pendingDetectedJob,
+          },
+          {
+            type: isTransportError ? SIGNAL_TYPES.TRANSPORT_ERROR : SIGNAL_TYPES.DETECTION_RESULT,
+            detectedJob: response?.detected ? response.jobData : null,
+            isExplicitUserAction: isExplicitRescan,
+            isTransportError,
           }
+        );
+
+        if (decision.action === TRANSITION_ACTIONS.RETAIN_AND_ENRICH) {
+          this.activeJob = decision.activeJob;
+          if (this.cachedState) {
+            this.cachedState.jobData = decision.activeJob;
+            await this.store.saveTabState(requestTabId, this.cachedState);
+          }
+          this._renderJobCard(decision.activeJob);
+          return true;
+        }
+
+        if (decision.action === TRANSITION_ACTIONS.BIND_NEW_JOB) {
           if (isExplicitRescan) {
-            await this._switchToJob(response.jobData);
+            await this._switchToJob(decision.activeJob);
           } else {
-            await this._reconcileDetectedJob(response.jobData);
+            await this._reconcileDetectedJob(decision.activeJob);
           }
           return true;
-        } else {
-          // Page is confirmed NOT a job (or detection returned detected: false / empty)
-          if (response && response.portalMetadata) {
-            this._renderPortalCard(response.portalMetadata);
-          } else if (!this.activeJob) {
-            this._renderPortalCard({ portalName: 'Web Page', isPortalRecognized: false });
-          }
+        }
 
-          if (isExplicitRescan) {
-            // Requirement 4: clear stale unlocked job state when current page is not a job
-            // and never use pendingDetectedJob as a substitute for fresh page detection
-            this.pendingDetectedJob = null;
-            this.pendingDetectedFingerprint = null;
-            await this.store.setPendingDetectedJob(requestTabId, null);
-            this._hidePendingJobNotification();
+        if (decision.action === TRANSITION_ACTIONS.SWITCH_JOB) {
+          await this._switchToJob(decision.activeJob);
+          return true;
+        }
 
-            if (!this.isWorkflowLocked()) {
-              this.activeJob = null;
-              this.activeJobFingerprint = null;
-              this.stateMachine.reset();
-              if (this.cachedState) {
-                this.cachedState.jobData = null;
-                this.cachedState.jobFingerprint = null;
-                this.cachedState.normalizedJob = null;
-                this.cachedState.fitAnalysis = null;
-                this.cachedState.recommendedProjects = null;
-                this.cachedState.analysisSnapshotId = null;
-                this.cachedState.workflowState = WORKFLOW_STATES.IDLE;
-                await this.store.saveTabState(requestTabId, this.cachedState);
-              }
-              this._renderEmptyJobState();
-              this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
+        if (decision.action === TRANSITION_ACTIONS.QUEUE_PENDING_JOB) {
+          this.pendingDetectedJob = decision.pendingDetectedJob;
+          this.pendingDetectedFingerprint = decision.pendingDetectedFingerprint;
+          await this.store.setPendingDetectedJob(requestTabId, decision.pendingDetectedJob);
+          this._renderPendingJobNotification(decision.pendingDetectedJob);
+          return true;
+        }
+
+        if (decision.action === TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION) {
+          if (decision.preserveActiveJob || this.activeJob) {
+            if (this.cachedState && (this.cachedState.jobData || this.activeJob)) {
+              this._renderJobCard(this.cachedState.jobData || this.activeJob);
             }
-          } else {
-            // Passive detection from TAB_UPDATED or hydration.
-            // NEVER wipe analyzed results or locked workflows during passive background checks!
-            const hasAnalysis = Boolean(
-              this.cachedState?.fitAnalysis ||
-              this.cachedState?.workflowState === WORKFLOW_STATES.ANALYSIS_READY
-            );
-
-            if (hasAnalysis || this.isWorkflowLocked()) {
-              // Preserve existing job and analysis state!
-              // Do not overwrite activeJob, do not reset stateMachine, do not render empty job state.
-              if (this.cachedState && (this.cachedState.jobData || this.activeJob)) {
-                this._renderJobCard(this.cachedState.jobData || this.activeJob);
+          } else if (!this.isWorkflowLocked()) {
+            if (this.elements.descriptionLoadingNotice) {
+              this.elements.descriptionLoadingNotice.classList.remove('hidden');
+              if (this.elements.descriptionLoadingText) {
+                this.elements.descriptionLoadingText.textContent = 'Detection still loading — click Rescan to retry';
               }
-            } else {
-              // Unanalyzed, unlocked job: reload into confirmed non-job clears stale state (P75)
-              this.pendingDetectedJob = null;
-              this.pendingDetectedFingerprint = null;
-              await this.store.setPendingDetectedJob(requestTabId, null);
-              this._hidePendingJobNotification();
-
-              this.activeJob = null;
-              this.activeJobFingerprint = null;
-              this.stateMachine.reset();
-              if (this.cachedState) {
-                this.cachedState.jobData = null;
-                this.cachedState.jobFingerprint = null;
-                this.cachedState.normalizedJob = null;
-                this.cachedState.workflowState = WORKFLOW_STATES.IDLE;
-                await this.store.saveTabState(requestTabId, this.cachedState);
-              }
-              this._renderEmptyJobState();
-              this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
             }
           }
           return false;
         }
+
+        if (decision.action === TRANSITION_ACTIONS.EXPLICIT_CLEAR) {
+          this.pendingDetectedJob = null;
+          this.pendingDetectedFingerprint = null;
+          await this.store.setPendingDetectedJob(requestTabId, null);
+          this._hidePendingJobNotification();
+
+          this.activeJob = null;
+          this.activeJobFingerprint = null;
+          this.stateMachine.reset();
+          if (this.cachedState) {
+            this.cachedState.jobData = null;
+            this.cachedState.jobFingerprint = null;
+            this.cachedState.normalizedJob = null;
+            this.cachedState.fitAnalysis = null;
+            this.cachedState.recommendedProjects = null;
+            this.cachedState.analysisSnapshotId = null;
+            this.cachedState.workflowState = WORKFLOW_STATES.IDLE;
+            await this.store.saveTabState(requestTabId, this.cachedState);
+          }
+          this._renderEmptyJobState();
+          this._renderWorkflowStatus(WORKFLOW_STATES.IDLE, false);
+          return false;
+        }
       }
     } catch (err) {
-      // P71: Transport timeout or error is NOT a confirmed non-job.
-      // Preserve existing state — only an actual response.detected === false may clear.
       if (!isStale()) {
         if (!this.activeJob && !this.isWorkflowLocked()) {
-          // No existing job state to preserve — show neutral loading/retry state
           if (this.elements.descriptionLoadingNotice) {
             this.elements.descriptionLoadingNotice.classList.remove('hidden');
             if (this.elements.descriptionLoadingText) {
@@ -819,7 +850,6 @@ class SidebarController {
             }
           }
         }
-        // If activeJob exists, preserve it silently — do NOT clear, do NOT render Web Page
       }
       return false;
     } finally {
@@ -1397,25 +1427,32 @@ class SidebarController {
         const fitAnalysis = result.fitAnalysis || result;
         const recommendedProjects = result.recommendedProjects || [];
 
-        // Ensure canonical job identity is preserved and reinforced
-        const canonicalJob = result.canonicalJob || result.jobData || {};
-        const mergedJob = {
-          ...(this.activeJob || {}),
-          ...(this.cachedState?.jobData || {}),
-          ...canonicalJob,
-        };
-        if (result.title && !mergedJob.title) mergedJob.title = result.title;
-        if (result.company && !mergedJob.company) mergedJob.company = result.company;
+        // Affirm canonical identity and evaluate transition via authority
+        const decision = JobIdentityAuthority.evaluateTransition(
+          {
+            activeJob: this.activeJob,
+            cachedState: this.cachedState,
+            stateMachineState: this.stateMachine?.state,
+            isLocked: this.isWorkflowLocked(),
+          },
+          {
+            type: SIGNAL_TYPES.ANALYZE_COMPLETE,
+            detectedJob: result.canonicalJob || result.jobData || (result.title ? result : this.activeJob),
+            existingHandoff: result.existingHandoff || (this.cachedState?.handoffData && this.cachedState?.applicationId ? this.cachedState.handoffData : null),
+            existingApplication: result.existingApplication || null,
+          }
+        );
 
-        this.activeJob = mergedJob;
-        this.cachedState.jobData = mergedJob;
-        if (mergedJob.title) {
+        this.activeJob = decision.activeJob;
+        this.cachedState.jobData = decision.activeJob;
+        if (decision.activeJob?.title) {
           this.cachedState.jobIdentity = {
-            title: mergedJob.title,
-            company: mergedJob.company || '',
-            jobFingerprint: this.activeJobFingerprint || this.cachedState?.jobFingerprint,
+            title: decision.activeJob.title,
+            company: decision.activeJob.company || '',
+            jobFingerprint: decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint || this.cachedState?.jobFingerprint,
           };
         }
+        this.cachedState.jobFingerprint = decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint;
 
         // Update state in durable store
         this.cachedState.fitAnalysis = fitAnalysis;
@@ -1441,8 +1478,10 @@ class SidebarController {
           this.stateMachine.state = WORKFLOW_STATES.APPLICATION_READY;
           this.stateMachine.lock();
         } else {
-          this.cachedState.workflowState = WORKFLOW_STATES.ANALYSIS_READY;
-          this.stateMachine.state = WORKFLOW_STATES.ANALYSIS_READY;
+          this.cachedState.workflowState = decision.targetWorkflowState;
+          this.cachedState.lockState = decision.targetLockState;
+          this.cachedState.isLocked = decision.targetLockState === 'LOCKED';
+          this.stateMachine.state = decision.targetWorkflowState;
         }
 
         await this.store.saveTabState(this.activeTabId, this.cachedState);
@@ -1523,29 +1562,36 @@ class SidebarController {
           this.cachedState.recommendedProjects = result.recommendedProjects;
         }
 
-        // Ensure jobData and activeJob retain title and company
-        const handoffTarget = result.targetJob || {};
-        const mergedJob = {
-          ...(this.activeJob || {}),
-          ...(this.cachedState?.jobData || {}),
-          ...handoffTarget,
-        };
-        if (result.title && !mergedJob.title) mergedJob.title = result.title;
-        if (result.company && !mergedJob.company) mergedJob.company = result.company;
-        this.activeJob = mergedJob;
-        this.cachedState.jobData = mergedJob;
-        if (mergedJob.title) {
+        // Bind canonical job identity to prepared handoff package via authority
+        const decision = JobIdentityAuthority.evaluateTransition(
+          {
+            activeJob: this.activeJob,
+            cachedState: this.cachedState,
+            stateMachineState: this.stateMachine?.state,
+            isLocked: this.isWorkflowLocked(),
+          },
+          {
+            type: SIGNAL_TYPES.HANDOFF_PREPARED,
+            targetJob: result.targetJob || result.canonicalJob || (result.title ? result : this.activeJob),
+            detectedJob: result.targetJob || result.canonicalJob || (result.title ? result : this.activeJob),
+          }
+        );
+
+        this.activeJob = decision.activeJob;
+        this.cachedState.jobData = decision.activeJob;
+        if (decision.activeJob?.title) {
           this.cachedState.jobIdentity = {
-            title: mergedJob.title,
-            company: mergedJob.company || '',
-            jobFingerprint: this.activeJobFingerprint || this.cachedState?.jobFingerprint,
+            title: decision.activeJob.title,
+            company: decision.activeJob.company || '',
+            jobFingerprint: decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint || this.cachedState?.jobFingerprint,
           };
         }
+        this.cachedState.jobFingerprint = decision.canonicalIdentity?.fingerprint || this.activeJobFingerprint;
 
-        this.cachedState.workflowState = WORKFLOW_STATES.APPLICATION_READY;
-        this.cachedState.lockState = 'LOCKED';
-        this.cachedState.isLocked = true;
-        this.stateMachine.state = WORKFLOW_STATES.APPLICATION_READY;
+        this.cachedState.workflowState = decision.targetWorkflowState;
+        this.cachedState.lockState = decision.targetLockState;
+        this.cachedState.isLocked = decision.targetLockState === 'LOCKED';
+        this.stateMachine.state = decision.targetWorkflowState;
         this.stateMachine.lock();
 
         await this.store.saveTabState(this.activeTabId, this.cachedState);

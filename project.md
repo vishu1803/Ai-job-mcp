@@ -3,6 +3,59 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-17*
 
+### PART 79: Canonical Job Identity & State-Transition Authority
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-17  
+**Scope:** Architectural unification of state transitions across the Chrome extension and background scripts by establishing **Canonical Job Identity** (`CanonicalJobIdentity` / `JobIdentityAuthority`) as the single state-transition authority. Eliminated fragmented, ad-hoc guards (`hasAnalysis`, `isWorkflowLocked`, etc.) scattered across event listeners.
+1. **CanonicalJobIdentity Value Object (`extension/lib/job-identity-authority.js`):**
+   - Implemented immutable `CanonicalJobIdentity` value object encapsulating `canonicalJobId`, `provider`, `externalJobId`, `title`, `company`, `url`, `normalizedUrl`, `location`, `workplace`, `employmentType`, and deterministic 64-character SHA-256 `fingerprint`.
+   - Normalizes query parameters, strips tracking tokens, sanitizes placeholder strings, and provides semantic identity equality checking via `.isSameAs(other)` and validity verification via `.isValid()`.
+2. **JobIdentityAuthority State-Transition Engine (`extension/lib/job-identity-authority.js`):**
+   - Implemented single state-transition authority governing all lifecycle events:
+     - `SIGNAL_TYPES`: `DETECTION_RESULT`, `TAB_RELOAD`, `TAB_SWITCH`, `EXPLICIT_RESCAN`, `HYDRATE_DESCRIPTION`, `FORM_DETECTED`, `ANALYZE_COMPLETE`, `HANDOFF_PREPARED`, `USER_RESET`, `TRANSPORT_ERROR`.
+     - `TRANSITION_ACTIONS`:
+       - `RETAIN_AND_ENRICH`: Same job re-detection or analysis completion. Preserves existing workflow state and ATS analysis; merges updated metadata and descriptions without modifying identity or wiping fields.
+       - `PRESERVE_ACTIVE_SESSION`: Transport timeouts, connection interruptions, or passive non-job signals while high-investment workflows (analysis or prepared application) exist. Guarantees zero regression or false reset.
+       - `QUEUE_PENDING_JOB`: Different job detected while active workflow is in progress. Preserves active session and queues new role non-destructively in calm notification banner.
+       - `BIND_NEW_JOB`: Initial canonical job bound to an IDLE workflow.
+       - `SWITCH_JOB`: Candidate explicitly commands a switch (e.g. manual rescan) to a new role.
+       - `EXPLICIT_CLEAR`: Explicit user reset or explicit rescan of a confirmed non-job page.
+3. **SidebarController Integration (`extension/sidebar/sidebar.js`):**
+   - Replaced fragmented inline if-else chains in `_requestDetectionFromTab()`, `_reconcileDetectedJob()`, `runAnalyzeJob()`, and `runPrepareHandoff()` with single call to `JobIdentityAuthority.evaluateTransition(context, signal)`.
+   - Execution strictly honors the returned action and state payload.
+4. **Verification & Live Acceptance:**
+   - Dedicated unit test suite: `tests/unit/p79-canonical-job-identity-authority.test.js` (14/14 PASS).
+   - Full regression test suite: P57 through P79 (`375/375 PASS` across 144 suites, 0 failures, 100% pass rate).
+   - Live acceptance verification in Chrome for Testing on live LinkedIn Job ID `4466834190`:
+     - Initial detection: bound `CanonicalJobIdentity` (`title: "Full Stack Engineer"`, `company: "Jobgether"`).
+     - Explicit Analyze Match: executed `RETAIN_AND_ENRICH`; verified title invariance before, during, and after analysis (`score: 25`, `matchBand: LOW`).
+     - Passive non-job signal: verified `PRESERVE_ACTIVE_SESSION` immunity without title regression.
+     - Explicit rescan: verified `RETAIN_AND_ENRICH` idempotency.
+     - 3 visual proof screenshots saved: `p79-01-live-detected.png`, `p79-02-live-analyzed.png`, `p79-03-live-rescanned.png`.
+5. **Security Audit:**
+   - Secrets scanner passed with zero exposed secrets or tokens.
+
+**Files Changed / Created:**
+- `extension/lib/job-identity-authority.js` [NEW]: Implemented `CanonicalJobIdentity` value object and `JobIdentityAuthority` state-transition engine.
+- `extension/lib/job-identity.js` [MODIFIED]: Re-exported `CanonicalJobIdentity`, `JobIdentityAuthority`, `TRANSITION_ACTIONS`, and `SIGNAL_TYPES`.
+- `extension/sidebar/sidebar.js` [MODIFIED]: Refactored all transition handling to execute decisions from `JobIdentityAuthority`.
+- `tests/unit/p79-canonical-job-identity-authority.test.js` [NEW]: Unit test suite covering value object hashing, authority transitions, and sidebar lifecycle integration (14 tests).
+- `scripts/verify-p79-live-canonical-identity.mjs` [NEW]: Real Chrome for Testing CDP verification script for live LinkedIn job analysis, passive immunity, and rescan.
+- `project.md` [MODIFIED]: Recorded execution ledger and verification evidence.
+
+**Verification Evidence:**
+- P79 Unit Tests (`node --test tests/unit/p79-canonical-job-identity-authority.test.js`): **14/14 PASS (100% pass rate)**
+- Full P57–P79 Regression Suite (`node --test tests/unit/p5[7-9]*.test.js tests/unit/p6*.test.js tests/unit/p7*.test.js`): **375/375 PASS across 144 suites (0 failures, 100% pass rate)**
+- Real Chrome for Testing Live Acceptance Test (`scripts/verify-p79-live-canonical-identity.mjs`): **PASS (Initial detection, analyze match with title invariance, passive non-job immunity, and explicit rescan verified)**
+- Visual Evidence Screenshots:
+  - `p79-01-live-detected.png`
+  - `p79-02-live-analyzed.png`
+  - `p79-03-live-rescanned.png`
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+
+---
+
 ### PART 78: Post-Analysis Title Preservation & Passive Detection Protection
 
 **Status:** COMPLETE & VERIFIED  
