@@ -11322,4 +11322,86 @@ Candidate source data is strictly immutable. No synthetic metrics, uncorroborate
   - `p70-05-live-career-portals.png`
   - `p70-06-live-description-hydration-contract.png`
 
+### PART 81: Fix Live LinkedIn Title Extraction False Positive
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-17  
+**Target Live Posting:** `https://www.linkedin.com/jobs/view/4465164301/` (Full Stack Developer at Triveous)  
+**Target Main SHA:** Working Tree on `main`  
+
+**Problem & Production Symptom:**
+On live LinkedIn job `https://www.linkedin.com/jobs/view/4465164301/`, the Chrome Side Panel erroneously displayed:
+```
+Current Job
+Use AI to assess how you fit
+Triveous
+```
+`"Use AI to assess how you fit"` is LinkedIn Premium/AI-match promotional copy, not the authentic job title (`"Full Stack Developer"`). The company (`"Triveous"`) was correctly extracted.
+
+**Strict Scope Boundaries:**
+- Only the LinkedIn adapter extraction layer (`extension/job-detection/adapters/linkedin.adapter.js`) was modified.
+- No modifications were made to:
+  - canonical job identity primitives (`extension/lib/job-identity.js`, `extension/lib/job-identity-authority.js`)
+  - P80 identity logic
+  - workflow locking
+  - durable workflow state
+  - sidebar layout
+  - PDF/resume rendering
+  - backend analysis contracts
+  - generic job detection architecture
+- No literal hardcoded blacklist strings were used (e.g. `title === "Use AI to assess how you fit"`). All rules are structural and linguistic.
+
+**Forensic Live DOM Root Cause:**
+1. Compound selectors in `EXPLICIT_JOB_TITLE_SELECTORS` (such as `[data-testid="lazy-column"] h2` and `h2.t-24`) matched the AI match widget (`<h2 class="t-16">Use AI to assess how you fit</h2>`) inside `[data-testid="lazy-column"]`.
+2. Inside `extract()`, `root.querySelector('[data-testid="lazy-column"] h2')` failed because `root` was `[data-testid="lazy-column"]` itself, which triggered a broad fallback query across `doc.querySelector` that matched the first `h2` in the AI fit card.
+3. Disjoint extraction occurred because the title was pulled from an AI recommendation card while the company was pulled from the top card entity info.
+4. Linguistic validation gap: `isValidLinkedInTitleCandidate` lacked linguistic noun-phrase validation to reject promotional action/sentence headings containing second-person pronouns (`you`, `your`), conversational phrasing, or imperative verbs (`use`, `try`, `assess`, `get`, `see`).
+
+**Core Architectural Implementations:**
+1. **Pruned Broad & Compound Selectors (`extension/job-detection/adapters/linkedin.adapter.js`):**
+   - Pruned compound and broad heading selectors (`[data-testid="lazy-column"] h2`, `h2.t-24`) from `EXPLICIT_JOB_TITLE_SELECTORS`.
+   - Preserved explicit top card selectors (`h1.top-card-layout__title`, `h1.job-details-jobs-unified-top-card__job-title`, `.jobs-unified-top-card__job-title`, `.topcard__title`, `h1.job-title`, `h2.job-title`, `[class*="job-title" i]`).
+2. **Expanded Non-Job Promotional Containers (`NON_JOB_CONTAINER_SELECTORS`):**
+   - Added: `[class*="ai-match" i]`, `[class*="ai_match" i]`, `[class*="ai-assessment" i]`, `[class*="fit-assessment" i]`, `[class*="job-match" i]`, `[class*="preference-match" i]`, `[class*="related-jobs" i]`, `[class*="related_jobs" i]`, `[data-view-name*="premium" i]`, `[data-view-name*="upsell" i]`, `[data-view-name*="recommend" i]`, `[data-view-name*="match" i]`, `[data-testid*="premium" i]`, `[data-testid*="upsell" i]`, `[data-testid*="recommend" i]`, `[data-testid*="match" i]`.
+3. **Linguistic Title Validation (`isValidTitleString`):**
+   - Enforces length bounds: 2 to 100 characters, maximum 12 words.
+   - Rejects sentence terminal punctuation: `[.?!]`.
+   - Rejects second-person pronouns: `\b(you|your|yours|yourself)\b`.
+   - Rejects conversational first-person plural pronouns: `\b(we|our|us)\b`.
+   - Rejects imperative UI action verbs: `^(use|try|assess|get|see|take|meet|connect|learn|join|discover|find|explore|view|read|apply|unlock|boost|grow|enhance|maximize|compare|calculate|request|start|build|create)\b`.
+   - Rejects UI navigation/question clause phrases: `\b(how you fit|how to apply|who you are|what we offer|people also viewed|similar jobs|about the job|job details)\b`.
+   - Rejects auth pages: `\b(log in|sign in|sign up|join linkedin|linkedin)\b`.
+4. **Header Region & Company Pairing:**
+   - In `LinkedInAdapter.extract(doc, url)`, identifies `headerRegion` containing `companyEl`.
+   - Priority 1: Searches for explicit job title selectors inside `headerRegion`.
+   - Priority 2: Evaluates candidate headings (`h1, h2, h3`) strictly inside `headerRegion`.
+   - Priority 3: Searches within active `root` using explicit selectors. Strictly NEVER queries `doc` when `root` exists.
+   - Priority 4: Standalone un-rooted fallback.
+   - Gated `JSON-LD` and `document.title` fallbacks with `isValidTitleString`.
+5. **Fail-Closed Safety:**
+   - If no valid title candidate satisfies `isValidLinkedInTitleCandidate` and `isValidTitleString`, falls closed to `title: 'Untitled Role'` with `isReady: false` and `titleSelectorUsed: 'NONE'`. Hallucinated or promotional headings are strictly barred.
+
+**Verification & Evidence:**
+- **Unit Test Suite (`tests/unit/p81-linkedin-title-extraction-fix.test.js`)**: **14/14 PASS (100%)**
+  1. Unit checks on `isValidTitleString`: rejects promotional copy, navigation headings, conversational pronouns; accepts authentic titles.
+  2. Live LinkedIn 4465164301 (Triveous) DOM fixture: extracts `"Full Stack Developer"` and `"Triveous"`, strictly suppresses `"Use AI to assess how you fit"`.
+  3. Heading order invariance: authentic title inside header wins regardless of AI widget DOM order.
+  4. Promotional headings suppression: rejects `"Take the next step in your job search"`, `"Similar jobs"`, `"People also viewed"`.
+  5. Non-job surfaces: feed, profile, and empty search list return `isConfident = false`.
+  6. Existing layouts compatibility: public top-card and `document.title` fallbacks remain fully functional.
+  7. Fail closed: invalid/promotional-only headings result in `Untitled Role` and `isReady = false`.
+- **Full Regression Suite (`tests/unit/p7*.test.js`, `tests/unit/p8*.test.js`)**: **219/219 PASS across 87 suites (100%)**
+- **Secrets Audit (`npm run scan:secrets`)**: **Zero exposed secrets detected (100% PASS)**
+- **Real Chrome Live CDP Acceptance (`scripts/verify-p81-live-linkedin-title.mjs`)**: **100% PASS across all live verification steps**
+  - **Live Extraction:** Target URL `https://www.linkedin.com/jobs/view/4465164301/` extracted `Full Stack Developer` and `Triveous` in authentic Chrome Side Panel. Zero promotional copy.
+  - **Live AI-Fit Widget Stress:** Injected `<h2>Use AI to assess how you fit</h2>` into active live DOM and clicked `#rescanBtn`. Side Panel firmly maintained `Full Stack Developer` and `Triveous`.
+  - **Page Reload:** Executed `Page.reload` on live tab. Extraction persisted cleanly as `Full Stack Developer` and `Triveous`.
+  - **Tab Switching:** Switched to Tab B (Quik Hire 4466448213 -> `Backend Software Engineer (Remote)` at `Quik Hire Staffing`), then switched back to Tab A (Triveous 4465164301). Side Panel restored `Full Stack Developer` and `Triveous` without regressions.
+  - **Visual Artifacts:**
+    - `p81-live-sidepanel-initial.png`: Verified authentic initial rendering.
+    - `p81-live-sidepanel-ai-widget-rescan.png`: Verified resistance against live AI-fit widget heading.
+    - `p81-live-sidepanel-after-reload.png`: Verified reload persistence.
+    - `p81-live-sidepanel-tab-switch.png`: Verified tab transition isolation.
+
+
 

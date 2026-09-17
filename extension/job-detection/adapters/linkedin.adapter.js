@@ -53,30 +53,16 @@ export const EXPLICIT_JOB_TITLE_SELECTORS = [
   '.top-card-layout h1',
   '.topcard h1',
   '.top-card-layout__entity-info h1',
-  '[data-view-name="job-details"] h1.t-24',
-  '[data-view-name="job-details"] h2.t-24',
-  '.jobs-details__main-content h1.t-24',
-  '.jobs-details__main-content h2.t-24',
-  '[data-view-name="job-details"] h1',
-  '[data-view-name="job-details"] h2',
-  '.jobs-details__main-content h1',
-  '.jobs-details__main-content h2',
-  '.jobs-search__job-details h1',
-  '.jobs-search__job-details h2',
-  '.job-view-layout h1',
-  '.job-view-layout h2',
-  '[data-testid="lazy-column"] h1',
-  '[data-testid="lazy-column"] h2',
-  '[data-view-name="job-details"] [class*="job-title" i]',
-  '.jobs-details__main-content [class*="job-title" i]',
-  '.jobs-search__job-details [class*="job-title" i]',
-  '.job-view-layout [class*="job-title" i]',
-  '[data-testid="lazy-column"] [class*="job-title" i]',
-  'h1.t-24',
-  'h2.t-24',
+  'h1[class*="top-card-layout__title"]',
+  'h1[class*="topcard__title"]',
   '[class*="job-details-jobs-unified-top-card__title" i]',
   '[class*="jobs-unified-top-card__title" i]',
   '[class*="topcard__title" i]',
+  'h1.job-title',
+  'h2.job-title',
+  '.job-title',
+  'h1[class*="job-title" i]',
+  'h2[class*="job-title" i]',
   '[class*="job-title" i]',
 ];
 
@@ -89,6 +75,7 @@ export const NON_JOB_CONTAINER_SELECTORS = [
   '[class*="people_also" i]',
   '[class*="modal" i]',
   '[class*="dialog" i]',
+  '[role="dialog"]',
   '[class*="sign-in" i]',
   '[class*="signin" i]',
   '[class*="upsell" i]',
@@ -102,6 +89,22 @@ export const NON_JOB_CONTAINER_SELECTORS = [
   'header.global-nav',
   'footer',
   '[role="navigation"]',
+  '[class*="ai-match" i]',
+  '[class*="ai_match" i]',
+  '[class*="ai-assessment" i]',
+  '[class*="fit-assessment" i]',
+  '[class*="job-match" i]',
+  '[class*="preference-match" i]',
+  '[class*="related-jobs" i]',
+  '[class*="related_jobs" i]',
+  '[data-view-name*="premium" i]',
+  '[data-view-name*="upsell" i]',
+  '[data-view-name*="recommend" i]',
+  '[data-view-name*="match" i]',
+  '[data-testid*="premium" i]',
+  '[data-testid*="upsell" i]',
+  '[data-testid*="recommend" i]',
+  '[data-testid*="match" i]',
 ];
 
 /**
@@ -137,25 +140,101 @@ export function isElementAfter(el, referenceEl) {
 }
 
 /**
+ * Evaluates whether a string structurally represents a concrete job title
+ * rather than a UI action sentence, marketing banner, question, or navigation item.
+ *
+ * @param {string} str
+ * @returns {boolean}
+ */
+export function isValidTitleString(str) {
+  if (!str || typeof str !== 'string') return false;
+  const s = str.trim().replace(/\s+/g, ' ');
+  if (s.length < 2 || s.length > 100) return false;
+
+  const lower = s.toLowerCase();
+  if (
+    lower === 'untitled role' ||
+    lower === 'linkedin' ||
+    lower === 'jobs' ||
+    lower === 'job details' ||
+    lower === 'about the job' ||
+    lower === 'about the role' ||
+    lower === 'about the company' ||
+    lower === 'similar jobs' ||
+    lower === 'similar searches' ||
+    lower === 'people also viewed' ||
+    lower === 'meet the hiring team' ||
+    lower === 'how you match' ||
+    lower === 'how you fit'
+  ) {
+    return false;
+  }
+
+  // E1. Sentence termination punctuation (job titles never end with sentence terminals)
+  if (/[.?!:]$/.test(s)) {
+    return false;
+  }
+
+  // E2. Word count check (concise noun field, not full sentence or paragraph)
+  const words = s.split(/\s+/);
+  if (words.length > 12) {
+    return false;
+  }
+
+  // E3. Conversational second-person and collective pronouns
+  // Job titles never address the candidate with "you", "your", "yours", "yourself", "we", "our", "us"
+  if (/\b(you|your|yours|yourself)\b/i.test(s)) {
+    return false;
+  }
+  if (/\b(we|our|us)\b/i.test(s)) {
+    return false;
+  }
+
+  // E4. Imperative UI action verbs at start of heading
+  // e.g. "Use AI to assess...", "Take the next step...", "Get personalized tips...", "Meet the team...", "Connect with..."
+  const UI_ACTION_VERBS = /^(use|try|assess|get|see|take|meet|connect|learn|explore|discover|unlock|upgrade|find|join|apply|save|share|view|tell|ask|check|sign|log)\s+/i;
+  if (UI_ACTION_VERBS.test(s)) {
+    return false;
+  }
+
+  // E5. Conversational / question clause starters
+  // e.g. "how you fit", "how to apply", "why join", "what we offer", "who you are"
+  if (/\b(how|why|what|where|when|who)\s+(you|we|to|can|do|is|are)\b/i.test(s)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Validates whether a candidate heading or title element belongs to the authentic active job context.
  * Rejects elements inside marketing/upsell sections, lower recommendation sections, modals,
- * and elements positioned below the job description.
+ * elements positioned below the job description, elements outside the active job header,
+ * and conversational UI / sentence / action headings.
  *
  * @param {Element|null} titleEl
  * @param {Element|null} root
  * @param {Document|null} doc
  * @param {Element|null} [companyEl]
+ * @param {Element|null} [headerRegion]
  * @returns {boolean}
  */
-export function isValidLinkedInTitleCandidate(titleEl, root, doc, companyEl = null) {
+export function isValidLinkedInTitleCandidate(titleEl, root = null, doc = null, companyEl = null, headerRegion = null) {
   if (!titleEl) return false;
-  const text = (titleEl.textContent || '').trim().replace(/\s+/g, ' ');
-  if (!text || text.length < 2) return false;
+  const rawText = (titleEl.textContent || '').trim();
+  const text = rawText.replace(/\s+/g, ' ');
 
-  const lower = text.toLowerCase();
-  if (lower === 'untitled role' || lower === 'linkedin') return false;
+  // E. Candidate represents a concise job-title field rather than a UI sentence/action heading
+  if (!isValidTitleString(text)) {
+    return false;
+  }
 
-  // 1. Structural context: reject if titleEl is inside an obvious non-job section
+  // A. Scoped to active job root (if root is provided)
+  if (root && typeof root.contains === 'function' && !root.contains(titleEl)) {
+    return false;
+  }
+
+  // D. Structural context: reject if titleEl is inside an obvious non-job section
   if (typeof titleEl.closest === 'function') {
     for (const sel of NON_JOB_CONTAINER_SELECTORS) {
       try {
@@ -166,7 +245,7 @@ export function isValidLinkedInTitleCandidate(titleEl, root, doc, companyEl = nu
     }
   }
 
-  // 2. Reject if titleEl is located BELOW the job description container
+  // C. Reject if titleEl is located BELOW the job description container
   const descSelectors = [
     '#job-details',
     '.jobs-description__content',
@@ -174,6 +253,9 @@ export function isValidLinkedInTitleCandidate(titleEl, root, doc, companyEl = nu
     '.jobs-box__html-content',
     '.jobs-description',
     'article.jobs-description__container',
+    '[data-job-description]',
+    '.description__text',
+    'article',
   ];
   let descEl = null;
   const searchScope = root || doc;
@@ -197,7 +279,7 @@ export function isValidLinkedInTitleCandidate(titleEl, root, doc, companyEl = nu
     }
   }
 
-  // 3. Company/Title Pair Validation (Prompt Section 5)
+  // B. Company/Title Pair Validation: Must belong to the same header region as company
   if (companyEl) {
     const topCardSelectors = [
       '.job-details-jobs-unified-top-card',
@@ -205,18 +287,35 @@ export function isValidLinkedInTitleCandidate(titleEl, root, doc, companyEl = nu
       '.top-card-layout',
       '.topcard',
       '.top-card-layout__entity-info',
+      '.top-card-layout__card',
+      '[class*="top-card" i]',
+      '[class*="topcard" i]',
+      'header',
     ];
-    let topCard = null;
-    const tcScope = root || doc;
-    if (tcScope && typeof tcScope.querySelector === 'function') {
+    let topCard = headerRegion;
+    if (!topCard && typeof companyEl.closest === 'function') {
       for (const tcSel of topCardSelectors) {
         try {
-          const found = tcScope.querySelector(tcSel);
+          const found = companyEl.closest(tcSel);
           if (found) {
             topCard = found;
             break;
           }
         } catch {}
+      }
+    }
+    if (!topCard) {
+      const tcScope = root || doc;
+      if (tcScope && typeof tcScope.querySelector === 'function') {
+        for (const tcSel of topCardSelectors) {
+          try {
+            const found = tcScope.querySelector(tcSel);
+            if (found && typeof found.contains === 'function' && found.contains(companyEl)) {
+              topCard = found;
+              break;
+            }
+          } catch {}
+        }
       }
     }
     if (topCard && typeof topCard.contains === 'function') {
@@ -277,7 +376,8 @@ export function findActiveLinkedInJobRoot(doc) {
     if (!el || typeof el.querySelector !== 'function') return false;
     for (const sel of EXPLICIT_JOB_TITLE_SELECTORS) {
       try {
-        if (el.querySelector(sel)) return true;
+        const found = el.querySelector(sel);
+        if (found && isValidLinkedInTitleCandidate(found, el, doc)) return true;
       } catch {}
     }
     // Also check if el contains a verified top card with an h1 or h2
@@ -291,7 +391,12 @@ export function findActiveLinkedInJobRoot(doc) {
     for (const tcSel of topCardSelectors) {
       try {
         const topCard = el.querySelector(tcSel);
-        if (topCard && (topCard.querySelector('h1') || topCard.querySelector('h2'))) return true;
+        if (topCard) {
+          const headings = topCard.querySelectorAll('h1, h2');
+          for (const h of headings) {
+            if (isValidLinkedInTitleCandidate(h, el, doc)) return true;
+          }
+        }
       } catch {}
     }
     return false;
@@ -956,6 +1061,7 @@ export class LinkedInAdapter {
   static deriveJobRootSource = deriveJobRootSource;
   static EXPLICIT_JOB_TITLE_SELECTORS = EXPLICIT_JOB_TITLE_SELECTORS;
   static isValidLinkedInTitleCandidate = isValidLinkedInTitleCandidate;
+  static isValidTitleString = isValidTitleString;
 
   /**
    * Determines whether this adapter can handle the given page.
@@ -1126,52 +1232,99 @@ export class LinkedInAdapter {
       } catch {}
     }
 
-    // Title extraction (P74):
-    // Priority 1: Explicit job-title selectors checked in active root first
-    const titleScope = root || doc;
+    // Title extraction (P74 / P81):
+    // 1. Identify active job header region containing company
+    const topCardSelectors = [
+      '.job-details-jobs-unified-top-card',
+      '.jobs-unified-top-card',
+      '.top-card-layout',
+      '.topcard',
+      '.top-card-layout__entity-info',
+      '.top-card-layout__card',
+      '[class*="top-card" i]',
+      '[class*="topcard" i]',
+    ];
+
+    let headerRegion = null;
+    if (companyEl && typeof companyEl.closest === 'function') {
+      for (const tcSel of topCardSelectors) {
+        try {
+          const found = companyEl.closest(tcSel);
+          if (found && (!root || (typeof root.contains === 'function' && root.contains(found)))) {
+            headerRegion = found;
+            break;
+          }
+        } catch {}
+      }
+    }
+
+    if (!headerRegion && (root || doc)) {
+      const scope = root || doc;
+      for (const tcSel of topCardSelectors) {
+        try {
+          const found = scope.querySelector(tcSel);
+          if (found) {
+            headerRegion = found;
+            break;
+          }
+        } catch {}
+      }
+    }
+
     let titleEl = null;
     let titleSelectorUsed = null;
 
-    for (const sel of EXPLICIT_JOB_TITLE_SELECTORS) {
-      try {
-        let el = titleScope?.querySelector?.(sel);
-        if (!el && doc && doc !== titleScope) {
-          el = doc.querySelector(sel);
-        }
-        if (el && isValidLinkedInTitleCandidate(el, root, doc, companyEl)) {
-          titleEl = el;
-          titleSelectorUsed = sel;
-          break;
-        }
-      } catch {}
-    }
-
-    // Priority 2: Generic heading fallback ONLY inside a verified active job top card
-    if (!titleEl) {
-      const topCardSelectors = [
-        '.job-details-jobs-unified-top-card',
-        '.jobs-unified-top-card',
-        '.top-card-layout',
-        '.topcard',
-        '.top-card-layout__entity-info',
-      ];
-      let topCard = null;
-      for (const tcSel of topCardSelectors) {
+    // Priority 1: Inside headerRegion with EXPLICIT_JOB_TITLE_SELECTORS
+    if (headerRegion && typeof headerRegion.querySelector === 'function') {
+      for (const sel of EXPLICIT_JOB_TITLE_SELECTORS) {
         try {
-          topCard = titleScope?.querySelector?.(tcSel) || (doc && doc !== titleScope ? doc.querySelector(tcSel) : null);
-          if (topCard) break;
+          const el = headerRegion.querySelector(sel);
+          if (el && isValidLinkedInTitleCandidate(el, root, doc, companyEl, headerRegion)) {
+            titleEl = el;
+            titleSelectorUsed = sel;
+            break;
+          }
         } catch {}
       }
 
-      if (topCard && typeof topCard.querySelectorAll === 'function') {
-        const candidateHeadings = topCard.querySelectorAll('h1, h2, h3');
+      // Priority 2: Generic heading fallback ONLY inside verified active job header
+      if (!titleEl && typeof headerRegion.querySelectorAll === 'function') {
+        const candidateHeadings = headerRegion.querySelectorAll('h1, h2, h3');
         for (const h of candidateHeadings) {
-          if (isValidLinkedInTitleCandidate(h, root, doc, companyEl)) {
+          if (isValidLinkedInTitleCandidate(h, root, doc, companyEl, headerRegion)) {
             titleEl = h;
-            titleSelectorUsed = 'topcard:' + h.tagName.toLowerCase();
+            titleSelectorUsed = 'header:' + h.tagName.toLowerCase();
             break;
           }
         }
+      }
+    }
+
+    // Priority 3: Scoped to active root (NEVER doc.querySelector fallback when root exists)
+    if (!titleEl && root && typeof root.querySelector === 'function') {
+      for (const sel of EXPLICIT_JOB_TITLE_SELECTORS) {
+        try {
+          const el = root.querySelector(sel);
+          if (el && isValidLinkedInTitleCandidate(el, root, doc, companyEl, headerRegion)) {
+            titleEl = el;
+            titleSelectorUsed = sel;
+            break;
+          }
+        } catch {}
+      }
+    }
+
+    // Priority 4: Fallback to doc ONLY when root is completely absent (standalone un-rooted page)
+    if (!titleEl && !root && doc && typeof doc.querySelector === 'function') {
+      for (const sel of EXPLICIT_JOB_TITLE_SELECTORS) {
+        try {
+          const el = doc.querySelector(sel);
+          if (el && isValidLinkedInTitleCandidate(el, null, doc, companyEl)) {
+            titleEl = el;
+            titleSelectorUsed = sel;
+            break;
+          }
+        } catch {}
       }
     }
 
@@ -1205,8 +1358,11 @@ export class LinkedInAdapter {
 
     // JSON-LD upfront fallbacks (if title or company is missing)
     if (!title && jsonLd && (jsonLd.title || jsonLd.name)) {
-      title = (jsonLd.title || jsonLd.name).trim();
-      titleSelectorUsed = 'JSON_LD';
+      const cand = (jsonLd.title || jsonLd.name).trim();
+      if (isValidTitleString(cand)) {
+        title = cand;
+        titleSelectorUsed = 'JSON_LD';
+      }
     }
     if ((!company || company === 'Company') && jsonLd?.hiringOrganization?.name) {
       company = jsonLd.hiringOrganization.name.trim();
@@ -1230,7 +1386,7 @@ export class LinkedInAdapter {
         if (pipeParts.length >= 3 && pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')) {
           const candTitle = pipeParts[0];
           const candCompany = pipeParts[1];
-          if (candTitle && candTitle.toLowerCase() !== 'jobs') {
+          if (isValidTitleString(candTitle)) {
             title = candTitle;
             titleSelectorUsed = 'DOCUMENT_TITLE';
             if (!company || company === 'Company') {
@@ -1246,7 +1402,7 @@ export class LinkedInAdapter {
           if (hiringMatch) {
             const candCompany = hiringMatch[1].trim();
             const candTitle = hiringMatch[2].trim();
-            if (candTitle) {
+            if (isValidTitleString(candTitle)) {
               title = candTitle;
               titleSelectorUsed = 'DOCUMENT_TITLE';
               if (!company || company === 'Company') {
@@ -1266,7 +1422,7 @@ export class LinkedInAdapter {
           if (atMatch) {
             const candTitle = atMatch[1].trim();
             const candCompany = atMatch[2].replace(/\s*[\u2014\u2013-]\s*.*$/, '').trim();
-            if (candTitle) {
+            if (isValidTitleString(candTitle)) {
               title = candTitle;
               titleSelectorUsed = 'DOCUMENT_TITLE';
               if (!company || company === 'Company') {
@@ -1285,7 +1441,7 @@ export class LinkedInAdapter {
             if (dashParts.length >= 2) {
               const candTitle = dashParts[0].trim();
               const candCompany = dashParts[1].trim();
-              if (candTitle && candTitle.toLowerCase() !== 'jobs') {
+              if (isValidTitleString(candTitle)) {
                 title = candTitle;
                 titleSelectorUsed = 'DOCUMENT_TITLE';
                 if (!company || company === 'Company') {
@@ -1299,7 +1455,7 @@ export class LinkedInAdapter {
 
         // Pattern 5: Title | LinkedIn (2-part fallback)
         if (!title && pipeParts.length === 2 && pipeParts[pipeParts.length - 1].toLowerCase().includes('linkedin')) {
-          if (pipeParts[0] && pipeParts[0].toLowerCase() !== 'jobs') {
+          if (isValidTitleString(pipeParts[0])) {
             title = pipeParts[0];
             titleSelectorUsed = 'DOCUMENT_TITLE';
           }
