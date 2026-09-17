@@ -84,6 +84,18 @@ export const FitScoreBreakdownSchema = z.strictObject({
     .min(0.0, { message: 'overallScore must be >= 0.0' })
     .max(100.0, { message: 'overallScore cannot exceed 100.0' })
     .nullable(),
+  jobMatchScore: z
+    .number()
+    .min(0.0, { message: 'jobMatchScore must be >= 0.0' })
+    .max(100.0, { message: 'jobMatchScore cannot exceed 100.0' })
+    .nullable()
+    .optional(),
+  atsFitScore: z
+    .number()
+    .min(0.0, { message: 'atsFitScore must be >= 0.0' })
+    .max(100.0, { message: 'atsFitScore cannot exceed 100.0' })
+    .nullable()
+    .optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -125,6 +137,18 @@ export const CandidateJobFitAnalysisSchema = z.strictObject({
     .min(0.0, { message: 'overallScore must be >= 0.0' })
     .max(100.0, { message: 'overallScore cannot exceed 100.0' })
     .nullable(),
+  jobMatchScore: z
+    .number()
+    .min(0.0, { message: 'jobMatchScore must be >= 0.0' })
+    .max(100.0, { message: 'jobMatchScore cannot exceed 100.0' })
+    .nullable()
+    .optional(),
+  atsFitScore: z
+    .number()
+    .min(0.0, { message: 'atsFitScore must be >= 0.0' })
+    .max(100.0, { message: 'atsFitScore cannot exceed 100.0' })
+    .nullable()
+    .optional(),
   fitBand: FitScoreBandEnum,
   scoreBreakdown: FitScoreBreakdownSchema,
   criticalGapCount: z.number().int().nonnegative(),

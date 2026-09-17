@@ -180,6 +180,8 @@ export class AtsFitScoreService {
         rawScore: 0.0,
         scoreCap: null,
         overallScore: null,
+        jobMatchScore: null,
+        atsFitScore: null,
       };
 
       const zeroWarning =
@@ -193,6 +195,8 @@ export class AtsFitScoreService {
         isFallbackScore: false,
         zeroRequirementWarning: zeroWarning,
         overallScore: null,
+        jobMatchScore: null,
+        atsFitScore: null,
         fitBand: 'INSUFFICIENT_DATA',
         scoreBreakdown: zeroBreakdown,
         criticalGapCount: 0,
@@ -251,7 +255,7 @@ export class AtsFitScoreService {
             valueFactor = 0.5;
           }
         } else if (match.matchStatus === 'UNKNOWN') {
-          valueFactor = 1.0; // Neutral treatment (does not penalize)
+          valueFactor = 0.0; // Rule 23: Unknown skill means insufficient evidence; never silently award full credit
         } else if (match.matchStatus === 'MISSING') {
           valueFactor = 0.0;
         }
@@ -299,7 +303,7 @@ export class AtsFitScoreService {
             valueFactor = 0.5;
           }
         } else if (match.matchStatus === 'UNKNOWN') {
-          valueFactor = 1.0;
+          valueFactor = 0.0; // Rule 23: Unknown preferred skill has insufficient evidence
         } else if (match.matchStatus === 'MISSING') {
           valueFactor = 0.0;
         }
@@ -662,6 +666,8 @@ export class AtsFitScoreService {
       isFallbackScore: false,
       zeroRequirementWarning: null,
       overallScore,
+      jobMatchScore: overallScore,
+      atsFitScore: overallScore,
       fitBand,
       scoreBreakdown: {
         requiredSkillsScore,
@@ -674,6 +680,8 @@ export class AtsFitScoreService {
         rawScore,
         scoreCap,
         overallScore,
+        jobMatchScore: overallScore,
+        atsFitScore: overallScore,
       },
       criticalGapCount,
       highGapCount,
@@ -695,3 +703,5 @@ export class AtsFitScoreService {
  * Top-level functional export alias.
  */
 export const calculateCandidateJobFit = AtsFitScoreService.calculateCandidateJobFit;
+export const calculateJobMatchScore = AtsFitScoreService.calculateCandidateJobFit;
+export const JobMatchScoreService = AtsFitScoreService;

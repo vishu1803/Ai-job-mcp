@@ -116,7 +116,10 @@ export class ResumeClaimValidationService {
     }
 
     const text = String(claim.text || '').trim();
-    const factIds = Array.isArray(claim.factIds) ? claim.factIds : [];
+    const factIds =
+      Array.isArray(claim.factIds) && claim.factIds.length > 0
+        ? claim.factIds
+        : (Array.isArray(claim.composedFromFactIds) ? claim.composedFromFactIds : []);
     const factInventory = context.factInventory;
 
     // Index facts for rapid lookup

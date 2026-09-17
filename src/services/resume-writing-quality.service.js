@@ -62,11 +62,11 @@ const STRONG_ACTION_VERBS = new Set([
 ]);
 
 const WEAK_VERB_PATTERNS = [
-  /\b(worked on|helped with|responsible for|assisted with|handled|contributed to|involved in|did|made)\b/i,
+  /\b(worked on|helped with|responsible for|assisted with|handled|contributed to|involved in|did|made|tasked with|participated in)\b/i,
 ];
 
 const GENERIC_CLICHE_PATTERNS = [
-  /\b(results?-driven|detail-oriented|team player|hard-working|hard working|fast learner|go-getter|outside the box|synerg\w+|thought leader|passionate developer|self-starter|dynamic professional)\b/i,
+  /\b(results?-driven|detail-oriented|team player|hard-working|hard working|fast learner|go-getter|outside the box|synerg\w+|thought leader|passionate developer|self-starter|dynamic professional|dynamic|highly motivated|passionate|cutting-edge|innovative|world-class|seamless)\b/i,
 ];
 
 const PASSIVE_VOICE_PATTERNS = [
@@ -341,7 +341,7 @@ export function evaluateResumeWritingQuality({
   // 5. Authentic Metric Usage
   // INVARIANT: Do NOT penalize a candidate merely because they lack metrics. Reward authentic metrics only when available.
   const METRIC_PATTERN =
-    /\b(\d+(?:\.\d+)?%|\d+ms|\d+x|\d+\+?\s*(?:users|qps|rps|requests|queries|stars|commits))\b/i;
+    /\b\d+[\d,]*(?:\.\d+)?%|\b\d+[\d,]*(?:\s*(?:ms|x|qps|rps|users|queries|stars|commits|requests(?:\/sec)?))\b/i;
   let bulletsWithMetrics = 0;
   for (const b of allBullets) {
     if (METRIC_PATTERN.test(b.text)) bulletsWithMetrics++;
@@ -435,15 +435,40 @@ export function evaluateResumeWritingQuality({
   }
   const passiveVoiceScore = Math.max(20, 100 - passiveCount * 25);
 
-  // 9. Verbosity & Conciseness
+  // 9. Verbosity, Sentence Completeness & Fragments
   let tooLong = 0;
   let tooShort = 0;
+  let fragmentCount = 0;
+  let excessiveLengthCount = 0;
   for (const b of allBullets) {
-    const len = b.text.length;
-    if (len > 240) tooLong++;
-    if (len < 35) tooShort++;
+    const textTrimmed = b.text.trim();
+    const len = textTrimmed.length;
+    const wordCount = textTrimmed.split(/\s+/).length;
+    if (len > 240 || wordCount > 35) {
+      tooLong++;
+      excessiveLengthCount++;
+    }
+    if (len < 35 || wordCount < 6) tooShort++;
+    // Sentence fragment detection: lacks end punctuation
+    if (!/[.;!]$/.test(textTrimmed)) {
+      fragmentCount++;
+    }
   }
-  const verbosityScore = Math.max(30, 100 - tooLong * 20 - tooShort * 15);
+  const verbosityScore = Math.max(30, 100 - tooLong * 20 - tooShort * 15 - fragmentCount * 5);
+  if (fragmentCount > 0) {
+    findings.push({
+      code: 'SENTENCE_FRAGMENT',
+      severity: 'WARN',
+      message: `Detected ${fragmentCount} bullet(s) without terminating punctuation (.)`,
+    });
+  }
+  if (excessiveLengthCount > 0) {
+    findings.push({
+      code: 'EXCESSIVE_LENGTH',
+      severity: 'WARN',
+      message: `Detected ${excessiveLengthCount} bullet(s) exceeding recommended length (>35 words)`,
+    });
+  }
 
   // 10. Job Relevance & Evidence-Derived Evaluation
   let jobRelevanceScore = 80;
@@ -498,6 +523,16 @@ export function evaluateResumeWritingQuality({
   const summaryGrounded =
     summaryLength > 40 && summarySentenceCount >= 1 && summarySentenceCount <= 4;
 
+  const quantificationRate =
+    totalBullets > 0 ? Math.round((bulletsWithMetrics / totalBullets) * 1000) / 10 : 0;
+  const quantification = {
+    totalBullets,
+    quantifiedBulletCount: bulletsWithMetrics,
+    verifiedQuantifiedBullets: candidateHasMetrics ? bulletsWithMetrics : 0,
+    quantificationRate,
+    verifiedMetricCount: candidateHasMetrics ? bulletsWithMetrics : 0,
+  };
+
   const dimensions = {
     actionVerbStrength,
     accomplishmentRatio,
@@ -520,6 +555,8 @@ export function evaluateResumeWritingQuality({
     descriptionOnlyRatio,
     candidateContributionRatio,
     narrativeCompleteness,
+    fragmentCount,
+    excessiveLengthCount,
   };
 
   // Weighted composite score
@@ -541,6 +578,7 @@ export function evaluateResumeWritingQuality({
   return {
     writingQualityScore,
     dimensions,
+    quantification,
     findings,
     strengths,
     recommendations,

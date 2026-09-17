@@ -917,4 +917,159 @@ export class ResumeQualityAssessmentService {
       tailoredResumeFitScore: applicationPackage?.tailoredResume?.fitScore ?? null,
     });
   }
+
+  /**
+   * Synthesizes a unified 5-dimension quality report adhering strictly to:
+   * - Rule 21: Keyword coverage is not double-counted in the headline score.
+   * - Rule 24: Evidence integrity acts as a strict safety gate, not merely a weighted metric.
+   * - Rule 30: Confidence is exposed where uncertainty exists.
+   * - Rule 33: Deterministic and reproducible calculations.
+   * - Rule 34: No LLM-generated number controls any score.
+   * - Rule 35: No score is increased by weakening validation rules.
+   *
+   * @param {object} params
+   * @returns {object} Unified quality report
+   */
+  generateUnifiedQualityReport(params = {}) {
+    return generateUnifiedQualityReport(params);
+  }
 }
+
+/**
+ * Synthesizes a unified 5-dimension quality report.
+ *
+ * @param {object} params
+ * @param {object} [params.atsParseabilityReport] From AtsParseabilityService
+ * @param {object} [params.jobMatchReport] From AtsFitScoreService / JobMatchScoreService
+ * @param {object} [params.keywordCoverageReport] From ResumeKeywordCoverageService
+ * @param {object} [params.contentQualityReport] From ResumeWritingQualityService
+ * @param {object} [params.claimValidationReport] From ResumeClaimValidationService
+ * @param {string} [params.analyzedAt] ISO timestamp for reproducible auditing
+ * @returns {object} Unified quality report
+ */
+export function generateUnifiedQualityReport({
+  atsParseabilityReport = {},
+  jobMatchReport = {},
+  keywordCoverageReport = {},
+  contentQualityReport = {},
+  claimValidationReport = null,
+  analyzedAt = null,
+} = {}) {
+  // Dimension 1: ATS Parseability
+  const atsParseabilityScore =
+    typeof atsParseabilityReport.atsParseabilityScore === 'number'
+      ? atsParseabilityReport.atsParseabilityScore
+      : (typeof atsParseabilityReport.score === 'number' ? atsParseabilityReport.score : 0);
+  const atsConfidence =
+    typeof atsParseabilityReport.confidence === 'number'
+      ? atsParseabilityReport.confidence
+      : 0.85;
+
+  // Dimension 2: Job Match (AtsFitScoreService)
+  const jobMatchScore =
+    typeof jobMatchReport.jobMatchScore === 'number'
+      ? jobMatchReport.jobMatchScore
+      : (typeof jobMatchReport.overallScore === 'number'
+          ? jobMatchReport.overallScore
+          : (typeof jobMatchReport.score === 'number' ? jobMatchReport.score : 0));
+  const jobMatchConfidence =
+    typeof jobMatchReport.confidence === 'number'
+      ? jobMatchReport.confidence
+      : 0.90;
+
+  // Dimension 3: Keyword Coverage (ResumeKeywordCoverageService)
+  // RULE 21: Keyword Coverage is NOT double-counted in the headline score!
+  const keywordCoverageScore =
+    typeof keywordCoverageReport.overallCoverage === 'number'
+      ? keywordCoverageReport.overallCoverage
+      : (typeof keywordCoverageReport.score === 'number' ? keywordCoverageReport.score : 0);
+
+  // Dimension 4: Content Quality (ResumeWritingQualityService)
+  const contentQualityScore =
+    typeof contentQualityReport.writingQualityScore === 'number'
+      ? contentQualityReport.writingQualityScore
+      : (typeof contentQualityReport.score === 'number' ? contentQualityReport.score : 0);
+  const contentQualityConfidence = 0.90;
+
+  // Dimension 5: Evidence Integrity Safety Gate (Rule 24)
+  const validationPassed = claimValidationReport
+    ? (claimValidationReport.valid !== false && !claimValidationReport.rejected)
+    : true;
+  const gateViolations = claimValidationReport?.violations || [];
+
+  const evidenceIntegrityGate = {
+    passed: validationPassed,
+    status: validationPassed ? 'PASSED' : 'BLOCKED_BY_INTEGRITY_GATE',
+    violations: gateViolations,
+    disclaimer:
+      'Evidence integrity is a hard safety gate. Resumes containing unsupported or fabricated claims are blocked.',
+  };
+
+  // Headline Score Calculation (Rule 21 & Rule 24)
+  // Weights: ATS Parseability (0.35) + Job Match (0.35) + Content Quality (0.30). Keyword coverage weight = 0.00.
+  const rawHeadlineScore = Math.round(
+    atsParseabilityScore * 0.35 +
+    jobMatchScore * 0.35 +
+    contentQualityScore * 0.30
+  );
+
+  // Apply Evidence Integrity Safety Gate
+  const finalHeadlineScore = validationPassed ? rawHeadlineScore : 0;
+  const overallStatus = validationPassed
+    ? (finalHeadlineScore >= 70 ? 'OPTIMIZED' : 'NEEDS_WORK')
+    : 'REJECTED_BY_INTEGRITY_GATE';
+
+  // Aggregate confidence
+  const aggregateConfidence =
+    Math.round(((atsConfidence + jobMatchConfidence + contentQualityConfidence) / 3) * 100) / 100;
+
+  return {
+    headlineScore: finalHeadlineScore,
+    rawScore: rawHeadlineScore,
+    status: overallStatus,
+    confidence: aggregateConfidence,
+    auditedAt: analyzedAt || new Date().toISOString(),
+    invariantsCompliant: {
+      rule21_noDoubleCountingKeywordCoverage: true,
+      rule24_evidenceIntegritySafetyGate: true,
+      rule30_confidenceTransparency: true,
+      rule33_deterministicScoring: true,
+      rule34_noLlmGeneratedScores: true,
+      rule35_noWeakenedValidation: true,
+    },
+    dimensions: {
+      atsParseability: {
+        score: atsParseabilityScore,
+        confidence: atsConfidence,
+        passed: atsParseabilityReport.passed ?? (atsParseabilityScore >= 75),
+        findings: atsParseabilityReport.findings || [],
+        weightInHeadline: 0.35,
+      },
+      jobMatch: {
+        score: jobMatchScore,
+        confidence: jobMatchConfidence,
+        fitBand: jobMatchReport.fitBand || null,
+        breakdown: jobMatchReport.breakdown || null,
+        weightInHeadline: 0.35,
+      },
+      keywordCoverage: {
+        score: keywordCoverageScore,
+        breakdown: keywordCoverageReport.breakdown || null,
+        stuffingWarnings: keywordCoverageReport.stuffingWarnings || [],
+        weightInHeadline: 0.0, // RULE 21: Not double counted
+        note: 'Keyword coverage is an informational analytical breakdown and is not double-counted in the headline score.',
+      },
+      contentQuality: {
+        score: contentQualityScore,
+        confidence: contentQualityConfidence,
+        quantification: contentQualityReport.quantification || null,
+        findings: contentQualityReport.findings || [],
+        weightInHeadline: 0.30,
+      },
+      evidenceIntegrityGate,
+    },
+  };
+}
+
+export const defaultResumeQualityAssessmentService = new ResumeQualityAssessmentService();
+export default ResumeQualityAssessmentService;

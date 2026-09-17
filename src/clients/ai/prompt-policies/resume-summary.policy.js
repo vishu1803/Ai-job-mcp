@@ -68,7 +68,11 @@ export class ResumeSummaryPolicy extends BasePromptPolicy {
    - Write like an experienced technical writer introducing an engineer based strictly on what they have built.
 
 4. SENIORITY & CANDIDATE ARCHETYPE:
-   - If the candidate is an entry-level or fresher engineer, do NOT describe them as "Senior", "Principal", "Lead", or "Industry Veteran". Describe their technical strengths accurately and objectively.`;
+   - If the candidate is an entry-level or fresher engineer, do NOT describe them as "Senior", "Principal", "Lead", or "Industry Veteran". Describe their technical strengths accurately and objectively.
+
+5. ATS OPTIMIZATION PLAN & DETERMINISTIC SCORING (RULES 28 & 34):
+   - NO KEYWORD STUFFING: Do NOT stuff keywords unnaturally or append comma-separated skill lists into the summary prose. Introduce skills naturally in context.
+   - DETERMINISTIC SCORING COMPLIANCE (RULE 34): You must NEVER output numeric scores, match percentages, ATS ratings, or evaluation numbers. All scoring is computed deterministically by downstream engines.`;
   }
 }
 

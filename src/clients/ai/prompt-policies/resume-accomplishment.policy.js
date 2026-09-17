@@ -89,7 +89,11 @@ export class ResumeAccomplishmentPolicy extends BasePromptPolicy {
 
 5. ACTIVE VOICE & COMPLETE SENTENCES:
    - Every bullet must begin with a strong past-tense engineering action verb (Engineered, Architected, Designed, Implemented, Built, Deployed, Optimized, Scaled, Automated, Configured, Integrated).
-   - Every bullet must terminate with punctuation (.).`;
+   - Every bullet must terminate with punctuation (.).
+
+6. ATS OPTIMIZATION PLAN & DETERMINISTIC SCORING (RULES 28 & 34):
+   - NO KEYWORD STUFFING: Do NOT stuff keywords unnaturally or repeat the same technology tokens repeatedly across multiple bullets. Each technology keyword must appear naturally within concrete engineering mechanisms.
+   - DETERMINISTIC SCORING COMPLIANCE (RULE 34): You must NEVER output numeric scores, match percentages, ATS ratings, or evaluation numbers. All scoring in this platform is computed deterministically by downstream engines. You generate natural, factual engineering text only.`;
   }
 }
 

@@ -324,10 +324,12 @@ export class AtsParseabilityService {
     }, 0);
     const totalPossible = Object.values(ATS_CHECK_WEIGHTS).reduce((a, b) => a + b, 0);
     const atsParseabilityScore = Math.max(0, Math.min(100, Math.round((totalEarned / totalPossible) * 100)));
+    const confidence = pdfBuffer ? 0.95 : (extractedText ? 0.85 : 0.75);
 
     return {
       atsParseabilityScore,
       passed: atsParseabilityScore >= 75 && latexPass && !hasReplacementGlyphs,
+      confidence,
       version: ATS_PARSEABILITY_VERSION,
       checks,
       findings,
@@ -342,6 +344,27 @@ export class AtsParseabilityService {
         fragmentedWordCount: brokenWordMatches.length,
       },
     };
+  }
+
+  /**
+   * Consumes a compiled PDF artifact and its source LaTeX/structure to evaluate
+   * end-to-end ATS parseability without owning or executing PDF generation itself (Rule 25).
+   *
+   * @param {object} params
+   * @param {Buffer} [params.pdfBuffer]
+   * @param {string} [params.extractedText]
+   * @param {string} [params.texContent]
+   * @param {object} [params.structuredResume]
+   * @param {object} [params.candidateProfile]
+   * @returns {object}
+   */
+  evaluateResumePdfRoundTrip(params = {}) {
+    if (!params?.pdfBuffer && !params?.extractedText && !params?.texContent && !params?.structuredResume) {
+      throw new Error(
+        'evaluateResumePdfRoundTrip requires a compiled PDF artifact, extracted text, or LaTeX source (Rule 25).'
+      );
+    }
+    return this.evaluateAtsParseability(params);
   }
 
   /**
@@ -403,4 +426,9 @@ export class AtsParseabilityService {
 }
 
 export const defaultAtsParseabilityService = new AtsParseabilityService();
+
+export function evaluateResumePdfRoundTrip(params) {
+  return defaultAtsParseabilityService.evaluateResumePdfRoundTrip(params);
+}
+
 export default AtsParseabilityService;

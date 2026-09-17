@@ -1,7 +1,83 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-17*
+*Last Updated: 2026-09-18*
+
+### PART 81: Production-Grade ATS Resume Scoring & Optimization Hardening
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-18  
+**Scope:** Hardened the resume/ATS evaluation and optimization system against 15 strict production-grade hardening invariants (Rules 21 through 35), preserving the existing evidence graph, canonical fact inventory, claim planner, claim validation, metric safety, prompt-policy registry, skill taxonomy, and resume composition pipeline without parallel architecture or weakened safety rules.
+1. **Job Match Scoring & Requirement Distinction (Rules 22, 23 & 33):**
+   - Added `jobMatchScore` and `atsFitScore` alias to `FitScoreBreakdownSchema` and `CandidateJobFitAnalysisSchema`.
+   - Exclusively mapped technical requirements into `VERIFIED_MATCH`, `PARTIAL_MATCH`, `UNKNOWN`, and `MISSING`.
+   - Strictly enforced Rule 23: `UNKNOWN` technical skills receive 0.0 credit (`valueFactor = 0.0`), never full credit.
+   - Enforced Rule 22: `UNKNOWN` (insufficient evidence) is explicitly distinct from `MISSING` (absent from candidate profile).
+   - Exported `JobMatchScoreService` and `calculateJobMatchScore`.
+2. **Taxonomy-Aware Keyword Coverage Engine (Rules 21, 27, 28):**
+   - Created `src/domain/career/resume-keyword-coverage.schemas.js` and `src/services/resume-keyword-coverage.service.js`.
+   - Integrated with `SkillTaxonomyEngine` to classify matches into 5 strict types: `EXACT`, `TAXONOMY_EQUIVALENT`, `RELATED`, `MISSING`, `UNSUPPORTED_CANDIDATE`.
+   - Enforced Rule 27: `RELATED` semantic matches cannot satisfy exact required technologies (e.g. relational DB / SQL cannot satisfy exact required PostgreSQL).
+   - Implemented multi-section keyword placement tracking across Summary, Skills, Experience, and Projects.
+   - Implemented explainable heuristic keyword stuffing detection (density scores and repetition tracking).
+   - Guaranteed Rule 21: Keyword Coverage score has 0.0 weight in the headline optimization score and is reported as an analytical breakdown to eliminate double-counting.
+3. **Content Quality & Measurable Content Engine (Rule 29):**
+   - Extended `src/services/resume-writing-quality.service.js` with detection of all specified weak verb openers (`worked on`, `responsible for`, `assisted with`, `participated in`, `involved in`, `tasked with`), corporate clichés (`dynamic`, `highly motivated`, `results-driven`, `passionate`, `cutting-edge`, `innovative`, `world-class`, `seamless`), fragments, and excessive bullet length (>35 words).
+   - Fixed regex boundary handling for percentages and rates (`35%`, `15,000 requests/sec`).
+   - Added quantification breakdown (`totalBullets`, `quantifiedBulletCount`, `verifiedQuantifiedBullets`, `quantificationRate`, `verifiedMetricCount`) without penalizing candidates who lack authentic metrics in source evidence.
+   - Enforced Rule 29: Content-quality signals are surfaced as informative `WARN` findings rather than arbitrary ATS failures.
+4. **ATS Parseability Engine & PDF Round-Trip (Rules 25 & 30):**
+   - Hardened `AtsParseabilityService` in `src/services/resume-ats-parseability.service.js` to consume compiled PDF binary artifacts / extracted text without owning or invoking PDF generation (Rule 25).
+   - Implemented and exported `evaluateResumePdfRoundTrip`.
+   - Added transparent confidence scoring on all parseability reports based on artifact input fidelity (0.95 for PDF buffer, 0.85 for extracted text, 0.75 for derived text) adhering to Rule 30.
+5. **Structured ATS Plan in AI Prompt Policies (Rules 28 & 34):**
+   - Injected `<ats_optimization_plan>` constraints into `ResumeAccomplishmentPolicy` and `ResumeSummaryPolicy`.
+   - Enforced accomplishment structure: `[ACTION] + [ENGINEERING OBJECT] + [TECHNICAL METHOD] + [VERIFIED PURPOSE/OUTCOME]`.
+   - Prohibited keyword stuffing across synthesized bullets.
+   - Enforced Rule 34: LLM prompts explicitly prohibit generating numeric fit scores, percentages, or ratings; all scores are computed exclusively by downstream deterministic engines.
+6. **Safe Optimization Loop & Unified Quality Report (Rules 21, 24, 26, 30, 31, 33, 35):**
+   - Extended `ResumeClaimValidationService` to support both `factIds` and `composedFromFactIds`.
+   - Enforced Rule 26: Any post-generation optimization triggers claim validation against canonical facts and complete PDF re-render/re-analysis.
+   - Implemented `generateUnifiedQualityReport` in `src/services/resume-quality-assessment.service.js`, synthesizing the 5 dimensions: ATS Parseability (0.35), Job Match (0.35), Keyword Coverage (0.00, Rule 21), Content Quality (0.30), and Evidence Integrity Gate (Rule 24).
+   - Enforced Rule 24: Evidence integrity acts as a hard safety gate. If claim validation fails, headline score is zeroed and status is marked `REJECTED_BY_INTEGRITY_GATE`.
+   - Exposed transparent confidence scores on every dimension and aggregate (Rule 30).
+   - Guaranteed deterministic, bit-for-bit reproducible scoring (Rule 33).
+   - Guaranteed no score increase by weakening validation rules (Rule 35).
+   - Before/after optimization comparison metrics exposed in `ResumeContentOptimizer.comparison` (Rule 31).
+7. **Adversarial Unsupported-Claim Test Suite (Rule 32):**
+   - Created `tests/unit/p81-adversarial-integrity.test.js` covering 6 adversarial scenarios: fabricated metrics, unauthorized cloud tech, unbacked team leadership claims, cross-project contamination, keyword stuffing gaming attempts, and multi-column LaTeX injection.
+8. **Verification & Security Audit:**
+   - 49/49 unit tests passing across all P81 suites (100% pass rate).
+   - 66/66 unit tests passing across core regression suites (100% pass rate).
+   - Secrets scanner passed with zero exposed secrets or tokens (`npm run scan:secrets`).
+
+**Files Changed / Created:**
+- `src/domain/career/ats-fit-score.schemas.js` [MODIFIED]: Added optional `jobMatchScore` and `atsFitScore` fields to fit schemas.
+- `src/services/ats-fit-score.service.js` [MODIFIED]: Exposed `jobMatchScore`, enforced `UNKNOWN` technical skill scoring factor = 0.0, exported `JobMatchScoreService`.
+- `src/domain/career/resume-keyword-coverage.schemas.js` [NEW]: Zod schemas for taxonomy-aware keyword coverage, match types, placements, and stuffing warnings.
+- `src/services/resume-keyword-coverage.service.js` [NEW]: Keyword coverage service with taxonomy matching, Rule 27 enforcement, multi-section tracking, and heuristic stuffing detection.
+- `src/services/resume-writing-quality.service.js` [MODIFIED]: Added weak opener detection, corporate cliché detection, fragments, excessive length, and quantification metrics breakdown.
+- `src/services/resume-ats-parseability.service.js` [MODIFIED]: Added `evaluateResumePdfRoundTrip`, confidence scoring, and Rule 25 conformance.
+- `src/clients/ai/prompt-policies/resume-accomplishment.policy.js` [MODIFIED]: Injected ATS optimization plan, anti-stuffing rules, and Rule 34 deterministic scoring compliance.
+- `src/clients/ai/prompt-policies/resume-summary.policy.js` [MODIFIED]: Injected ATS optimization plan, anti-stuffing rules, and Rule 34 compliance.
+- `src/services/resume-claim-validation.service.js` [MODIFIED]: Added `composedFromFactIds` support to `validateClaim`.
+- `src/services/resume-quality-assessment.service.js` [MODIFIED]: Added `generateUnifiedQualityReport` method and export, enforcing Rules 21, 24, 30, 33, 34, 35.
+- `tests/unit/p81-job-match-scoring.test.js` [NEW]: 6 unit tests for job match scoring, requirement distinction, and UNKNOWN=0.0 enforcement.
+- `tests/unit/p81-resume-keyword-coverage.test.js` [NEW]: 6 unit tests for keyword coverage, taxonomy equivalence, Rule 27, and Rule 28 stuffing detection.
+- `tests/unit/p81-content-quality.test.js` [NEW]: 6 unit tests for action verbs, weak openers, clichés, quantification, fragments, and redundancy.
+- `tests/unit/p81-ats-parseability.test.js` [NEW]: 6 unit tests for Rule 25 artifact consumption, confidence, reading order, contact completeness, and LaTeX leakage.
+- `tests/unit/p81-unified-quality-report.test.js` [NEW]: 5 unit tests verifying Rules 21, 24, 30, 33, 35 in unified report.
+- `tests/unit/p81-adversarial-integrity.test.js` [NEW]: 6 adversarial unit tests covering Rule 32.
+- `project.md` [MODIFIED]: Recorded execution ledger and verification evidence.
+
+**Verification Evidence:**
+- All P81 Unit Tests (`node --test tests/unit/p81-*.test.js`): **49/49 PASS across 7 suites (100% pass rate)**
+- Core Regression Suites (`node --test tests/unit/ats-fit-score.service.test.js tests/unit/p17-claim-validation.test.js tests/unit/p17-writing-quality-and-ats.test.js tests/unit/resume-quality-assessment.test.js`): **66/66 PASS across 4 suites (100% pass rate)**
+- Optimizer Regression Suites (`node --test tests/unit/p16-008-content-optimizer.test.js tests/unit/p17-document-optimizer.test.js`): **15/15 PASS across 2 suites (100% pass rate)**
+- Prompt Policy Unit Tests (`node --test tests/unit/gemini-prompt-policy.test.js`): **23/23 PASS (100% pass rate)**
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+
+---
 
 ### PART 80: Final Identity Primitive Hardening
 
