@@ -16,6 +16,22 @@ export const KeywordMatchClassificationEnum = z.enum([
   'UNSUPPORTED_CANDIDATE',
 ]);
 
+export const KeywordPolarityEnum = z.enum([
+  'POSITIVE',
+  'NEGATED',
+  'ASPIRATIONAL',
+  'CONTEXT_ONLY',
+  'UNKNOWN',
+]);
+
+export const CandidateAuthorizationEnum = z.enum([
+  'AUTHORIZED',
+  'UNAUTHORIZED',
+  'EVIDENCE_MISSING',
+  'CONTRADICTED',
+  'UNKNOWN',
+]);
+
 export const ResumeSectionEnum = z.enum([
   'header',
   'summary',
@@ -45,6 +61,8 @@ export const TermCoverageItemSchema = z.strictObject({
   importance: z.enum(['REQUIRED', 'PREFERRED', 'OPTIONAL']),
   matchType: KeywordMatchClassificationEnum,
   satisfiesRequirement: z.boolean(),
+  polarity: KeywordPolarityEnum.default('POSITIVE'),
+  candidateAuthorization: CandidateAuthorizationEnum.default('UNKNOWN'),
   matchedResumeTerm: z.string().nullable().default(null),
   placements: z.array(ResumeSectionEnum).default([]),
   occurrences: z.number().int().nonnegative().default(0),
@@ -61,6 +79,13 @@ export const KeywordStuffingWarningSchema = z.strictObject({
   occurrences: z.number().int().positive(),
   densityScore: z.number().min(0.0).max(1.0),
   reason: z.string().trim().min(1),
+});
+
+export const ConfidenceFactorsSchema = z.strictObject({
+  pdfExtractionQuality: z.number().min(0.0).max(1.0).default(1.0),
+  requirementExtractionQuality: z.number().min(0.0).max(1.0).default(1.0),
+  taxonomyResolution: z.number().min(0.0).max(1.0).default(1.0),
+  evidenceCoverage: z.number().min(0.0).max(1.0).default(1.0),
 });
 
 export const ResumeKeywordCoverageReportSchema = z.strictObject({
@@ -80,5 +105,6 @@ export const ResumeKeywordCoverageReportSchema = z.strictObject({
   keywordPlacements: z.array(KeywordPlacementSchema).default([]),
   stuffingWarnings: z.array(KeywordStuffingWarningSchema).default([]),
   confidence: z.number().min(0.0).max(1.0).default(1.0),
+  confidenceFactors: ConfidenceFactorsSchema.optional(),
   analyzedAt: z.string().datetime().default(() => new Date().toISOString()),
 });

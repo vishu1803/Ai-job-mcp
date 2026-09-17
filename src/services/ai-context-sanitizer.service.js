@@ -485,6 +485,56 @@ export function buildResumeAiContext({
     .filter(Boolean)
     .map((s) => scrubTextPii(s, additionalScrubTokens));
 
+  // Build structured ATS optimization target (Weakness 10)
+  const reqItems = Array.isArray(job.requirements) ? job.requirements : [];
+  const requiredKeywords = [];
+  const preferredKeywords = [];
+  for (const r of reqItems) {
+    const text = typeof r === 'string' ? r : r.text || r.concept || '';
+    if (!text) continue;
+    if (r.importance === 'PREFERRED' || r.isPreferred) {
+      preferredKeywords.push(text);
+    } else {
+      requiredKeywords.push(text);
+    }
+  }
+
+  const authorizedTechnologies = Array.from(
+    new Set([
+      ...sanitizedSkills,
+      ...selectedProjects.flatMap((p) => p.technologies || []),
+      ...factInventory.flatMap((f) => f.technologies || []),
+    ])
+  ).filter(Boolean);
+
+  const authTechSet = new Set(authorizedTechnologies.map((t) => t.toLowerCase()));
+  const missingKeywords = requiredKeywords.filter((k) => !authTechSet.has(k.toLowerCase()));
+
+  const authorizedMetrics = factInventory
+    .flatMap((f) => (Array.isArray(f.metrics) ? f.metrics : []))
+    .map((m) => (typeof m === 'string' ? m : m.value || m.raw || ''))
+    .filter(Boolean);
+
+  const atsOptimizationTarget = {
+    targetRole: targetTitle,
+    requiredKeywords: requiredKeywords.slice(0, 10),
+    preferredKeywords: preferredKeywords.slice(0, 10),
+    missingKeywords: missingKeywords.slice(0, 10),
+    authorizedTechnologies,
+    authorizedMetrics,
+    forbiddenClaims: [
+      'Unverified dollar revenue figures',
+      'Uncorroborated percentage reductions not supported by baseline numbers',
+      'Technologies absent from candidate facts and projects',
+      'Unsubstantiated leadership or team ownership scale claims',
+    ],
+    evidenceBoundaries: [
+      'Claims must be traceable to provided transient fact IDs',
+      'Strictly zero metric extrapolation (never invent percentages or speedups)',
+      'Never introduce a technology merely because it is in missingKeywords',
+    ],
+  };
+
   // Task-specific context partitioning
   if (taskType === 'RESUME_ACCOMPLISHMENT_SYNTHESIS') {
     // Project-scoped context: send ONLY selected project name, technologies, and grounded facts
@@ -514,10 +564,12 @@ export function buildResumeAiContext({
         targetTitle,
         requirements: targetReqs,
       },
+      atsOptimizationTarget,
     };
 
     return {
       context,
+      atsOptimizationTarget,
       transientToCanonicalFactId,
       canonicalToTransientFactId,
       resolveFactId,
@@ -555,10 +607,12 @@ export function buildResumeAiContext({
     skills: sanitizedSkills,
     projects: sanitizedProjects,
     facts: sanitizedFacts,
+    atsOptimizationTarget,
   };
 
   return {
     context,
+    atsOptimizationTarget,
     transientToCanonicalFactId,
     canonicalToTransientFactId,
     resolveFactId,

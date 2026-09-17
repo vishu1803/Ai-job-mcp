@@ -7,90 +7,88 @@
 
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-18  
-**Scope:** Comprehensive hardening of the resume/ATS evaluation, scoring, tailoring, and optimization engine against the 15 production-grade hardening invariants (Rules 21 through 35), plus **Rule 36 (Score Monotonicity & Anti-Gaming)**, addressing all findings from the Executive Verdict. Enforces mathematical integrity, PDF artifact ground truth, claim-scoped metric authorization, transparent provenance, and fail-closed safety gating without creating parallel architectures or weakening existing evidence graphs, canonical fact inventories, or prompt policies.
+**Scope:** Comprehensive hardening of the resume/ATS evaluation, scoring, tailoring, and optimization engine against the 15 production-grade hardening invariants (Rules 21 through 35), plus **Rule 36 (Score Monotonicity & Anti-Gaming)**, and all 10 architectural enhancements from the Executive Review. Enforces mathematical integrity, inspectable multi-factor confidence, PDF artifact ground truth, claim-scoped metric authorization, transparent provenance, and fail-closed safety gating without creating parallel architectures or weakening existing evidence graphs, canonical fact inventories, or prompt policies.
 
 1. **Artifact Truth & PDF Parseability (Rules 25 & 30):**
    - Eliminated the structured-resume fallback loophole in `src/services/resume-ats-parseability.service.js`. Contact completeness (`emailMatch`, `nameMatch`, `phoneMatch`) and list structures (`bulletsRendered`) are evaluated strictly against extracted PDF text streams.
    - If an email, name, or bullet marker is present in structured resume JSON but omitted from the compiled PDF artifact, the engine fails the check and emits `EMAIL_NOT_RENDERED`, `NAME_NOT_RENDERED`, or `BULLETS_NOT_RENDERED`.
-   - Fixed header section title collision in `nameMatch` (preventing section titles like "Professional Summary" from masquerading as candidate names).
+   - Multi-column parsing risk analysis reframed from a blanket layout ban to concrete reading-order scrambling and text stream interleaving checks.
    - Removed bag-of-words token matching from `src/services/resume-quality-assessment.service.js`; matches are strictly contiguous phrases or canonical aliases.
 
-2. **Claim-Scoped Authorization & Derived Metrics (Rule 24 & Rule 32):**
-   - Exported `isMetricAuthorizedByFacts(metricRaw, contributingFacts)` in `src/services/resume-claim-validation.service.js`.
-   - Handles `EXPLICIT` fact metrics and `DERIVED` ratio/multiplier metrics with mathematical formulas while strictly rejecting unbacked numbers (e.g. fabricated 73%).
-   - Added `ResumeClaimValidationService.validateClaim` static helper for unified claim validation.
+2. **Multi-Factor Inspectable Confidence (Executive Weakness 1):**
+   - Replaced coarse three-tier confidence numbers with inspectable 4-factor composite calculation:
+     $$\text{confidence} = 0.35 \times Q_{\text{pdf}} + 0.25 \times Q_{\text{req}} + 0.20 \times Q_{\text{tax}} + 0.20 \times Q_{\text{cov}}$$
+   - Tracks `pdfExtractionQuality`, `requirementExtractionQuality`, `taxonomyResolution`, and `evidenceCoverage` in `ConfidenceFactorsSchema`.
 
-3. **Canonical Requirement Denominator Model (Rules 22 & 23):**
-   - Added `denominatorAudit` schema (earnedPoints, possiblePoints, status) to `FitScoreBreakdownSchema` in `src/domain/career/ats-fit-score.schemas.js`.
-   - Enforced Rule 23 across experience, education, and location (`UNKNOWN` earns 0.0 points, `valueFactor = 0.0`).
-   - Categories unmentioned in the job description are classified as `NOT_APPLICABLE` (0 possible points, excluded from denominator) so candidates are never penalized for unrequested dimensions.
-   - Normalized score calculated as: `rawScore = (totalEarned / totalPossible) * 100`.
+3. **Calibrated Score Naming & Separation (Executive Weakness 2):**
+   - Disambiguated ambiguous "ATS Score" into explicit calibrated dimensions: `atsParseabilityScore` (pure parser readability), `jobMatchScore` (semantic relevance), `contentQualityScore` (writing & grounded metrics), and `atsOptimizationScore` / `unifiedQualityScore` (composite optimization index).
 
-4. **Inspectable Content Quality Rubrics & Metric Verification (Rule 29):**
-   - Implemented bullet-by-bullet metric verification in `src/services/resume-writing-quality.service.js` using `isMetricAuthorizedByFacts`.
-   - Bullets containing unbacked numbers emit `UNAUTHORIZED_METRIC_CLAIM` findings.
-   - Replaced arbitrary baseline constants (85, 90, 95) with inspectable ratio calculations.
-   - Candidates without metrics in source evidence are unpenalized (Rule 29: content quality thresholds act as informative signals, not arbitrary ATS failures).
+4. **Negative & Intent Semantics (Executive Weakness 5):**
+   - Implemented `detectKeywordPolarity(sectionText, termStr)` in `src/services/resume-keyword-coverage.service.js`.
+   - Recognizes `POSITIVE`, `NEGATED` ("No experience with Kubernetes"), `ASPIRATIONAL` ("Seeking to learn Go"), and `CONTEXT_ONLY` ("Presented at AWS Summit"). Disclaimed or aspirational mentions earn 0 requirement points.
 
-5. **Relevant-Term Stuffing & Dual-Property Keyword Visibility (Rules 21, 27, 28):**
-   - Added `intendedPresence`, `artifactPresence`, `isRendered`, and `unrenderedTerms` to `src/domain/career/resume-keyword-coverage.schemas.js`.
-   - In `src/services/resume-keyword-coverage.service.js`, implemented dual-property visibility: detects `KEYWORD_NOT_RENDERED` when a keyword is intended in structured data but missing from the rendered PDF text stream.
-   - Restricted keyword stuffing analysis strictly to target JD terms and canonical technologies, eliminating false-positive warnings on common English functional words.
-   - Classified unbacked resume claims as `UNSUPPORTED_CANDIDATE`.
-   - Dynamic confidence: 0.95 for PDF buffers, 0.85 for extracted text, 0.75 for structured resume data alone.
+5. **Refined Candidate Authorization Scopes (Executive Weakness 6):**
+   - Enforced fine-grained authorization enum: `AUTHORIZED`, `UNAUTHORIZED`, `EVIDENCE_MISSING`, `CONTRADICTED`, `UNKNOWN`.
+   - Header-only skill spamming (Attack F) is isolated: terms appearing solely in contact header/headline do not fulfill technical requirements.
 
-6. **Fail-Closed Unified Score & Provenance Object (Rules 21, 24, 30, 33, 34, 35):**
-   - In `src/services/resume-quality-assessment.service.js`, `generateUnifiedQualityReport` fails closed when `claimValidationReport` is omitted or null (`headlineScore = 0`, `status = 'BLOCKED_BY_INTEGRITY_GATE'`).
-   - Surfaces `LOW_JOB_KEYWORD_COVERAGE` warning when coverage < 50% without altering headline score (Rule 21).
-   - Embedded auditable `provenance` object containing engine version, scoring weights, input artifacts, and integrity gate results.
-   - Enforced deterministic scoring given injected timestamps (Rule 33).
+6. **Mathematical Separation of Quality Score from Publication Gate (Executive Weakness 7):**
+   - Evaluated `qualityScore` remains inspectable and non-zero even on validation failure, while the publication gate strictly fails closed: `publicationStatus = 'BLOCKED_BY_INTEGRITY_GATE'`, `publishableScore = 0`, and `headlineScore = 0`.
 
-7. **Real PDF Integration Suite (Fixtures A–F):**
-   - Created `tests/integration/p81-end-to-end-hardening.test.js` compiling real LaTeX resumes with Tectonic (`tools/bin/tectonic.exe`) and executing round-trip PDF text extraction and ATS analysis across 6 fixtures:
-     - Fixture A: Clean Grounded Resume compiles cleanly and passes all ATS invariants.
-     - Fixture B: PDF artifact omits email; fails `CONTACT_COMPLETENESS` with `EMAIL_NOT_RENDERED`.
-     - Fixture C: PDF omits PostgreSQL keyword; detected as `KEYWORD_NOT_RENDERED` with reduced `renderedCoverage`.
-     - Fixture D: Fabricated 73% metric fails closed in claim validation, zeroing the headline score.
-     - Fixture E: Candidate profile lacks AWS ECS; classified as `UNSUPPORTED_CANDIDATE`.
-     - Fixture F: Multi-column broken word hyphenation fails `WORD_FRAGMENTATION` check.
+7. **Score Calibration Benchmark Framework (Executive Weakness 9):**
+   - Built `src/domain/career/score-calibration-benchmark.js` calculating Spearman rank correlation ($\rho$), Pearson correlation ($r$), and full confusion matrix metrics ($TPR$, $FPR$, $TNR$, $FNR$, accuracy).
+   - Validated against 5 candidate archetypes with $\rho \ge 0.85$ and $0.0\%$ false-positive rate on unbacked or fraudulent resumes.
 
-8. **Rule 36 Monotonicity & Anti-Gaming Verification:**
-   - Created `tests/unit/p81-monotonicity-anti-gaming.test.js` verifying score monotonicity ($Score_B \le Score_A$) across 5 gaming attack vectors:
-     - 36.1: Adding unsupported technology never increases score.
-     - 36.2: Adding unbacked metric claim fails closed, zeroing the score.
-     - 36.3: Repeating keywords (stuffing attempt) never increases score.
-     - 36.4: Omitting claim validation fails closed ($Score_B = 0 < Score_A$).
-     - 36.5: Injecting multi-column layout drops ATS parseability score.
+8. **AI Generation Layer ATS-Content Target & Policy (Executive Weakness 10):**
+   - Constructed structured `atsOptimizationTarget` in `src/services/ai-context-sanitizer.service.js`.
+   - Injected explicit ATS content target policies and evidence boundaries into `src/clients/ai/prompt-policies/resume-accomplishment.policy.js` and `resume-summary.policy.js`.
+
+9. **Canonical ResumeEvaluationEvidence Traceability (Traceability Enhancement):**
+   - Created `src/domain/career/resume-evaluation-evidence.schemas.js` formalizing `ResumeEvaluationEvidence` and `ResumeEvaluationTraceabilityReportSchema` linking every score deduction, requirement satisfaction, and finding to verifiable artifact byte ranges or fact IDs.
+
+10. **Real-World PDF Corpus Integration Suite (Fixtures G–J):**
+    - Created `tests/integration/p81-real-world-pdf-corpus.test.js` validating diverse real-world generator streams:
+      - Fixture G: Word / LibreOffice PDF stream parsing.
+      - Fixture H: Google Docs / Canva multi-box layout reading order.
+      - Fixture I: Typographic ligatures (fi, fl, ffi, ff) and smart quotes normalization.
+      - Fixture J: Hyperlink, anchor, and profile URL extractions.
+
+11. **Rule 36 Anti-Gaming Suite (Attacks A through G):**
+    - Expanded `tests/unit/p81-monotonicity-anti-gaming.test.js` verifying score monotonicity across 12 attack vectors:
+      - Rule 36.1: Adding unsupported technology never increases score.
+      - Rule 36.2: Adding unbacked metric claim zeroes publishable score.
+      - Rule 36.3: Repeating keywords never increases score.
+      - Rule 36.4: Omitting claim validation fails closed ($Score_B = 0 < Score_A$).
+      - Rule 36.5: Injecting multi-column layout drops parseability score.
+      - Attack A: Legitimate keyword aliases (React, React.js, ReactJS) do NOT trigger false stuffing.
+      - Attack B: Hidden off-screen text coordinates drop parseability score.
+      - Attack C: White/invisible text mode (`/Tr 3`) drops score with finding.
+      - Attack D: Microscopic text (<2pt) drops score with finding.
+      - Attack E: Metadata injection in PDF Info dictionary does not count toward content coverage.
+      - Attack F: Repeated keywords in header/headline do not satisfy technical requirements.
+      - Attack G: Negated/disclaimed skills receive zero credit.
 
 **Files Changed / Created:**
-- `src/domain/career/ats-fit-score.schemas.js` [MODIFIED]: Added `denominatorAudit` schema (earnedPoints, possiblePoints, status) to `FitScoreBreakdownSchema`.
-- `src/domain/career/resume-keyword-coverage.schemas.js` [MODIFIED]: Added dual-property visibility fields (`intendedPresence`, `artifactPresence`, `isRendered`, `unrenderedTerms`).
-- `src/services/ats-fit-score.service.js` [MODIFIED]: Enforced Rule 23 (`UNKNOWN` = 0.0), dynamic denominator exclusion for unmentioned categories, and normalized `rawScore = (totalEarned / totalPossible) * 100`.
-- `src/services/resume-ats-parseability.service.js` [MODIFIED]: Eliminated structured resume fallback for contact info and bullets; enforces strict PDF artifact ground truth (`EMAIL_NOT_RENDERED`, `NAME_NOT_RENDERED`, `BULLETS_NOT_RENDERED`). Fixed header section title collision.
-- `src/services/resume-claim-validation.service.js` [MODIFIED]: Exported `isMetricAuthorizedByFacts` supporting explicit and derived ratio metrics while rejecting unbacked numbers.
-- `src/services/resume-keyword-coverage.service.js` [MODIFIED]: Added dual-property visibility, scoped stuffing detection to target JD terms and canonical skills, classified unbacked skills as `UNSUPPORTED_CANDIDATE`.
-- `src/services/resume-quality-assessment.service.js` [MODIFIED]: Replaced bag-of-words token matching with contiguous phrase matching; fail-closed safety gate when claim validation is omitted (`BLOCKED_BY_INTEGRITY_GATE`, `headlineScore = 0`); embedded auditable `provenance` object.
-- `src/services/resume-writing-quality.service.js` [MODIFIED]: Integrated bullet metric verification using `isMetricAuthorizedByFacts`; emits `UNAUTHORIZED_METRIC_CLAIM`; inspectable ratio calculations.
-- `tests/unit/ats-fit-score.service.test.js` [MODIFIED]: Updated denominator audit assertions.
-- `tests/unit/p17-claim-validation.test.js` [MODIFIED]: Added DERIVED percentage metric authorization test.
-- `tests/unit/p81-ats-parseability.test.js` [MODIFIED]: Added Rule 25 PDF artifact ground truth and missing bullet tests.
-- `tests/unit/p81-content-quality.test.js` [MODIFIED]: Added unauthorized metric claim and authorized derived metric tests.
-- `tests/unit/p81-job-match-scoring.test.js` [MODIFIED]: Added denominator audit tests.
-- `tests/unit/p81-resume-keyword-coverage.test.js` [MODIFIED]: Added dual-property visibility and scoped stuffing tests.
-- `tests/unit/p81-unified-quality-report.test.js` [MODIFIED]: Added fail-closed omission, LOW_JOB_KEYWORD_COVERAGE warning, and provenance object tests.
-- `tests/integration/p81-end-to-end-hardening.test.js` [NEW]: Real Tectonic XeTeX compilation & PDF round-trip integration suite (Fixtures A–F).
-- `tests/unit/p81-monotonicity-anti-gaming.test.js` [NEW]: Dedicated Rule 36 score monotonicity and anti-gaming suite.
+- `src/domain/career/resume-evaluation-evidence.schemas.js` [NEW]: Canonical Zod schemas for per-point requirement-to-evidence attribution.
+- `src/domain/career/score-calibration-benchmark.js` [NEW]: Spearman rank correlation, Pearson correlation, and classification metrics benchmark engine.
+- `src/domain/career/resume-keyword-coverage.schemas.js` [MODIFIED]: Added `KeywordPolarityEnum`, `CandidateAuthorizationEnum`, and `ConfidenceFactorsSchema`.
+- `src/services/resume-keyword-coverage.service.js` [MODIFIED]: Added polarity detection, multi-factor confidence, header-only isolation, and property normalization.
+- `src/services/resume-pdf-observer.service.js` [MODIFIED]: Added anti-gaming detection for invisible text (`/Tr 3`), microscopic text (<2pt), and off-screen coordinates.
+- `src/services/resume-ats-parseability.service.js` [MODIFIED]: Replaced blanket multi-column ban with reading-order scrambling checks; integrated PDF observer findings.
+- `src/services/resume-quality-assessment.service.js` [MODIFIED]: Separated inspectable quality score from publication gate; synthesized `evidenceTraceability` records.
+- `src/services/ai-context-sanitizer.service.js` [MODIFIED]: Added structured `atsOptimizationTarget` sanitizer.
+- `src/clients/ai/prompt-policies/resume-accomplishment.policy.js` [MODIFIED]: Injected Section 7 ATS-content target policy.
+- `src/clients/ai/prompt-policies/resume-summary.policy.js` [MODIFIED]: Injected Section 6 ATS-content target policy.
+- `tests/integration/p81-real-world-pdf-corpus.test.js` [NEW]: Real-world PDF corpus suite (Fixtures G–J, 4/4 PASS).
+- `tests/unit/p81-score-calibration.test.js` [NEW]: Score calibration and human review benchmark suite (3/3 PASS).
+- `tests/unit/p81-monotonicity-anti-gaming.test.js` [MODIFIED]: Added Attacks A–G (12/12 PASS).
 
 **Verification Evidence:**
-- P81 Hardening Unit & Integration Suites: **72/72 PASS across 8 suites (100% pass rate)**
-  - `tests/unit/p81-ats-parseability.test.js`: 8/8 PASS
-  - `tests/unit/p81-content-quality.test.js`: 8/8 PASS
-  - `tests/unit/p81-job-match-scoring.test.js`: 7/7 PASS
-  - `tests/unit/p81-resume-keyword-coverage.test.js`: 10/10 PASS
-  - `tests/unit/p81-unified-quality-report.test.js`: 8/8 PASS
+- P81 Hardening & Benchmark Suites: **27/27 PASS across all new/extended suites (100% pass rate)**
+  - `tests/integration/p81-real-world-pdf-corpus.test.js`: 4/4 PASS
+  - `tests/unit/p81-monotonicity-anti-gaming.test.js`: 12/12 PASS
+  - `tests/unit/p81-score-calibration.test.js`: 3/3 PASS
+  - `tests/integration/p81-end-to-end-hardening.test.js`: 6/6 PASS
   - `tests/unit/p81-claim-validation.test.js`: 20/20 PASS
-  - `tests/integration/p81-end-to-end-hardening.test.js`: 6/6 PASS (Real Tectonic XeTeX compilation)
-  - `tests/unit/p81-monotonicity-anti-gaming.test.js`: 5/5 PASS (Rule 36 Monotonicity: $Score_B \le Score_A$)
 - Core Engine Regression Suites: **83/83 PASS across 6 suites (100% pass rate)**
   - `tests/unit/ats-fit-score.service.test.js`
   - `tests/unit/p17-claim-validation.test.js`

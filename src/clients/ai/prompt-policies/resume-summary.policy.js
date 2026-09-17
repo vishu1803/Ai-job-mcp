@@ -72,7 +72,15 @@ export class ResumeSummaryPolicy extends BasePromptPolicy {
 
 5. ATS OPTIMIZATION PLAN & DETERMINISTIC SCORING (RULES 28 & 34):
    - NO KEYWORD STUFFING: Do NOT stuff keywords unnaturally or append comma-separated skill lists into the summary prose. Introduce skills naturally in context.
-   - DETERMINISTIC SCORING COMPLIANCE (RULE 34): You must NEVER output numeric scores, match percentages, ATS ratings, or evaluation numbers. All scoring is computed deterministically by downstream engines.`;
+   - DETERMINISTIC SCORING COMPLIANCE (RULE 34): You must NEVER output numeric scores, match percentages, ATS ratings, or evaluation numbers. All scoring is computed deterministically by downstream engines.
+
+6. EXPLICIT ATS-CONTENT TARGET & BOUNDARIES (WEAKNESS 10):
+   When an <ats_optimization_target> is provided in context:
+   - Reflect target role terminology only when corroborated by candidate background.
+   - Do NOT introduce technologies or methodologies solely because they appear in requiredKeywords.
+   - Do NOT claim production experience when evidence only establishes academic/project exposure.
+   - Do NOT repeat keywords unnaturally.
+   - Ground every statement in authorized facts.`;
   }
 }
 

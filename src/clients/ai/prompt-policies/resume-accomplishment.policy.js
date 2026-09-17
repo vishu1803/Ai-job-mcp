@@ -93,7 +93,18 @@ export class ResumeAccomplishmentPolicy extends BasePromptPolicy {
 
 6. ATS OPTIMIZATION PLAN & DETERMINISTIC SCORING (RULES 28 & 34):
    - NO KEYWORD STUFFING: Do NOT stuff keywords unnaturally or repeat the same technology tokens repeatedly across multiple bullets. Each technology keyword must appear naturally within concrete engineering mechanisms.
-   - DETERMINISTIC SCORING COMPLIANCE (RULE 34): You must NEVER output numeric scores, match percentages, ATS ratings, or evaluation numbers. All scoring in this platform is computed deterministically by downstream engines. You generate natural, factual engineering text only.`;
+   - DETERMINISTIC SCORING COMPLIANCE (RULE 34): You must NEVER output numeric scores, match percentages, ATS ratings, or evaluation numbers. All scoring in this platform is computed deterministically by downstream engines. You generate natural, factual engineering text only.
+
+7. EXPLICIT ATS-CONTENT TARGET & BOUNDARIES (WEAKNESS 10):
+   When an <ats_optimization_target> is provided in context:
+   - Use requiredKeywords ONLY when they are supported by candidate facts.
+   - Prefer exact job terminology when it truthfully describes existing experience.
+   - Do NOT introduce a technology solely because it appears in the job description or missingKeywords.
+   - Do NOT invent metrics or convert vague experience into quantified claims.
+   - Do NOT claim production experience when evidence only establishes academic/project exposure.
+   - Do NOT repeat keywords unnaturally.
+   - Preserve factual ownership and project scope.
+   - Every quantitative claim must be traceable to an authorized fact or mathematically valid derivation.`;
   }
 }
 

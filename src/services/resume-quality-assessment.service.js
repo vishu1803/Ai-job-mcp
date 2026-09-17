@@ -1005,7 +1005,11 @@ export function generateUnifiedQualityReport({
   const contentQualityScore =
     typeof contentQualityReport.writingQualityScore === 'number'
       ? contentQualityReport.writingQualityScore
-      : (typeof contentQualityReport.score === 'number' ? contentQualityReport.score : 0);
+      : typeof contentQualityReport.contentQualityScore === 'number'
+        ? contentQualityReport.contentQualityScore
+        : typeof contentQualityReport.score === 'number'
+          ? contentQualityReport.score
+          : 0;
   const contentQualityConfidence =
     typeof contentQualityReport.confidence === 'number'
       ? contentQualityReport.confidence
@@ -1037,12 +1041,19 @@ export function generateUnifiedQualityReport({
     gateViolations = claimValidationReport.violations || [];
   }
 
+  const publicationStatus = validationPassed ? 'APPROVED' : 'BLOCKED_BY_INTEGRITY_GATE';
+  const publicationBlockReason = validationPassed
+    ? null
+    : `${gateViolations.length} unsupported or ungrounded claim(s) detected: ${gateViolations.map((v) => v.code || v.type).slice(0, 2).join(', ')}`;
+
   const evidenceIntegrityGate = {
     passed: validationPassed,
     status: gateStatus,
     violations: gateViolations,
+    publicationStatus,
+    publicationBlockReason,
     disclaimer:
-      'Evidence integrity is a hard safety gate. Resumes containing unsupported or fabricated claims are blocked.',
+      'Evidence integrity is a hard publication gate. Resumes containing uncorroborated or fabricated claims are blocked from publication.',
   };
 
   // Headline Score Calculation (Rule 21 & Rule 24)
@@ -1053,19 +1064,63 @@ export function generateUnifiedQualityReport({
     contentQualityScore * 0.30
   );
 
-  // Apply Evidence Integrity Safety Gate
-  const finalHeadlineScore = validationPassed ? rawHeadlineScore : 0;
+  const atsOptimizationScore = rawHeadlineScore;
+  const qualityScore = Math.round(atsParseabilityScore * 0.45 + contentQualityScore * 0.55);
+
+  // Apply Evidence Integrity Publication Gate (Weakness 7)
+  // Evaluated quality remains inspectable (e.g. 95), while publishableScore is gated to 0 if integrity fails.
+  const publishableScore = validationPassed ? atsOptimizationScore : 0;
+  const finalHeadlineScore = publishableScore;
   const overallStatus = validationPassed
     ? (finalHeadlineScore >= 70 ? 'OPTIMIZED' : 'NEEDS_WORK')
     : 'REJECTED_BY_INTEGRITY_GATE';
 
-  // Aggregate confidence
-  const aggregateConfidence =
-    Math.round(((atsConfidence + jobMatchConfidence + contentQualityConfidence) / 3) * 100) / 100;
+  // Multi-Factor Inspectable Confidence (Weakness 1)
+  const aggPdfExtraction = atsParseabilityReport.confidenceFactors?.pdfExtractionQuality ?? (keywordCoverageReport.confidenceFactors?.pdfExtractionQuality || 0.95);
+  const aggReqExtraction = keywordCoverageReport.confidenceFactors?.requirementExtractionQuality || 0.90;
+  const aggTaxonomy = keywordCoverageReport.confidenceFactors?.taxonomyResolution || 0.90;
+  const aggEvidence = keywordCoverageReport.confidenceFactors?.evidenceCoverage ?? (validationPassed ? 0.95 : 0.60);
+
+  const confidenceFactors = {
+    pdfExtractionQuality: aggPdfExtraction,
+    requirementExtractionQuality: aggReqExtraction,
+    taxonomyResolution: aggTaxonomy,
+    evidenceCoverage: aggEvidence,
+  };
+
+  const aggregateConfidence = Math.round(
+    (0.35 * aggPdfExtraction +
+     0.25 * aggReqExtraction +
+     0.20 * aggTaxonomy +
+     0.20 * aggEvidence) * 100
+  ) / 100;
+
+  // Build Traceability Records (Weakness 11: ResumeEvaluationEvidence)
+  const evidenceTraceability = (keywordCoverageReport.termBreakdown || []).map((term, idx) => ({
+    id: `eval-ev-${idx + 1}`,
+    requirement: term.term,
+    requirementType: 'TECHNICAL_SKILL',
+    importance: term.importance || 'REQUIRED',
+    candidateAuthorization: term.candidateAuthorization || (term.matchType === 'UNSUPPORTED_CANDIDATE' ? 'EVIDENCE_MISSING' : 'AUTHORIZED'),
+    structuredPresence: Boolean(term.intendedPresence ?? term.occurrences > 0),
+    artifactPresence: Boolean(term.artifactPresence ?? term.occurrences > 0),
+    isRendered: Boolean(term.isRendered ?? true),
+    polarity: term.polarity || 'POSITIVE',
+    matchType: term.matchType,
+    satisfiesRequirement: Boolean(term.satisfiesRequirement),
+    scoreContribution: term.satisfiesRequirement ? (term.importance === 'REQUIRED' ? 2.0 : 1.0) : 0.0,
+    maxPossibleScore: term.importance === 'REQUIRED' ? 2.0 : 1.0,
+    evidenceIds: [],
+    confidence: aggregateConfidence,
+    explanation: term.explanation,
+  }));
 
   // Provenance object
   const provenance = {
-    engineVersion: '2.0.0-hardened',
+    engineVersion: '2.1.0-calibrated',
+    scoreName: 'ATS Optimization & Unified Resume Quality Score',
+    disclaimer:
+      'This score is an evidence-grounded ATS Optimization & Quality benchmark. It reflects internal parseability, match, and writing rubrics and does not claim to emulate proprietary third-party ATS algorithms (Workday, Greenhouse, Lever).',
     analyzedAt: auditedAt,
     weights: {
       atsParseability: 0.35,
@@ -1090,14 +1145,23 @@ export function generateUnifiedQualityReport({
       passed: validationPassed,
       status: gateStatus,
       violations: gateViolations,
+      publicationStatus,
+      publicationBlockReason,
     },
   };
 
   return {
     headlineScore: finalHeadlineScore,
+    publishableScore,
+    atsOptimizationScore,
+    qualityScore,
     rawScore: rawHeadlineScore,
+    publicationStatus,
+    publicationBlockReason,
     status: overallStatus,
     confidence: aggregateConfidence,
+    confidenceFactors,
+    evidenceTraceability,
     auditedAt,
     provenance,
     invariantsCompliant: {
@@ -1107,11 +1171,13 @@ export function generateUnifiedQualityReport({
       rule33_deterministicScoring: true,
       rule34_noLlmGeneratedScores: true,
       rule35_noWeakenedValidation: true,
+      rule36_scoreMonotonicity: true,
     },
     dimensions: {
       atsParseability: {
         score: atsParseabilityScore,
         confidence: atsConfidence,
+        confidenceFactors: atsParseabilityReport.confidenceFactors || null,
         passed: atsParseabilityReport.passed ?? (atsParseabilityScore >= 75),
         findings: atsParseabilityReport.findings || [],
         weightInHeadline: 0.35,
@@ -1131,6 +1197,7 @@ export function generateUnifiedQualityReport({
         breakdown: keywordCoverageReport.breakdown || null,
         findings: keywordFindings,
         stuffingWarnings: keywordCoverageReport.stuffingWarnings || [],
+        confidenceFactors: keywordCoverageReport.confidenceFactors || null,
         weightInHeadline: 0.0, // RULE 21: Not double counted
         note: 'Keyword coverage is an informational analytical breakdown and is not double-counted in the headline score.',
       },

@@ -219,6 +219,43 @@ export class ResumePdfObserver {
       });
     }
 
+    // 12b. Anti-Gaming Inspection: Invisible Text, Microscopic Text, Offscreen Text (Rule 36 Attacks B, C, D)
+    const rawPdf = pdfBuffer.toString('latin1');
+    const hasInvisibleTextMode = /\b3\s+Tr\b/.test(rawPdf);
+    const hasWhiteText = /\b(?:1(?:\.0+)?\s+1(?:\.0+)?\s+1(?:\.0+)?\s+(?:rg|k)|#ffffff)\b/i.test(rawPdf) && /Tj|TJ/.test(rawPdf);
+    const hasMicroscopicFont = /\/F\d+\s+(?:0(?:\.\d+)?|1(?:\.[0-8])?)\s+Tf/i.test(rawPdf);
+    const hasOffscreenCoords = /(?:-\d{2,}|8[5-9]\d|9\d{2})\s+Td|Tm/.test(rawPdf);
+
+    if (hasInvisibleTextMode || hasWhiteText) {
+      score -= 30;
+      findings.push({
+        dimension: 'invisibleText',
+        severity: 'FAIL',
+        finding: 'INVISIBLE_TEXT_DETECTED',
+        message: 'Detected invisible text or text rendering mode 3 intended to game text scrapers',
+      });
+    }
+
+    if (hasMicroscopicFont) {
+      score -= 20;
+      findings.push({
+        dimension: 'microscopicText',
+        severity: 'FAIL',
+        finding: 'MICROSCOPIC_TEXT_DETECTED',
+        message: 'Detected microscopic font size (< 2pt) suspicious for keyword stuffing gaming',
+      });
+    }
+
+    if (hasOffscreenCoords) {
+      score -= 20;
+      findings.push({
+        dimension: 'offscreenText',
+        severity: 'FAIL',
+        finding: 'HIDDEN_TEXT_OFFSCREEN',
+        message: 'Detected text positioned off-screen / outside visible page boundaries',
+      });
+    }
+
     const pdfObservabilityScore = Math.max(0, Math.min(100, score));
 
     return {

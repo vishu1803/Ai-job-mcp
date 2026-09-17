@@ -299,4 +299,215 @@ Go, PostgreSQL
     assert.ok(layoutCheck);
     assert.equal(layoutCheck.passed, false);
   });
+
+  // ── Extended Anti-Gaming Attacks A through G ───────────────────────────────
+
+  it('Attack A: Legitimate keyword aliases (React, React.js, ReactJS) do NOT trigger false stuffing', () => {
+    const resumeWithAliases = JSON.parse(JSON.stringify(honestResumeA));
+    resumeWithAliases.skills = {
+      categories: [
+        {
+          name: 'Frontend',
+          skills: ['React', 'TypeScript'],
+        },
+      ],
+    };
+    resumeWithAliases.projects[0].bullets[0] =
+      'Engineered a real-time reactive user interface using React.js and TypeScript.';
+    resumeWithAliases.projects[0].bullets[1] =
+      'Optimized component rendering cycles in ReactJS to achieve sub-16ms frame times.';
+
+    const report = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription: {
+        title: 'Frontend Engineer',
+        requirements: [{ text: 'React', importance: 'REQUIRED' }],
+      },
+      structuredResume: resumeWithAliases,
+      candidateProfile: {
+        ...honestProfile,
+        profileMetadata: {
+          ...honestProfile.profileMetadata,
+          skills: [{ name: 'React' }, { name: 'TypeScript' }],
+        },
+      },
+    });
+
+    // Legitimate alias usage across sections must NOT trigger keyword stuffing
+    assert.equal(report.stuffingWarnings.length, 0);
+    const reactMatch = report.termBreakdown.find((t) => t.canonicalSlug === 'react');
+    assert.ok(reactMatch);
+    assert.ok(reactMatch.satisfiesRequirement);
+  });
+
+  it('Attack B: Hidden off-screen text in PDF binary drops score (Score_B < Score_A)', () => {
+    // Normal PDF buffer
+    const normalPdf = Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+      '4 0 obj\n<< /Length 120 >>\nstream\n' +
+      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+      'BT /F1 10 Tf 72 680 Td (Built distributed key-value store in Go.) Tj ET\n' +
+      'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
+      'latin1'
+    );
+
+    // Attack PDF buffer with text positioned off-screen (y = 950 or -50)
+    const attackPdf = Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+      '4 0 obj\n<< /Length 180 >>\nstream\n' +
+      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+      'BT /F1 10 Tf 72 680 Td (Built distributed key-value store in Go.) Tj ET\n' +
+      'BT /F1 10 Tf 72 950 Td (Kubernetes AWS Docker Machine Learning Hidden Keywords) Tj ET\n' +
+      'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
+      'latin1'
+    );
+
+    const reportA = defaultAtsParseabilityService.evaluateAtsParseability({
+      pdfBuffer: normalPdf,
+      extractedText: 'Morgan Chen | morgan@example.com\nBuilt distributed key-value store in Go.',
+    });
+
+    const reportB = defaultAtsParseabilityService.evaluateAtsParseability({
+      pdfBuffer: attackPdf,
+      extractedText: 'Morgan Chen | morgan@example.com\nBuilt distributed key-value store in Go.',
+    });
+
+    assert.ok(
+      reportB.findings.some((f) => f.finding === 'HIDDEN_TEXT_OFFSCREEN'),
+      'Expected HIDDEN_TEXT_OFFSCREEN finding'
+    );
+  });
+
+  it('Attack C: White/invisible text mode (/Tr 3) triggers detection and drops score (Score_B < Score_A)', () => {
+    const attackPdfInvisible = Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+      '4 0 obj\n<< /Length 180 >>\nstream\n' +
+      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+      '3 Tr\n' + // Rendering mode 3 = invisible text
+      'BT /F1 10 Tf 72 680 Td (Kubernetes AWS React Python GraphQL Redis) Tj ET\n' +
+      '0 Tr\n' +
+      'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
+      'latin1'
+    );
+
+    const report = defaultAtsParseabilityService.evaluateAtsParseability({
+      pdfBuffer: attackPdfInvisible,
+      extractedText: 'Morgan Chen | morgan@example.com',
+    });
+
+    assert.ok(
+      report.findings.some((f) => f.finding === 'INVISIBLE_TEXT_DETECTED'),
+      'Expected INVISIBLE_TEXT_DETECTED finding'
+    );
+  });
+
+  it('Attack D: Microscopic text (<2pt) triggers detection (Score_B < Score_A)', () => {
+    const attackPdfMicroscopic = Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+      '4 0 obj\n<< /Length 180 >>\nstream\n' +
+      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+      'BT /F1 1.0 Tf 72 680 Td (Kubernetes AWS React Python GraphQL Redis Docker) Tj ET\n' +
+      'endstream\nendobj\nxref\n0 5\ntrailer\n<< /Root 1 0 R >>\n%%EOF',
+      'latin1'
+    );
+
+    const report = defaultAtsParseabilityService.evaluateAtsParseability({
+      pdfBuffer: attackPdfMicroscopic,
+      extractedText: 'Morgan Chen | morgan@example.com',
+    });
+
+    assert.ok(
+      report.findings.some((f) => f.finding === 'MICROSCOPIC_TEXT_DETECTED'),
+      'Expected MICROSCOPIC_TEXT_DETECTED finding'
+    );
+  });
+
+  it('Attack E: Metadata injection in PDF Info dictionary does NOT count toward resume body keyword coverage', () => {
+    // PDF with keywords in metadata dictionary /Keywords, but text stream does NOT have them
+    const pdfWithMetadataSpam = Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n' +
+      '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n' +
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n' +
+      '4 0 obj\n<< /Length 100 >>\nstream\n' +
+      'BT /F1 12 Tf 72 712 Td (Morgan Chen | morgan@example.com) Tj ET\n' +
+      'endstream\nendobj\n' +
+      '5 0 obj\n<< /Title (Resume) /Keywords (PostgreSQL, Kubernetes, AWS, Rust, Docker) >>\nendobj\n' +
+      'xref\n0 6\ntrailer\n<< /Root 1 0 R /Info 5 0 R >>\n%%EOF',
+      'latin1'
+    );
+
+    const report = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription: {
+        title: 'Backend Engineer',
+        requirements: [{ text: 'Kubernetes', importance: 'REQUIRED' }],
+      },
+      structuredResume: honestResumeA,
+      pdfBuffer: pdfWithMetadataSpam,
+      candidateProfile: honestProfile,
+    });
+
+    // Kubernetes was only in /Keywords metadata, never in content stream
+    const k8sMatch = report.termBreakdown.find((t) => t.canonicalSlug === 'kubernetes');
+    assert.ok(k8sMatch);
+    assert.equal(k8sMatch.satisfiesRequirement, false);
+    assert.equal(k8sMatch.matchType, 'MISSING');
+  });
+
+  it('Attack F: Repeated keyword in contact/header does NOT satisfy technical skill requirements (Score_B <= Score_A)', () => {
+    const resumeHeaderSpam = JSON.parse(JSON.stringify(honestResumeA));
+    resumeHeaderSpam.header = {
+      name: 'Morgan Chen',
+      email: 'morgan@example.com',
+      headline: 'Morgan Chen | Python Python Python Python | morgan@example.com',
+    };
+    resumeHeaderSpam.candidateIdentity = {
+      displayName: 'Morgan Chen',
+      headline: 'Morgan Chen | Python Python Python Python | morgan@example.com',
+    };
+    // Clean projects and skills do NOT mention Python
+    resumeHeaderSpam.skills = { categories: [{ categoryName: 'Languages', skills: [{ name: 'Go' }] }] };
+    resumeHeaderSpam.projects[0].technologies = ['Go', 'Raft'];
+
+    const report = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription: {
+        title: 'Python Backend Engineer',
+        requirements: [{ text: 'Python', importance: 'REQUIRED' }],
+      },
+      structuredResume: resumeHeaderSpam,
+      candidateProfile: honestProfile,
+    });
+
+    const pythonMatch = report.termBreakdown.find((t) => t.canonicalSlug === 'python');
+    assert.ok(pythonMatch);
+    // Header-only mentions do NOT satisfy technical skill requirements
+    assert.equal(pythonMatch.satisfiesRequirement, false);
+  });
+
+  it('Attack G: Negated / disclaimed skills ("No experience with Kubernetes") do NOT receive positive credit', () => {
+    const resumeNegated = JSON.parse(JSON.stringify(honestResumeA));
+    resumeNegated.summary =
+      'Senior backend engineer with deep Go and distributed systems background. Note: No experience with Kubernetes or AWS.';
+
+    const report = ResumeKeywordCoverageService.analyzeKeywordCoverage({
+      jobDescription: {
+        title: 'Cloud Engineer',
+        requirements: [{ text: 'Kubernetes', importance: 'REQUIRED' }],
+      },
+      structuredResume: resumeNegated,
+      candidateProfile: honestProfile,
+    });
+
+    const k8sMatch = report.termBreakdown.find((t) => t.canonicalSlug === 'kubernetes');
+    assert.ok(k8sMatch);
+    assert.equal(k8sMatch.polarity, 'NEGATED');
+    assert.equal(k8sMatch.satisfiesRequirement, false);
+  });
 });
+

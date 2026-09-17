@@ -120,19 +120,23 @@ export class ResumeKeywordCoverageService {
       );
 
       // Candidate authorization check: skill claimed on resume must have backing in candidate profile
-      if (
-        candidateProfile &&
-        (evalResult.matchType === 'EXACT' || evalResult.matchType === 'TAXONOMY_EQUIVALENT')
-      ) {
+      let candidateAuthorization = 'UNKNOWN';
+      if (candidateProfile) {
         const isAuthorizedByCandidate =
           candidateSkills.has(evalResult.canonicalSlug) ||
           candidateSkills.has(jobTerm.canonicalSlug);
-        if (!isAuthorizedByCandidate) {
-          evalResult.matchType = 'UNSUPPORTED_CANDIDATE';
-          evalResult.satisfiesRequirement = false;
-          evalResult.explanation = `Claimed in resume without backing evidence in candidate profile for technology '${jobTerm.term}'.`;
+        if (isAuthorizedByCandidate) {
+          candidateAuthorization = 'AUTHORIZED';
+        } else {
+          candidateAuthorization = 'EVIDENCE_MISSING';
+          if (evalResult.matchType === 'EXACT' || evalResult.matchType === 'TAXONOMY_EQUIVALENT') {
+            evalResult.matchType = 'UNSUPPORTED_CANDIDATE';
+            evalResult.satisfiesRequirement = false;
+            evalResult.explanation = `Claimed in resume without backing evidence in candidate profile for technology '${jobTerm.term}'.`;
+          }
         }
       }
+      evalResult.candidateAuthorization = candidateAuthorization;
 
       // Dual-Property Visibility Tracking (Rules 25 & 27)
       const intendedPresence = evalResult.occurrences > 0;
@@ -172,16 +176,16 @@ export class ResumeKeywordCoverageService {
 
       if (evalResult.matchType === 'EXACT') {
         exactMatches++;
-        if (evalResult.intendedPresence) intendedSatisfiedWeight += termWeight;
-        if (evalResult.isRendered) renderedSatisfiedWeight += termWeight;
+        if (evalResult.intendedPresence && evalResult.satisfiesRequirement) intendedSatisfiedWeight += termWeight;
+        if (evalResult.isRendered && evalResult.satisfiesRequirement) renderedSatisfiedWeight += termWeight;
       } else if (evalResult.matchType === 'TAXONOMY_EQUIVALENT') {
         taxonomyMatches++;
-        if (evalResult.intendedPresence) intendedSatisfiedWeight += termWeight;
-        if (evalResult.isRendered) renderedSatisfiedWeight += termWeight;
+        if (evalResult.intendedPresence && evalResult.satisfiesRequirement) intendedSatisfiedWeight += termWeight;
+        if (evalResult.isRendered && evalResult.satisfiesRequirement) renderedSatisfiedWeight += termWeight;
       } else if (evalResult.matchType === 'RELATED') {
         semanticMatches++;
         // Rule 27: RELATED semantic matches cannot satisfy exact required technologies!
-        if (!isRequired) {
+        if (!isRequired && evalResult.satisfiesRequirement) {
           if (evalResult.intendedPresence) intendedSatisfiedWeight += termWeight * 0.5;
           if (evalResult.isRendered) renderedSatisfiedWeight += termWeight * 0.5;
         }
@@ -200,7 +204,7 @@ export class ResumeKeywordCoverageService {
           category: jobTerm.category || 'TOOL',
           occurrences: evalResult.occurrences,
           sections: evalResult.placements,
-          contextualBreadthScore: Math.min(1.0, evalResult.placements.length / 3.0),
+          contextualBreadthScore: Math.min(1.0, evalResult.placements.filter(p => p !== 'header').length / 3.0),
           isNaturalUsage: true,
           stuffingWarning: null,
         });
@@ -272,7 +276,36 @@ export class ResumeKeywordCoverageService {
       ? renderedCoveragePercent
       : intendedCoveragePercent;
 
-    const confidence = pdfBuffer ? 0.95 : extractedText ? 0.85 : 0.75;
+    // Inspectable Multi-Factor Confidence (Weakness 1)
+    const pdfExtractionQuality = Buffer.isBuffer(pdfBuffer) && pdfBuffer.length > 50
+      ? (artifactText && artifactText.length >= 250 && !/[\uFFFD]/.test(artifactText) ? 0.98 : 0.88)
+      : (extractedText ? 0.85 : 0.75);
+
+    const requirementExtractionQuality = jobTerms.length > 0
+      ? Math.round((jobTerms.filter(t => CANONICAL_SKILLS[t.canonicalSlug] !== undefined).length / jobTerms.length) * 100) / 100
+      : 1.0;
+
+    const taxonomyResolution = termBreakdown.length > 0
+      ? Math.round((termBreakdown.filter(t => t.matchType !== 'MISSING' && t.matchType !== 'UNSUPPORTED_CANDIDATE').length / Math.max(1, termBreakdown.length)) * 100) / 100
+      : 1.0;
+
+    const evidenceCoverage = candidateSkills.size > 0
+      ? Math.round((termBreakdown.filter(t => t.candidateAuthorization === 'AUTHORIZED').length / Math.max(1, termBreakdown.filter(t => t.matchType !== 'MISSING').length)) * 100) / 100
+      : (candidateProfile ? 0.5 : 1.0);
+
+    const confidenceFactors = {
+      pdfExtractionQuality,
+      requirementExtractionQuality,
+      taxonomyResolution: Math.max(0.60, taxonomyResolution),
+      evidenceCoverage: Math.max(0.50, evidenceCoverage),
+    };
+
+    const compositeConfidence = Math.round(
+      (0.35 * confidenceFactors.pdfExtractionQuality +
+       0.25 * confidenceFactors.requirementExtractionQuality +
+       0.20 * confidenceFactors.taxonomyResolution +
+       0.20 * confidenceFactors.evidenceCoverage) * 100
+    ) / 100;
 
     const report = {
       overallCoveragePercent,
@@ -290,7 +323,8 @@ export class ResumeKeywordCoverageService {
       termBreakdown,
       keywordPlacements,
       stuffingWarnings,
-      confidence,
+      confidence: compositeConfidence,
+      confidenceFactors,
       analyzedAt: analyzedAt
         ? new Date(analyzedAt).toISOString()
         : new Date().toISOString(),
@@ -309,13 +343,18 @@ export class ResumeKeywordCoverageService {
     // 1. Structured requirements
     if (Array.isArray(jobDescription.requirements)) {
       for (const req of jobDescription.requirements) {
-        const raw = typeof req === 'string' ? req : req.extractedValue || req.name || req.skill;
+        const raw =
+          typeof req === 'string'
+            ? req
+            : req.text || req.concept || req.term || req.extractedValue || req.name || req.skill;
         if (!raw || typeof raw !== 'string') continue;
         const norm = SkillTaxonomyEngine.normalizeSkill(raw);
         if (!norm || norm.isNoise) continue;
 
         const importance =
-          typeof req === 'object' && req.importance === 'PREFERRED' ? 'PREFERRED' : 'REQUIRED';
+          typeof req === 'object' && (req.importance === 'PREFERRED' || req.isPreferred)
+            ? 'PREFERRED'
+            : 'REQUIRED';
 
         termsMap.set(norm.canonicalSlug, {
           term: raw.trim(),
@@ -331,7 +370,10 @@ export class ResumeKeywordCoverageService {
     // 2. Structured skills array
     if (Array.isArray(jobDescription.skills)) {
       for (const s of jobDescription.skills) {
-        const raw = typeof s === 'string' ? s : s.name || s.skillName || s.extractedValue;
+        const raw =
+          typeof s === 'string'
+            ? s
+            : s.text || s.name || s.skillName || s.extractedValue || s.skill || s.term;
         if (!raw || typeof raw !== 'string') continue;
         const norm = SkillTaxonomyEngine.normalizeSkill(raw);
         if (!norm || norm.isNoise) continue;
@@ -386,7 +428,29 @@ export class ResumeKeywordCoverageService {
     const doc = structuredResume.structuredResume || structuredResume;
 
     const sections = {
-      summary: { text: doc.summary?.text || '', termCounts: new Map(), wordCount: 0 },
+      header: {
+        text:
+          typeof doc.header === 'string'
+            ? doc.header
+            : [
+                doc.header?.name,
+                doc.header?.email,
+                doc.header?.phone,
+                doc.header?.headline,
+                doc.candidateIdentity?.displayName,
+                doc.candidateIdentity?.name,
+                doc.candidateIdentity?.headline,
+              ]
+                .filter(Boolean)
+                .join(' '),
+        termCounts: new Map(),
+        wordCount: 0,
+      },
+      summary: {
+        text: typeof doc.summary === 'string' ? doc.summary : (doc.summary?.text || ''),
+        termCounts: new Map(),
+        wordCount: 0,
+      },
       skills: { text: '', termCounts: new Map(), wordCount: 0 },
       experience: { text: '', termCounts: new Map(), wordCount: 0 },
       projects: { text: '', termCounts: new Map(), wordCount: 0 },
@@ -605,6 +669,29 @@ export class ResumeKeywordCoverageService {
 
     const placements = Array.from(matchedSections);
 
+    // Detect polarity across matched sections
+    let overallPolarity = 'POSITIVE';
+    if (exactFound || taxonomyFound || relatedFound) {
+      const termToTest = matchedResumeTerm || rawTerm;
+      const polarities = [];
+      for (const sKey of matchedSections) {
+        const p = ResumeKeywordCoverageService.detectKeywordPolarity(
+          sectionData.sections[sKey]?.text,
+          termToTest
+        );
+        polarities.push(p);
+      }
+      if (polarities.includes('POSITIVE')) {
+        overallPolarity = 'POSITIVE';
+      } else if (polarities.includes('NEGATED')) {
+        overallPolarity = 'NEGATED';
+      } else if (polarities.includes('ASPIRATIONAL')) {
+        overallPolarity = 'ASPIRATIONAL';
+      } else if (polarities.includes('CONTEXT_ONLY')) {
+        overallPolarity = 'CONTEXT_ONLY';
+      }
+    }
+
     let matchType = 'MISSING';
     let satisfiesRequirement = false;
     let explanation = `Requirement '${rawTerm}' is missing from the resume.`;
@@ -629,6 +716,19 @@ export class ResumeKeywordCoverageService {
       }
     }
 
+    // Check polarity: Negated, Aspirational, and Context-Only cannot satisfy requirements!
+    if (overallPolarity !== 'POSITIVE') {
+      satisfiesRequirement = false;
+      explanation = `Term '${rawTerm}' detected with ${overallPolarity} intent (e.g. disclaimed, aspirational, or external context) and does not satisfy requirement.`;
+    }
+
+    // Check Attack F: Keywords occurring ONLY in header/contact details cannot satisfy technical requirements
+    const nonHeaderPlacements = placements.filter((p) => p !== 'header');
+    if (placements.length > 0 && nonHeaderPlacements.length === 0) {
+      satisfiesRequirement = false;
+      explanation = `Term '${rawTerm}' found only in header/contact details; technical skills must be substantiated in substantive sections (Skills, Projects, Experience).`;
+    }
+
     return {
       term: rawTerm,
       canonicalSlug: slug,
@@ -636,12 +736,52 @@ export class ResumeKeywordCoverageService {
       importance: jobTerm.importance,
       matchType,
       satisfiesRequirement,
+      polarity: overallPolarity,
       matchedResumeTerm,
       placements,
       occurrences: totalOccurrences,
       relationshipType,
       explanation,
     };
+  }
+
+  /**
+   * Detects semantic polarity and candidate intent for a keyword mention.
+   * Recognizes POSITIVE (active competence), NEGATED (disclaims skill),
+   * ASPIRATIONAL (desire to learn), and CONTEXT_ONLY (external comparison).
+   */
+  static detectKeywordPolarity(sectionText, termStr) {
+    if (!sectionText || !termStr) return 'POSITIVE';
+    const escaped = termStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(?:^|[^a-zA-Z0-9+#.])(${escaped})(?:$|[^a-zA-Z0-9+#.])`, 'gi');
+
+    const negationPattern = /\b(?:no\s+experience(?:\s+with|\s+in)?|not\s+(?:familiar|experienced)(?:\s+with)?|never\s+used|haven't\s+used|have\s+not\s+used|without\s+using|zero\s+knowledge\s+of|lack(?:\s+of)?|neither|nor|was\s+not\s+used|was\s+not\s+required|not\s+allowed|not\s+supported|not\s+used)\b/i;
+    const aspirationalPattern = /\b(?:interested\s+in\s+learning|eager\s+to\s+learn|looking\s+to\s+learn|aspiring\s+to|currently\s+(?:studying|learning|exploring)|hoping\s+to|aiming\s+to|plan(?:\s+to)?\s+learn)\b/i;
+    const contextOnlyPattern = /\b(?:migrated\s+away\s+from|replaced\s+.*\s+with|evaluated\s+.*\s+but|was\s+not\s+required|not\s+needed|in\s+contrast\s+to|alternative\s+to)\b/i;
+
+    let match;
+    let hasPositive = false;
+    let nonPositivePolarity = null;
+
+    while ((match = regex.exec(sectionText)) !== null) {
+      const idx = match.index;
+      const start = Math.max(0, idx - 80);
+      const end = Math.min(sectionText.length, idx + match[0].length + 60);
+      const windowText = sectionText.slice(start, end);
+
+      if (negationPattern.test(windowText)) {
+        nonPositivePolarity = 'NEGATED';
+      } else if (aspirationalPattern.test(windowText)) {
+        if (!nonPositivePolarity) nonPositivePolarity = 'ASPIRATIONAL';
+      } else if (contextOnlyPattern.test(windowText)) {
+        if (!nonPositivePolarity) nonPositivePolarity = 'CONTEXT_ONLY';
+      } else {
+        hasPositive = true;
+      }
+    }
+
+    if (hasPositive) return 'POSITIVE';
+    return nonPositivePolarity || 'POSITIVE';
   }
 }
 

@@ -236,23 +236,23 @@ export class AtsParseabilityService {
       });
     }
 
-    // ── 4. Single-Column ATS Reading Order (10 pts) ───────────────────────────
+    // ── 4. Reading Order & Multi-Column Risk Evaluation (10 pts) ──────────────
     const multiColTex = /\\begin\{multicols\}|\\begin\{tabular\}|\\begin\{table\*?\}/i.test(texContent);
     const readingOrderPass = !multiColTex;
     checks.push({
       checkId: 'READING_ORDER',
-      name: 'Single-Column Reading Order',
+      name: 'Single-Column Reading Order & ATS Parsing Risk',
       weight: ATS_CHECK_WEIGHTS.READING_ORDER,
       passed: readingOrderPass,
       message: readingOrderPass
         ? 'Confirmed linear, single-column reading order safe for automated ATS scrapers'
-        : 'Detected multi-column or table environments that frequently scramble ATS text extraction order',
+        : 'Elevated ATS parsing risk: multi-column or table environments frequently scramble linear text extraction order',
     });
     if (!readingOrderPass) {
       findings.push({
         dimension: 'readingOrder',
         severity: 'FAIL',
-        message: 'Multi-column/table formatting interferes with linear ATS extraction',
+        message: 'Elevated parsing risk: multi-column/table formatting interferes with linear ATS extraction',
       });
     }
 
@@ -323,20 +323,20 @@ export class AtsParseabilityService {
       findings.push({
         dimension: 'latexLeakage',
         severity: 'FAIL',
-        message: `Raw LaTeX markup detected in selectable text: ${leakedCommands[0]}`,
+        message: `Raw LaTeX commands leaked in plain text: ${leakedCommands.slice(0, 3).join(', ')}`,
       });
     }
 
-    // ── 8. Replacement Glyph (Tofu / Mojibake) Prevention (5 pts) ─────────────
+    // ── 8. Unicode Replacement Glyph Prevention (5 pts) ───────────────────────
     const hasReplacementGlyphs = REPLACEMENT_GLYPH_PATTERN.test(text);
     checks.push({
       checkId: 'REPLACEMENT_GLYPHS',
-      name: 'Clean Unicode Glyph Encoding',
+      name: 'Absence of Replacement Glyphs / Mojibake',
       weight: ATS_CHECK_WEIGHTS.REPLACEMENT_GLYPHS,
       passed: !hasReplacementGlyphs,
       message: !hasReplacementGlyphs
-        ? 'All characters rendered with valid Unicode mappings (no tofu or replacement glyphs)'
-        : 'Detected Unicode replacement glyphs (U+FFFD or control chars), indicating font encoding failure',
+        ? 'No Unicode replacement characters (tofu/mojibake) detected in text stream'
+        : 'Detected Unicode replacement glyphs (U+FFFD or control characters) indicating broken font encoding',
     });
     if (hasReplacementGlyphs) {
       findings.push({ dimension: 'glyphs', severity: 'FAIL', message: 'Unicode replacement glyphs found' });
@@ -373,13 +373,20 @@ export class AtsParseabilityService {
     }
 
     // ── Physical Observation Integration (if PDF binary provided) ─────────────
-    if (pdfObservation && pdfObservation.geometry) {
-      if (pdfObservation.geometry.pageOccupancyRatio > 0.98) {
+    if (pdfObservation) {
+      if (pdfObservation.geometry && pdfObservation.geometry.pageOccupancyRatio > 0.98) {
         findings.push({
           dimension: 'pageClipping',
           severity: 'WARN',
           message: `Physical page occupancy is near margin overflow boundary (${Math.round(pdfObservation.geometry.pageOccupancyRatio * 100)}%)`,
         });
+      }
+      if (Array.isArray(pdfObservation.findings)) {
+        for (const f of pdfObservation.findings) {
+          if (f.finding === 'INVISIBLE_TEXT_DETECTED' || f.finding === 'MICROSCOPIC_TEXT_DETECTED' || f.finding === 'HIDDEN_TEXT_OFFSCREEN') {
+            findings.push(f);
+          }
+        }
       }
     }
 
@@ -390,12 +397,27 @@ export class AtsParseabilityService {
     }, 0);
     const totalPossible = Object.values(ATS_CHECK_WEIGHTS).reduce((a, b) => a + b, 0);
     const atsParseabilityScore = Math.max(0, Math.min(100, Math.round((totalEarned / totalPossible) * 100)));
-    const confidence = pdfBuffer ? 0.95 : (extractedText ? 0.85 : 0.75);
+
+    // Multi-factor inspectable confidence (Weakness 1)
+    const extractionQuality = textLength >= 250 && !hasReplacementGlyphs ? 0.98 : 0.80;
+    const structuralPurity = latexPass && brokenWordsPass ? 1.0 : 0.85;
+    const contactFidelity = contactPass ? 1.0 : 0.70;
+    const headingCoherence = headingsPass ? 1.0 : 0.75;
+    const confidenceFactors = {
+      pdfExtractionQuality: extractionQuality,
+      structuralPurity,
+      contactFidelity,
+      headingCoherence,
+    };
+    const confidence = Math.round(
+      (0.35 * extractionQuality + 0.25 * structuralPurity + 0.20 * contactFidelity + 0.20 * headingCoherence) * 100
+    ) / 100;
 
     return {
       atsParseabilityScore,
       passed: atsParseabilityScore >= 75 && latexPass && !hasReplacementGlyphs,
       confidence,
+      confidenceFactors,
       auditedAt: analyzedAt || '1970-01-01T00:00:00.000Z',
       version: ATS_PARSEABILITY_VERSION,
       checks,
