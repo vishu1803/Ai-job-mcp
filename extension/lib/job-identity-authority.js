@@ -10,8 +10,11 @@ import {
   isSameJobIdentity,
   deriveJobFingerprint,
   normalizeJobPostingUrl,
+  UNKNOWN_FINGERPRINT,
 } from './job-identity.js';
 import { WORKFLOW_STATES } from './workflow-state-machine.js';
+
+export { UNKNOWN_FINGERPRINT };
 
 export const TRANSITION_ACTIONS = Object.freeze({
   RETAIN_AND_ENRICH: 'RETAIN_AND_ENRICH',             // Same job identity: enrich metadata/description, retain workflow state
@@ -41,12 +44,12 @@ export const SIGNAL_TYPES = Object.freeze({
 export class CanonicalJobIdentity {
   constructor(job = {}) {
     this.canonicalJobId = job.canonicalJobId || null;
-    this.provider = job.provider ? String(job.provider).toUpperCase() : null;
+    this.provider = (job.provider && String(job.provider).toUpperCase() !== 'NONE') ? String(job.provider).toUpperCase() : null;
     this.externalJobId = job.externalJobId ? String(job.externalJobId) : null;
     this.title = (job.title || job.jobTitle || '').trim();
     this.company = (job.company && job.company !== 'Company') ? String(job.company).trim() : '';
     this.url = job.sourceUrl || job.url || '';
-    this.normalizedUrl = normalizeJobPostingUrl(this.url);
+    this.normalizedUrl = normalizeJobPostingUrl(this.url || job.normalizedJobUrl || job.normalizedUrl);
     this.location = job.location || '';
     this.workplace = job.workplace || '';
     this.employmentType = job.employmentType || '';
@@ -66,26 +69,32 @@ export class CanonicalJobIdentity {
       this.title &&
       this.title !== 'Untitled Role' &&
       this.fingerprint &&
-      this.fingerprint !== '0'.repeat(64)
+      this.fingerprint !== UNKNOWN_FINGERPRINT
     );
     if (!hasBasicFields) return false;
 
-    // Strong Canonical Identity requirement (Requirement 2):
-    // Must satisfy at least one authoritative identity anchor:
-    const hasProviderAndExternalId = Boolean(this.provider && this.externalJobId);
+    // Strong Canonical Identity requirement (P80):
+    // Do NOT consider normalizedUrl alone an authoritative job identity anchor.
+    // Valid identity requires one of:
+    // 1. canonicalJobId
+    // 2. provider + externalJobId
+    // 3. provider + normalizedJobUrl
+    // 4. validated title + company + normalizedUrl
     const hasCanonicalId = Boolean(this.canonicalJobId);
-    const hasNormalizedUrl = Boolean(this.normalizedUrl && this.normalizedUrl.length > 0);
+    const hasProviderAndExternalId = Boolean(this.provider && this.externalJobId);
+    const hasProviderAndNormalizedUrl = Boolean(this.provider && this.normalizedUrl);
     const hasValidatedTitleCompanyUrl = Boolean(
       this.title &&
+      this.title !== 'Untitled Role' &&
       this.company &&
       this.company !== 'Company' &&
-      (this.url || this.normalizedUrl)
+      this.normalizedUrl
     );
 
     return Boolean(
-      hasProviderAndExternalId ||
       hasCanonicalId ||
-      hasNormalizedUrl ||
+      hasProviderAndExternalId ||
+      hasProviderAndNormalizedUrl ||
       hasValidatedTitleCompanyUrl
     );
   }

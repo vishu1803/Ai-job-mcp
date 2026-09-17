@@ -153,6 +153,8 @@ function sha256Hex(ascii) {
   return result;
 }
 
+export const UNKNOWN_FINGERPRINT = '0'.repeat(64);
+
 /**
  * Derives a canonical job fingerprint to uniquely identify a target role across
  * page reloads, SPA transitions, and multi-step forms.
@@ -165,9 +167,11 @@ function sha256Hex(ascii) {
  * @param {string} [params.company]
  * @param {string} [params.url]
  * @param {string} [params.sourceUrl]
+ * @param {string} [params.normalizedUrl]
  * @returns {string} Deterministic 64-character SHA-256 fingerprint string
  */
 export function deriveJobFingerprint(params = {}) {
+  const safeParams = params || {};
   const {
     canonicalJobId,
     provider,
@@ -176,7 +180,8 @@ export function deriveJobFingerprint(params = {}) {
     company = '',
     url = '',
     sourceUrl = '',
-  } = params;
+    normalizedUrl = '',
+  } = safeParams;
 
   let rawKey = '';
   if (canonicalJobId) {
@@ -186,7 +191,7 @@ export function deriveJobFingerprint(params = {}) {
   } else {
     const cleanTitle = String(title).toLowerCase().replace(/[^a-z0-9]/g, '');
     const cleanCompany = String(company).toLowerCase().replace(/[^a-z0-9]/g, '');
-    const cleanUrl = normalizeJobPostingUrl(url || sourceUrl || '');
+    const cleanUrl = normalizeJobPostingUrl(url || sourceUrl || normalizedUrl || '');
 
     if (cleanCompany && cleanTitle) {
       rawKey = `role::${cleanCompany}::${cleanTitle}::${cleanUrl}`;
@@ -198,7 +203,7 @@ export function deriveJobFingerprint(params = {}) {
   }
 
   if (rawKey === 'unknown-job') {
-    return '0'.repeat(64);
+    return UNKNOWN_FINGERPRINT;
   }
 
   return sha256Hex(rawKey);
@@ -230,16 +235,16 @@ export function isSameJobIdentity(jobA, jobB) {
     return String(jobA.externalJobId) === String(jobB.externalJobId);
   }
 
-  // Fingerprint match
-  const fpA = deriveJobFingerprint(jobA);
-  const fpB = deriveJobFingerprint(jobB);
-  if (fpA !== 'unknown-job' && fpA === fpB) {
+  // Fingerprint match (unknown fingerprints are never equal)
+  const fpA = jobA.fingerprint || deriveJobFingerprint(jobA);
+  const fpB = jobB.fingerprint || deriveJobFingerprint(jobB);
+  if (fpA && fpB && fpA !== UNKNOWN_FINGERPRINT && fpB !== UNKNOWN_FINGERPRINT && fpA === fpB) {
     return true;
   }
 
   // Normalized URL match
-  const urlA = normalizeJobPostingUrl(jobA.sourceUrl || jobA.url);
-  const urlB = normalizeJobPostingUrl(jobB.sourceUrl || jobB.url);
+  const urlA = normalizeJobPostingUrl(jobA.sourceUrl || jobA.url || jobA.normalizedUrl || jobA.normalizedJobUrl);
+  const urlB = normalizeJobPostingUrl(jobB.sourceUrl || jobB.url || jobB.normalizedUrl || jobB.normalizedJobUrl);
   if (urlA && urlB && urlA === urlB) {
     return true;
   }
@@ -261,10 +266,12 @@ export {
 } from './job-identity-authority.js';
 
 export const JobIdentity = {
+  UNKNOWN_FINGERPRINT,
   normalizeJobUrl: normalizeJobPostingUrl,
   normalizeJobPostingUrl,
   deriveJobFingerprint,
   isSameJobIdentity,
 };
+
 
 

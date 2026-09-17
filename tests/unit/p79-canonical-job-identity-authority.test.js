@@ -155,7 +155,7 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
       assert.strictEqual(invalidJob.isValid(), false);
     });
 
-    it('requires at least one authoritative anchor for validity (provider+extId, canonicalJobId, normalizedUrl, title+company+url)', () => {
+    it('requires at least one authoritative anchor for validity (provider+extId, canonicalJobId, provider+url, title+company+url)', () => {
       // Valid with provider + externalJobId
       const idProvider = new CanonicalJobIdentity({ title: 'Software Engineer', provider: 'LINKEDIN', externalJobId: '12345' });
       assert.strictEqual(idProvider.isValid(), true);
@@ -164,13 +164,17 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
       const idCanonical = new CanonicalJobIdentity({ title: 'Software Engineer', canonicalJobId: 'canon-123' });
       assert.strictEqual(idCanonical.isValid(), true);
 
-      // Valid with normalizedUrl
-      const idUrl = new CanonicalJobIdentity({ title: 'Software Engineer', sourceUrl: 'https://careers.company.com/job/1' });
-      assert.strictEqual(idUrl.isValid(), true);
+      // Valid with provider + normalizedUrl
+      const idProviderUrl = new CanonicalJobIdentity({ title: 'Software Engineer', provider: 'GREENHOUSE', sourceUrl: 'https://careers.company.com/job/1' });
+      assert.strictEqual(idProviderUrl.isValid(), true);
 
       // Valid with validated title + company + url
       const idFull = new CanonicalJobIdentity({ title: 'Software Engineer', company: 'Acme', url: 'https://acme.org/jobs/42' });
       assert.strictEqual(idFull.isValid(), true);
+
+      // Invalid with normalizedUrl alone (no provider, no company)
+      const idUrlAlone = new CanonicalJobIdentity({ title: 'Software Engineer', sourceUrl: 'https://careers.company.com/job/1' });
+      assert.strictEqual(idUrlAlone.isValid(), false);
     });
 
     it('rejects unanchored identity with only title and no identity anchors', () => {

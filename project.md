@@ -3,6 +3,58 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-17*
 
+### PART 80: Final Identity Primitive Hardening
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-17  
+**Scope:** Hardening of fundamental identity primitives across `extension/lib/job-identity.js` and `extension/lib/job-identity-authority.js`. Eliminated the vulnerability where arbitrary web pages (e.g. ChatGPT conversations, documentation, blog articles) were treated as valid canonical jobs due to `normalizedUrl` alone being accepted as an authoritative anchor. Fixed the unknown fingerprint comparison vulnerability where two unknown fingerprints (64 zeroes) were falsely treated as equal by `isSameJobIdentity()`.
+1. **CanonicalJobIdentity Authoritative Anchors (`CanonicalJobIdentity.isValid()`):**
+   - Eliminated `normalizedUrl` alone as an authoritative anchor.
+   - Strictly enforced that canonical identity validity requires at least one of four authoritative anchors:
+     1. `canonicalJobId`
+     2. `provider + externalJobId`
+     3. `provider + normalizedJobUrl`
+     4. `validated title + company + normalizedUrl`
+   - Guaranteed that arbitrary title + URL pages (without provider or company) return `isValid() === false`.
+2. **Fixed Unknown Fingerprint Comparison (`isSameJobIdentity()` & `UNKNOWN_FINGERPRINT`):**
+   - Exported `UNKNOWN_FINGERPRINT = '0'.repeat(64)`.
+   - Updated `deriveJobFingerprint()` to return `UNKNOWN_FINGERPRINT` for `unknown-job` and guarded against null input.
+   - Enforced that `isSameJobIdentity()` never treats two unknown fingerprints as equal (`unknown fingerprint != unknown fingerprint`).
+3. **Dedicated Unit Regression Suite (`tests/unit/p80-identity-primitive-hardening.test.js`):**
+   - 17 unit tests passing with 100% rate.
+   - Covered: ChatGPT title + URL => invalid; arbitrary article title + URL => invalid; all 4 authoritative anchors => valid; generic company `"Company"` & `"Untitled Role"` => invalid; `UNKNOWN_FINGERPRINT` definition and derivation; unknown fingerprint inequality; valid LinkedIn and Greenhouse identity comparisons.
+4. **Real Chrome for Testing Live Acceptance Verification (`scripts/verify-p80-live-identity-reload.mjs`):**
+   - Authentic Chrome Side Panel opened via `chrome.sidePanel.open({ windowId })`.
+   - Tab switching: Quik Hire (`4466448213`) <-> Appinventiv (`4464770430`) with zero cross-tab state leakage.
+   - Fresh reload of Quik Hire: `Page.reload` verified fresh detection request ID incremented (13 -> 14); title (`Backend Software Engineer (Remote)`), company (`Quik Hire Staffing`), and fingerprint remained strictly invariant.
+   - Fresh reload of Appinventiv: `Page.reload` verified fresh detection request ID incremented (16 -> 17); title (`Software Engineer`), company (`Appinventiv`), and fingerprint remained strictly invariant.
+   - Explicit Rescan: `#rescanBtn.click()` verified fresh detection request ID incremented (17 -> 18); title, company, and fingerprint remained strictly invariant.
+   - 4 visual proof screenshots captured to brain artifact directory.
+5. **Full Regression & Security Audit:**
+   - 400/400 unit tests passing across 148 test suites (P57–P80).
+   - Secrets scanner passed with zero exposed secrets or tokens (`npm run scan:secrets`).
+
+**Files Changed / Created:**
+- `extension/lib/job-identity.js` [MODIFIED]: Exported `UNKNOWN_FINGERPRINT = '0'.repeat(64)`, made `deriveJobFingerprint` null-safe and return `UNKNOWN_FINGERPRINT` for unknown jobs, fixed `isSameJobIdentity` to prevent unknown fingerprint equality.
+- `extension/lib/job-identity-authority.js` [MODIFIED]: Imported and re-exported `UNKNOWN_FINGERPRINT`, tightened `CanonicalJobIdentity.isValid()` to require authoritative anchors and disallow `normalizedUrl` alone.
+- `tests/unit/p79-canonical-job-identity-authority.test.js` [MODIFIED]: Updated anchor assertions to verify `provider + normalizedUrl` is valid and `normalizedUrl` alone is invalid.
+- `tests/unit/p80-identity-primitive-hardening.test.js` [NEW]: 17 unit tests verifying authoritative anchors, unknown fingerprint inequality, and portal identity comparisons.
+- `scripts/verify-p80-live-identity-reload.mjs` [NEW]: Real Chrome for Testing CDP acceptance test verifying side panel, tab switching, Quik Hire reload, Appinventiv reload, and explicit rescan invariance.
+- `project.md` [MODIFIED]: Recorded execution ledger and verification evidence.
+
+**Verification Evidence:**
+- P80 Unit Tests (`node --test tests/unit/p80-identity-primitive-hardening.test.js`): **17/17 PASS (100% pass rate)**
+- Full P57–P80 Regression Suite (`node --test tests/unit/p57*.test.js tests/unit/p58*.test.js tests/unit/p59*.test.js tests/unit/p6*.test.js tests/unit/p7*.test.js tests/unit/p80*.test.js`): **400/400 PASS across 148 suites (0 failures, 100% pass rate)**
+- Real Chrome Live Acceptance Verification (`scripts/verify-p80-live-identity-reload.mjs`): **PASS (All 9 phases pass, 100% assertions satisfied)**
+- Visual Proof Screenshots:
+  - `p80-01-tab-a-switched.png`
+  - `p80-02-quik-hire-reloaded.png`
+  - `p80-03-appinventiv-reloaded.png`
+  - `p80-04-explicit-rescan.png`
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+
+---
+
 ### PART 79: Canonical Job Identity & State-Transition Authority
 
 **Status:** COMPLETE & VERIFIED  
