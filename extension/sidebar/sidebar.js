@@ -575,30 +575,27 @@ class SidebarController {
 
   async _handleHydratedDescription(jobData, jobFingerprint) {
     if (!jobData || !jobFingerprint) return;
-    if (!this.activeJobFingerprint || jobFingerprint !== this.activeJobFingerprint) return;
 
-    if (!this.activeJob) {
-      this.activeJob = { ...jobData };
-    } else {
-      this.activeJob.description = jobData.description || '';
-      this.activeJob.rawText = jobData.rawText || jobData.description || '';
-      this.activeJob.analysisReady = true;
-      if (jobData.requirements && Array.isArray(jobData.requirements) && jobData.requirements.length > 0) {
-        this.activeJob.requirements = jobData.requirements;
+    const decision = JobIdentityAuthority.evaluateTransition(
+      {
+        activeJob: this.activeJob,
+        cachedState: this.cachedState,
+        stateMachineState: this.stateMachine?.state,
+        isLocked: this.isWorkflowLocked(),
+        pendingDetectedJob: this.pendingDetectedJob,
+      },
+      {
+        type: SIGNAL_TYPES.HYDRATE_DESCRIPTION,
+        detectedJob: jobData,
+        jobFingerprint,
       }
-      if (jobData.company && (!this.activeJob.company || this.activeJob.company === 'Company')) {
-        this.activeJob.company = jobData.company;
-      }
-      if (jobData.descriptionSource) {
-        this.activeJob.descriptionSource = jobData.descriptionSource;
-      }
-      if (jobData.jobRootSource) {
-        this.activeJob.jobRootSource = jobData.jobRootSource;
-      }
-      if (jobData.descriptionLength !== undefined) {
-        this.activeJob.descriptionLength = jobData.descriptionLength;
-      }
+    );
+
+    if (decision.action !== TRANSITION_ACTIONS.RETAIN_AND_ENRICH) {
+      return;
     }
+
+    this.activeJob = decision.activeJob;
 
     if (this.pendingDetectedFingerprint === jobFingerprint) {
       this.pendingDetectedJob = null;

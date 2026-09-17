@@ -62,11 +62,31 @@ export class CanonicalJobIdentity {
   }
 
   isValid() {
-    return Boolean(
+    const hasBasicFields = Boolean(
       this.title &&
       this.title !== 'Untitled Role' &&
       this.fingerprint &&
       this.fingerprint !== '0'.repeat(64)
+    );
+    if (!hasBasicFields) return false;
+
+    // Strong Canonical Identity requirement (Requirement 2):
+    // Must satisfy at least one authoritative identity anchor:
+    const hasProviderAndExternalId = Boolean(this.provider && this.externalJobId);
+    const hasCanonicalId = Boolean(this.canonicalJobId);
+    const hasNormalizedUrl = Boolean(this.normalizedUrl && this.normalizedUrl.length > 0);
+    const hasValidatedTitleCompanyUrl = Boolean(
+      this.title &&
+      this.company &&
+      this.company !== 'Company' &&
+      (this.url || this.normalizedUrl)
+    );
+
+    return Boolean(
+      hasProviderAndExternalId ||
+      hasCanonicalId ||
+      hasNormalizedUrl ||
+      hasValidatedTitleCompanyUrl
     );
   }
 
@@ -187,26 +207,73 @@ export class JobIdentityAuthority {
     // 3. BACKEND ANALYSIS COMPLETION SYNCHRONIZATION
     // =========================================================================
     if (type === SIGNAL_TYPES.ANALYZE_COMPLETE) {
-      const canonical = (detectedJob && (detectedJob.title || detectedJob.jobTitle))
-        ? new CanonicalJobIdentity({
-            ...(activeJob || {}),
-            ...detectedJob,
-            title: detectedJob.title || detectedJob.jobTitle || activeJob?.title,
-          })
-        : (activeIdentity || (activeJob ? new CanonicalJobIdentity(activeJob) : null));
+      if (!hasActiveJob) {
+        return {
+          action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
+          reason: 'Analyze complete rejected: no active job identity bound',
+          activeJob: null,
+          targetWorkflowState: stateMachineState,
+          targetLockState: isWorkflowLocked ? 'LOCKED' : 'UNLOCKED',
+        };
+      }
 
-      const canonicalObj = canonical ? canonical.toObject() : {};
+      // Verify same identity before enriching (Requirement 3)
+      if (detectedJob) {
+        const responseIdentity = new CanonicalJobIdentity(detectedJob);
+        if (responseIdentity.isValid() && !activeIdentity.isSameAs(responseIdentity)) {
+          return {
+            action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
+            reason: 'Analyze complete rejected: response job identity does not match active canonical identity',
+            activeJob,
+            canonicalIdentity: activeIdentity,
+            targetWorkflowState: stateMachineState,
+            targetLockState: isWorkflowLocked ? 'LOCKED' : 'UNLOCKED',
+          };
+        }
+      }
+
       const mergedJob = {
         ...(activeJob || {}),
         ...(cachedState?.jobData || {}),
       };
-      for (const [k, v] of Object.entries(canonicalObj)) {
-        if (v !== null && v !== '' && v !== undefined) {
-          mergedJob[k] = v;
+
+      // Enrich safe non-identity fields if provided
+      if (detectedJob) {
+        if (detectedJob.description && (!mergedJob.description || mergedJob.description.length < 50)) {
+          mergedJob.description = detectedJob.description;
+        }
+        if (detectedJob.rawText && !mergedJob.rawText) {
+          mergedJob.rawText = detectedJob.rawText;
+        }
+        if (Array.isArray(detectedJob.requirements) && detectedJob.requirements.length > 0 && (!mergedJob.requirements || mergedJob.requirements.length === 0)) {
+          mergedJob.requirements = detectedJob.requirements;
+        }
+        if (Array.isArray(detectedJob.responsibilities) && detectedJob.responsibilities.length > 0 && (!mergedJob.responsibilities || mergedJob.responsibilities.length === 0)) {
+          mergedJob.responsibilities = detectedJob.responsibilities;
+        }
+        if (detectedJob.location && !mergedJob.location) {
+          mergedJob.location = detectedJob.location;
+        }
+        if (detectedJob.normalizedJob) {
+          mergedJob.normalizedJob = detectedJob.normalizedJob;
         }
       }
-      if (!mergedJob.title && activeJob?.title) mergedJob.title = activeJob.title;
-      if (!mergedJob.company && activeJob?.company) mergedJob.company = activeJob.company;
+
+      // Hard Invariant (Requirement 3): Never allow analysis response to replace canonical title or company
+      mergedJob.title = activeIdentity.title;
+      mergedJob.company = activeIdentity.company || mergedJob.company || '';
+      mergedJob.fingerprint = activeIdentity.fingerprint;
+      if (detectedJob?.canonicalJobId && !mergedJob.canonicalJobId) {
+        mergedJob.canonicalJobId = detectedJob.canonicalJobId;
+      }
+
+      const canonical = new CanonicalJobIdentity({
+        ...activeIdentity.toObject(),
+        canonicalJobId: activeIdentity.canonicalJobId || detectedJob?.canonicalJobId || null,
+        title: activeIdentity.title,
+        company: activeIdentity.company,
+        fingerprint: activeIdentity.fingerprint,
+      });
 
       const hasExistingHandoff = Boolean(
         signal.existingHandoff ||
@@ -232,28 +299,51 @@ export class JobIdentityAuthority {
     // 4. BACKEND HANDOFF PREPARATION SYNCHRONIZATION
     // =========================================================================
     if (type === SIGNAL_TYPES.HANDOFF_PREPARED) {
+      if (!hasActiveJob) {
+        return {
+          action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
+          reason: 'Handoff preparation rejected: no active job identity bound',
+          activeJob: null,
+          targetWorkflowState: stateMachineState,
+          targetLockState: 'UNLOCKED',
+        };
+      }
+
       const targetJob = signal.targetJob || detectedJob || {};
-      const titleCandidate = targetJob.title || targetJob.jobTitle || targetJob.packageMetadata?.jobTitle || activeJob?.title;
-      const companyCandidate = targetJob.company || targetJob.packageMetadata?.company || activeJob?.company;
-      const canonical = new CanonicalJobIdentity({
-        ...(activeJob || {}),
-        ...(cachedState?.jobData || {}),
-        ...targetJob,
-        title: titleCandidate,
-        company: companyCandidate,
-      });
-      const canonicalObj = canonical ? canonical.toObject() : {};
+      const targetIdentity = new CanonicalJobIdentity(targetJob);
+
+      // Verify same identity before enriching (Requirement 4)
+      if (targetIdentity.isValid() && !activeIdentity.isSameAs(targetIdentity)) {
+        return {
+          action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
+          reason: 'Handoff preparation rejected: target job identity does not match active canonical identity',
+          activeJob,
+          canonicalIdentity: activeIdentity,
+          targetWorkflowState: stateMachineState,
+          targetLockState: isWorkflowLocked ? 'LOCKED' : 'UNLOCKED',
+        };
+      }
+
       const mergedJob = {
         ...(activeJob || {}),
         ...(cachedState?.jobData || {}),
       };
-      for (const [k, v] of Object.entries(canonicalObj)) {
-        if (v !== null && v !== '' && v !== undefined) {
-          mergedJob[k] = v;
-        }
+
+      // Hard Invariant (Requirement 4): Never allow handoff preparation to replace canonical title or company
+      mergedJob.title = activeIdentity.title;
+      mergedJob.company = activeIdentity.company || mergedJob.company || '';
+      mergedJob.fingerprint = activeIdentity.fingerprint;
+      if (targetJob?.canonicalJobId && !mergedJob.canonicalJobId) {
+        mergedJob.canonicalJobId = targetJob.canonicalJobId;
       }
-      if (!mergedJob.title && activeJob?.title) mergedJob.title = activeJob.title;
-      if (!mergedJob.company && activeJob?.company) mergedJob.company = activeJob.company;
+
+      const canonical = new CanonicalJobIdentity({
+        ...activeIdentity.toObject(),
+        canonicalJobId: activeIdentity.canonicalJobId || targetJob?.canonicalJobId || null,
+        title: activeIdentity.title,
+        company: activeIdentity.company,
+        fingerprint: activeIdentity.fingerprint,
+      });
 
       return {
         action: TRANSITION_ACTIONS.RETAIN_AND_ENRICH,
@@ -278,35 +368,40 @@ export class JobIdentityAuthority {
         };
       }
 
-      const isSame = (jobFingerprint && activeIdentity.fingerprint === jobFingerprint) ||
-        (detectedJob && activeIdentity.isSameAs(detectedJob));
-
-      if (isSame) {
-        const enrichedJob = {
-          ...activeJob,
-          description: detectedJob?.description || activeJob.description,
-          rawText: detectedJob?.rawText || activeJob.rawText,
-          requirements: detectedJob?.requirements || activeJob.requirements,
-          responsibilities: detectedJob?.responsibilities || activeJob.responsibilities,
-          analysisReady: detectedJob?.analysisReady === true || (detectedJob?.description?.length >= 50),
-          isReady: true,
-        };
-        return {
-          action: TRANSITION_ACTIONS.RETAIN_AND_ENRICH,
-          reason: 'Enriching description on active canonical job identity',
-          activeJob: enrichedJob,
-          targetWorkflowState: stateMachineState,
-          targetLockState: isWorkflowLocked ? 'LOCKED' : 'UNLOCKED',
-        };
-      } else {
+      // Strict hydration fingerprint requirement (Requirement 1):
+      // Supplied fingerprint must match active canonical fingerprint exactly.
+      const incomingFingerprint = jobFingerprint || signal.fingerprint;
+      if (!incomingFingerprint || activeIdentity.fingerprint !== incomingFingerprint) {
         return {
           action: TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION,
-          reason: 'Hydration ignored: does not match active canonical job fingerprint',
+          reason: 'Hydration rejected: supplied fingerprint does not match active canonical job fingerprint exactly',
           activeJob,
           targetWorkflowState: stateMachineState,
           targetLockState: isWorkflowLocked ? 'LOCKED' : 'UNLOCKED',
         };
       }
+
+      const enrichedJob = {
+        ...activeJob,
+        description: detectedJob?.description || activeJob.description,
+        rawText: detectedJob?.rawText || activeJob.rawText,
+        requirements: detectedJob?.requirements || activeJob.requirements,
+        responsibilities: detectedJob?.responsibilities || activeJob.responsibilities,
+        analysisReady: detectedJob?.analysisReady === true || (detectedJob?.description?.length >= 50),
+        isReady: true,
+        title: activeIdentity.title,
+        company: activeIdentity.company || activeJob.company,
+        fingerprint: activeIdentity.fingerprint,
+      };
+
+      return {
+        action: TRANSITION_ACTIONS.RETAIN_AND_ENRICH,
+        reason: 'Enriching description on active canonical job identity',
+        activeJob: enrichedJob,
+        canonicalIdentity: activeIdentity,
+        targetWorkflowState: stateMachineState,
+        targetLockState: isWorkflowLocked ? 'LOCKED' : 'UNLOCKED',
+      };
     }
 
     // =========================================================================

@@ -154,6 +154,29 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
       const invalidJob = new CanonicalJobIdentity({ title: 'Untitled Role', company: 'Unknown' });
       assert.strictEqual(invalidJob.isValid(), false);
     });
+
+    it('requires at least one authoritative anchor for validity (provider+extId, canonicalJobId, normalizedUrl, title+company+url)', () => {
+      // Valid with provider + externalJobId
+      const idProvider = new CanonicalJobIdentity({ title: 'Software Engineer', provider: 'LINKEDIN', externalJobId: '12345' });
+      assert.strictEqual(idProvider.isValid(), true);
+
+      // Valid with canonicalJobId
+      const idCanonical = new CanonicalJobIdentity({ title: 'Software Engineer', canonicalJobId: 'canon-123' });
+      assert.strictEqual(idCanonical.isValid(), true);
+
+      // Valid with normalizedUrl
+      const idUrl = new CanonicalJobIdentity({ title: 'Software Engineer', sourceUrl: 'https://careers.company.com/job/1' });
+      assert.strictEqual(idUrl.isValid(), true);
+
+      // Valid with validated title + company + url
+      const idFull = new CanonicalJobIdentity({ title: 'Software Engineer', company: 'Acme', url: 'https://acme.org/jobs/42' });
+      assert.strictEqual(idFull.isValid(), true);
+    });
+
+    it('rejects unanchored identity with only title and no identity anchors', () => {
+      const unanchored = new CanonicalJobIdentity({ title: 'Software Engineer' });
+      assert.strictEqual(unanchored.isValid(), false);
+    });
   });
 
   describe('2. JobIdentityAuthority Transition Decisions', () => {
@@ -328,6 +351,134 @@ describe('P79: Canonical Job Identity & State-Transition Authority', () => {
       assert.strictEqual(decision.activeJob, null);
       assert.strictEqual(decision.targetWorkflowState, WORKFLOW_STATES.IDLE);
       assert.strictEqual(decision.targetLockState, 'UNLOCKED');
+    });
+
+    it('HYDRATE_DESCRIPTION accepts exact fingerprint match and enriches description', () => {
+      const idA = new CanonicalJobIdentity(sampleJobA);
+      const context = {
+        activeJob: sampleJobA,
+        cachedState: { jobData: sampleJobA },
+        stateMachineState: WORKFLOW_STATES.JOB_DETECTED,
+        isLocked: false,
+      };
+      const signal = {
+        type: SIGNAL_TYPES.HYDRATE_DESCRIPTION,
+        jobFingerprint: idA.fingerprint,
+        detectedJob: {
+          description: 'A newly hydrated detailed description with more than 50 characters for this exact role.',
+        },
+      };
+
+      const decision = JobIdentityAuthority.evaluateTransition(context, signal);
+      assert.strictEqual(decision.action, TRANSITION_ACTIONS.RETAIN_AND_ENRICH);
+      assert.strictEqual(decision.activeJob.description.includes('newly hydrated detailed description'), true);
+      assert.strictEqual(decision.activeJob.title, sampleJobA.title);
+      assert.strictEqual(decision.activeJob.company, sampleJobA.company);
+    });
+
+    it('HYDRATE_DESCRIPTION rejects when fingerprint does not match active canonical identity exactly', () => {
+      const context = {
+        activeJob: sampleJobA,
+        cachedState: { jobData: sampleJobA },
+        stateMachineState: WORKFLOW_STATES.JOB_DETECTED,
+        isLocked: false,
+      };
+      const signal = {
+        type: SIGNAL_TYPES.HYDRATE_DESCRIPTION,
+        jobFingerprint: 'f'.repeat(64), // mismatched fingerprint
+        detectedJob: {
+          title: sampleJobA.title, // even with same title!
+          description: 'Attempt to hydrate with mismatched fingerprint',
+        },
+      };
+
+      const decision = JobIdentityAuthority.evaluateTransition(context, signal);
+      assert.strictEqual(decision.action, TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION);
+      assert.strictEqual(decision.reason.includes('fingerprint does not match'), true);
+      assert.strictEqual(decision.activeJob.description, sampleJobA.description);
+    });
+
+    it('ANALYZE_COMPLETE rejects analysis response if job identity does not match active canonical job', () => {
+      const context = {
+        activeJob: sampleJobA,
+        cachedState: { jobData: sampleJobA },
+        stateMachineState: WORKFLOW_STATES.ANALYZING,
+        isLocked: false,
+      };
+      const signal = {
+        type: SIGNAL_TYPES.ANALYZE_COMPLETE,
+        detectedJob: sampleJobB, // divergent role
+      };
+
+      const decision = JobIdentityAuthority.evaluateTransition(context, signal);
+      assert.strictEqual(decision.action, TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION);
+      assert.strictEqual(decision.reason.includes('does not match active canonical identity'), true);
+      assert.strictEqual(decision.activeJob.title, sampleJobA.title);
+    });
+
+    it('ANALYZE_COMPLETE strictly freezes canonical title and company against divergent backend response', () => {
+      const context = {
+        activeJob: sampleJobA,
+        cachedState: { jobData: sampleJobA },
+        stateMachineState: WORKFLOW_STATES.ANALYZING,
+        isLocked: false,
+      };
+      const signal = {
+        type: SIGNAL_TYPES.ANALYZE_COMPLETE,
+        detectedJob: {
+          ...sampleJobA,
+          title: 'Divergent Title That Must Be Ignored',
+          company: 'Divergent Company That Must Be Ignored',
+          description: sampleJobA.description,
+        },
+      };
+
+      const decision = JobIdentityAuthority.evaluateTransition(context, signal);
+      assert.strictEqual(decision.action, TRANSITION_ACTIONS.RETAIN_AND_ENRICH);
+      // Hard invariant: Title and company remain strictly canonical
+      assert.strictEqual(decision.activeJob.title, sampleJobA.title);
+      assert.strictEqual(decision.activeJob.company, sampleJobA.company);
+    });
+
+    it('HANDOFF_PREPARED rejects prepared handoff if target job identity does not match active canonical job', () => {
+      const context = {
+        activeJob: sampleJobA,
+        cachedState: { jobData: sampleJobA },
+        stateMachineState: WORKFLOW_STATES.APPLICATION_PREPARING,
+        isLocked: false,
+      };
+      const signal = {
+        type: SIGNAL_TYPES.HANDOFF_PREPARED,
+        targetJob: sampleJobB, // completely different job
+      };
+
+      const decision = JobIdentityAuthority.evaluateTransition(context, signal);
+      assert.strictEqual(decision.action, TRANSITION_ACTIONS.PRESERVE_ACTIVE_SESSION);
+      assert.strictEqual(decision.reason.includes('does not match active canonical identity'), true);
+      assert.strictEqual(decision.activeJob.title, sampleJobA.title);
+    });
+
+    it('HANDOFF_PREPARED strictly freezes canonical title and company against divergent handoff target', () => {
+      const context = {
+        activeJob: sampleJobA,
+        cachedState: { jobData: sampleJobA },
+        stateMachineState: WORKFLOW_STATES.APPLICATION_PREPARING,
+        isLocked: false,
+      };
+      const signal = {
+        type: SIGNAL_TYPES.HANDOFF_PREPARED,
+        targetJob: {
+          ...sampleJobA,
+          title: 'Handoff Title Mutation Attempt',
+          company: 'Handoff Company Mutation Attempt',
+        },
+      };
+
+      const decision = JobIdentityAuthority.evaluateTransition(context, signal);
+      assert.strictEqual(decision.action, TRANSITION_ACTIONS.RETAIN_AND_ENRICH);
+      assert.strictEqual(decision.activeJob.title, sampleJobA.title);
+      assert.strictEqual(decision.activeJob.company, sampleJobA.company);
+      assert.strictEqual(decision.targetLockState, 'LOCKED');
     });
   });
 

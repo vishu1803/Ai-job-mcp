@@ -7,10 +7,11 @@
 
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-17  
-**Scope:** Architectural unification of state transitions across the Chrome extension and background scripts by establishing **Canonical Job Identity** (`CanonicalJobIdentity` / `JobIdentityAuthority`) as the single state-transition authority. Eliminated fragmented, ad-hoc guards (`hasAnalysis`, `isWorkflowLocked`, etc.) scattered across event listeners.
+**Scope:** Architectural unification of state transitions across the Chrome extension and background scripts by establishing **Canonical Job Identity** (`CanonicalJobIdentity` / `JobIdentityAuthority`) as the single state-transition authority. Eliminated fragmented, ad-hoc guards (`hasAnalysis`, `isWorkflowLocked`, etc.) scattered across event listeners. Hardened with strict hydration fingerprint enforcement, authoritative identity anchors, immutable title/company freezing against backend responses, and multi-tab live acceptance in real Chrome.
 1. **CanonicalJobIdentity Value Object (`extension/lib/job-identity-authority.js`):**
    - Implemented immutable `CanonicalJobIdentity` value object encapsulating `canonicalJobId`, `provider`, `externalJobId`, `title`, `company`, `url`, `normalizedUrl`, `location`, `workplace`, `employmentType`, and deterministic 64-character SHA-256 `fingerprint`.
-   - Normalizes query parameters, strips tracking tokens, sanitizes placeholder strings, and provides semantic identity equality checking via `.isSameAs(other)` and validity verification via `.isValid()`.
+   - Normalizes query parameters, strips tracking tokens, sanitizes placeholder strings, and provides semantic identity equality checking via `.isSameAs(other)`.
+   - **Strong Identity Validity Anchors:** Hardened `.isValid()` to require at least one authoritative anchor (`provider + externalJobId`, `canonicalJobId`, `normalizedUrl`, or `validated title + company + url`). Rejects unanchored identities with only titles.
 2. **JobIdentityAuthority State-Transition Engine (`extension/lib/job-identity-authority.js`):**
    - Implemented single state-transition authority governing all lifecycle events:
      - `SIGNAL_TYPES`: `DETECTION_RESULT`, `TAB_RELOAD`, `TAB_SWITCH`, `EXPLICIT_RESCAN`, `HYDRATE_DESCRIPTION`, `FORM_DETECTED`, `ANALYZE_COMPLETE`, `HANDOFF_PREPARED`, `USER_RESET`, `TRANSPORT_ERROR`.
@@ -21,37 +22,48 @@
        - `BIND_NEW_JOB`: Initial canonical job bound to an IDLE workflow.
        - `SWITCH_JOB`: Candidate explicitly commands a switch (e.g. manual rescan) to a new role.
        - `EXPLICIT_CLEAR`: Explicit user reset or explicit rescan of a confirmed non-job page.
+   - **Strict Hydration Fingerprint:** `HYDRATE_DESCRIPTION` strictly enforces `jobFingerprint === activeIdentity.fingerprint`. Rejects any payload missing or mismatching the active fingerprint without heuristic fallback.
+   - **ANALYZE_COMPLETE Identity Protection:** Verifies `isSameAs` on incoming analysis payload, strictly freezes canonical `title` and `company` to `activeIdentity` values, and enriches `canonicalJobId`.
+   - **HANDOFF_PREPARED Protection:** Enforces `isSameAs` on target job identity and freezes canonical `title` and `company`.
 3. **SidebarController Integration (`extension/sidebar/sidebar.js`):**
-   - Replaced fragmented inline if-else chains in `_requestDetectionFromTab()`, `_reconcileDetectedJob()`, `runAnalyzeJob()`, and `runPrepareHandoff()` with single call to `JobIdentityAuthority.evaluateTransition(context, signal)`.
+   - Replaced fragmented inline if-else chains in `_requestDetectionFromTab()`, `_reconcileDetectedJob()`, `_handleHydratedDescription()`, `runAnalyzeJob()`, and `runPrepareHandoff()` with single authoritative calls to `JobIdentityAuthority.evaluateTransition(context, signal)`.
    - Execution strictly honors the returned action and state payload.
 4. **Verification & Live Acceptance:**
-   - Dedicated unit test suite: `tests/unit/p79-canonical-job-identity-authority.test.js` (14/14 PASS).
-   - Full regression test suite: P57 through P79 (`375/375 PASS` across 144 suites, 0 failures, 100% pass rate).
-   - Live acceptance verification in Chrome for Testing on live LinkedIn Job ID `4466834190`:
-     - Initial detection: bound `CanonicalJobIdentity` (`title: "Full Stack Engineer"`, `company: "Jobgether"`).
-     - Explicit Analyze Match: executed `RETAIN_AND_ENRICH`; verified title invariance before, during, and after analysis (`score: 25`, `matchBand: LOW`).
-     - Passive non-job signal: verified `PRESERVE_ACTIVE_SESSION` immunity without title regression.
-     - Explicit rescan: verified `RETAIN_AND_ENRICH` idempotency.
-     - 3 visual proof screenshots saved: `p79-01-live-detected.png`, `p79-02-live-analyzed.png`, `p79-03-live-rescanned.png`.
+   - Dedicated unit test suite: `tests/unit/p79-canonical-job-identity-authority.test.js` expanded to **22/22 PASS** (covering anchors, strict fingerprints, identity mismatch rejections, and title/company freezing).
+   - Full regression test suite: P57 through P79 (`383/383 PASS` across 144 suites, 0 failures, 100% pass rate).
+   - Real Chrome for Testing Live Acceptance Test (`scripts/verify-p79-live-canonical-identity.mjs`):
+     - Executed via authentic Chrome Side Panel API (`chrome.sidePanel.open({ windowId })`).
+     - Real multi-tab flow: Tab A (Quik Hire `4466448213`) $\rightarrow$ Tab B (Appinventiv `4464770430`) $\rightarrow$ Tab C (ChatGPT `chatgpt.com`) $\rightarrow$ Return to Tab A.
+     - Pure DOM-driven interactions: clicks on `#analyzeJobBtn` and `#rescanBtn` with zero private-method shortcuts (`_reconcileDetectedJob`, `_requestDetectionFromTab`, `runAnalyzeJob`).
+     - Phase 1: Tab A bound `"Backend Software Engineer (Remote)"` at `"Quik Hire Staffing"`, analyzed cleanly via `#analyzeJobBtn.click()` (`score: 41`, `workflowState: APPLICATION_READY`).
+     - Phase 2: Tab B activated in Chrome, Side Panel rendered `"Software Engineer"` at `"Appinventiv"` with zero leakage from Tab A.
+     - Phase 3: Tab C (ChatGPT) activated in Chrome, cleanly rejected as non-job (`READY`, `Web Page`, `activeJob === null`, `analyzeJobBtn.disabled === true`).
+     - Phase 4: Switched back to Tab A in Chrome; full restoration of analyzed state (`score: 41`, `domTitle === "Backend Software Engineer (Remote)"`); explicit `#rescanBtn.click()` verified `RETAIN_AND_ENRICH` idempotency.
+     - 4 visual proof screenshots captured to brain artifact directory:
+       - `p79-01-live-tab-a-analyzed.png`
+       - `p79-02-live-tab-b-detected.png`
+       - `p79-03-live-tab-c-chatgpt-rejected.png`
+       - `p79-04-live-tab-a-restored.png`
 5. **Security Audit:**
-   - Secrets scanner passed with zero exposed secrets or tokens.
+   - Secrets scanner passed with zero exposed secrets or tokens (`npm run scan:secrets`).
 
 **Files Changed / Created:**
-- `extension/lib/job-identity-authority.js` [NEW]: Implemented `CanonicalJobIdentity` value object and `JobIdentityAuthority` state-transition engine.
+- `extension/lib/job-identity-authority.js` [NEW & HARDENED]: Implemented `CanonicalJobIdentity` value object (with strong validity anchors) and `JobIdentityAuthority` state-transition engine (with strict hydration fingerprint, ANALYZE_COMPLETE, and HANDOFF_PREPARED freezing).
 - `extension/lib/job-identity.js` [MODIFIED]: Re-exported `CanonicalJobIdentity`, `JobIdentityAuthority`, `TRANSITION_ACTIONS`, and `SIGNAL_TYPES`.
-- `extension/sidebar/sidebar.js` [MODIFIED]: Refactored all transition handling to execute decisions from `JobIdentityAuthority`.
-- `tests/unit/p79-canonical-job-identity-authority.test.js` [NEW]: Unit test suite covering value object hashing, authority transitions, and sidebar lifecycle integration (14 tests).
-- `scripts/verify-p79-live-canonical-identity.mjs` [NEW]: Real Chrome for Testing CDP verification script for live LinkedIn job analysis, passive immunity, and rescan.
+- `extension/sidebar/sidebar.js` [MODIFIED]: Refactored all transition handling (`_reconcileDetectedJob`, `_handleHydratedDescription`, `_requestDetectionFromTab`, `runAnalyzeJob`, `runPrepareHandoff`) to execute decisions from `JobIdentityAuthority`.
+- `tests/unit/p79-canonical-job-identity-authority.test.js` [NEW & EXPANDED]: 22 unit tests covering identity validity anchors, state authority transitions, hydration fingerprint matching, and sidebar controller integration.
+- `scripts/verify-p79-live-canonical-identity.mjs` [NEW]: Real Chrome for Testing CDP multi-tab acceptance test using authentic Side Panel and DOM clicks.
 - `project.md` [MODIFIED]: Recorded execution ledger and verification evidence.
 
 **Verification Evidence:**
-- P79 Unit Tests (`node --test tests/unit/p79-canonical-job-identity-authority.test.js`): **14/14 PASS (100% pass rate)**
-- Full P57–P79 Regression Suite (`node --test tests/unit/p5[7-9]*.test.js tests/unit/p6*.test.js tests/unit/p7*.test.js`): **375/375 PASS across 144 suites (0 failures, 100% pass rate)**
-- Real Chrome for Testing Live Acceptance Test (`scripts/verify-p79-live-canonical-identity.mjs`): **PASS (Initial detection, analyze match with title invariance, passive non-job immunity, and explicit rescan verified)**
+- P79 Unit Tests (`node --test tests/unit/p79-canonical-job-identity-authority.test.js`): **22/22 PASS (100% pass rate)**
+- Full P57–P79 Regression Suite (`node --test tests/unit/p5[7-9]*.test.js tests/unit/p6*.test.js tests/unit/p7*.test.js`): **383/383 PASS across 144 suites (0 failures, 100% pass rate)**
+- Real Chrome for Testing Live Multi-Tab Acceptance Test (`scripts/verify-p79-live-canonical-identity.mjs`): **PASS (All 4 phases pass with 100% assertions satisfied)**
 - Visual Evidence Screenshots:
-  - `p79-01-live-detected.png`
-  - `p79-02-live-analyzed.png`
-  - `p79-03-live-rescanned.png`
+  - `p79-01-live-tab-a-analyzed.png`
+  - `p79-02-live-tab-b-detected.png`
+  - `p79-03-live-tab-c-chatgpt-rejected.png`
+  - `p79-04-live-tab-a-restored.png`
 - Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
 
 ---
