@@ -3,6 +3,78 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-16*
 
+### PART 75: Production Side Panel Parity & Fresh-State Verification
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-17  
+**Scope:** Real Chrome Side Panel API (`chrome.sidePanel.open({ windowId })`, zero `sidebar.html?tabId=...` normal tab creation, unpinned Side Panel with `pinnedTabId === null`), Real Multi-Tab Activation (Real Chrome tab activation events via `chrome.tabs.onActivated` / `chrome.tabs.update`, Tab A active $\rightarrow$ Tab B active $\rightarrow$ Tab A active, zero `Page.navigate` substitution), 3-Way State Convergence (`persisted jobData` in `DurableWorkflowStore` === `fresh content-script detection` via `DETECT_JOB_PAGE` === `sidebar rendered state` on `#jobTitle`/`#jobCompany`), Reload Fresh-Detection Proof (Tab reload requires and triggers a fresh `DETECT_JOB_PAGE` with incremented `_detectionRequestId` from 15 to 16, fails acceptance if reliant on durable store cache alone), Exact Production Flow (`chrome tab -> content script -> DETECT_JOB_PAGE -> service worker -> sidebar reconciliation`), LinkedIn Wrong-Title Suppression (`Backend Software Engineer (Remote)` at `Quik Hire Staffing` on `https://www.linkedin.com/jobs/view/4466448213/`, marketing headings *"Take the next step in your job search"*, *"Get personalized tips..."*, *"People you can reach out to"*, *"Similar jobs"*, *"Similar Searches"* strictly prohibited), Diagnostic Parity (Bit-for-bit parity across `selectedRootSelector`, `selectedRootTag`, `selectedRootClass`, `titleSelectorUsed`, `companySelectorUsed`, `descriptionSelectorUsed`, `title`, `company`, `descriptionLength`, `isReady`, `analysisReady`, and deterministic 64-char SHA-256 fingerprint), SPA Navigation (In-tab navigation Job A $\rightarrow$ Job B $\rightarrow$ Job A deriving fresh fingerprints and preventing previous job state overwrite), Manual Rescan in Real Side Panel (Dispatches fresh `DETECT_JOB_PAGE` to active tab without cached job substitution), ChatGPT Negative Regression (Live ChatGPT returns `detected = false`, `portalName = "Web Page"`, `jobData = null`, `#analyzeJobBtn.disabled = true`), Working Portals Regression (Real Greenhouse ATS job detected cleanly), Unit Regression Suite (334/334 PASS across 125 suites covering P57–P75), Real Chrome for Testing (CFT) Live Acceptance Test (12/12 phases PASS, exit code 0, 7 screenshots captured to brain artifact directory).  
+**Branch:** `main`  
+
+**Executive Summary:**
+Resolved the production Chrome Side Panel parity discrepancy where previous tests ran `sidebar.html?tabId=...` as a normal browser tab and used `Page.navigate` substitution:
+1. **Real Chrome Side Panel Execution (`chrome.sidePanel.open`):**
+   - Verified extension opening exclusively via `chrome.sidePanel.open({ windowId })`.
+   - The production Side Panel target in Chrome for Testing is `type: 'page'`, `url: 'chrome-extension://<extId>/sidebar/sidebar.html'` with zero query parameters (`pinnedTabId === null`).
+2. **Real Multi-Tab Activation (Zero Navigation Substitution):**
+   - Created authentic independent browser tabs: Tab A (`4466448213`, Quik Hire) and Tab B (`4464770430`, Appinventiv).
+   - Executed real Chrome tab activation: Tab A active $\rightarrow$ Tab B active $\rightarrow$ Tab A active via `chrome.tabs.update`.
+   - Verified that `service-worker.js` received `chrome.tabs.onActivated`, sent `ACTIVE_TAB_CHANGED`, and the real Side Panel cleared transients, re-hydrated state, and requested detection without state leakage.
+3. **3-Way State Convergence:**
+   - Evaluated `persisted jobData` (`DurableWorkflowStore`), `fresh content-script detection` (`DETECT_JOB_PAGE`), and `final sidebar rendered state`.
+   - All three converged bit-for-bit on `"Backend Software Engineer (Remote)"` at `"Quik Hire Staffing"`.
+4. **Reload Fresh-Detection Enforcement:**
+   - Reloaded Tab A in Chrome.
+   - Proved fresh detection request dispatched with incremented `_detectionRequestId` (15 $\rightarrow$ 16) and content script re-extracted the live page.
+   - Rejection invariant verified: acceptance fails if durable store cache is accepted without fresh content-script detection.
+5. **Quik Hire Title & Marketing Heading Suppression:**
+   - Title: `"Backend Software Engineer (Remote)"`
+   - Company: `"Quik Hire Staffing"`
+   - Suppressed marketing heading: `"Take the next step in your job search"` completely rejected.
+6. **Diagnostic Parity Assertion:**
+   - Content-script diagnostic payload matched sidebar diagnostic payload bit-for-bit:
+     - `selectedRootSelector`: `".details"`
+     - `selectedRootTag`: `"div"`
+     - `selectedRootClass`: `"details mx-details-container-padding"`
+     - `titleSelectorUsed`: `"h1.top-card-layout__title"`
+     - `companySelectorUsed`: `"a.topcard__org-name-link"`
+     - `descriptionSelectorUsed`: `".show-more-less-html__markup"`
+     - `descriptionLength`: `1841`
+     - `fingerprint`: `1827ff67940f1cfd3d3fc2eb8f281ee0bc043189c7568251a4ce317917ee8b99`
+7. **SPA Navigation & Manual Rescan:**
+   - Navigated within same tab from Job A to Job B, then Job B to Job A with fresh fingerprints.
+   - Manual rescan verified: dispatches fresh `DETECT_JOB_PAGE` without cached substitution.
+8. **ChatGPT & Working Portals Regressions:**
+   - ChatGPT live session: `detected = false`, `portal = "Web Page"`, `jobData = null`, Analyze disabled.
+   - Greenhouse ATS live job (`cloudflare/jobs/8102350`): detected cleanly.
+
+**Files Changed / Created:**
+- `tests/unit/p75-production-sidepanel-parity.test.js` [NEW]: 13 comprehensive unit tests validating unpinned side panel, tab activation, 3-way convergence, reload fresh detection, diagnostic parity, SPA navigation, rescan semantics, ChatGPT regression, and working portals.
+- `scripts/verify-p75-live-production-sidepanel.mjs` [NEW]: Real Chrome for Testing (CFT) E2E verification script testing all 12 live phases against live web pages.
+- `project.md` [MODIFIED]: Recorded execution ledger and verification evidence.
+
+**Verification Evidence:**
+- P75 Unit Test Suite: **13/13 PASS (10 suites, 0 failures, 100% pass rate)**
+- Full P57–P75 Unit Regression Suite: **334/334 PASS (125 suites, 0 failures, 100% pass rate)**
+- Real Chrome Live Acceptance Test (`scripts/verify-p75-live-production-sidepanel.mjs`): **PASS (All 12 phases pass, exit code 0)**
+  - Authentic Side Panel target verified: `chrome-extension://<extId>/sidebar/sidebar.html` (zero `tabId` parameter)
+  - Tab activation sequence verified: A active $\rightarrow$ B active $\rightarrow$ A active with zero cross-tab leakage
+  - Authentic title extracted: `"Backend Software Engineer (Remote)"`
+  - Authentic company extracted: `"Quik Hire Staffing"`
+  - Marketing heading suppressed: `"Take the next step in your job search"` rejected
+  - 3-way convergence: persisted === fresh === rendered
+  - Reload fresh detection: request ID incremented 15 $\rightarrow$ 16
+  - Diagnostic parity: 100% bit-for-bit match on all 11 diagnostic properties
+  - 7 visual proof screenshots captured to brain artifact directory:
+    - `p75-01-tab-a-quik-hire.png`
+    - `p75-02-tab-b-appinventiv.png`
+    - `p75-03-tab-a-restored.png`
+    - `p75-04-tab-a-reloaded-fresh.png`
+    - `p75-05-spa-navigation.png`
+    - `p75-06-chatgpt-rejected.png`
+    - `p75-07-working-portals.png`
+
+---
+
 ### PART 74: Fix LinkedIn Wrong-Title Extraction & Marketing Heading Suppression
 
 **Status:** COMPLETE & VERIFIED  
