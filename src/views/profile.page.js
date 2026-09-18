@@ -450,10 +450,12 @@ export function renderProfilePage({
             </div>
           </div>
 
-          <!-- Section Completion Checklist (Preserved for compatibility) -->
-          <div class="card checklist-card" style="margin-top: 1.5rem;">
-            <h3 class="card-heading">Application Readiness Checklist</h3>
-            <div class="checklist-grid">
+          <!-- Application Readiness Checklist (Secondary progressive disclosure) -->
+          <details class="advanced-disclosure checklist-disclosure" style="margin-top: 1.5rem;">
+            <summary style="font-size:0.875rem; color:var(--text-muted); cursor:pointer; font-weight:600;">
+              <span>Application Readiness Checklist (Full breakdown)</span>
+            </summary>
+            <div class="checklist-grid" style="margin-top:14px;">
               ${readinessItems.map((item) => `
                 <div class="checklist-item ${item.status === 'READY' ? 'status-ready' : 'status-pending'}">
                   <span class="checklist-icon">${item.status === 'READY' ? renderIcon('check', { size: 14 }) : renderIcon('alertCircle', { size: 14 })}</span>
@@ -466,7 +468,7 @@ export function renderProfilePage({
                 </div>
               `).join('')}
             </div>
-          </div>
+          </details>
 
           <!-- Overview Snapshots Grid (5 Cards linking to the other 5 domains) -->
           <div class="overview-snapshots-grid" style="margin-top: 1.5rem;">
@@ -710,7 +712,7 @@ export function renderProfilePage({
                 ${primarySkillsList.map((s) => `
                   <div class="skill-badge-chip">
                     <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
-                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} ✓ Corroborated` : 'Claimed'}</span>
+                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Claimed'}</span>
                   </div>
                 `).join('')}
                 ${primarySkillsList.length === 0 ? '<p class="text-muted">No primary skills indexed.</p>' : ''}
@@ -732,7 +734,7 @@ export function renderProfilePage({
                 ${technologySignalsList.map((s) => `
                   <div class="skill-badge-chip chip-signal">
                     <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
-                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} ✓ Corroborated` : 'Signal'}</span>
+                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Signal'}</span>
                   </div>
                 `).join('')}
                 ${additionalSkills.length === 0 && technologySignalsList.length === 0 ? '<p class="text-muted">No additional skills added.</p>' : ''}

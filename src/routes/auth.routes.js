@@ -248,8 +248,8 @@ export default async function authRoutes(app, opts = {}) {
         });
       }
 
-      if (result.isNewUser) {
-        return reply.redirect('/onboarding');
+      if (result.isNewUser || (result.onboardingState && result.onboardingState !== 'COMPLETED')) {
+        return reply.redirect('/onboarding?step=1');
       }
 
       return reply.redirect('/dashboard');

@@ -7,6 +7,7 @@
 
 import { escapeHtml } from '../utils/html-escaper.js';
 import { renderIcon } from './components/icons.js';
+import { renderCopilotDrawer } from './components/copilot-drawer.js';
 
 /**
  * Renders the base HTML layout wrapping page content.
@@ -519,6 +520,29 @@ export function renderLayout({
       display: flex;
       align-items: center;
       gap: 12px;
+    }
+
+    .copilot-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #A5B4FC;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: inherit;
+    }
+    .copilot-nav-btn:hover {
+      background: rgba(99, 102, 241, 0.22);
+      border-color: rgba(99, 102, 241, 0.5);
+      color: #FFFFFF;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
     }
 
     /* Buttons */
@@ -1583,6 +1607,10 @@ export function renderLayout({
         ${
           userLoggedIn
             ? `
+          <button type="button" class="copilot-nav-btn" id="copilotOpenBtn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this)" aria-label="Open Career Copilot" title="Open Career Copilot">
+            ${renderIcon('sparkles', { size: 15 })}
+            <span>Copilot</span>
+          </button>
           <div class="user-dropdown" id="userDropdown">
             <button class="user-dropdown-btn" aria-haspopup="true" aria-expanded="false" title="Account Menu">
               <div class="user-avatar-badge">${escapeHtml((user.displayName || user.email || 'U').charAt(0).toUpperCase())}</div>
@@ -1647,6 +1675,9 @@ export function renderLayout({
       userLoggedIn
         ? `
       <div class="mobile-section-label">Workspace</div>
+      <button type="button" class="copilot-nav-btn" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this); document.getElementById('mobileNavToggle')?.click();" style="width: calc(100% - 28px); margin: 6px 14px 10px; justify-content: center; padding: 10px 14px;">
+        ${renderIcon('sparkles', { size: 16 })} <span>Open Career Copilot</span>
+      </button>
       <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Dashboard</span></a>
       <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">${renderIcon('jobs', { size: 18 })} <span>Jobs</span></a>
       <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">${renderIcon('applications', { size: 18 })} <span>Applications</span></a>
@@ -1976,6 +2007,7 @@ export function renderLayout({
       } catch (err) {}
     })();
   </script>
+  ${userLoggedIn ? renderCopilotDrawer({ pageContext: activeNav }) : ''}
 </body>
 </html>`;
 }

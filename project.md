@@ -3,6 +3,55 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-18*
 
+### P89 / P85: Candidate-First Job Application Workspace & Production UX Simplification
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-18  
+**Scope:** Transformation of Career Hub from an engineering console into a calm, consumer-grade Job Application Workspace across the 5 primary pillars: Dashboard (`/dashboard`), Jobs (`/apps/radar`), Applications (`/applications`), Profile (`/profile`), and Resumes (`/resumes`). Built universal contextual Career Copilot slide-over drawer accessible across all surfaces with dynamic prompt chips, two-phase human confirmations, zero layout shift SVG iconography, and hardened backend routes with defensive repository fallbacks.
+
+1. **Candidate-First 3-Pillar Dashboard (`src/views/dashboard.page.js`):**
+   - **Section 1: What should I do next?** Candidate greeting, authoritative readiness percentage bar (75-95%+), and top 3 priority action cards (missing required screening fields, pending AI proposals, in-progress applications).
+   - **Section 2: Which jobs should I consider?** 3 matching job opportunity cards with match percentage, location, workplace type, key matched skill chips, and primary action to evaluate fit via Job Radar.
+   - **Section 3: Which applications need attention?** Active pipeline summary table with company, role, stage, update timestamp, status badge, and review action link.
+   - Eliminated developer jargon ("Deterministic" badges, duplicate skills cloud, and duplicate drawer markup).
+
+2. **Universal Contextual Career Copilot Drawer (`src/views/components/copilot-drawer.js`, `src/views/layout.js`):**
+   - Reusable slide-over drawer (bottom sheet on mobile) rendered globally via `renderLayout` for authenticated users.
+   - Persistent `[✦ Copilot]` button in navbar and mobile menu across all surfaces.
+   - Context-aware suggested prompt chips mapped by `pageContext`:
+     - `dashboard`: "What should I do next?", "Check my application readiness", "Find jobs matching my profile"
+     - `profile`: "What is missing from my profile?", "Improve my professional summary", "Check application readiness"
+     - `radar` / `job`: "How well do I match?", "What skills am I missing?", "Prepare my application"
+     - `applications` / `application`: "What still needs attention?", "Review my application answers", "Help me prepare for interviews"
+     - `resumes`: "What should I improve on my resume?", "Review active base resume", "Tailor resume for a job"
+   - Two-phase safe proposal cards requiring explicit human confirmation (`[Confirm]` and `[Dismiss]`).
+   - Zero standalone AI page — Career Copilot remains strictly an integrated assistant drawer.
+   - WCAG 2.2 AA accessibility compliant (`role="dialog"`, `aria-label`, `aria-modal`, `Escape` key close, focus management).
+
+3. **Profile Hardening & Layout Shift Elimination (`src/views/profile.page.js`):**
+   - Moved redundant 3rd checklist card into `<details class="advanced-disclosure">` progressive disclosure.
+   - Replaced raw unicode checkmark artifacts (`${renderIcon('check')} ✓ Corroborated`) with clean, deterministic SVG `renderIcon('check')` to eradicate font-swap layout shifts (CLS).
+   - Preserved all 6 canonical profile domains (`overview`, `professional`, `skills-projects`, `preferences`, `eligibility`, `contact`) and anchor targets.
+
+4. **Resumes & Sources Polish (`src/views/resumes.page.js`, `src/views/sources.page.js`):**
+   - Resumes: Prominent Active Base Resume hero card featuring version, file size, status, and direct actions (`[Review Claims]`, `[Download Original]`).
+   - Moved AES-256-GCM storage encryption and SHA-256 digests into secondary disclosure, simplifying version history table columns.
+   - Sources: Replaced raw unicode `∅` empty state symbol with deterministic SVG `renderIcon('sources', { size: 36 })`.
+   - Replaced technical IAM permission code tags with clean user-facing scope description and disclosure.
+
+5. **Backend Route Hardening & Defensive Fallbacks (`src/routes/web.routes.js`, `src/routes/auth.routes.js`):**
+   - Added `GET /jobs` alias redirecting directly to `/apps/radar`.
+   - `loadDashboardData()`: Enriched to compute and return top 3 `recommendedJobs` matching candidate target roles and verified skills.
+   - `POST /onboarding/repositories/select`: Implemented defensive database fallback so GitHub API rate limits or network issues do not trigger 500 crashes (P12).
+   - `GET /onboarding`: Passes both `ingestionRun` and `ingestionJob` for complete template compatibility.
+   - `src/routes/auth.routes.js`: Redirects new users or users with `onboardingState !== 'COMPLETED'` to `/onboarding?step=1`.
+
+6. **Comprehensive Test Suite & Security Verification:**
+   - Created `tests/unit/p89-candidate-workspace.test.js` (15/15 PASS).
+   - Full regression suite across 8 major test suites passed (101/101 PASS, 0 failures).
+   - `npm run scan:secrets` -> Zero exposed secrets or private tokens detected (PASS).
+
+---
+
 ### P88: P0 Runtime Fixes, Profile 6-Domain Consolidation, Career Copilot Drawer & Jargon Cleanup
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-18  

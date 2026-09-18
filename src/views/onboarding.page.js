@@ -39,6 +39,7 @@ export function renderOnboardingPage({
   error = null,
   success = null,
   ingestionJob = null,
+  ingestionRun: explicitIngestionRun = null,
 }) {
   const step = Math.max(1, Math.min(5, parseInt(currentStep, 10) || 1));
 
@@ -47,7 +48,7 @@ export function renderOnboardingPage({
   const selectedRepoIds = new Set(
     (selectedRepos || []).map((repo) => String(repo.externalResourceId || repo.id || repo.name))
   );
-  const ingestionRun = ingestionJob || null;
+  const ingestionRun = explicitIngestionRun || ingestionJob || null;
   const syncResult = null;
 
   const content = `
@@ -64,35 +65,35 @@ export function renderOnboardingPage({
         </p>
       </div>
 
-      <!-- Stepper Navigation -->
+      <!-- Stepper Navigation (Candidate-First Journey) -->
       <div class="stepper" style="margin-bottom:36px;">
         <div class="step-item">
           <div class="step-badge ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}">${step > 1 ? renderIcon('check', { size: 12 }) : '1'}</div>
-          <span class="step-title ${step === 1 ? 'active' : ''}">1. Profile</span>
+          <span class="step-title ${step === 1 ? 'active' : ''}">1. Your Profile</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
           <div class="step-badge ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}">${step > 2 ? renderIcon('check', { size: 12 }) : '2'}</div>
-          <span class="step-title ${step === 2 ? 'active' : ''}">2. GitHub</span>
+          <span class="step-title ${step === 2 ? 'active' : ''}">2. Connect GitHub</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
           <div class="step-badge ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}">${step > 3 ? renderIcon('check', { size: 12 }) : '3'}</div>
-          <span class="step-title ${step === 3 ? 'active' : ''}">3. Select Repos</span>
+          <span class="step-title ${step === 3 ? 'active' : ''}">3. Choose Projects</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
           <div class="step-badge ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}">${step > 4 ? renderIcon('check', { size: 12 }) : '4'}</div>
-          <span class="step-title ${step === 4 ? 'active' : ''}">4. Build Profile</span>
+          <span class="step-title ${step === 4 ? 'active' : ''}">4. Build Your Career Profile</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
           <div class="step-badge ${step === 5 ? 'active' : ''}">${step === 5 ? renderIcon('check', { size: 12 }) : '5'}</div>
-          <span class="step-title ${step === 5 ? 'active' : ''}">5. Ready</span>
+          <span class="step-title ${step === 5 ? 'active' : ''}">5. You're Ready</span>
         </div>
       </div>
 
@@ -467,7 +468,7 @@ function renderStep3Repositories({
                     <label for="repo_${escapeHtml(String(repoKey))}" style="font-size:0.9rem; font-weight:700; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0;">
                       <span>${escapeHtml(repo.name || repo.displayName)}</span>
                       <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; font-family:var(--font-mono);">${escapeHtml(fullName)}</span>
-                      ${isPrivate ? `<span class="badge badge-amber" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('shield', { size: 10 })} <span>PRIVATE</span></span>` : `<span class="badge badge-cyan" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('link', { size: 10 })} <span>PUBLIC</span></span>`}
+                      ${isPrivate ? `<span class="badge badge-amber" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('shield', { size: 10 })} <span>🔒 PRIVATE</span></span>` : `<span class="badge badge-cyan" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('link', { size: 10 })} <span>🌐 PUBLIC</span></span>`}
                     </label>
                     <p style="font-size:0.8rem; color:var(--text-muted); margin:3px 0 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%; line-height:1.4;">
                       ${escapeHtml(desc)}
@@ -477,7 +478,7 @@ function renderStep3Repositories({
                 <div style="flex-shrink:0; margin-left:12px;">
                   ${
                     isSelected
-                      ? `<span class="badge badge-verified" style="font-size:0.72rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('check', { size: 10 })} <span>INDEXED</span></span>`
+                      ? `<span class="badge badge-verified" style="font-size:0.72rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('check', { size: 10 })} <span>✓ INDEXED</span></span>`
                       : '<span class="badge badge-indigo" style="font-size:0.72rem;">AVAILABLE</span>'
                   }
                 </div>
@@ -596,7 +597,7 @@ function renderStep3Repositories({
         `
             : `
           <div style="text-align:center; padding:40px 20px; background:rgba(255,255,255,0.02); border:1px dashed var(--border-subtle); border-radius:var(--radius-md); margin-bottom:28px;">
-            <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6; margin-bottom:8px;">∅</div>
+            <div class="empty-state-icon" style="color:var(--text-dim); margin-bottom:8px; display:inline-flex; align-items:center; justify-content:center;">${renderIcon('sources', { size: 36 })}</div>
             <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:6px; color:var(--text-main);">No Repositories Discovered Yet</h3>
             <p style="font-size:0.875rem; color:var(--text-muted); max-width:460px; margin:0 auto 20px;">
               ${
@@ -693,7 +694,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
           <div>
             <h3 style="font-size:0.95rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">Target Repositories</h3>
             <p style="font-size:0.825rem; color:var(--text-muted); margin:0;" id="scopeSubtitle">
-              <strong>${totalCount}</strong> repository ${totalCount === 1 ? 'source' : 'sources'} selected for verification:
+              <strong>${totalCount}</strong> repository ${totalCount === 1 ? 'source' : 'sources'} queued for verification:
             </p>
           </div>
           <div>

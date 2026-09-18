@@ -7,6 +7,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the Connected Sources management center.
@@ -111,8 +112,12 @@ export function renderSourcesPage({
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; padding-top:18px; border-top:1px solid var(--border-subtle); font-size:0.85rem;">
           <div>
-            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Permissions</span>
-            <code style="display:block; margin-top:4px; font-size:0.8rem; color:var(--text-main);">contents:read, metadata:read</code>
+            <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Access Scope</span>
+            <div style="margin-top:4px; font-size:0.825rem; color:var(--text-main);">Repository Read Only</div>
+            <details class="advanced-disclosure" style="margin-top:6px; border:none; background:transparent; padding:0;">
+              <summary style="font-size:0.75rem; color:var(--text-dim); cursor:pointer;">Technical permissions</summary>
+              <code style="display:block; margin-top:4px; font-size:0.75rem; color:var(--text-muted); background:rgba(0,0,0,0.2); padding:4px 6px; border-radius:4px;">contents:read, metadata:read</code>
+            </details>
           </div>
           <div>
             <span style="color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; font-weight:600;">Indexed Repositories</span>
@@ -141,12 +146,12 @@ export function renderSourcesPage({
           resources.length === 0
             ? `
           <div class="empty-state">
-            <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
+            <div class="empty-state-icon" style="display:inline-flex; align-items:center; justify-content:center; color:var(--text-dim); margin-bottom:12px;">${renderIcon('sources', { size: 36 })}</div>
             <h3 style="margin-top:8px;">No Repositories Connected</h3>
             <p>
               Select showcase repositories from your GitHub installation to start extracting verified evidence.
             </p>
-            <a href="/onboarding?step=3" class="btn btn-primary btn-sm" style="margin-top:12px;">Select Repositories →</a>
+            <a href="/onboarding?step=3" class="btn btn-primary btn-sm" style="margin-top:12px;">Select Repositories &rarr;</a>
           </div>
         `
             : `

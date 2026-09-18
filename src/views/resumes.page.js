@@ -138,6 +138,43 @@ export function renderResumesPage({
         </div>
       </div>
 
+      ${
+        (() => {
+          const baseResume = resumesList.find((r) => r.isBaseResume);
+          if (!baseResume) return '';
+          return `
+        <div class="card" style="margin-bottom:2rem; padding:20px 24px; border-left:4px solid var(--accent-emerald); background:var(--bg-surface-elevated);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+            <div style="display:flex; gap:14px; align-items:center;">
+              <div style="width:42px; height:42px; border-radius:10px; background:rgba(16,185,129,0.12); color:var(--accent-emerald); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                ${renderIcon('resumes', { size: 20 })}
+              </div>
+              <div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-main); margin:0;">
+                    ${escapeHtml(baseResume.fileName)}
+                  </h3>
+                  <span class="badge badge-verified" style="display:inline-flex; align-items:center; gap:4px;">${renderIcon('check', { size: 11 })} <span>ACTIVE BASE RESUME</span></span>
+                </div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                  Version ${baseResume.version} &bull; ${formatBytes(baseResume.fileSizeBytes)} &bull; Uploaded ${new Date(baseResume.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <a href="/resumes/${escapeHtml(baseResume.id)}" class="btn btn-primary btn-sm">
+                Review Claims
+              </a>
+              <a href="/resumes/${escapeHtml(baseResume.id)}/download" class="btn btn-secondary btn-sm">
+                Download Original
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+        })()
+      }
+
       <!-- Upload Zone -->
       <div class="card" style="margin-bottom:2.5rem; padding:28px;">
         <div class="section-header" style="margin-bottom:12px;">
@@ -162,13 +199,18 @@ export function renderResumesPage({
               </button>
             </div>
 
-            <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.04); display:flex; gap:1.25rem; flex-wrap:wrap; color:var(--text-dim); font-size:0.75rem;">
-              <span>AES-256-GCM Encrypted</span>
-              <span>&bull;</span>
-              <span>Sandboxed AST Extraction</span>
-              <span>&bull;</span>
-              <span>Secret Scrubber Protected</span>
-            </div>
+            <details class="advanced-disclosure" style="margin-top:14px; padding:0; border:none; background:transparent;">
+              <summary style="font-size:0.75rem; color:var(--text-dim); cursor:pointer;">
+                Security &amp; storage specifications
+              </summary>
+              <div style="margin-top:8px; display:flex; gap:1.25rem; flex-wrap:wrap; color:var(--text-dim); font-size:0.75rem;">
+                <span>AES-256-GCM Storage Encryption</span>
+                <span>&bull;</span>
+                <span>Sandboxed AST Claim Extraction</span>
+                <span>&bull;</span>
+                <span>Automated Secret Scrubber</span>
+              </div>
+            </details>
           </form>
         </div>
       </div>
@@ -207,10 +249,9 @@ export function renderResumesPage({
             <table class="data-table">
               <thead>
                 <tr>
-                  <th style="width: 90px;">Version</th>
+                  <th style="width: 80px;">Version</th>
                   <th>Original Filename</th>
                   <th style="width: 90px;">Size</th>
-                  <th style="width: 170px;">SHA-256 Digest</th>
                   <th style="width: 170px;">Lifecycle State</th>
                   <th style="width: 120px;">Uploaded</th>
                   <th style="text-align: right; width: 180px;">Actions</th>
@@ -228,14 +269,13 @@ export function renderResumesPage({
                     </td>
                     <td>
                       <div style="font-weight: 600; color: var(--text-main); font-size: 0.875rem;">${escapeHtml(r.fileName)}</div>
-                      <div style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono); margin-top:2px;">${escapeHtml(r.mimeType)}</div>
+                      <div style="font-size: 0.725rem; color: var(--text-dim); margin-top:2px;">
+                        <span>${escapeHtml(r.mimeType)}</span>
+                        <span>&bull;</span>
+                        <span title="${escapeHtml(r.contentHash)}">${escapeHtml(r.contentHash.slice(0, 10))}…</span>
+                      </div>
                     </td>
                     <td style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">${formatBytes(r.fileSizeBytes)}</td>
-                    <td>
-                      <code style="font-size: 0.75rem; color: var(--text-muted);" title="${escapeHtml(r.contentHash)}">
-                        ${escapeHtml(r.contentHash.slice(0, 12))}...
-                      </code>
-                    </td>
                     <td>
                       ${renderResumeStatusBadge(r.lifecycleState, r.isBaseResume)}
                     </td>
