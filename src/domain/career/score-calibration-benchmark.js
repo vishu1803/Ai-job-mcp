@@ -187,3 +187,170 @@ export function runScoreCalibrationComparison({
     classificationMetrics,
   };
 }
+
+/**
+ * Calculates inter-rater reliability among multiple human reviewers.
+ *
+ * @param {object} reviewersScores Object mapping reviewerId -> Array<number> scores
+ * @param {number} [threshold=70]
+ * @returns {object} Pairwise and mean correlations, plus binary consensus agreement
+ */
+export function calculateInterRaterAgreement(reviewersScores, threshold = 70) {
+  const reviewerKeys = Object.keys(reviewersScores);
+  if (reviewerKeys.length < 2) {
+    throw new Error('At least 2 reviewers are required to calculate inter-rater agreement');
+  }
+
+  const n = reviewersScores[reviewerKeys[0]].length;
+  const pairwise = {};
+  const pearsonValues = [];
+  const spearmanValues = [];
+  let pairCount = 0;
+  let totalBinaryAgreements = 0;
+  let totalPairwiseComparisons = 0;
+
+  for (let i = 0; i < reviewerKeys.length; i++) {
+    for (let j = i + 1; j < reviewerKeys.length; j++) {
+      const rA = reviewerKeys[i];
+      const rB = reviewerKeys[j];
+      const pairKey = `${rA}_vs_${rB}`;
+
+      const scoresA = reviewersScores[rA];
+      const scoresB = reviewersScores[rB];
+
+      const r = calculatePearsonCorrelation(scoresA, scoresB);
+      const rho = calculateSpearmanRankCorrelation(scoresA, scoresB);
+
+      pearsonValues.push(r);
+      spearmanValues.push(rho);
+      pairCount++;
+
+      // Binary agreement at threshold
+      let pairAgreed = 0;
+      for (let k = 0; k < n; k++) {
+        const passA = scoresA[k] >= threshold;
+        const passB = scoresB[k] >= threshold;
+        if (passA === passB) {
+          pairAgreed++;
+          totalBinaryAgreements++;
+        }
+        totalPairwiseComparisons++;
+      }
+
+      pairwise[pairKey] = {
+        pearsonR: r,
+        spearmanRho: rho,
+        binaryAgreementRate: Math.round((pairAgreed / n) * 1000) / 1000,
+      };
+    }
+  }
+
+  const meanPearsonR = Math.round((pearsonValues.reduce((a, b) => a + b, 0) / pairCount) * 1000) / 1000;
+  const meanSpearmanRho = Math.round((spearmanValues.reduce((a, b) => a + b, 0) / pairCount) * 1000) / 1000;
+  const binaryAgreementRate = totalPairwiseComparisons > 0
+    ? Math.round((totalBinaryAgreements / totalPairwiseComparisons) * 1000) / 1000
+    : 1.0;
+
+  return {
+    pairwise,
+    meanPearsonR,
+    meanSpearmanRho,
+    binaryAgreementRate,
+  };
+}
+
+/**
+ * Compares calibration metrics (P82) vs holdout metrics (P83) to detect generalization drift.
+ *
+ * @param {object} params
+ * @param {object} params.calibrationMetrics
+ * @param {object} params.holdoutMetrics
+ * @returns {object} Delta analysis and generalization preservation boolean
+ */
+export function compareCalibrationVsHoldout({ calibrationMetrics, holdoutMetrics }) {
+  if (!calibrationMetrics || !holdoutMetrics) {
+    throw new Error('Both calibrationMetrics and holdoutMetrics must be provided');
+  }
+
+  const deltaSpearmanRho = Math.round((holdoutMetrics.spearmanRho - calibrationMetrics.spearmanRho) * 1000) / 1000;
+  const deltaPearsonR = Math.round((holdoutMetrics.pearsonR - calibrationMetrics.pearsonR) * 1000) / 1000;
+  const deltaMae = Math.round((holdoutMetrics.mae - calibrationMetrics.mae) * 1000) / 1000;
+  const deltaRmse = Math.round((holdoutMetrics.rmse - calibrationMetrics.rmse) * 1000) / 1000;
+  const deltaAccuracy = Math.round(
+    (holdoutMetrics.classificationMetrics.accuracy - calibrationMetrics.classificationMetrics.accuracy) * 1000
+  ) / 1000;
+
+  // Generalization is preserved if holdout Spearman rho does not drop by more than 0.10
+  // and remains in high-performance territory (>= 0.85)
+  const isGeneralizationPreserved = deltaSpearmanRho >= -0.10 && holdoutMetrics.spearmanRho >= 0.85;
+
+  return {
+    deltaSpearmanRho,
+    deltaPearsonR,
+    deltaMae,
+    deltaRmse,
+    deltaAccuracy,
+    isGeneralizationPreserved,
+  };
+}
+
+/**
+ * Evaluates the 6 formal quantitative criteria for production Go/No-Go.
+ *
+ * @param {object} params
+ * @param {number} params.sampleCount Number of blind holdout pairs
+ * @param {boolean} params.pdfProvenanceVerified Genuine PDF byte buffers evaluated
+ * @param {object} params.interRaterMetrics Result of calculateInterRaterAgreement
+ * @param {object} params.holdoutMetrics Result of runScoreCalibrationComparison on holdout
+ * @param {object} params.generalizationComparison Result of compareCalibrationVsHoldout
+ * @param {boolean} params.fraudGatingPassed 100% of fraud resumes blocked with publishableScore === 0
+ * @returns {{ verdict: 'GO' | 'NO_GO', criteria: object, summary: string }}
+ */
+export function evaluateGoNoGoDecision({
+  sampleCount,
+  pdfProvenanceVerified,
+  interRaterMetrics,
+  holdoutMetrics,
+  generalizationComparison,
+  fraudGatingPassed,
+}) {
+  const criteria = {
+    sampleSizeAndProvenance: {
+      passed: sampleCount >= 30 && pdfProvenanceVerified === true,
+      details: `Evaluated ${sampleCount} holdout samples (req: >= 30) with verified PDF byte provenance`,
+    },
+    humanAgreementBaseline: {
+      passed: interRaterMetrics.meanPearsonR >= 0.80 && interRaterMetrics.binaryAgreementRate >= 0.85,
+      details: `Mean r = ${interRaterMetrics.meanPearsonR} (req: >= 0.80), Agreement = ${(interRaterMetrics.binaryAgreementRate * 100).toFixed(1)}% (req: >= 85%)`,
+    },
+    holdoutCorrelation: {
+      passed: holdoutMetrics.spearmanRho >= 0.85 && holdoutMetrics.pearsonR >= 0.82,
+      details: `Spearman rho = ${holdoutMetrics.spearmanRho} (req: >= 0.85), Pearson r = ${holdoutMetrics.pearsonR} (req: >= 0.82)`,
+    },
+    generalizationPreserved: {
+      passed: generalizationComparison.isGeneralizationPreserved === true,
+      details: `Delta rho = ${generalizationComparison.deltaSpearmanRho > 0 ? '+' : ''}${generalizationComparison.deltaSpearmanRho} (|delta| <= 0.10 preserved)`,
+    },
+    falsePositiveSafety: {
+      passed: holdoutMetrics.classificationMetrics.falsePositiveRate === 0.0,
+      details: `False positive rate = ${(holdoutMetrics.classificationMetrics.falsePositiveRate * 100).toFixed(1)}% (req: 0.0%)`,
+    },
+    fraudIntegrityGating: {
+      passed: fraudGatingPassed === true,
+      details: `100% of unverified metric/fraud claims strictly blocked with publishableScore = 0`,
+    },
+  };
+
+  const allPassed = Object.values(criteria).every((c) => c.passed === true);
+  const verdict = allPassed ? 'GO' : 'NO_GO';
+
+  const summary = verdict === 'GO'
+    ? `DECISION: GO - All 6 empirical holdout validation criteria satisfied. Scoring policy p82.0 empirically validated.`
+    : `DECISION: NO_GO - Holdout validation failed to satisfy all criteria.`;
+
+  return {
+    verdict,
+    criteria,
+    summary,
+  };
+}
