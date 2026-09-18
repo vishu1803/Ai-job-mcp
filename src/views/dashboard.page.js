@@ -210,10 +210,10 @@ export function renderDashboardPage({
                 ${renderIcon('edit', { size: 14 })}
                 <span>Complete Profile</span>
               </a>
-              <a href="#copilot" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCopilotDrawer(true)" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
                 ${renderIcon('copilot', { size: 14 })}
-                <span>Fix with Copilot</span>
-              </a>
+                <span>Career Copilot</span>
+              </button>
             </div>
           </div>
 
@@ -407,131 +407,188 @@ export function renderDashboardPage({
       </section>
 
       <!-- ================================================================= -->
-      <!-- BLOCK 4: CAREER COPILOT (Integrated Command Panel)               -->
+      <!-- BLOCK 4: NEED HELP? (Career Copilot Trigger Strip)                -->
       <!-- ================================================================= -->
-      <section id="copilot" class="card copilot-panel" style="padding:28px 32px; background:var(--bg-surface-elevated); border:1px solid var(--border-highlight); border-radius:var(--radius-lg); margin-bottom:32px;">
-        
-        <!-- Copilot Header -->
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
-          <div style="display:flex; align-items:center; gap:12px;">
-            <div style="width:36px; height:36px; border-radius:10px; background:rgba(99,102,241,0.15); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center;">
-              ${renderIcon('copilot', { size: 20 })}
-            </div>
-            <div>
-              <h2 style="font-size:1.15rem; font-weight:700; color:var(--text-main); margin:0; display:flex; align-items:center; gap:8px;">
-                <span>Career Copilot</span>
-                <span class="badge" style="background:rgba(99,102,241,0.15); color:#A5B4FC; font-size:0.7rem; padding:2px 8px; border-radius:var(--radius-full);">
-                  Evidence-Grounded
-                </span>
-              </h2>
-              <p style="font-size:0.85rem; color:var(--text-muted); margin:2px 0 0;">
-                Context-aware guidance for your career search, profile completeness, and applications.
-              </p>
-            </div>
+      <section class="card" style="padding:22px 28px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-md); margin-bottom:32px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div style="width:42px; height:42px; border-radius:12px; background:rgba(99,102,241,0.12); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            ${renderIcon('copilot', { size: 22 })}
           </div>
-          <span style="font-size:0.8rem; color:var(--text-dim);">
-            AI never mutates your profile without explicit approval.
-          </span>
+          <div>
+            <h2 style="font-size:1.05rem; font-weight:700; color:var(--text-main); margin:0 0 4px;">Career Copilot</h2>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin:0;">
+              ${
+                activeProposals.length > 0
+                  ? `You have <strong style="color:var(--accent-amber);">${activeProposals.length} profile update proposal${activeProposals.length > 1 ? 's' : ''}</strong> waiting for your confirmation.`
+                  : 'Get context-aware assistance on application readiness, missing requirements, and profile improvements.'
+              }
+            </p>
+          </div>
         </div>
+        <button type="button" class="btn btn-primary" onclick="toggleCopilotDrawer(true)" style="display:inline-flex; align-items:center; gap:8px; font-weight:600; padding:10px 18px; cursor:pointer;">
+          <span style="color:#A5B4FC;">✦</span>
+          <span>${activeProposals.length > 0 ? 'Review Proposals' : 'Ask Career Copilot'}</span>
+        </button>
+      </section>
 
-        <!-- AI Unavailable State Banner -->
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- SLIDE-OVER DRAWER: CAREER COPILOT                                 -->
+    <!-- ================================================================= -->
+    <style>
+      .copilot-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.65);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 1040;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+      }
+      .copilot-backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .copilot-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 440px;
+        max-width: 92vw;
+        background: #0F172A;
+        border-left: 1px solid var(--border-highlight);
+        box-shadow: -8px 0 32px rgba(0, 0, 0, 0.6);
+        z-index: 1050;
+        display: flex;
+        flex-direction: column;
+        transform: translateX(100%);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .copilot-drawer.open {
+        transform: translateX(0);
+      }
+      .copilot-drawer-header {
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--border-subtle);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(15, 23, 42, 0.95);
+        flex-shrink: 0;
+      }
+      .copilot-drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .copilot-drawer-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--border-subtle);
+        background: rgba(15, 23, 42, 0.95);
+        flex-shrink: 0;
+      }
+      @media (max-width: 600px) {
+        .copilot-drawer {
+          width: 100vw;
+          max-width: 100vw;
+        }
+      }
+    </style>
+
+    <div id="copilot-drawer-backdrop" class="copilot-backdrop" onclick="toggleCopilotDrawer(false)"></div>
+    <aside id="copilot-drawer" class="copilot-drawer" role="dialog" aria-label="Career Copilot">
+      <div class="copilot-drawer-header">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:32px; height:32px; border-radius:8px; background:rgba(99,102,241,0.15); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center;">
+            ${renderIcon('copilot', { size: 18 })}
+          </div>
+          <div>
+            <h3 style="font-size:1rem; font-weight:700; color:var(--text-main); margin:0;">Career Copilot</h3>
+            <span style="font-size:0.75rem; color:var(--text-dim);">Context-aware guidance</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCopilotDrawer(false)" aria-label="Close Copilot" style="padding:4px 8px; border-radius:6px; font-size:0.8rem; cursor:pointer;">
+          ${renderIcon('cross', { size: 14 })}
+        </button>
+      </div>
+
+      <div class="copilot-drawer-body">
+        <!-- AI Unavailable Banner if needed -->
         ${!aiAvailable ? renderAIUnavailableCard({ continueHref: '/profile' }) : ''}
 
-        <!-- Active Safe Proposals (Human-in-the-Loop Confirmation Gate) -->
+        <!-- Active Safe Proposals -->
         ${
           activeProposals.length > 0
             ? `
-          <div class="proposals-container" style="margin-bottom:20px;">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-              <span style="color:var(--accent-amber);">${renderIcon('alertCircle', { size: 16 })}</span>
-              <strong style="font-size:0.9rem; color:var(--text-main);">Proposed Profile Updates (Requires Your Confirmation)</strong>
+          <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-left:4px solid var(--accent-amber); padding:14px; border-radius:var(--radius-sm);">
+            <div style="font-size:0.75rem; font-weight:700; color:var(--accent-amber); text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+              ${renderIcon('alertCircle', { size: 14 })}
+              <span>Proposed Profile Updates (Confirmation Needed)</span>
             </div>
-            <div style="display:flex; flex-direction:column; gap:12px;">
-              ${activeProposals
-                .map(
-                  (p) => `
-                <div class="card proposal-card" style="background:rgba(17,24,39,0.7); border:1px solid rgba(245,158,11,0.3); border-left:4px solid var(--accent-amber); padding:16px 20px; border-radius:var(--radius-sm);">
-                  <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
-                    <div>
-                      <span style="font-size:0.75rem; color:var(--accent-amber); font-weight:700; text-transform:uppercase;">
-                        ${escapeHtml(p.category || 'PROFILE')}
-                      </span>
-                      <h4 style="font-size:0.95rem; font-weight:600; color:var(--text-main); margin:2px 0;">
-                        ${escapeHtml(p.fieldLabel || p.field)}
-                      </h4>
-                    </div>
-                    <span class="badge" style="background:rgba(99,102,241,0.15); color:#A5B4FC; font-size:0.75rem;">
-                      Source: ${escapeHtml(p.evidence?.label || 'User session')}
-                    </span>
-                  </div>
-                  <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; line-height:1.4;">
-                    <div>Current value: <code style="color:var(--text-dim);">${escapeHtml(String(p.currentValue ?? 'Not set'))}</code></div>
-                    <div style="margin-top:2px;">Proposed value: <strong style="color:var(--accent-emerald);">${escapeHtml(String(p.proposedValue))}</strong></div>
-                    ${p.reason ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">${escapeHtml(p.reason)}</div>` : ''}
-                  </div>
-                  <div style="display:flex; gap:10px;">
-                    <form method="POST" action="/assistant/proposals/confirm" style="display:inline;">
-                      <input type="hidden" name="proposalId" value="${escapeHtml(p.id)}">
-                      <input type="hidden" name="confirmedByUser" value="true">
-                      <button type="submit" class="btn btn-primary btn-sm" style="font-weight:600;">
-                        ${renderIcon('check', { size: 14 })}
-                        <span>Confirm & Update Profile</span>
-                      </button>
-                    </form>
-                    <form method="POST" action="/assistant/proposals/reject" style="display:inline;">
-                      <input type="hidden" name="proposalId" value="${escapeHtml(p.id)}">
-                      <button type="submit" class="btn btn-secondary btn-sm">
-                        <span>Dismiss</span>
-                      </button>
-                    </form>
-                  </div>
+            ${activeProposals
+              .map(
+                (p) => `
+              <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                <div style="font-size:0.9rem; font-weight:600; color:var(--text-main);">${escapeHtml(p.fieldLabel || p.field)}</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 8px;">
+                  Current: <code>${escapeHtml(String(p.currentValue ?? 'Not set'))}</code> &rarr; Proposed: <strong style="color:var(--accent-emerald);">${escapeHtml(String(p.proposedValue))}</strong>
                 </div>
-              `
-                )
-                .join('')}
-            </div>
+                <div style="display:flex; gap:8px;">
+                  <form method="POST" action="/assistant/proposals/confirm" style="display:inline;">
+                    <input type="hidden" name="proposalId" value="${escapeHtml(p.id)}">
+                    <input type="hidden" name="confirmedByUser" value="true">
+                    <button type="submit" class="btn btn-primary btn-sm" style="padding:4px 10px; font-size:0.75rem;">
+                      ${renderIcon('check', { size: 12 })} <span>Confirm</span>
+                    </button>
+                  </form>
+                  <form method="POST" action="/assistant/proposals/reject" style="display:inline;">
+                    <input type="hidden" name="proposalId" value="${escapeHtml(p.id)}">
+                    <button type="submit" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:0.75rem;">
+                      <span>Dismiss</span>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            `
+              )
+              .join('')}
           </div>
         `
             : ''
         }
 
-        <!-- Quick Action Prompt Chips -->
-        <div style="margin-bottom:16px;">
-          <div style="font-size:0.8rem; color:var(--text-dim); margin-bottom:8px; font-weight:500;">
-            Suggested prompts:
+        <!-- Prompt suggestions -->
+        <div>
+          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; margin-bottom:8px;">
+            Suggested prompts
           </div>
-          <div style="display:flex; flex-wrap:wrap; gap:8px;">
-            <button type="button" class="copilot-chip btn btn-secondary btn-sm" data-prompt="What should I do next?" style="font-size:0.8rem; padding:6px 12px; border-radius:var(--radius-full);">
-              What should I do next?
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <button type="button" class="copilot-chip" data-prompt="What should I do next?" style="text-align:left; background:var(--bg-surface); border:1px solid var(--border-subtle); padding:8px 12px; border-radius:6px; color:var(--text-main); font-size:0.825rem; cursor:pointer; transition:border-color 0.15s; display:flex; align-items:center; gap:8px;">
+              ${renderIcon('arrowRight', { size: 12 })} <span>What should I do next?</span>
             </button>
-            <button type="button" class="copilot-chip btn btn-secondary btn-sm" data-prompt="Complete and improve my profile" style="font-size:0.8rem; padding:6px 12px; border-radius:var(--radius-full);">
-              Complete / improve my profile
+            <button type="button" class="copilot-chip" data-prompt="Check my application readiness and missing fields" style="text-align:left; background:var(--bg-surface); border:1px solid var(--border-subtle); padding:8px 12px; border-radius:6px; color:var(--text-main); font-size:0.825rem; cursor:pointer; transition:border-color 0.15s; display:flex; align-items:center; gap:8px;">
+              ${renderIcon('clipboard', { size: 12 })} <span>Check my application readiness</span>
             </button>
-            <button type="button" class="copilot-chip btn btn-secondary btn-sm" data-prompt="Check my application readiness" style="font-size:0.8rem; padding:6px 12px; border-radius:var(--radius-full);">
-              Check my application readiness
-            </button>
-            <button type="button" class="copilot-chip btn btn-secondary btn-sm" data-prompt="Find jobs matching my profile" style="font-size:0.8rem; padding:6px 12px; border-radius:var(--radius-full);">
-              Find jobs matching my profile
+            <button type="button" class="copilot-chip" data-prompt="Complete and improve my profile" style="text-align:left; background:var(--bg-surface); border:1px solid var(--border-subtle); padding:8px 12px; border-radius:6px; color:var(--text-main); font-size:0.825rem; cursor:pointer; transition:border-color 0.15s; display:flex; align-items:center; gap:8px;">
+              ${renderIcon('edit', { size: 12 })} <span>Complete &amp; improve my profile</span>
             </button>
           </div>
         </div>
 
-        <!-- Conversation History Thread -->
-        <div id="copilot-messages" style="display:${messages.length > 0 ? 'flex' : 'none'}; flex-direction:column; gap:12px; max-height:360px; overflow-y:auto; padding:14px; background:rgba(0,0,0,0.25); border:1px solid var(--border-subtle); border-radius:var(--radius-sm); margin-bottom:16px;">
+        <!-- Chat history -->
+        <div id="copilot-messages" style="display:${messages.length > 0 ? 'flex' : 'none'}; flex-direction:column; gap:10px;">
           ${messages
             .map(
               (m) => `
-            <div style="display:flex; gap:10px; align-items:flex-start; ${m.role === 'user' ? 'justify-content:flex-end;' : ''}">
-              ${
-                m.role !== 'user'
-                  ? `
-                <div style="width:28px; height:28px; border-radius:8px; background:rgba(99,102,241,0.2); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                  ${renderIcon('copilot', { size: 14 })}
-                </div>
-              `
-                  : ''
-              }
-              <div style="max-width:80%; padding:10px 14px; border-radius:var(--radius-sm); font-size:0.875rem; line-height:1.5; ${m.role === 'user' ? 'background:var(--accent-indigo); color:#FFFFFF;' : 'background:var(--bg-surface); border:1px solid var(--border-subtle); color:var(--text-main);'}">
+            <div style="display:flex; gap:8px; align-items:flex-start; ${m.role === 'user' ? 'justify-content:flex-end;' : ''}">
+              <div style="max-width:85%; padding:10px 14px; border-radius:10px; font-size:0.85rem; line-height:1.45; ${m.role === 'user' ? 'background:var(--accent-indigo); color:#FFFFFF;' : 'background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-main);'}">
                 ${escapeHtml(m.content)}
               </div>
             </div>
@@ -539,32 +596,56 @@ export function renderDashboardPage({
             )
             .join('')}
         </div>
+      </div>
 
-        <!-- Copilot Query Input Form -->
-        <form id="copilot-form" method="POST" action="/assistant/message" style="display:flex; gap:10px; align-items:center;">
+      <div class="copilot-drawer-footer">
+        <form id="copilot-form" method="POST" action="/assistant/message" style="display:flex; gap:8px; margin:0;">
           <input
             id="copilot-input"
             type="text"
             name="message"
             class="form-control"
-            placeholder="Ask Career Copilot (e.g. 'What should I do next?' or 'Explain my missing fields')..."
+            placeholder="Ask Career Copilot..."
             required
             autocomplete="off"
-            style="flex:1; height:42px; font-size:0.9rem;"
+            style="flex:1; height:40px; font-size:0.875rem;"
           />
-          <button id="copilot-submit-btn" type="submit" class="btn btn-primary" style="height:42px; padding:0 18px; display:inline-flex; align-items:center; gap:6px; font-weight:600;">
-            ${renderIcon('copilot', { size: 16 })}
+          <button id="copilot-submit-btn" type="submit" class="btn btn-primary" style="height:40px; padding:0 14px; font-size:0.875rem; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
+            ${renderIcon('copilot', { size: 14 })}
             <span>Send</span>
           </button>
         </form>
-
-      </section>
-
-    </div>
+      </div>
+    </aside>
 
     <!-- Client-side script for instantaneous Copilot interactions -->
     <script>
       (function() {
+        window.toggleCopilotDrawer = function(open) {
+          const drawer = document.getElementById('copilot-drawer');
+          const backdrop = document.getElementById('copilot-drawer-backdrop');
+          if (!drawer || !backdrop) return;
+          if (open) {
+            drawer.classList.add('open');
+            backdrop.classList.add('open');
+            setTimeout(() => document.getElementById('copilot-input')?.focus(), 150);
+          } else {
+            drawer.classList.remove('open');
+            backdrop.classList.remove('open');
+          }
+        };
+
+        // Auto-open if query param copilot=open
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('copilot') === 'open') {
+          toggleCopilotDrawer(true);
+        }
+
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape') toggleCopilotDrawer(false);
+        });
+
         const chips = document.querySelectorAll('.copilot-chip');
         const input = document.getElementById('copilot-input');
         const form = document.getElementById('copilot-form');
@@ -596,15 +677,15 @@ export function renderDashboardPage({
             messagesDiv.style.display = 'flex';
             const userBubble = document.createElement('div');
             userBubble.style.cssText = 'display:flex; justify-content:flex-end; margin-bottom:8px;';
-            userBubble.innerHTML = '<div style="max-width:80%; padding:10px 14px; border-radius:var(--radius-sm); font-size:0.875rem; line-height:1.5; background:var(--accent-indigo); color:#FFFFFF;">' +
+            userBubble.innerHTML = '<div style="max-width:85%; padding:10px 14px; border-radius:10px; font-size:0.85rem; line-height:1.45; background:var(--accent-indigo); color:#FFFFFF;">' +
               escapeText(msg) + '</div>';
             messagesDiv.appendChild(userBubble);
 
             // Render thinking indicator
             const thinkingBubble = document.createElement('div');
-            thinkingBubble.style.cssText = 'display:flex; gap:10px; align-items:flex-start; margin-bottom:8px;';
-            thinkingBubble.innerHTML = '<div style="width:28px; height:28px; border-radius:8px; background:rgba(99,102,241,0.2); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>' +
-              '<div style="max-width:80%; padding:10px 14px; border-radius:var(--radius-sm); font-size:0.875rem; background:var(--bg-surface); border:1px solid var(--border-subtle); color:var(--text-muted); font-style:italic;">Analyzing career context...</div>';
+            thinkingBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;';
+            thinkingBubble.innerHTML = '<div style="width:24px; height:24px; border-radius:6px; background:rgba(99,102,241,0.2); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>' +
+              '<div style="max-width:85%; padding:10px 14px; border-radius:10px; font-size:0.85rem; background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-muted); font-style:italic;">Thinking...</div>';
             messagesDiv.appendChild(thinkingBubble);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
@@ -621,30 +702,29 @@ export function renderDashboardPage({
               thinkingBubble.remove();
 
               if (!res.ok) {
-                throw new Error('Assistant response error: ' + res.status);
+                throw new Error('Assistant error: ' + res.status);
               }
 
               const data = await res.json();
               const responseText = data?.response?.content || 'I processed your request.';
 
               const botBubble = document.createElement('div');
-              botBubble.style.cssText = 'display:flex; gap:10px; align-items:flex-start; margin-bottom:8px;';
-              botBubble.innerHTML = '<div style="width:28px; height:28px; border-radius:8px; background:rgba(99,102,241,0.2); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div>' +
-                '<div style="max-width:80%; padding:10px 14px; border-radius:var(--radius-sm); font-size:0.875rem; line-height:1.5; background:var(--bg-surface); border:1px solid var(--border-subtle); color:var(--text-main); white-space:pre-line;">' +
+              botBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;';
+              botBubble.innerHTML = '<div style="width:24px; height:24px; border-radius:6px; background:rgba(99,102,241,0.2); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div>' +
+                '<div style="max-width:85%; padding:10px 14px; border-radius:10px; font-size:0.85rem; line-height:1.45; background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-main); white-space:pre-line;">' +
                 escapeText(responseText) + '</div>';
               messagesDiv.appendChild(botBubble);
               messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-              // If a proposal was returned, reload after a brief moment to show proposal card or append proposal
               if (data?.response?.proposals && data.response.proposals.length > 0) {
-                window.location.reload();
+                setTimeout(() => window.location.reload(), 800);
               }
             } catch (err) {
               thinkingBubble.remove();
               const errBubble = document.createElement('div');
-              errBubble.style.cssText = 'display:flex; gap:10px; align-items:flex-start; margin-bottom:8px;';
-              errBubble.innerHTML = '<div style="padding:10px 14px; border-radius:var(--radius-sm); font-size:0.875rem; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:var(--accent-amber);">' +
-                'Career Copilot is temporarily busy. You can continue updating your profile manually.' + '</div>';
+              errBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;';
+              errBubble.innerHTML = '<div style="padding:10px 14px; border-radius:10px; font-size:0.85rem; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:var(--accent-amber);">' +
+                'Career Copilot is temporarily busy. You can continue manually.' + '</div>';
               messagesDiv.appendChild(errBubble);
             } finally {
               submitBtn.disabled = false;

@@ -87,32 +87,16 @@ export function renderResumesPage({
         <span class="current">Resumes</span>
       </div>
 
-      <!-- Architecture Pipeline Banner -->
-      <div class="pipeline-banner">
-        <div class="pipeline-header">
-          <span class="pipeline-title">Resume &amp; Career Document Ingestion Pipeline</span>
-          <span style="font-size:0.75rem; color:var(--text-dim);">AES-256-GCM Encrypted Storage</span>
-        </div>
-        <div class="pipeline-steps">
-          <div class="pipeline-step active">Source Resume (PDF/DOCX/TXT)</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Sandboxed Parser</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Structured Sections</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Self-Reported Claims [CLAIMED]</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Base Resume &amp; AI Profile</div>
-        </div>
-      </div>
-
       <!-- Header -->
-      <div class="page-header">
+      <div class="page-header" style="margin-top: 1rem;">
         <div>
-          <span class="badge badge-indigo" style="margin-bottom:8px;">RESUME MANAGEMENT</span>
-          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Source Resumes &amp; Career Documents</h1>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span class="badge badge-indigo">RESUME MANAGEMENT</span>
+            <span class="badge" style="background: rgba(16, 185, 129, 0.12); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.25);">Private &amp; Secure</span>
+          </div>
+          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Resumes &amp; Career Documents</h1>
           <p style="color:var(--text-muted); margin:0; font-size:0.875rem;">
-            Upload your source resume (PDF, DOCX, TXT) to establish your baseline narrative. Documents are stored with AES-256-GCM encryption and parsed with strict truth separation.
+            Upload your resume (PDF, DOCX, TXT) to establish your baseline narrative and extract your work history, education, and skills.
           </p>
         </div>
       </div>
@@ -352,37 +336,21 @@ export function renderResumeDetailPage({
         <span class="current">v${resume.version} — ${escapeHtml(resume.fileName)}</span>
       </div>
 
-      <!-- Architecture Pipeline Banner -->
-      <div class="pipeline-banner">
-        <div class="pipeline-header">
-          <span class="pipeline-title">Resume &amp; Career Document Ingestion Pipeline</span>
-          <span style="font-size:0.75rem; color:var(--text-dim);">Sandboxed AST Text Extraction</span>
-        </div>
-        <div class="pipeline-steps">
-          <div class="pipeline-step">Source: ${escapeHtml(resume.fileName)}</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Multi-Format Parser</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active">${sections.length} Parsed Sections</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step active">${claims.length} Extracted Claims [CLAIMED]</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Base Resume Narrative</div>
-        </div>
-      </div>
-
       <!-- Header -->
-      <div class="page-header">
+      <div class="page-header" style="margin-top: 1rem;">
         <div>
           <h1 style="font-size:1.75rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin:4px 0 8px 0; font-weight:800; letter-spacing:-0.02em;">
             <span>${escapeHtml(resume.fileName)}</span>
             <span style="font-size:0.9rem; font-weight:400; color:var(--text-muted);">(v${resume.version})</span>
             ${renderResumeStatusBadge(resume.lifecycleState, resume.isBaseResume)}
           </h1>
+          <p style="color:var(--text-muted); margin:4px 0 0; font-size:0.875rem;">
+            Parsed sections and extracted qualifications from your uploaded resume.
+          </p>
         </div>
 
         <a href="/resumes/${escapeHtml(resume.id)}/download" class="btn btn-secondary btn-sm">
-          Download Decrypted Source
+          Download Original
         </a>
       </div>
 

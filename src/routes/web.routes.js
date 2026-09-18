@@ -506,7 +506,7 @@ export default async function webRoutes(app, opts = {}) {
 
     // Available repositories: derive from connector or selected resources
     let availableRepos = [...selectedResources];
-    if (gitHubConnection && connectorRegistry.has('GITHUB_APP')) {
+    if (gitHubConnection?.installationId && connectorRegistry.has('GITHUB_APP')) {
       try {
         const connector = connectorRegistry.get('GITHUB_APP');
         const listRes = await connector.listResources(
@@ -652,13 +652,13 @@ export default async function webRoutes(app, opts = {}) {
       )
       .limit(1);
 
-    if (!gitHubConnection) {
+    if (!gitHubConnection || !gitHubConnection.installationId) {
       return reply.redirect('/onboarding?step=2&error=GitHub+App+is+not+connected');
     }
 
     // Authoritative server-side validation against GitHub App installation
     let authorizedRepos = [];
-    if (connectorRegistry.has('GITHUB_APP')) {
+    if (gitHubConnection?.installationId && connectorRegistry.has('GITHUB_APP')) {
       try {
         const connector = connectorRegistry.get('GITHUB_APP');
         const listRes = await connector.listResources(

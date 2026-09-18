@@ -129,7 +129,7 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
   // ---------------------------------------------------------------------------
   // 1. Navigation Architecture
   // ---------------------------------------------------------------------------
-  it('1. Renders all 10 target navigation tabs and panels with accessible roles', () => {
+  it('1. Renders all 6 consolidated target navigation tabs and panels with accessible roles', () => {
     const html = renderProfilePage({
       user: mockUser,
       candidate: mockCandidate,
@@ -140,14 +140,10 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
     const expectedTabs = [
       'overview',
       'professional',
-      'experience',
-      'education',
-      'skills',
-      'projects',
-      'credentials',
-      'links',
+      'skills-projects',
       'preferences',
       'eligibility',
+      'contact',
     ];
 
     for (const tabId of expectedTabs) {
@@ -162,7 +158,7 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
     assert.ok(html.includes('role="tabpanel"'), 'Panels must have role="tabpanel"');
   });
 
-  it('2. Honors activeSection parameter by marking active tab and panel', () => {
+  it('2. Honors activeSection parameter and maps legacy aliases to consolidated panels', () => {
     const html = renderProfilePage({
       user: mockUser,
       candidate: mockCandidate,
@@ -173,6 +169,23 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
     assert.ok(html.includes('id="tab-eligibility"') && html.includes('aria-selected="true"'), 'Eligibility tab must be active');
     assert.ok(html.includes('id="panel-eligibility"') && /id="panel-eligibility"[\s\S]*?class="tab-panel\s+active"/.test(html), 'Eligibility panel must be active');
     assert.ok(html.includes('id="tab-overview"') && html.includes('aria-selected="false"'), 'Overview tab must not be active');
+
+    // Test legacy alias mapping: 'links' maps to 'contact', 'experience' maps to 'professional'
+    const htmlLegacyLinks = renderProfilePage({
+      user: mockUser,
+      candidate: mockCandidate,
+      profile: mockProfile,
+      activeSection: 'links',
+    });
+    assert.ok(htmlLegacyLinks.includes('id="tab-contact"') && htmlLegacyLinks.includes('aria-selected="true"'), 'Legacy "links" must activate "contact" tab');
+
+    const htmlLegacyExp = renderProfilePage({
+      user: mockUser,
+      candidate: mockCandidate,
+      profile: mockProfile,
+      activeSection: 'experience',
+    });
+    assert.ok(htmlLegacyExp.includes('id="tab-professional"') && htmlLegacyExp.includes('aria-selected="true"'), 'Legacy "experience" must activate "professional" tab');
   });
 
   // ---------------------------------------------------------------------------
@@ -294,6 +307,12 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
     assert.ok(html.includes('id="section-readiness"'), 'Must preserve #section-readiness anchor');
     assert.ok(html.includes('id="section-links"'), 'Must preserve #section-links anchor');
     assert.ok(html.includes('id="section-preferences"'), 'Must preserve #section-preferences anchor');
+    assert.ok(html.includes('id="section-experience"'), 'Must preserve #section-experience anchor');
+    assert.ok(html.includes('id="section-education"'), 'Must preserve #section-education anchor');
+    assert.ok(html.includes('id="section-skills"'), 'Must preserve #section-skills anchor');
+    assert.ok(html.includes('id="section-projects"'), 'Must preserve #section-projects anchor');
+    assert.ok(html.includes('id="section-credentials"'), 'Must preserve #section-credentials anchor');
+    assert.ok(html.includes('id="section-eligibility"'), 'Must preserve #section-eligibility anchor');
   });
 
   // ---------------------------------------------------------------------------

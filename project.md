@@ -3,6 +3,55 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-18*
 
+### P88: P0 Runtime Fixes, Profile 6-Domain Consolidation, Career Copilot Drawer & Jargon Cleanup
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-18  
+**Scope:** P0 runtime fix for Onboarding crash, repository discovery connector hardening, Career Copilot slide-over drawer overhaul, candidate profile consolidation from 10 tabs into 6 canonical career domains matching Indeed/LinkedIn patterns with calm ready vs attention checklist cards, and eradication of developer pipeline banners from human-facing screens.
+
+1. **P0 Onboarding Runtime ReferenceError Fixed (`src/views/onboarding.page.js`):**
+   - Derived `isGitHubConnected`, `selectedRepoIds`, `syncResult`, and `ingestionRun` once in parent scope of `renderOnboardingPage()`.
+   - Eliminated dead duplicate `let stepContent = ''` variable declaration and unified helper dispatch.
+   - Refactored candidate onboarding stepper from "4. AST Ingestion" to "4. Build Profile" and stripped AST text from headings and subtitles.
+
+2. **Repository Discovery Connector Calls Hardened (`src/routes/web.routes.js`):**
+   - Added `gitHubConnection?.installationId` validation guards before `connector.listResources(...)` in both `GET /onboarding` (line 509) and `POST /onboarding/repositories/select` (line 655).
+   - Enforced strict 3-argument calling convention `(context, credentials, options)` where credentials explicitly contain `{ installationId: gitHubConnection.installationId }`.
+
+3. **Career Copilot Slide-Over Drawer on Dashboard (`src/views/dashboard.page.js`):**
+   - Replaced obtrusive half-screen static card with a compact "Need Help?" trigger strip and responsive slide-over drawer (`#copilot-drawer`, `#copilot-drawer-backdrop`).
+   - Drawer stays fixed to the right on desktop and docks as a full-width bottom sheet on mobile.
+   - Implemented `toggleCopilotDrawer(open)` controller, query parameter auto-open (`?copilot=open`), and Escape key listener.
+   - Softened AI disclaimers from technical legal warnings to calm, reassuring tooltips.
+
+4. **Candidate Profile Consolidated into 6 Canonical Domains (`src/views/profile.page.js`):**
+   - Consolidated 10 fragmented tabs into 6 intuitive career groups:
+     1. `overview` (Overview: Readiness gauge, calm "Ready to apply" checklist + "Needs attention" cards, domain snapshot cards with direct jump triggers)
+     2. `professional` (Professional: Identity summary, Work Experience with tenure metrics, Education History)
+     3. `skills-projects` (Skills & Projects: Primary verified skills, additional libraries & tools, secondary signals disclosure, highlighted technical projects, certifications, spoken languages)
+     4. `preferences` (Job Preferences: Target roles, preferred locations, remote preference, relocation preference, compensation floor/target)
+     5. `eligibility` (Application & Eligibility: Work authorization, visa sponsorship tri-state, notice period, earliest start date, candidate confirmations)
+     6. `contact` (Contact & Links: Primary email, phone number with country calling code dropdown, LinkedIn, GitHub, portfolio)
+   - Integrated the calm "Ready to apply" vs "Needs attention" dual-column pattern from `apply.page.js`.
+   - Guaranteed 100% backward compatibility for all anchors (`#section-contact`, `#section-readiness`, `#section-links`, `#section-preferences`, `#section-experience`, `#section-education`, `#section-skills`, `#section-projects`, `#section-credentials`, `#section-eligibility`).
+   - Implemented transparent alias mapping in `renderProfilePage()` and client-side tab switcher for legacy tab parameters (`links`, `experience`, `education`, `skills`, `projects`, `credentials`).
+   - Preserved all form input IDs, names, and structured values (`contactCountryCodeSelect`, `contactPhoneInput`, `targetRoles`, `visaSponsorshipRequired`, `noticePeriod`, etc.).
+
+5. **Human-Facing Jargon Cleanup (`src/views/resumes.page.js`, `src/views/sources.page.js`):**
+   - Removed developer pipeline banners ("Sandboxed AST Text Extraction", "AES-256-GCM Encrypted Storage", "Self-Reported Claims [CLAIMED]", "Zero Code Execution AST Scanner", "Sovereign AI MCP Interface").
+   - Simplified user actions ("Download Original" instead of "Download Decrypted Source").
+   - Cleaned up GitHub account and connection presentations for candidates.
+
+6. **Verification & Audit Results:**
+   - `node --check src/views/profile.page.js src/views/resumes.page.js src/views/sources.page.js` -> Code 0 (clean).
+   - `tests/unit/p86-profile-ui-redesign.test.js` -> 10/10 PASS.
+   - `tests/unit/candidate-career-profile.test.js` -> 41/41 PASS.
+   - `tests/unit/profile-phone-country-code.test.js` -> 10/10 PASS.
+   - `tests/unit/p86-*.test.js tests/unit/application-readiness.test.js` -> 59/59 PASS.
+   - `tests/unit/p81-*.test.js tests/unit/p85-*.test.js tests/unit/p87-*.test.js` -> 131/131 PASS.
+   - `npm run scan:secrets` -> PASS (0 exposed secrets).
+
+---
+
 ### FINAL PRODUCTION AUDIT: P86 / P87 PRODUCTION READINESS & INVARIANT AUDIT
 **Status:** COMPLETE & VERIFIED — PRODUCTION READY  
 **Audit Date:** 2026-09-18  

@@ -42,30 +42,25 @@ export function renderOnboardingPage({
 }) {
   const step = Math.max(1, Math.min(5, parseInt(currentStep, 10) || 1));
 
-  let stepContent = '';
-  if (step === 1) {
-    stepContent = renderStep1Profile({ user, candidate });
-  } else if (step === 2) {
-    stepContent = renderStep2Connect({ user, tenant, connection });
-  } else if (step === 3) {
-    stepContent = renderStep3SelectRepos({ availableRepos, selectedRepos, connection });
-  } else if (step === 4) {
-    stepContent = renderStep4Ingestion({ selectedRepos, ingestionJob, tenant });
-  } else if (step === 5) {
-    stepContent = renderStep5Complete({ candidate, selectedRepos, user });
-  }
+  // Canonical state derivation (single source of truth for all steps)
+  const isGitHubConnected = Boolean(connection && connection.status === 'ACTIVE');
+  const selectedRepoIds = new Set(
+    (selectedRepos || []).map((repo) => String(repo.externalResourceId || repo.id || repo.name))
+  );
+  const ingestionRun = ingestionJob || null;
+  const syncResult = null;
 
   const content = `
     <div class="container" style="max-width:820px; margin: 40px auto; padding: 0 16px;">
       
       <!-- Wizard Header -->
       <div style="text-align:center; margin-bottom:32px;">
-        <span class="badge badge-indigo" style="margin-bottom:8px;">ONBOARDING WIZARD</span>
+        <span class="badge badge-indigo" style="margin-bottom:8px;">ONBOARDING</span>
         <h1 style="font-size:1.8rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px;">
-          Set Up Your AI Career Profile
+          Set Up Your Career Profile
         </h1>
         <p style="color:var(--text-muted); font-size:0.95rem; max-width:540px; margin:0 auto;">
-          Connect your engineering sources to construct a verified, evidence-grounded career narrative for AI job matching.
+          Connect your projects and experience to build your verified career profile for job discovery and matching.
         </p>
       </div>
 
@@ -79,7 +74,7 @@ export function renderOnboardingPage({
 
         <div class="step-item">
           <div class="step-badge ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}">${step > 2 ? renderIcon('check', { size: 12 }) : '2'}</div>
-          <span class="step-title ${step === 2 ? 'active' : ''}">2. GitHub App</span>
+          <span class="step-title ${step === 2 ? 'active' : ''}">2. GitHub</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
@@ -91,7 +86,7 @@ export function renderOnboardingPage({
 
         <div class="step-item">
           <div class="step-badge ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}">${step > 4 ? renderIcon('check', { size: 12 }) : '4'}</div>
-          <span class="step-title ${step === 4 ? 'active' : ''}">4. AST Ingestion</span>
+          <span class="step-title ${step === 4 ? 'active' : ''}">4. Build Profile</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
@@ -684,9 +679,9 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
 
       <div style="margin-bottom:24px;">
         <span class="badge badge-indigo" style="margin-bottom:8px;">STEP 4 OF 5</span>
-        <h2 style="font-size:1.4rem; font-weight:700; margin:0 0 6px 0;">Execute AST Ingestion &amp; Evidence Extraction</h2>
+        <h2 style="font-size:1.4rem; font-weight:700; margin:0 0 6px 0;">Building Your Career Profile &amp; Evidence</h2>
         <p style="font-size:0.875rem; color:var(--text-muted); margin:0;">
-          Analyze dependency manifests, syntax import trees, commit history, and technical architecture to generate evidence-backed projects and skills.
+          Analyzing repository architecture, dependencies, and verified technical skills to ground your job applications in authentic proof.
         </p>
       </div>
 
@@ -698,7 +693,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
           <div>
             <h3 style="font-size:0.95rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); margin:0 0 4px;">Target Repositories</h3>
             <p style="font-size:0.825rem; color:var(--text-muted); margin:0;" id="scopeSubtitle">
-              <strong>${totalCount}</strong> repository ${totalCount === 1 ? 'source' : 'sources'} queued for deep AST syntax extraction:
+              <strong>${totalCount}</strong> repository ${totalCount === 1 ? 'source' : 'sources'} selected for verification:
             </p>
           </div>
           <div>

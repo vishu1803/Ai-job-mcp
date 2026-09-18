@@ -44,35 +44,16 @@ export function renderSourcesPage({
         <span class="current">Sources</span>
       </div>
 
-      <!-- Architecture Pipeline Banner -->
-      <div class="pipeline-banner">
-        <div class="pipeline-header">
-          <span class="pipeline-title">Connected Sources &amp; Ingestion Pipeline</span>
-          <span style="font-size:0.75rem; color:var(--text-dim);">Multi-Provider Sovereign Ingestion</span>
-        </div>
-        <div class="pipeline-steps">
-          <div class="pipeline-step active">Connected Sources (GitHub App)</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Authorized Repositories</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Zero Code Execution AST Scanner</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Verified Skills &amp; Projects</div>
-          <span class="pipeline-arrow">→</span>
-          <div class="pipeline-step">Sovereign AI MCP Interface</div>
-        </div>
-      </div>
-
       <!-- Header -->
-      <div class="page-header">
+      <div class="page-header" style="margin-top: 1rem;">
         <div>
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
             <span class="badge badge-cyan">INTEGRATIONS &amp; SOURCES</span>
             <span class="badge badge-indigo">${escapeHtml(tenant?.name || 'Workspace')}</span>
           </div>
-          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Connected Sources Hub</h1>
+          <h1 style="margin:4px 0 8px 0; font-size:1.75rem; font-weight:800; letter-spacing:-0.02em;">Connected Sources &amp; Accounts</h1>
           <p style="color:var(--text-muted); margin:0; font-size:0.875rem;">
-            Manage authorized code repositories and external platforms supplying verified career evidence.
+            Connect your code repositories and professional platforms to automatically verify skills and showcase projects.
           </p>
         </div>
 
@@ -94,18 +75,18 @@ export function renderSourcesPage({
             </div>
             <div>
               <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px; flex-wrap:wrap;">
-                <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">GitHub App Connector</h2>
+                <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin:0;">GitHub Account</h2>
                 ${
                   isConnected
-                    ? '<span class="badge badge-verified">ACTIVE &amp; LINKED</span>'
-                    : '<span class="badge badge-amber">DISCONNECTED</span>'
+                    ? '<span class="badge badge-verified">CONNECTED</span>'
+                    : '<span class="badge badge-amber">NOT CONNECTED</span>'
                 }
               </div>
               <p style="font-size:0.85rem; color:var(--text-muted); margin:4px 0 0 0;">
                 ${
                   isConnected
-                    ? `Account: <strong style="color:var(--text-main);">${escapeHtml(gitHubConnection.externalAccountName || gitHubConnection.displayName)}</strong> &bull; Installation ID: <code style="font-size:0.8rem; color:var(--accent-indigo);">${escapeHtml(gitHubConnection.installationId || 'linked')}</code>`
-                    : 'Not connected. Connect GitHub to allow Career Hub to extract verified AST syntax and commit evidence.'
+                    ? `Connected Account: <strong style="color:var(--text-main);">${escapeHtml(gitHubConnection.externalAccountName || gitHubConnection.displayName)}</strong>`
+                    : 'Connect your GitHub account to automatically verify your technical skills and showcase projects.'
                 }
               </p>
             </div>
