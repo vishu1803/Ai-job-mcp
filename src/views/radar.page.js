@@ -9,6 +9,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the radar analysis input form page.
@@ -360,7 +361,7 @@ function renderEmbeddedRadarWidget(data) {
                     ? keyMatched
                         .map(
                           (s) =>
-                            `<span class="tag" style="font-size: 0.725rem; background: rgba(16, 185, 129, 0.1); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.25);">✓ ${escapeHtml(s)}</span>`
+                            `<span class="tag" style="font-size: 0.725rem; background: rgba(16, 185, 129, 0.1); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.25); display: inline-flex; align-items: center; gap: 4px;">${renderIcon('check', { size: 12 })} <span>${escapeHtml(s)}</span></span>`
                         )
                         .join('')
                     : '<span style="font-size: 0.75rem; color: var(--text-dim);">None cited</span>'
@@ -375,7 +376,7 @@ function renderEmbeddedRadarWidget(data) {
                     ? keyMissing
                         .map(
                           (s) =>
-                            `<span class="tag" style="font-size: 0.725rem; background: rgba(239, 68, 68, 0.08); color: #fca5a5; border-color: rgba(239, 68, 68, 0.2);">✕ ${escapeHtml(s)}</span>`
+                            `<span class="tag" style="font-size: 0.725rem; background: rgba(239, 68, 68, 0.08); color: #fca5a5; border-color: rgba(239, 68, 68, 0.2); display: inline-flex; align-items: center; gap: 4px;">${renderIcon('cross', { size: 12 })} <span>${escapeHtml(s)}</span></span>`
                         )
                         .join('')
                     : '<span style="font-size: 0.75rem; color: var(--text-dim);">Zero gaps detected</span>'

@@ -10,6 +10,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Formats a date into a human-readable string.
@@ -203,7 +204,7 @@ export function renderApplicationsPage({
         filteredApps.length === 0
           ? `
         <div class="empty-state">
-          <div class="empty-state-icon" style="font-size:2rem; opacity:0.7;">📋</div>
+          <div class="empty-state-icon" style="display:inline-flex; align-items:center; justify-content:center; color:var(--text-dim); margin-bottom:12px;">${renderIcon('applications', { size: 36 })}</div>
           <h3 class="empty-state-title">${applications.length === 0 ? 'No job applications tracked yet.' : 'No applications in this view.'}</h3>
           <p class="empty-state-desc">
             ${

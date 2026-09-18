@@ -8,6 +8,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the Projects listing or Project detail inspection page.
@@ -145,7 +146,7 @@ function renderProjectsList({ projects, currentTab, error, success }) {
         displayedProjects.length === 0
           ? `
         <div class="empty-state">
-          <div class="empty-state-icon" style="font-size:2rem; opacity:0.7;">💼</div>
+          <div class="empty-state-icon" style="display:inline-flex; align-items:center; justify-content:center; color:var(--text-dim); margin-bottom:12px;">${renderIcon('briefcase', { size: 36 })}</div>
           <h3 class="empty-state-title">${currentTab === 'archived' ? 'No Archived Projects' : 'No projects added yet.'}</h3>
           <p class="empty-state-desc">
             ${

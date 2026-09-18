@@ -8,6 +8,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Formats byte count into a readable string.
@@ -32,7 +33,7 @@ function formatBytes(bytes) {
  */
 function renderResumeStatusBadge(status, isBase = false) {
   if (isBase) {
-    return `<span class="badge badge-verified">★ BASE RESUME</span>`;
+    return `<span class="badge badge-verified" style="display:inline-flex; align-items:center; gap:4px;">${renderIcon('check', { size: 12 })} <span>BASE RESUME</span></span>`;
   }
   switch (status) {
     case 'USER_APPROVED':
@@ -202,7 +203,7 @@ export function renderResumesPage({
           resumesList.length === 0
             ? `
           <div class="empty-state">
-            <div class="empty-state-icon" style="font-size:2rem; opacity:0.7;">📄</div>
+            <div class="empty-state-icon" style="display:inline-flex; align-items:center; justify-content:center; color:var(--text-dim); margin-bottom:12px;">${renderIcon('resumes', { size: 36 })}</div>
             <h3 class="empty-state-title">No resumes uploaded yet.</h3>
             <p class="empty-state-desc">
               Uploading your resume establishes your baseline candidate narrative, extracts structured claims, and allows ATS tailoring without hallucinations.

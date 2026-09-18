@@ -6,6 +6,7 @@
  */
 
 import { renderLayout } from './layout.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the full public landing page HTML.
@@ -96,10 +97,10 @@ export function renderLandingPage({ user = null } = {}) {
             </div>
             <h3 style="font-size:1.1rem; font-weight:600; margin-bottom:10px; color:var(--text-main);">Unverified Hallucinations</h3>
             <ul style="list-style:none; color:var(--text-muted); font-size:0.875rem; display:flex; flex-direction:column; gap:8px;">
-              <li>✕ Generates claims without verifiable evidence</li>
-              <li>✕ Keyword-stuffs resumes to fool basic ATS screeners</li>
-              <li>✕ Disconnected from real engineering codebase experience</li>
-              <li>✕ Exposes candidate to embarrassing interview failures</li>
+              <li style="display:flex; align-items:center; gap:8px;"><span style="color:#FB7185; display:inline-flex;">${renderIcon('cross', { size: 14 })}</span> <span>Generates claims without verifiable evidence</span></li>
+              <li style="display:flex; align-items:center; gap:8px;"><span style="color:#FB7185; display:inline-flex;">${renderIcon('cross', { size: 14 })}</span> <span>Keyword-stuffs resumes to fool basic ATS screeners</span></li>
+              <li style="display:flex; align-items:center; gap:8px;"><span style="color:#FB7185; display:inline-flex;">${renderIcon('cross', { size: 14 })}</span> <span>Disconnected from real engineering codebase experience</span></li>
+              <li style="display:flex; align-items:center; gap:8px;"><span style="color:#FB7185; display:inline-flex;">${renderIcon('cross', { size: 14 })}</span> <span>Exposes candidate to embarrassing interview failures</span></li>
             </ul>
           </div>
 
@@ -109,10 +110,10 @@ export function renderLandingPage({ user = null } = {}) {
             </div>
             <h3 style="font-size:1.1rem; font-weight:600; margin-bottom:10px; color:var(--text-main);">Repository-Anchored Proof</h3>
             <ul style="list-style:none; color:var(--text-muted); font-size:0.875rem; display:flex; flex-direction:column; gap:8px;">
-              <li>✓ Ingests real GitHub AST syntax trees & dependencies</li>
-              <li>✓ Pins every skill to authentic commit SHAs & line ranges</li>
-              <li>✓ Zero-Hallucination Gate enforces <code style="color:#34D399;">VERIFIED</code> provenance</li>
-              <li>✓ Labels self-authored statements as <code style="color:#FBBF24;">[Unverified User Claim]</code></li>
+              <li style="display:flex; align-items:center; gap:8px;"><span style="color:var(--accent-emerald); display:inline-flex;">${renderIcon('check', { size: 14 })}</span> <span>Ingests real GitHub AST syntax trees &amp; dependencies</span></li>
+              <li style="display:flex; align-items:center; gap:8px;"><span style="color:var(--accent-emerald); display:inline-flex;">${renderIcon('check', { size: 14 })}</span> <span>Pins every skill to authentic commit SHAs &amp; line ranges</span></li>
+              <li style="display:flex; align-items:center; gap:8px;"><span style="color:var(--accent-emerald); display:inline-flex;">${renderIcon('check', { size: 14 })}</span> <span>Zero-Hallucination Gate enforces <code style="color:#34D399;">VERIFIED</code> provenance</span></li>
+              <li style="display:flex; align-items:center; gap:8px;"><span style="color:var(--accent-emerald); display:inline-flex;">${renderIcon('check', { size: 14 })}</span> <span>Labels self-authored statements as <code style="color:#FBBF24;">[Unverified User Claim]</code></span></li>
             </ul>
           </div>
         </div>

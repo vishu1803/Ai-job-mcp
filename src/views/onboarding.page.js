@@ -11,6 +11,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the 5-step candidate onboarding wizard.
@@ -23,9 +24,8 @@ import { escapeHtml } from '../utils/html-escaper.js';
  * @param {Array<object>} [params.availableRepos=[]] Available repositories from connection
  * @param {Array<object>} [params.selectedRepos=[]] Currently selected repository resources
  * @param {number} [params.currentStep=1] Active step (1-5)
- * @param {object} [params.syncResult] Result from ingestion pipeline
- * @param {string} [params.error] Error message if present
- * @param {string} [params.success] Success message if present
+ * @param {string|null} [params.error=null] Flash error message
+ * @param {string|null} [params.success=null] Flash success message
  * @returns {string} Full HTML document
  */
 export function renderOnboardingPage({
@@ -36,67 +36,67 @@ export function renderOnboardingPage({
   availableRepos = [],
   selectedRepos = [],
   currentStep = 1,
-  syncResult = null,
-  ingestionRun = null,
-  error = '',
-  success = '',
+  error = null,
+  success = null,
+  ingestionJob = null,
 }) {
-  const step = Number(currentStep) || 1;
-  const isGitHubConnected = connection && connection.status === 'ACTIVE';
-  const selectedRepoIds = new Set();
-  for (const r of selectedRepos) {
-    if (r.id) selectedRepoIds.add(String(r.id));
-    if (r.externalResourceId) selectedRepoIds.add(String(r.externalResourceId));
-    if (r.name) selectedRepoIds.add(r.name);
-    if (r.displayName) selectedRepoIds.add(r.displayName);
-    if (r.fullName) selectedRepoIds.add(r.fullName);
-    if (r.metadata?.fullName) selectedRepoIds.add(r.metadata.fullName);
+  const step = Math.max(1, Math.min(5, parseInt(currentStep, 10) || 1));
+
+  let stepContent = '';
+  if (step === 1) {
+    stepContent = renderStep1Profile({ user, candidate });
+  } else if (step === 2) {
+    stepContent = renderStep2Connect({ user, tenant, connection });
+  } else if (step === 3) {
+    stepContent = renderStep3SelectRepos({ availableRepos, selectedRepos, connection });
+  } else if (step === 4) {
+    stepContent = renderStep4Ingestion({ selectedRepos, ingestionJob, tenant });
+  } else if (step === 5) {
+    stepContent = renderStep5Complete({ candidate, selectedRepos, user });
   }
 
   const content = `
-    <div class="container" style="max-width:860px; margin: 0 auto 60px;">
-      <!-- Header Banner -->
-      <div style="margin-bottom:28px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-          <div>
-            <span class="badge badge-indigo" style="margin-bottom:8px;">ONBOARDING WORKSPACE</span>
-            <h1 style="font-size:1.85rem; font-weight:800; letter-spacing:-0.02em; margin:4px 0 8px 0;">Candidate Setup Wizard</h1>
-          </div>
-          <span style="font-size:0.85rem; color:var(--text-dim);">Workspace: <strong style="color:var(--text-main);">${escapeHtml(tenant.name || tenant.slug)}</strong></span>
-        </div>
-        <p style="color:var(--text-muted); font-size:0.95rem; margin:0;">
-          Configure your candidate profile, connect your GitHub repositories, and index verified code evidence.
+    <div class="container" style="max-width:820px; margin: 40px auto; padding: 0 16px;">
+      
+      <!-- Wizard Header -->
+      <div style="text-align:center; margin-bottom:32px;">
+        <span class="badge badge-indigo" style="margin-bottom:8px;">ONBOARDING WIZARD</span>
+        <h1 style="font-size:1.8rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px;">
+          Set Up Your AI Career Profile
+        </h1>
+        <p style="color:var(--text-muted); font-size:0.95rem; max-width:540px; margin:0 auto;">
+          Connect your engineering sources to construct a verified, evidence-grounded career narrative for AI job matching.
         </p>
       </div>
 
       <!-- Stepper Navigation -->
       <div class="stepper" style="margin-bottom:36px;">
         <div class="step-item">
-          <div class="step-badge ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}">${step > 1 ? '✓' : '1'}</div>
+          <div class="step-badge ${step === 1 ? 'active' : step > 1 ? 'completed' : ''}">${step > 1 ? renderIcon('check', { size: 12 }) : '1'}</div>
           <span class="step-title ${step === 1 ? 'active' : ''}">1. Profile</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
-          <div class="step-badge ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}">${step > 2 ? '✓' : '2'}</div>
+          <div class="step-badge ${step === 2 ? 'active' : step > 2 ? 'completed' : ''}">${step > 2 ? renderIcon('check', { size: 12 }) : '2'}</div>
           <span class="step-title ${step === 2 ? 'active' : ''}">2. GitHub App</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
-          <div class="step-badge ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}">${step > 3 ? '✓' : '3'}</div>
+          <div class="step-badge ${step === 3 ? 'active' : step > 3 ? 'completed' : ''}">${step > 3 ? renderIcon('check', { size: 12 }) : '3'}</div>
           <span class="step-title ${step === 3 ? 'active' : ''}">3. Select Repos</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
-          <div class="step-badge ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}">${step > 4 ? '✓' : '4'}</div>
+          <div class="step-badge ${step === 4 ? 'active' : step > 4 ? 'completed' : ''}">${step > 4 ? renderIcon('check', { size: 12 }) : '4'}</div>
           <span class="step-title ${step === 4 ? 'active' : ''}">4. AST Ingestion</span>
         </div>
         <div style="flex:1; height:1px; background:var(--border-subtle); margin: 0 8px; margin-bottom: 22px;"></div>
 
         <div class="step-item">
-          <div class="step-badge ${step === 5 ? 'active' : ''}">${step === 5 ? '✓' : '5'}</div>
+          <div class="step-badge ${step === 5 ? 'active' : ''}">${step === 5 ? renderIcon('check', { size: 12 }) : '5'}</div>
           <span class="step-title ${step === 5 ? 'active' : ''}">5. Ready</span>
         </div>
       </div>
@@ -472,7 +472,7 @@ function renderStep3Repositories({
                     <label for="repo_${escapeHtml(String(repoKey))}" style="font-size:0.9rem; font-weight:700; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0;">
                       <span>${escapeHtml(repo.name || repo.displayName)}</span>
                       <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; font-family:var(--font-mono);">${escapeHtml(fullName)}</span>
-                      ${isPrivate ? '<span class="badge badge-amber" style="font-size:0.65rem;">🔒 PRIVATE</span>' : '<span class="badge badge-cyan" style="font-size:0.65rem;">🌐 PUBLIC</span>'}
+                      ${isPrivate ? `<span class="badge badge-amber" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('shield', { size: 10 })} <span>PRIVATE</span></span>` : `<span class="badge badge-cyan" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('link', { size: 10 })} <span>PUBLIC</span></span>`}
                     </label>
                     <p style="font-size:0.8rem; color:var(--text-muted); margin:3px 0 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%; line-height:1.4;">
                       ${escapeHtml(desc)}
@@ -482,7 +482,7 @@ function renderStep3Repositories({
                 <div style="flex-shrink:0; margin-left:12px;">
                   ${
                     isSelected
-                      ? '<span class="badge badge-verified" style="font-size:0.72rem;">✓ INDEXED</span>'
+                      ? `<span class="badge badge-verified" style="font-size:0.72rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('check', { size: 10 })} <span>INDEXED</span></span>`
                       : '<span class="badge badge-indigo" style="font-size:0.72rem;">AVAILABLE</span>'
                   }
                 </div>
@@ -734,7 +734,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
               let badgeClass = 'badge-neutral';
               if (isRepoCompleted) {
                 iconHtml =
-                  '<span style="color:#10B981; font-weight:bold; font-size:0.95rem;">✓</span>';
+                  `<span style="color:#10B981; display:inline-flex; align-items:center;">${renderIcon('check', { size: 14 })}</span>`;
                 badgeClass = 'badge-success';
               } else if (isRepoRunning) {
                 iconHtml =
@@ -742,7 +742,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
                 badgeClass = 'badge-cyan';
               } else if (isRepoFailed) {
                 iconHtml =
-                  '<span style="color:#EF4444; font-weight:bold; font-size:0.95rem;">✕</span>';
+                  `<span style="color:#EF4444; display:inline-flex; align-items:center;">${renderIcon('cross', { size: 14 })}</span>`;
                 badgeClass = 'badge-danger';
               }
 
@@ -938,7 +938,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
                   badge.innerText = repo.state;
                   if (repo.state === 'COMPLETED') {
                     badge.className = 'badge badge-success';
-                    if (icon) icon.innerHTML = '<span style="color:#10B981; font-weight:bold; font-size:0.95rem;">✓</span>';
+                    if (icon) icon.innerHTML = '<span style="color:#10B981; display:inline-flex; align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
                     if (row) row.style.borderColor = 'rgba(16,185,129,0.3)';
                   } else if (repo.state === 'RUNNING') {
                     badge.className = 'badge badge-cyan';
@@ -946,7 +946,7 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
                     if (row) row.style.borderColor = 'rgba(59,130,246,0.4)';
                   } else if (repo.state === 'FAILED') {
                     badge.className = 'badge badge-danger';
-                    if (icon) icon.innerHTML = '<span style="color:#EF4444; font-weight:bold; font-size:0.95rem;">✕</span>';
+                    if (icon) icon.innerHTML = '<span style="color:#EF4444; display:inline-flex; align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>';
                     if (row) row.style.borderColor = 'rgba(239,68,68,0.3)';
                   }
                 }
@@ -1111,8 +1111,8 @@ function renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun = null }
 function renderStep5Complete({ candidate, selectedRepos, user = null }) {
   return `
     <div style="text-align:center; padding:20px 0;">
-      <div style="width:52px; height:52px; border-radius:50%; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#10B981; display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:700; margin:0 auto 20px;">
-        ✓
+      <div style="width:52px; height:52px; border-radius:50%; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); color:#10B981; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+        ${renderIcon('check', { size: 24 })}
       </div>
       <h2 style="font-size:1.6rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px;">
         Onboarding Completed

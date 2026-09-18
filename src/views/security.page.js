@@ -5,6 +5,7 @@
  */
 
 import { renderLayout } from './layout.js';
+import { renderIcon } from './components/icons.js';
 
 export function renderSecurityPage({ user = null, tenant = null } = {}) {
   const content = `
@@ -19,7 +20,7 @@ export function renderSecurityPage({ user = null, tenant = null } = {}) {
       <div class="card" style="display: flex; flex-direction: column; gap: 2rem; line-height: 1.7; color: #cbd5e1; font-size: 0.95rem;">
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <span>🛡️</span> 1. Sovereign Multi-Tenant Isolation
+            <span style="color:var(--accent-indigo); display:inline-flex;">${renderIcon('shield', { size: 20 })}</span> 1. Sovereign Multi-Tenant Isolation
           </h2>
           <p>
             Career Hub enforces strict multi-tenant data isolation at the database, service, and MCP layers. Every query filters strictly by authenticated <code>tenant_id</code>. Cross-tenant access attempts return authoritative <code>404 Not Found</code> default-deny responses, preventing resource existence leakage.
@@ -28,7 +29,7 @@ export function renderSecurityPage({ user = null, tenant = null } = {}) {
 
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <span>🔑</span> 2. OAuth 2.1 with PKCE S256 & RFC 8414 Discovery
+            <span style="color:var(--accent-indigo); display:inline-flex;">${renderIcon('key', { size: 20 })}</span> 2. OAuth 2.1 with PKCE S256 & RFC 8414 Discovery
           </h2>
           <p>
             Authentication follows the modern OAuth 2.1 specification with mandatory PKCE (S256 code challenges), exact redirect URI verification, and dynamic RFC 8414 / RFC 9728 discovery endpoints. AI clients (such as Claude and ChatGPT) connect securely without sharing raw passwords or persistent master credentials.
@@ -37,7 +38,7 @@ export function renderSecurityPage({ user = null, tenant = null } = {}) {
 
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <span>🔒</span> 3. AES-256-GCM Credential Encryption & Token Hashing
+            <span style="color:var(--accent-indigo); display:inline-flex;">${renderIcon('shield', { size: 20 })}</span> 3. AES-256-GCM Credential Encryption & Token Hashing
           </h2>
           <p>
             Sensitive connection tokens and OAuth credentials are encrypted at rest using AES-256-GCM with authenticated tags and key versioning. Personal MCP API tokens are stored strictly as one-way SHA-256 cryptographic hashes; raw secret tokens are shown once at creation and never logged or persisted in plaintext.
@@ -46,7 +47,7 @@ export function renderSecurityPage({ user = null, tenant = null } = {}) {
 
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <span>✍️</span> 4. Two-Phase Write Safety & Consequential Action Gating
+            <span style="color:var(--accent-indigo); display:inline-flex;">${renderIcon('edit', { size: 20 })}</span> 4. Two-Phase Write Safety & Consequential Action Gating
           </h2>
           <p>
             Career Hub enforces a strict two-phase protocol for state-modifying actions:
@@ -59,7 +60,7 @@ export function renderSecurityPage({ user = null, tenant = null } = {}) {
 
         <section>
           <h2 style="font-size: 1.25rem; font-weight: 600; color: #f8fafc; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <span>📜</span> 5. Non-Repudiation Audit Logging
+            <span style="color:var(--accent-indigo); display:inline-flex;">${renderIcon('docs', { size: 20 })}</span> 5. Non-Repudiation Audit Logging
           </h2>
           <p>
             All MCP tool invocations, permission checks, rate limit events, and write operations are recorded in an append-only audit stream. Credentials, passwords, authorization headers, and raw file payloads are scrubbed before logging.

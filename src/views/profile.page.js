@@ -23,6 +23,7 @@ import { escapeHtml } from '../utils/html-escaper.js';
 import { COUNTRY_CALLING_CODES, parseStoredPhone } from '../utils/phone-country-codes.js';
 import { formatNoticePeriodLabel } from '../domain/candidate/career-preferences.schemas.js';
 import { ApplicationReadinessService } from '../services/application-readiness.service.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the Candidate Profile & Preferences page HTML.
@@ -244,7 +245,7 @@ export function renderProfilePage({
             <div class="header-title-row">
               <h1 class="candidate-display-name">${escapeHtml(displayName || 'Your Profile')}</h1>
               <span class="status-pill status-${careerStatusVal.toLowerCase()}">${escapeHtml(careerStatusVal)}</span>
-              ${userLocation ? `<span class="location-pill">📍 ${escapeHtml(userLocation)}</span>` : ''}
+              ${userLocation ? `<span class="location-pill" style="display:inline-flex; align-items:center; gap:4px;">${renderIcon('mapPin', { size: 12 })} <span>${escapeHtml(userLocation)}</span></span>` : ''}
             </div>
             <p class="candidate-headline">${escapeHtml(headline || currentRole || 'Complete your professional identity to begin applying')}</p>
           </div>
@@ -265,13 +266,13 @@ export function renderProfilePage({
       <!-- Flash Messages -->
       ${flashMessage ? `
         <div class="alert alert-success" role="alert" id="flashSuccessAlert">
-          <span class="alert-icon">✓</span>
+          <span class="alert-icon">${renderIcon('check', { size: 16 })}</span>
           <span>${escapeHtml(flashMessage)}</span>
         </div>
       ` : ''}
       ${errorMessage ? `
         <div class="alert alert-error" role="alert" id="flashErrorAlert">
-          <span class="alert-icon">⚠</span>
+          <span class="alert-icon">${renderIcon('alertTriangle', { size: 16 })}</span>
           <span>${escapeHtml(errorMessage)}</span>
         </div>
       ` : ''}
@@ -332,7 +333,7 @@ export function renderProfilePage({
             <!-- Actionable Attention Items -->
             <div class="action-items-container">
               <h3 class="action-items-heading">
-                ${attentionItems.length > 0 ? `${attentionItems.length} issue(s) require your attention` : '✓ All screening fields verified'}
+                ${attentionItems.length > 0 ? `${attentionItems.length} issue(s) require your attention` : `${renderIcon('check', { size: 16 })} All screening fields verified`}
               </h3>
               ${attentionItems.length > 0 ? `
                 <ul class="action-items-list" aria-label="Unresolved screening items">
@@ -344,14 +345,20 @@ export function renderProfilePage({
                     const actionVerb = item.status === 'MISSING' ? 'Add' : 'Confirm';
                     return `
                       <li class="action-item">
-                        <span class="action-item-icon">⚠</span>
+                        <span class="action-item-icon">${renderIcon('alertCircle', { size: 14 })}</span>
                         <div class="action-item-details">
                           <span class="action-item-label">${escapeHtml(item.label)}</span>
                           <span class="action-item-notes">${escapeHtml(item.notes || 'Information required for automated application matching')}</span>
                         </div>
-                        <button type="button" class="btn btn-secondary btn-sm switch-tab-trigger" data-target-tab="${targetTab}">
-                          ${actionVerb}
-                        </button>
+                        <div style="display:flex; gap:6px; flex-shrink:0;">
+                          <button type="button" class="btn btn-secondary btn-sm switch-tab-trigger" data-target-tab="${targetTab}">
+                            ${actionVerb}
+                          </button>
+                          <a href="/dashboard?copilot=open&intent=complete_profile" class="btn btn-secondary btn-sm" title="Ask Copilot to help" style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px;">
+                            ${renderIcon('copilot', { size: 12 })}
+                            <span>Fix</span>
+                          </a>
+                        </div>
                       </li>
                     `;
                   }).join('')}
@@ -368,7 +375,7 @@ export function renderProfilePage({
             <div class="checklist-grid">
               ${readinessItems.map((item) => `
                 <div class="checklist-item ${item.status === 'READY' ? 'status-ready' : 'status-pending'}">
-                  <span class="checklist-icon">${item.status === 'READY' ? '✓' : '⚠'}</span>
+                  <span class="checklist-icon">${item.status === 'READY' ? renderIcon('check', { size: 14 }) : renderIcon('alertCircle', { size: 14 })}</span>
                   <div class="checklist-item-body">
                     <span class="checklist-item-title">${escapeHtml(item.label)}</span>
                     <span class="checklist-item-sub">
@@ -583,7 +590,7 @@ export function renderProfilePage({
                     <details class="advanced-disclosure">
                       <summary>Show repository verification details</summary>
                       <div class="disclosure-content">
-                        <p>✓ Corroborated with repository code commits.</p>
+                        <p style="display:flex; align-items:center; gap:4px; margin:4px 0;">${renderIcon('check', { size: 14 })} <span>Corroborated with repository code commits.</span></p>
                         ${exp.repositoryCorroboration ? `<p>Repository: <code>${escapeHtml(exp.repositoryCorroboration)}</code></p>` : ''}
                       </div>
                     </details>
@@ -657,7 +664,7 @@ export function renderProfilePage({
                 ${primarySkillsList.map((s) => `
                   <div class="skill-badge-chip">
                     <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
-                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? '✓ Corroborated' : 'Claimed'}</span>
+                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Claimed'}</span>
                   </div>
                 `).join('')}
                 ${primarySkillsList.length === 0 ? '<p class="text-muted">No primary skills indexed.</p>' : ''}
@@ -679,7 +686,7 @@ export function renderProfilePage({
                 ${technologySignalsList.map((s) => `
                   <div class="skill-badge-chip chip-signal">
                     <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
-                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? '✓ Corroborated' : 'Signal'}</span>
+                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Signal'}</span>
                   </div>
                 `).join('')}
                 ${additionalSkills.length === 0 && technologySignalsList.length === 0 ? '<p class="text-muted">No additional skills added.</p>' : ''}

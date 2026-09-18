@@ -4,6 +4,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the login page HTML.
@@ -21,12 +22,16 @@ export function renderLoginPage({ returnTo = '', error = '', user = null } = {})
     : '/auth/github';
 
   const content = `
-    <div class="container" style="max-width:440px; margin: 48px auto; padding: 0 16px;">
-      <div class="card" style="padding: 36px 28px; text-align:center;">
-        <div class="brand-icon" style="width:40px; height:40px; margin:0 auto 16px; font-size:1.1rem; border-radius:var(--radius-sm); background:var(--bg-surface-elevated); border:1px solid rgba(255,255,255,0.14);">AG</div>
-        
-        <h1 style="font-size:1.4rem; font-weight:700; letter-spacing:-0.02em; margin-bottom:6px; color:var(--text-main);">Sign in to Career Hub</h1>
-        <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:24px; line-height:1.5;">
+    <div style="min-height:75vh; display:flex; align-items:center; justify-content:center; padding:40px 16px;">
+      <div class="card" style="max-width:440px; width:100%; text-align:center; padding:40px 32px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);">
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); color:#FFF; font-size:1.5rem; font-weight:800; margin-bottom:20px; box-shadow:0 8px 24px rgba(99,102,241,0.35);">
+          CH
+        </div>
+
+        <h1 style="font-size:1.5rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px;">
+          AI Careers Hub
+        </h1>
+        <p style="color:var(--text-muted); font-size:0.875rem; margin-bottom:28px; line-height:1.5;">
           Authenticate with your GitHub account to access your evidence-backed career workspace.
         </p>
 
@@ -46,8 +51,9 @@ export function renderLoginPage({ returnTo = '', error = '', user = null } = {})
         </a>
 
         <div style="margin-bottom:18px;">
-          <a href="/auth/dev-login${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}" class="btn btn-secondary btn-sm" id="devLoginBtn" style="width:100%; box-sizing:border-box; border:1px dashed var(--border-subtle); color:var(--text-muted); font-size:0.825rem; padding:8px 12px; justify-content:center;">
-            ⚡ Local Dev Fast Sign-In
+          <a href="/auth/dev-login${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}" class="btn btn-secondary btn-sm" id="devLoginBtn" style="width:100%; box-sizing:border-box; border:1px dashed var(--border-subtle); color:var(--text-muted); font-size:0.825rem; padding:8px 12px; justify-content:center; display:inline-flex; align-items:center; gap:6px;">
+            ${renderIcon('key', { size: 14 })}
+            <span>Local Dev Fast Sign-In</span>
           </a>
         </div>
 

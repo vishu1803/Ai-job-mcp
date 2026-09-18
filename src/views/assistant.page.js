@@ -11,6 +11,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the AI Career Assistant page.
@@ -51,7 +52,7 @@ export function renderAssistantPage({
       <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
         <div>
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-            <span style="font-size: 1.5rem;">🤖</span>
+            ${renderIcon('robot', { size: 28, style: 'color: #818CF8;' })}
             <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin: 0;">AI Career Assistant</h1>
             <span class="badge" style="background: rgba(99, 102, 241, 0.2); color: #A5B4FC; border: 1px solid rgba(99, 102, 241, 0.4); font-size: 0.75rem; padding: 2px 8px; border-radius: 12px;">Safe & Evidence-Grounded</span>
           </div>
@@ -121,7 +122,7 @@ export function renderAssistantPage({
           <div class="proposals-container" style="margin-bottom: 24px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
               <h2 style="font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
-                <span>📝</span>
+                ${renderIcon('edit', { size: 18, style: 'color: #FBBF24;' })}
                 <span>Proposed Profile Updates</span>
                 <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #FBBF24; font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;">Requires Confirmation</span>
               </h2>
@@ -187,7 +188,7 @@ export function renderAssistantPage({
             ? `
           <div class="conflicts-container" style="margin-bottom: 24px;">
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-              <span>⚠️</span>
+              ${renderIcon('alertTriangle', { size: 18, style: 'color: #F87171;' })}
               <h2 style="font-size: 1.1rem; font-weight: 600; color: #F87171; margin: 0;">Profile Discrepancies Detected</h2>
             </div>
             ${conflicts
@@ -217,7 +218,9 @@ export function renderAssistantPage({
             
             <!-- Default Welcome Message -->
             <div class="chat-message assistant-message" style="display: flex; gap: 12px; align-items: flex-start;">
-              <div style="background: rgba(99, 102, 241, 0.2); width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;">🤖</div>
+              <div style="background: rgba(99, 102, 241, 0.2); width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                ${renderIcon('robot', { size: 18, style: 'color: #818CF8;' })}
+              </div>
               <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 12px; border-top-left-radius: 2px; padding: 14px 18px; max-width: 85%;">
                 <div style="font-weight: 600; font-size: 0.825rem; color: #A5B4FC; margin-bottom: 4px;">Career Assistant</div>
                 <div style="color: var(--text-main); font-size: 0.9rem; line-height: 1.5;">
@@ -238,8 +241,8 @@ export function renderAssistantPage({
               .map(
                 (m) => `
               <div class="chat-message ${m.role === 'user' ? 'user-message' : 'assistant-message'}" style="display: flex; gap: 12px; align-items: flex-start; ${m.role === 'user' ? 'flex-direction: row-reverse;' : ''}">
-                <div style="background: ${m.role === 'user' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)'}; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0;">
-                  ${m.role === 'user' ? '👤' : '🤖'}
+                <div style="background: ${m.role === 'user' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)'}; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  ${m.role === 'user' ? renderIcon('user', { size: 16, style: 'color: #34D399;' }) : renderIcon('robot', { size: 16, style: 'color: #818CF8;' })}
                 </div>
                 <div style="background: ${m.role === 'user' ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-surface-elevated)'}; border: 1px solid ${m.role === 'user' ? 'rgba(99, 102, 241, 0.3)' : 'var(--border-subtle)'}; border-radius: 12px; ${m.role === 'user' ? 'border-top-right-radius: 2px;' : 'border-top-left-radius: 2px;'} padding: 14px 18px; max-width: 85%;">
                   <div style="font-weight: 600; font-size: 0.8rem; color: ${m.role === 'user' ? '#34D399' : '#A5B4FC'}; margin-bottom: 4px;">
@@ -289,21 +292,25 @@ export function renderAssistantPage({
         <!-- Quick Action Prompts Card -->
         <div class="card" style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 18px; margin-bottom: 20px;">
           <h3 style="font-size: 0.95rem; font-weight: 600; color: var(--text-main); margin: 0 0 12px; display: flex; align-items: center; gap: 6px;">
-            <span>⚡</span>
+            ${renderIcon('zap', { size: 16, style: 'color: #FBBF24;' })}
             <span>Quick Inquiries</span>
           </h3>
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            <button class="quick-btn" onclick="setQuery('Check my application readiness and missing fields')" style="text-align: left; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-size: 0.825rem; cursor: pointer; transition: all 0.15s ease;">
-              📋 Check my application readiness
+            <button class="quick-btn" onclick="setQuery('Check my application readiness and missing fields')" style="text-align: left; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-size: 0.825rem; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 6px;">
+              ${renderIcon('clipboard', { size: 14 })}
+              <span>Check my application readiness</span>
             </button>
-            <button class="quick-btn" onclick="setQuery('Explain why notice period is needed in profile')" style="text-align: left; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-size: 0.825rem; cursor: pointer; transition: all 0.15s ease;">
-              ❓ Explain notice period field
+            <button class="quick-btn" onclick="setQuery('Explain why notice period is needed in profile')" style="text-align: left; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-size: 0.825rem; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 6px;">
+              ${renderIcon('helpCircle', { size: 14 })}
+              <span>Explain notice period field</span>
             </button>
-            <button class="quick-btn" onclick="setQuery('Check if I have any profile conflicts')" style="text-align: left; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-size: 0.825rem; cursor: pointer; transition: all 0.15s ease;">
-              ⚠️ Check for profile conflicts
+            <button class="quick-btn" onclick="setQuery('Check if I have any profile conflicts')" style="text-align: left; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-size: 0.825rem; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 6px;">
+              ${renderIcon('alertTriangle', { size: 14, style: 'color: #F87171;' })}
+              <span>Check for profile conflicts</span>
             </button>
-            <button class="quick-btn" onclick="setQuery('I\'m looking for backend jobs with remote options and at least ₹10 LPA.')" style="text-align: left; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-size: 0.825rem; cursor: pointer; transition: all 0.15s ease;">
-              🎯 Update job preferences (₹10 LPA)
+            <button class="quick-btn" onclick="setQuery('I\'m looking for backend jobs with remote options and at least ₹10 LPA.')" style="text-align: left; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; color: var(--text-main); font-size: 0.825rem; cursor: pointer; transition: all 0.15s ease; display: flex; align-items: center; gap: 6px;">
+              ${renderIcon('target', { size: 14, style: 'color: #34D399;' })}
+              <span>Update job preferences (₹10 LPA)</span>
             </button>
           </div>
         </div>
@@ -311,7 +318,7 @@ export function renderAssistantPage({
         <!-- Safe AI Operating Invariants Card -->
         <div class="card" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 18px;">
           <h3 style="font-size: 0.9rem; font-weight: 600; color: #A5B4FC; margin: 0 0 10px; display: flex; align-items: center; gap: 6px;">
-            <span>🛡️</span>
+            ${renderIcon('shield', { size: 16, style: 'color: #818CF8;' })}
             <span>AI Safety Guarantees</span>
           </h3>
           <ul style="margin: 0; padding-left: 18px; font-size: 0.8rem; color: var(--text-muted); line-height: 1.6;">

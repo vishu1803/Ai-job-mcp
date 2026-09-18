@@ -6,6 +6,7 @@
  */
 
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the base HTML layout wrapping page content.
@@ -1557,100 +1558,20 @@ export function renderLayout({
 
       <nav>
         <ul class="nav-links">
-          <li><a href="/" class="nav-link ${activeNav === 'home' ? 'active' : ''}">Overview</a></li>
           ${
             userLoggedIn
               ? `
-          <li class="nav-dropdown">
-            <button class="nav-dropdown-btn ${['dashboard', 'projects', 'skills', 'applications', 'profile'].includes(activeNav) ? 'active' : ''}" aria-expanded="false" aria-haspopup="true">
-              <span>Career</span>
-              <span class="nav-chevron">▾</span>
-            </button>
-            <div class="nav-dropdown-menu">
-              <a href="/dashboard" class="nav-dropdown-item ${activeNav === 'dashboard' ? 'active' : ''}">
-                <span class="item-icon">📊</span>
-                <div class="item-text">
-                  <div class="item-title">Dashboard</div>
-                  <div class="item-desc">Overview & metrics</div>
-                </div>
-              </a>
-              <a href="/projects" class="nav-dropdown-item ${activeNav === 'projects' ? 'active' : ''}">
-                <span class="item-icon">💼</span>
-                <div class="item-text">
-                  <div class="item-title">Projects</div>
-                  <div class="item-desc">Portfolio & code evidence</div>
-                </div>
-              </a>
-              <a href="/skills" class="nav-dropdown-item ${activeNav === 'skills' ? 'active' : ''}">
-                <span class="item-icon">⚡</span>
-                <div class="item-text">
-                  <div class="item-title">Skills</div>
-                  <div class="item-desc">Verified taxonomy</div>
-                </div>
-              </a>
-              <a href="/profile" class="nav-dropdown-item ${activeNav === 'profile' ? 'active' : ''}">
-                <span class="item-icon">🎯</span>
-                <div class="item-text">
-                  <div class="item-title">Profile & Intent</div>
-                  <div class="item-desc">Target roles & preferences</div>
-                </div>
-              </a>
-              <a href="/applications" class="nav-dropdown-item ${activeNav === 'applications' ? 'active' : ''}">
-                <span class="item-icon">📋</span>
-                <div class="item-text">
-                  <div class="item-title">Applications</div>
-                  <div class="item-desc">Pipeline tracking</div>
-                </div>
-              </a>
-              <a href="/assistant" class="nav-dropdown-item ${activeNav === 'assistant' ? 'active' : ''}">
-                <span class="item-icon">🤖</span>
-                <div class="item-text">
-                  <div class="item-title">AI Assistant</div>
-                  <div class="item-desc">Safe copilot & guidance</div>
-                </div>
-              </a>
-            </div>
-          </li>
-
-          <li class="nav-dropdown">
-            <button class="nav-dropdown-btn ${['sources', 'resumes', 'radar'].includes(activeNav) ? 'active' : ''}" aria-expanded="false" aria-haspopup="true">
-              <span>Sources</span>
-              <span class="nav-chevron">▾</span>
-            </button>
-            <div class="nav-dropdown-menu">
-              <a href="/sources" class="nav-dropdown-item ${activeNav === 'sources' ? 'active' : ''}">
-                <span class="item-icon">🔗</span>
-                <div class="item-text">
-                  <div class="item-title">Connected Sources</div>
-                  <div class="item-desc">GitHub repositories</div>
-                </div>
-              </a>
-              <a href="/resumes" class="nav-dropdown-item ${activeNav === 'resumes' ? 'active' : ''}">
-                <span class="item-icon">📄</span>
-                <div class="item-text">
-                  <div class="item-title">Resumes</div>
-                  <div class="item-desc">Upload & claim review</div>
-                </div>
-              </a>
-              <a href="/apps/radar" class="nav-dropdown-item ${activeNav === 'radar' ? 'active' : ''}">
-                <span class="item-icon">📡</span>
-                <div class="item-text">
-                  <div class="item-title">Job Fit Radar</div>
-                  <div class="item-desc">ATS analysis & skill gaps</div>
-                </div>
-              </a>
-            </div>
-          </li>
-
-          <li>
-            <a href="/connect" class="nav-link ${activeNav === 'connect' ? 'active' : ''}">
-              <span>AI Connect</span>
-            </a>
-          </li>
+          <li><a href="/dashboard" class="nav-link ${activeNav === 'dashboard' ? 'active' : ''}">Dashboard</a></li>
+          <li><a href="/apps/radar" class="nav-link ${activeNav === 'radar' ? 'active' : ''}">Jobs</a></li>
+          <li><a href="/applications" class="nav-link ${activeNav === 'applications' ? 'active' : ''}">Applications</a></li>
+          <li><a href="/profile" class="nav-link ${activeNav === 'profile' ? 'active' : ''}">Profile</a></li>
+          <li><a href="/resumes" class="nav-link ${activeNav === 'resumes' ? 'active' : ''}">Resumes</a></li>
           `
-              : ''
-          }
+              : `
+          <li><a href="/" class="nav-link ${activeNav === 'home' ? 'active' : ''}">Overview</a></li>
           <li><a href="/docs/mcp" class="nav-link ${activeNav === 'docs' ? 'active' : ''}">MCP Docs</a></li>
+          `
+          }
         </ul>
       </nav>
 
@@ -1668,7 +1589,7 @@ export function renderLayout({
               <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${escapeHtml(user.displayName || user.email || 'My Account')}
               </span>
-              <span class="nav-chevron">▾</span>
+              <span class="chevron-icon" style="display:inline-flex; align-items:center; margin-left:4px;">${renderIcon('chevronDown', { size: 14 })}</span>
             </button>
             <div class="user-dropdown-menu">
               <div class="user-dropdown-header">
@@ -1676,30 +1597,30 @@ export function renderLayout({
                 <div class="user-dropdown-email">${escapeHtml(user.email || '')}</div>
               </div>
               <a href="/connect" class="nav-dropdown-item ${activeNav === 'connect' ? 'active' : ''}">
-                <span class="item-icon">🔑</span>
+                <span class="nav-icon" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text-muted);">${renderIcon('tokens', { size: 16 })}</span>
                 <div class="item-text">
                   <div class="item-title">API Tokens</div>
                   <div class="item-desc">MCP personal tokens</div>
                 </div>
               </a>
-              <a href="/docs/mcp" class="nav-dropdown-item ${activeNav === 'docs' ? 'active' : ''}">
-                <span class="item-icon">📖</span>
-                <div class="item-text">
-                  <div class="item-title">Documentation</div>
-                  <div class="item-desc">MCP tool reference</div>
-                </div>
-              </a>
               <a href="/settings" class="nav-dropdown-item ${activeNav === 'settings' ? 'active' : ''}">
-                <span class="item-icon">⚙️</span>
+                <span class="nav-icon" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text-muted);">${renderIcon('settings', { size: 16 })}</span>
                 <div class="item-text">
                   <div class="item-title">Settings & Privacy</div>
                   <div class="item-desc">Account & GDPR controls</div>
                 </div>
               </a>
+              <a href="/docs/mcp" class="nav-dropdown-item ${activeNav === 'docs' ? 'active' : ''}">
+                <span class="nav-icon" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text-muted);">${renderIcon('docs', { size: 16 })}</span>
+                <div class="item-text">
+                  <div class="item-title">Documentation</div>
+                  <div class="item-desc">MCP tool reference</div>
+                </div>
+              </a>
               <div class="user-dropdown-divider"></div>
               <form action="/auth/logout" method="POST" style="margin: 0;">
                 <button type="submit" class="logout-form-btn">
-                  <span>🚪</span>
+                  <span style="display:inline-flex; align-items:center; margin-right:8px;">${renderIcon('logout', { size: 16 })}</span>
                   <span>Sign Out</span>
                 </button>
               </form>
@@ -1725,43 +1646,26 @@ export function renderLayout({
     ${
       userLoggedIn
         ? `
-      <div class="mobile-section-label">Overview</div>
-      <a href="/" class="${activeNav === 'home' ? 'active' : ''}">🏠 Overview</a>
-      <div class="mobile-section-label">Career</div>
-      <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">📊 Dashboard</a>
-      <a href="/projects" class="${activeNav === 'projects' ? 'active' : ''}">💼 Projects</a>
-      <a href="/skills" class="${activeNav === 'skills' ? 'active' : ''}">⚡ Skills</a>
-      <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">🎯 Profile & Intent</a>
-      <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">📋 Applications</a>
-      <a href="/assistant" class="${activeNav === 'assistant' ? 'active' : ''}">🤖 AI Assistant</a>
-      <div class="mobile-section-label">Sources</div>
-      <a href="/sources" class="${activeNav === 'sources' ? 'active' : ''}">🔗 Connected Sources</a>
-      <a href="/resumes" class="${activeNav === 'resumes' ? 'active' : ''}">📄 Resumes</a>
-      <div class="mobile-section-label">AI & Docs</div>
-      <a href="/connect" class="${activeNav === 'connect' ? 'active' : ''}">🤖 AI Connect</a>
-      <a href="/docs/mcp" class="${activeNav === 'docs' ? 'active' : ''}">📖 MCP Docs</a>
-      <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">📡 Job Fit Radar</a>
+      <div class="mobile-section-label">Workspace</div>
+      <a href="/dashboard" class="${activeNav === 'dashboard' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Dashboard</span></a>
+      <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">${renderIcon('jobs', { size: 18 })} <span>Jobs</span></a>
+      <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">${renderIcon('applications', { size: 18 })} <span>Applications</span></a>
+      <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">${renderIcon('profile', { size: 18 })} <span>Profile</span></a>
+      <a href="/resumes" class="${activeNav === 'resumes' ? 'active' : ''}">${renderIcon('resumes', { size: 18 })} <span>Resumes</span></a>
       <div class="nav-mobile-divider"></div>
-      <div class="mobile-section-label">Account & Legal</div>
-      <a href="/settings" class="${activeNav === 'settings' ? 'active' : ''}">⚙️ Settings & Privacy</a>
-      <a href="/privacy" class="${activeNav === 'privacy' ? 'active' : ''}">🛡️ Privacy Notice</a>
-      <a href="/terms" class="${activeNav === 'terms' ? 'active' : ''}">📜 Terms of Service</a>
-      <a href="/cookies" class="${activeNav === 'cookies' ? 'active' : ''}">🍪 Cookie Policy</a>
-      <a href="/security" class="${activeNav === 'security' ? 'active' : ''}">🔒 Security Architecture</a>
-      <a href="/data-deletion" class="${activeNav === 'data-deletion' ? 'active' : ''}">🗑️ Data Deletion</a>
-      <a href="/accessibility" class="${activeNav === 'accessibility' ? 'active' : ''}">♿ Accessibility</a>
-      <a href="/subprocessors" class="${activeNav === 'subprocessors' ? 'active' : ''}">🏢 Subprocessors</a>
+      <div class="mobile-section-label">Account & System</div>
+      <a href="/connect" class="${activeNav === 'connect' ? 'active' : ''}">${renderIcon('tokens', { size: 18 })} <span>API Tokens</span></a>
+      <a href="/settings" class="${activeNav === 'settings' ? 'active' : ''}">${renderIcon('settings', { size: 18 })} <span>Settings</span></a>
+      <a href="/docs/mcp" class="${activeNav === 'docs' ? 'active' : ''}">${renderIcon('docs', { size: 18 })} <span>MCP Docs</span></a>
       <form action="/auth/logout" method="POST" style="margin-top: 0.5rem;">
-        <button type="submit" class="logout-form-btn">🚪 Sign Out</button>
+        <button type="submit" class="logout-form-btn">${renderIcon('logout', { size: 18 })} <span>Sign Out</span></button>
       </form>
     `
         : `
-      <a href="/" class="${activeNav === 'home' ? 'active' : ''}">🏠 Overview</a>
-      <a href="/docs/mcp" class="${activeNav === 'docs' ? 'active' : ''}">📖 MCP Docs</a>
-      <a href="/privacy" class="${activeNav === 'privacy' ? 'active' : ''}">🛡️ Privacy Notice</a>
-      <a href="/terms" class="${activeNav === 'terms' ? 'active' : ''}">📜 Terms of Service</a>
-      <a href="/cookies" class="${activeNav === 'cookies' ? 'active' : ''}">🍪 Cookie Policy</a>
-      <a href="/security" class="${activeNav === 'security' ? 'active' : ''}">🔒 Security Architecture</a>
+      <a href="/" class="${activeNav === 'home' ? 'active' : ''}">${renderIcon('dashboard', { size: 18 })} <span>Overview</span></a>
+      <a href="/docs/mcp" class="${activeNav === 'docs' ? 'active' : ''}">${renderIcon('docs', { size: 18 })} <span>MCP Docs</span></a>
+      <a href="/privacy" class="${activeNav === 'privacy' ? 'active' : ''}">${renderIcon('shield', { size: 18 })} <span>Privacy Notice</span></a>
+      <a href="/terms" class="${activeNav === 'terms' ? 'active' : ''}">${renderIcon('docs', { size: 18 })} <span>Terms of Service</span></a>
       <a href="/login" class="btn btn-primary" style="margin-top:12px; text-align:center;">Sign In with GitHub</a>
     `
     }
@@ -1809,7 +1713,10 @@ export function renderLayout({
 
   <!-- Global Portal State Elements -->
   <div class="portal-offline-banner" id="portalOfflineBanner" role="status" aria-live="assertive">
-    <span>⚠️ You are currently offline. Changes will not be saved until connection is restored.</span>
+    <span style="display:inline-flex; align-items:center; gap:8px;">
+      ${renderIcon('alertTriangle', { size: 16 })}
+      <span>You are currently offline. Changes will not be saved until connection is restored.</span>
+    </span>
     <button type="button" onclick="window.location.reload()" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:#fff; border-radius:4px; padding:2px 8px; font-size:0.75rem; cursor:pointer;">
       Retry
     </button>
@@ -1921,12 +1828,12 @@ export function renderLayout({
           toast.className = 'portal-toast portal-toast-' + type;
           toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
 
-          let icon = 'ℹ️';
-          if (type === 'success') icon = '✓';
-          if (type === 'error') icon = '⚠️';
-          if (type === 'warning') icon = '⚡';
+          let iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+          if (type === 'success') iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+          if (type === 'error') iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+          if (type === 'warning') iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
 
-          toast.innerHTML = '<span style="font-size:1.1rem; flex-shrink:0;">' + icon + '</span>' +
+          toast.innerHTML = '<span style="flex-shrink:0; display:inline-flex; align-items:center;">' + iconSvg + '</span>' +
             '<div style="flex-grow:1;">' +
               (opts.title ? '<div style="font-weight:700; margin-bottom:2px;">' + opts.title + '</div>' : '') +
               '<div>' + (opts.message || '') + '</div>' +
@@ -1973,7 +1880,7 @@ export function renderLayout({
           });
           listHtml += '</ul>';
 
-          summary.innerHTML = '<div class="validation-summary-title">⚠️ Please correct the highlighted fields:</div>' + listHtml;
+          summary.innerHTML = '<div class="validation-summary-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Please correct the highlighted fields:</div>' + listHtml;
           formEl.insertBefore(summary, formEl.firstChild);
           summary.focus();
 
@@ -2001,7 +1908,7 @@ export function renderLayout({
               const errEl = document.createElement('div');
               errEl.className = 'field-feedback-error';
               errEl.id = 'err-' + err.field;
-              errEl.innerHTML = '<span>⚠️</span> <span>' + (err.message || 'Invalid value') + '</span>';
+              errEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>' + (err.message || 'Invalid value') + '</span>';
               input.setAttribute('aria-describedby', errEl.id);
 
               if (input.nextSibling) {

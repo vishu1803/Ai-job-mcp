@@ -402,8 +402,75 @@
 - P81 / P84 / P85 Full Regression Battery: **129/129 PASS across 26 suites (100% pass rate)**
   - `tests/unit/p85*.test.js`, `tests/unit/p84*.test.js`, `tests/unit/p81*.test.js`, `tests/integration/p84*.test.js`, `tests/integration/p85*.test.js`
 - Repository Secrets Scanner (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
-138: 
-139: ### PART 85: Benchmark Governance & Multi-Model Evaluation Integrity Hardening (scoreVersion: "p82.0" sovereign)
+
+#### Phase 5: Product UX Simplification, Canonical Profile & Integrated Career Copilot Hardening (Completed & Verified)
+**Status:** COMPLETE & VERIFIED — ZERO CLS & CANONICAL SOVEREIGNTY  
+**Date:** 2026-09-18  
+**Scope:** Elimination of fragmented user experience, complete removal of developer diagnostics and raw Unicode emojis, global introduction of an inline SVG icon system, transformation of `/dashboard` into an actionable 4-block Command Center, and seamless integration of the AI Career Assistant into an embedded, context-aware Career Copilot:
+
+1. **Architectural Guardrails & Canonical Ownership Documentation:**
+   - Authored `docs/architecture/canonical-data-map.md`: Established strict single source of truth (`candidates`, `profileMetadata.userCustom`, `careerPreferences`). Verified immutable application snapshotting and confirmed `/dashboard` is purely derived read-only.
+   - Authored `docs/architecture/ui-information-architecture.md`: Enforced strict separation between user-facing narrative and internal engine diagnostics (AST signals, commit hashes, parser metadata hidden inside progressive disclosure).
+   - Authored `docs/architecture/route-ownership-matrix.md`: Formally mapped all HTTP/MCP routes to canonical backend services, verifying zero shadow schemas.
+
+2. **Standardized Reusable SVG Icon System & Total Emoji Prohibition (`src/views/components/icons.js`):**
+   - Implemented `renderIcon(name, { size, className, style })` providing fixed-dimension, accessible inline SVGs (`viewBox="0 0 24 24"`, `currentColor`, stroke-width: 2).
+   - Completely eradicated all raw system Unicode emojis across all portal templates:
+     - `src/views/layout.js`: Replaced all nav, toast, offline, and validation emojis with inline SVGs.
+     - `src/views/dashboard.page.js`: Replaced all engineering badges and metric emojis with inline SVGs.
+     - `src/views/profile.page.js`: Replaced all tab, checklist, and contact emojis with inline SVGs.
+     - `src/views/assistant.page.js`: Replaced all header, chat avatar, proposal, and guardrail emojis with inline SVGs.
+     - `src/views/applications.page.js`, `apply.page.js`, `resumes.page.js`, `radar.page.js`, `projects.page.js`, `skills.page.js`, `security.page.js`, `login.page.js`, `onboarding.page.js`, `landing.page.js`, `connect.page.js`: Converted 100% of emojis to SVGs.
+   - Verified via regex audit: Zero raw Unicode emojis remain in `src/views/` (Cumulative Layout Shift = 0).
+
+3. **Dashboard Command Center Transformation (`src/views/dashboard.page.js`):**
+   - Completely stripped developer AST syntax trees, commit hashes, and internal diagnostics from dashboard.
+   - Re-architected `/dashboard` into 4 high-value sections:
+     1. *What do I need to do?* (Authoritative readiness gauge from `ApplicationReadinessService` with direct deep-linked actions to missing fields).
+     2. *What can I do?* (Find Jobs, Track Applications, Manage Resumes).
+     3. *What is happening?* (Active job applications with status, verified skills count, connected repository sources).
+     4. *Career Copilot* (Context-aware prompt chips, safe proposal reviews, direct conversational interface).
+
+4. **Integrated Career Copilot & Safe Proposal Handling (`src/routes/web.routes.js`, `src/views/dashboard.page.js`):**
+   - Embedded `AiCareerAssistantService` directly into the dashboard workflow.
+   - Unified routing: `GET /assistant` cleanly redirects to `/dashboard?copilot=open`.
+   - Updated `POST /assistant/message`, `POST /assistant/proposals/confirm`, `POST /assistant/proposals/reject` to support both JSON API and browser redirect with flash feedback.
+   - Hoisted `candidateProfileService`, `applicationReadinessService`, `jobApplicationFlowService`, and `aiCareerAssistantService` instantiation to the plugin root in `src/routes/web.routes.js` to ensure reliable availability across all route handlers.
+   - Preserved two-phase update proposals: AI cannot auto-mutate profile facts without explicit user confirmation.
+
+**Files Changed / Created:**
+- `docs/architecture/canonical-data-map.md` [NEW]: Canonical data ownership and field lifecycle boundaries.
+- `docs/architecture/ui-information-architecture.md` [NEW]: UI information architecture and diagnostic encapsulation.
+- `docs/architecture/route-ownership-matrix.md` [NEW]: Route ownership matrix auditing zero shadow schemas.
+- `src/views/components/icons.js` [NEW]: Reusable inline SVG icons with fixed dimensions.
+- `src/views/components/state-views.js` [NEW]: Reusable empty states, AI unavailable cards, and skeletons.
+- `src/views/dashboard.page.js` [MODIFIED]: Dashboard command center overhaul with embedded Copilot.
+- `src/views/layout.js` [MODIFIED]: 5-item top navigation and global SVG conversion.
+- `src/routes/web.routes.js` [MODIFIED]: Service hoisting, dashboard data hydration, and `/assistant` consolidation.
+- `src/views/profile.page.js` [MODIFIED]: SVG conversion and Copilot deep-link buttons.
+- `src/views/assistant.page.js` [MODIFIED]: SVG conversion and proposal card hardening.
+- `src/views/applications.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/apply.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/resumes.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/radar.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/projects.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/skills.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/security.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/login.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/onboarding.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/landing.page.js` [MODIFIED]: Global SVG conversion.
+- `src/views/connect.page.js` [MODIFIED]: Global SVG conversion.
+- `project.md` [MODIFIED]: Recorded Phase 5 execution ledger.
+
+**Verification Evidence:**
+- P86 & P87 Test Batteries: **68/68 PASS (100% pass rate)** (`p86-user-facing-state-system`, `p86-job-application-workflow`, `p86-profile-ui-redesign`, `p87-ai-career-assistant`, `p87-extension-ai-assistant`, `application-readiness`)
+- P81 & P85 Deterministic Scoring Batteries: **112/112 PASS (100% pass rate)** (`p81-*.test.js`, `p85-*.test.js`)
+- Global Emoji Audit: **0 matches** across entire `src/views/` directory.
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+
+---
+
+### PART 85: Benchmark Governance & Multi-Model Evaluation Integrity Hardening (scoreVersion: "p82.0" sovereign)
 
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-18  

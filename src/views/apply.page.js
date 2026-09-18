@@ -17,6 +17,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 
 /**
  * Renders the simplified Job Application page.
@@ -268,7 +269,7 @@ export function renderApplyPage({
       <!-- Linear Workflow Stepper -->
       <div class="workflow-stepper">
         <a href="?step=readiness" class="step-item ${activeStep === 'readiness' ? 'active' : ''} ${needsAttention.length === 0 ? 'complete' : ''}">
-          <span class="step-num">${needsAttention.length === 0 ? '✓' : '1'}</span>
+          <span class="step-num">${needsAttention.length === 0 ? renderIcon('check', { size: 12 }) : '1'}</span>
           <span>1. Application Readiness</span>
           ${needsAttention.length > 0 ? `<span class="badge badge-missing" style="font-size:0.65rem; padding:1px 5px;">${needsAttention.length} to fix</span>` : ''}
         </a>
@@ -278,7 +279,7 @@ export function renderApplyPage({
             ? `
           <span class="step-divider">&rarr;</span>
           <a href="?step=questions" class="step-item ${activeStep === 'questions' ? 'active' : ''} ${flowState.semantics?.unansweredCustomCount === 0 ? 'complete' : ''}">
-            <span class="step-num">${flowState.semantics?.unansweredCustomCount === 0 ? '✓' : '2'}</span>
+            <span class="step-num">${flowState.semantics?.unansweredCustomCount === 0 ? renderIcon('check', { size: 12 }) : '2'}</span>
             <span>2. Role Declarations</span>
           </a>
         `

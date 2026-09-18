@@ -8,6 +8,7 @@
 
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
+import { renderIcon } from './components/icons.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 
 /**
@@ -350,7 +351,7 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
           primarySkills.length === 0
             ? `
           <div class="empty-state">
-            <div class="empty-state-icon" style="font-size:2rem; opacity:0.7;">⚡</div>
+            <div class="empty-state-icon" style="display:inline-flex; align-items:center; justify-content:center; color:var(--text-dim); margin-bottom:12px;">${renderIcon('code', { size: 36 })}</div>
             <h3 class="empty-state-title">No verified skills indexed yet.</h3>
             <p class="empty-state-desc">
               Skills corroborated by repository code and verifiable projects prove your authentic capabilities to hiring managers and power ATS gap analysis.

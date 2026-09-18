@@ -617,7 +617,7 @@ export function renderConnectPage({
         navigator.clipboard.writeText(input.value).then(() => {
           if (btn) {
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>✓ Copied!</span>';
+            btn.innerHTML = '<span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg>Copied!</span>';
             setTimeout(() => {
               btn.innerHTML = originalText;
             }, 2000);

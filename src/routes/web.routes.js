@@ -190,11 +190,50 @@ export default async function webRoutes(app, opts = {}) {
       applicationHandoffService,
       documentStorageService,
     });
+  const candidateProfileService =
+    opts.candidateProfileService || new CandidateProfileService(database);
+  const applicationReadinessService =
+    opts.applicationReadinessService || new ApplicationReadinessService();
+  const jobApplicationFlowService =
+    opts.jobApplicationFlowService ||
+    new JobApplicationFlowService({
+      database,
+      readinessService: applicationReadinessService,
+      candidateProfileService,
+    });
+  const aiCareerAssistantService =
+    opts.aiCareerAssistantService ||
+    new AiCareerAssistantService({
+      database,
+      candidateProfileService,
+      readinessService: applicationReadinessService,
+    });
 
   // Helper to load complete authenticated overview data
   async function loadDashboardData(sessionContext, dbInstance) {
     const { user, tenant } = sessionContext;
     const candidate = await getOrCreateCandidate(dbInstance, tenant.id, user);
+
+    const context = {
+      tenantId: tenant.id,
+      userId: user.id,
+      role: user.role,
+    };
+
+    let candidateProfile = null;
+    try {
+      candidateProfile = await candidateProfileService.getCareerProfile(context, candidate.id);
+    } catch {
+      // Fallback
+    }
+
+    const readiness = applicationReadinessService.evaluateReadiness({
+      candidateProfile,
+      candidate,
+    });
+
+    const activeProposals = aiCareerAssistantService.getPendingProposals(tenant.id, candidate.id);
+    const conflicts = aiCareerAssistantService.identifyProfileConflicts({ candidateProfile });
 
     // Fetch candidate skills with skill details
     const candidateSkillList = await dbInstance
@@ -284,6 +323,10 @@ export default async function webRoutes(app, opts = {}) {
       user,
       tenant,
       candidate,
+      candidateProfile,
+      readiness,
+      activeProposals,
+      conflicts,
       skills: candidateSkillList,
       projects: projectList,
       applications: applicationList,
@@ -385,7 +428,18 @@ export default async function webRoutes(app, opts = {}) {
       };
     }
 
-    const html = renderDashboardPage(data);
+    const flashMessage = typeof req.query?.success === 'string' ? req.query.success : null;
+    const flashError = typeof req.query?.error === 'string' ? req.query.error : null;
+    const copilotOpen = req.query?.copilot === 'open' || Boolean(req.query?.intent);
+    const initialIntent = typeof req.query?.intent === 'string' ? req.query.intent : null;
+
+    const html = renderDashboardPage({
+      ...data,
+      flashMessage,
+      flashError,
+      copilotOpen,
+      initialIntent,
+    });
     reply.type('text/html; charset=utf-8').send(html);
   });
 
@@ -2240,21 +2294,6 @@ export default async function webRoutes(app, opts = {}) {
   // -------------------------------------------------------------------------
   // 22. Career Profile & Search Intent Routes (P14-004C)
   // -------------------------------------------------------------------------
-  const candidateProfileService = new CandidateProfileService(database);
-  const applicationReadinessService = new ApplicationReadinessService();
-  const jobApplicationFlowService = new JobApplicationFlowService({
-    database,
-    readinessService: applicationReadinessService,
-    candidateProfileService,
-  });
-  const aiCareerAssistantService =
-    opts.aiCareerAssistantService ||
-    new AiCareerAssistantService({
-      database,
-      candidateProfileService,
-      readinessService: applicationReadinessService,
-    });
-
   app.get('/profile', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
     if (!sessionContext) {
@@ -4147,55 +4186,21 @@ export default async function webRoutes(app, opts = {}) {
   });
 
   // -------------------------------------------------------------------------
-  // 22f. AI Career Assistant Routes (P87 Phase 1)
+  // 22f. AI Career Assistant Routes (Integrated Career Copilot - P86.5)
   // -------------------------------------------------------------------------
   app.get('/assistant', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
     if (!sessionContext) {
-      return reply.redirect('/login?returnTo=/assistant');
+      return reply.redirect('/login?returnTo=/dashboard?copilot=open');
     }
 
-    const { user, tenant } = sessionContext;
-    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const queryParts = [];
+    if (req.query?.success) queryParts.push(`success=${encodeURIComponent(req.query.success)}`);
+    if (req.query?.error) queryParts.push(`error=${encodeURIComponent(req.query.error)}`);
+    if (req.query?.intent) queryParts.push(`intent=${encodeURIComponent(req.query.intent)}`);
+    const extraQuery = queryParts.length > 0 ? `&${queryParts.join('&')}` : '';
 
-    const context = {
-      tenantId: tenant.id,
-      userId: user.id,
-      role: user.role,
-    };
-
-    let candidateProfile = null;
-    try {
-      candidateProfile = await candidateProfileService.getCareerProfile(context, candidate.id);
-    } catch {
-      // Best effort fallback
-    }
-
-    const readiness = applicationReadinessService.evaluateReadiness({
-      candidateProfile,
-      candidate,
-    });
-
-    const conflicts = aiCareerAssistantService.identifyProfileConflicts({
-      candidateProfile,
-    });
-
-    const activeProposals = aiCareerAssistantService.getPendingProposals(tenant.id, candidate.id);
-
-    const html = renderAssistantPage({
-      user,
-      tenant,
-      candidate,
-      readiness,
-      activeProposals,
-      conflicts,
-      messages: [],
-      flashMessage: req.query.success || null,
-      flashError: req.query.error || null,
-      aiAvailable: true,
-    });
-
-    return reply.type('text/html; charset=utf-8').send(html);
+    return reply.redirect(`/dashboard?copilot=open${extraQuery}`);
   });
 
   app.post('/assistant/message', async (req, reply) => {
@@ -4204,7 +4209,7 @@ export default async function webRoutes(app, opts = {}) {
       if (req.headers.accept?.includes('application/json')) {
         return reply.status(401).send({ error: 'Unauthorized' });
       }
-      return reply.redirect('/login?returnTo=/assistant');
+      return reply.redirect('/login?returnTo=/dashboard?copilot=open');
     }
 
     const { user, tenant } = sessionContext;
@@ -4245,34 +4250,7 @@ export default async function webRoutes(app, opts = {}) {
       });
     }
 
-    const readiness = applicationReadinessService.evaluateReadiness({
-      candidateProfile,
-      candidate,
-    });
-    const conflicts = aiCareerAssistantService.identifyProfileConflicts({
-      candidateProfile,
-    });
-    const activeProposals = aiCareerAssistantService.getPendingProposals(tenant.id, candidate.id);
-
-    const messages = [
-      { role: 'user', content: userMessage },
-      { role: 'assistant', content: assistantResponse.content },
-    ];
-
-    const html = renderAssistantPage({
-      user,
-      tenant,
-      candidate,
-      readiness,
-      activeProposals,
-      conflicts,
-      messages,
-      flashMessage: null,
-      flashError: null,
-      aiAvailable: assistantResponse.state !== 'AI_FAILURE',
-    });
-
-    return reply.type('text/html; charset=utf-8').send(html);
+    return reply.redirect('/dashboard?copilot=open');
   });
 
   app.post('/assistant/proposals/confirm', async (req, reply) => {
@@ -4281,7 +4259,7 @@ export default async function webRoutes(app, opts = {}) {
       if (req.headers.accept?.includes('application/json')) {
         return reply.status(401).send({ error: 'Unauthorized' });
       }
-      return reply.redirect('/login?returnTo=/assistant');
+      return reply.redirect('/login?returnTo=/dashboard?copilot=open');
     }
 
     const { user, tenant } = sessionContext;
@@ -4304,13 +4282,14 @@ export default async function webRoutes(app, opts = {}) {
         return reply.status(200).send({ ok: true, result });
       }
       return reply.redirect(
-        '/assistant?success=' + encodeURIComponent('Profile updated successfully based on confirmed proposal.')
+        '/dashboard?copilot=open&success=' +
+          encodeURIComponent('Profile updated successfully based on confirmed proposal.')
       );
     } catch (err) {
       if (req.headers['accept']?.includes('application/json')) {
         return reply.status(400).send({ ok: false, error: err.message });
       }
-      return reply.redirect('/assistant?error=' + encodeURIComponent(err.message));
+      return reply.redirect('/dashboard?copilot=open&error=' + encodeURIComponent(err.message));
     }
   });
 
@@ -4320,7 +4299,7 @@ export default async function webRoutes(app, opts = {}) {
       if (req.headers.accept?.includes('application/json')) {
         return reply.status(401).send({ error: 'Unauthorized' });
       }
-      return reply.redirect('/login?returnTo=/assistant');
+      return reply.redirect('/login?returnTo=/dashboard?copilot=open');
     }
 
     const { user, tenant } = sessionContext;
@@ -4333,7 +4312,9 @@ export default async function webRoutes(app, opts = {}) {
     if (req.headers['accept']?.includes('application/json')) {
       return reply.status(200).send({ ok: true, dismissed: true });
     }
-    return reply.redirect('/assistant?success=' + encodeURIComponent('Proposal dismissed.'));
+    return reply.redirect(
+      '/dashboard?copilot=open&success=' + encodeURIComponent('Proposal dismissed.')
+    );
   });
 
   // -------------------------------------------------------------------------
