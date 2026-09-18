@@ -253,3 +253,87 @@ export const P84_EVALUATIONS = Object.freeze([
   P84_GEMINI_EVALUATION,
   P84_GROK_EVALUATION,
 ]);
+
+export const P85_PROMPT_VERSION = 'p85-evaluator-v1';
+export const P85_PROMPT_DIGEST = createHash('sha256')
+  .update('p85-evaluator-prompt-template-v1')
+  .digest('hex');
+
+export const P85_CLAUDE_PROVENANCE = Object.freeze({
+  evaluationId: 'eval-claude-p85-001',
+  evaluatorType: 'LLM_EXTERNAL',
+  provider: 'claude',
+  model: 'claude-3-7-sonnet-20250219',
+  modelVersion: '2025-02-19',
+  promptVersion: P85_PROMPT_VERSION,
+  promptDigest: P85_PROMPT_DIGEST,
+  rubricVersion: 'p84-rubric-v1',
+  evaluationTimestamp: '2026-09-18T00:00:00.000Z',
+  inputResumeSha256: P84_RESUME_SHA256,
+  inputJobDescriptionSha256: P84_JOB_SHA256,
+  inputPdfSha256: null,
+  extractedTextSha256: null,
+  inputDigest: createHash('sha256').update(`package-claude-${P84_RESUME_SHA256}`).digest('hex'),
+  outputDigest: createHash('sha256').update(JSON.stringify(P84_CLAUDE_EVALUATION)).digest('hex'),
+  responseSha256: createHash('sha256').update(JSON.stringify(P84_CLAUDE_EVALUATION)).digest('hex'),
+  temperature: null, // Honest nullability (unexposed parameter)
+  seed: null,
+  generationParameters: {},
+  schemaVersion: 'p85.0',
+  sourceType: 'SYNTHETIC_LLM_EVALUATOR',
+});
+
+export const P85_GEMINI_PROVENANCE = Object.freeze({
+  evaluationId: 'eval-gemini-p85-001',
+  evaluatorType: 'LLM_EXTERNAL',
+  provider: 'gemini',
+  model: 'gemini-1.5-pro-002',
+  modelVersion: '002',
+  promptVersion: P85_PROMPT_VERSION,
+  promptDigest: P85_PROMPT_DIGEST,
+  rubricVersion: 'p84-rubric-v1',
+  evaluationTimestamp: '2026-09-18T00:00:00.000Z',
+  inputResumeSha256: P84_RESUME_SHA256,
+  inputJobDescriptionSha256: P84_JOB_SHA256,
+  inputPdfSha256: null,
+  extractedTextSha256: null,
+  inputDigest: createHash('sha256').update(`package-gemini-${P84_RESUME_SHA256}`).digest('hex'),
+  outputDigest: createHash('sha256').update(JSON.stringify(P84_GEMINI_EVALUATION)).digest('hex'),
+  responseSha256: createHash('sha256').update(JSON.stringify(P84_GEMINI_EVALUATION)).digest('hex'),
+  temperature: null,
+  seed: null,
+  generationParameters: {},
+  schemaVersion: 'p85.0',
+  sourceType: 'SYNTHETIC_LLM_EVALUATOR',
+});
+
+export const P85_GROK_PROVENANCE = Object.freeze({
+  evaluationId: 'eval-grok-p85-001',
+  evaluatorType: 'LLM_EXTERNAL',
+  provider: 'grok',
+  model: 'grok-2-1212',
+  modelVersion: '1212',
+  promptVersion: P85_PROMPT_VERSION,
+  promptDigest: P85_PROMPT_DIGEST,
+  rubricVersion: 'p84-rubric-v1',
+  evaluationTimestamp: '2026-09-18T00:00:00.000Z',
+  inputResumeSha256: P84_RESUME_SHA256,
+  inputJobDescriptionSha256: P84_JOB_SHA256,
+  inputPdfSha256: null,
+  extractedTextSha256: null,
+  inputDigest: createHash('sha256').update(`package-grok-${P84_RESUME_SHA256}`).digest('hex'),
+  outputDigest: createHash('sha256').update(JSON.stringify(P84_GROK_EVALUATION)).digest('hex'),
+  responseSha256: createHash('sha256').update(JSON.stringify(P84_GROK_EVALUATION)).digest('hex'),
+  temperature: null,
+  seed: null,
+  generationParameters: {},
+  schemaVersion: 'p85.0',
+  sourceType: 'SYNTHETIC_LLM_EVALUATOR',
+});
+
+export const P85_PROVENANCE_RECORDS = Object.freeze([
+  P85_CLAUDE_PROVENANCE,
+  P85_GEMINI_PROVENANCE,
+  P85_GROK_PROVENANCE,
+]);
+
