@@ -1334,9 +1334,213 @@ export function renderLayout({
       }
     }
 
+    /* ==========================================================================
+       Consistent User-Facing State System Tokens (P86 Phase 4)
+       ========================================================================== */
+
+    /* 1. Skeletons */
+    @keyframes skeletonPulse {
+      0% { opacity: 0.55; }
+      50% { opacity: 0.25; }
+      100% { opacity: 0.55; }
+    }
+    .skeleton-pulse {
+      animation: skeletonPulse 1.6s ease-in-out infinite;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-xs);
+    }
+    .skeleton-text {
+      height: 14px;
+      margin-bottom: 8px;
+      border-radius: var(--radius-xs);
+    }
+    .skeleton-card {
+      padding: 24px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--bg-card);
+      margin-bottom: 16px;
+    }
+    .skeleton-table-row {
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* 2. Loading & Double-Submit Prevention */
+    .btn.is-loading {
+      position: relative;
+      pointer-events: none;
+      opacity: 0.8;
+      cursor: wait !important;
+    }
+    .btn-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 3. Accessible Validation Feedback */
+    .form-control.is-invalid,
+    .form-select.is-invalid,
+    .form-textarea.is-invalid {
+      border-color: #EF4444 !important;
+      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25) !important;
+    }
+    .field-feedback-error {
+      font-size: 0.78rem;
+      color: #F87171;
+      margin-top: 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-weight: 500;
+    }
+    .validation-summary-card {
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.08);
+      border-radius: var(--radius-md);
+      padding: 18px 22px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.1);
+    }
+    .validation-summary-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #FCA5A5;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .validation-summary-list {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 0.85rem;
+      color: #F87171;
+      line-height: 1.6;
+    }
+    .validation-summary-link {
+      color: #FECACA;
+      text-decoration: underline;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .validation-summary-link:hover {
+      color: #FFFFFF;
+    }
+
+    /* 4. Standardized Empty States */
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      background: var(--bg-card);
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-lg);
+      margin-bottom: 24px;
+    }
+    .empty-state-icon {
+      font-size: 2rem;
+      opacity: 0.7;
+      margin-bottom: 12px;
+    }
+    .empty-state-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+    .empty-state-desc {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      max-width: 480px;
+      margin: 0 auto 20px;
+      line-height: 1.6;
+    }
+    .empty-state-actions {
+      display: inline-flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* 5. Toast System */
+    .portal-toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10000;
+      max-width: 420px;
+      pointer-events: none;
+    }
+    .portal-toast {
+      pointer-events: auto;
+      background: #1F2937;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.875rem;
+      color: var(--text-main);
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .portal-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .portal-toast-success {
+      border-left: 4px solid var(--accent-emerald);
+    }
+    .portal-toast-error {
+      border-left: 4px solid var(--accent-rose);
+    }
+    .portal-toast-warning {
+      border-left: 4px solid var(--accent-amber);
+    }
+    .portal-toast-info {
+      border-left: 4px solid var(--accent-indigo);
+    }
+
+    /* 6. Offline Banner */
+    .portal-offline-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #DC2626;
+      color: #FFFFFF;
+      font-size: 0.825rem;
+      font-weight: 600;
+      padding: 8px 16px;
+      z-index: 10001;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
     /* Print */
     @media print {
-      .navbar, footer, .nav-actions, .nav-mobile-toggle { display: none; }
+      .navbar, footer, .nav-actions, .nav-mobile-toggle, .portal-toast-container, .portal-offline-banner { display: none; }
       body { background: #fff; color: #000; }
       .card { border: 1px solid #ccc; box-shadow: none; background: #fff; }
     }
@@ -1595,6 +1799,15 @@ export function renderLayout({
     </div>
   </footer>
 
+  <!-- Global Portal State Elements -->
+  <div class="portal-offline-banner" id="portalOfflineBanner" role="status" aria-live="assertive">
+    <span>⚠️ You are currently offline. Changes will not be saved until connection is restored.</span>
+    <button type="button" onclick="window.location.reload()" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4); color:#fff; border-radius:4px; padding:2px 8px; font-size:0.75rem; cursor:pointer;">
+      Retry
+    </button>
+  </div>
+  <div class="portal-toast-container" id="portalToastContainer" role="status" aria-live="polite"></div>
+
   <script>
     (function() {
       // 1. Mobile Navigation Drawer
@@ -1689,6 +1902,163 @@ export function renderLayout({
           if (focusedBtn) focusedBtn.focus();
         }
       });
+
+      // 3. User-Facing State Controller
+      window.UserFacingState = {
+        showToast: function(opts) {
+          const container = document.getElementById('portalToastContainer');
+          if (!container) return;
+          const toast = document.createElement('div');
+          const type = opts.type || 'info';
+          toast.className = 'portal-toast portal-toast-' + type;
+          toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+
+          let icon = 'ℹ️';
+          if (type === 'success') icon = '✓';
+          if (type === 'error') icon = '⚠️';
+          if (type === 'warning') icon = '⚡';
+
+          toast.innerHTML = '<span style="font-size:1.1rem; flex-shrink:0;">' + icon + '</span>' +
+            '<div style="flex-grow:1;">' +
+              (opts.title ? '<div style="font-weight:700; margin-bottom:2px;">' + opts.title + '</div>' : '') +
+              '<div>' + (opts.message || '') + '</div>' +
+            '</div>' +
+            '<button type="button" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:1rem; padding:0 4px;" aria-label="Close">&times;</button>';
+
+          toast.querySelector('button').addEventListener('click', function() {
+            toast.classList.remove('show');
+            setTimeout(function() { toast.remove(); }, 300);
+          });
+
+          container.appendChild(toast);
+          // Trigger transition
+          requestAnimationFrame(function() { toast.classList.add('show'); });
+
+          const duration = opts.duration || (type === 'error' ? 8000 : 4000);
+          setTimeout(function() {
+            if (toast.parentNode) {
+              toast.classList.remove('show');
+              setTimeout(function() { toast.remove(); }, 300);
+            }
+          }, duration);
+        },
+
+        highlightFieldErrors: function(formEl, errors) {
+          if (!formEl || !Array.isArray(errors)) return;
+          // Clear existing
+          formEl.querySelectorAll('.is-invalid').forEach(function(el) { el.classList.remove('is-invalid'); });
+          formEl.querySelectorAll('.field-feedback-error').forEach(function(el) { el.remove(); });
+          const oldSummary = formEl.querySelector('.validation-summary-card');
+          if (oldSummary) oldSummary.remove();
+
+          if (errors.length === 0) return;
+
+          // Render summary card at top of form
+          const summary = document.createElement('div');
+          summary.className = 'validation-summary-card';
+          summary.setAttribute('role', 'alert');
+          summary.setAttribute('tabindex', '-1');
+
+          let listHtml = '<ul class="validation-summary-list">';
+          errors.forEach(function(err, idx) {
+            listHtml += '<li><a class="validation-summary-link" data-field="' + err.field + '">' + (err.label || err.field) + ': ' + (err.message || 'Check value') + '</a></li>';
+          });
+          listHtml += '</ul>';
+
+          summary.innerHTML = '<div class="validation-summary-title">⚠️ Please correct the highlighted fields:</div>' + listHtml;
+          formEl.insertBefore(summary, formEl.firstChild);
+          summary.focus();
+
+          // Link summary items to fields
+          summary.querySelectorAll('.validation-summary-link').forEach(function(link) {
+            link.addEventListener('click', function() {
+              const fieldName = this.getAttribute('data-field');
+              const targetInput = formEl.querySelector('[name="' + fieldName + '"]') || formEl.querySelector('#' + fieldName);
+              if (targetInput) {
+                targetInput.focus();
+                targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            });
+          });
+
+          // Mark fields
+          let firstField = null;
+          errors.forEach(function(err) {
+            const input = formEl.querySelector('[name="' + err.field + '"]') || formEl.querySelector('#' + err.field);
+            if (input) {
+              input.classList.add('is-invalid');
+              input.setAttribute('aria-invalid', 'true');
+              if (!firstField) firstField = input;
+
+              const errEl = document.createElement('div');
+              errEl.className = 'field-feedback-error';
+              errEl.id = 'err-' + err.field;
+              errEl.innerHTML = '<span>⚠️</span> <span>' + (err.message || 'Invalid value') + '</span>';
+              input.setAttribute('aria-describedby', errEl.id);
+
+              if (input.nextSibling) {
+                input.parentNode.insertBefore(errEl, input.nextSibling);
+              } else {
+                input.parentNode.appendChild(errEl);
+              }
+            }
+          });
+
+          if (firstField) {
+            firstField.focus();
+          }
+        }
+      };
+
+      // 4. Double-submit prevention on standard POST forms
+      document.querySelectorAll('form[method="POST"]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+          if (form.hasAttribute('data-no-prevent-double-submit')) return;
+          if (typeof form.checkValidity === 'function' && !form.checkValidity()) return;
+
+          const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+          if (submitBtn && !submitBtn.disabled) {
+            submitBtn.classList.add('is-loading');
+            submitBtn.setAttribute('data-orig-text', submitBtn.innerHTML);
+            submitBtn.innerHTML = '<span class="btn-spinner"></span> ' + (submitBtn.getAttribute('data-loading-text') || 'Processing…');
+            // Allow native submit to complete while preventing subsequent duplicate clicks
+            setTimeout(function() { submitBtn.disabled = true; }, 10);
+          }
+        });
+      });
+
+      // 5. Offline & Network state listener
+      const offlineBanner = document.getElementById('portalOfflineBanner');
+      function updateOnlineStatus() {
+        if (!navigator.onLine) {
+          if (offlineBanner) offlineBanner.style.display = 'flex';
+        } else {
+          if (offlineBanner && offlineBanner.style.display === 'flex') {
+            offlineBanner.style.display = 'none';
+            window.UserFacingState.showToast({
+              type: 'success',
+              title: 'Back Online',
+              message: 'Your internet connection has been restored.'
+            });
+          }
+        }
+      }
+      window.addEventListener('online', updateOnlineStatus);
+      window.addEventListener('offline', updateOnlineStatus);
+      updateOnlineStatus();
+
+      // 6. Automatic URL Error Query Display
+      try {
+        const url = new URL(window.location.href);
+        const errorParam = url.searchParams.get('error');
+        if (errorParam) {
+          window.UserFacingState.showToast({
+            type: 'error',
+            title: "We couldn't complete that action",
+            message: errorParam
+          });
+        }
+      } catch (err) {}
     })();
   </script>
 </body>

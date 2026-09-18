@@ -25,6 +25,10 @@
 
 import { logger } from '../utils/logger.js';
 import { evaluateCandidateEmailStatus } from '../utils/candidate-email-resolver.js';
+import {
+  normalizeNoticePeriod,
+  formatNoticePeriodLabel,
+} from '../domain/candidate/career-preferences.schemas.js';
 
 function normalizeDigits(str) {
   if (!str) return '';
@@ -33,6 +37,9 @@ function normalizeDigits(str) {
 
 function normalizeAuth(str) {
   if (!str) return '';
+  if (typeof str === 'object') {
+    return `${str.country || ''}:${str.status || ''}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
   return String(str)
     .toLowerCase()
     .replace(/authorized/g, 'authorize')
@@ -43,6 +50,7 @@ function parseSponsorshipBool(val) {
   if (val === true || val === false) return val;
   if (typeof val === 'string') {
     const s = val.toLowerCase().trim();
+    if (s === 'not_set' || s === 'unknown') return null;
     if (/^(true|yes|y|required|sponsorship required|will require|require)/i.test(s)) return true;
     if (
       /^(false|no|n|not required|no sponsorship|no sponsorship needed|no sponsorship required|none)/i.test(
@@ -212,7 +220,8 @@ export class ApplicationReadinessService {
     });
 
     // -------------------------------------------------------------------------
-    // 3. Work Authorization (NEEDS_CONFIRMATION | MISSING)
+    // -------------------------------------------------------------------------
+    // 3. Work Authorization (READY | NEEDS_CONFIRMATION | MISSING)
     // Precedence: APPLICATION_ANSWERS > PROFILE_CAREER_PREFERENCES > PROFILE_USER_CUSTOM > RESUME_CLAIM
     // -------------------------------------------------------------------------
     const appWorkAuth =
@@ -223,10 +232,19 @@ export class ApplicationReadinessService {
 
     let prefWorkAuth = null;
     if (careerPreferences.workAuthorization) {
-      prefWorkAuth = Array.isArray(careerPreferences.workAuthorization)
-        ? careerPreferences.workAuthorization.join(', ')
-        : String(careerPreferences.workAuthorization);
-      prefWorkAuth = prefWorkAuth.trim();
+      if (Array.isArray(careerPreferences.workAuthorization)) {
+        const formatted = careerPreferences.workAuthorization
+          .map((item) => {
+            if (typeof item === 'object' && item !== null) {
+              return item.country ? `${item.country} (${item.status || 'AUTHORIZED'})` : null;
+            }
+            return String(item || '').trim();
+          })
+          .filter(Boolean);
+        prefWorkAuth = formatted.length > 0 ? formatted.join(', ') : null;
+      } else {
+        prefWorkAuth = String(careerPreferences.workAuthorization).trim() || null;
+      }
     }
 
     const userCustomWorkAuth =
@@ -252,8 +270,22 @@ export class ApplicationReadinessService {
       }
     }
 
+    const isWorkAuthConfirmed = Boolean(
+      careerPreferences.workAuthConfirmedByUser ||
+      userCustom.workAuthConfirmedByUser ||
+      cand.workAuthConfirmedByUser ||
+      combinedAnswers.workAuthConfirmed === true ||
+      combinedAnswers.workAuthorizationConfirmed === true
+    );
+
     const hasWorkAuth = Boolean(workAuthCandidate) && workAuthCandidate.length > 0;
-    const workAuthStatus = !hasWorkAuth ? 'MISSING' : 'NEEDS_CONFIRMATION';
+    const workAuthStatus = !hasWorkAuth
+      ? 'MISSING'
+      : workAuthConflict
+        ? 'NEEDS_CONFIRMATION'
+        : isWorkAuthConfirmed
+          ? 'READY'
+          : 'NEEDS_CONFIRMATION';
 
     items.push({
       field: 'workAuthorization',
@@ -275,13 +307,15 @@ export class ApplicationReadinessService {
         ? 'Work authorization status not yet documented in Profile or Answers'
         : workAuthConflict
           ? `Conflict detected: Application answer ("${appWorkAuth}") differs from Profile preference ("${effectivePrefWorkAuth}"). Candidate confirmation required.`
-          : 'Requires candidate confirmation for target job jurisdiction',
+          : workAuthStatus === 'READY'
+            ? 'Candidate work authorization documented and confirmed'
+            : 'Requires candidate confirmation for target job jurisdiction',
       profileSection: 'readiness',
       profileAnchor: '/profile#section-readiness',
     });
 
     // -------------------------------------------------------------------------
-    // 4. Visa Sponsorship (NEEDS_CONFIRMATION | MISSING)
+    // 4. Visa Sponsorship (READY | NEEDS_CONFIRMATION | MISSING)
     // Precedence: APPLICATION_ANSWERS > PROFILE_CAREER_PREFERENCES > PROFILE_USER_CUSTOM > RESUME_CLAIM
     // -------------------------------------------------------------------------
     const rawAppSponsorship =
@@ -315,24 +349,61 @@ export class ApplicationReadinessService {
       if (typeof rawAppSponsorship === 'boolean') {
         resolvedVisaString = rawAppSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed';
       } else {
-        resolvedVisaString = String(rawAppSponsorship).trim();
+        const s = String(rawAppSponsorship).trim();
+        if (s.toUpperCase() === 'NOT_SET') {
+          resolvedVisaString = null;
+          visaSource = 'NONE';
+        } else if (s.toUpperCase() === 'UNKNOWN') {
+          resolvedVisaString = 'Unknown';
+        } else {
+          resolvedVisaString = s;
+        }
       }
     } else if (rawPrefSponsorship !== undefined && rawPrefSponsorship !== null) {
-      visaSource =
-        careerPreferences.visaSponsorshipRequired !== undefined
-          ? 'PROFILE_CAREER_PREFERENCES'
-          : userCustom.visaSponsorshipRequired !== undefined
-            ? 'PROFILE_USER_CUSTOM'
-            : 'RESUME_CLAIM';
-      if (typeof rawPrefSponsorship === 'boolean') {
-        resolvedVisaString = rawPrefSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed';
+      const sPref = String(rawPrefSponsorship).trim().toUpperCase();
+      if (sPref === 'NOT_SET') {
+        visaSource = 'NONE';
+        resolvedVisaString = null;
+      } else if (sPref === 'UNKNOWN') {
+        visaSource =
+          careerPreferences.visaSponsorshipRequired !== undefined
+            ? 'PROFILE_CAREER_PREFERENCES'
+            : userCustom.visaSponsorshipRequired !== undefined
+              ? 'PROFILE_USER_CUSTOM'
+              : 'RESUME_CLAIM';
+        resolvedVisaString = 'Unknown';
       } else {
-        resolvedVisaString = String(rawPrefSponsorship).trim();
+        visaSource =
+          careerPreferences.visaSponsorshipRequired !== undefined
+            ? 'PROFILE_CAREER_PREFERENCES'
+            : userCustom.visaSponsorshipRequired !== undefined
+              ? 'PROFILE_USER_CUSTOM'
+              : 'RESUME_CLAIM';
+        if (typeof rawPrefSponsorship === 'boolean') {
+          resolvedVisaString = rawPrefSponsorship ? 'Sponsorship Required' : 'No Sponsorship Needed';
+        } else if (prefBool !== null) {
+          resolvedVisaString = prefBool ? 'Sponsorship Required' : 'No Sponsorship Needed';
+        } else {
+          resolvedVisaString = String(rawPrefSponsorship).trim();
+        }
       }
     }
 
+    const isVisaConfirmed = Boolean(
+      careerPreferences.visaSponsorshipConfirmedByUser ||
+      userCustom.visaSponsorshipConfirmedByUser ||
+      cand.visaSponsorshipConfirmedByUser ||
+      combinedAnswers.visaSponsorshipConfirmed === true
+    );
+
     const hasVisa = Boolean(resolvedVisaString) && resolvedVisaString.length > 0;
-    const visaStatus = !hasVisa ? 'MISSING' : 'NEEDS_CONFIRMATION';
+    const visaStatus = !hasVisa
+      ? 'MISSING'
+      : visaConflict
+        ? 'NEEDS_CONFIRMATION'
+        : isVisaConfirmed && (appBool !== null || prefBool !== null)
+          ? 'READY'
+          : 'NEEDS_CONFIRMATION';
 
     items.push({
       field: 'visaSponsorship',
@@ -346,7 +417,9 @@ export class ApplicationReadinessService {
         ? 'Visa sponsorship preference not set in Profile'
         : visaConflict
           ? `Conflict detected: Application answer specifies "${resolvedVisaString}" while Profile declares "${prefBool ? 'Sponsorship Required' : 'No Sponsorship Needed'}". Candidate confirmation required.`
-          : 'Confirm sponsorship requirements with target employer',
+          : visaStatus === 'READY'
+            ? 'Candidate visa sponsorship preference documented and confirmed'
+            : 'Confirm sponsorship requirements with target employer',
       profileSection: 'readiness',
       profileAnchor: '/profile#section-readiness',
     });
@@ -517,7 +590,7 @@ export class ApplicationReadinessService {
     });
 
     // -------------------------------------------------------------------------
-    // 8. Earliest Availability / Notice Period (READY | NEEDS_CONFIRMATION | MISSING)
+    // 8. Earliest Availability (READY | NEEDS_CONFIRMATION | MISSING)
     // Precedence: APPLICATION_ANSWERS > PROFILE_CAREER_PREFERENCES > PROFILE_USER_CUSTOM
     // -------------------------------------------------------------------------
     const appAvail =
@@ -526,13 +599,23 @@ export class ApplicationReadinessService {
         combinedAnswers.availabilityDate.trim()) ||
       null;
 
-    const prefAvail =
+    const rawPrefAvailDate =
       (typeof careerPreferences.availabilityDate === 'string' &&
         careerPreferences.availabilityDate.trim()) ||
-      (typeof userCustom.availability === 'string' && userCustom.availability.trim()) ||
       (typeof userCustom.availabilityDate === 'string' && userCustom.availabilityDate.trim()) ||
       (typeof metadata.jobPreferences?.availabilityDate === 'string' &&
         metadata.jobPreferences.availabilityDate.trim()) ||
+      null;
+
+    const prefAvail =
+      rawPrefAvailDate ||
+      (typeof userCustom.availability === 'string' && userCustom.availability.trim()) ||
+      (careerPreferences.availableImmediately || userCustom.availableImmediately
+        ? 'Immediate'
+        : null) ||
+      (careerPreferences.noticePeriod === 'IMMEDIATE' || userCustom.noticePeriod === 'IMMEDIATE'
+        ? 'Immediate'
+        : null) ||
       null;
 
     let availConflict = false;
@@ -552,7 +635,7 @@ export class ApplicationReadinessService {
       presence: hasAvail ? 'PRESENT' : 'MISSING',
       source: appAvail
         ? 'APPLICATION_ANSWERS'
-        : careerPreferences.availabilityDate
+        : rawPrefAvailDate
           ? 'PROFILE_CAREER_PREFERENCES'
           : prefAvail
             ? 'PROFILE_USER_CUSTOM'
@@ -563,6 +646,83 @@ export class ApplicationReadinessService {
         : availConflict
           ? `Conflict detected: Application answer specifies "${appAvail}" while Profile preference specifies "${prefAvail}". Candidate confirmation required.`
           : 'Candidate start date recorded in Job Search Intent',
+      profileSection: 'preferences',
+      profileAnchor: '/profile#section-preferences',
+    });
+
+    // -------------------------------------------------------------------------
+    // 9. Notice Period (READY | NEEDS_CONFIRMATION | MISSING)
+    // Precedence: APPLICATION_ANSWERS > PROFILE_CAREER_PREFERENCES > PROFILE_USER_CUSTOM
+    // -------------------------------------------------------------------------
+    const rawAppNotice =
+      (typeof combinedAnswers.noticePeriod === 'string' && combinedAnswers.noticePeriod.trim()) ||
+      null;
+
+    const rawPrefNotice =
+      careerPreferences.noticePeriod ||
+      (typeof userCustom.noticePeriod === 'string' && userCustom.noticePeriod.trim()) ||
+      (careerPreferences.availableImmediately || userCustom.availableImmediately
+        ? 'IMMEDIATE'
+        : null) ||
+      (resolvedAvail && resolvedAvail.toLowerCase() === 'immediate' ? 'IMMEDIATE' : null) ||
+      (rawPrefAvailDate ? 'CUSTOM' : null);
+
+    const normAppNotice = normalizeNoticePeriod(rawAppNotice);
+    const normPrefNotice = normalizeNoticePeriod(rawPrefNotice);
+
+    let noticeConflict = false;
+    if (
+      normAppNotice &&
+      normPrefNotice &&
+      normAppNotice !== 'UNKNOWN' &&
+      normPrefNotice !== 'UNKNOWN' &&
+      normAppNotice !== 'NOT_SET' &&
+      normPrefNotice !== 'NOT_SET' &&
+      normAppNotice !== normPrefNotice
+    ) {
+      noticeConflict = true;
+    }
+
+    const effectiveNormNotice = normAppNotice || normPrefNotice;
+    const customNoticeVal =
+      combinedAnswers.customNoticePeriod ||
+      careerPreferences.customNoticePeriod ||
+      userCustom.customNoticePeriod ||
+      (rawPrefAvailDate ? `Available from ${rawPrefAvailDate}` : null);
+
+    let resolvedNoticeString = null;
+    if (effectiveNormNotice && effectiveNormNotice !== 'NOT_SET') {
+      resolvedNoticeString =
+        formatNoticePeriodLabel(effectiveNormNotice, customNoticeVal) ||
+        (effectiveNormNotice === 'CUSTOM'
+          ? customNoticeVal ||
+            rawAppNotice ||
+            (rawPrefNotice !== 'CUSTOM' ? rawPrefNotice : null)
+          : null);
+    }
+
+    const hasNotice = Boolean(resolvedNoticeString) && resolvedNoticeString.length > 0;
+    const noticeStatus = !hasNotice ? 'MISSING' : noticeConflict ? 'NEEDS_CONFIRMATION' : 'READY';
+
+    items.push({
+      field: 'noticePeriod',
+      label: 'Notice Period',
+      value: hasNotice ? resolvedNoticeString : null,
+      status: noticeStatus,
+      presence: hasNotice ? 'PRESENT' : 'MISSING',
+      source: rawAppNotice
+        ? 'APPLICATION_ANSWERS'
+        : careerPreferences.noticePeriod || careerPreferences.availabilityDate
+          ? 'PROFILE_CAREER_PREFERENCES'
+          : rawPrefNotice
+            ? 'PROFILE_USER_CUSTOM'
+            : 'NONE',
+      hasConflict: noticeConflict,
+      notes: !hasNotice
+        ? 'Notice period not documented in Profile or Answers'
+        : noticeConflict
+          ? `Conflict detected: Application answer specifies "${rawAppNotice}" while Profile specifies "${formatNoticePeriodLabel(normPrefNotice, customNoticeVal)}". Candidate confirmation required.`
+          : 'Candidate notice period documented in Job Search Intent',
       profileSection: 'preferences',
       profileAnchor: '/profile#section-preferences',
     });

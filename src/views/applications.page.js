@@ -202,19 +202,24 @@ export function renderApplicationsPage({
       ${
         filteredApps.length === 0
           ? `
-        <div class="card empty-state" style="padding:48px 24px; text-align:center;">
-          <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6; margin-bottom:8px;">∅</div>
-          <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:6px; color:var(--text-main);">No Applications in this View</h3>
-          <p style="color:var(--text-muted); font-size:0.875rem; max-width:480px; margin:0 auto 20px;">
+        <div class="empty-state">
+          <div class="empty-state-icon" style="font-size:2rem; opacity:0.7;">📋</div>
+          <h3 class="empty-state-title">${applications.length === 0 ? 'No job applications tracked yet.' : 'No applications in this view.'}</h3>
+          <p class="empty-state-desc">
             ${
               applications.length === 0
-                ? 'Track your first job application manually or instruct Claude / ChatGPT to track opportunities via the Model Context Protocol.'
-                : 'No applications currently match the selected stage filter.'
+                ? 'Tracking applications organizes your interview timeline, compares role readiness against your verified skills, and stores tailored handoff packages.'
+                : 'No job applications currently match this stage filter. Select "All" or create a new application entry.'
             }
           </p>
-          <button type="button" class="btn btn-primary btn-sm" onclick="openCreateModal()">
-            + Track Application Now
-          </button>
+          <div class="empty-state-actions">
+            <button type="button" class="btn btn-primary btn-sm" onclick="openCreateModal()">
+              + Track Application
+            </button>
+            <a href="/apps/radar" class="btn btn-secondary btn-sm">
+              Find Matches with Radar &rarr;
+            </a>
+          </div>
         </div>
       `
           : `
@@ -262,7 +267,9 @@ export function renderApplicationsPage({
                     ${formatDate(app.updatedAt || app.createdAt)}
                   </td>
                   <td style="padding:14px 18px; text-align:right;">
-                    <div style="display:inline-flex; align-items:center; gap:8px; justify-content:flex-end;">
+                      <a href="/applications/${app.id}/apply" class="btn btn-primary btn-sm" style="font-size:0.75rem; padding:4px 9px; text-decoration:none; font-weight:700;" title="Launch Simplified Application Workflow">
+                        Apply &rarr;
+                      </a>
                       <a href="/applications/${app.id}/handoff" class="btn btn-secondary btn-sm" style="font-size:0.75rem; padding:4px 8px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:600; color:var(--accent-indigo); border-color:rgba(99,102,241,0.3);" title="Open Real Application Handoff Kit">
                         Handoff Kit &nearr;
                       </a>

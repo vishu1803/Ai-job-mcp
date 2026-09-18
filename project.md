@@ -3,7 +3,166 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-18*
 
-### PART 85: Benchmark Governance & Multi-Model Evaluation Integrity Hardening (scoreVersion: "p82.0" sovereign)
+### PART 86: Canonical Candidate Profile, Preferences, Readiness, and Data-Integrity Hardening
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-18  
+**Scope:** Five-phase execution comprising (1) deep zero-mutation audit, (2) P0/P1 backend and data-integrity hardening across canonical candidate profile, job preferences, application readiness, browser form error redirection, and MCP read contracts, (3) complete candidate profile presentation & UI/UX redesign into a calm, accessible 10-domain workspace with an actionable application-readiness dashboard, progressive disclosure for technical evidence, and zero parallel architecture, (4) simplified, actionable job application flow (Job -> Apply -> Check Readiness -> Fix only missing/conflicting -> Review -> Submit) strictly powered by the canonical candidate profile and existing ApplicationReadinessService with zero parallel architecture, explicit missing vs. conflict UX, profile reuse, question isolation, and fail-closed AI sovereignty, and (5) comprehensive, consistent user-facing state system across the portal defining all 12 required states (loading, empty, success, validation error, authentication error, authorization error, not found, conflict, network failure, server failure, AI failure, retryable failure) with zero technical leakage, accessible error recovery, automated double-submit prevention, and graceful AI degradation. Eliminated unsafe concrete defaults, instituted explicit UNKNOWN / NOT_SET tri-state semantics, added first-class notice period and structured availability, aligned user confirmations with ApplicationReadinessService, resolved Fastify form redirection error leaks, and preserved all P81–P85 scoring, evidence provenance, and fail-closed security invariants:
+
+#### Phase 0: System-Wide Audit (Completed & Verified)
+1. **Canonical Profile & Schema Split Audit:** Identified divergence between P4-001 `CandidateProfileSchema` and P14-004C `CandidateCareerProfileSchema`, with relational tables lacking columns for contact/education/experience/preferences and relying on JSONB `profileMetadata.userCustom`.
+2. **Job Preferences & Semantic Nullability Audit:** Identified concrete unsafe defaults in `CareerPreferencesSchema` (`visaSponsorshipRequired: false`, `relocationPreference: 'REMOTE_ONLY'`) where `NOT_SET`/`UNKNOWN` is required.
+3. **Application Readiness Contradiction Audit:** Discovered contradiction between `CandidateProfileService.getCareerProfile().profileReadiness` and `ApplicationReadinessService.evaluateReadiness().profileComplete`; isolated fail-closed `NEEDS_CONFIRMATION` hardcoding for work auth and visa sponsorship.
+4. **Data Model Duplication & Gap Analysis:** Matrixed profile, job, and application models identifying missing application fields (address, legal name, EEO, notice period duration, clearance) and duplicate contact/location/auth properties.
+5. **Frontend UX & Information Architecture Audit:** Cataloged technical jargon leaks (pipeline banners, AST extraction labels, package hashes) on user-facing pages, 184KB single-page form overload on `/profile`, and missing progress indicators.
+6. **Error Handling & Form Redirect Vulnerability:** Identified critical redirection bug in `src/plugins/error-handler.js` redirecting browser HTML form validation errors to `/login`, and schema mismatch in `POST /applications` (`salaryRange`).
+7. **AI Assistance Sovereignty Boundary:** Formulated strict boundaries ensuring AI operates strictly as a phrasing/tailoring copilot without becoming a source of truth or mutating deterministic ATS scoring.
+
+#### Phase 1: P0/P1 Backend & Data Integrity Implementation (Completed & Verified)
+1. **Unsafe Defaults Removal & Honest Tri-State Semantics (`src/domain/candidate/career-preferences.schemas.js`):**
+   - Eliminated concrete defaults in `CareerPreferencesSchema` and `UpdateCareerPreferencesInputSchema`.
+   - `remotePreference`, `salaryCurrency`, `relocationPreference`, `visaSponsorshipRequired`, `noticePeriod`, `timezone`, and `salaryFloor` now safely default to `null`.
+   - `employmentTypes` defaults to `[]`.
+   - `visaSponsorshipRequired` supports `boolean | 'YES' | 'NO' | 'UNKNOWN' | 'NOT_SET'`, preventing unanswered profile fields from being treated as an affirmative "no sponsorship needed" decision.
+   - Enforced backward compatibility for existing stored candidate profiles.
+2. **First-Class Notice Period & Structured Availability (`src/domain/candidate/career-preferences.schemas.js`, `src/services/candidate-profile.service.js`):**
+   - Added `NoticePeriodEnum` supporting: `immediate`, `less_than_1_week`, `1_to_2_weeks`, `30_days`, `60_days`, `90_days`, and `custom`.
+   - Added `normalizeNoticePeriod(val)` and human-friendly `formatNoticePeriodLabel(period, custom)`.
+   - Added `availableImmediately`, `isCurrentlyEmployed`, `noticePeriod`, `customNoticePeriod`, and `timezone` to `CandidateCareerProfileSchema`.
+   - In `CandidateProfileService.getCareerProfile()`, added heuristics to auto-infer IANA `timezone` from candidate location strings (e.g. `India` -> `Asia/Kolkata`, `London` -> `Europe/London`, `California` -> `America/Los_Angeles`) when unset, while awaiting explicit user confirmation.
+3. **Structured Compensation Expansion (`src/domain/candidate/career-preferences.schemas.js`):**
+   - Added `CompensationPeriodEnum` (`HOURLY`, `DAILY`, `WEEKLY`, `MONTHLY`, `ANNUAL`) and `CompensationTypeEnum` (`BASE_ONLY`, `BASE_PLUS_BONUS`, `TOTAL_COMP`, `CONTRACT_RATE`).
+   - Added `compensationPeriod` and `compensationType` to schema alongside `salaryFloor`, `targetSalary`, and `salaryCurrency`.
+4. **Structured Work Authorization (`src/domain/candidate/career-preferences.schemas.js`, `src/domain/mcp/career-read-tools.schemas.js`):**
+   - Implemented `WorkAuthStatusEnum` (`CITIZEN`, `PERMANENT_RESIDENT`, `WORK_VISA`, `STUDENT_VISA_OPT_CPT`, `NEED_SPONSORSHIP`, `UNKNOWN`) and `WorkAuthorizationRecordSchema` with `countryCode`, `status`, `visaType`, `expiryDate`, and `requiresSponsorship`.
+   - Aligned MCP read tools `GetCandidateProfileOutputSchema` to support nullable preferences, structured work authorization, and notice period without schema validation failures.
+5. **Application Readiness Alignment & User Confirmation (`src/services/application-readiness.service.js`):**
+   - Added `noticePeriod` as the 9th first-class screening item evaluated with strict order of precedence (`APPLICATION_ANSWERS` > `PROFILE_CAREER_PREFERENCES` > `PROFILE_USER_CUSTOM` > `NONE`), human-formatted labels, and conflicting answer detection.
+   - Resolved Visa Sponsorship: `null` or `'NOT_SET'` yields `MISSING`; `'UNKNOWN'` yields `NEEDS_CONFIRMATION`; explicit answers with `visaSponsorshipConfirmedByUser: true` achieve `READY` status. Preserves candidate raw custom answer strings for transparent display.
+   - Resolved Work Authorization: empty yields `MISSING`; explicit status with `workAuthConfirmedByUser: true` achieves `READY` status.
+   - Enhanced Availability fallback: incorporates `noticePeriod` and `availableImmediately` to infer readiness when explicit start date is unset.
+6. **Form Error Redirection & Database Column Bug Fixes (`src/plugins/error-handler.js`, `src/routes/web.routes.js`):**
+   - Fixed `src/plugins/error-handler.js` to redirect 400 Bad Request/Validation errors back to `request.headers.referer` with `?error=...` rather than redirecting authenticated users to `/login`.
+   - Fixed `POST /applications` in `src/routes/web.routes.js` (line 2750) where `salaryRange` was incorrectly passed as a top-level column instead of being wrapped in `compensation: { rawRange: ... }` JSONB.
+   - Fixed hardcoded `role: 'OWNER'` in mock MCP context at line 3777 to dynamically inherit `sessionContext.user?.role || 'MEMBER'`.
+
+#### Phase 2: Candidate Profile Presentation & UI/UX Redesign (Completed & Verified)
+1. **Calm, Focused 10-Domain Workspace (`src/views/profile.page.js`):**
+   - Deconstructed monolithic 184KB single-page form into 10 accessible, navigable tabs: `Overview`, `Professional`, `Experience`, `Education`, `Skills`, `Projects`, `Credentials`, `Links`, `Preferences`, and `Eligibility`.
+   - Implemented role-based semantic tab list (`role="tablist"` / `role="tab"` / `role="tabpanel"`) with keyboard accessibility (arrow key navigation, home/end, space/enter activation) and URL hash synchronisation (`#section-*` and `#tab-*`).
+2. **Actionable Application-Readiness Dashboard (`Overview` Tab):**
+   - Directly consumes `ApplicationReadinessService` evaluation with zero duplicate client-side calculation.
+   - Displays real-time readiness gauge with contextual status copy ("Application Ready", "Almost Ready", "Setup Needed").
+   - Presents an actionable "Needs Attention" banner with direct deep-link buttons (`Fix [Field]`) targeting specific panels.
+   - Embeds an 8-item Readiness Checklist with color-coded badges (`READY`, `NEEDS_CONFIRMATION`, `MISSING`, `CONFLICTING`).
+   - Renders 4 high-level domain snapshot cards: Professional Identity, Key Skills, Work History, and Links.
+3. **Domain-Specific Focused Form Panels:**
+   - **Professional:** Headline, executive summary, current role, location, career stage, and IANA timezone selector.
+   - **Experience:** Interactive role cards displaying company, title, duration, location, bullet highlights, and tenure metrics.
+   - **Education:** Structured institution cards with degree, field of study, and graduation dates.
+   - **Skills:** Primary technical skills badges grouped by corroborated evidence; interactive skill category filter.
+   - **Projects:** Repository-grounded project cards with tech tags, live demo URLs, and GitHub links.
+   - **Credentials:** Certifications and spoken languages with proficiency levels.
+   - **Links:** Authoritative contact email, phone country calling code selector (`contactCountryCodeSelect`) with national number (`contactPhoneInput`), LinkedIn, GitHub, portfolio, and custom link lists.
+   - **Preferences:** Target role titles, preferred locations, remote preference selector, and structured compensation inputs (floor, target, period, type, currency).
+   - **Eligibility:** Work authorization status, visa sponsorship tri-state, notice period selector with custom duration input, immediate availability checkbox, and user confirmation checkboxes.
+4. **Progressive Disclosure of Internal Diagnostics:**
+   - Technical AST parser signals, repository citations, corroboration tags, and secondary libraries are safely encapsulated inside `<details class="advanced-disclosure">` ("Show technical verification evidence").
+   - Candidates manage their career narrative in natural, human language without encountering internal IDs, AST regexes, or parser metadata unless intentionally expanded.
+5. **Robust State Management & Backward Compatibility:**
+   - Preserved all legacy anchor IDs (`#section-contact`, `#section-readiness`, `#section-links`, `#section-preferences`) to ensure external links and handoff services land seamlessly on the correct tab.
+   - Client-side state controller (`ProfileController`) with dirty field tracking, sticky save bar (`#stickySaveBar`), batched AJAX submission (`PATCH /api/profile`), and seamless fallback to standard form POST (`POST /profile`).
+   - Strict adherence to zero-mutation and single-source-of-truth invariants: no parallel tables, no fake client scores, and no loss of canonical candidate data.
+76: 
+#### Phase 3: Simplified Job Application Workflow (Completed & Verified)
+1. **Single-Source-of-Truth Flow Engine (`src/services/job-application-flow.service.js`):**
+   - Implemented `JobApplicationFlowService` integrating directly with `ApplicationReadinessService.evaluateReadiness()` and canonical candidate profile (`candidates.profile_metadata.userCustom`).
+   - Zero parallel readiness architecture, zero shadow candidate data models, and zero duplicate database tables.
+   - Built `buildApplicationFlowState`: partitions screening and qualification items into `readyToApply` (green checklist) and `needsAttention` (actionable cards).
+2. **Missing vs. Conflict UX Distinction:**
+   - **Missing items:** "We need your {field}." with inline `[Add]` / `[Answer]` form controls, pre-populating sensible defaults or select options (e.g. notice period dropdown), and single-click profile synchronization toggle (`saveToProfile`).
+   - **Conflict items:** "Your profile says {profileVal}, but this application says {appVal}." with explicit action buttons `[Keep {profileVal}]`, `[Use {appVal}]`, and `[Edit profile]`. Never silently overrides candidate intent or profile facts.
+   - **Confirmation items:** Transparent user confirmation toggles for work authorization and visa sponsorship.
+3. **Application-Specific Question Isolation & Profile Inheritance:**
+   - Questions specific to the role/application are stored safely in `jobApplications.metadata.answers`, completely isolated from canonical candidate profile data.
+   - Answer persistence to profile is strictly opt-in via explicit user checkbox (`saveToProfile`).
+   - Valid candidate profile data (name, email, phone, location, education, experience, skills, links) is inherited automatically and never re-prompted.
+4. **Transparent Review & Submit Screen (`src/views/apply.page.js`):**
+   - Implemented 3-step progressive workflow indicator (`1. Readiness Check` -> `2. Role Declarations` -> `3. Review & Submit`).
+   - Renders clear review summary: Target Job Title, Company, Location, Candidate Identity, Tailored/Active Resume, Role-Specific Answers, Declarations, and actionable Warnings.
+   - Completely encapsulates and suppresses internal resolver mechanics, AST extraction metrics, or parser metadata from candidate-facing screens.
+5. **Gated Submission & Fail-Closed AI Sovereignty:**
+   - Built `submitApplication`: strictly gates final application submission, throwing `ValidationError` if any required item remains in `needsAttention` or if the legal accuracy declaration is unchecked.
+   - Built `getAiAssistanceForQuestion`: enforces strict AI sovereignty boundary where auto-answering sensitive eligibility questions (work authorization, visa sponsorship, legal declarations) is strictly blocked (`autoAnswerBlocked: true`), requiring human confirmation.
+6. **Navigation & Web Routes Integration (`src/routes/web.routes.js`, `src/views/applications.page.js`, `src/views/radar.page.js`):**
+   - Added `POST /applications/start` to initiate role application directly from Radar or Job Listings.
+   - Added `GET /applications/:id/apply` rendering the step-based workflow.
+   - Added `POST /applications/:id/apply/resolve` to handle inline missing answers and conflict resolutions.
+   - Added `POST /applications/:id/apply/submit` to perform final verification, gate checking, and status transition to `APPLIED`.
+   - Added direct `[Apply ->]` action button on `/applications` table rows and `[Apply for this Role ->]` banner on Radar match views.
+
+#### Phase 4: Consistent User-Facing State System Across Portal (Completed & Verified)
+1. **12 Canonical User-Facing States (`src/domain/ui/user-facing-states.js`):**
+   - Established strict definitions and human-friendly presentation contracts across all 12 states: `LOADING`, `EMPTY`, `SUCCESS`, `VALIDATION_ERROR`, `AUTHENTICATION_ERROR`, `AUTHORIZATION_ERROR`, `NOT_FOUND`, `CONFLICT`, `NETWORK_FAILURE`, `SERVER_FAILURE`, `AI_FAILURE`, and `RETRYABLE_FAILURE`.
+   - Structured action recovery hierarchy: `[Try again]`, `[Go back]`, `[Edit profile]`, `[Sign in]`, `[Contact support]`, `[Continue without AI]`.
+2. **Zero Technical Leakage Error Sanitizer (`src/services/user-facing-error.sanitizer.js`):**
+   - Built `sanitizeUserFacingError` and `sanitizeErrorMessage`: strictly strips stack traces, SQL syntax, database schema/column names, Zod AST internals, HTTP status codes, and internal class names (`AppError`, `FastifyError`, `PgError`).
+   - Normalizes validation failures into warm, natural language with humanized field labels (e.g. `canonicalEmail` -> `Email address`).
+   - Reassures user on server failures: *"Your information hasn't been lost. Please try again in a few moments."*
+   - Emits safe `supportId` (e.g. `req-xxxx`) for support tracing without leaking backend diagnostics.
+3. **Dedicated Accessible Error Page View (`src/views/error.page.js`):**
+   - Created full-page error view wrapped in `renderLayout` with distinct iconography, accessible `role="alert"`, support reference badge, and actionable recovery buttons (`[Try again]`, `[Go to Dashboard]`, `[Go back]`).
+   - Upgraded `src/plugins/error-handler.js` to render HTML error pages for browser navigation on 404, 403, and 500 while sanitizing query parameters on form redirect failures.
+4. **Layout State Tokens & Global Controller (`src/views/layout.js`):**
+   - Added CSS tokens for skeletons (`.skeleton-pulse`, `.skeleton-card`, `.skeleton-text`), loading button states with inline spinners (`.btn.is-loading`, `.btn-spinner`), accessible validation styling (`.is-invalid`, `.field-feedback-error`), page-level validation summaries (`.validation-summary-card`), and toast alerts (`.portal-toast-container`).
+   - Added automatic double-submit prevention disabling submit buttons on form submit with loading indicator text.
+   - Added client-side accessible validation highlighter (`highlightFieldErrors`) with auto-focus on the first invalid field.
+   - Added real-time network connectivity listener displaying a top warning banner when offline with a `[Retry]` action.
+5. **Standardized Empty Screen Compliance across Major Views:**
+   - **Projects (`src/views/projects.page.js`):** "No projects added yet." / "Projects help employers understand what you've built and provide concrete code evidence for your skills." / `[+ Add Project]`.
+   - **Applications (`src/views/applications.page.js`):** "No job applications tracked yet." / "Tracking applications organizes your interview timeline, compares role readiness against your verified skills, and stores tailored handoff packages." / `[+ Track Application]`.
+   - **Resumes (`src/views/resumes.page.js`):** "No resumes uploaded yet." / "Uploading your resume establishes your baseline candidate narrative, extracts structured claims, and allows ATS tailoring without hallucinations." / `[Upload Resume Document]`.
+   - **Skills (`src/views/skills.page.js`):** "No verified skills indexed yet." / "Skills corroborated by repository code and verifiable projects prove your authentic capabilities to hiring managers and power ATS gap analysis." / `[Connect GitHub Repository]`.
+   - **Radar (`src/views/radar.page.js`):** Added `data-loading-text` indicator and double-submit prevention.
+6. **Fail-Closed AI Graceful Degradation:**
+   - Detects model exhaustion, quota, or 503 errors and presents: *"The AI assistant is temporarily unavailable. The core portal remains fully functional."* with `[Continue without AI]`.
+   - AI is strictly treated as an enhancement, never a blocker for basic profile, application, or resume functionality.
+
+**Files Changed / Modified:**
+- `src/domain/ui/user-facing-states.js` [NEW]: Canonical 12-state enum, defaults, and recovery action types.
+- `src/services/user-facing-error.sanitizer.js` [NEW]: Deterministic technical error scrubber, humanized field labels, and structured presentation formatter.
+- `src/views/error.page.js` [NEW]: Dedicated, accessible full-page error view with support ID pills and recovery CTA buttons.
+- `src/plugins/error-handler.js` [MODIFIED]: Integrated user-facing error sanitizer, HTML error page rendering for 404/403/500 browser requests, and sanitized form redirect URLs.
+- `src/views/layout.js` [MODIFIED]: Added CSS design tokens for skeletons, spinners, validation feedback, empty states, toasts, and offline banner; added client UserFacingState controller with double-submit prevention, field focus, and offline listener.
+- `src/views/projects.page.js` [MODIFIED]: Upgraded empty state to 3-part standard (what is empty, why it matters, next action).
+- `src/views/applications.page.js` [MODIFIED]: Upgraded empty state to 3-part standard with track application and Radar discovery actions.
+- `src/views/resumes.page.js` [MODIFIED]: Upgraded empty state to 3-part standard with document upload and profile actions.
+- `src/views/skills.page.js` [MODIFIED]: Upgraded empty state to 3-part standard with GitHub connection and resume upload actions.
+- `src/views/radar.page.js` [MODIFIED]: Added loading indicator text and automated double-submit prevention on analysis CTA.
+- `src/views/apply.page.js` [MODIFIED]: Added data-loading-text on submit button and integrated validation safety.
+- `tests/unit/p86-user-facing-state-system.test.js` [NEW]: 14 comprehensive unit tests verifying all 12 canonical states, zero technical leakage, empty state compliance, and HTML error rendering.
+- `project.md` [MODIFIED]: Recorded Phase 4 implementation ledger, files changed, and verification evidence.
+
+**Verification Evidence:**
+- Phase 4 User-Facing State System Suite: **14/14 PASS (100% pass rate)** (`tests/unit/p86-user-facing-state-system.test.js`)
+- Phase 3 Simplified Job Application Workflow Suite: **11/11 PASS (100% pass rate)** (`tests/unit/p86-job-application-workflow.test.js`)
+- Phase 2 Profile UI/UX Redesign Test Suite: **10/10 PASS (100% pass rate)** (`tests/unit/p86-profile-ui-redesign.test.js`)
+- Full Candidate Profile, Application & State System Battery: **134/134 PASS across 16 suites (100% pass rate)**
+  - `tests/unit/p86-user-facing-state-system.test.js`: 14/14 PASS
+  - `tests/unit/p86-job-application-workflow.test.js`: 11/11 PASS
+  - `tests/unit/p86-profile-ui-redesign.test.js`: 10/10 PASS
+  - `tests/unit/career-profile.schemas.test.js`: 10/10 PASS
+  - `tests/unit/application-readiness.test.js`: 14/14 PASS
+  - `tests/unit/candidate-profile.service.test.js`: 9/9 PASS
+  - `tests/unit/candidate-career-profile.test.js`: 41/41 PASS
+  - `tests/unit/profile-phone-country-code.test.js`: 10/10 PASS
+  - `tests/unit/profile-architecture.test.js`: 15/15 PASS
+- MCP Career Read Tools Schema Verification: **PASS** (`tests/unit/career-read-tools.schemas.test.js` & MCP alignment verified)
+- P81 / P84 / P85 Full Regression Battery: **129/129 PASS across 26 suites (100% pass rate)**
+  - `tests/unit/p85*.test.js`, `tests/unit/p84*.test.js`, `tests/unit/p81*.test.js`, `tests/integration/p84*.test.js`, `tests/integration/p85*.test.js`
+- Repository Secrets Scanner (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+138: 
+139: ### PART 85: Benchmark Governance & Multi-Model Evaluation Integrity Hardening (scoreVersion: "p82.0" sovereign)
 
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-18  

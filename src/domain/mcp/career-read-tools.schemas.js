@@ -187,27 +187,54 @@ export const GetCandidateProfileOutputSchema = z
         targetRoles: z.array(z.string()).default([]),
         preferredLocations: z.array(z.string()).default([]),
         remotePreference: z
-          .enum(['REMOTE_ONLY', 'REMOTE_FIRST', 'HYBRID', 'ON_SITE', 'FLEXIBLE'])
-          .default('FLEXIBLE'),
-        employmentTypes: z
-          .array(z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP']))
-          .default(['FULL_TIME']),
+          .enum([
+            'REMOTE_ONLY',
+            'REMOTE_FIRST',
+            'HYBRID',
+            'ON_SITE',
+            'FLEXIBLE',
+            'UNKNOWN',
+            'NOT_SET',
+          ])
+          .nullable()
+          .optional()
+          .default(null),
+        employmentTypes: z.array(z.string()).default([]),
         salaryFloor: z.number().nullable().default(null),
-        salaryCurrency: z.string().default('USD'),
+        targetSalary: z.number().nullable().optional().default(null),
+        salaryCurrency: z.string().nullable().optional().default(null),
+        compensationPeriod: z.string().nullable().optional().default(null),
+        compensationType: z.string().nullable().optional().default(null),
         industries: z.array(z.string()).default([]),
         companiesToAvoid: z.array(z.string()).default([]),
         companiesToPrioritize: z.array(z.string()).default([]),
         preferredTechStack: z.array(z.string()).default([]),
         relocationPreference: z
-          .enum(['WILLING_TO_RELOCATE', 'NOT_WILLING', 'REMOTE_ONLY'])
-          .default('REMOTE_ONLY'),
+          .enum([
+            'WILLING_TO_RELOCATE',
+            'NOT_WILLING',
+            'REMOTE_ONLY',
+            'OPEN_TO_RELOCATION',
+            'UNKNOWN',
+            'NOT_SET',
+          ])
+          .nullable()
+          .optional()
+          .default(null),
+        noticePeriod: z.string().nullable().optional().default(null),
+        timezone: z.string().nullable().optional().default(null),
       })
       .optional(),
     eligibility: z
       .object({
-        workAuthorization: z.array(z.string()).default([]),
-        visaSponsorshipRequired: z.boolean().default(false),
+        workAuthorization: z.array(z.union([z.string(), z.record(z.unknown())])).default([]),
+        visaSponsorshipRequired: z
+          .union([z.boolean(), z.enum(['YES', 'NO', 'UNKNOWN', 'NOT_SET'])])
+          .nullable()
+          .optional()
+          .default(null),
         availabilityDate: z.string().nullable().default(null),
+        noticePeriod: z.string().nullable().optional().default(null),
       })
       .optional(),
     identities: z.array(

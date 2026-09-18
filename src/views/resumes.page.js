@@ -202,11 +202,19 @@ export function renderResumesPage({
           resumesList.length === 0
             ? `
           <div class="empty-state">
-            <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
-            <h3 style="margin-top:8px;">No Source Resumes Uploaded Yet</h3>
-            <p>
-              Upload your existing resume (PDF, DOCX, TXT) above to seed your baseline candidate narrative, extract structured claims, and establish your active Base Resume for <strong>${escapeHtml(candidateName)}</strong>.
+            <div class="empty-state-icon" style="font-size:2rem; opacity:0.7;">📄</div>
+            <h3 class="empty-state-title">No resumes uploaded yet.</h3>
+            <p class="empty-state-desc">
+              Uploading your resume establishes your baseline candidate narrative, extracts structured claims, and allows ATS tailoring without hallucinations.
             </p>
+            <div class="empty-state-actions">
+              <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('resumeFileInput')?.click() || window.scrollTo({top:0, behavior:'smooth'})">
+                Upload Resume Document
+              </button>
+              <a href="/profile" class="btn btn-secondary btn-sm">
+                Edit Profile Narrative &rarr;
+              </a>
+            </div>
           </div>
         `
             : `

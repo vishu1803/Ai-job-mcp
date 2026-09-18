@@ -145,20 +145,22 @@ function renderProjectsList({ projects, currentTab, error, success }) {
         displayedProjects.length === 0
           ? `
         <div class="empty-state">
-          <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
-          <h3 style="margin-top:8px;">${currentTab === 'archived' ? 'No Archived Projects' : 'No Active Projects Ingested Yet'}</h3>
-          <p>
+          <div class="empty-state-icon" style="font-size:2rem; opacity:0.7;">💼</div>
+          <h3 class="empty-state-title">${currentTab === 'archived' ? 'No Archived Projects' : 'No projects added yet.'}</h3>
+          <p class="empty-state-desc">
             ${
               currentTab === 'archived'
                 ? 'Projects removed from your Career Portfolio appear here and can be restored at any time.'
-                : 'Connect your GitHub repositories in the onboarding wizard to automatically generate verified project artifacts.'
+                : "Projects help employers understand what you've built and provide concrete code evidence for your skills."
             }
           </p>
-          ${
-            currentTab === 'archived'
-              ? '<a href="/projects?tab=active" class="btn btn-secondary btn-sm">View Active Projects →</a>'
-              : '<a href="/onboarding?step=3" class="btn btn-primary btn-sm">Start Repository Ingestion →</a>'
-          }
+          <div class="empty-state-actions">
+            ${
+              currentTab === 'archived'
+                ? '<a href="/projects?tab=active" class="btn btn-secondary btn-sm">View Active Projects &rarr;</a>'
+                : '<a href="/onboarding?step=3" class="btn btn-primary btn-sm">+ Add Project</a><a href="/sources" class="btn btn-secondary btn-sm">Connect GitHub &rarr;</a>'
+            }
+          </div>
         </div>
       `
           : `

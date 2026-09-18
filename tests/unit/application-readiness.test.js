@@ -38,13 +38,13 @@ describe('ApplicationReadinessService', () => {
     identities: [{ provider: 'GITHUB_APP', externalUsername: 'vishu1803' }],
   };
 
-  it('1. evaluates all 8 screening fields from authoritative profile paths', () => {
+  it('1. evaluates all 9 screening fields from authoritative profile paths', () => {
     const { items, semantics } = service.evaluateReadiness({
       candidateProfile: realCandidateProfile,
       jobPosting: { company: 'Vercel', title: 'Backend Engineer' },
     });
 
-    assert.equal(items.length, 8);
+    assert.equal(items.length, 9);
 
     // Email
     const email = items.find((i) => i.field === 'email');
@@ -93,6 +93,12 @@ describe('ApplicationReadinessService', () => {
     assert.equal(avail.status, 'READY');
     assert.equal(avail.value, '2026-10-01');
     assert.equal(avail.profileAnchor, '/profile#section-preferences');
+
+    // Notice Period
+    const notice = items.find((i) => i.field === 'noticePeriod');
+    assert.equal(notice.status, 'READY');
+    assert.ok(notice.value.includes('Available from 2026-10-01'));
+    assert.equal(notice.profileAnchor, '/profile#section-preferences');
 
     // Semantics
     assert.equal(semantics.profileComplete, true);
@@ -368,5 +374,148 @@ describe('ApplicationReadinessService', () => {
     assert.equal(avail.value, '2026-10-01');
     assert.equal(avail.source, 'PROFILE_CAREER_PREFERENCES');
     assert.equal(avail.status, 'READY');
+
+    const notice = items.find((i) => i.field === 'noticePeriod');
+    assert.ok(notice.value.includes('Available from 2026-10-01'));
+    assert.equal(notice.source, 'PROFILE_CAREER_PREFERENCES');
+    assert.equal(notice.status, 'READY');
+  });
+
+  it('10. resolves notice period from career preferences with standard formatting', () => {
+    const candidate = {
+      displayName: 'Alex Mercer',
+      canonicalEmail: 'alex@example.org',
+      profileMetadata: {
+        careerPreferences: {
+          noticePeriod: '30_DAYS',
+        },
+      },
+    };
+
+    const { items } = service.evaluateReadiness({ candidateProfile: candidate });
+    const notice = items.find((i) => i.field === 'noticePeriod');
+    assert.equal(notice.status, 'READY');
+    assert.equal(notice.value, '30 days');
+    assert.equal(notice.source, 'PROFILE_CAREER_PREFERENCES');
+  });
+
+  it('11. flags conflicting notice period with NEEDS_CONFIRMATION and preserves candidate answer', () => {
+    const candidate = {
+      displayName: 'Alex Mercer',
+      canonicalEmail: 'alex@example.org',
+      profileMetadata: {
+        careerPreferences: {
+          noticePeriod: '60_DAYS',
+        },
+      },
+    };
+
+    const { items } = service.evaluateReadiness({
+      candidateProfile: candidate,
+      answers: { noticePeriod: 'Immediate' },
+    });
+
+    const notice = items.find((i) => i.field === 'noticePeriod');
+    assert.equal(notice.status, 'NEEDS_CONFIRMATION');
+    assert.equal(notice.hasConflict, true);
+    assert.equal(notice.value, 'Immediate');
+    assert.equal(notice.source, 'APPLICATION_ANSWERS');
+    assert.ok(notice.notes.includes('Conflict detected'));
+  });
+
+  it('12. distinguishes NOT_SET visa sponsorship (MISSING) from explicit and UNKNOWN', () => {
+    const candidateUnset = {
+      displayName: 'Unset Candidate',
+      canonicalEmail: 'unset@example.org',
+      profileMetadata: {
+        careerPreferences: {
+          visaSponsorshipRequired: null,
+        },
+      },
+    };
+
+    const resUnset = service.evaluateReadiness({ candidateProfile: candidateUnset });
+    const visaUnset = resUnset.items.find((i) => i.field === 'visaSponsorship');
+    assert.equal(visaUnset.status, 'MISSING');
+    assert.equal(visaUnset.value, null);
+
+    const candidateNotSet = {
+      displayName: 'NotSet Candidate',
+      canonicalEmail: 'notset@example.org',
+      profileMetadata: {
+        careerPreferences: {
+          visaSponsorshipRequired: 'NOT_SET',
+        },
+      },
+    };
+
+    const resNotSet = service.evaluateReadiness({ candidateProfile: candidateNotSet });
+    const visaNotSet = resNotSet.items.find((i) => i.field === 'visaSponsorship');
+    assert.equal(visaNotSet.status, 'MISSING');
+    assert.equal(visaNotSet.value, null);
+
+    const candidateUnknown = {
+      displayName: 'Unknown Candidate',
+      canonicalEmail: 'unknown@example.org',
+      profileMetadata: {
+        careerPreferences: {
+          visaSponsorshipRequired: 'UNKNOWN',
+        },
+      },
+    };
+
+    const resUnknown = service.evaluateReadiness({ candidateProfile: candidateUnknown });
+    const visaUnknown = resUnknown.items.find((i) => i.field === 'visaSponsorship');
+    assert.equal(visaUnknown.status, 'NEEDS_CONFIRMATION');
+    assert.equal(visaUnknown.value, 'Unknown');
+  });
+
+  it('13. allows workAuthorization and visaSponsorship to achieve READY when user-confirmed', () => {
+    const confirmedCandidate = {
+      displayName: 'Confirmed Candidate',
+      canonicalEmail: 'confirmed@example.org',
+      profileMetadata: {
+        careerPreferences: {
+          workAuthorization: ['Authorized to work in United States'],
+          workAuthConfirmedByUser: true,
+          visaSponsorshipRequired: false,
+          visaSponsorshipConfirmedByUser: true,
+        },
+      },
+    };
+
+    const { items } = service.evaluateReadiness({ candidateProfile: confirmedCandidate });
+
+    const workAuth = items.find((i) => i.field === 'workAuthorization');
+    assert.equal(workAuth.status, 'READY');
+    assert.equal(workAuth.value, 'Authorized to work in United States');
+    assert.ok(workAuth.notes.includes('confirmed'));
+
+    const visa = items.find((i) => i.field === 'visaSponsorship');
+    assert.equal(visa.status, 'READY');
+    assert.equal(visa.value, 'No Sponsorship Needed');
+    assert.ok(visa.notes.includes('confirmed'));
+  });
+
+  it('14. correctly formats structured WorkAuthorizationRecord in readiness view', () => {
+    const candidate = {
+      displayName: 'Structured Auth Candidate',
+      canonicalEmail: 'auth@example.org',
+      profileMetadata: {
+        careerPreferences: {
+          workAuthorization: [
+            { country: 'United States', status: 'CITIZEN' },
+            { country: 'Canada', status: 'PERMANENT_RESIDENT' },
+          ],
+          workAuthConfirmedByUser: true,
+        },
+      },
+    };
+
+    const { items } = service.evaluateReadiness({ candidateProfile: candidate });
+    const workAuth = items.find((i) => i.field === 'workAuthorization');
+    assert.equal(workAuth.status, 'READY');
+    assert.ok(workAuth.value.includes('United States (CITIZEN)'));
+    assert.ok(workAuth.value.includes('Canada (PERMANENT_RESIDENT)'));
   });
 });

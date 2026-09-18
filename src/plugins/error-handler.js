@@ -6,6 +6,9 @@
  */
 
 import { AppError } from '../errors/index.js';
+import { sanitizeUserFacingError, sanitizeErrorMessage } from '../services/user-facing-error.sanitizer.js';
+import { renderErrorPage } from '../views/error.page.js';
+import { UserFacingStateEnum } from '../domain/ui/user-facing-states.js';
 
 /**
  * Global Fastify error handler.
@@ -17,112 +20,88 @@ import { AppError } from '../errors/index.js';
 export function errorHandler(error, request, reply) {
   const requestId = request.id || 'req-unknown';
 
-  // Helper: detect if request came from a browser form POST
+  // Helper: detect request content/accept types
   const contentType = request.headers['content-type'] || '';
   const accept = request.headers['accept'] || '';
   const isBrowserForm =
     contentType.includes('application/x-www-form-urlencoded') ||
-    (accept.includes('text/html') && !accept.includes('application/json'));
+    contentType.includes('multipart/form-data');
+  const prefersHtml = accept.includes('text/html') && !accept.includes('application/json');
 
-  // For browser form POST errors (except security violations like CSRF), redirect to login with error info
-  if (
-    isBrowserForm &&
-    error.statusCode &&
-    error.statusCode < 500 &&
-    error.code !== 'CSRF_DETECTED'
-  ) {
-    return reply
-      .code(302)
-      .redirect('/login?error=' + encodeURIComponent(error.message || 'Session error'));
+  // Sanitize the error into our user-facing presentation model
+  const userFacing = sanitizeUserFacingError(error, {
+    requestId,
+    referer: request.headers['referer'] || '/',
+  });
+
+  // Log internal details to Pino for operational visibility without exposing to end-user
+  if (userFacing.statusCode >= 500) {
+    request.log.error(
+      { err: error, requestId, code: error?.code, statusCode: userFacing.statusCode },
+      error?.message || 'Server error'
+    );
+  } else {
+    request.log.warn(
+      { requestId, code: error?.code, statusCode: userFacing.statusCode, details: error?.details },
+      error?.message || 'Client error'
+    );
   }
 
-  // 1. If error is an AppError instance (known operational domain error)
-  if (error instanceof AppError) {
-    if (error.statusCode >= 500) {
-      request.log.error(
-        { err: error, requestId, code: error.code, statusCode: error.statusCode },
-        error.message
-      );
-    } else {
-      request.log.warn(
-        { requestId, code: error.code, statusCode: error.statusCode, details: error.details },
-        error.message
-      );
+  // 1. Handle browser form POST failures (redirect with sanitized error query)
+  if (isBrowserForm && userFacing.statusCode < 500 && error?.code !== 'CSRF_DETECTED') {
+    if (userFacing.statusCode === 401) {
+      return reply
+        .code(302)
+        .redirect('/login?error=' + encodeURIComponent(sanitizeErrorMessage(userFacing.message)));
     }
 
-    return reply.code(error.statusCode).send({
-      success: false,
-      data: null,
-      error: {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        requestId,
-      },
-    });
+    const referer = request.headers['referer'] || request.url || '/';
+    try {
+      const refUrl = new URL(referer, 'http://localhost');
+      refUrl.searchParams.set('error', sanitizeErrorMessage(userFacing.message));
+      const target = `${refUrl.pathname}${refUrl.search}${refUrl.hash}`;
+      return reply.code(302).redirect(target);
+    } catch {
+      return reply
+        .code(302)
+        .redirect('/?error=' + encodeURIComponent(sanitizeErrorMessage(userFacing.message)));
+    }
   }
 
-  // 2. Fastify built-in schema validation error (e.g. invalid JSON schema)
-  if (/** @type {any} */ (error).validation) {
-    const details = /** @type {any} */ (error).validation.map((v) => ({
-      field: v.instancePath || v.params?.missingProperty || '',
-      message: v.message || 'Validation error',
-      keyword: v.keyword,
-    }));
+  // 2. Handle HTML browser navigation requests (Render dedicated, accessible Error Page)
+  if (prefersHtml) {
+    if (userFacing.statusCode === 401) {
+      return reply
+        .code(302)
+        .redirect('/login?error=' + encodeURIComponent(sanitizeErrorMessage(userFacing.message)));
+    }
 
-    request.log.warn(
-      { requestId, code: 'VALIDATION_ERROR', statusCode: 400, details },
-      'Request validation failed'
-    );
-
-    return reply.code(400).send({
-      success: false,
-      data: null,
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: error.message || 'Request validation failed',
-        details,
-        requestId,
-      },
+    const html = renderErrorPage({
+      user: /** @type {any} */ (request).sessionContext?.user || null,
+      statusCode: userFacing.statusCode,
+      state: userFacing.state,
+      title: userFacing.title,
+      message: userFacing.message,
+      supportId: userFacing.supportId,
+      recoveryAction: userFacing.recoveryAction,
+      fieldErrors: userFacing.fieldErrors,
     });
+
+    return reply.code(userFacing.statusCode).type('text/html; charset=utf-8').send(html);
   }
 
-  // 3. Fastify framework client errors (400 Bad Request, 415 Unsupported Media Type, etc.)
-  const fastifyStatusCode = /** @type {any} */ (error).statusCode;
-  if (fastifyStatusCode && fastifyStatusCode >= 400 && fastifyStatusCode < 500) {
-    request.log.warn({ requestId, err: error, statusCode: fastifyStatusCode }, error.message);
-    const code =
-      /** @type {any} */ (error).code ||
-      (fastifyStatusCode === 400 ? 'BAD_REQUEST' : 'CLIENT_ERROR');
-    return reply.code(fastifyStatusCode).send({
-      success: false,
-      data: null,
-      error: {
-        code,
-        message: error.message || 'Client request error',
-        details: null,
-        requestId,
-      },
-    });
-  }
-
-  // 4. Unexpected / Unhandled Server Error (500)
-  request.log.error(
-    {
-      err: error,
-      requestId,
-      statusCode: 500,
-    },
-    'Unhandled server exception'
-  );
-
-  return reply.code(500).send({
+  // 3. API / JSON requests: Safe, structured JSON response adhering to contracts
+  return reply.code(userFacing.statusCode).send({
     success: false,
     data: null,
     error: {
-      code: 'INTERNAL_ERROR',
-      message: 'An unexpected internal server error occurred',
-      details: null,
+      code: error?.code || userFacing.state,
+      state: userFacing.state,
+      title: userFacing.title,
+      message: userFacing.message,
+      details: userFacing.fieldErrors.length > 0 ? userFacing.fieldErrors : null,
+      supportId: userFacing.supportId,
+      recoveryAction: userFacing.recoveryAction,
       requestId,
     },
   });
@@ -136,18 +115,45 @@ export function errorHandler(error, request, reply) {
  */
 export function notFoundHandler(request, reply) {
   const requestId = request.id || 'req-unknown';
-  const message = `Route ${request.method} ${request.url} not found`;
+  const accept = request.headers['accept'] || '';
+  const prefersHtml = accept.includes('text/html') && !accept.includes('application/json');
 
   request.log.info({ requestId, method: request.method, url: request.url }, 'Route not found');
+
+  if (prefersHtml) {
+    const html = renderErrorPage({
+      user: /** @type {any} */ (request).sessionContext?.user || null,
+      statusCode: 404,
+      state: UserFacingStateEnum.NOT_FOUND,
+      title: "We couldn't find that page",
+      message: 'The page or resource you requested may have moved, been deleted, or never existed.',
+      supportId: requestId,
+      recoveryAction: {
+        type: 'navigate',
+        label: 'Go to Dashboard',
+        href: '/dashboard',
+      },
+    });
+    return reply.code(404).type('text/html; charset=utf-8').send(html);
+  }
 
   return reply.code(404).send({
     success: false,
     data: null,
     error: {
       code: 'NOT_FOUND',
-      message,
+      state: UserFacingStateEnum.NOT_FOUND,
+      title: "We couldn't find that page",
+      message: 'The requested resource was not found.',
       details: null,
+      supportId: requestId,
+      recoveryAction: {
+        type: 'navigate',
+        label: 'Go to Dashboard',
+        href: '/dashboard',
+      },
       requestId,
     },
   });
 }
+

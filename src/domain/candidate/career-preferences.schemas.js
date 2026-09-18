@@ -18,9 +18,18 @@ export const RemotePreferenceEnum = z.enum([
   'HYBRID',
   'ON_SITE',
   'FLEXIBLE',
+  'UNKNOWN',
+  'NOT_SET',
 ]);
 
-export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP']);
+export const EmploymentTypeEnum = z.enum([
+  'FULL_TIME',
+  'PART_TIME',
+  'CONTRACT',
+  'INTERNSHIP',
+  'FREELANCE',
+  'OTHER',
+]);
 
 export const SeniorityLevelEnum = z.enum([
   'INTERN',
@@ -44,6 +53,115 @@ export const CareerStatusEnum = z.enum([
   'CONTRACTOR',
   'UNKNOWN',
 ]);
+
+export const NoticePeriodEnum = z.enum([
+  'IMMEDIATE',
+  'LESS_THAN_1_WEEK',
+  '1_TO_2_WEEKS',
+  '30_DAYS',
+  '60_DAYS',
+  '90_DAYS',
+  'CUSTOM',
+  'NOT_SET',
+  'UNKNOWN',
+]);
+
+export const CompensationPeriodEnum = z.enum([
+  'YEARLY',
+  'MONTHLY',
+  'HOURLY',
+  'WEEKLY',
+  'NOT_SET',
+  'UNKNOWN',
+]);
+
+export const CompensationTypeEnum = z.enum([
+  'BASE_ONLY',
+  'TOTAL_COMP',
+  'BASE_PLUS_BONUS',
+  'NOT_SET',
+  'UNKNOWN',
+]);
+
+export const WorkAuthStatusEnum = z.enum([
+  'CITIZEN',
+  'PERMANENT_RESIDENT',
+  'AUTHORIZED',
+  'REQUIRES_SPONSORSHIP',
+  'STUDENT_VISA_OPT_CPT',
+  'WORK_VISA',
+  'NOT_AUTHORIZED',
+  'UNKNOWN',
+  'NOT_SET',
+]);
+
+export const WorkAuthorizationRecordSchema = z.strictObject({
+  country: z.string().min(1).max(100),
+  status: WorkAuthStatusEnum.default('AUTHORIZED'),
+  sponsorshipRequired: z
+    .union([z.boolean(), z.enum(['YES', 'NO', 'UNKNOWN', 'NOT_SET'])])
+    .nullable()
+    .optional(),
+  visaType: z.string().max(100).optional().nullable(),
+  expiryDate: z.string().max(100).optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+export const WorkAuthorizationItemSchema = z.union([
+  z.string().min(1).max(100),
+  WorkAuthorizationRecordSchema,
+]);
+
+/**
+ * Normalizes user or application notice period input to standard NoticePeriodEnum.
+ *
+ * @param {string|null} val
+ * @returns {string|null}
+ */
+export function normalizeNoticePeriod(val) {
+  if (!val) return null;
+  if (typeof val !== 'string') return null;
+  const s = val.trim().toLowerCase();
+  if (/^(immediate|immediately|now|asap|none)$/i.test(s)) return 'IMMEDIATE';
+  if (/^(less than 1 week|< 1 week|<1 week|under a week)$/i.test(s)) return 'LESS_THAN_1_WEEK';
+  if (/^(1-2 weeks|1–2 weeks|1 to 2 weeks|2 weeks|two weeks|14 days)$/i.test(s)) return '1_TO_2_WEEKS';
+  if (/^(30 days|1 month|one month|4 weeks)$/i.test(s)) return '30_DAYS';
+  if (/^(60 days|2 months|two months|8 weeks)$/i.test(s)) return '60_DAYS';
+  if (/^(90 days|3 months|three months|12 weeks)$/i.test(s)) return '90_DAYS';
+  const upper = val.toUpperCase().trim();
+  if (NoticePeriodEnum.options.includes(upper)) return upper;
+  return 'CUSTOM';
+}
+
+/**
+ * Formats a NoticePeriodEnum value into an applicant-facing human label.
+ *
+ * @param {string|null} period
+ * @param {string|null} [customValue]
+ * @returns {string|null}
+ */
+export function formatNoticePeriodLabel(period, customValue = null) {
+  switch (period) {
+    case 'IMMEDIATE':
+      return 'Immediate';
+    case 'LESS_THAN_1_WEEK':
+      return 'Less than 1 week';
+    case '1_TO_2_WEEKS':
+      return '1–2 weeks';
+    case '30_DAYS':
+      return '30 days';
+    case '60_DAYS':
+      return '60 days';
+    case '90_DAYS':
+      return '90 days';
+    case 'CUSTOM':
+      return customValue || 'Custom';
+    case 'NOT_SET':
+    case 'UNKNOWN':
+    default:
+      return null;
+  }
+}
 
 export const CertificationItemSchema = z.union([
   z.string(),
@@ -102,26 +220,48 @@ export const RelocationPreferenceEnum = z.enum([
   'WILLING_TO_RELOCATE',
   'NOT_WILLING',
   'REMOTE_ONLY',
+  'OPEN_TO_RELOCATION',
+  'UNKNOWN',
+  'NOT_SET',
 ]);
 
 /**
  * Career Job Preferences Schema (User Intent Model).
+ *
+ * Distinguishes SET vs NOT_SET/UNKNOWN. Dangerous defaults (e.g. visa sponsorship=false,
+ * relocation=REMOTE_ONLY, remote=FLEXIBLE, currency=USD) are eliminated in favor of
+ * honest null/unset semantics.
  */
 export const CareerPreferencesSchema = z.strictObject({
   targetRoles: z.array(z.string().min(1).max(100)).default([]),
   preferredLocations: z.array(z.string().min(1).max(100)).default([]),
-  remotePreference: RemotePreferenceEnum.default('FLEXIBLE'),
-  employmentTypes: z.array(EmploymentTypeEnum).default(['FULL_TIME']),
+  remotePreference: RemotePreferenceEnum.nullable().optional().default(null),
+  employmentTypes: z.array(EmploymentTypeEnum).default([]),
   salaryFloor: z.number().nonnegative().optional().nullable().default(null),
-  salaryCurrency: z.string().length(3).default('USD'),
+  targetSalary: z.number().nonnegative().optional().nullable().default(null),
+  salaryCurrency: z.string().length(3).nullable().optional().default(null),
+  compensationPeriod: CompensationPeriodEnum.nullable().optional().default(null),
+  compensationType: CompensationTypeEnum.nullable().optional().default(null),
   industries: z.array(z.string().min(1).max(100)).default([]),
   companiesToAvoid: z.array(z.string().min(1).max(100)).default([]),
   companiesToPrioritize: z.array(z.string().min(1).max(100)).default([]),
   preferredTechStack: z.array(z.string().min(1).max(100)).default([]),
-  workAuthorization: z.array(z.string().min(1).max(100)).default([]),
-  visaSponsorshipRequired: z.boolean().default(false),
+  workAuthorization: z.array(WorkAuthorizationItemSchema).default([]),
+  workAuthConfirmedByUser: z.boolean().optional().default(false),
+  visaSponsorshipRequired: z
+    .union([z.boolean(), z.enum(['YES', 'NO', 'UNKNOWN', 'NOT_SET'])])
+    .nullable()
+    .optional()
+    .default(null),
+  visaSponsorshipConfirmedByUser: z.boolean().optional().default(false),
   availabilityDate: z.string().max(100).optional().nullable().default(null),
-  relocationPreference: RelocationPreferenceEnum.default('REMOTE_ONLY'),
+  noticePeriod: NoticePeriodEnum.nullable().optional().default(null),
+  customNoticePeriod: z.string().max(100).nullable().optional().default(null),
+  availableImmediately: z.boolean().nullable().optional().default(null),
+  isCurrentlyEmployed: z.boolean().nullable().optional().default(null),
+  relocationPreference: RelocationPreferenceEnum.nullable().optional().default(null),
+  timezone: z.string().max(100).nullable().optional().default(null),
+  timezoneConfirmedByUser: z.boolean().optional().default(false),
   lastUpdated: DateOrIsoStringSchema.optional().nullable().default(null),
   metadata: SafeMetadataSchema.default({}),
 });
@@ -132,18 +272,32 @@ export const CareerPreferencesSchema = z.strictObject({
 export const UpdateCareerPreferencesInputSchema = z.strictObject({
   targetRoles: z.array(z.string().min(1).max(100)).optional(),
   preferredLocations: z.array(z.string().min(1).max(100)).optional(),
-  remotePreference: RemotePreferenceEnum.optional(),
+  remotePreference: RemotePreferenceEnum.nullable().optional(),
   employmentTypes: z.array(EmploymentTypeEnum).optional(),
   salaryFloor: z.number().nonnegative().optional().nullable(),
-  salaryCurrency: z.string().length(3).optional(),
+  targetSalary: z.number().nonnegative().optional().nullable(),
+  salaryCurrency: z.string().length(3).nullable().optional(),
+  compensationPeriod: CompensationPeriodEnum.nullable().optional(),
+  compensationType: CompensationTypeEnum.nullable().optional(),
   industries: z.array(z.string().min(1).max(100)).optional(),
   companiesToAvoid: z.array(z.string().min(1).max(100)).optional(),
   companiesToPrioritize: z.array(z.string().min(1).max(100)).optional(),
   preferredTechStack: z.array(z.string().min(1).max(100)).optional(),
-  workAuthorization: z.array(z.string().min(1).max(100)).optional(),
-  visaSponsorshipRequired: z.boolean().optional(),
+  workAuthorization: z.array(WorkAuthorizationItemSchema).optional(),
+  workAuthConfirmedByUser: z.boolean().optional(),
+  visaSponsorshipRequired: z
+    .union([z.boolean(), z.enum(['YES', 'NO', 'UNKNOWN', 'NOT_SET'])])
+    .nullable()
+    .optional(),
+  visaSponsorshipConfirmedByUser: z.boolean().optional(),
   availabilityDate: z.string().max(100).optional().nullable(),
-  relocationPreference: RelocationPreferenceEnum.optional(),
+  noticePeriod: NoticePeriodEnum.nullable().optional(),
+  customNoticePeriod: z.string().max(100).nullable().optional(),
+  availableImmediately: z.boolean().nullable().optional(),
+  isCurrentlyEmployed: z.boolean().nullable().optional(),
+  relocationPreference: RelocationPreferenceEnum.nullable().optional(),
+  timezone: z.string().max(100).nullable().optional(),
+  timezoneConfirmedByUser: z.boolean().optional(),
 });
 
 /**
@@ -184,12 +338,18 @@ export const CandidateCareerProfileSchema = z.strictObject({
   careerStatus: CareerStatusEnum.optional().default('UNKNOWN'),
   experienceDuration: ExperienceDurationSchema.optional(),
   location: z.string().max(255).optional().nullable(),
+  timezone: z.string().max(100).optional().nullable(),
   seniority: SeniorityLevelEnum.optional().nullable(),
   yearsOfExperience: z.number().nonnegative().optional().nullable(),
   canonicalEmail: z.string().email().optional().nullable(),
   phone: z.string().max(50).optional().nullable(),
   countryCode: z.string().max(10).optional().nullable(),
   phoneNumber: z.string().max(40).optional().nullable(),
+  noticePeriod: NoticePeriodEnum.optional().nullable(),
+  customNoticePeriod: z.string().max(100).optional().nullable(),
+  availableImmediately: z.boolean().optional().nullable(),
+  isCurrentlyEmployed: z.boolean().optional().nullable(),
+  workAuthConfirmedByUser: z.boolean().optional().default(false),
   portfolioLinks: z
     .array(
       z.object({

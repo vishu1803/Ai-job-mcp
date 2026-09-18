@@ -98,7 +98,7 @@ export function renderRadarFormPage({ user = null, tenant: _tenant = null, error
           </div>
 
           <div style="display: flex; gap: 12px; align-items:center;">
-            <button type="submit" class="btn btn-primary" style="padding:10px 22px;">
+            <button type="submit" id="submitRadarBtn" class="btn btn-primary" data-loading-text="Analyzing Requirements &amp; Evidence..." style="padding:10px 22px;">
               Analyze Job Fit &rarr;
             </button>
             <a href="/dashboard" class="btn btn-secondary">Cancel</a>
@@ -453,8 +453,23 @@ function renderEmbeddedRadarWidget(data) {
         </div>
       </div>
 
+      <!-- Apply CTA Banner -->
+      <div class="card" style="margin-top: 24px; padding: 20px 24px; background: linear-gradient(180deg, #111827 0%, #0B0F19 100%); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div>
+          <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin: 0 0 4px 0;">Ready to apply for this position?</h3>
+          <p style="font-size: 0.825rem; color: var(--text-muted); margin: 0;">Launch the simplified application readiness and handoff workflow with this job.</p>
+        </div>
+        <form action="/applications/start" method="POST" style="margin: 0;">
+          <input type="hidden" name="companyName" value="${escapeHtml(jobContext.companyName || 'Target Company')}">
+          <input type="hidden" name="jobTitle" value="${escapeHtml(jobContext.jobTitle || 'Software Engineer')}">
+          <button type="submit" class="btn btn-primary" style="padding: 9px 18px; font-weight: 700;">
+            Apply for this Role &rarr;
+          </button>
+        </form>
+      </div>
+
       <!-- Evidence Footer -->
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px 0 4px; border-top: 1px solid var(--border-subtle); font-size: 0.75rem; color: var(--text-dim);">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 4px 0 4px; border-top: 1px solid var(--border-subtle); font-size: 0.75rem; color: var(--text-dim); margin-top: 16px;">
         <span>Antigravity Career Hub · Job Fit Radar</span>
         <span style="font-family:var(--font-mono);">${evidence.verifiedSkillsCount || 0} Verified Skills · ${evidence.totalEvidenceItemsCited || 0} Evidence Citations</span>
       </div>

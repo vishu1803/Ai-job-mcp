@@ -350,10 +350,15 @@ export function renderSkillsPage({ user, _tenant, profile, skills = [] }) {
           primarySkills.length === 0
             ? `
           <div class="empty-state">
-            <div class="empty-state-icon" style="font-size:1.5rem; opacity:0.6;">∅</div>
-            <h3 style="margin-top:8px;">No Primary Skills Extracted Yet</h3>
-            <p>Connect your GitHub repositories or upload a resume to extract verified competencies.</p>
-            <a href="/onboarding?step=3" class="btn btn-primary btn-sm">Start Ingestion →</a>
+            <div class="empty-state-icon" style="font-size:2rem; opacity:0.7;">⚡</div>
+            <h3 class="empty-state-title">No verified skills indexed yet.</h3>
+            <p class="empty-state-desc">
+              Skills corroborated by repository code and verifiable projects prove your authentic capabilities to hiring managers and power ATS gap analysis.
+            </p>
+            <div class="empty-state-actions">
+              <a href="/sources" class="btn btn-primary btn-sm">Connect GitHub Repository</a>
+              <a href="/resumes" class="btn btn-secondary btn-sm">Upload Resume Document &rarr;</a>
+            </div>
           </div>
         `
             : Object.entries(primaryCategories)

@@ -36,6 +36,7 @@ import {
   CareerPreferencesSchema,
   UpdateCareerPreferencesInputSchema,
   CandidateCareerProfileSchema,
+  normalizeNoticePeriod,
 } from '../domain/candidate/career-preferences.schemas.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { DateRangeNormalizer } from '../utils/date-range-normalizer.js';
@@ -2169,7 +2170,9 @@ export class CandidateProfileService {
       missingOptional.push('industries');
     if (!jobPreferences.workAuthorization || jobPreferences.workAuthorization.length === 0)
       missingOptional.push('workAuthorization');
-    if (!jobPreferences.availabilityDate) missingOptional.push('availabilityDate');
+    if (!jobPreferences.availabilityDate && !jobPreferences.noticePeriod) {
+      missingOptional.push('availabilityDate');
+    }
 
     const isReadyForJobSearch = missingRequired.length === 0;
 
@@ -2196,6 +2199,60 @@ export class CandidateProfileService {
         : `Please configure: ${missingRequired.join(', ')} to enable high-confidence job search.`,
     };
 
+    // Infer timezone from location if not explicitly provided
+    let resolvedTimezone = jobPreferences.timezone || userCustom.timezone || null;
+    if (!resolvedTimezone && location) {
+      const locLower = String(location).toLowerCase();
+      if (
+        locLower.includes('india') ||
+        locLower.includes('bengaluru') ||
+        locLower.includes('delhi') ||
+        locLower.includes('mumbai')
+      ) {
+        resolvedTimezone = 'Asia/Kolkata';
+      } else if (
+        locLower.includes('san francisco') ||
+        locLower.includes('california') ||
+        locLower.includes(', ca') ||
+        locLower.includes('los angeles') ||
+        locLower.includes('seattle')
+      ) {
+        resolvedTimezone = 'America/Los_Angeles';
+      } else if (
+        locLower.includes('new york') ||
+        locLower.includes(', ny') ||
+        locLower.includes('boston')
+      ) {
+        resolvedTimezone = 'America/New_York';
+      } else if (
+        locLower.includes('london') ||
+        locLower.includes('uk') ||
+        locLower.includes('united kingdom')
+      ) {
+        resolvedTimezone = 'Europe/London';
+      }
+    }
+
+    const resolvedNoticePeriod =
+      jobPreferences.noticePeriod || normalizeNoticePeriod(userCustom.noticePeriod) || null;
+
+    const resolvedCustomNotice =
+      jobPreferences.customNoticePeriod || userCustom.customNoticePeriod || null;
+
+    const resolvedAvailableImmediately =
+      jobPreferences.availableImmediately ??
+      userCustom.availableImmediately ??
+      (resolvedNoticePeriod === 'IMMEDIATE' ? true : null);
+
+    const resolvedIsCurrentlyEmployed =
+      jobPreferences.isCurrentlyEmployed ??
+      userCustom.isCurrentlyEmployed ??
+      (careerStatus === 'EMPLOYED' ? true : null);
+
+    const resolvedWorkAuthConfirmed = Boolean(
+      jobPreferences.workAuthConfirmedByUser || userCustom.workAuthConfirmedByUser
+    );
+
     return CandidateCareerProfileSchema.parse({
       candidateId: candidate.id,
       tenantId: candidate.tenantId,
@@ -2207,12 +2264,18 @@ export class CandidateProfileService {
       careerStatus,
       experienceDuration,
       location,
+      timezone: resolvedTimezone,
       seniority,
       yearsOfExperience,
       canonicalEmail,
       phone,
       countryCode,
       phoneNumber,
+      noticePeriod: resolvedNoticePeriod,
+      customNoticePeriod: resolvedCustomNotice,
+      availableImmediately: resolvedAvailableImmediately,
+      isCurrentlyEmployed: resolvedIsCurrentlyEmployed,
+      workAuthConfirmedByUser: resolvedWorkAuthConfirmed,
       portfolioLinks,
       jobPreferences,
       verifiedSkillsSummary,

@@ -58,6 +58,7 @@ import { renderProjectsPage } from '../views/projects.page.js';
 import { renderSkillsPage } from '../views/skills.page.js';
 import { renderSkillDetailPage } from '../views/skill-detail.page.js';
 import { renderApplicationsPage } from '../views/applications.page.js';
+import { renderApplyPage } from '../views/apply.page.js';
 import { renderHandoffPage } from '../views/handoff.page.js';
 import { renderSourcesPage } from '../views/sources.page.js';
 import { renderResumesPage, renderResumeDetailPage } from '../views/resumes.page.js';
@@ -82,6 +83,8 @@ import { sourceResumeIngestionService as defaultSourceResumeIngestionService } f
 import { defaultMcpApiTokenService } from '../services/mcp-api-token.service.js';
 import { AiConnectionStatusService } from '../services/ai-connection-status.service.js';
 import { defaultIngestionStateService } from '../services/ingestion-state.service.js';
+import { ApplicationReadinessService } from '../services/application-readiness.service.js';
+import { JobApplicationFlowService } from '../services/job-application-flow.service.js';
 import { NotFoundError } from '../errors/index.js';
 
 /**
@@ -2236,6 +2239,12 @@ export default async function webRoutes(app, opts = {}) {
   // 22. Career Profile & Search Intent Routes (P14-004C)
   // -------------------------------------------------------------------------
   const candidateProfileService = new CandidateProfileService(database);
+  const applicationReadinessService = new ApplicationReadinessService();
+  const jobApplicationFlowService = new JobApplicationFlowService({
+    database,
+    readinessService: applicationReadinessService,
+    candidateProfileService,
+  });
 
   app.get('/profile', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
@@ -2256,6 +2265,10 @@ export default async function webRoutes(app, opts = {}) {
     };
 
     const profile = await candidateProfileService.getCareerProfile(context, candidate.id);
+    const readiness = applicationReadinessService.evaluateReadiness({
+      candidateProfile: profile,
+      candidate,
+    });
     const flashMessage =
       req.query.saved === 'true' ? 'Career Profile and preferences saved successfully.' : '';
 
@@ -2285,6 +2298,8 @@ export default async function webRoutes(app, opts = {}) {
       flashMessage,
       additionalSkills,
       skillCatalog,
+      readiness,
+      activeSection: req.query.section || req.query.tab || 'overview',
     });
 
     reply.type('text/html').send(html);
@@ -2333,6 +2348,14 @@ export default async function webRoutes(app, opts = {}) {
       return val !== undefined ? val : fallback;
     };
 
+    const parseVisaSponsorship = (val) => {
+      if (val === 'true' || val === true || val === 'YES') return 'YES';
+      if (val === 'false' || val === false || val === 'NO') return 'NO';
+      if (val === 'UNKNOWN') return 'UNKNOWN';
+      if (val === 'NOT_SET') return 'NOT_SET';
+      return null;
+    };
+
     // Parse user profile updates
     const sectionUpdates = {
       displayName: body.displayName,
@@ -2352,22 +2375,46 @@ export default async function webRoutes(app, opts = {}) {
       certifications: parseJsonField(body.certifications, undefined),
       languages: parseJsonField(body.languages, undefined),
       portfolioLinks: parseJsonField(body.portfolioLinks, undefined),
+      timezone: body.timezone || undefined,
+      noticePeriod: body.noticePeriod || undefined,
+      customNoticePeriod: body.customNoticePeriod || undefined,
+      availableImmediately: body.availableImmediately !== undefined
+        ? (body.availableImmediately === 'true' || body.availableImmediately === true)
+        : undefined,
+      isCurrentlyEmployed: body.isCurrentlyEmployed !== undefined
+        ? (body.isCurrentlyEmployed === 'true' || body.isCurrentlyEmployed === true)
+        : undefined,
+      workAuthConfirmedByUser: body.workAuthConfirmedByUser !== undefined
+        ? (body.workAuthConfirmedByUser === 'true' || body.workAuthConfirmedByUser === true)
+        : undefined,
+      visaSponsorshipConfirmedByUser: body.visaSponsorshipConfirmedByUser !== undefined
+        ? (body.visaSponsorshipConfirmedByUser === 'true' || body.visaSponsorshipConfirmedByUser === true)
+        : undefined,
       jobPreferences: {
         targetRoles: parseList(body.targetRoles),
         preferredLocations: parseList(body.preferredLocations),
-        remotePreference: body.remotePreference || 'FLEXIBLE',
-        employmentTypes: body.employmentTypes ? parseList(body.employmentTypes) : ['FULL_TIME'],
+        remotePreference: body.remotePreference || null,
+        employmentTypes: body.employmentTypes ? parseList(body.employmentTypes) : [],
         salaryFloor: body.salaryFloor ? Number(body.salaryFloor) : null,
-        salaryCurrency: body.salaryCurrency || 'USD',
+        targetSalary: body.targetSalary ? Number(body.targetSalary) : null,
+        salaryCurrency: body.salaryCurrency || null,
+        compensationPeriod: body.compensationPeriod || null,
+        compensationType: body.compensationType || null,
         preferredTechStack: parseList(body.preferredTechStack),
         industries: parseList(body.industries),
         companiesToPrioritize: parseList(body.companiesToPrioritize),
         companiesToAvoid: parseList(body.companiesToAvoid),
         workAuthorization: parseList(body.workAuthorization),
-        visaSponsorshipRequired:
-          body.visaSponsorshipRequired === 'true' || body.visaSponsorshipRequired === true,
+        visaSponsorshipRequired: parseVisaSponsorship(body.visaSponsorshipRequired),
         availabilityDate: body.availabilityDate ? String(body.availabilityDate).trim() : null,
-        relocationPreference: body.relocationPreference || 'REMOTE_ONLY',
+        relocationPreference: body.relocationPreference || null,
+        noticePeriod: body.noticePeriod || null,
+        customNoticePeriod: body.customNoticePeriod || null,
+        availableImmediately: body.availableImmediately === 'true' || body.availableImmediately === true,
+        isCurrentlyEmployed: body.isCurrentlyEmployed === 'true' || body.isCurrentlyEmployed === true,
+        timezone: body.timezone || null,
+        workAuthConfirmedByUser: body.workAuthConfirmedByUser === 'true' || body.workAuthConfirmedByUser === true,
+        visaSponsorshipConfirmedByUser: body.visaSponsorshipConfirmedByUser === 'true' || body.visaSponsorshipConfirmedByUser === true,
       },
     };
 
@@ -2394,7 +2441,8 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     // Legacy HTML form submission: full profile rebuild + redirect
-    return reply.redirect('/profile?saved=true');
+    const activeSection = body.activeSection || body.activeTab || 'overview';
+    return reply.redirect(`/profile?saved=true&tab=${encodeURIComponent(activeSection)}`);
   });
 
   app.post('/profile/clear-preferences', async (req, reply) => {
@@ -2418,21 +2466,31 @@ export default async function webRoutes(app, opts = {}) {
     await candidateProfileService.updateCareerPreferences(context, candidate.id, {
       targetRoles: [],
       preferredLocations: [],
-      remotePreference: 'FLEXIBLE',
-      employmentTypes: ['FULL_TIME'],
+      remotePreference: null,
+      employmentTypes: [],
       salaryFloor: null,
-      salaryCurrency: 'USD',
+      targetSalary: null,
+      salaryCurrency: null,
+      compensationPeriod: null,
+      compensationType: null,
       preferredTechStack: [],
       industries: [],
       companiesToPrioritize: [],
       companiesToAvoid: [],
       workAuthorization: [],
-      visaSponsorshipRequired: false,
+      visaSponsorshipRequired: null,
       availabilityDate: null,
-      relocationPreference: 'REMOTE_ONLY',
+      relocationPreference: null,
+      noticePeriod: null,
+      customNoticePeriod: null,
+      availableImmediately: false,
+      isCurrentlyEmployed: false,
+      timezone: null,
+      workAuthConfirmedByUser: false,
+      visaSponsorshipConfirmedByUser: false,
     });
 
-    return reply.redirect('/profile?saved=true');
+    return reply.redirect('/profile?saved=true&tab=preferences');
   });
 
   // -------------------------------------------------------------------------
@@ -2486,6 +2544,11 @@ export default async function webRoutes(app, opts = {}) {
     const userCustom = candidate.profileMetadata?.userCustom || {};
     const jobPrefs = profile.jobPreferences || {};
 
+    const readiness = applicationReadinessService.evaluateReadiness({
+      candidateProfile: profile,
+      candidate,
+    });
+
     // Build the canonical bootstrap DTO
     const bootstrap = {
       profile: {
@@ -2502,22 +2565,33 @@ export default async function webRoutes(app, opts = {}) {
         certifications: userCustom.certifications || [],
         languages: userCustom.languages || [],
         portfolioLinks: userCustom.portfolioLinks || [],
+        timezone: userCustom.timezone || profile.timezone || null,
       },
       preferences: {
         targetRoles: jobPrefs.targetRoles || [],
         preferredLocations: jobPrefs.preferredLocations || [],
-        remotePreference: jobPrefs.remotePreference || 'FLEXIBLE',
-        employmentTypes: jobPrefs.employmentTypes || ['FULL_TIME'],
+        remotePreference: jobPrefs.remotePreference || null,
+        employmentTypes: jobPrefs.employmentTypes || [],
         salaryFloor: jobPrefs.salaryFloor || null,
-        salaryCurrency: jobPrefs.salaryCurrency || 'USD',
+        targetSalary: jobPrefs.targetSalary || null,
+        salaryCurrency: jobPrefs.salaryCurrency || null,
+        compensationPeriod: jobPrefs.compensationPeriod || null,
+        compensationType: jobPrefs.compensationType || null,
         preferredTechStack: jobPrefs.preferredTechStack || [],
         industries: jobPrefs.industries || [],
         companiesToPrioritize: jobPrefs.companiesToPrioritize || [],
         companiesToAvoid: jobPrefs.companiesToAvoid || [],
         workAuthorization: jobPrefs.workAuthorization || [],
-        visaSponsorshipRequired: jobPrefs.visaSponsorshipRequired || false,
+        visaSponsorshipRequired: jobPrefs.visaSponsorshipRequired ?? null,
         availabilityDate: jobPrefs.availabilityDate || null,
-        relocationPreference: jobPrefs.relocationPreference || 'REMOTE_ONLY',
+        relocationPreference: jobPrefs.relocationPreference || null,
+        noticePeriod: jobPrefs.noticePeriod || null,
+        customNoticePeriod: jobPrefs.customNoticePeriod || null,
+        availableImmediately: jobPrefs.availableImmediately || false,
+        isCurrentlyEmployed: jobPrefs.isCurrentlyEmployed || false,
+        timezone: jobPrefs.timezone || profile.timezone || null,
+        workAuthConfirmedByUser: jobPrefs.workAuthConfirmedByUser || false,
+        visaSponsorshipConfirmedByUser: jobPrefs.visaSponsorshipConfirmedByUser || false,
       },
       skills: {
         evidenceBacked: (profile.primarySkills || []).concat(profile.technologySignals || []),
@@ -2527,6 +2601,7 @@ export default async function webRoutes(app, opts = {}) {
         items: skillCatalog.items || [],
         categories: skillCatalog.categories || [],
       },
+      readiness,
       meta: {
         updatedAt: candidate.updatedAt
           ? new Date(candidate.updatedAt).toISOString()
@@ -2582,6 +2657,8 @@ export default async function webRoutes(app, opts = {}) {
         sectionUpdates.countryCode = sections.identity.countryCode;
       if (sections.identity.phoneNumber !== undefined)
         sectionUpdates.phoneNumber = sections.identity.phoneNumber;
+      if (sections.identity.timezone !== undefined)
+        sectionUpdates.timezone = sections.identity.timezone;
     }
 
     if (sections.contact) {
@@ -2616,9 +2693,11 @@ export default async function webRoutes(app, opts = {}) {
       sectionUpdates.portfolioLinks = sections.portfolioLinks;
     }
 
-    if (sections.preferences) {
-      const prefs = sections.preferences;
+    if (sections.preferences || sections.eligibility) {
+      const prefs = sections.preferences || {};
+      const elig = sections.eligibility || {};
       const jobPrefs = {};
+
       if (prefs.targetRoles !== undefined) jobPrefs.targetRoles = prefs.targetRoles;
       if (prefs.preferredLocations !== undefined)
         jobPrefs.preferredLocations = prefs.preferredLocations;
@@ -2626,20 +2705,49 @@ export default async function webRoutes(app, opts = {}) {
       if (prefs.employmentTypes !== undefined) jobPrefs.employmentTypes = prefs.employmentTypes;
       if (prefs.salaryFloor !== undefined)
         jobPrefs.salaryFloor = prefs.salaryFloor != null ? Number(prefs.salaryFloor) : null;
+      if (prefs.targetSalary !== undefined)
+        jobPrefs.targetSalary = prefs.targetSalary != null ? Number(prefs.targetSalary) : null;
       if (prefs.salaryCurrency !== undefined) jobPrefs.salaryCurrency = prefs.salaryCurrency;
+      if (prefs.compensationPeriod !== undefined) jobPrefs.compensationPeriod = prefs.compensationPeriod;
+      if (prefs.compensationType !== undefined) jobPrefs.compensationType = prefs.compensationType;
       if (prefs.preferredTechStack !== undefined)
         jobPrefs.preferredTechStack = prefs.preferredTechStack;
       if (prefs.industries !== undefined) jobPrefs.industries = prefs.industries;
       if (prefs.companiesToPrioritize !== undefined)
         jobPrefs.companiesToPrioritize = prefs.companiesToPrioritize;
       if (prefs.companiesToAvoid !== undefined) jobPrefs.companiesToAvoid = prefs.companiesToAvoid;
-      if (prefs.workAuthorization !== undefined)
-        jobPrefs.workAuthorization = prefs.workAuthorization;
-      if (prefs.visaSponsorshipRequired !== undefined)
-        jobPrefs.visaSponsorshipRequired = prefs.visaSponsorshipRequired;
       if (prefs.availabilityDate !== undefined) jobPrefs.availabilityDate = prefs.availabilityDate;
       if (prefs.relocationPreference !== undefined)
         jobPrefs.relocationPreference = prefs.relocationPreference;
+
+      // Work authorization / eligibility fields from prefs or elig
+      const workAuth = elig.workAuthorization !== undefined ? elig.workAuthorization : prefs.workAuthorization;
+      if (workAuth !== undefined) jobPrefs.workAuthorization = workAuth;
+
+      const visaSpons = elig.visaSponsorshipRequired !== undefined ? elig.visaSponsorshipRequired : prefs.visaSponsorshipRequired;
+      if (visaSpons !== undefined) jobPrefs.visaSponsorshipRequired = visaSpons;
+
+      const noticeP = elig.noticePeriod !== undefined ? elig.noticePeriod : prefs.noticePeriod;
+      if (noticeP !== undefined) jobPrefs.noticePeriod = noticeP;
+
+      const customNoticeP = elig.customNoticePeriod !== undefined ? elig.customNoticePeriod : prefs.customNoticePeriod;
+      if (customNoticeP !== undefined) jobPrefs.customNoticePeriod = customNoticeP;
+
+      const availImm = elig.availableImmediately !== undefined ? elig.availableImmediately : prefs.availableImmediately;
+      if (availImm !== undefined) jobPrefs.availableImmediately = availImm;
+
+      const currEmp = elig.isCurrentlyEmployed !== undefined ? elig.isCurrentlyEmployed : prefs.isCurrentlyEmployed;
+      if (currEmp !== undefined) jobPrefs.isCurrentlyEmployed = currEmp;
+
+      const tz = elig.timezone !== undefined ? elig.timezone : prefs.timezone;
+      if (tz !== undefined) jobPrefs.timezone = tz;
+
+      const workAuthConf = elig.workAuthConfirmedByUser !== undefined ? elig.workAuthConfirmedByUser : prefs.workAuthConfirmedByUser;
+      if (workAuthConf !== undefined) jobPrefs.workAuthConfirmedByUser = workAuthConf;
+
+      const visaConf = elig.visaSponsorshipConfirmedByUser !== undefined ? elig.visaSponsorshipConfirmedByUser : prefs.visaSponsorshipConfirmedByUser;
+      if (visaConf !== undefined) jobPrefs.visaSponsorshipConfirmedByUser = visaConf;
+
       sectionUpdates.jobPreferences = jobPrefs;
     }
 
@@ -2747,13 +2855,221 @@ export default async function webRoutes(app, opts = {}) {
       companyName,
       jobTitle,
       status: body.status || 'APPLIED',
-      salaryRange: body.salaryRange ? String(body.salaryRange).trim() : null,
+      compensation: body.salaryRange ? { rawRange: String(body.salaryRange).trim() } : {},
       jobUrl: body.jobUrl ? String(body.jobUrl).trim() : null,
       location: body.location ? String(body.location).trim() : null,
       metadata: {},
     });
 
     return reply.redirect('/applications?success=Application+successfully+tracked');
+  });
+
+  // 22b-0. POST /applications/start — Start Simplified Application Workflow
+  app.post('/applications/start', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/applications');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    const body = req.body || {};
+    const companyName = body.companyName ? String(body.companyName).trim() : 'Target Company';
+    const jobTitle = body.jobTitle ? String(body.jobTitle).trim() : 'Software Engineer';
+    const jobUrl = body.jobUrl ? String(body.jobUrl).trim() : null;
+    const location = body.location ? String(body.location).trim() : 'Remote';
+    const rawJobDescription = body.jobDescriptionText ? String(body.jobDescriptionText).trim() : null;
+
+    const [newApp] = await database
+      .insert(jobApplications)
+      .values({
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+        companyName,
+        jobTitle,
+        status: 'SAVED',
+        jobUrl,
+        location,
+        rawJobDescription,
+        metadata: {},
+      })
+      .returning();
+
+    return reply.redirect(`/applications/${newApp.id}/apply?step=readiness`);
+  });
+
+  // 22b-0a. GET /applications/:id/apply — Simplified Job Application Workflow
+  app.get('/applications/:id/apply', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect(`/login?returnTo=/applications/${req.params.id}/apply`);
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const appId = req.params.id;
+
+    const [application] = await database
+      .select()
+      .from(jobApplications)
+      .where(
+        and(
+          eq(jobApplications.id, appId),
+          eq(jobApplications.tenantId, tenant.id),
+          eq(jobApplications.candidateId, candidate.id)
+        )
+      );
+
+    if (!application) {
+      return reply.code(404).send('Application not found or unauthorized');
+    }
+
+    const candidateProfile = await candidateProfileService.getCareerProfile(
+      { tenantId: tenant.id, role: 'MEMBER' },
+      candidate.id
+    );
+
+    const activeStep = req.query.step || 'readiness';
+
+    const flowState = jobApplicationFlowService.buildApplicationFlowState({
+      candidate: { ...candidate, userEmail: user.email },
+      candidateProfile,
+      application,
+    });
+
+    const reviewSnapshot = jobApplicationFlowService.buildReviewSnapshot({
+      candidate: { ...candidate, userEmail: user.email },
+      candidateProfile,
+      application,
+    });
+
+    const html = renderApplyPage({
+      user,
+      tenant,
+      application,
+      flowState,
+      reviewSnapshot,
+      activeStep,
+      flashMessage: req.query.success || '',
+      errorMessage: req.query.error || '',
+    });
+
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // 22b-0b. POST /applications/:id/apply/resolve — Fix Missing / Conflicting Information
+  app.post('/applications/:id/apply/resolve', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect(`/login?returnTo=/applications/${req.params.id}/apply`);
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const appId = req.params.id;
+
+    const [application] = await database
+      .select()
+      .from(jobApplications)
+      .where(
+        and(
+          eq(jobApplications.id, appId),
+          eq(jobApplications.tenantId, tenant.id),
+          eq(jobApplications.candidateId, candidate.id)
+        )
+      );
+
+    if (!application) {
+      return reply.code(404).send('Application not found or unauthorized');
+    }
+
+    const body = req.body || {};
+
+    // 1. Custom Questions Batch
+    if (body.isCustomQuestionBatch) {
+      const answers = { ...(application.metadata?.answers || {}) };
+      for (const [key, val] of Object.entries(body)) {
+        if (key.startsWith('custom_')) {
+          const questionId = key.replace('custom_', '');
+          answers[questionId] = val;
+        }
+      }
+      await database
+        .update(jobApplications)
+        .set({
+          metadata: { ...(application.metadata || {}), answers },
+          updatedAt: new Date(),
+        })
+        .where(eq(jobApplications.id, application.id));
+
+      return reply.redirect(`/applications/${appId}/apply?step=review&success=Declarations+saved`);
+    }
+
+    // 2. Conflict Resolution
+    if (body.choice) {
+      const candidateProfile = await candidateProfileService.getCareerProfile(
+        { tenantId: tenant.id, role: 'MEMBER' },
+        candidate.id
+      );
+      await jobApplicationFlowService.resolveFieldConflict({
+        application,
+        field: body.field,
+        choice: body.choice,
+        candidateProfile,
+      });
+      return reply.redirect(`/applications/${appId}/apply?step=readiness&success=Conflict+resolved`);
+    }
+
+    // 3. Missing Field Answer or Confirmation
+    if (body.field) {
+      let resolvedValue = body.value;
+      if (body.field === 'visaSponsorship') {
+        resolvedValue = body.value === 'YES' || body.value === true;
+      }
+      await jobApplicationFlowService.answerMissingField({
+        application,
+        field: body.field,
+        value: resolvedValue,
+        saveToProfile: body.saveToProfile === 'true',
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+      });
+      return reply.redirect(`/applications/${appId}/apply?step=readiness&success=Information+updated`);
+    }
+
+    return reply.redirect(`/applications/${appId}/apply?step=readiness`);
+  });
+
+  // 22b-0c. POST /applications/:id/apply/submit — Submit Application & Proceed to Handoff
+  app.post('/applications/:id/apply/submit', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect(`/login?returnTo=/applications/${req.params.id}/apply`);
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const appId = req.params.id;
+
+    const body = req.body || {};
+    const declarations = {
+      accuracyConfirmed: body.declarations_accuracyConfirmed === 'true',
+      externalAuthorization: body.declarations_externalAuthorization === 'true',
+    };
+
+    try {
+      await jobApplicationFlowService.submitApplication({
+        tenantId: tenant.id,
+        candidateId: candidate.id,
+        applicationId: appId,
+        declarations,
+      });
+
+      return reply.redirect(`/applications/${appId}/handoff?success=Application+successfully+submitted+and+prepared`);
+    } catch (err) {
+      return reply.redirect(`/applications/${appId}/apply?step=review&error=${encodeURIComponent(err.message)}`);
+    }
   });
 
   app.post('/applications/:id/status', async (req, reply) => {
@@ -3770,11 +4086,11 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     try {
-      // Build a fake MCP context for the analysis service
+      // Build MCP context for the analysis service
       const context = {
         tenantId: sessionContext.tenant.id,
         userId: sessionContext.user.id,
-        role: 'OWNER',
+        role: sessionContext.user?.role || 'MEMBER',
         scopes: ['career:read'],
       };
 
