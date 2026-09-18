@@ -220,7 +220,7 @@ describe('P81: Unified Quality Report & Safety Gate Engine', () => {
       analyzedAt: '2026-09-18T00:00:00.000Z',
     });
 
-    const expectedHeadline = Math.round(92 * 0.35 + 84 * 0.35 + 88 * 0.30);
+    const expectedHeadline = Math.round(92 * 0.30 + 84 * 0.40 + 88 * 0.30);
     assert.equal(report.headlineScore, expectedHeadline);
     const lowKwFinding = report.dimensions.keywordCoverage.findings.find(
       (f) => f.code === 'LOW_JOB_KEYWORD_COVERAGE'
@@ -229,8 +229,9 @@ describe('P81: Unified Quality Report & Safety Gate Engine', () => {
     assert.ok(lowKwFinding.message.includes('30%'));
   });
 
-  it('Audit Provenance: Populates transparent provenance object with engine version, weights, inputs, and integrity gate', () => {
-    const report = generateUnifiedQualityReport({
+  it('Audit Provenance: Populates transparent provenance object with scoreVersion, weights, inputs, and integrity gate', () => {
+    // 1. Default p82.0 evaluation
+    const reportP82 = generateUnifiedQualityReport({
       atsParseabilityReport: mockAtsReport,
       jobMatchReport: mockJobMatchReport,
       keywordCoverageReport: mockKeywordReport,
@@ -239,16 +240,37 @@ describe('P81: Unified Quality Report & Safety Gate Engine', () => {
       analyzedAt: '2026-09-18T00:00:00.000Z',
     });
 
-    assert.ok(report.provenance);
-    assert.equal(report.provenance.engineVersion, '2.0.0-hardened');
-    assert.equal(report.provenance.analyzedAt, '2026-09-18T00:00:00.000Z');
-    assert.deepEqual(report.provenance.weights, {
+    assert.equal(reportP82.scoreVersion, 'p82.0');
+    assert.ok(reportP82.provenance);
+    assert.equal(reportP82.provenance.scoreVersion, 'p82.0');
+    assert.equal(reportP82.provenance.analyzedAt, '2026-09-18T00:00:00.000Z');
+    assert.deepEqual(reportP82.provenance.weights, {
+      atsParseability: 0.30,
+      jobMatch: 0.40,
+      keywordCoverage: 0.0,
+      contentQuality: 0.30,
+    });
+    assert.equal(reportP82.provenance.inputs.hasClaimValidationReport, true);
+    assert.equal(reportP82.provenance.integrityGate.passed, true);
+
+    // 2. Backward compatibility with p81.0 policy
+    const reportP81 = generateUnifiedQualityReport({
+      atsParseabilityReport: mockAtsReport,
+      jobMatchReport: mockJobMatchReport,
+      keywordCoverageReport: mockKeywordReport,
+      contentQualityReport: mockContentQualityReport,
+      claimValidationReport: mockClaimValidationPassing,
+      scoreVersion: 'p81.0',
+      analyzedAt: '2026-09-18T00:00:00.000Z',
+    });
+
+    assert.equal(reportP81.scoreVersion, 'p81.0');
+    assert.equal(reportP81.provenance.scoreVersion, 'p81.0');
+    assert.deepEqual(reportP81.provenance.weights, {
       atsParseability: 0.35,
       jobMatch: 0.35,
       keywordCoverage: 0.0,
-      contentQuality: 0.3,
+      contentQuality: 0.30,
     });
-    assert.equal(report.provenance.inputs.hasClaimValidationReport, true);
-    assert.equal(report.provenance.integrityGate.passed, true);
   });
 });

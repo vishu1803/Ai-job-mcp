@@ -259,9 +259,10 @@ export class AtsParseabilityService {
     // ── 5. Bullet Boundaries & List Structure (10 pts) ────────────────────────
     // RULE: Only actual selectable bullet markers in the extracted PDF artifact establish bullet pass.
     const bulletMarkers = (text.match(/[\u2022\u25E6\u2023\u2219-]\s+/g) || []).length;
-    const bulletPass = bulletMarkers >= 3;
     const expectedBulletCount =
       structuredResume?.projects?.reduce((acc, p) => acc + (p.bullets?.length || 0), 0) || 0;
+    const targetBulletCount = expectedBulletCount > 0 ? Math.min(3, expectedBulletCount) : 3;
+    const bulletPass = bulletMarkers >= targetBulletCount;
 
     if (expectedBulletCount >= 3 && bulletMarkers < 3) {
       findings.push({

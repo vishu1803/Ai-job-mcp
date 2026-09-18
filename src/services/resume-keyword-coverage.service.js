@@ -289,23 +289,27 @@ export class ResumeKeywordCoverageService {
       ? Math.round((termBreakdown.filter(t => t.matchType !== 'MISSING' && t.matchType !== 'UNSUPPORTED_CANDIDATE').length / Math.max(1, termBreakdown.length)) * 100) / 100
       : 1.0;
 
-    const evidenceCoverage = candidateSkills.size > 0
-      ? Math.round((termBreakdown.filter(t => t.candidateAuthorization === 'AUTHORIZED').length / Math.max(1, termBreakdown.filter(t => t.matchType !== 'MISSING').length)) * 100) / 100
-      : (candidateProfile ? 0.5 : 1.0);
+    const nonMissingMatches = termBreakdown.filter(t => t.matchType !== 'MISSING');
+    const authorizedMatches = nonMissingMatches.filter(t => t.candidateAuthorization === 'AUTHORIZED');
+    const rawEvidenceCoverage = candidateSkills.size > 0
+      ? (nonMissingMatches.length > 0 ? Math.round((authorizedMatches.length / nonMissingMatches.length) * 100) / 100 : 0.85)
+      : (candidateProfile ? 0.70 : 1.0);
+
+    const evidenceCoverage = Math.min(1.0, Math.max(0.50, rawEvidenceCoverage));
 
     const confidenceFactors = {
-      pdfExtractionQuality,
-      requirementExtractionQuality,
-      taxonomyResolution: Math.max(0.60, taxonomyResolution),
-      evidenceCoverage: Math.max(0.50, evidenceCoverage),
+      pdfExtractionQuality: Math.min(1.0, Math.max(0.50, pdfExtractionQuality)),
+      requirementExtractionQuality: Math.min(1.0, Math.max(0.50, requirementExtractionQuality)),
+      taxonomyResolution: Math.min(1.0, Math.max(0.60, taxonomyResolution)),
+      evidenceCoverage,
     };
 
-    const compositeConfidence = Math.round(
+    const compositeConfidence = Math.min(1.0, Math.max(0.50, Math.round(
       (0.35 * confidenceFactors.pdfExtractionQuality +
        0.25 * confidenceFactors.requirementExtractionQuality +
        0.20 * confidenceFactors.taxonomyResolution +
        0.20 * confidenceFactors.evidenceCoverage) * 100
-    ) / 100;
+    ) / 100));
 
     const report = {
       overallCoveragePercent,

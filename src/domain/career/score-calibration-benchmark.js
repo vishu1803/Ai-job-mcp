@@ -1,12 +1,15 @@
 /**
- * @file Score Calibration Benchmark & Correlation Framework
+ * @file Score Calibration Benchmark & Correlation Framework (P82)
  *
  * Provides statistical calibration tools to compare engine scores against
  * human review benchmarks:
  * - Spearman's rank correlation coefficient (rho)
  * - Pearson linear correlation coefficient (r)
+ * - Mean Absolute Error (MAE)
+ * - Root Mean Squared Error (RMSE)
  * - False-positive and false-negative rate calculation
  * - Rank monotonicity verification
+ * - Full calibration comparison suite
  */
 
 /**
@@ -80,6 +83,34 @@ export function calculatePearsonCorrelation(x, y) {
 }
 
 /**
+ * Computes Mean Absolute Error (MAE) between two arrays of numbers.
+ * @param {Array<number>} x
+ * @param {Array<number>} y
+ * @returns {number}
+ */
+export function calculateMeanAbsoluteError(x, y) {
+  if (!Array.isArray(x) || !Array.isArray(y) || x.length !== y.length || x.length === 0) {
+    throw new Error('x and y must be non-empty arrays of equal length');
+  }
+  const sumDiff = x.reduce((sum, val, idx) => sum + Math.abs(val - y[idx]), 0);
+  return Math.round((sumDiff / x.length) * 1000) / 1000;
+}
+
+/**
+ * Computes Root Mean Squared Error (RMSE) between two arrays of numbers.
+ * @param {Array<number>} x
+ * @param {Array<number>} y
+ * @returns {number}
+ */
+export function calculateRootMeanSquaredError(x, y) {
+  if (!Array.isArray(x) || !Array.isArray(y) || x.length !== y.length || x.length === 0) {
+    throw new Error('x and y must be non-empty arrays of equal length');
+  }
+  const sumSquaredDiff = x.reduce((sum, val, idx) => sum + Math.pow(val - y[idx], 2), 0);
+  return Math.round(Math.sqrt(sumSquaredDiff / x.length) * 1000) / 1000;
+}
+
+/**
  * Computes false-positive and false-negative classification rates
  * against an established binary qualification threshold.
  *
@@ -87,7 +118,7 @@ export function calculatePearsonCorrelation(x, y) {
  * @param {Array<number>} params.engineScores
  * @param {Array<number>} params.benchmarkScores
  * @param {number} [params.threshold=70]
- * @returns {{ falsePositiveRate: number, falseNegativeRate: number, accuracy: number }}
+ * @returns {{ falsePositiveRate: number, falseNegativeRate: number, accuracy: number, confusionMatrix: object }}
  */
 export function evaluateClassificationMetrics({
   engineScores,
@@ -121,5 +152,38 @@ export function evaluateClassificationMetrics({
     falseNegativeRate,
     accuracy,
     confusionMatrix: { tp, fp, fn, tn },
+  };
+}
+
+/**
+ * Executes a full calibration comparison between engine publishable scores and benchmark scores.
+ *
+ * @param {object} params
+ * @param {Array<number>} params.engineScores
+ * @param {Array<number>} params.benchmarkScores
+ * @param {number} [params.threshold=70]
+ * @returns {object} Comprehensive statistical calibration metrics
+ */
+export function runScoreCalibrationComparison({
+  engineScores,
+  benchmarkScores,
+  threshold = 70,
+}) {
+  const spearmanRho = calculateSpearmanRankCorrelation(engineScores, benchmarkScores);
+  const pearsonR = calculatePearsonCorrelation(engineScores, benchmarkScores);
+  const mae = calculateMeanAbsoluteError(engineScores, benchmarkScores);
+  const rmse = calculateRootMeanSquaredError(engineScores, benchmarkScores);
+  const classificationMetrics = evaluateClassificationMetrics({
+    engineScores,
+    benchmarkScores,
+    threshold,
+  });
+
+  return {
+    spearmanRho,
+    pearsonR,
+    mae,
+    rmse,
+    classificationMetrics,
   };
 }

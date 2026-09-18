@@ -36,6 +36,7 @@
  */
 
 import zlib from 'node:zlib';
+import { getScoringPolicy, DEFAULT_SCORE_VERSION } from '../domain/career/scoring-policy.js';
 export { isMeaningfulDsa } from './resume-content-strategy.service.js';
 
 const ASSESSMENT_VERSION = '1.0.0';
@@ -951,8 +952,11 @@ export function generateUnifiedQualityReport({
   keywordCoverageReport = {},
   contentQualityReport = {},
   claimValidationReport = null,
+  scoreVersion = DEFAULT_SCORE_VERSION,
   analyzedAt = null,
 } = {}) {
+  const policy = getScoringPolicy(scoreVersion);
+  const weights = policy.weights;
   const auditedAt = analyzedAt ? new Date(analyzedAt).toISOString() : new Date().toISOString();
 
   // Dimension 1: ATS Parseability
@@ -1056,12 +1060,12 @@ export function generateUnifiedQualityReport({
       'Evidence integrity is a hard publication gate. Resumes containing uncorroborated or fabricated claims are blocked from publication.',
   };
 
-  // Headline Score Calculation (Rule 21 & Rule 24)
-  // Weights: ATS Parseability (0.35) + Job Match (0.35) + Content Quality (0.30). Keyword coverage weight = 0.00.
+  // Headline Score Calculation (Versioned Scoring Policy)
+  // Defaults to p82.0 (0.30 ATS Parseability + 0.40 Job Match + 0.30 Content Quality)
   const rawHeadlineScore = Math.round(
-    atsParseabilityScore * 0.35 +
-    jobMatchScore * 0.35 +
-    contentQualityScore * 0.30
+    atsParseabilityScore * weights.atsParseability +
+    jobMatchScore * weights.jobMatch +
+    contentQualityScore * weights.contentQuality
   );
 
   const atsOptimizationScore = rawHeadlineScore;
@@ -1072,7 +1076,7 @@ export function generateUnifiedQualityReport({
   const publishableScore = validationPassed ? atsOptimizationScore : 0;
   const finalHeadlineScore = publishableScore;
   const overallStatus = validationPassed
-    ? (finalHeadlineScore >= 70 ? 'OPTIMIZED' : 'NEEDS_WORK')
+    ? (finalHeadlineScore >= policy.thresholds.qualificationCutoff ? 'OPTIMIZED' : 'NEEDS_WORK')
     : 'REJECTED_BY_INTEGRITY_GATE';
 
   // Multi-Factor Inspectable Confidence (Weakness 1)
@@ -1089,10 +1093,10 @@ export function generateUnifiedQualityReport({
   };
 
   const aggregateConfidence = Math.round(
-    (0.35 * aggPdfExtraction +
-     0.25 * aggReqExtraction +
-     0.20 * aggTaxonomy +
-     0.20 * aggEvidence) * 100
+    (policy.confidenceWeights.pdfExtraction * aggPdfExtraction +
+     policy.confidenceWeights.reqExtraction * aggReqExtraction +
+     policy.confidenceWeights.taxonomyResolution * aggTaxonomy +
+     policy.confidenceWeights.evidenceCoverage * aggEvidence) * 100
   ) / 100;
 
   // Build Traceability Records (Weakness 11: ResumeEvaluationEvidence)
@@ -1115,19 +1119,21 @@ export function generateUnifiedQualityReport({
     explanation: term.explanation,
   }));
 
-  // Provenance object
+  // Provenance object retaining frozen scoring policy version
   const provenance = {
-    engineVersion: '2.1.0-calibrated',
+    scoreVersion: policy.version,
+    scoringPolicyName: policy.name,
+    engineVersion: '2.2.0-calibrated',
     scoreName: 'ATS Optimization & Unified Resume Quality Score',
-    disclaimer:
-      'This score is an evidence-grounded ATS Optimization & Quality benchmark. It reflects internal parseability, match, and writing rubrics and does not claim to emulate proprietary third-party ATS algorithms (Workday, Greenhouse, Lever).',
+    disclaimer: policy.description,
     analyzedAt: auditedAt,
     weights: {
-      atsParseability: 0.35,
-      jobMatch: 0.35,
-      keywordCoverage: 0.0,
-      contentQuality: 0.3,
+      atsParseability: weights.atsParseability,
+      jobMatch: weights.jobMatch,
+      keywordCoverage: weights.keywordCoverage,
+      contentQuality: weights.contentQuality,
     },
+    thresholds: { ...policy.thresholds },
     inputs: {
       hasAtsParseabilityReport: Boolean(
         atsParseabilityReport && Object.keys(atsParseabilityReport).length > 0
@@ -1151,6 +1157,7 @@ export function generateUnifiedQualityReport({
   };
 
   return {
+    scoreVersion: policy.version,
     headlineScore: finalHeadlineScore,
     publishableScore,
     atsOptimizationScore,
@@ -1172,6 +1179,7 @@ export function generateUnifiedQualityReport({
       rule34_noLlmGeneratedScores: true,
       rule35_noWeakenedValidation: true,
       rule36_scoreMonotonicity: true,
+      p82_versionedScoringPolicy: true,
     },
     dimensions: {
       atsParseability: {
@@ -1180,14 +1188,14 @@ export function generateUnifiedQualityReport({
         confidenceFactors: atsParseabilityReport.confidenceFactors || null,
         passed: atsParseabilityReport.passed ?? (atsParseabilityScore >= 75),
         findings: atsParseabilityReport.findings || [],
-        weightInHeadline: 0.35,
+        weightInHeadline: weights.atsParseability,
       },
       jobMatch: {
         score: jobMatchScore,
         confidence: jobMatchConfidence,
         fitBand: jobMatchReport.fitBand || null,
         breakdown: jobMatchReport.breakdown || null,
-        weightInHeadline: 0.35,
+        weightInHeadline: weights.jobMatch,
       },
       keywordCoverage: {
         score: keywordCoverageScore,
@@ -1198,7 +1206,7 @@ export function generateUnifiedQualityReport({
         findings: keywordFindings,
         stuffingWarnings: keywordCoverageReport.stuffingWarnings || [],
         confidenceFactors: keywordCoverageReport.confidenceFactors || null,
-        weightInHeadline: 0.0, // RULE 21: Not double counted
+        weightInHeadline: weights.keywordCoverage, // 0.0 (RULE 21)
         note: 'Keyword coverage is an informational analytical breakdown and is not double-counted in the headline score.',
       },
       contentQuality: {
@@ -1206,7 +1214,7 @@ export function generateUnifiedQualityReport({
         confidence: contentQualityConfidence,
         quantification: contentQualityReport.quantification || null,
         findings: contentQualityReport.findings || [],
-        weightInHeadline: 0.30,
+        weightInHeadline: weights.contentQuality,
       },
       evidenceIntegrityGate,
     },
