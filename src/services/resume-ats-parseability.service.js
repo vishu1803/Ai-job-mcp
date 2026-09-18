@@ -400,7 +400,10 @@ export class AtsParseabilityService {
     const atsParseabilityScore = Math.max(0, Math.min(100, Math.round((totalEarned / totalPossible) * 100)));
 
     // Multi-factor inspectable confidence (Weakness 1)
-    const extractionQuality = textLength >= 250 && !hasReplacementGlyphs ? 0.98 : 0.80;
+    const isPdf = Buffer.isBuffer(pdfBuffer) && pdfBuffer.length > 20;
+    const extractionQuality = isPdf
+      ? (textLength >= 250 && !hasReplacementGlyphs ? 0.98 : 0.88)
+      : (extractedText ? 0.85 : 0.75);
     const structuralPurity = latexPass && brokenWordsPass ? 1.0 : 0.85;
     const contactFidelity = contactPass ? 1.0 : 0.70;
     const headingCoherence = headingsPass ? 1.0 : 0.75;

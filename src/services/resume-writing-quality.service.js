@@ -202,6 +202,7 @@ export function evaluateResumeWritingQuality({
   let descriptionOnlyCount = 0;
   let candidateContributionCount = 0;
   let totalNarrativeParScore = 0;
+  let incompleteOrphanCount = 0;
 
   for (const b of allBullets) {
     const textTrimmed = b.text.trim();
@@ -226,10 +227,15 @@ export function evaluateResumeWritingQuality({
     let parScore = 0;
     if (isAction) parScore += 25;
     if (textTrimmed.length >= 35) parScore += 25;
-    if (/\b(using|via|with|by|through|leveraging|incorporating)\b/i.test(textTrimmed))
-      parScore += 25;
-    if (RESULT_PURPOSE_MARKERS.some((p) => p.test(textTrimmed))) parScore += 25;
+    const hasMethodOrTech = /\b(using|via|with|by|through|leveraging|incorporating)\b/i.test(textTrimmed);
+    if (hasMethodOrTech) parScore += 25;
+    const hasResultOrPurpose = RESULT_PURPOSE_MARKERS.some((p) => p.test(textTrimmed));
+    if (hasResultOrPurpose) parScore += 25;
     totalNarrativeParScore += parScore;
+
+    if (parScore <= 50 && !hasMethodOrTech && !hasResultOrPurpose) {
+      incompleteOrphanCount++;
+    }
   }
 
   const descriptionOnlyRatio = Math.round((descriptionOnlyCount / totalBullets) * 100);
@@ -241,6 +247,13 @@ export function evaluateResumeWritingQuality({
       code: 'DESCRIPTION_ONLY_BULLET',
       severity: 'WARN',
       message: `Found ${descriptionOnlyCount} bullet(s) that describe software rather than candidate contributions`,
+    });
+  }
+  if (incompleteOrphanCount > 0) {
+    findings.push({
+      code: 'INCOMPLETE_ORPHAN_BULLET',
+      severity: 'WARN',
+      message: `Found ${incompleteOrphanCount} dangling bullet(s) lacking supporting technical mechanism or result/purpose`,
     });
   }
   if (candidateContributionRatio >= 80) {

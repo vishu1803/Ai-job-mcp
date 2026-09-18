@@ -3,6 +3,73 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-18*
 
+### PART 84: Multi-Model Blind ATS Evaluation & Calibration Hardening (scoreVersion: "p82.0" preserved)
+
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-18  
+**Scope:** Architecture and implementation of the external multi-model evaluation and calibration layer around the existing deterministic scoring engine using independent blind evaluations from Claude, Gemini, and Grok. Enforced strict isolation of the deterministic scoring engine (`scoreVersion: "p82.0"`), preserved inter-model dimension disagreements, audited claim evidence provenance, hardened document generation, and established honest production claims:
+1. **Multi-Model Blind Evaluation Schemas (`src/domain/career/calibration/multimodel-evaluation.schemas.js`):**
+   - Implemented runtime Zod validation schemas for multi-model evaluation records:
+     - `MultiModelScoresSchema`: Required 6 dimensions (ATS Parseability, Job Match, Keyword Coverage, Content Quality, Evidence Integrity, Human Recruiter Strength) + Overall score bounded [0, 100].
+     - `MultiModelEvaluationRecordSchema`: Versioned (`p84.0`), evaluator model metadata, SHA-256 candidate resume and JD hashes, structured scores, strengths, weaknesses, and recommendations.
+     - `ConsensusFindingItemSchema`: Finding consensus levels (`CONSENSUS`, `MAJORITY`, `MINORITY`, `CONFLICTING`, `UNVERIFIED`) and actionability classification (`SAFE_FIX`, `UNSAFE_FABRICATION`, `CONDITIONAL_USER_CONFIRMATION`, `NO_ACTION`).
+     - `ClaimProvenanceAuditSchema`: Claim audit status (`VERIFIED`, `INFERRED`, `CLAIMED`, `UNSUPPORTED`, `PARTIALLY_SUPPORTED`).
+     - `MultiModelCalibrationReportSchema`: Complete audit report schema including dimension statistics, disagreement classifications, and production readiness decision.
+2. **Versioned Evaluation Fixtures (`src/domain/career/calibration/fixtures/p84-multimodel-fixtures.js`):**
+   - Encapsulated exact, immutable evaluation records from Claude 3.5 Sonnet (Overall: 70), Gemini 1.5 Pro (Overall: 82), and Grok 2 (Overall: 78).
+   - Enforced 100% blind evaluation records: zero engine score leakage, zero target threshold hints, and verifiable SHA-256 provenance hashes.
+3. **Multi-Model Calibration Engine (`src/domain/career/calibration/multimodel-calibration-engine.js`):**
+   - `calculateMultiModelStatistics`: Evaluates exact sample statistics (`external_model_mean: 76.67`, `external_model_median: 78.00`, `external_model_range: 12.00`).
+   - `classifyDimensionDisagreement`: Categorizes variance into `LOW` ($\le 5$), `MODERATE` ($6 - 10$), and `HIGH` ($> 10$). Job Match (range 16) and Keyword Coverage (range 20) correctly flagged as `HIGH` disagreement.
+   - `extractFindingConsensus`: Synthesizes qualitative findings into consensus levels; correctly isolates `REDIS_SATISFIES_NOSQL` as `CONFLICTING` (Claude: reject vs. Gemini: accept), blocking unsafe automated changes.
+   - `auditClaimEvidenceProvenance`: Cross-examines candidate claims against canonical provenance facts; identifies unevidenced "NestJS" as `UNSUPPORTED` and "40% latency reduction" as `PARTIALLY_SUPPORTED`.
+   - `evaluateMultiModelCalibrationReport`: Compiles the unified calibration report comparing deterministic engine scores against external calibration signals without mutating engine weights.
+4. **Deterministic Engine Authority & Isolation:**
+   - The deterministic scoring engine (`scoreVersion: "p82.0"`) remains the sole production authority.
+   - External LLM scores are treated strictly as calibration signals and are prohibited from altering production weights, threshold gates, or evidence verification.
+5. **Reusable External Evaluator Prompt (`src/clients/ai/prompts/external-evaluator.prompt.js`):**
+   - Formulated a standard blind prompt template for external evaluators detailing the 6 evaluation dimensions, evidence grounding constraints, and Safe vs. Unsafe vs. Conditional optimization rules.
+6. **Pipeline & Document Generator Hardening:**
+   - `src/services/resume-writing-quality.service.js`: Integrated `INCOMPLETE_ORPHAN_BULLET` detection to catch hanging sentence fragments lacking technical mechanisms or measurable outcomes.
+   - `src/services/latex-document-generator.service.js`: Added visible parseable URL rendering (`linkedin.com/in/...`, `github.com/...`) for ATS scanners unable to extract PDF hyperref annotations, and normalized en-dash date ranges (`formatNormalizedDateRange`).
+   - Pruned unevidenced "NestJS" claim from executive summary template; audited "40% latency reduction" metric precision.
+7. **Terminology Cleanup & Recruiter Grounding:**
+   - Rebranded all synthetic reviewer personas to "Synthetic Reviewers / Multi-Model Blind Evaluators".
+   - Reserved "human validation" strictly for genuine empirical recruiter/hiring manager trials.
+8. **Defensible Production Honesty:**
+   - For an $n = 1$ candidate case study with 3 models, emitted the mandatory honest verdict:
+     `IMPLEMENTATION COMPLETE / CALIBRATION EVIDENCE INSUFFICIENT FOR REAL-WORLD RECRUITER / ATS MARKET CLAIM`.
+9. **Automated Test Battery & Regression Verification:**
+   - Unit schemas & engine suite: 9/9 PASS (`tests/unit/p84-multimodel-schemas.test.js`).
+   - Integration benchmark suite: 4/4 PASS (`tests/integration/p84-multimodel-calibration.test.js`).
+   - All core and prior calibration regression suites pass 100% (83/83 core, 27/27 P81, 4/4 P82, 7/7 P83).
+
+**Files Changed / Created:**
+- `src/domain/career/calibration/multimodel-evaluation.schemas.js` [NEW]: Zod validation schemas for multi-model evaluation and calibration reports.
+- `src/domain/career/calibration/fixtures/p84-multimodel-fixtures.js` [NEW]: Versioned evaluation records for Claude, Gemini, and Grok with SHA-256 hashes.
+- `src/domain/career/calibration/multimodel-calibration-engine.js` [NEW]: Calibration engine computing stats, disagreement classifications, consensus findings, and provenance audits.
+- `src/clients/ai/prompts/external-evaluator.prompt.js` [NEW]: Standard blind evaluation prompt template.
+- `src/services/resume-writing-quality.service.js` [MODIFIED]: Added `INCOMPLETE_ORPHAN_BULLET` rule.
+- `src/services/latex-document-generator.service.js` [MODIFIED]: Added visible parseable URLs and normalized en-dash date ranges.
+- `tests/unit/p84-multimodel-schemas.test.js` [NEW]: 9/9 PASS unit tests for schemas and calibration engine.
+- `tests/integration/p84-multimodel-calibration.test.js` [NEW]: 4/4 PASS integration tests verifying physical PDF compile, frozen engine isolation, AI generation safety, and orphan bullet detection.
+- `project.md` [MODIFIED]: Recorded PART 84 execution ledger.
+
+**Verification Evidence:**
+- P84 Unit Test Suite: **9/9 PASS (100% pass rate)**
+  - `tests/unit/p84-multimodel-schemas.test.js`: 9/9 PASS
+- P84 Integration Benchmark Suite: **4/4 PASS (100% pass rate)**
+  - `tests/integration/p84-multimodel-calibration.test.js`: 4/4 PASS
+- P83 Blind Holdout Benchmark: **7/7 PASS (100% pass rate)**
+  - `tests/integration/p83-blind-holdout-validation.test.js`: 7/7 PASS
+- P82 Empirical Calibration Benchmark: **4/4 PASS (100% pass rate)**
+  - `tests/integration/p82-empirical-calibration-benchmark.test.js`: 4/4 PASS
+- P81 Hardening & Anti-Gaming Regressions: **27/27 PASS across 4 suites (100% pass rate)**
+- Core Engine Regression Suites: **83/83 PASS across 28 suites (100% pass rate)**
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+
+---
+
 ### PART 83: Blind Holdout Empirical Validation & Defensible Production Baseline (scoreVersion: "p82.0")
 
 **Status:** COMPLETE & VERIFIED  

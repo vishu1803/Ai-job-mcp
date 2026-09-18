@@ -102,6 +102,48 @@ export function escapeLatexUrl(url) {
 }
 
 /**
+ * Normalizes date ranges into a clean, standard human and ATS readable format
+ * such as "Jun 2024 -- Sep 2024" or "2021 -- 2025" (Section 18.D).
+ *
+ * @param {string} startDate
+ * @param {string} endDate
+ * @returns {string} Normalized date range string
+ */
+export function formatNormalizedDateRange(startDate, endDate) {
+  if (!startDate && !endDate) return '';
+  let start = String(startDate || '').trim();
+  let end = String(endDate || '').trim();
+
+  // Decompose compound ranges like "2024-06-2024-09"
+  if (start && !end && start.includes('-20')) {
+    const parts = start.split(/(?<=\d{4}-\d{2})[-–—\s]+(?=\d{4})/);
+    if (parts.length === 2) {
+      start = parts[0].trim();
+      end = parts[1].trim();
+    }
+  }
+
+  const formatPart = (d) => {
+    if (!d) return '';
+    if (/present/i.test(d)) return 'Present';
+    const ym = d.match(/^(\d{4})-(\d{2})$/);
+    if (ym) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const mIdx = parseInt(ym[2], 10) - 1;
+      if (mIdx >= 0 && mIdx < 12) {
+        return `${months[mIdx]} ${ym[1]}`;
+      }
+    }
+    return d;
+  };
+
+  const fStart = formatPart(start);
+  const fEnd = formatPart(end);
+  if (fStart && fEnd) return `${fStart} -- ${fEnd}`;
+  return fStart || fEnd || '';
+}
+
+/**
  * Formats compact human-readable project link labels for LaTeX rendering:
  * "GitHub" / "GitHub $\\cdot$ Live Demo" (or "GitLab", "Repository", etc.)
  * Underlying hyperlink target remains the authentic candidate URL.
@@ -313,7 +355,7 @@ export class LatexDocumentGenerator {
     }
     const contactLine = contactElements.join(' $\\cdot$ ');
 
-    // Profile links directly from snapshot (compact human-readable labels)
+    // Profile links directly from snapshot with parseable visible URLs (Section 18.C)
     const profileLinkElements = [];
     const links = Array.isArray(identity.links) ? identity.links : [];
     for (const link of links) {
@@ -323,7 +365,12 @@ export class LatexDocumentGenerator {
         else if (/^github$/i.test(label)) label = 'GitHub';
         else if (/^portfolio$/i.test(label)) label = 'Portfolio';
         else if (/^leetcode$/i.test(label)) label = 'LeetCode';
-        profileLinkElements.push(`\\href{${escapeLatexUrl(link.url)}}{${escapeLatex(label)}}`);
+
+        let visibleUrl = link.url.replace(/^https?:\/\/(?:www\.)?/i, '').replace(/\/$/, '');
+        if (!visibleUrl.toLowerCase().includes(label.toLowerCase())) {
+          visibleUrl = `${label}: ${visibleUrl}`;
+        }
+        profileLinkElements.push(`\\href{${escapeLatexUrl(link.url)}}{${escapeLatex(visibleUrl)}}`);
       }
     }
     const profileLinksLine = profileLinkElements.join(' $\\cdot$ ');
@@ -439,7 +486,7 @@ ${bulletTex}`;
         const title = escapeLatex(exp.title || exp.role || 'Role');
         const company = exp.company ? escapeLatex(exp.company) : '';
         const endDate = exp.isCurrent ? 'Present' : exp.endDate || '';
-        const dates = [exp.startDate || '', endDate].filter(Boolean).join(' -- ');
+        const dates = formatNormalizedDateRange(exp.startDate, endDate);
         const location = exp.location ? escapeLatex(exp.location) : '';
         const rawBullets = Array.isArray(exp.bullets) ? exp.bullets : [];
         const bullets = formatLatexBullets(

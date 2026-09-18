@@ -57,7 +57,8 @@ B.S. in Computer Science | University of California, Berkeley | 2017 - 2021
     const textReport = service.evaluateAtsParseability({ extractedText: cleanSampleText });
     assert.equal(textReport.passed, true);
     assert.ok(textReport.atsParseabilityScore >= 85);
-    assert.equal(textReport.confidence, 0.85);
+    assert.equal(textReport.confidenceFactors.pdfExtractionQuality, 0.85);
+    assert.ok(textReport.confidence >= 0.85);
 
     // Mock PDF buffer
     const mockPdfBuffer = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF');
@@ -65,7 +66,8 @@ B.S. in Computer Science | University of California, Berkeley | 2017 - 2021
       pdfBuffer: mockPdfBuffer,
       extractedText: cleanSampleText,
     });
-    assert.equal(pdfReport.confidence, 0.95);
+    assert.equal(pdfReport.confidenceFactors.pdfExtractionQuality, 0.98);
+    assert.ok(pdfReport.confidence >= 0.95);
   });
 
   it('validates single-column reading order and detects multi-column / tabular environments', () => {

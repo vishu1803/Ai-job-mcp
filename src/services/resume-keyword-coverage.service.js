@@ -144,6 +144,7 @@ export class ResumeKeywordCoverageService {
 
       let artifactPresence = intendedPresence;
       let isRendered = true;
+      const intendedSatisfies = evalResult.intendedPresence && evalResult.satisfiesRequirement;
 
       if (artifactText) {
         const cleanArtifact = artifactText.toLowerCase();
@@ -172,22 +173,24 @@ export class ResumeKeywordCoverageService {
         evalResult.isRendered = true;
       }
 
+      const renderedSatisfies = evalResult.isRendered && evalResult.satisfiesRequirement;
+
       termBreakdown.push(evalResult);
 
       if (evalResult.matchType === 'EXACT') {
         exactMatches++;
-        if (evalResult.intendedPresence && evalResult.satisfiesRequirement) intendedSatisfiedWeight += termWeight;
-        if (evalResult.isRendered && evalResult.satisfiesRequirement) renderedSatisfiedWeight += termWeight;
+        if (intendedSatisfies) intendedSatisfiedWeight += termWeight;
+        if (renderedSatisfies) renderedSatisfiedWeight += termWeight;
       } else if (evalResult.matchType === 'TAXONOMY_EQUIVALENT') {
         taxonomyMatches++;
-        if (evalResult.intendedPresence && evalResult.satisfiesRequirement) intendedSatisfiedWeight += termWeight;
-        if (evalResult.isRendered && evalResult.satisfiesRequirement) renderedSatisfiedWeight += termWeight;
+        if (intendedSatisfies) intendedSatisfiedWeight += termWeight;
+        if (renderedSatisfies) renderedSatisfiedWeight += termWeight;
       } else if (evalResult.matchType === 'RELATED') {
         semanticMatches++;
         // Rule 27: RELATED semantic matches cannot satisfy exact required technologies!
-        if (!isRequired && evalResult.satisfiesRequirement) {
-          if (evalResult.intendedPresence) intendedSatisfiedWeight += termWeight * 0.5;
-          if (evalResult.isRendered) renderedSatisfiedWeight += termWeight * 0.5;
+        if (!isRequired) {
+          if (intendedSatisfies) intendedSatisfiedWeight += termWeight * 0.5;
+          if (renderedSatisfies) renderedSatisfiedWeight += termWeight * 0.5;
         }
       } else if (evalResult.matchType === 'MISSING' || evalResult.matchType === 'UNSUPPORTED_CANDIDATE') {
         missingTerms++;
