@@ -1589,7 +1589,7 @@ export function renderLayout({
           <li><a href="/apps/radar" class="nav-link ${activeNav === 'radar' ? 'active' : ''}">Jobs</a></li>
           <li><a href="/applications" class="nav-link ${activeNav === 'applications' ? 'active' : ''}">Applications</a></li>
           <li><a href="/profile" class="nav-link ${activeNav === 'profile' ? 'active' : ''}">Profile</a></li>
-          <li><a href="/resumes" class="nav-link ${activeNav === 'resumes' ? 'active' : ''}">Resumes</a></li>
+          <li><a href="/sources" class="nav-link ${activeNav === 'sources' ? 'active' : ''}">Sources</a></li>
           `
               : `
           <li><a href="/" class="nav-link ${activeNav === 'home' ? 'active' : ''}">Overview</a></li>
@@ -1627,8 +1627,29 @@ export function renderLayout({
               <a href="/connect" class="nav-dropdown-item ${activeNav === 'connect' ? 'active' : ''}">
                 <span class="nav-icon" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text-muted);">${renderIcon('tokens', { size: 16 })}</span>
                 <div class="item-text">
-                  <div class="item-title">API Tokens</div>
+                  <div class="item-title">AI Connect</div>
                   <div class="item-desc">MCP personal tokens</div>
+                </div>
+              </a>
+              <a href="/projects" class="nav-dropdown-item ${activeNav === 'projects' ? 'active' : ''}">
+                <span class="nav-icon" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text-muted);">${renderIcon('radar', { size: 16 })}</span>
+                <div class="item-text">
+                  <div class="item-title">Projects</div>
+                  <div class="item-desc">Codebase portfolio</div>
+                </div>
+              </a>
+              <a href="/skills" class="nav-dropdown-item ${activeNav === 'skills' ? 'active' : ''}">
+                <span class="nav-icon" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text-muted);">${renderIcon('check', { size: 16 })}</span>
+                <div class="item-text">
+                  <div class="item-title">Skills</div>
+                  <div class="item-desc">Verified skills taxonomy</div>
+                </div>
+              </a>
+              <a href="/resumes" class="nav-dropdown-item ${activeNav === 'resumes' ? 'active' : ''}">
+                <span class="nav-icon" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text-muted);">${renderIcon('resumes', { size: 16 })}</span>
+                <div class="item-text">
+                  <div class="item-title">Resumes</div>
+                  <div class="item-desc">Resume archive & uploads</div>
                 </div>
               </a>
               <a href="/settings" class="nav-dropdown-item ${activeNav === 'settings' ? 'active' : ''}">
@@ -1641,7 +1662,7 @@ export function renderLayout({
               <a href="/docs/mcp" class="nav-dropdown-item ${activeNav === 'docs' ? 'active' : ''}">
                 <span class="nav-icon" style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; color:var(--text-muted);">${renderIcon('docs', { size: 16 })}</span>
                 <div class="item-text">
-                  <div class="item-title">Documentation</div>
+                  <div class="item-title">MCP Docs</div>
                   <div class="item-desc">MCP tool reference</div>
                 </div>
               </a>
@@ -1682,7 +1703,7 @@ export function renderLayout({
       <a href="/apps/radar" class="${activeNav === 'radar' ? 'active' : ''}">${renderIcon('jobs', { size: 18 })} <span>Jobs</span></a>
       <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">${renderIcon('applications', { size: 18 })} <span>Applications</span></a>
       <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">${renderIcon('profile', { size: 18 })} <span>Profile</span></a>
-      <a href="/resumes" class="${activeNav === 'resumes' ? 'active' : ''}">${renderIcon('resumes', { size: 18 })} <span>Resumes</span></a>
+      <a href="/sources" class="${activeNav === 'sources' ? 'active' : ''}">${renderIcon('sources', { size: 18 })} <span>Sources</span></a>
       <div class="nav-mobile-divider"></div>
       <div class="mobile-section-label">Account & System</div>
       <a href="/connect" class="${activeNav === 'connect' ? 'active' : ''}">${renderIcon('tokens', { size: 18 })} <span>API Tokens</span></a>

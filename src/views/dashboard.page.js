@@ -203,8 +203,14 @@ export function renderDashboardPage({
                   ${timeGreeting}, ${escapeHtml(candidateName)}
                 </h1>
                 <div style="font-size:0.85rem; color:var(--text-muted); margin-top:2px;">
-                  ${candidateHeadline ? escapeHtml(candidateHeadline) : 'Candidate Workspace'} &bull; <span>${escapeHtml(candidateEmail)}</span>
+                  ${candidateHeadline ? escapeHtml(candidateHeadline) : 'Candidate Workspace'} &bull; <span>${escapeHtml(candidateEmail)}</span>${tenant?.name ? ` &bull; <span>${escapeHtml(tenant.name)}</span>` : ''}${gitHubConnection ? ` &bull; <span>GitHub App</span>` : ''}
                 </div>
+                ${(skills.length > 0 || projects.length > 0) ? `
+                <div style="margin-top:6px; font-size:0.75rem; color:var(--text-dim); display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                  ${skills.slice(0, 3).map(s => `<span class="badge badge-indigo" style="font-size:0.7rem; padding:1px 6px;">${escapeHtml(s.name || s.slug)}</span>`).join('')}
+                  ${projects.slice(0, 2).map(p => `<span class="badge badge-neutral" style="font-size:0.7rem; padding:1px 6px;">${escapeHtml(p.name || p.displayName)}</span>`).join('')}
+                </div>
+                ` : ''}
               </div>
             </div>
           </div>
@@ -296,61 +302,89 @@ export function renderDashboardPage({
           </a>
         </div>
 
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px;">
-          ${recommendedJobs
-            .slice(0, 3)
-            .map(
-              (job) => `
-            <div class="card" style="padding:20px 22px; display:flex; flex-direction:column; justify-content:space-between; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-md); transition:transform 0.15s ease, border-color 0.15s ease;">
-              <div>
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px;">
-                  <div>
-                    <h3 style="font-size:1rem; font-weight:700; color:var(--text-main); margin:0 0 2px;">
-                      ${escapeHtml(job.title)}
-                    </h3>
-                    <div style="font-size:0.85rem; font-weight:600; color:var(--text-dim);">
-                      ${escapeHtml(job.company)}
+        ${
+          recommendedJobs.length === 0
+            ? `
+          <div class="card" style="padding:32px 24px; text-align:center; background:var(--bg-surface); border:1px dashed var(--border-subtle); border-radius:var(--radius-md);">
+            <div style="color:var(--text-dim); margin-bottom:10px; display:inline-flex; align-items:center; justify-content:center;">${renderIcon('jobs', { size: 32 })}</div>
+            <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-main); margin:0 0 6px;">No matching jobs yet</h3>
+            <p style="font-size:0.85rem; color:var(--text-muted); max-width:480px; margin:0 auto 16px; line-height:1.5;">
+              Explore open positions or evaluate job descriptions against your verified skills using Job Radar.
+            </p>
+            <a href="/apps/radar" class="btn btn-secondary btn-sm" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none;">
+              ${renderIcon('radar', { size: 14 })}
+              <span>Browse jobs</span>
+            </a>
+          </div>
+        `
+            : `
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:18px;">
+            ${recommendedJobs
+              .slice(0, 3)
+              .map(
+                (job) => `
+              <div class="card" style="padding:20px 22px; display:flex; flex-direction:column; justify-content:space-between; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-md); transition:transform 0.15s ease, border-color 0.15s ease;">
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px;">
+                    <div>
+                      <h3 style="font-size:1rem; font-weight:700; color:var(--text-main); margin:0 0 2px;">
+                        ${escapeHtml(job.title || job.jobTitle || 'Opportunity')}
+                      </h3>
+                      <div style="font-size:0.85rem; font-weight:600; color:var(--text-dim);">
+                        ${escapeHtml(job.company || job.companyName || 'Company')}
+                      </div>
                     </div>
+                    ${
+                      job.matchScore != null
+                        ? `
+                      <span class="badge ${job.matchScore >= 85 ? 'badge-verified' : 'badge-indigo'}" style="flex-shrink:0;">
+                        ${job.matchScore}% Match
+                      </span>
+                    `
+                        : `
+                      <span class="badge badge-indigo" style="flex-shrink:0;">
+                        ${escapeHtml(job.status || 'Saved Lead')}
+                      </span>
+                    `
+                    }
                   </div>
-                  <span class="badge ${job.matchScore >= 85 ? 'badge-verified' : 'badge-indigo'}" style="flex-shrink:0;">
-                    ${job.matchScore}% Match
-                  </span>
+
+                  <div style="display:flex; align-items:center; gap:6px; font-size:0.775rem; color:var(--text-dim); margin-bottom:12px;">
+                    ${renderIcon('mapPin', { size: 12 })}
+                    <span>${escapeHtml(job.location || 'Remote')}</span>
+                    <span>&bull;</span>
+                    <span>${escapeHtml(job.workplaceType || 'Full-time')}</span>
+                  </div>
+
+                  <!-- Matched Skill Chips -->
+                  <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px;">
+                    ${(job.skills || [])
+                      .slice(0, 3)
+                      .map(
+                        (sk) => `
+                      <span class="tag" style="font-size:0.725rem; padding:2px 8px; background:rgba(255,255,255,0.04); color:var(--text-muted); border-radius:4px;">
+                        ${escapeHtml(sk)}
+                      </span>
+                    `
+                      )
+                      .join('')}
+                  </div>
                 </div>
 
-                <div style="display:flex; align-items:center; gap:6px; font-size:0.775rem; color:var(--text-dim); margin-bottom:12px;">
-                  ${renderIcon('mapPin', { size: 12 })}
-                  <span>${escapeHtml(job.location || 'Remote')}</span>
-                  <span>&bull;</span>
-                  <span>${escapeHtml(job.workplaceType || 'Full-time')}</span>
-                </div>
-
-                <!-- Matched Skill Chips -->
-                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px;">
-                  ${(job.skills || [])
-                    .slice(0, 3)
-                    .map(
-                      (sk) => `
-                    <span class="tag" style="font-size:0.725rem; padding:2px 8px; background:rgba(255,255,255,0.04); color:var(--text-muted); border-radius:4px;">
-                      ${escapeHtml(sk)}
-                    </span>
-                  `
-                    )
-                    .join('')}
+                <!-- Action Link -->
+                <div>
+                  <a href="/apps/radar" class="btn btn-secondary btn-sm" style="width:100%; justify-content:center; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                    ${renderIcon('radar', { size: 13 })}
+                    <span>Evaluate Fit with Radar</span>
+                  </a>
                 </div>
               </div>
-
-              <!-- Action Link -->
-              <div>
-                <a href="/apps/radar" class="btn btn-secondary btn-sm" style="width:100%; justify-content:center; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
-                  ${renderIcon('radar', { size: 13 })}
-                  <span>Evaluate Fit with Radar</span>
-                </a>
-              </div>
-            </div>
-          `
-            )
-            .join('')}
-        </div>
+            `
+              )
+              .join('')}
+          </div>
+        `
+        }
       </section>
 
       <!-- ================================================================= -->

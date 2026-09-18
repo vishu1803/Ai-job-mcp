@@ -254,7 +254,7 @@ export function renderProfilePage({
       <!-- Profile Header Bar -->
       <header class="profile-header-card">
         <div class="header-main-info">
-          <div class="avatar-badge" aria-hidden="true">
+          <div class="avatar-badge" aria-hidden="true" style="width:56px; height:56px; min-width:56px; min-height:56px; border-radius:50%; background:linear-gradient(135deg, #6366F1, #8B5CF6); display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700; color:#FFFFFF; flex-shrink:0; contain:layout size;">
             <span>${escapeHtml((displayName || 'C').charAt(0).toUpperCase())}</span>
           </div>
           <div class="header-text">
@@ -272,9 +272,9 @@ export function renderProfilePage({
             <span class="status-dot"></span>
             <span class="status-text">All changes saved</span>
           </div>
-          <button type="submit" form="careerProfileForm" class="btn btn-primary btn-save" id="headerSaveBtn">
-            <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-            Save Changes
+          <button type="submit" form="careerProfileForm" class="btn btn-primary btn-save" id="headerSaveBtn" data-testid="saveProfileBtn">
+            <span class="btn-save-icon" style="display:inline-flex; align-items:center;">${renderIcon('check', { size: 14 })}</span>
+            <span class="btn-save-text">Save changes</span>
           </button>
         </div>
       </header>
@@ -766,7 +766,16 @@ export function renderProfilePage({
               ${projectsList.map((p) => `
                 <div class="project-card">
                   <div class="project-card-header">
-                    <h3 class="project-title">${escapeHtml(p.name || 'Project')}</h3>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <h3 class="project-title">${escapeHtml(p.name || 'Project')}</h3>
+                      ${(p.provenanceStatus === 'CORROBORATED' || p.corroborated) ? `
+                        <span class="badge badge-verified" style="font-size: 0.7rem;">✓ Corroborated</span>
+                      ` : (p.provenanceStatus === 'VERIFIED' ? `
+                        <span class="badge badge-verified" style="font-size: 0.7rem;">✓ Verified</span>
+                      ` : (p.provenanceStatus ? `
+                        <span class="badge badge-claimed" style="font-size: 0.7rem;">Claimed</span>
+                      ` : ''))}
+                    </div>
                     ${p.repositoryUrl ? `
                       <a href="${escapeHtml(p.repositoryUrl)}" target="_blank" rel="noopener noreferrer" class="link-icon-btn" aria-label="View repository">
                         <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -1054,13 +1063,10 @@ export function renderProfilePage({
           </div>
         </section>
 
-        <!-- Sticky Bottom Save Bar -->
-        <div class="sticky-save-bar" id="stickySaveBar">
+        <!-- Sticky Save Status Indicator (No Duplicate Button — Exactly One Save Action in Document) -->
+        <div class="sticky-save-bar" id="stickySaveBar" style="display:none;" aria-hidden="true">
           <div class="save-bar-content">
-            <span class="save-bar-status" id="saveBarStatus">Ready</span>
-            <div class="save-bar-actions">
-              <button type="submit" class="btn btn-primary btn-save">Save Changes</button>
-            </div>
+            <span class="save-bar-status" id="saveBarStatus">All changes saved</span>
           </div>
         </div>
       </form>
@@ -1179,33 +1185,120 @@ export function renderProfilePage({
           }
         }
 
+        // Save button & status management
+        const saveBtn = document.getElementById('headerSaveBtn') || document.getElementById('saveProfileBtn');
+        let isSaving = false;
+
+        function updateSaveUI(state) {
+          if (!globalIndicator) return;
+          const statusText = globalIndicator.querySelector('.status-text');
+          const saveBtnText = saveBtn ? saveBtn.querySelector('.btn-save-text') : null;
+
+          if (state === 'CLEAN') {
+            globalIndicator.classList.remove('dirty', 'saving', 'error');
+            if (statusText) statusText.textContent = 'All changes saved';
+            if (saveBarStatus) saveBarStatus.textContent = 'All changes saved';
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.removeAttribute('aria-busy');
+              if (saveBtnText) saveBtnText.textContent = 'Save changes';
+            }
+          } else if (state === 'DIRTY') {
+            globalIndicator.classList.add('dirty');
+            globalIndicator.classList.remove('saving', 'error');
+            if (statusText) statusText.textContent = 'Unsaved changes';
+            if (saveBarStatus) saveBarStatus.textContent = 'Unsaved changes';
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.removeAttribute('aria-busy');
+              if (saveBtnText) saveBtnText.textContent = 'Save changes';
+            }
+          } else if (state === 'SAVING') {
+            globalIndicator.classList.add('saving');
+            globalIndicator.classList.remove('error');
+            if (statusText) statusText.textContent = 'Saving…';
+            if (saveBarStatus) saveBarStatus.textContent = 'Saving…';
+            if (saveBtn) {
+              saveBtn.disabled = true;
+              saveBtn.setAttribute('aria-busy', 'true');
+              if (saveBtnText) saveBtnText.textContent = 'Saving…';
+            }
+          } else if (state === 'SUCCESS') {
+            globalIndicator.classList.remove('dirty', 'saving', 'error');
+            if (statusText) statusText.textContent = 'Saved';
+            if (saveBarStatus) saveBarStatus.textContent = 'Saved';
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.removeAttribute('aria-busy');
+              if (saveBtnText) saveBtnText.textContent = 'Saved';
+            }
+            setTimeout(() => {
+              if (!isDirty && !isSaving) {
+                if (statusText) statusText.textContent = 'All changes saved';
+                if (saveBarStatus) saveBarStatus.textContent = 'All changes saved';
+                if (saveBtnText) saveBtnText.textContent = 'Save changes';
+              }
+            }, 2500);
+          } else if (state === 'ERROR') {
+            globalIndicator.classList.add('error');
+            globalIndicator.classList.remove('saving');
+            if (statusText) statusText.textContent = 'Could not save changes. Try again.';
+            if (saveBarStatus) saveBarStatus.textContent = 'Could not save changes. Try again.';
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.removeAttribute('aria-busy');
+              if (saveBtnText) saveBtnText.textContent = 'Save changes';
+            }
+          }
+        }
+
         // Form change & dirty tracking
         if (form) {
           form.addEventListener('input', function () {
             if (!isDirty) {
               isDirty = true;
-              if (globalIndicator) {
-                globalIndicator.classList.add('dirty');
-                globalIndicator.querySelector('.status-text').textContent = 'Unsaved changes';
-              }
-              if (saveBarStatus) {
-                saveBarStatus.textContent = 'Unsaved changes';
-              }
+              updateSaveUI('DIRTY');
             }
           });
 
-          // Intercept submit for fast AJAX save with fallback
+          // Single Canonical Form Submit with Idempotency Guard
           form.addEventListener('submit', async function (e) {
             e.preventDefault();
-            if (globalIndicator) {
-              globalIndicator.querySelector('.status-text').textContent = 'Saving...';
-            }
-            if (saveBarStatus) {
-              saveBarStatus.textContent = 'Saving changes...';
-            }
+            if (isSaving) return; // Prevent double-clicks
+            isSaving = true;
+            updateSaveUI('SAVING');
 
             const formData = new FormData(form);
             const payload = {
+              displayName: formData.get('displayName'),
+              headline: formData.get('headline'),
+              currentRole: formData.get('currentRole'),
+              careerStatus: formData.get('careerStatus'),
+              location: formData.get('location'),
+              timezone: formData.get('timezone'),
+              summary: formData.get('summary'),
+              contactCountryCode: formData.get('contactCountryCode'),
+              contactPhoneNumber: formData.get('contactPhoneNumber'),
+              phone: formData.get('contactPhoneNumber'),
+              linkedin: formData.get('linkedin'),
+              github: formData.get('github'),
+              portfolio: formData.get('portfolio'),
+              targetRoles: formData.get('targetRoles'),
+              preferredLocations: formData.get('preferredLocations'),
+              remotePreference: formData.get('remotePreference'),
+              relocationPreference: formData.get('relocationPreference'),
+              salaryFloor: formData.get('salaryFloor'),
+              targetSalary: formData.get('targetSalary'),
+              salaryCurrency: formData.get('salaryCurrency'),
+              compensationPeriod: formData.get('compensationPeriod'),
+              workAuthorization: formData.get('workAuthorization'),
+              visaSponsorshipRequired: formData.get('visaSponsorshipRequired'),
+              noticePeriod: formData.get('noticePeriod'),
+              customNoticePeriod: formData.get('customNoticePeriod'),
+              availabilityDate: formData.get('availabilityDate'),
+              workAuthConfirmedByUser: formData.get('workAuthConfirmedByUser'),
+              visaSponsorshipConfirmedByUser: formData.get('visaSponsorshipConfirmedByUser'),
+              activeSection: activeTabInput ? activeTabInput.value : 'overview',
               sections: {
                 identity: {
                   displayName: formData.get('displayName'),
@@ -1219,6 +1312,7 @@ export function renderProfilePage({
                 contact: {
                   countryCode: formData.get('contactCountryCode'),
                   phoneNumber: formData.get('contactPhoneNumber'),
+                  phone: formData.get('contactPhoneNumber'),
                   linkedin: formData.get('linkedin'),
                   github: formData.get('github'),
                   portfolio: formData.get('portfolio'),
@@ -1246,8 +1340,8 @@ export function renderProfilePage({
             };
 
             try {
-              const res = await fetch('/api/profile', {
-                method: 'PATCH',
+              const res = await fetch('/profile', {
+                method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   'Accept': 'application/json',
@@ -1257,18 +1351,15 @@ export function renderProfilePage({
 
               if (res.ok) {
                 isDirty = false;
-                if (globalIndicator) {
-                  globalIndicator.classList.remove('dirty');
-                  globalIndicator.querySelector('.status-text').textContent = 'All changes saved';
-                }
-                if (saveBarStatus) {
-                  saveBarStatus.textContent = 'All changes saved';
-                }
+                isSaving = false;
+                updateSaveUI('SUCCESS');
               } else {
-                throw new Error('Save failed');
+                throw new Error('Save failed with HTTP ' + res.status);
               }
             } catch (err) {
-              form.submit();
+              isSaving = false;
+              // Failed save preserves dirty state and alerts candidate
+              updateSaveUI('ERROR');
             }
           });
         }

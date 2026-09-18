@@ -56,7 +56,7 @@ export function renderOnboardingPage({
       
       <!-- Wizard Header -->
       <div style="text-align:center; margin-bottom:32px;">
-        <span class="badge badge-indigo" style="margin-bottom:8px;">ONBOARDING</span>
+        <span class="badge badge-indigo" style="margin-bottom:8px;">Candidate Setup Wizard</span>
         <h1 style="font-size:1.8rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px;">
           Set Up Your Career Profile
         </h1>

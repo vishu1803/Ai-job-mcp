@@ -1271,9 +1271,11 @@ export class CandidateProfileService {
       updatedCustom.currentRole = cr;
       currentMeta.currentRole = cr;
     }
-    if (rawInput.location !== undefined) {
-      const loc = rawInput.location ? String(rawInput.location).trim().slice(0, 255) : null;
+    if (rawInput.location !== undefined || rawInput.currentLocation !== undefined) {
+      const rawLoc = rawInput.location !== undefined ? rawInput.location : rawInput.currentLocation;
+      const loc = rawLoc ? String(rawLoc).trim().slice(0, 255) : null;
       updatedCustom.location = loc;
+      updatedCustom.currentLocation = loc;
       currentMeta.location = loc;
     }
     if (
@@ -1446,7 +1448,28 @@ export class CandidateProfileService {
       currentMeta.languages = updatedCustom.languages;
     }
 
-    // 7. Portfolio Links
+    // 7. Portfolio Links & Contact URLs
+    if (rawInput.linkedin !== undefined) {
+      updatedCustom.linkedin = rawInput.linkedin ? String(rawInput.linkedin).trim().slice(0, 1000) : null;
+    }
+    if (rawInput.github !== undefined) {
+      updatedCustom.github = rawInput.github ? String(rawInput.github).trim().slice(0, 1000) : null;
+    }
+    if (rawInput.portfolio !== undefined) {
+      updatedCustom.portfolio = rawInput.portfolio ? String(rawInput.portfolio).trim().slice(0, 1000) : null;
+    }
+    if (rawInput.noticePeriod !== undefined) {
+      updatedCustom.noticePeriod = rawInput.noticePeriod;
+      currentMeta.noticePeriod = rawInput.noticePeriod;
+    }
+    if (rawInput.workAuthorization !== undefined) {
+      updatedCustom.workAuthorization = rawInput.workAuthorization;
+      currentMeta.workAuthorization = rawInput.workAuthorization;
+    }
+    if (rawInput.visaSponsorshipRequired !== undefined) {
+      updatedCustom.visaSponsorshipRequired = rawInput.visaSponsorshipRequired;
+      currentMeta.visaSponsorshipRequired = rawInput.visaSponsorshipRequired;
+    }
     if (Array.isArray(rawInput.portfolioLinks)) {
       updatedCustom.portfolioLinks = rawInput.portfolioLinks
         .map((pl) => ({

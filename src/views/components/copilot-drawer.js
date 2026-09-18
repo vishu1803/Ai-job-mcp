@@ -56,6 +56,11 @@ const CONTEXT_PROMPTS = {
     { label: 'Review active base resume', icon: 'resumes', prompt: 'Is my active base resume up to date with my verified repository skills?' },
     { label: 'Tailor resume for a job', icon: 'radar', prompt: 'How should I tailor my resume narrative for backend engineering roles?' },
   ],
+  sources: [
+    { label: 'Review active resume', icon: 'resumes', prompt: 'Review my active resume and extraction status' },
+    { label: 'Sync GitHub repositories', icon: 'code', prompt: 'How do my connected GitHub repositories enhance my profile evidence?' },
+    { label: 'What sources should I connect next?', icon: 'sources', prompt: 'What sources or repositories should I connect to increase my verified credentials?' },
+  ],
 };
 
 /**

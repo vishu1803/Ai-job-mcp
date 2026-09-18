@@ -323,74 +323,35 @@ export default async function webRoutes(app, opts = {}) {
     const targetRoles = candidateProfile?.targetRoles || candidate?.profileMetadata?.targetRoles || [];
     const topSkills = candidateSkillList.slice(0, 5).map((s) => s.name);
 
-    let recommendedJobs = applicationList
-      .filter((a) => a.status === 'SAVED' || !a.status || a.status === 'APPLIED')
-      .map((app) => ({
-        id: app.id,
-        title: app.jobTitle,
-        company: app.companyName,
-        location: app.location || (app.workplaceType ? `${app.workplaceType}` : 'Remote'),
-        workplaceType: app.workplaceType || 'Remote',
-        matchScore: app.atsFitSnapshot?.overallScore || app.atsFitSnapshot?.atsScore || 85,
-        targetRole: app.jobTitle,
-        skills: Array.isArray(app.parsedJobDescription?.requiredSkills)
-          ? app.parsedJobDescription.requiredSkills.slice(0, 4)
-          : topSkills.slice(0, 3),
-        status: app.status || 'SAVED',
-        source: 'APPLICATION_AGGREGATE',
-        applicationId: app.id,
-      }))
+    const recommendedJobs = applicationList
+      .filter((app) => app.jobTitle && app.companyName)
+      .map((app) => {
+        const score =
+          typeof app.atsFitSnapshot?.overallScore === 'number'
+            ? app.atsFitSnapshot.overallScore
+            : typeof app.atsFitSnapshot?.atsScore === 'number'
+              ? app.atsFitSnapshot.atsScore
+              : typeof app.matchScore === 'number'
+                ? app.matchScore
+                : null;
+
+        return {
+          id: app.id,
+          title: app.jobTitle,
+          company: app.companyName,
+          location: app.location || (app.workplaceType ? `${app.workplaceType}` : 'Remote'),
+          workplaceType: app.workplaceType || 'Remote',
+          matchScore: score,
+          targetRole: app.jobTitle,
+          skills: Array.isArray(app.parsedJobDescription?.requiredSkills)
+            ? app.parsedJobDescription.requiredSkills.slice(0, 4)
+            : topSkills.slice(0, 3),
+          status: app.status || 'SAVED',
+          source: 'APPLICATION_RECORD',
+          applicationId: app.id,
+        };
+      })
       .slice(0, 3);
-
-    if (recommendedJobs.length < 3) {
-      const defaultRoles =
-        targetRoles.length > 0
-          ? targetRoles
-          : [candidate.headline || 'Full Stack Engineer', 'Senior Backend Engineer', 'Platform Engineer'];
-
-      const roleTemplates = [
-        {
-          title: defaultRoles[0] || 'Senior Software Engineer',
-          company: 'Stripe',
-          location: 'Remote / US',
-          score: 92,
-          skills: topSkills.slice(0, 3),
-        },
-        {
-          title: defaultRoles[1] || 'Staff Backend Engineer',
-          company: 'GitHub',
-          location: 'Remote',
-          score: 88,
-          skills: topSkills.slice(1, 4),
-        },
-        {
-          title: defaultRoles[2] || 'Lead Platform Engineer',
-          company: 'Datadog',
-          location: 'Remote / Hybrid',
-          score: 84,
-          skills: topSkills.slice(0, 3),
-        },
-      ];
-
-      for (const t of roleTemplates) {
-        if (recommendedJobs.length >= 3) break;
-        if (!recommendedJobs.some((j) => j.title.toLowerCase() === t.title.toLowerCase())) {
-          recommendedJobs.push({
-            id: `rec-${recommendedJobs.length + 1}`,
-            title: t.title,
-            company: t.company,
-            location: t.location,
-            workplaceType: 'Remote',
-            matchScore: t.score,
-            targetRole: t.title,
-            skills: t.skills.length > 0 ? t.skills : ['TypeScript', 'Node.js', 'PostgreSQL'],
-            status: 'DISCOVERED',
-            source: 'RADAR_ALIGNMENT',
-            applicationId: null,
-          });
-        }
-      }
-    }
 
     return {
       user,
@@ -849,19 +810,41 @@ export default async function webRoutes(app, opts = {}) {
           })
           .where(eq(resources.id, existing.id));
       } else {
-        await database.insert(resources).values({
-          tenantId: tenant.id,
-          candidateId: candidate.id,
-          connectionId: gitHubConnection.id,
-          provider: 'GITHUB_APP',
-          resourceType: 'REPOSITORY',
-          externalResourceId: externalId,
-          name: repoName,
-          displayName: repoName,
-          url: repoUrl,
-          isPrivate: Boolean(repo.isPrivate),
-          status: 'ACTIVE',
-        });
+        try {
+          await database.insert(resources).values({
+            tenantId: tenant.id,
+            candidateId: candidate.id,
+            connectionId: gitHubConnection.id,
+            provider: 'GITHUB_APP',
+            resourceType: 'REPOSITORY',
+            externalResourceId: externalId,
+            name: repoName,
+            displayName: repoName,
+            url: repoUrl,
+            isPrivate: Boolean(repo.isPrivate),
+            status: 'ACTIVE',
+          });
+        } catch (_insertErr) {
+          await database
+            .update(resources)
+            .set({
+              candidateId: candidate.id,
+              connectionId: gitHubConnection.id,
+              name: repoName,
+              displayName: repoName,
+              url: repoUrl,
+              isPrivate: Boolean(repo.isPrivate),
+              status: 'ACTIVE',
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(resources.tenantId, tenant.id),
+                eq(resources.provider, 'GITHUB_APP'),
+                eq(resources.externalResourceId, externalId)
+              )
+            );
+        }
       }
     }
 
@@ -904,6 +887,11 @@ export default async function webRoutes(app, opts = {}) {
     const accept = req.headers['accept'] || '';
     if (accept.includes('application/json') && !accept.includes('text/html')) {
       return reply.send({ success: true, count: validReposToIngest.length });
+    }
+
+    const referer = req.headers['referer'] || '';
+    if (referer.includes('/sources') || req.query?.from === 'sources') {
+      return reply.redirect('/sources?success=Repositories+updated+successfully');
     }
 
     return reply.redirect('/onboarding?step=4&success=Repositories+selected+for+ingestion');
@@ -1682,11 +1670,22 @@ export default async function webRoutes(app, opts = {}) {
   // -------------------------------------------------------------------------
   app.get('/sources', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
+    const accept = req.headers['accept'] || '';
+    const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
+
     if (!sessionContext) {
+      if (wantsJson) {
+        return reply.status(401).send({
+          error: {
+            code: 'UNAUTHENTICATED',
+            message: 'Authentication required. Missing session cookie.',
+          },
+        });
+      }
       return reply.redirect('/login?returnTo=/sources');
     }
 
-    const { user, tenant } = sessionContext;
+    const { user, tenant, session } = sessionContext;
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
 
     const [gitHubConnection] = await database
@@ -1707,13 +1706,63 @@ export default async function webRoutes(app, opts = {}) {
       .where(and(eq(resources.tenantId, tenant.id), eq(resources.candidateId, candidate.id)))
       .orderBy(desc(resources.createdAt));
 
+    const resumesList = await resumeService.listResumes({
+      context: {
+        tenantId: tenant.id,
+        userId: user.id,
+        role: user.role,
+      },
+      candidateId: candidate.id,
+    });
+
+    const activeResume = resumesList.find((r) => r.isBaseResume) || resumesList[0] || null;
+    const previousResumes = resumesList.filter((r) => r.id !== activeResume?.id);
+
+    const providers = [
+      { id: 'resume', name: 'Resume Document', status: activeResume ? 'ACTIVE' : 'AVAILABLE' },
+      { id: 'github', name: 'GitHub', status: gitHubConnection ? 'CONNECTED' : 'DISCONNECTED' },
+      { id: 'gitlab', name: 'GitLab', status: 'COMING_SOON' },
+      { id: 'gdrive', name: 'Google Drive', status: 'COMING_SOON' },
+      { id: 'onedrive', name: 'Microsoft OneDrive', status: 'COMING_SOON' },
+      { id: 'linkedin', name: 'LinkedIn', status: 'COMING_SOON' },
+      { id: 'portfolio', name: 'Portfolio / Personal Website', status: 'COMING_SOON' },
+    ];
+
+    const sourcesViewModel = {
+      resume: {
+        active: activeResume,
+        versions: resumesList,
+      },
+      github: {
+        connection: gitHubConnection || null,
+        repositories: resourceList,
+      },
+      providers,
+    };
+
+    if (wantsJson) {
+      return reply.send({ success: true, data: sourcesViewModel });
+    }
+
+    const flashMessage = req.query?.success
+      ? String(req.query.success)
+      : req.query?.deleted
+        ? 'Resume version permanently deleted.'
+        : '';
+    const errorMessage = req.query?.error ? String(req.query.error) : '';
+
     const html = renderSourcesPage({
       user,
       tenant,
+      candidate,
       gitHubConnection: gitHubConnection || null,
       resources: resourceList,
-      error: req.query?.error || '',
-      success: req.query?.success || '',
+      activeResume,
+      previousResumes,
+      resumesList,
+      csrfToken: session?.token || '',
+      success: flashMessage,
+      error: errorMessage,
     });
 
     reply.type('text/html; charset=utf-8').send(html);
@@ -2094,11 +2143,11 @@ export default async function webRoutes(app, opts = {}) {
       tenant: sessionContext.tenant,
       candidate,
       resumesList,
-      csrfToken: sessionContext.session.token,
+      csrfToken: '',
       flashMessage,
       errorMessage,
     });
-    reply.type('text/html; charset=utf-8').send(html);
+    return reply.type('text/html; charset=utf-8').send(html);
   });
 
   // -------------------------------------------------------------------------
@@ -2506,67 +2555,144 @@ export default async function webRoutes(app, opts = {}) {
       return null;
     };
 
-    // Parse user profile updates
-    const sectionUpdates = {
-      displayName: body.displayName,
-      headline: body.headline,
-      summary: body.summary,
-      currentRole: body.currentRole,
-      location: body.location,
-      careerStatus: body.careerStatus,
-      phone: body.phone !== undefined ? body.phone : body.contactPhone,
-      countryCode:
-        body.countryCode !== undefined ? body.countryCode : body.contactCountryCode,
-      phoneNumber:
-        body.phoneNumber !== undefined ? body.phoneNumber : body.contactPhoneNumber,
-      currentEmployment: parseJsonField(body.currentEmployment, undefined),
-      experience: parseJsonField(body.experience, undefined),
-      education: parseJsonField(body.education, undefined),
-      certifications: parseJsonField(body.certifications, undefined),
-      languages: parseJsonField(body.languages, undefined),
-      portfolioLinks: parseJsonField(body.portfolioLinks, undefined),
-      timezone: body.timezone || undefined,
-      noticePeriod: body.noticePeriod || undefined,
-      customNoticePeriod: body.customNoticePeriod || undefined,
-      availableImmediately: body.availableImmediately !== undefined
-        ? (body.availableImmediately === 'true' || body.availableImmediately === true)
-        : undefined,
-      isCurrentlyEmployed: body.isCurrentlyEmployed !== undefined
-        ? (body.isCurrentlyEmployed === 'true' || body.isCurrentlyEmployed === true)
-        : undefined,
-      workAuthConfirmedByUser: body.workAuthConfirmedByUser !== undefined
-        ? (body.workAuthConfirmedByUser === 'true' || body.workAuthConfirmedByUser === true)
-        : undefined,
-      visaSponsorshipConfirmedByUser: body.visaSponsorshipConfirmedByUser !== undefined
-        ? (body.visaSponsorshipConfirmedByUser === 'true' || body.visaSponsorshipConfirmedByUser === true)
-        : undefined,
-      jobPreferences: {
-        targetRoles: parseList(body.targetRoles),
-        preferredLocations: parseList(body.preferredLocations),
-        remotePreference: body.remotePreference || null,
-        employmentTypes: body.employmentTypes ? parseList(body.employmentTypes) : [],
-        salaryFloor: body.salaryFloor ? Number(body.salaryFloor) : null,
-        targetSalary: body.targetSalary ? Number(body.targetSalary) : null,
-        salaryCurrency: body.salaryCurrency || null,
-        compensationPeriod: body.compensationPeriod || null,
-        compensationType: body.compensationType || null,
-        preferredTechStack: parseList(body.preferredTechStack),
-        industries: parseList(body.industries),
-        companiesToPrioritize: parseList(body.companiesToPrioritize),
-        companiesToAvoid: parseList(body.companiesToAvoid),
-        workAuthorization: parseList(body.workAuthorization),
-        visaSponsorshipRequired: parseVisaSponsorship(body.visaSponsorshipRequired),
-        availabilityDate: body.availabilityDate ? String(body.availabilityDate).trim() : null,
-        relocationPreference: body.relocationPreference || null,
-        noticePeriod: body.noticePeriod || null,
-        customNoticePeriod: body.customNoticePeriod || null,
-        availableImmediately: body.availableImmediately === 'true' || body.availableImmediately === true,
-        isCurrentlyEmployed: body.isCurrentlyEmployed === 'true' || body.isCurrentlyEmployed === true,
-        timezone: body.timezone || null,
-        workAuthConfirmedByUser: body.workAuthConfirmedByUser === 'true' || body.workAuthConfirmedByUser === true,
-        visaSponsorshipConfirmedByUser: body.visaSponsorshipConfirmedByUser === 'true' || body.visaSponsorshipConfirmedByUser === true,
-      },
+    // Parse user profile updates with support for flat body or nested sections
+    const sections = body.sections || {};
+    const identitySec = sections.identity || {};
+    const contactSec = sections.contact || {};
+    const prefsSec = sections.preferences || {};
+    const eligSec = sections.eligibility || {};
+
+    const resolveField = (key, secObj) => {
+      if (body[key] !== undefined) return body[key];
+      if (secObj && secObj[key] !== undefined) return secObj[key];
+      return undefined;
     };
+
+    const sectionUpdates = {};
+
+    const dName = resolveField('displayName', identitySec);
+    if (dName !== undefined) sectionUpdates.displayName = dName;
+
+    const hLine = resolveField('headline', identitySec);
+    if (hLine !== undefined) sectionUpdates.headline = hLine;
+
+    const summ = resolveField('summary', identitySec);
+    if (summ !== undefined) sectionUpdates.summary = summ;
+
+    const cRole = resolveField('currentRole', identitySec);
+    if (cRole !== undefined) sectionUpdates.currentRole = cRole;
+
+    const loc = resolveField('location', identitySec);
+    if (loc !== undefined) sectionUpdates.location = loc;
+
+    const cStatus = resolveField('careerStatus', identitySec);
+    if (cStatus !== undefined) sectionUpdates.careerStatus = cStatus;
+
+    const cCode = body.countryCode !== undefined ? body.countryCode : (body.contactCountryCode !== undefined ? body.contactCountryCode : contactSec.countryCode);
+    if (cCode !== undefined) sectionUpdates.countryCode = cCode;
+
+    const pNum = body.phoneNumber !== undefined ? body.phoneNumber : (body.contactPhoneNumber !== undefined ? body.contactPhoneNumber : contactSec.phoneNumber);
+    if (pNum !== undefined) {
+      sectionUpdates.phoneNumber = pNum;
+      sectionUpdates.phone = pNum;
+    } else if (body.phone !== undefined || contactSec.phone !== undefined) {
+      sectionUpdates.phone = body.phone !== undefined ? body.phone : contactSec.phone;
+    }
+
+    const lIn = resolveField('linkedin', contactSec);
+    if (lIn !== undefined) sectionUpdates.linkedin = lIn;
+
+    const gHub = resolveField('github', contactSec);
+    if (gHub !== undefined) sectionUpdates.github = gHub;
+
+    const pFolio = resolveField('portfolio', contactSec);
+    if (pFolio !== undefined) sectionUpdates.portfolio = pFolio;
+
+    const tz = body.timezone || identitySec.timezone || prefsSec.timezone || eligSec.timezone;
+    if (tz !== undefined) sectionUpdates.timezone = tz;
+
+    const np = body.noticePeriod || eligSec.noticePeriod || prefsSec.noticePeriod;
+    if (np !== undefined) sectionUpdates.noticePeriod = np;
+
+    const cnp = body.customNoticePeriod || eligSec.customNoticePeriod || prefsSec.customNoticePeriod;
+    if (cnp !== undefined) sectionUpdates.customNoticePeriod = cnp;
+
+    if (body.currentEmployment !== undefined || identitySec.currentEmployment !== undefined) {
+      sectionUpdates.currentEmployment = parseJsonField(body.currentEmployment || identitySec.currentEmployment, undefined);
+    }
+    if (body.experience !== undefined || identitySec.experience !== undefined) {
+      sectionUpdates.experience = parseJsonField(body.experience || identitySec.experience, undefined);
+    }
+    if (body.education !== undefined || identitySec.education !== undefined) {
+      sectionUpdates.education = parseJsonField(body.education || identitySec.education, undefined);
+    }
+    if (body.certifications !== undefined || identitySec.certifications !== undefined) {
+      sectionUpdates.certifications = parseJsonField(body.certifications || identitySec.certifications, undefined);
+    }
+    if (body.languages !== undefined || identitySec.languages !== undefined) {
+      sectionUpdates.languages = parseJsonField(body.languages || identitySec.languages, undefined);
+    }
+    if (body.portfolioLinks !== undefined || contactSec.portfolioLinks !== undefined) {
+      sectionUpdates.portfolioLinks = parseJsonField(body.portfolioLinks || contactSec.portfolioLinks, undefined);
+    }
+
+    const hasPrefsOrElig =
+      body.targetRoles !== undefined ||
+      body.preferredLocations !== undefined ||
+      body.remotePreference !== undefined ||
+      body.workAuthorization !== undefined ||
+      body.visaSponsorshipRequired !== undefined ||
+      body.salaryFloor !== undefined ||
+      body.targetSalary !== undefined ||
+      body.salaryCurrency !== undefined ||
+      body.compensationPeriod !== undefined ||
+      body.availabilityDate !== undefined ||
+      Object.keys(prefsSec).length > 0 ||
+      Object.keys(eligSec).length > 0;
+
+    if (hasPrefsOrElig) {
+      const prefRoles = resolveField('targetRoles', prefsSec);
+      const prefLocs = resolveField('preferredLocations', prefsSec);
+      const prefRemote = resolveField('remotePreference', prefsSec);
+      const prefReloc = resolveField('relocationPreference', prefsSec);
+      const prefWorkAuth = resolveField('workAuthorization', eligSec);
+      const prefVisa = resolveField('visaSponsorshipRequired', eligSec);
+      const prefAvail = resolveField('availabilityDate', eligSec);
+
+      sectionUpdates.jobPreferences = {
+        targetRoles: prefRoles !== undefined ? parseList(prefRoles) : undefined,
+        preferredLocations: prefLocs !== undefined ? parseList(prefLocs) : undefined,
+        remotePreference: prefRemote !== undefined ? prefRemote || null : undefined,
+        employmentTypes: body.employmentTypes ? parseList(body.employmentTypes) : (prefsSec.employmentTypes ? parseList(prefsSec.employmentTypes) : undefined),
+        salaryFloor: (body.salaryFloor !== undefined || prefsSec.salaryFloor !== undefined) ? Number(body.salaryFloor ?? prefsSec.salaryFloor) || null : undefined,
+        targetSalary: (body.targetSalary !== undefined || prefsSec.targetSalary !== undefined) ? Number(body.targetSalary ?? prefsSec.targetSalary) || null : undefined,
+        salaryCurrency: resolveField('salaryCurrency', prefsSec) || null,
+        compensationPeriod: resolveField('compensationPeriod', prefsSec) || null,
+        compensationType: resolveField('compensationType', prefsSec) || null,
+        preferredTechStack: body.preferredTechStack ? parseList(body.preferredTechStack) : (prefsSec.preferredTechStack ? parseList(prefsSec.preferredTechStack) : undefined),
+        industries: body.industries ? parseList(body.industries) : (prefsSec.industries ? parseList(prefsSec.industries) : undefined),
+        companiesToPrioritize: body.companiesToPrioritize ? parseList(body.companiesToPrioritize) : (prefsSec.companiesToPrioritize ? parseList(prefsSec.companiesToPrioritize) : undefined),
+        companiesToAvoid: body.companiesToAvoid ? parseList(body.companiesToAvoid) : (prefsSec.companiesToAvoid ? parseList(prefsSec.companiesToAvoid) : undefined),
+        workAuthorization: prefWorkAuth !== undefined ? parseList(prefWorkAuth) : undefined,
+        visaSponsorshipRequired: prefVisa !== undefined ? parseVisaSponsorship(prefVisa) : undefined,
+        availabilityDate: prefAvail ? String(prefAvail).trim() : undefined,
+        relocationPreference: prefReloc !== undefined ? prefReloc || null : undefined,
+        noticePeriod: np !== undefined ? np || null : undefined,
+        customNoticePeriod: cnp !== undefined ? cnp || null : undefined,
+        availableImmediately: body.availableImmediately !== undefined ? (body.availableImmediately === 'true' || body.availableImmediately === true) : (eligSec.availableImmediately !== undefined ? Boolean(eligSec.availableImmediately) : undefined),
+        isCurrentlyEmployed: body.isCurrentlyEmployed !== undefined ? (body.isCurrentlyEmployed === 'true' || body.isCurrentlyEmployed === true) : (eligSec.isCurrentlyEmployed !== undefined ? Boolean(eligSec.isCurrentlyEmployed) : undefined),
+        timezone: tz !== undefined ? tz || null : undefined,
+        workAuthConfirmedByUser: body.workAuthConfirmedByUser !== undefined ? (body.workAuthConfirmedByUser === 'true' || body.workAuthConfirmedByUser === true) : (eligSec.workAuthConfirmedByUser !== undefined ? Boolean(eligSec.workAuthConfirmedByUser) : undefined),
+        visaSponsorshipConfirmedByUser: body.visaSponsorshipConfirmedByUser !== undefined ? (body.visaSponsorshipConfirmedByUser === 'true' || body.visaSponsorshipConfirmedByUser === true) : (eligSec.visaSponsorshipConfirmedByUser !== undefined ? Boolean(eligSec.visaSponsorshipConfirmedByUser) : undefined),
+      };
+
+      // Clean undefined keys from jobPreferences to avoid overwriting existing untouched fields
+      for (const k of Object.keys(sectionUpdates.jobPreferences)) {
+        if (sectionUpdates.jobPreferences[k] === undefined) {
+          delete sectionUpdates.jobPreferences[k];
+        }
+      }
+    }
 
     const isJsonRequest =
       req.headers['accept']?.includes('application/json') ||

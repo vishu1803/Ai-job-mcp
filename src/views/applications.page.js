@@ -75,17 +75,27 @@ export function renderApplicationsPage({
     switch (status) {
       case 'OFFER_RECEIVED':
       case 'OFFER_ACCEPTED':
-        return '<span class="badge badge-verified">OFFER</span>';
+      case 'OFFER':
+        return '<span class="badge badge-verified">Offer</span>';
       case 'INTERVIEWING':
-        return '<span class="badge badge-indigo">INTERVIEWING</span>';
+      case 'INTERVIEW':
+        return '<span class="badge badge-indigo">Interview</span>';
       case 'SCREENING':
+      case 'IN_PROGRESS':
+        return '<span class="badge badge-indigo">In progress</span>';
+      case 'READY_TO_REVIEW':
+        return '<span class="badge badge-cyan">Ready to review</span>';
       case 'APPLIED':
-        return '<span class="badge badge-cyan">APPLIED</span>';
+      case 'SUBMITTED':
+        return '<span class="badge badge-cyan">Submitted</span>';
       case 'SAVED':
-        return '<span class="badge badge-neutral">SAVED</span>';
+      case 'DRAFT':
+        return '<span class="badge badge-neutral">Draft</span>';
       case 'REJECTED':
+        return '<span class="badge badge-missing">Rejected</span>';
       case 'WITHDRAWN':
-        return '<span class="badge badge-missing">ARCHIVED</span>';
+      case 'ARCHIVED':
+        return '<span class="badge badge-neutral">Withdrawn</span>';
       default:
         return `<span class="badge badge-indigo">${escapeHtml(status)}</span>`;
     }
@@ -132,8 +142,7 @@ export function renderApplicationsPage({
       <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
         <div>
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-            <span class="badge badge-indigo">PIPELINE TRACKING</span>
-            <span class="badge badge-verified">MCP SYNCHRONIZED</span>
+            <span class="badge badge-indigo">ACTIVE PIPELINE</span>
           </div>
           <h1 style="font-size:1.85rem; font-weight:800; letter-spacing:-0.02em; margin:0 0 6px 0;">
             Job Applications Tracker

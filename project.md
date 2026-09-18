@@ -3,6 +3,42 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-18*
 
+### P90: Candidate Sources Consolidation + Profile Save Integrity + Workspace UX Hardening
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-18  
+**Scope:** Hardening and consolidation of the candidate-facing application from an engineering console into a calm, minimal, professional job-application workspace across the 5 canonical destinations (Dashboard, Jobs, Applications, Profile, Sources) with Profile Save integrity state machine, fixed-dimension avatar containment, full 6-domain round-trip URL persistence, consolidated Sources workspace replacing Resumes as primary nav, honest dashboard empty states without synthetic recommendation artifacts, and clean human-readable application stages.
+
+1. **Profile Save Integrity & Visual Stability (`src/views/profile.page.js`, `src/services/candidate-profile.service.js`):**
+   - Canonical single-save architecture: exactly ONE user-facing Save control (`#headerSaveBtn`) and one form (`#careerProfileForm`) in HTML with `data-testid="saveProfileBtn"`. Duplicate submit button removed from `#stickySaveBar`.
+   - Deterministic client-side save state machine (`CLEAN`, `DIRTY`, `SAVING`, `SUCCESS`, `ERROR`) with double-click prevention (`isSaving` lock + `saveBtn.disabled = true`), dirty state tracking, and `beforeunload` protection against data loss.
+   - Fixed-dimension avatar badge (`56x56px`, `contain: layout size;`) eliminating visual layout shifts (CLS = 0) and image loading flashes.
+   - Comprehensive six-domain round-trip persistence: `updateUserProfileSections` updated to safely preserve `linkedin`, `github`, `portfolio`, `location`/`currentLocation`, `noticePeriod`, `workAuthorization`, and `visaSponsorshipRequired` inside `userCustom`.
+
+2. **Consolidated Sources Workspace & Backward Compatibility (`src/views/sources.page.js`, `src/views/layout.js`, `src/routes/web.routes.js`):**
+   - Transformed `/sources` into the primary document and evidence workspace with three clean modular cards:
+     - **Active Base Resume Card:** file name, status, file size, upload timestamp, View, Download, Replace Resume trigger, and collapsible Version History disclosure.
+     - **Connected GitHub Card:** connected account name, connected repository list with status badges, and Manage Repositories trigger.
+     - **Provider Roadmap:** calm "Coming soon" cards for GitLab, Google Drive, OneDrive, LinkedIn, and Portfolio without deceptive mockup buttons.
+   - Primary navigation IA updated: desktop navbar `<ul class="nav-links">` and mobile drawer strictly render the 5 canonical user-facing destinations (`Dashboard`, `Jobs`, `Applications`, `Profile`, `Sources`).
+   - Integrated Copilot drawer chips updated with contextual prompts for `sources` ("Review active resume", "Sync GitHub repositories", "What sources should I connect next?").
+   - 100% backward compatibility preserved: `/resumes` route preserved for HTML and JSON API requests; all resume action routes (`/resumes/:id`, `/resumes/upload`, `/resumes/:id/approve`, `/resumes/:id/download`, `/resumes/:id/delete`) functional and verified; secondary navigation dropdown maintains backward-compatible links.
+
+3. **Dashboard Recommendation Integrity & Applications Polish (`src/views/dashboard.page.js`, `src/views/applications.page.js`, `src/views/landing.page.js`):**
+   - Zero fake jobs: Removed hardcoded synthetic Stripe, GitHub, and Datadog cards with fake 92/88/84 scores.
+   - Render honest empty state ("No matching jobs yet" with "Browse jobs" CTA to Job Radar) when no tracked pipeline matches exist.
+   - Applications UI hygiene: Removed developer "MCP SYNCHRONIZED" badge and standardized status badges to clean, human-readable stages (Draft, Ready to review, Submitted, In progress, Interview, Offer, Rejected, Withdrawn).
+   - Minimal product landing page (`src/views/landing.page.js`): Replaced internal AST/commit-SHA/Zod/HMAC developer demo internals with clear, candidate-oriented product value proposition, 3-step workflow, and capability highlights.
+
+4. **Verification & Audit Evidence:**
+   - `tests/unit/p90-sources-profile-integrity.test.js`: 8/8 PASS (100%).
+   - `tests/unit/p89-candidate-workspace.test.js`: 15/15 PASS (100%).
+   - `tests/unit/overview-root-route.test.js`: 7/7 PASS (100%).
+   - `tests/integration/web-application-routes.test.js`: 20/20 PASS (100%).
+   - Candidate career profile & phone suites (`candidate-career-profile.test.js`, `profile-phone-country-code.test.js`, `p86-*.test.js`, `application-readiness.test.js`): 130/130 PASS (100%).
+   - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected).
+
+---
+
 ### P89 / P85: Candidate-First Job Application Workspace & Production UX Simplification
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-18  
