@@ -294,4 +294,88 @@ export class BackendClient {
     const query = packageHash ? `?packageHash=${encodeURIComponent(packageHash)}` : '';
     return `${baseUrl}/api/applications/${applicationId}/artifacts/${artifactType}/download${query}`;
   }
+
+  /**
+   * Fetches the compact 5-dimension AI assistant context for the active job.
+   *
+   * @param {object} params
+   * @param {object} params.job
+   * @param {Array<object>} [params.formFields]
+   * @param {object} [params.applicationAnswers]
+   * @returns {Promise<object>} Compact context (jobMatch, applicationReadiness, missingInformation, conflicts, aiHelp, autofillPlan)
+   */
+  async getAssistantContext({ job, formFields = [], applicationAnswers = {} }) {
+    return this._fetch('/api/extension/assistant/context', {
+      method: 'POST',
+      body: { job, formFields, applicationAnswers },
+    });
+  }
+
+  /**
+   * Explains current job posting page.
+   *
+   * @param {object} job
+   * @returns {Promise<object>}
+   */
+  async explainJob(job) {
+    return this._fetch('/api/extension/assistant/explain-job', {
+      method: 'POST',
+      body: { job },
+    });
+  }
+
+  /**
+   * Compares requirements against verified candidate profile.
+   *
+   * @param {object} job
+   * @returns {Promise<object>}
+   */
+  async compareRequirements(job) {
+    return this._fetch('/api/extension/assistant/compare-requirements', {
+      method: 'POST',
+      body: { job },
+    });
+  }
+
+  /**
+   * Generates safe autofill plan with provenance tracking and sensitive confirmation gates.
+   *
+   * @param {Array<object>} formFields
+   * @returns {Promise<object>}
+   */
+  async getAutofillPlan(formFields) {
+    return this._fetch('/api/extension/assistant/autofill-plan', {
+      method: 'POST',
+      body: { formFields },
+    });
+  }
+
+  /**
+   * Translates application or portal errors into human-friendly explanations.
+   *
+   * @param {string|object} error
+   * @param {object} [context]
+   * @returns {Promise<object>}
+   */
+  async explainApplicationError(error, context = {}) {
+    return this._fetch('/api/extension/assistant/explain-error', {
+      method: 'POST',
+      body: { error: typeof error === 'string' ? error : error?.message || String(error), context },
+    });
+  }
+
+  /**
+   * Queries the assistant interactively.
+   *
+   * @param {string} message
+   * @param {object} [job]
+   * @param {object} [applicationAnswers]
+   * @returns {Promise<object>}
+   */
+  async askAssistant(message, job = null, applicationAnswers = {}) {
+    return this._fetch('/api/extension/assistant/ask', {
+      method: 'POST',
+      body: { message, job, applicationAnswers },
+    });
+  }
 }

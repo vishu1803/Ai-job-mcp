@@ -73,6 +73,7 @@ import { renderSecurityPage } from '../views/security.page.js';
 import { renderDataDeletionPage } from '../views/data-deletion.page.js';
 import { renderAccessibilityPage } from '../views/accessibility.page.js';
 import { renderSubprocessorsPage } from '../views/subprocessors.page.js';
+import { renderAssistantPage } from '../views/assistant.page.js';
 import { renderJobFitRadarAppHtml } from '../mcp/apps/job-fit-radar.app.js';
 import { renderRadarFormPage, renderRadarResultPage } from '../views/radar.page.js';
 import { CandidateProfileService } from '../services/candidate-profile.service.js';
@@ -85,6 +86,7 @@ import { AiConnectionStatusService } from '../services/ai-connection-status.serv
 import { defaultIngestionStateService } from '../services/ingestion-state.service.js';
 import { ApplicationReadinessService } from '../services/application-readiness.service.js';
 import { JobApplicationFlowService } from '../services/job-application-flow.service.js';
+import { AiCareerAssistantService } from '../services/ai-career-assistant.service.js';
 import { NotFoundError } from '../errors/index.js';
 
 /**
@@ -2245,6 +2247,13 @@ export default async function webRoutes(app, opts = {}) {
     readinessService: applicationReadinessService,
     candidateProfileService,
   });
+  const aiCareerAssistantService =
+    opts.aiCareerAssistantService ||
+    new AiCareerAssistantService({
+      database,
+      candidateProfileService,
+      readinessService: applicationReadinessService,
+    });
 
   app.get('/profile', async (req, reply) => {
     const sessionContext = await getOptionalSession(req, database);
@@ -4135,6 +4144,196 @@ export default async function webRoutes(app, opts = {}) {
 
     const html = renderJobFitRadarAppHtml();
     return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  // -------------------------------------------------------------------------
+  // 22f. AI Career Assistant Routes (P87 Phase 1)
+  // -------------------------------------------------------------------------
+  app.get('/assistant', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      return reply.redirect('/login?returnTo=/assistant');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+
+    const context = {
+      tenantId: tenant.id,
+      userId: user.id,
+      role: user.role,
+    };
+
+    let candidateProfile = null;
+    try {
+      candidateProfile = await candidateProfileService.getCareerProfile(context, candidate.id);
+    } catch {
+      // Best effort fallback
+    }
+
+    const readiness = applicationReadinessService.evaluateReadiness({
+      candidateProfile,
+      candidate,
+    });
+
+    const conflicts = aiCareerAssistantService.identifyProfileConflicts({
+      candidateProfile,
+    });
+
+    const activeProposals = aiCareerAssistantService.getPendingProposals(tenant.id, candidate.id);
+
+    const html = renderAssistantPage({
+      user,
+      tenant,
+      candidate,
+      readiness,
+      activeProposals,
+      conflicts,
+      messages: [],
+      flashMessage: req.query.success || null,
+      flashError: req.query.error || null,
+      aiAvailable: true,
+    });
+
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  app.post('/assistant/message', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      if (req.headers.accept?.includes('application/json')) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+      return reply.redirect('/login?returnTo=/assistant');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const body = req.body || {};
+    const userMessage = body.message || '';
+
+    const context = {
+      tenantId: tenant.id,
+      userId: user.id,
+      role: user.role,
+    };
+
+    let candidateProfile = null;
+    try {
+      candidateProfile = await candidateProfileService.getCareerProfile(context, candidate.id);
+    } catch {
+      // Fallback
+    }
+
+    const assistantResponse = await aiCareerAssistantService.handleUserMessage({
+      message: userMessage,
+      tenantId: tenant.id,
+      userId: user.id,
+      candidateId: candidate.id,
+      candidateProfile,
+      context,
+    });
+
+    const isJsonRequest =
+      req.headers['accept']?.includes('application/json') ||
+      req.headers['content-type']?.includes('application/json');
+
+    if (isJsonRequest) {
+      return reply.status(200).send({
+        ok: true,
+        response: assistantResponse,
+      });
+    }
+
+    const readiness = applicationReadinessService.evaluateReadiness({
+      candidateProfile,
+      candidate,
+    });
+    const conflicts = aiCareerAssistantService.identifyProfileConflicts({
+      candidateProfile,
+    });
+    const activeProposals = aiCareerAssistantService.getPendingProposals(tenant.id, candidate.id);
+
+    const messages = [
+      { role: 'user', content: userMessage },
+      { role: 'assistant', content: assistantResponse.content },
+    ];
+
+    const html = renderAssistantPage({
+      user,
+      tenant,
+      candidate,
+      readiness,
+      activeProposals,
+      conflicts,
+      messages,
+      flashMessage: null,
+      flashError: null,
+      aiAvailable: assistantResponse.state !== 'AI_FAILURE',
+    });
+
+    return reply.type('text/html; charset=utf-8').send(html);
+  });
+
+  app.post('/assistant/proposals/confirm', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      if (req.headers.accept?.includes('application/json')) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+      return reply.redirect('/login?returnTo=/assistant');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const body = req.body || {};
+    const proposalId = body.proposalId;
+    const confirmedByUser = body.confirmedByUser === 'true' || body.confirmedByUser === true;
+
+    try {
+      const result = await aiCareerAssistantService.applyProposal({
+        tenantId: tenant.id,
+        userId: user.id,
+        candidateId: candidate.id,
+        proposal: proposalId,
+        confirmedByUser,
+        context: { tenantId: tenant.id, userId: user.id, role: user.role },
+      });
+
+      if (req.headers['accept']?.includes('application/json')) {
+        return reply.status(200).send({ ok: true, result });
+      }
+      return reply.redirect(
+        '/assistant?success=' + encodeURIComponent('Profile updated successfully based on confirmed proposal.')
+      );
+    } catch (err) {
+      if (req.headers['accept']?.includes('application/json')) {
+        return reply.status(400).send({ ok: false, error: err.message });
+      }
+      return reply.redirect('/assistant?error=' + encodeURIComponent(err.message));
+    }
+  });
+
+  app.post('/assistant/proposals/reject', async (req, reply) => {
+    const sessionContext = await getOptionalSession(req, database);
+    if (!sessionContext) {
+      if (req.headers.accept?.includes('application/json')) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+      return reply.redirect('/login?returnTo=/assistant');
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const body = req.body || {};
+    const proposalId = body.proposalId;
+
+    aiCareerAssistantService.removePendingProposal(tenant.id, candidate.id, proposalId);
+
+    if (req.headers['accept']?.includes('application/json')) {
+      return reply.status(200).send({ ok: true, dismissed: true });
+    }
+    return reply.redirect('/assistant?success=' + encodeURIComponent('Proposal dismissed.'));
   });
 
   // -------------------------------------------------------------------------

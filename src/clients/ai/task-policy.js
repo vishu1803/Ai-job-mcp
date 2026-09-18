@@ -219,6 +219,20 @@ const CANONICAL_POLICIES = Object.freeze([
     allowsPreviewModel: false,
     costTier: 'LOW',
   },
+  {
+    taskType: 'CAREER_ASSISTANT',
+    preferredModelId: 'gemini-3.7-flash',
+    fallbackModelId: 'gemini-2.5-flash',
+    maxInputTokens: 8000,
+    maxOutputTokens: 2048,
+    temperature: 0.2,
+    timeoutMs: 10000,
+    retryLimit: 2,
+    requiresStructuredOutput: false,
+    allowsTools: false,
+    allowsPreviewModel: false,
+    costTier: 'STANDARD',
+  },
 ]);
 
 export class TaskPolicyRegistry {

@@ -299,10 +299,66 @@
         </div>
       </section>
 
-      <!-- Multi-step Application & Form Autofill Section (P57.6) -->
+      <!-- Compact AI Career Assistant Card (5 Primary Dimensions) -->
+      <section id="assistantCard" class="card assistant-card">
+        <div class="card-header">
+          <h2 class="card-title">AI Assistant</h2>
+          <span id="assistantStatusBadge" class="status-badge-sm">ADVISORY</span>
+        </div>
+        <div class="assistant-body">
+          <!-- Non-blocking AI unavailable banner -->
+          <div id="assistantUnavailableBanner" class="alert-banner info hidden">
+            <div class="alert-content">
+              <span id="assistantUnavailableText">The AI assistant is temporarily unavailable. Job match, readiness, and manual application remain fully accessible.</span>
+            </div>
+          </div>
+
+          <!-- 1. Application Readiness summary -->
+          <div id="assistantReadinessRow" class="assistant-item-row">
+            <div class="readiness-header-row">
+              <span class="assistant-label">Application Readiness</span>
+              <span id="readinessScoreBadge" class="badge-readiness">--%</span>
+            </div>
+            <p id="readinessSummaryText" class="assistant-desc">Ready to evaluate application readiness.</p>
+          </div>
+
+          <!-- 2. Missing Information (Compact Checklist) -->
+          <div id="assistantMissingBox" class="assistant-missing-box hidden">
+            <span class="assistant-sublabel text-warning">Missing Information</span>
+            <ul id="assistantMissingList" class="compact-checklist"></ul>
+          </div>
+
+          <!-- 3. Pre-Submission Conflicts Warning -->
+          <div id="assistantConflictsBox" class="alert-banner warning hidden">
+            <div class="alert-content">
+              <strong>Pre-Submission Discrepancy</strong>
+              <div id="assistantConflictsList" class="conflicts-compact-list"></div>
+            </div>
+          </div>
+
+          <!-- 4. Quick AI Actions -->
+          <div class="assistant-quick-actions">
+            <button id="aiExplainJobBtn" class="btn btn-ghost btn-xs" title="Explain role responsibilities and expectations">Explain Job</button>
+            <button id="aiCheckReqsBtn" class="btn btn-ghost btn-xs" title="Check requirements against verified profile">Check Requirements</button>
+            <button id="aiAutofillPlanBtn" class="btn btn-ghost btn-xs" title="Preview safe autofill plan">Safe Autofill</button>
+          </div>
+
+          <!-- 5. AI Response Box & Interactive Query -->
+          <div id="assistantResponseBox" class="assistant-response-box hidden">
+            <div id="assistantResponseContent" class="assistant-response-text"></div>
+          </div>
+
+          <div class="assistant-input-row">
+            <input id="assistantQueryInput" type="text" class="input-xs assistant-input" placeholder="Ask about this role or profile..." />
+            <button id="assistantSendBtn" class="btn btn-primary btn-xs">Ask</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Multi-step Application & Safe Form Autofill Section -->
       <section id="formDetectionCard" class="card form-detection-card hidden">
         <div class="card-header">
-          <h2 class="card-title">Application Form Assistant</h2>
+          <h2 class="card-title">Safe Form Autofill</h2>
           <span id="stepIndicator" class="step-indicator">Step 1</span>
         </div>
         <div class="form-status-body">
@@ -312,6 +368,15 @@
           <div id="formFieldsSummary" class="fields-summary">
             <!-- Dynamic field mapping pills -->
           </div>
+
+          <!-- Sensitive fields confirmation toggle -->
+          <div id="sensitiveConfirmationBox" class="autofill-sensitive-warning hidden">
+            <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="confirmSensitiveAutofill" style="margin-top: 2px;" />
+              <span>Confirm filling sensitive fields (Work authorization, visa sponsorship, salary expectations)</span>
+            </label>
+          </div>
+
           <div class="form-actions">
             <button id="autofillFormBtn" class="btn btn-secondary btn-sm" disabled>
               Fill Verified Fields

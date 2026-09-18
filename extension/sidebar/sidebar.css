@@ -1090,4 +1090,151 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* Compact AI Career Assistant Styles */
+.assistant-card {
+  border-left: 3px solid var(--accent-cyan);
+}
+
+.badge-readiness {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-cyan);
+}
+
+.assistant-item-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.readiness-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.assistant-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.assistant-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.assistant-missing-box {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.assistant-sublabel {
+  font-size: 11px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.compact-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.compact-checklist li {
+  font-size: 11px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compact-checklist li::before {
+  content: "•";
+  color: var(--accent-amber);
+  font-weight: bold;
+}
+
+.conflicts-compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.assistant-quick-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.assistant-response-box {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.assistant-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.assistant-input {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.assistant-input:focus {
+  border-color: var(--border-focus);
+  outline: none;
+}
+
+.autofill-meta-tag {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  margin-left: 4px;
+}
+
+.autofill-sensitive-warning {
+  margin: 8px 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fcd34d;
+}
+
 

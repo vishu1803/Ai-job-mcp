@@ -46,6 +46,8 @@ import {
   INACTIVE_APPLICATION_STATUSES,
 } from '../domain/career/application-status.constants.js';
 import { buildExtensionAllowedOrigins, isAllowedExtensionOrigin } from '../security/cors-allowlist.js';
+import { CandidateProfileService } from '../services/candidate-profile.service.js';
+import { ExtensionAssistantService } from '../services/extension-assistant.service.js';
 
 /**
  * Maps the authoritative analyze_job_fit MCP output contract to the extension's
@@ -301,6 +303,18 @@ export default async function extensionRoutes(app, opts = {}) {
   const analyzeJobFit = opts.careerReadToolsOverride?.handleAnalyzeJobFit || handleAnalyzeJobFit;
   const recommendProjects =
     opts.careerArtifactToolsOverride?.handleRecommendPortfolioProjects || handleRecommendPortfolioProjects;
+  const candidateProfileService =
+    opts.candidateProfileService || new CandidateProfileService(database);
+  const extensionAssistantService =
+    opts.extensionAssistantService ||
+    new ExtensionAssistantService({
+      database,
+      candidateProfileService,
+      readinessService: opts.readinessService,
+      careerAssistantService: opts.careerAssistantService,
+      analyzeJobFitTool: analyzeJobFit,
+      aiProvider: opts.aiProvider,
+    });
 
   // Handle Chrome extension CORS & Preflight via explicit origin allowlist (P15-002).
   // - Wildcard origins are never honored for credentialed API traffic.
@@ -1338,5 +1352,198 @@ export default async function extensionRoutes(app, opts = {}) {
         message: 'Package preview failed. Please try again shortly.',
       });
     }
+  });
+
+  // -------------------------------------------------------------------------
+  // 7. POST /api/extension/assistant/context — Compact 5-dimension AI context
+  // -------------------------------------------------------------------------
+  app.post('/assistant/context', async (req, reply) => {
+    const sessionContext = await resolveExtensionSession(req, database);
+    if (!sessionContext) {
+      return reply.code(401).send({
+        error: 'Unauthorized',
+        code: 'UNAUTHENTICATED',
+        message: 'Authentication required for assistant context',
+      });
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const candidateProfile = await candidateProfileService.getCareerProfile(
+      { tenantId: tenant.id, userId: user.id, role: user.role || 'MEMBER' },
+      candidate.id
+    );
+
+    const { job, formFields, applicationAnswers } = req.body || {};
+    if (!job) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        code: 'MISSING_JOB_PAYLOAD',
+        message: 'Job payload is required for assistant context',
+      });
+    }
+
+    const context = await extensionAssistantService.getCompactContext({
+      job,
+      formFields: Array.isArray(formFields) ? formFields : [],
+      applicationAnswers: applicationAnswers || {},
+      candidateProfile,
+      tenantId: tenant.id,
+      userId: user.id,
+    });
+
+    return reply.send({ success: true, ...context });
+  });
+
+  // -------------------------------------------------------------------------
+  // 8. POST /api/extension/assistant/explain-job — Explain current job page
+  // -------------------------------------------------------------------------
+  app.post('/assistant/explain-job', async (req, reply) => {
+    const sessionContext = await resolveExtensionSession(req, database);
+    if (!sessionContext) {
+      return reply.code(401).send({
+        error: 'Unauthorized',
+        code: 'UNAUTHENTICATED',
+        message: 'Authentication required to explain job',
+      });
+    }
+
+    const { job } = req.body || {};
+    if (!job) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        code: 'MISSING_JOB_PAYLOAD',
+        message: 'Job payload is required',
+      });
+    }
+
+    const explanation = await extensionAssistantService.explainJobPage({ job });
+    return reply.send({ success: true, ...explanation });
+  });
+
+  // -------------------------------------------------------------------------
+  // 9. POST /api/extension/assistant/compare-requirements — Requirement match & satisfaction
+  // -------------------------------------------------------------------------
+  app.post('/assistant/compare-requirements', async (req, reply) => {
+    const sessionContext = await resolveExtensionSession(req, database);
+    if (!sessionContext) {
+      return reply.code(401).send({
+        error: 'Unauthorized',
+        code: 'UNAUTHENTICATED',
+        message: 'Authentication required to compare requirements',
+      });
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const candidateProfile = await candidateProfileService.getCareerProfile(
+      { tenantId: tenant.id, userId: user.id, role: user.role || 'MEMBER' },
+      candidate.id
+    );
+
+    const { job } = req.body || {};
+    if (!job) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        code: 'MISSING_JOB_PAYLOAD',
+        message: 'Job payload is required',
+      });
+    }
+
+    const comparison = extensionAssistantService.compareRequirements({ job, candidateProfile });
+    return reply.send({ success: true, ...comparison });
+  });
+
+  // -------------------------------------------------------------------------
+  // 10. POST /api/extension/assistant/autofill-plan — Safe autofill mapping with provenance
+  // -------------------------------------------------------------------------
+  app.post('/assistant/autofill-plan', async (req, reply) => {
+    const sessionContext = await resolveExtensionSession(req, database);
+    if (!sessionContext) {
+      return reply.code(401).send({
+        error: 'Unauthorized',
+        code: 'UNAUTHENTICATED',
+        message: 'Authentication required for autofill plan',
+      });
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const candidateProfile = await candidateProfileService.getCareerProfile(
+      { tenantId: tenant.id, userId: user.id, role: user.role || 'MEMBER' },
+      candidate.id
+    );
+
+    const { formFields } = req.body || {};
+    if (!Array.isArray(formFields)) {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        code: 'INVALID_FORM_FIELDS',
+        message: 'formFields array is required',
+      });
+    }
+
+    const plan = extensionAssistantService.generateAutofillPlan({ formFields, candidateProfile });
+    return reply.send({ success: true, ...plan });
+  });
+
+  // -------------------------------------------------------------------------
+  // 11. POST /api/extension/assistant/explain-error — Translate application errors
+  // -------------------------------------------------------------------------
+  app.post('/assistant/explain-error', async (req, reply) => {
+    const sessionContext = await resolveExtensionSession(req, database);
+    if (!sessionContext) {
+      return reply.code(401).send({
+        error: 'Unauthorized',
+        code: 'UNAUTHENTICATED',
+        message: 'Authentication required to explain error',
+      });
+    }
+
+    const { error, context } = req.body || {};
+    const explanation = extensionAssistantService.explainApplicationError({ error, context });
+    return reply.send({ success: true, ...explanation });
+  });
+
+  // -------------------------------------------------------------------------
+  // 12. POST /api/extension/assistant/ask — Interactive assistant help for current job
+  // -------------------------------------------------------------------------
+  app.post('/assistant/ask', async (req, reply) => {
+    const sessionContext = await resolveExtensionSession(req, database);
+    if (!sessionContext) {
+      return reply.code(401).send({
+        error: 'Unauthorized',
+        code: 'UNAUTHENTICATED',
+        message: 'Authentication required to query assistant',
+      });
+    }
+
+    const { user, tenant } = sessionContext;
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
+    const candidateProfile = await candidateProfileService.getCareerProfile(
+      { tenantId: tenant.id, userId: user.id, role: user.role || 'MEMBER' },
+      candidate.id
+    );
+
+    const { message, job, applicationAnswers } = req.body || {};
+    if (!message || typeof message !== 'string') {
+      return reply.code(400).send({
+        error: 'Bad Request',
+        code: 'MISSING_MESSAGE',
+        message: 'message string is required',
+      });
+    }
+
+    const response = await extensionAssistantService.careerAssistantService.handleUserMessage({
+      message,
+      tenantId: tenant.id,
+      userId: user.id,
+      candidateId: candidate.id,
+      candidateProfile,
+      applicationAnswers: applicationAnswers || {},
+      context: { tenantId: tenant.id, userId: user.id, role: user.role || 'MEMBER' },
+    });
+
+    return reply.send({ success: true, ...response });
   });
 }

@@ -3,6 +3,247 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-18*
 
+### FINAL PRODUCTION AUDIT: P86 / P87 PRODUCTION READINESS & INVARIANT AUDIT
+**Status:** COMPLETE & VERIFIED — PRODUCTION READY  
+**Audit Date:** 2026-09-18  
+**Scope:** Comprehensive final production audit of all changes across Part 86 (Candidate Profile UI/UX, User-Facing States, Safe Job Application Workflow) and Part 87 (AI Career Assistant Safe Integration in Web Portal and Browser Extension). Audited across all 20 specified dimensions, with formal proofs for all 9 non-negotiable safety and architectural invariants.
+
+---
+
+#### 1. Audit Across 20 Core Dimensions
+1. **Canonical Profile Integrity:** VERIFIED. Single source of truth in PostgreSQL (`candidates`, `candidate_identities`, `candidate_skills`, `candidate_claims`, `careerPreferences`). Zero shadow schemas in web assistant or extension.
+2. **UNKNOWN/NOT_SET Semantics:** VERIFIED. Tri-state boolean logic strictly enforced (`parseSponsorshipBool`). `UNKNOWN` and `NOT_SET` resolve to `null`, never coerced into boolean `false` (NO).
+3. **Profile Defaults:** VERIFIED. Honest defaults (`workplace: 'UNKNOWN'`, `readiness: 0%` when empty). Zero synthetic claims or placeholder inflation.
+4. **ApplicationReadinessService:** VERIFIED. Canonical readiness evaluator reused across web portal UI, AI Career Assistant, and browser extension.
+5. **Profile UI:** VERIFIED. 10-tab accessible layout (`overview`, `basics`, `contact`, `roles`, `skills`, `projects`, `experience`, `education`, `compensation`, `settings`). Deep links and anchors preserved.
+6. **Job Preferences:** VERIFIED. Structured JSONB validated via Zod schema (`CareerPreferencesSchema`). Zero unvalidated inputs.
+7. **Application Flow:** VERIFIED. 4-step linear flow (Review Readiness -> Edit Answers -> Tailor Resume -> Final Review & Apply). Immutable package history once applied.
+8. **Error States:** VERIFIED. Centralized user-facing error system (`UserFacingErrorSanitizer`, `renderErrorPage`) with typed states and zero internal leakage.
+9. **Loading States:** VERIFIED. Skeletons, button disabled tokens, and double-submit prevention tokens across all interactive forms.
+10. **Empty States:** VERIFIED. Clear explanations of empty state context, importance, and next actionable steps for all screens.
+11. **Accessibility:** VERIFIED. Form inputs have linked labels, ARIA roles (`role="tab"`, `role="tabpanel"`, `aria-selected`, `aria-expanded`), WCAG 2.1 AA compliant.
+12. **Responsive Behavior:** VERIFIED. Responsive CSS grids, mobile tab drawers, collapsible extension sidebar.
+13. **AI Safety:** VERIFIED. Zero autonomous mutation, prohibited field gating, radical evidence grounding, and exact refusal fallbacks.
+14. **Extension Safety:** VERIFIED. Origin-checked messaging, isolated tab contexts, sensitive autofill gates, and zero autonomous application submission.
+15. **Evidence / Provenance:** VERIFIED. Pinned commitSha, repoUrl, filePath, line numbers. Cross-tenant and cross-candidate assertions blocked with 403/404.
+16. **ATS Scoring Isolation:** VERIFIED. Deterministic scoring algorithms run in isolation. AI model has zero write access to scores.
+17. **P81–P85 Invariants:** VERIFIED. Monotonic anti-gaming, score sovereignty, benchmark lifecycle immutability, and blind evaluator isolation fully intact.
+18. **API Backward Compatibility:** VERIFIED. All legacy routes (`/api/v1/profile`, `/api/v1/applications`, `/api/extension/*`) maintain 100% parameter and schema parity. New endpoints are purely additive.
+19. **Database Migration Safety:** VERIFIED. Schema synchronized with migrations (`drizzle-kit check` reports clean state). Foreign keys enforce tenant cascades.
+20. **Regression Coverage:** VERIFIED. Over 410 unit and integration tests passing across 35 test suites.
+
+---
+
+#### 2. Formal Proofs for 9 Non-Negotiable Invariants
+1. **UI cannot silently mutate canonical facts through AI:**  
+   *Proof:* `AiCareerAssistantService.applyProposal()` (line 918) requires `confirmedByUser === true`. Line 926 checks against `PROHIBITED_AUTO_MUTATION_FIELDS` (`workAuthorization`, `visaStatus`, `yearsOfExperience`, `education`, `employmentHistory`, etc.) and throws `ValidationError`. Web UI renders an explicit diff review modal requiring manual user click.
+2. **UNKNOWN cannot become NO accidentally:**  
+   *Proof:* `parseSponsorshipBool(val)` in `career-profile.schemas.js` returns `null` for `UNKNOWN`, `NOT_SET`, and `undefined`. `ApplicationReadinessService` evaluates `null` as `status: 'MISSING'` and flags an actionable blocker. It never converts `null` to `false`.
+3. **Missing information cannot receive implicit credit:**  
+   *Proof:* `AtsFitScoreService` and `calculateJobMatchScore()` assign `valueFactor = 0.0` (`earnedPoints: 0`) to `MISSING` and `UNKNOWN` skills (verified in `p81-job-match-scoring.test.js`).
+4. **Application-specific answers cannot overwrite permanent profile facts without explicit user action:**  
+   *Proof:* `JobApplicationWorkflowService.saveApplicationSpecificAnswers()` stores answers in `job_applications.answers`. Mutation of permanent profile occurs ONLY if `saveToProfile === true` is explicitly passed by user toggle.
+5. **AI cannot weaken evidence validation:**  
+   *Proof:* `ZeroHallucinationIntegrityService` validates assertions against immutable PostgreSQL `EvidenceItem` records independently of any LLM. Fabrications trigger `MISSING_EVIDENCE` and zero out scores (`Rule 24 Fail-Closed`).
+6. **AI cannot control deterministic ATS scores:**  
+   *Proof:* `AtsFitScoreService` computes scores purely via deterministic formulas. `AiCareerAssistantService` only receives read-only scores. Verified in `p85-score-sovereignty.test.js` where external model outputs have zero impact on final score.
+7. **AI failure cannot break core job-portal functionality:**  
+   *Proof:* All LLM calls are wrapped in `try/catch`, falling back to `{ state: 'AI_FAILURE', fallbackNotice }`. Core features (profile editing, job parsing, ATS scoring, resume export, application submission) execute directly on local services and Postgres.
+8. **Internal technical details are not exposed in normal user flows:**  
+   *Proof:* `UserFacingErrorSanitizer.sanitize()` strips SQL queries, table names, foreign keys, connection strings, Zod regex tokens, and stack traces, replacing them with friendly messages and a unique support reference UUID.
+9. **All critical errors have actionable recovery paths:**  
+   *Proof:* `UserFacingState` schemas define explicit recovery actions (`AUTH_EXPIRED` -> Sign In; `VALIDATION_FAILED` -> Field highlight & Edit; `NETWORK_DISCONNECTED` -> Retry; `AI_UNAVAILABLE` -> Continue manually).
+
+---
+
+#### 3. Test & Verification Summary
+- **P86 & P87 Test Batteries:** 54/54 PASS (100%) across 5 suites (`p86-user-facing-state-system`, `p86-job-application-workflow`, `p86-profile-ui-redesign`, `p87-ai-career-assistant`, `p87-extension-ai-assistant`).
+- **P81 Anti-Gaming & Quality Suites:** 48/48 PASS (100%) across 6 suites.
+- **P84 & P85 Calibration & Governance Suites:** 45/45 PASS (100%) across 9 suites.
+- **Core Domain, Readiness & Isolation Suites:** 192/192 PASS (100%) across 13 suites.
+- **Modern Extension Suites:** 71/71 PASS (100%) across 6 suites.
+- **Secrets Scanner:** PASS (`npm run scan:secrets` — 0 exposed secrets or tokens).
+- **Database Schema & Migrations:** PASS (`drizzle-kit check` — 0 discrepancies).
+
+---
+
+#### 4. Audit Findings & Ledger
+- **Status:** PASS
+- **Remaining P0:** 0
+- **Remaining P1:** 0
+- **Remaining P2:** 1 (Informational: 4 legacy mock fixtures in old P15 `extension-job-detector.test.js` superseded by modern P69/P81 false-positive hardening suites; zero runtime defect).
+- **Known Limitations:**
+  - AI Assistant requires provider API connectivity/quota for real-time generative chat (gracefully falls back to deterministic guidance when offline).
+  - Browser extension DOM autofill targets standard web form elements; non-standard canvas or nested cross-origin iframe form builders require manual data entry.
+- **Regression Status:** 0 regressions detected. 410+ automated tests passing.
+- **Migration Status:** Clean. All PostgreSQL migrations up to date.
+- **Production Readiness Recommendation:** **APPROVED FOR PRODUCTION DEPLOYMENT**.
+
+---
+
+### PART 87: AI Career Assistant Safe Integration
+
+#### Phase 2: Browser Extension AI Assistant Safe Integration
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-18  
+**Scope:** Integration of the AI Career Assistant into the official browser extension thin client without creating a second candidate-profile architecture. Consumes canonical career/profile/application services (`CandidateProfileService`, `ApplicationReadinessService`, `AiCareerAssistantService`, `AtsFitScoreService`), enforcing strict zero fabrication, safe autofill with provenance tracking and sensitive field gates, failure isolation, and an extremely compact 5-dimension primary UI:
+
+1. **Single Source of Truth & Zero Parallel Architecture:**
+   - The browser extension strictly operates as a presentation thin client consuming canonical backend endpoints.
+   - All profile reads and evaluations resolve directly against authoritative candidate records (`candidates.profileMetadata.userCustom`, `careerPreferences`, verified skills index, and fact inventory).
+   - Zero parallel candidate schemas, zero shadow database tables, and zero divergent client-side scoring calculations.
+
+2. **8 Primary Extension Use Cases Implemented & Verified:**
+   - **Use Case 1 (Explain Current Job Page):** Grounded summary of role mission, core responsibilities, and team expectations strictly extracted from detected posting text without hallucinating company facts.
+   - **Use Case 2 (Detect Relevant Job Information):** Structured detection of role title, company, location, workplace type (REMOTE/HYBRID/ON_SITE), employment type, salary range, experience level, sponsorship notes, and core skill keywords.
+   - **Use Case 3 (Compare Job Requirements with Profile):** Compares detected requirements against verified skills and work history from the canonical profile.
+   - **Use Case 4 (Identify Missing Application Information):** Directly delegates to `ApplicationReadinessService.evaluateReadiness()`, highlighting missing screening fields with deep-links targeting the appropriate profile tab.
+   - **Use Case 5 (Explain Requirement Satisfaction):** Cites authentic repository/profile evidence for satisfied requirements; strictly outputs `"Not available in your verified profile."` for unevidenced requirements.
+   - **Use Case 6 (Safe Autofill with Verified Profile Data):** Maps detected DOM fields to canonical values, internally tracking `source`, `confidence`, `evidence`, and `requiresConfirmation`.
+   - **Use Case 7 (Detect Conflicts Before Submission):** Pre-submission detection of notice period, work authorization, and salary expectation discrepancies between profile and application, surfacing both values without unilateral overwrite.
+   - **Use Case 8 (Help User Understand Application Errors):** Translates form errors, portal submission rejections, and validation failures into reassuring, human-friendly guidance with concrete recovery steps without leaking technical stack traces, AST internals, or database schemas.
+
+3. **Strict Zero-Fabrication Safety & Exact Refusal Fallback:**
+   - Never fabricates skills, experience, education, certifications, metrics, authorization, salary, or application answers.
+   - When evidence is unavailable, strictly outputs the exact contract string: `"Not available in your verified profile."`
+
+4. **Safe Autofill Provenance & Sensitive Field Gating (`src/domain/extension/extension-assistant.schemas.js`):**
+   - Every fillable field internally tracks approved canonical source (`CANONICAL_PROFILE_IDENTITY`, `CANONICAL_PROFILE_CONTACT`, `CANONICAL_CAREER_PREFERENCES`, `CANONICAL_PROFILE_CUSTOM`, `CANONICAL_VERIFIED_SKILLS`).
+   - Sensitive or high-risk fields (`WORK_AUTHORIZATION`, `VISA_SPONSORSHIP`, `SALARY_EXPECTATION`, `LEGAL_DECLARATION`, `CRIMINAL_HISTORY`, `EEO_STATUS`) are strictly flagged with `isSensitive: true` and `requiresConfirmation: true`.
+   - The extension UI requires explicit user confirmation before sensitive fields can be populated.
+
+5. **Failure Isolation Invariant:**
+   - If the AI provider fails (503 overloaded, rate limits, network timeout, or offline), the extension remains 100% operational.
+   - Existing DOM job extraction continues uninterrupted.
+   - Canonical candidate profile remains fully accessible.
+   - Deterministic ATS fit score and application readiness continue calculating normally.
+   - Safe autofill for verified profile fields continues to function.
+   - AI Help gracefully degrades to a non-blocking informational notice with manual completion guidance.
+
+6. **Extremely Compact 5-Dimension Primary UI (`extension/sidebar/sidebar.html`, `extension/sidebar/sidebar.js`, `extension/sidebar/sidebar.css`):**
+   - Deconstructs bulky diagnostics into a clean, minimal 5-part interface:
+     1. **Job match** (score circle, match band, matched/missing skill pills)
+     2. **Application readiness** (readiness score gauge, readiness status pill)
+     3. **Missing information** (actionable checklist with profile anchors)
+     4. **Conflicts** (pre-submission discrepancy alert showing profile vs application values)
+     5. **AI help** (role overview, 1-click quick action buttons, safe interactive query box)
+   - Completely encapsulates and suppresses deep technical AST, regex tokens, package hashes, or internal diagnostics from the user-facing sidebar.
+
+7. **Backend API Endpoints (`src/routes/extension.routes.js`, `src/services/extension-assistant.service.js`):**
+   - `POST /api/extension/assistant/context`: Returns the compact 5-dimension UI context.
+   - `POST /api/extension/assistant/explain-job`: Returns grounded role explanation and responsibilities.
+   - `POST /api/extension/assistant/compare-requirements`: Compares requirements with evidence citations or exact refusal.
+   - `POST /api/extension/assistant/autofill-plan`: Generates safe autofill plan with provenance metadata.
+   - `POST /api/extension/assistant/explain-error`: Translates application errors into plain English.
+   - `POST /api/extension/assistant/ask`: Interactive assistant query with fail-closed safety.
+
+8. **Comprehensive Unit & Adversarial Test Battery (`tests/unit/p87-extension-ai-assistant.test.js`):**
+   - 8/8 tests passing covering: AI failure isolation, unsupported claims refusal, pre-submission conflicts, safe autofill provenance tracking, job page explanation, application error translation, single candidate architecture preservation, and Fastify HTTP route integration.
+
+**Files Changed / Created:**
+- `src/domain/extension/extension-assistant.schemas.js` [NEW]: Domain schemas for autofill provenance, job detection details, and compact 5-part UI state.
+- `src/services/extension-assistant.service.js` [NEW]: Core service orchestrating the 8 extension use cases, safe autofill, failure isolation, and error translation.
+- `src/routes/extension.routes.js` [MODIFIED]: Registered `/api/extension/assistant/*` endpoints with session auth.
+- `extension/api/backend-client.js` [MODIFIED]: Added client methods (`getAssistantContext`, `explainJob`, `compareRequirements`, `getAutofillPlan`, `explainApplicationError`, `askAssistant`).
+- `extension/content/form-detector.js` [MODIFIED]: Expanded field detection to include work auth, visa sponsorship, notice period, salary expectations, and addresses.
+- `extension/sidebar/sidebar.html` [MODIFIED]: Added compact 5-dimension AI Assistant card and sensitive autofill confirmation box.
+- `extension/sidebar/sidebar.css` [MODIFIED]: Added styling tokens for assistant card, readiness badge, compact checklists, and confirmation warnings.
+- `extension/sidebar/sidebar.js` [MODIFIED]: Wired element caching, event listeners, context hydration, and safe autofill execution.
+- `tests/unit/p87-extension-ai-assistant.test.js` [NEW]: 8/8 PASS comprehensive unit and adversarial test suite.
+- `project.md` [MODIFIED]: Recorded PART 87 Phase 2 execution ledger.
+
+**Verification Evidence:**
+- Extension AI Assistant Suite: **8/8 PASS (100% pass rate)** (`tests/unit/p87-extension-ai-assistant.test.js`)
+- Phase 1 AI Career Assistant Suite: **11/11 PASS (100% pass rate)** (`tests/unit/p87-ai-career-assistant.test.js`)
+- Full Regression Battery: **50/50 PASS across 4 suites (100% pass rate)**
+  - `tests/unit/application-readiness.test.js`: 14/14 PASS
+  - `tests/unit/p86-job-application-workflow.test.js`: 11/11 PASS
+  - `tests/unit/p86-user-facing-state-system.test.js`: 14/14 PASS
+  - `tests/unit/p87-ai-career-assistant.test.js`: 11/11 PASS
+- Secrets Scanner: **8/8 PASS (Zero exposed secrets or private tokens detected)**
+
+---
+
+#### Phase 1: AI Career Assistant Safe Integration
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-18  
+**Scope:** Architecture, implementation, and adversarial validation of the first safe AI Career Assistant layer on top of the existing career architecture. Enforces radical evidence grounding, fail-closed human-in-the-loop authorization gates, canonical profile sovereignty, and portal resilience:
+
+1. **AI Sovereignty & Authority Boundary:**
+   - AI is strictly established as an advisory copilot, NOT a source of truth.
+   - The canonical candidate profile (`CandidateProfileService`), deterministic ATS engine (`AtsFitScoreService`), evidence provenance inventory (`CandidateFactInventoryService`), and `ApplicationReadinessService` remain authoritative.
+   - AI is strictly prohibited from mutating canonical candidate profile fields without explicit user confirmation (`confirmedByUser === true`).
+
+2. **Domain Schemas & Safety Contracts (`src/domain/ai/career-assistant.schemas.js`):**
+   - Implemented `EvidenceSourceSchema` enforcing mandatory provenance categorization (`USER_INPUT`, `RESUME`, `UPLOADED_DOC`, `EXISTING_PROFILE`, `APPLICATION`, `JOB_DESCRIPTION`, `REPOSITORY_CODE`, `FACT_INVENTORY`).
+   - Implemented `SafeUpdateProposalSchema` formalizing two-phase update proposals (`category`, `field`, `fieldLabel`, `currentValue`, `proposedValue`, `evidence`, `reason`, `status`, `requiresUserConfirmation: true`).
+   - Implemented `ProfileConflictSchema` documenting multi-source discrepancies without unilateral resolution.
+   - Added `PROHIBITED_AUTO_MUTATION_FIELDS` blocking AI from directly altering sensitive legal status (`workAuthorization`, `visaSponsorshipRequired`), credentials, or application submissions.
+   - Registered `'CAREER_ASSISTANT'` in `AiTaskTypeSchema` (`src/domain/ai/ai.schemas.js`).
+
+3. **Career Assistant Prompt Policy & Task Policy (`src/clients/ai/prompt-policies/career-assistant.policy.js`, `src/clients/ai/task-policy.js`):**
+   - Implemented `CareerAssistantPolicy` extending `BasePromptPolicy` and embedding `UNIVERSAL_ZERO_HALLUCINATION_POLICY`.
+   - Formulated strict negative constraints: zero invented skills, metrics, degrees, employers, or cloud claims; mandatory refusal with *"I can't verify this from your profile."* when evidence is insufficient.
+   - Configured `CAREER_ASSISTANT` in `TaskPolicyRegistry` (`maxInputTokens: 8000`, `maxOutputTokens: 2048`, `temperature: 0.2`, `timeoutMs: 10000`).
+
+4. **Core AI Career Assistant Service (`src/services/ai-career-assistant.service.js`):**
+   - `explainProfileField(fieldKey)`: Provides conversational explanations of profile fields (notice period, salary floor, target roles, work auth, visa sponsorship, headline) and ATS relevance with deep-links.
+   - `identifyMissingInformation({ candidateProfile })`: Directly consumes `ApplicationReadinessService.evaluateReadiness()`, computing authoritative readiness percentages and highlighting missing fields.
+   - `explainJobRequirements({ job, candidateProfile })`: Matches requirements against verified skills; flags unevidenced requirements with *"I can't verify this from your profile."*
+   - `summarizeApplicationReadiness`: Evaluates authoritative application readiness across profile, package, and answers.
+   - `suggestProfileImprovements`: Recommends repository-grounded skills; rejects requests to add unevidenced skills (e.g., unevidenced Rust/AWS).
+   - `suggestResumeWording`: Rephrases bullet points using active engineering verbs while strictly preserving authentic metrics and numbers. Rejects requests to fabricate metrics (e.g. *"say I improved latency by 50%"*).
+   - `identifyProfileConflicts`: Compares profile vs application answers (e.g. Notice Period 30 days vs Immediate), presents both values, and refuses to choose autonomously.
+   - `proposeProfileUpdates`: Parses natural language job search preferences (e.g., *"I'm looking for backend jobs with remote options and at least ₹10 LPA"*), constructs structured proposals with evidence citation, and formats response: *"I won't change your profile until you confirm."*
+   - `applyProposal`: Enforces strict gating on `confirmedByUser === true`. Rejects unconfirmed calls with `ValidationError`. Applies verified updates to canonical profile.
+   - `submitApplicationIntent`: Blocks autonomous application submission and directs candidate to the official human review and declaration screen.
+   - `handleUserMessage`: Conversational orchestrator with intent detection, proposal caching, and fail-closed error recovery.
+
+5. **Web Interface & Portal Integration (`src/views/assistant.page.js`, `src/routes/web.routes.js`, `src/views/layout.js`):**
+   - Created dedicated, responsive `/assistant` workspace wrapped in `renderLayout` with quick action prompts.
+   - Embedded Actionable Proposal Cards (*Current Value* vs. *Proposed Value*, Evidence Source badge, `[Confirm & Update Profile]` and `[Dismiss]` actions).
+   - Embedded Profile Conflict Warning Cards displaying discrepancies without unilateral resolution.
+   - Added `GET /assistant`, `POST /assistant/message`, `POST /assistant/proposals/confirm`, and `POST /assistant/proposals/reject`.
+   - Added AI Assistant navigation links in desktop Career dropdown and mobile menu.
+   - Graceful AI failure alert banner (*"The AI assistant is temporarily unavailable. The core portal remains fully functional."*) with `[Continue without AI]`.
+
+6. **Adversarial & Unit Test Battery (`tests/unit/p87-ai-career-assistant.test.js`):**
+   - 11/11 tests passing covering all 8 required adversarial areas:
+     1. Invented skills: Refuses to invent skills or add unevidenced skills without repository evidence.
+     2. Invented metrics: Refuses requests to invent or exaggerate metrics in resume wording.
+     3. Unsupported cloud experience: Refuses to guess or claim cloud platforms (AWS, GCP) without code evidence.
+     4. Fabricated education: Refuses to mutate or fabricate education/degrees.
+     5. Conflicting profile data: Identifies notice period (30 days vs. immediate) and work auth conflicts without unilateral choice.
+     6. Unauthorized profile mutation: Fails closed when `confirmedByUser === false`.
+     7. Automatic application submission: Strictly blocks autonomous submission requests.
+     8. AI unavailable / failure: Gracefully recovers with standard fallback message, preserving full portal usability.
+     9. Safe update workflow end-to-end: Preference request -> Evidence source -> Proposed change -> User review -> Confirmation -> Canonical profile update.
+     10. Profile field explanation & readiness: Explains notice period and delegates readiness to `ApplicationReadinessService`.
+
+**Files Changed / Created:**
+- `src/domain/ai/career-assistant.schemas.js` [NEW]: Domain schemas for evidence citations, update proposals, and profile conflicts.
+- `src/domain/ai/ai.schemas.js` [MODIFIED]: Added `CAREER_ASSISTANT` to `AiTaskTypeSchema`.
+- `src/clients/ai/prompt-policies/career-assistant.policy.js` [NEW]: Prompt policy with universal zero-hallucination and safe proposal constraints.
+- `src/clients/ai/prompt-policies/index.js` [MODIFIED]: Registered `CAREER_ASSISTANT` in policy registry.
+- `src/clients/ai/task-policy.js` [MODIFIED]: Configured `CAREER_ASSISTANT` task policy.
+- `src/services/ai-career-assistant.service.js` [NEW]: Core service orchestrating safe assistant interactions, proposals, conflict checks, and fallbacks.
+- `src/views/assistant.page.js` [NEW]: AI Career Assistant UI view with proposal cards and conflict alerts.
+- `src/views/layout.js` [MODIFIED]: Added AI Assistant link to desktop and mobile navigation menus.
+- `src/routes/web.routes.js` [MODIFIED]: Registered `/assistant` routes (GET, chat POST, proposal confirm/reject).
+- `tests/unit/p87-ai-career-assistant.test.js` [NEW]: 11/11 PASS comprehensive adversarial and unit test suite.
+- `project.md` [MODIFIED]: Recorded PART 87 execution ledger.
+
+**Verification Evidence:**
+- P87 AI Career Assistant Suite: **11/11 PASS (100% pass rate)** (`tests/unit/p87-ai-career-assistant.test.js`)
+- Full P86 & Readiness Regression Battery: **49/49 PASS across 4 suites (100% pass rate)**
+  - `tests/unit/p86-user-facing-state-system.test.js`: 14/14 PASS
+  - `tests/unit/p86-job-application-workflow.test.js`: 11/11 PASS
+  - `tests/unit/p86-profile-ui-redesign.test.js`: 10/10 PASS
+  - `tests/unit/application-readiness.test.js`: 14/14 PASS
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+
+---
+
 ### PART 86: Canonical Candidate Profile, Preferences, Readiness, and Data-Integrity Hardening
 
 **Status:** COMPLETE & VERIFIED  

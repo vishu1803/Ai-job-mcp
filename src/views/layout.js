@@ -1602,6 +1602,13 @@ export function renderLayout({
                   <div class="item-desc">Pipeline tracking</div>
                 </div>
               </a>
+              <a href="/assistant" class="nav-dropdown-item ${activeNav === 'assistant' ? 'active' : ''}">
+                <span class="item-icon">🤖</span>
+                <div class="item-text">
+                  <div class="item-title">AI Assistant</div>
+                  <div class="item-desc">Safe copilot & guidance</div>
+                </div>
+              </a>
             </div>
           </li>
 
@@ -1726,6 +1733,7 @@ export function renderLayout({
       <a href="/skills" class="${activeNav === 'skills' ? 'active' : ''}">⚡ Skills</a>
       <a href="/profile" class="${activeNav === 'profile' ? 'active' : ''}">🎯 Profile & Intent</a>
       <a href="/applications" class="${activeNav === 'applications' ? 'active' : ''}">📋 Applications</a>
+      <a href="/assistant" class="${activeNav === 'assistant' ? 'active' : ''}">🤖 AI Assistant</a>
       <div class="mobile-section-label">Sources</div>
       <a href="/sources" class="${activeNav === 'sources' ? 'active' : ''}">🔗 Connected Sources</a>
       <a href="/resumes" class="${activeNav === 'resumes' ? 'active' : ''}">📄 Resumes</a>

@@ -41,6 +41,7 @@ export const AiTaskTypeSchema = z.enum([
   'JOB_PARSER_FALLBACK',
   'TITLE_NORMALIZATION',
   'SYNTHETIC_HEALTH_CHECK',
+  'CAREER_ASSISTANT',
 ]);
 
 /**

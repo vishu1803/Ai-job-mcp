@@ -172,6 +172,27 @@ class SidebarController {
       formStatusMessage: document.getElementById('formStatusMessage'),
       formFieldsSummary: document.getElementById('formFieldsSummary'),
       autofillFormBtn: document.getElementById('autofillFormBtn'),
+      sensitiveConfirmationBox: document.getElementById('sensitiveConfirmationBox'),
+      confirmSensitiveAutofill: document.getElementById('confirmSensitiveAutofill'),
+
+      // AI Assistant Card (5 Primary Dimensions)
+      assistantCard: document.getElementById('assistantCard'),
+      assistantStatusBadge: document.getElementById('assistantStatusBadge'),
+      assistantUnavailableBanner: document.getElementById('assistantUnavailableBanner'),
+      assistantUnavailableText: document.getElementById('assistantUnavailableText'),
+      readinessScoreBadge: document.getElementById('readinessScoreBadge'),
+      readinessSummaryText: document.getElementById('readinessSummaryText'),
+      assistantMissingBox: document.getElementById('assistantMissingBox'),
+      assistantMissingList: document.getElementById('assistantMissingList'),
+      assistantConflictsBox: document.getElementById('assistantConflictsBox'),
+      assistantConflictsList: document.getElementById('assistantConflictsList'),
+      aiExplainJobBtn: document.getElementById('aiExplainJobBtn'),
+      aiCheckReqsBtn: document.getElementById('aiCheckReqsBtn'),
+      aiAutofillPlanBtn: document.getElementById('aiAutofillPlanBtn'),
+      assistantResponseBox: document.getElementById('assistantResponseBox'),
+      assistantResponseContent: document.getElementById('assistantResponseContent'),
+      assistantQueryInput: document.getElementById('assistantQueryInput'),
+      assistantSendBtn: document.getElementById('assistantSendBtn'),
     };
   }
 
@@ -216,6 +237,30 @@ class SidebarController {
 
     this.elements.retryAnalysisBtn?.addEventListener('click', async () => {
       await this.runAnalyzeJob();
+    });
+
+    // AI Assistant Listeners
+    this.elements.aiExplainJobBtn?.addEventListener('click', async () => {
+      await this.handleExplainJob();
+    });
+
+    this.elements.aiCheckReqsBtn?.addEventListener('click', async () => {
+      await this.handleCheckRequirements();
+    });
+
+    this.elements.aiAutofillPlanBtn?.addEventListener('click', async () => {
+      await this.handlePreviewAutofillPlan();
+    });
+
+    this.elements.assistantSendBtn?.addEventListener('click', async () => {
+      await this.handleAssistantQuery();
+    });
+
+    this.elements.assistantQueryInput?.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        await this.handleAssistantQuery();
+      }
     });
 
     // Single Authoritative Handoff CTA (P62)
@@ -1373,12 +1418,24 @@ class SidebarController {
     if (this.elements.formFieldsSummary) {
       this.elements.formFieldsSummary.innerHTML = '';
       const fields = formData.mappedFields || [];
+      let hasSensitive = false;
       fields.forEach((f) => {
         const pill = document.createElement('span');
         pill.className = 'tag-pill matched';
         pill.textContent = `${f.label || f.name}: ${f.verified ? '✓' : '?'}`;
+        if (f.isSensitive || f.requiresConfirmation) {
+          hasSensitive = true;
+          const sensTag = document.createElement('span');
+          sensTag.className = 'autofill-meta-tag';
+          sensTag.textContent = 'Confirm';
+          pill.appendChild(sensTag);
+        }
         this.elements.formFieldsSummary.appendChild(pill);
       });
+
+      if (hasSensitive && this.elements.sensitiveConfirmationBox) {
+        this.elements.sensitiveConfirmationBox.classList.remove('hidden');
+      }
 
       if (fields.length > 0 && this.elements.autofillFormBtn) {
         this.elements.autofillFormBtn.removeAttribute('disabled');
@@ -1483,6 +1540,11 @@ class SidebarController {
 
         await this.store.saveTabState(this.activeTabId, this.cachedState);
         this._renderAllFromState(this.cachedState);
+
+        // Hydrate compact AI assistant context (5 primary dimensions)
+        this.loadAssistantContext().catch((err) =>
+          console.warn('Assistant context hydration failed:', err)
+        );
       }
     } catch (err) {
       console.error('Analyze job failed:', err);
@@ -1711,6 +1773,166 @@ class SidebarController {
     const url = await this.backendClient.getApplicationViewUrl(appId);
     if (typeof window !== 'undefined') {
       window.open(url, '_blank');
+    }
+  }
+
+  /**
+   * Hydrates the compact 5-dimension AI assistant context.
+   */
+  async loadAssistantContext() {
+    if (!this.isAuthenticated || !this.activeJob) return;
+
+    try {
+      const context = await this.backendClient.getAssistantContext({
+        job: this.activeJob,
+        formFields: this.cachedState?.detectedFormFields || [],
+        applicationAnswers: this.cachedState?.applicationAnswers || {},
+      });
+
+      // 1. Application Readiness
+      if (context.applicationReadiness) {
+        if (this.elements.readinessScoreBadge) {
+          this.elements.readinessScoreBadge.textContent = `${context.applicationReadiness.readinessScore}%`;
+        }
+        if (this.elements.readinessSummaryText) {
+          this.elements.readinessSummaryText.textContent = context.applicationReadiness.summary;
+        }
+      }
+
+      // 2. Missing Information
+      if (this.elements.assistantMissingBox && this.elements.assistantMissingList) {
+        const missing = context.missingInformation || [];
+        if (missing.length > 0) {
+          this.elements.assistantMissingList.innerHTML = '';
+          missing.forEach((m) => {
+            const li = document.createElement('li');
+            li.textContent = `${m.label}: ${m.notes}`;
+            this.elements.assistantMissingList.appendChild(li);
+          });
+          this.elements.assistantMissingBox.classList.remove('hidden');
+        } else {
+          this.elements.assistantMissingBox.classList.add('hidden');
+        }
+      }
+
+      // 3. Pre-Submission Conflicts
+      if (this.elements.assistantConflictsBox && this.elements.assistantConflictsList) {
+        const conflicts = context.conflicts || [];
+        if (conflicts.length > 0) {
+          this.elements.assistantConflictsList.innerHTML = '';
+          conflicts.forEach((c) => {
+            const item = document.createElement('div');
+            item.className = 'conflict-item';
+            item.textContent = `${c.fieldLabel}: Profile has "${c.profileValue}", application specifies "${c.applicationValue}".`;
+            this.elements.assistantConflictsList.appendChild(item);
+          });
+          this.elements.assistantConflictsBox.classList.remove('hidden');
+        } else {
+          this.elements.assistantConflictsBox.classList.add('hidden');
+        }
+      }
+
+      // 4. AI Help Overview & Graceful Degradation
+      if (context.aiHelp) {
+        if (!context.aiHelp.available) {
+          if (this.elements.assistantUnavailableBanner) {
+            this.elements.assistantUnavailableBanner.classList.remove('hidden');
+            if (this.elements.assistantUnavailableText && context.aiHelp.fallbackNotice) {
+              this.elements.assistantUnavailableText.textContent = context.aiHelp.fallbackNotice;
+            }
+          }
+        } else {
+          this.elements.assistantUnavailableBanner?.classList.add('hidden');
+        }
+      }
+    } catch (err) {
+      console.warn('AI assistant context fetch failed:', err);
+      // Fails gracefully - does not crash extension or block workflow
+      if (this.elements.assistantUnavailableBanner) {
+        this.elements.assistantUnavailableBanner.classList.remove('hidden');
+      }
+    }
+  }
+
+  /**
+   * Explains current job posting page.
+   */
+  async handleExplainJob() {
+    if (!this.activeJob) return;
+    this._showAssistantResponse('Analyzing job page and responsibilities...');
+    try {
+      const explanation = await this.backendClient.explainJob(this.activeJob);
+      const resps = (explanation.responsibilities || []).slice(0, 3).map((r) => `• ${r}`).join('\n');
+      this._showAssistantResponse(`**${explanation.summary}**\n\nCore responsibilities:\n${resps}`);
+    } catch (err) {
+      this._showAssistantResponse(`Could not generate AI explanation. Job details: ${this.activeJob.title} at ${this.activeJob.company}.`);
+    }
+  }
+
+  /**
+   * Compares requirements against verified profile.
+   */
+  async handleCheckRequirements() {
+    if (!this.activeJob) return;
+    this._showAssistantResponse('Comparing job requirements with your verified profile...');
+    try {
+      const comp = await this.backendClient.compareRequirements(this.activeJob);
+      const matchLines = (comp.matches || []).map((m) =>
+        m.satisfied
+          ? `✓ ${m.requirement}: Satisfied (verified in profile)`
+          : `✗ ${m.requirement}: Not available in your verified profile.`
+      );
+      this._showAssistantResponse(`**Requirement Analysis** (${comp.satisfiedCount}/${comp.totalRequirements} verified)\n\n${matchLines.join('\n')}`);
+    } catch (err) {
+      this._showAssistantResponse('Requirement comparison failed. Please check your profile connection.');
+    }
+  }
+
+  /**
+   * Previews safe autofill plan.
+   */
+  async handlePreviewAutofillPlan() {
+    const fields = this.cachedState?.detectedFormFields || [];
+    if (fields.length === 0) {
+      this._showAssistantResponse('No application form fields detected on this page yet.');
+      return;
+    }
+    this._showAssistantResponse('Building safe autofill plan with verified profile data...');
+    try {
+      const plan = await this.backendClient.getAutofillPlan(fields);
+      const items = (plan.mappedFields || []).map((f) =>
+        f.available
+          ? `✓ ${f.label}: "${f.value}" [${f.source}]${f.requiresConfirmation ? ' (Confirmation required)' : ''}`
+          : `✗ ${f.label}: Not available in your verified profile.`
+      );
+      this._showAssistantResponse(`**Safe Autofill Plan** (${plan.fillableCount} fillable, ${plan.sensitiveCount} sensitive)\n\n${items.join('\n')}`);
+    } catch (err) {
+      this._showAssistantResponse('Could not generate autofill plan.');
+    }
+  }
+
+  /**
+   * Interactive assistant query.
+   */
+  async handleAssistantQuery() {
+    const query = (this.elements.assistantQueryInput?.value || '').trim();
+    if (!query) return;
+
+    this.elements.assistantQueryInput.value = '';
+    this._showAssistantResponse('Thinking...');
+
+    try {
+      const response = await this.backendClient.askAssistant(query, this.activeJob);
+      this._showAssistantResponse(response.content || response.message || 'Response received.');
+    } catch (err) {
+      this._showAssistantResponse('The AI assistant is temporarily unavailable. The extension remains fully functional.');
+    }
+  }
+
+  _showAssistantResponse(text) {
+    if (this.elements.assistantResponseBox && this.elements.assistantResponseContent) {
+      this.elements.assistantResponseContent.textContent = text;
+      this.elements.assistantResponseBox.classList.remove('hidden');
     }
   }
 }

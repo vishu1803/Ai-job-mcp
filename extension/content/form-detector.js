@@ -113,6 +113,30 @@ export class FormDetector {
     } else if (/portfolio|website|url/i.test(descriptor)) {
       fieldType = 'PORTFOLIO_URL';
       canonicalMapping = 'candidate.portfolioUrl';
+    } else if (/authoriz|work\s*permit|legal\s*right\s*to\s*work|eligible\s*to\s*work|citizenship/i.test(descriptor)) {
+      fieldType = 'WORK_AUTHORIZATION';
+      canonicalMapping = 'candidate.careerPreferences.workAuthorization';
+    } else if (/sponsor/i.test(descriptor)) {
+      fieldType = 'VISA_SPONSORSHIP';
+      canonicalMapping = 'candidate.careerPreferences.visaSponsorshipRequired';
+    } else if (/notice[\s_-]?period|how\s*soon|availability|start[\s_-]?date/i.test(descriptor)) {
+      fieldType = 'NOTICE_PERIOD';
+      canonicalMapping = 'candidate.careerPreferences.noticePeriod';
+    } else if (/salary|compensation|desired[\s_-]?pay|expected[\s_-]?pay/i.test(descriptor)) {
+      fieldType = 'SALARY_EXPECTATION';
+      canonicalMapping = 'candidate.careerPreferences.salaryFloor';
+    } else if (/city/i.test(descriptor)) {
+      fieldType = 'CITY';
+      canonicalMapping = 'candidate.contact.city';
+    } else if (/state|province/i.test(descriptor)) {
+      fieldType = 'STATE';
+      canonicalMapping = 'candidate.contact.state';
+    } else if (/postal|zip/i.test(descriptor)) {
+      fieldType = 'POSTAL_CODE';
+      canonicalMapping = 'candidate.contact.postalCode';
+    } else if (/address/i.test(descriptor)) {
+      fieldType = 'ADDRESS';
+      canonicalMapping = 'candidate.contact.address';
     }
 
     if (fieldType === 'UNKNOWN') {
