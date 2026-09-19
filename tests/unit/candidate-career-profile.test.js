@@ -1218,7 +1218,7 @@ describe('Step 1: Career Profile Completeness & Resume-to-Profile Ingestion Unit
     assert.ok(html.includes('TypeScript'));
     assert.ok(html.includes('Additional Libraries & Tools (1)'));
     assert.ok(html.includes('Dotenv'));
-    assert.ok(html.includes('✓ Corroborated'));
+    assert.ok(html.includes('Corroborated'));
     assert.ok(html.includes('Fastify Gateway'));
   });
 

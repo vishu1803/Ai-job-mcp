@@ -116,6 +116,8 @@ export function renderCopilotDrawer({
         flex-direction: column;
         transform: translateX(100%);
         transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        overscroll-behavior: contain;
+        overscroll-behavior-y: contain;
       }
       .copilot-drawer.open {
         transform: translateX(0);
@@ -132,6 +134,8 @@ export function renderCopilotDrawer({
       .copilot-drawer-body {
         flex: 1;
         overflow-y: auto;
+        overscroll-behavior: contain;
+        overscroll-behavior-y: contain;
         padding: 16px 18px;
         display: flex;
         flex-direction: column;
@@ -237,7 +241,7 @@ export function renderCopilotDrawer({
       </div>
 
       <!-- Drawer Body -->
-      <div class="copilot-drawer-body" id="copilot-body">
+      <div class="copilot-drawer-body" id="copilot-body" tabindex="-1">
         <!-- AI Unavailable Banner if service offline -->
         ${!aiAvailable ? renderAIUnavailableCard({ continueHref: '/profile' }) : ''}
 
@@ -584,6 +588,58 @@ export function renderCopilotDrawer({
               first.focus();
             }
           });
+
+          // P90 Scroll Isolation: Prevent wheel & touch scroll events from leaking to background page
+          drawerEl.addEventListener('wheel', function(e) {
+            if (!drawerEl.classList.contains('open')) return;
+
+            const bodyEl = document.getElementById('copilot-body');
+            // If wheel event originates on non-scrollable header, footer, or other non-body container
+            if (!bodyEl || !bodyEl.contains(e.target)) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+
+            // Inside scrollable body: prevent scroll chaining when reaching boundaries
+            const deltaY = e.deltaY;
+            const atTop = bodyEl.scrollTop <= 0;
+            const atBottom = Math.ceil(bodyEl.scrollTop + bodyEl.clientHeight) >= bodyEl.scrollHeight;
+
+            if ((deltaY < 0 && atTop) || (deltaY > 0 && atBottom)) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }, { passive: false });
+
+          let touchStartY = 0;
+          drawerEl.addEventListener('touchstart', function(e) {
+            if (e.touches && e.touches.length > 0) {
+              touchStartY = e.touches[0].clientY;
+            }
+          }, { passive: true });
+
+          drawerEl.addEventListener('touchmove', function(e) {
+            if (!drawerEl.classList.contains('open')) return;
+            const bodyEl = document.getElementById('copilot-body');
+            if (!bodyEl || !bodyEl.contains(e.target)) {
+              e.preventDefault();
+              e.stopPropagation();
+              return;
+            }
+
+            if (e.touches && e.touches.length > 0) {
+              const currentY = e.touches[0].clientY;
+              const deltaY = touchStartY - currentY;
+              const atTop = bodyEl.scrollTop <= 0;
+              const atBottom = Math.ceil(bodyEl.scrollTop + bodyEl.clientHeight) >= bodyEl.scrollHeight;
+
+              if ((deltaY < 0 && atTop) || (deltaY > 0 && atBottom)) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }
+          }, { passive: false });
         }
 
         // Auto-grow textarea

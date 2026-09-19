@@ -88,6 +88,16 @@ import { ApplicationReadinessService } from '../services/application-readiness.s
 import { JobApplicationFlowService } from '../services/job-application-flow.service.js';
 import { AiCareerAssistantService } from '../services/ai-career-assistant.service.js';
 import { CopilotPageContextSchema, normalizeCopilotPageContext } from '../domain/ai/career-assistant.schemas.js';
+import {
+  normalizeNoticePeriod,
+  normalizeRemotePreference,
+  normalizeRelocationPreference,
+  normalizeCompensationPeriod,
+  normalizeCompensationType,
+  normalizeEmploymentTypes,
+  normalizeVisaSponsorship,
+  normalizeCareerStatus,
+} from '../domain/candidate/career-preferences.schemas.js';
 import { NotFoundError } from '../errors/index.js';
 
 /**
@@ -2621,7 +2631,7 @@ export default async function webRoutes(app, opts = {}) {
     if (loc !== undefined) sectionUpdates.location = loc;
 
     const cStatus = resolveField('careerStatus', identitySec);
-    if (cStatus !== undefined) sectionUpdates.careerStatus = cStatus;
+    if (cStatus !== undefined) sectionUpdates.careerStatus = cStatus ? String(cStatus).toUpperCase().trim() : 'UNKNOWN';
 
     const cCode = body.countryCode !== undefined ? body.countryCode : (body.contactCountryCode !== undefined ? body.contactCountryCode : contactSec.countryCode);
     if (cCode !== undefined) sectionUpdates.countryCode = cCode;
@@ -2646,10 +2656,12 @@ export default async function webRoutes(app, opts = {}) {
     const tz = body.timezone || identitySec.timezone || prefsSec.timezone || eligSec.timezone;
     if (tz !== undefined) sectionUpdates.timezone = tz;
 
-    const np = body.noticePeriod || eligSec.noticePeriod || prefsSec.noticePeriod;
+    const rawNp = body.noticePeriod !== undefined ? body.noticePeriod : (eligSec.noticePeriod !== undefined ? eligSec.noticePeriod : prefsSec.noticePeriod);
+    const np = rawNp !== undefined ? normalizeNoticePeriod(rawNp) : undefined;
     if (np !== undefined) sectionUpdates.noticePeriod = np;
 
-    const cnp = body.customNoticePeriod || eligSec.customNoticePeriod || prefsSec.customNoticePeriod;
+    const rawCnp = body.customNoticePeriod !== undefined ? body.customNoticePeriod : (eligSec.customNoticePeriod !== undefined ? eligSec.customNoticePeriod : prefsSec.customNoticePeriod);
+    const cnp = rawCnp !== undefined ? (rawCnp ? String(rawCnp).trim() : null) : undefined;
     if (cnp !== undefined) sectionUpdates.customNoticePeriod = cnp;
 
     if (body.currentEmployment !== undefined || identitySec.currentEmployment !== undefined) {
@@ -2688,32 +2700,42 @@ export default async function webRoutes(app, opts = {}) {
     if (hasPrefsOrElig) {
       const prefRoles = resolveField('targetRoles', prefsSec);
       const prefLocs = resolveField('preferredLocations', prefsSec);
-      const prefRemote = resolveField('remotePreference', prefsSec);
-      const prefReloc = resolveField('relocationPreference', prefsSec);
+      const rawRemote = resolveField('remotePreference', prefsSec);
+      const prefRemote = rawRemote !== undefined ? normalizeRemotePreference(rawRemote) : undefined;
+      const rawReloc = resolveField('relocationPreference', prefsSec);
+      const prefReloc = rawReloc !== undefined ? normalizeRelocationPreference(rawReloc) : undefined;
       const prefWorkAuth = resolveField('workAuthorization', eligSec);
       const prefVisa = resolveField('visaSponsorshipRequired', eligSec);
       const prefAvail = resolveField('availabilityDate', eligSec);
+      const rawCurrency = resolveField('salaryCurrency', prefsSec);
+      const prefCurrency = rawCurrency ? String(rawCurrency).toUpperCase().trim().slice(0, 3) : (rawCurrency === null ? null : undefined);
+      const rawPeriod = resolveField('compensationPeriod', prefsSec);
+      const prefPeriod = rawPeriod !== undefined ? normalizeCompensationPeriod(rawPeriod) : undefined;
+      const rawType = resolveField('compensationType', prefsSec);
+      const prefType = rawType !== undefined ? normalizeCompensationType(rawType) : undefined;
+      const rawEmpTypes = body.employmentTypes ? parseList(body.employmentTypes) : (prefsSec.employmentTypes ? parseList(prefsSec.employmentTypes) : undefined);
+      const prefEmpTypes = rawEmpTypes !== undefined ? normalizeEmploymentTypes(rawEmpTypes) : undefined;
 
       sectionUpdates.jobPreferences = {
         targetRoles: prefRoles !== undefined ? parseList(prefRoles) : undefined,
         preferredLocations: prefLocs !== undefined ? parseList(prefLocs) : undefined,
-        remotePreference: prefRemote !== undefined ? prefRemote || null : undefined,
-        employmentTypes: body.employmentTypes ? parseList(body.employmentTypes) : (prefsSec.employmentTypes ? parseList(prefsSec.employmentTypes) : undefined),
+        remotePreference: prefRemote,
+        employmentTypes: prefEmpTypes,
         salaryFloor: (body.salaryFloor !== undefined || prefsSec.salaryFloor !== undefined) ? Number(body.salaryFloor ?? prefsSec.salaryFloor) || null : undefined,
         targetSalary: (body.targetSalary !== undefined || prefsSec.targetSalary !== undefined) ? Number(body.targetSalary ?? prefsSec.targetSalary) || null : undefined,
-        salaryCurrency: resolveField('salaryCurrency', prefsSec) || null,
-        compensationPeriod: resolveField('compensationPeriod', prefsSec) || null,
-        compensationType: resolveField('compensationType', prefsSec) || null,
+        salaryCurrency: prefCurrency,
+        compensationPeriod: prefPeriod,
+        compensationType: prefType,
         preferredTechStack: body.preferredTechStack ? parseList(body.preferredTechStack) : (prefsSec.preferredTechStack ? parseList(prefsSec.preferredTechStack) : undefined),
         industries: body.industries ? parseList(body.industries) : (prefsSec.industries ? parseList(prefsSec.industries) : undefined),
         companiesToPrioritize: body.companiesToPrioritize ? parseList(body.companiesToPrioritize) : (prefsSec.companiesToPrioritize ? parseList(prefsSec.companiesToPrioritize) : undefined),
         companiesToAvoid: body.companiesToAvoid ? parseList(body.companiesToAvoid) : (prefsSec.companiesToAvoid ? parseList(prefsSec.companiesToAvoid) : undefined),
         workAuthorization: prefWorkAuth !== undefined ? parseList(prefWorkAuth) : undefined,
-        visaSponsorshipRequired: prefVisa !== undefined ? parseVisaSponsorship(prefVisa) : undefined,
+        visaSponsorshipRequired: prefVisa !== undefined ? normalizeVisaSponsorship(prefVisa) : undefined,
         availabilityDate: prefAvail ? String(prefAvail).trim() : undefined,
-        relocationPreference: prefReloc !== undefined ? prefReloc || null : undefined,
-        noticePeriod: np !== undefined ? np || null : undefined,
-        customNoticePeriod: cnp !== undefined ? cnp || null : undefined,
+        relocationPreference: prefReloc,
+        noticePeriod: np !== undefined ? np : undefined,
+        customNoticePeriod: cnp !== undefined ? cnp : undefined,
         availableImmediately: body.availableImmediately !== undefined ? (body.availableImmediately === 'true' || body.availableImmediately === true) : (eligSec.availableImmediately !== undefined ? Boolean(eligSec.availableImmediately) : undefined),
         isCurrentlyEmployed: body.isCurrentlyEmployed !== undefined ? (body.isCurrentlyEmployed === 'true' || body.isCurrentlyEmployed === true) : (eligSec.isCurrentlyEmployed !== undefined ? Boolean(eligSec.isCurrentlyEmployed) : undefined),
         timezone: tz !== undefined ? tz || null : undefined,
@@ -3012,15 +3034,15 @@ export default async function webRoutes(app, opts = {}) {
       if (prefs.targetRoles !== undefined) jobPrefs.targetRoles = prefs.targetRoles;
       if (prefs.preferredLocations !== undefined)
         jobPrefs.preferredLocations = prefs.preferredLocations;
-      if (prefs.remotePreference !== undefined) jobPrefs.remotePreference = prefs.remotePreference;
-      if (prefs.employmentTypes !== undefined) jobPrefs.employmentTypes = prefs.employmentTypes;
+      if (prefs.remotePreference !== undefined) jobPrefs.remotePreference = normalizeRemotePreference(prefs.remotePreference);
+      if (prefs.employmentTypes !== undefined) jobPrefs.employmentTypes = normalizeEmploymentTypes(prefs.employmentTypes);
       if (prefs.salaryFloor !== undefined)
         jobPrefs.salaryFloor = prefs.salaryFloor != null ? Number(prefs.salaryFloor) : null;
       if (prefs.targetSalary !== undefined)
         jobPrefs.targetSalary = prefs.targetSalary != null ? Number(prefs.targetSalary) : null;
-      if (prefs.salaryCurrency !== undefined) jobPrefs.salaryCurrency = prefs.salaryCurrency;
-      if (prefs.compensationPeriod !== undefined) jobPrefs.compensationPeriod = prefs.compensationPeriod;
-      if (prefs.compensationType !== undefined) jobPrefs.compensationType = prefs.compensationType;
+      if (prefs.salaryCurrency !== undefined) jobPrefs.salaryCurrency = prefs.salaryCurrency ? String(prefs.salaryCurrency).toUpperCase().trim().slice(0, 3) : null;
+      if (prefs.compensationPeriod !== undefined) jobPrefs.compensationPeriod = normalizeCompensationPeriod(prefs.compensationPeriod);
+      if (prefs.compensationType !== undefined) jobPrefs.compensationType = normalizeCompensationType(prefs.compensationType);
       if (prefs.preferredTechStack !== undefined)
         jobPrefs.preferredTechStack = prefs.preferredTechStack;
       if (prefs.industries !== undefined) jobPrefs.industries = prefs.industries;
@@ -3029,20 +3051,20 @@ export default async function webRoutes(app, opts = {}) {
       if (prefs.companiesToAvoid !== undefined) jobPrefs.companiesToAvoid = prefs.companiesToAvoid;
       if (prefs.availabilityDate !== undefined) jobPrefs.availabilityDate = prefs.availabilityDate;
       if (prefs.relocationPreference !== undefined)
-        jobPrefs.relocationPreference = prefs.relocationPreference;
+        jobPrefs.relocationPreference = normalizeRelocationPreference(prefs.relocationPreference);
 
       // Work authorization / eligibility fields from prefs or elig
       const workAuth = elig.workAuthorization !== undefined ? elig.workAuthorization : prefs.workAuthorization;
       if (workAuth !== undefined) jobPrefs.workAuthorization = workAuth;
 
       const visaSpons = elig.visaSponsorshipRequired !== undefined ? elig.visaSponsorshipRequired : prefs.visaSponsorshipRequired;
-      if (visaSpons !== undefined) jobPrefs.visaSponsorshipRequired = visaSpons;
+      if (visaSpons !== undefined) jobPrefs.visaSponsorshipRequired = normalizeVisaSponsorship(visaSpons);
 
       const noticeP = elig.noticePeriod !== undefined ? elig.noticePeriod : prefs.noticePeriod;
-      if (noticeP !== undefined) jobPrefs.noticePeriod = noticeP;
+      if (noticeP !== undefined) jobPrefs.noticePeriod = normalizeNoticePeriod(noticeP);
 
       const customNoticeP = elig.customNoticePeriod !== undefined ? elig.customNoticePeriod : prefs.customNoticePeriod;
-      if (customNoticeP !== undefined) jobPrefs.customNoticePeriod = customNoticeP;
+      if (customNoticeP !== undefined) jobPrefs.customNoticePeriod = customNoticeP ? String(customNoticeP).trim() : null;
 
       const availImm = elig.availableImmediately !== undefined ? elig.availableImmediately : prefs.availableImmediately;
       if (availImm !== undefined) jobPrefs.availableImmediately = availImm;

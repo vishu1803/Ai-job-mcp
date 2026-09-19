@@ -119,18 +119,247 @@ export const WorkAuthorizationItemSchema = z.union([
  * @returns {string|null}
  */
 export function normalizeNoticePeriod(val) {
-  if (!val) return null;
+  if (!val || (typeof val === 'string' && !val.trim())) return null;
   if (typeof val !== 'string') return null;
   const s = val.trim().toLowerCase();
   if (/^(immediate|immediately|now|asap|none)$/i.test(s)) return 'IMMEDIATE';
-  if (/^(less than 1 week|< 1 week|<1 week|under a week)$/i.test(s)) return 'LESS_THAN_1_WEEK';
-  if (/^(1-2 weeks|1–2 weeks|1 to 2 weeks|2 weeks|two weeks|14 days)$/i.test(s)) return '1_TO_2_WEEKS';
-  if (/^(30 days|1 month|one month|4 weeks)$/i.test(s)) return '30_DAYS';
-  if (/^(60 days|2 months|two months|8 weeks)$/i.test(s)) return '60_DAYS';
-  if (/^(90 days|3 months|three months|12 weeks)$/i.test(s)) return '90_DAYS';
+  if (/^(less than 1 week|< 1 week|<1 week|under a week|less_than_1_week)$/i.test(s)) return 'LESS_THAN_1_WEEK';
+  if (/^(1-2 weeks|1–2 weeks|1 to 2 weeks|2 weeks|two weeks|14 days|1_to_2_weeks)$/i.test(s)) return '1_TO_2_WEEKS';
+  if (/^(30 days|1 month|one month|4 weeks|30_days)$/i.test(s)) return '30_DAYS';
+  if (/^(60 days|2 months|two months|8 weeks|60_days)$/i.test(s)) return '60_DAYS';
+  if (/^(90 days|3 months|three months|12 weeks|90_days)$/i.test(s)) return '90_DAYS';
+  if (/^(custom)$/i.test(s)) return 'CUSTOM';
+  if (/^(not_set|not set|unset)$/i.test(s)) return 'NOT_SET';
+  if (/^(unknown)$/i.test(s)) return 'UNKNOWN';
   const upper = val.toUpperCase().trim();
   if (NoticePeriodEnum.options.includes(upper)) return upper;
   return 'CUSTOM';
+}
+
+/**
+ * Normalizes remote preference input to standard RemotePreferenceEnum.
+ *
+ * @param {string|null} val
+ * @returns {string|null}
+ */
+export function normalizeRemotePreference(val) {
+  if (!val || (typeof val === 'string' && !val.trim())) return null;
+  if (typeof val !== 'string') return null;
+  const s = val.trim().toLowerCase();
+  if (/^(remote_only|remote only|remote)$/i.test(s)) return 'REMOTE_ONLY';
+  if (/^(remote_first|remote first|remote-first)$/i.test(s)) return 'REMOTE_FIRST';
+  if (/^(hybrid)$/i.test(s)) return 'HYBRID';
+  if (/^(on_site|onsite|on-site|on site|in_person|in person)$/i.test(s)) return 'ON_SITE';
+  if (/^(flexible)$/i.test(s)) return 'FLEXIBLE';
+  if (/^(unknown)$/i.test(s)) return 'UNKNOWN';
+  if (/^(not_set|not set|no preference|no_preference|none)$/i.test(s)) return 'NOT_SET';
+  const upper = val.toUpperCase().trim();
+  if (RemotePreferenceEnum.options.includes(upper)) return upper;
+  return null;
+}
+
+/**
+ * Normalizes relocation preference input to standard RelocationPreferenceEnum.
+ *
+ * @param {string|null} val
+ * @returns {string|null}
+ */
+export function normalizeRelocationPreference(val) {
+  if (!val || (typeof val === 'string' && !val.trim())) return null;
+  if (typeof val !== 'string') return null;
+  const s = val.trim().toLowerCase();
+  if (/^(willing_to_relocate|willing to relocate|will_relocate|will relocate|yes)$/i.test(s)) return 'WILLING_TO_RELOCATE';
+  if (/^(open_to_relocation|open to relocation|open)$/i.test(s)) return 'OPEN_TO_RELOCATION';
+  if (/^(not_willing|not willing|no)$/i.test(s)) return 'NOT_WILLING';
+  if (/^(remote_only|remote only|remote)$/i.test(s)) return 'REMOTE_ONLY';
+  if (/^(unknown)$/i.test(s)) return 'UNKNOWN';
+  if (/^(not_set|not set|none)$/i.test(s)) return 'NOT_SET';
+  const upper = val.toUpperCase().trim();
+  if (RelocationPreferenceEnum.options.includes(upper)) return upper;
+  return null;
+}
+
+/**
+ * Normalizes compensation period input to standard CompensationPeriodEnum.
+ *
+ * @param {string|null} val
+ * @returns {string|null}
+ */
+export function normalizeCompensationPeriod(val) {
+  if (!val || (typeof val === 'string' && !val.trim())) return null;
+  if (typeof val !== 'string') return null;
+  const s = val.trim().toLowerCase();
+  if (/^(yearly|annual|annually|year|per year)$/i.test(s)) return 'YEARLY';
+  if (/^(monthly|month|per month)$/i.test(s)) return 'MONTHLY';
+  if (/^(hourly|hour|per hour|hr)$/i.test(s)) return 'HOURLY';
+  if (/^(weekly|week|per week)$/i.test(s)) return 'WEEKLY';
+  if (/^(unknown)$/i.test(s)) return 'UNKNOWN';
+  if (/^(not_set|not set|none)$/i.test(s)) return 'NOT_SET';
+  const upper = val.toUpperCase().trim();
+  if (CompensationPeriodEnum.options.includes(upper)) return upper;
+  return null;
+}
+
+/**
+ * Normalizes compensation type input to standard CompensationTypeEnum.
+ *
+ * @param {string|null} val
+ * @returns {string|null}
+ */
+export function normalizeCompensationType(val) {
+  if (!val || (typeof val === 'string' && !val.trim())) return null;
+  if (typeof val !== 'string') return null;
+  const s = val.trim().toLowerCase();
+  if (/^(base_only|base only|base|base_salary|base salary)$/i.test(s)) return 'BASE_ONLY';
+  if (/^(total_comp|total comp|total|total_compensation|total compensation)$/i.test(s)) return 'TOTAL_COMP';
+  if (/^(base_plus_bonus|base plus bonus|base \+ bonus)$/i.test(s)) return 'BASE_PLUS_BONUS';
+  if (/^(unknown)$/i.test(s)) return 'UNKNOWN';
+  if (/^(not_set|not set|none)$/i.test(s)) return 'NOT_SET';
+  const upper = val.toUpperCase().trim();
+  if (CompensationTypeEnum.options.includes(upper)) return upper;
+  return null;
+}
+
+/**
+ * Normalizes single employment type string to EmploymentTypeEnum.
+ *
+ * @param {string|null} val
+ * @returns {string|null}
+ */
+export function normalizeEmploymentType(val) {
+  if (!val || (typeof val === 'string' && !val.trim())) return null;
+  if (typeof val !== 'string') return null;
+  const s = val.trim().toLowerCase();
+  if (/^(full_time|full-time|full time)$/i.test(s)) return 'FULL_TIME';
+  if (/^(part_time|part-time|part time)$/i.test(s)) return 'PART_TIME';
+  if (/^(contract|contractor)$/i.test(s)) return 'CONTRACT';
+  if (/^(internship|intern)$/i.test(s)) return 'INTERNSHIP';
+  if (/^(freelance|freelancer)$/i.test(s)) return 'FREELANCE';
+  if (/^(temporary|temp)$/i.test(s)) return 'CONTRACT';
+  if (/^(other)$/i.test(s)) return 'OTHER';
+  const upper = val.toUpperCase().trim();
+  if (EmploymentTypeEnum.options.includes(upper)) return upper;
+  return null;
+}
+
+/**
+ * Normalizes list of employment types to array of EmploymentTypeEnum.
+ *
+ * @param {Array<string>|string|null} val
+ * @returns {Array<string>}
+ */
+export function normalizeEmploymentTypes(val) {
+  if (!val) return [];
+  const list = Array.isArray(val)
+    ? val
+    : typeof val === 'string'
+      ? val.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+  return list.map(normalizeEmploymentType).filter(Boolean);
+}
+
+/**
+ * Normalizes visa sponsorship value to standard tri-state/boolean representation.
+ *
+ * @param {string|boolean|null} val
+ * @returns {'YES'|'NO'|'UNKNOWN'|'NOT_SET'|null}
+ */
+export function normalizeVisaSponsorship(val) {
+  if (val === true || val === 'true') return 'YES';
+  if (val === false || val === 'false') return 'NO';
+  if (!val || (typeof val === 'string' && !val.trim())) return null;
+  if (typeof val !== 'string') return null;
+  const s = val.trim().toUpperCase();
+  if (s === 'YES' || s === 'TRUE' || s === 'REQUIRED') return 'YES';
+  if (s === 'NO' || s === 'FALSE' || s === 'NOT_REQUIRED') return 'NO';
+  if (s === 'UNKNOWN' || s === 'UNCERTAIN' || s === 'DEPENDS' || s === 'CASE_BY_CASE') return 'UNKNOWN';
+  if (s === 'NOT_SET') return 'NOT_SET';
+  return null;
+}
+
+/**
+ * Normalizes career status string to standard CareerStatusEnum.
+ *
+ * @param {string|null} val
+ * @returns {string}
+ */
+export function normalizeCareerStatus(val) {
+  if (!val || (typeof val === 'string' && !val.trim())) return 'UNKNOWN';
+  if (typeof val !== 'string') return 'UNKNOWN';
+  const s = val.trim().toLowerCase();
+  if (/^(employed|employed_full_time)$/i.test(s)) return 'EMPLOYED';
+  if (/^(unemployed|open_to_work)$/i.test(s)) return 'UNEMPLOYED';
+  if (/^(student)$/i.test(s)) return 'STUDENT';
+  if (/^(fresher|early_career|early career|entry_level|entry level|junior)$/i.test(s)) return 'FRESHER';
+  if (/^(freelance|freelancer)$/i.test(s)) return 'FREELANCE';
+  if (/^(contractor|contract)$/i.test(s)) return 'CONTRACTOR';
+  if (/^(mid_level|mid level|mid)$/i.test(s)) return 'MID_LEVEL';
+  if (/^(senior|sr)$/i.test(s)) return 'SENIOR';
+  if (/^(lead|staff|principal)$/i.test(s)) return 'LEAD';
+  if (/^(executive|manager)$/i.test(s)) return 'EXECUTIVE';
+  if (/^(unknown|not_set)$/i.test(s)) return 'UNKNOWN';
+  const upper = val.toUpperCase().trim();
+  if (CareerStatusEnum.options.includes(upper)) return upper;
+  return 'UNKNOWN';
+}
+
+/**
+ * Normalizes seniority level string to standard SeniorityLevelEnum.
+ *
+ * @param {string|null} val
+ * @returns {string}
+ */
+export function normalizeSeniorityLevel(val) {
+  if (!val || (typeof val === 'string' && !val.trim())) return 'UNKNOWN';
+  if (typeof val !== 'string') return 'UNKNOWN';
+  const s = val.trim().toLowerCase();
+  if (/^(intern|internship)$/i.test(s)) return 'INTERN';
+  if (/^(entry_level|entry-level|entry level|fresher)$/i.test(s)) return 'ENTRY_LEVEL';
+  if (/^(junior|jr)$/i.test(s)) return 'JUNIOR';
+  if (/^(mid|mid_level|mid-level|mid level)$/i.test(s)) return 'MID_LEVEL';
+  if (/^(senior|sr)$/i.test(s)) return 'SENIOR';
+  if (/^(staff)$/i.test(s)) return 'STAFF';
+  if (/^(principal)$/i.test(s)) return 'PRINCIPAL';
+  if (/^(lead|executive)$/i.test(s)) return 'LEAD';
+  const upper = val.toUpperCase().trim();
+  if (SeniorityLevelEnum.options.includes(upper)) return upper;
+  return 'UNKNOWN';
+}
+
+/**
+ * Canonicalizes all enum-backed career preferences input fields before schema validation.
+ *
+ * @param {object} [rawInput={}]
+ * @returns {object} Canonical preferences object
+ */
+export function canonicalizeCareerPreferencesInput(rawInput = {}) {
+  if (!rawInput || typeof rawInput !== 'object') return rawInput;
+  const copy = { ...rawInput };
+  if (copy.noticePeriod !== undefined) {
+    copy.noticePeriod = normalizeNoticePeriod(copy.noticePeriod);
+  }
+  if (copy.remotePreference !== undefined) {
+    copy.remotePreference = normalizeRemotePreference(copy.remotePreference);
+  }
+  if (copy.relocationPreference !== undefined) {
+    copy.relocationPreference = normalizeRelocationPreference(copy.relocationPreference);
+  }
+  if (copy.compensationPeriod !== undefined) {
+    copy.compensationPeriod = normalizeCompensationPeriod(copy.compensationPeriod);
+  }
+  if (copy.compensationType !== undefined) {
+    copy.compensationType = normalizeCompensationType(copy.compensationType);
+  }
+  if (copy.employmentTypes !== undefined) {
+    copy.employmentTypes = normalizeEmploymentTypes(copy.employmentTypes);
+  }
+  if (copy.visaSponsorshipRequired !== undefined) {
+    copy.visaSponsorshipRequired = normalizeVisaSponsorship(copy.visaSponsorshipRequired);
+  }
+  if (copy.salaryCurrency !== undefined && copy.salaryCurrency) {
+    copy.salaryCurrency = String(copy.salaryCurrency).toUpperCase().trim().slice(0, 3);
+  }
+  return copy;
 }
 
 /**
@@ -267,9 +496,9 @@ export const CareerPreferencesSchema = z.strictObject({
 });
 
 /**
- * Update Career Preferences Input Schema.
+ * Base Update Career Preferences Input Schema.
  */
-export const UpdateCareerPreferencesInputSchema = z.strictObject({
+export const BaseUpdateCareerPreferencesInputSchema = z.strictObject({
   targetRoles: z.array(z.string().min(1).max(100)).optional(),
   preferredLocations: z.array(z.string().min(1).max(100)).optional(),
   remotePreference: RemotePreferenceEnum.nullable().optional(),
@@ -299,6 +528,14 @@ export const UpdateCareerPreferencesInputSchema = z.strictObject({
   timezone: z.string().max(100).nullable().optional(),
   timezoneConfirmedByUser: z.boolean().optional(),
 });
+
+/**
+ * Update Career Preferences Input Schema with automatic canonicalization.
+ */
+export const UpdateCareerPreferencesInputSchema = z.preprocess(
+  (val) => canonicalizeCareerPreferencesInput(val),
+  BaseUpdateCareerPreferencesInputSchema
+);
 
 /**
  * Profile Completeness & Readiness Schema (Job Search Intent Model).

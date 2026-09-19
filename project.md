@@ -3,6 +3,46 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-19*
 
+### P90 Live Bug Fix Pass — Copilot Scroll Isolation & Profile Save Enum Normalization
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-19  
+**Scope:** Targeted live production bug fixes addressing Copilot scroll leak / chaining on `/profile` and `POST /profile` 400 Bad Request on lowercase / human enum representations (`noticePeriod: "immediate"`), with a full profile enum audit and submission safety hardening:
+
+1. **Career Copilot Scroll Isolation (`src/views/components/copilot-drawer.js`):**
+   - Retained fixed geometry (`position: fixed; top: 0; right: 0; bottom: 0;`).
+   - Added CSS scroll boundary containment (`overscroll-behavior: contain; overscroll-behavior-y: contain;`) to both `.copilot-drawer` and `.copilot-drawer-body`.
+   - Added `tabindex="-1"` to `#copilot-body` for native keyboard scrollability without Tab-trap focus leaks.
+   - Attached non-passive wheel and touchmove event listeners to `drawerEl` that detect boundary scroll attempts (scroll top `scrollTop <= 0` and scroll bottom `scrollTop + clientHeight >= scrollHeight`) or events over the non-scrollable header/footer, invoking `e.preventDefault()` and `e.stopPropagation()` to completely prevent scroll chaining to the underlying workspace.
+   - Maintained non-blocking desktop backdrop (`display: none !important; pointer-events: none !important;`) allowing interaction with the main page without global `document.body { overflow: hidden }`.
+
+2. **Notice Period Normalization & Full Enum Audit (`src/domain/candidate/career-preferences.schemas.js`, `src/services/candidate-profile.service.js`, `src/routes/web.routes.js`, `src/views/profile.page.js`):**
+   - Canonical Normalizers: Enhanced `normalizeNoticePeriod(val)` to handle snake_case values (`immediate`, `less_than_1_week`, `1_to_2_weeks`, `30_days`, `60_days`, `90_days`, `custom`). Added and exported `normalizeRemotePreference`, `normalizeRelocationPreference`, `normalizeCompensationPeriod`, `normalizeCompensationType`, `normalizeEmploymentType`, `normalizeEmploymentTypes`, `normalizeVisaSponsorship`, `normalizeCareerStatus`, `normalizeSeniorityLevel`, and `canonicalizeCareerPreferencesInput`.
+   - Preprocessed Schema Validation: Wrapped `UpdateCareerPreferencesInputSchema` with `z.preprocess((val) => canonicalizeCareerPreferencesInput(val), BaseUpdateCareerPreferencesInputSchema)` guaranteeing canonicalization occurs before strict Zod validation.
+   - Service & Route Normalization: In `CandidateProfileService.updateCareerPreferences` and `updateUserProfileSections`, canonicalized all preferences before saving. In `web.routes.js` `POST /profile` and `PATCH /api/profile`, normalized `noticePeriod`, `customNoticePeriod`, `remotePreference`, `relocationPreference`, `compensationPeriod`, `salaryCurrency`, and `visaSponsorshipRequired`.
+   - Round-Trip Invariant: Updated `src/views/profile.page.js` to render uppercase canonical options (`IMMEDIATE`, `ON_SITE`, `YEARLY`, etc.) while displaying human-readable labels ("Immediate", "Onsite", "Annual (per year)"). Selection matchers use normalizers so canonical values stored in the database correctly match dropdown options upon profile reload.
+
+3. **Double-Save & Submission Safety (`src/views/profile.page.js`):**
+   - Form-level Enter key suppression: Intercepted `keydown` on single-line `<input>` elements preventing accidental premature submissions on Enter.
+   - Single canonical submit action: Preserved `isSaving` idempotency guard and disabled state with `aria-busy="true"` on the save button.
+   - Failure preservation: Preserved dirty state on fetch errors while resetting only upon confirmed HTTP 200 responses.
+
+**Verification Evidence & Test Results:**
+- `tests/unit/p90-profile-enum-copilot-scroll.test.js`: **18/18 PASS**
+- `tests/unit/p90-sources-profile-integrity.test.js`: **8/8 PASS**
+- `tests/unit/p90-copilot-contextual-hardening.test.js`: **31/31 PASS**
+- Total P90 suite: **57/57 PASS (100%)**
+- `tests/unit/p89-*.test.js`: **46/46 PASS (100%)**
+- `tests/unit/p87-*.test.js`: **35/35 PASS (100%)**
+- Candidate Profile regression battery: **88/88 PASS (100%)**
+- Secrets scanner: `npm run scan:secrets`: **PASS (Zero exposed secrets)**
+- Live Browser Verification (`browser_subagent`):
+  - Verified Copilot scroll isolation at top, middle, and bottom boundaries with `window.scrollY` remaining 0.
+  - Verified normal Profile page scrolling functions smoothly upon closing Copilot.
+  - Verified setting Notice Period to "Immediate", Workplace Model to "Onsite", clicking Save once succeeds with HTTP 200, zero 400 errors, and reload persists `IMMEDIATE` and `ON_SITE`.
+  - Re-opened Copilot cleanly after saving and navigation.
+- Server log verification: Confirmed `candidate.profile_sections_updated` event emitted with zero `invalid_enum_value` errors.
+- AI Architecture unchanged: Vertex AI (`@google/genai`, ADC, `gemini-3.8-flash`) and Gemini Developer API adapter intact.
+
 ### P90: Career Copilot Final Hardening & Workspace Assistant Architecture
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-19  

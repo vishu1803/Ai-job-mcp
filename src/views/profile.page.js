@@ -22,7 +22,14 @@
 import { renderLayout } from './layout.js';
 import { escapeHtml } from '../utils/html-escaper.js';
 import { COUNTRY_CALLING_CODES, parseStoredPhone } from '../utils/phone-country-codes.js';
-import { formatNoticePeriodLabel } from '../domain/candidate/career-preferences.schemas.js';
+import {
+  formatNoticePeriodLabel,
+  normalizeNoticePeriod,
+  normalizeRemotePreference,
+  normalizeRelocationPreference,
+  normalizeCompensationPeriod,
+  normalizeVisaSponsorship,
+} from '../domain/candidate/career-preferences.schemas.js';
 import { ApplicationReadinessService } from '../services/application-readiness.service.js';
 import { renderIcon } from './components/icons.js';
 
@@ -81,7 +88,11 @@ export function renderProfilePage({
   const currentRole = profile?.currentRole || userCustom.currentRole || candidate?.headline || '';
   const userLocation = profile?.location || userCustom.location || '';
   const summaryText = profile?.summary || userCustom.summary || candidate?.summary || '';
-  const careerStatusVal = profile?.careerStatus || userCustom.careerStatus || 'FRESHER';
+  const careerStatusVal =
+    userCustom.careerStatus ||
+    profile?.seniority ||
+    profile?.careerStatus ||
+    'FRESHER';
   const timezoneVal = jobPrefs.timezone || userCustom.timezone || profile?.timezone || '';
 
   // Experience, Education, Projects, Credentials
@@ -129,12 +140,13 @@ export function renderProfilePage({
   // Preferences
   const targetRolesList = jobPrefs.targetRoles || [];
   const preferredLocationsList = jobPrefs.preferredLocations || [];
-  const remotePref = jobPrefs.remotePreference || '';
+  const remotePref = normalizeRemotePreference(jobPrefs.remotePreference || '') || '';
+  const relocationPref = normalizeRelocationPreference(jobPrefs.relocationPreference || '') || '';
   const employmentTypesList = jobPrefs.employmentTypes || [];
   const salaryFloor = jobPrefs.salaryFloor != null ? jobPrefs.salaryFloor : '';
   const targetSalary = jobPrefs.targetSalary != null ? jobPrefs.targetSalary : '';
   const salaryCurrency = jobPrefs.salaryCurrency || '';
-  const compensationPeriod = jobPrefs.compensationPeriod || '';
+  const compensationPeriodVal = normalizeCompensationPeriod(jobPrefs.compensationPeriod || '') || '';
   const compensationType = jobPrefs.compensationType || '';
   const preferredTechStackList = jobPrefs.preferredTechStack || [];
   const industriesList = jobPrefs.industries || [];
@@ -145,11 +157,12 @@ export function renderProfilePage({
   const workAuthList = Array.isArray(jobPrefs.workAuthorization)
     ? jobPrefs.workAuthorization
     : jobPrefs.workAuthorization ? [jobPrefs.workAuthorization] : [];
-  const visaSponsorshipVal = jobPrefs.visaSponsorshipRequired != null
-    ? String(jobPrefs.visaSponsorshipRequired)
-    : '';
-  const noticePeriodVal = jobPrefs.noticePeriod || '';
-  const customNoticeVal = jobPrefs.customNoticePeriod || '';
+  const rawVisa = jobPrefs.visaSponsorshipRequired != null
+    ? jobPrefs.visaSponsorshipRequired
+    : (userCustom.visaSponsorshipRequired != null ? userCustom.visaSponsorshipRequired : '');
+  const visaSponsorshipVal = normalizeVisaSponsorship(rawVisa) || '';
+  const noticePeriodVal = normalizeNoticePeriod(jobPrefs.noticePeriod || profile?.noticePeriod || userCustom.noticePeriod || '') || '';
+  const customNoticeVal = jobPrefs.customNoticePeriod || profile?.customNoticePeriod || userCustom.customNoticePeriod || '';
   const availabilityDateVal = jobPrefs.availabilityDate || '';
   const isCurrentlyEmployed = Boolean(jobPrefs.isCurrentlyEmployed || userCustom.isCurrentlyEmployed);
   const availableImmediately = Boolean(jobPrefs.availableImmediately || userCustom.availableImmediately);
@@ -201,11 +214,12 @@ export function renderProfilePage({
       targetRoles: targetRolesList,
       preferredLocations: preferredLocationsList,
       remotePreference: remotePref,
+      relocationPreference: relocationPref,
       employmentTypes: employmentTypesList,
       salaryFloor: salaryFloor ? Number(salaryFloor) : null,
       targetSalary: targetSalary ? Number(targetSalary) : null,
       salaryCurrency,
-      compensationPeriod,
+      compensationPeriod: compensationPeriodVal,
       compensationType,
       preferredTechStack: preferredTechStackList,
       industries: industriesList,
@@ -1783,8 +1797,9 @@ export function renderProfilePage({
                 <select id="remotePreference" name="remotePreference" class="form-control">
                   <option value="" ${!remotePref ? 'selected' : ''}>No preference (Not Set)</option>
                   <option value="REMOTE_ONLY" ${remotePref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
+                  <option value="REMOTE_FIRST" ${remotePref === 'REMOTE_FIRST' ? 'selected' : ''}>Remote First</option>
                   <option value="HYBRID" ${remotePref === 'HYBRID' ? 'selected' : ''}>Hybrid</option>
-                  <option value="ONSITE" ${remotePref === 'ONSITE' ? 'selected' : ''}>Onsite</option>
+                  <option value="ON_SITE" ${remotePref === 'ON_SITE' ? 'selected' : ''}>Onsite</option>
                   <option value="FLEXIBLE" ${remotePref === 'FLEXIBLE' ? 'selected' : ''}>Flexible</option>
                 </select>
               </div>
@@ -1792,9 +1807,11 @@ export function renderProfilePage({
               <div class="form-group">
                 <label for="relocationPreference">Relocation Preference <span class="optional-tag">(optional)</span></label>
                 <select id="relocationPreference" name="relocationPreference" class="form-control">
-                  <option value="" ${!jobPrefs.relocationPreference ? 'selected' : ''}>Not Set</option>
-                  <option value="WILL_RELOCATE" ${jobPrefs.relocationPreference === 'WILL_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
-                  <option value="REMOTE_ONLY" ${jobPrefs.relocationPreference === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only (No Relocation)</option>
+                  <option value="" ${!relocationPref ? 'selected' : ''}>Not Set</option>
+                  <option value="WILLING_TO_RELOCATE" ${relocationPref === 'WILLING_TO_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
+                  <option value="REMOTE_ONLY" ${relocationPref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only (No Relocation)</option>
+                  <option value="OPEN_TO_RELOCATION" ${relocationPref === 'OPEN_TO_RELOCATION' ? 'selected' : ''}>Open to Relocation</option>
+                  <option value="NOT_WILLING_TO_RELOCATE" ${relocationPref === 'NOT_WILLING_TO_RELOCATE' ? 'selected' : ''}>Not Willing to Relocate</option>
                 </select>
               </div>
 
@@ -1826,10 +1843,11 @@ export function renderProfilePage({
               <div class="form-group">
                 <label for="compensationPeriod">Pay Period <span class="optional-tag">(optional)</span></label>
                 <select id="compensationPeriod" name="compensationPeriod" class="form-control">
-                  <option value="" ${!compensationPeriod ? 'selected' : ''}>Not Set</option>
-                  <option value="ANNUAL" ${compensationPeriod === 'ANNUAL' ? 'selected' : ''}>Annual (per year)</option>
-                  <option value="MONTHLY" ${compensationPeriod === 'MONTHLY' ? 'selected' : ''}>Monthly</option>
-                  <option value="HOURLY" ${compensationPeriod === 'HOURLY' ? 'selected' : ''}>Hourly rate</option>
+                  <option value="" ${!compensationPeriodVal ? 'selected' : ''}>Not Set</option>
+                  <option value="YEARLY" ${compensationPeriodVal === 'YEARLY' ? 'selected' : ''}>Annual (per year)</option>
+                  <option value="MONTHLY" ${compensationPeriodVal === 'MONTHLY' ? 'selected' : ''}>Monthly</option>
+                  <option value="HOURLY" ${compensationPeriodVal === 'HOURLY' ? 'selected' : ''}>Hourly rate</option>
+                  <option value="WEEKLY" ${compensationPeriodVal === 'WEEKLY' ? 'selected' : ''}>Weekly</option>
                 </select>
               </div>
             </div>
@@ -1871,18 +1889,18 @@ export function renderProfilePage({
                 <label for="noticePeriodSelect">Notice Period <span class="required-star">*</span></label>
                 <select id="noticePeriodSelect" name="noticePeriod" class="form-control">
                   <option value="" ${!noticePeriodVal ? 'selected' : ''}>Choose notice period...</option>
-                  <option value="immediate" ${noticePeriodVal === 'immediate' ? 'selected' : ''}>Immediate (Available immediately)</option>
-                  <option value="less_than_1_week" ${noticePeriodVal === 'less_than_1_week' ? 'selected' : ''}>Less than 1 week</option>
-                  <option value="1_to_2_weeks" ${noticePeriodVal === '1_to_2_weeks' ? 'selected' : ''}>1 to 2 weeks</option>
-                  <option value="30_days" ${noticePeriodVal === '30_days' ? 'selected' : ''}>30 days (1 month)</option>
-                  <option value="60_days" ${noticePeriodVal === '60_days' ? 'selected' : ''}>60 days (2 months)</option>
-                  <option value="90_days" ${noticePeriodVal === '90_days' ? 'selected' : ''}>90 days (3 months)</option>
-                  <option value="custom" ${noticePeriodVal === 'custom' ? 'selected' : ''}>Custom duration...</option>
+                  <option value="IMMEDIATE" ${noticePeriodVal === 'IMMEDIATE' ? 'selected' : ''}>Immediate (Available immediately)</option>
+                  <option value="LESS_THAN_1_WEEK" ${noticePeriodVal === 'LESS_THAN_1_WEEK' ? 'selected' : ''}>Less than 1 week</option>
+                  <option value="1_TO_2_WEEKS" ${noticePeriodVal === '1_TO_2_WEEKS' ? 'selected' : ''}>1 to 2 weeks</option>
+                  <option value="30_DAYS" ${noticePeriodVal === '30_DAYS' ? 'selected' : ''}>30 days (1 month)</option>
+                  <option value="60_DAYS" ${noticePeriodVal === '60_DAYS' ? 'selected' : ''}>60 days (2 months)</option>
+                  <option value="90_DAYS" ${noticePeriodVal === '90_DAYS' ? 'selected' : ''}>90 days (3 months)</option>
+                  <option value="CUSTOM" ${noticePeriodVal === 'CUSTOM' ? 'selected' : ''}>Custom duration...</option>
                 </select>
                 <span class="field-hint">Standardized notice period required by application screening.</span>
               </div>
 
-              <div class="form-group" id="customNoticeGroup" style="${noticePeriodVal === 'custom' ? '' : 'display: none;'}">
+              <div class="form-group" id="customNoticeGroup" style="${noticePeriodVal === 'CUSTOM' ? '' : 'display: none;'}">
                 <label for="customNoticePeriod">Custom Notice Period</label>
                 <input type="text" id="customNoticePeriod" name="customNoticePeriod" value="${escapeHtml(customNoticeVal)}" class="form-control" placeholder="e.g. 45 days, 3 weeks">
               </div>
@@ -2084,7 +2102,7 @@ export function renderProfilePage({
         // Notice period custom toggle
         if (noticeSelect && customNoticeGroup) {
           noticeSelect.addEventListener('change', function () {
-            customNoticeGroup.style.display = this.value === 'custom' ? 'block' : 'none';
+            customNoticeGroup.style.display = (this.value === 'CUSTOM' || this.value === 'custom') ? 'block' : 'none';
           });
         }
 
@@ -2168,6 +2186,13 @@ export function renderProfilePage({
 
         // Form change & dirty tracking
         if (form) {
+          // Prevent accidental form submission on Enter in single-line input controls
+          form.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'submit') {
+              e.preventDefault();
+            }
+          });
+
           form.addEventListener('input', function () {
             if (!isDirty) {
               isDirty = true;

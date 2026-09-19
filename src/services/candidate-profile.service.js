@@ -37,6 +37,15 @@ import {
   UpdateCareerPreferencesInputSchema,
   CandidateCareerProfileSchema,
   normalizeNoticePeriod,
+  normalizeRemotePreference,
+  normalizeRelocationPreference,
+  normalizeCompensationPeriod,
+  normalizeCompensationType,
+  normalizeEmploymentTypes,
+  normalizeVisaSponsorship,
+  normalizeCareerStatus,
+  normalizeSeniorityLevel,
+  canonicalizeCareerPreferencesInput,
 } from '../domain/candidate/career-preferences.schemas.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { DateRangeNormalizer } from '../utils/date-range-normalizer.js';
@@ -1187,7 +1196,8 @@ export class CandidateProfileService {
 
     await this._assertCanMutateCandidate(context, candidate);
 
-    const parsedInput = UpdateCareerPreferencesInputSchema.parse(rawInput || {});
+    const canonicalInput = canonicalizeCareerPreferencesInput(rawInput || {});
+    const parsedInput = UpdateCareerPreferencesInputSchema.parse(canonicalInput);
     const existingPreferences = candidate.profileMetadata?.careerPreferences || {};
 
     const updatedPreferences = CareerPreferencesSchema.parse({
@@ -1252,41 +1262,54 @@ export class CandidateProfileService {
     const candidateUpdates = {};
     const updatedCustom = { ...existingCustom };
 
-    // 1. Identity updates
-    if (typeof rawInput.displayName === 'string' && rawInput.displayName.trim()) {
-      candidateUpdates.displayName = rawInput.displayName.trim().slice(0, 255);
+    const sections = rawInput.sections || {};
+    const input = {
+      ...(sections.identity || {}),
+      ...(sections.contact || {}),
+      ...(sections.eligibility || {}),
+      ...(sections.preferences ? { careerPreferences: sections.preferences } : {}),
+      ...rawInput,
+      careerPreferences: rawInput.careerPreferences || rawInput.jobPreferences || sections.preferences,
+    };
+    if (input.noticePeriod && input.careerPreferences && !input.careerPreferences.noticePeriod) {
+      input.careerPreferences = { ...input.careerPreferences, noticePeriod: input.noticePeriod };
     }
-    if (rawInput.headline !== undefined) {
-      const h = rawInput.headline ? String(rawInput.headline).trim().slice(0, 500) : null;
+
+    // 1. Identity updates
+    if (typeof input.displayName === 'string' && input.displayName.trim()) {
+      candidateUpdates.displayName = input.displayName.trim().slice(0, 255);
+    }
+    if (input.headline !== undefined) {
+      const h = input.headline ? String(input.headline).trim().slice(0, 500) : null;
       candidateUpdates.headline = h;
       updatedCustom.headline = h;
     }
-    if (rawInput.summary !== undefined) {
-      const s = rawInput.summary ? String(rawInput.summary).trim().slice(0, 5000) : null;
+    if (input.summary !== undefined) {
+      const s = input.summary ? String(input.summary).trim().slice(0, 5000) : null;
       candidateUpdates.summary = s;
       updatedCustom.summary = s;
     }
-    if (rawInput.currentRole !== undefined) {
-      const cr = rawInput.currentRole ? String(rawInput.currentRole).trim().slice(0, 255) : null;
+    if (input.currentRole !== undefined) {
+      const cr = input.currentRole ? String(input.currentRole).trim().slice(0, 255) : null;
       updatedCustom.currentRole = cr;
       currentMeta.currentRole = cr;
     }
-    if (rawInput.location !== undefined || rawInput.currentLocation !== undefined) {
-      const rawLoc = rawInput.location !== undefined ? rawInput.location : rawInput.currentLocation;
+    if (input.location !== undefined || input.currentLocation !== undefined) {
+      const rawLoc = input.location !== undefined ? input.location : input.currentLocation;
       const loc = rawLoc ? String(rawLoc).trim().slice(0, 255) : null;
       updatedCustom.location = loc;
       updatedCustom.currentLocation = loc;
       currentMeta.location = loc;
     }
     if (
-      rawInput.phone !== undefined ||
-      rawInput.countryCode !== undefined ||
-      rawInput.phoneNumber !== undefined
+      input.phone !== undefined ||
+      input.countryCode !== undefined ||
+      input.phoneNumber !== undefined
     ) {
       const normalizedPhone = normalizePhoneRecord({
-        countryCode: rawInput.countryCode,
-        phoneNumber: rawInput.phoneNumber,
-        rawPhone: rawInput.phone,
+        countryCode: input.countryCode,
+        phoneNumber: input.phoneNumber,
+        rawPhone: input.phone,
         existing: {
           countryCode: existingCustom.countryCode || currentMeta.countryCode,
           phoneNumber: existingCustom.phoneNumber || currentMeta.phoneNumber,
@@ -1304,38 +1327,43 @@ export class CandidateProfileService {
     }
 
     // 2. Career Status & Current Employment
-    if (rawInput.careerStatus !== undefined) {
-      const cs = rawInput.careerStatus
-        ? String(rawInput.careerStatus).toUpperCase().trim()
+    if (input.careerStatus !== undefined) {
+      const rawCs = input.careerStatus
+        ? String(input.careerStatus).toUpperCase().trim()
         : 'UNKNOWN';
-      updatedCustom.careerStatus = cs;
-      currentMeta.careerStatus = cs;
+      updatedCustom.careerStatus = rawCs;
+      currentMeta.careerStatus = rawCs;
+      if (['MID_LEVEL', 'SENIOR', 'LEAD', 'STAFF', 'PRINCIPAL', 'EXECUTIVE'].includes(rawCs)) {
+        const normSen = normalizeSeniorityLevel(rawCs);
+        updatedCustom.seniority = normSen;
+        currentMeta.seniority = normSen;
+      }
     }
-    if (rawInput.currentEmployment !== undefined) {
-      if (rawInput.currentEmployment === null || rawInput.currentEmployment === 'null') {
+    if (input.currentEmployment !== undefined) {
+      if (input.currentEmployment === null || input.currentEmployment === 'null') {
         updatedCustom.currentEmployment = null;
         currentMeta.currentEmployment = null;
-      } else if (typeof rawInput.currentEmployment === 'object') {
+      } else if (typeof input.currentEmployment === 'object') {
         const ce = {
-          company: String(rawInput.currentEmployment.company || '')
+          company: String(input.currentEmployment.company || '')
             .trim()
             .slice(0, 255),
-          title: String(rawInput.currentEmployment.title || '')
+          title: String(input.currentEmployment.title || '')
             .trim()
             .slice(0, 255),
-          employmentType: String(rawInput.currentEmployment.employmentType || 'FULL_TIME')
+          employmentType: String(input.currentEmployment.employmentType || 'FULL_TIME')
             .trim()
             .slice(0, 100),
-          location: rawInput.currentEmployment.location
-            ? String(rawInput.currentEmployment.location).trim().slice(0, 255)
+          location: input.currentEmployment.location
+            ? String(input.currentEmployment.location).trim().slice(0, 255)
             : null,
-          startDate: rawInput.currentEmployment.startDate
-            ? String(rawInput.currentEmployment.startDate).trim()
+          startDate: input.currentEmployment.startDate
+            ? String(input.currentEmployment.startDate).trim()
             : null,
-          endDate: rawInput.currentEmployment.endDate
-            ? String(rawInput.currentEmployment.endDate).trim()
+          endDate: input.currentEmployment.endDate
+            ? String(input.currentEmployment.endDate).trim()
             : null,
-          isCurrent: rawInput.currentEmployment.isCurrent !== false,
+          isCurrent: input.currentEmployment.isCurrent !== false,
         };
         updatedCustom.currentEmployment = ce.company && ce.title ? ce : null;
         currentMeta.currentEmployment = updatedCustom.currentEmployment;
@@ -1343,8 +1371,8 @@ export class CandidateProfileService {
     }
 
     // 3. Experience Records (Multi-record CRUD)
-    if (Array.isArray(rawInput.experience)) {
-      updatedCustom.experience = rawInput.experience.map((exp) => {
+    if (Array.isArray(input.experience)) {
+      updatedCustom.experience = input.experience.map((exp) => {
         const rawDates =
           exp.rawDateRange ||
           (exp.startDate && exp.endDate
@@ -1387,16 +1415,16 @@ export class CandidateProfileService {
     }
 
     // 4. Education Records (Multi-record CRUD)
-    if (Array.isArray(rawInput.education)) {
-      updatedCustom.education = EducationNormalizer.normalize(rawInput.education, {
+    if (Array.isArray(input.education)) {
+      updatedCustom.education = EducationNormalizer.normalize(input.education, {
         provenanceStatus: 'USER_PROVIDED',
       });
       currentMeta.education = updatedCustom.education;
     }
 
     // 5. Certifications (Multi-record CRUD)
-    if (Array.isArray(rawInput.certifications)) {
-      updatedCustom.certifications = rawInput.certifications
+    if (Array.isArray(input.certifications)) {
+      updatedCustom.certifications = input.certifications
         .map((cert) => {
           if (typeof cert === 'string') {
             return {
@@ -1424,8 +1452,8 @@ export class CandidateProfileService {
     }
 
     // 6. Languages (Multi-record CRUD)
-    if (Array.isArray(rawInput.languages)) {
-      updatedCustom.languages = rawInput.languages
+    if (Array.isArray(input.languages)) {
+      updatedCustom.languages = input.languages
         .map((lang) => {
           if (typeof lang === 'string') {
             return {
@@ -1449,29 +1477,41 @@ export class CandidateProfileService {
     }
 
     // 7. Portfolio Links & Contact URLs
-    if (rawInput.linkedin !== undefined) {
-      updatedCustom.linkedin = rawInput.linkedin ? String(rawInput.linkedin).trim().slice(0, 1000) : null;
+    if (input.linkedin !== undefined) {
+      updatedCustom.linkedin = input.linkedin ? String(input.linkedin).trim().slice(0, 1000) : null;
     }
-    if (rawInput.github !== undefined) {
-      updatedCustom.github = rawInput.github ? String(rawInput.github).trim().slice(0, 1000) : null;
+    if (input.github !== undefined) {
+      updatedCustom.github = input.github ? String(input.github).trim().slice(0, 1000) : null;
     }
-    if (rawInput.portfolio !== undefined) {
-      updatedCustom.portfolio = rawInput.portfolio ? String(rawInput.portfolio).trim().slice(0, 1000) : null;
+    if (input.portfolio !== undefined) {
+      updatedCustom.portfolio = input.portfolio ? String(input.portfolio).trim().slice(0, 1000) : null;
     }
-    if (rawInput.noticePeriod !== undefined) {
-      updatedCustom.noticePeriod = rawInput.noticePeriod;
-      currentMeta.noticePeriod = rawInput.noticePeriod;
+    if (input.noticePeriod !== undefined) {
+      const normNotice = normalizeNoticePeriod(input.noticePeriod);
+      updatedCustom.noticePeriod = input.noticePeriod;
+      currentMeta.noticePeriod = normNotice;
+      if (!currentMeta.careerPreferences) currentMeta.careerPreferences = {};
+      currentMeta.careerPreferences.noticePeriod = normNotice;
     }
-    if (rawInput.workAuthorization !== undefined) {
-      updatedCustom.workAuthorization = rawInput.workAuthorization;
-      currentMeta.workAuthorization = rawInput.workAuthorization;
+    if (input.customNoticePeriod !== undefined) {
+      updatedCustom.customNoticePeriod = input.customNoticePeriod;
+      currentMeta.customNoticePeriod = input.customNoticePeriod;
+      if (!currentMeta.careerPreferences) currentMeta.careerPreferences = {};
+      currentMeta.careerPreferences.customNoticePeriod = input.customNoticePeriod;
     }
-    if (rawInput.visaSponsorshipRequired !== undefined) {
-      updatedCustom.visaSponsorshipRequired = rawInput.visaSponsorshipRequired;
-      currentMeta.visaSponsorshipRequired = rawInput.visaSponsorshipRequired;
+    if (input.workAuthorization !== undefined) {
+      updatedCustom.workAuthorization = input.workAuthorization;
+      currentMeta.workAuthorization = input.workAuthorization;
     }
-    if (Array.isArray(rawInput.portfolioLinks)) {
-      updatedCustom.portfolioLinks = rawInput.portfolioLinks
+    if (input.visaSponsorshipRequired !== undefined) {
+      const normVisa = normalizeVisaSponsorship(input.visaSponsorshipRequired);
+      updatedCustom.visaSponsorshipRequired = normVisa;
+      currentMeta.visaSponsorshipRequired = normVisa;
+      if (!currentMeta.careerPreferences) currentMeta.careerPreferences = {};
+      currentMeta.careerPreferences.visaSponsorshipRequired = normVisa;
+    }
+    if (Array.isArray(input.portfolioLinks)) {
+      updatedCustom.portfolioLinks = input.portfolioLinks
         .map((pl) => ({
           label: String(pl.label || 'PORTFOLIO')
             .toUpperCase()
@@ -1484,8 +1524,9 @@ export class CandidateProfileService {
     }
 
     // 8. Career Preferences (if included)
-    if (rawInput.jobPreferences || rawInput.careerPreferences) {
-      const prefInput = rawInput.jobPreferences || rawInput.careerPreferences;
+    if (input.jobPreferences || input.careerPreferences) {
+      const rawPref = input.jobPreferences || input.careerPreferences;
+      const prefInput = canonicalizeCareerPreferencesInput(rawPref);
       const parsedPrefs = UpdateCareerPreferencesInputSchema.parse(prefInput);
       const existingPrefs = currentMeta.careerPreferences || {};
       currentMeta.careerPreferences = CareerPreferencesSchema.parse({
