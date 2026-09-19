@@ -43,6 +43,7 @@ import {
   CANONICAL_PORTAL_ROUTES,
   COPILOT_PAGE_CONTEXTS,
   CopilotPageContextSchema,
+  normalizeCopilotPageContext,
   SUPPORTED_PRODUCT_ACTION_IDS,
   SupportedProductActionIdSchema,
   StructuredAssistantResponseSchema,
@@ -174,7 +175,11 @@ export class AiCareerAssistantService {
    */
   _parseStructuredResponse(rawText, userText, fallbackContext = {}) {
     const { readinessData, profile, connectedRepositories = [] } = fallbackContext;
-    const score = readinessData?.overallScore ?? readinessData?.score ?? 75;
+    const score = typeof readinessData?.overallScore === 'number'
+      ? readinessData.overallScore
+      : typeof readinessData?.score === 'number'
+        ? readinessData.score
+        : null;
     const missingItems = readinessData?.missingItems || [];
 
     let parsed = null;
@@ -266,10 +271,15 @@ export class AiCareerAssistantService {
 
     // Deterministic authority: if query is about blockers or readiness, prioritize deterministic findings
     if (/block|ready|readiness|missing/i.test(userText)) {
+      const isAssessed = typeof score === 'number';
       return {
-        summary: missingItems.length > 0
-          ? `Your profile is at ${score}% application readiness with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
-          : `Your profile is at ${score}% application readiness with all essential screening fields verified.`,
+        summary: isAssessed
+          ? (missingItems.length > 0
+            ? `Your profile is at ${score}% application readiness with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
+            : `Your profile is at ${score}% application readiness with all essential screening fields verified.`)
+          : (missingItems.length > 0
+            ? `Application readiness has not been assessed yet; ${missingItems.length} screening item${missingItems.length > 1 ? 's need' : ' needs'} attention.`
+            : `Application readiness evaluation is currently unavailable. Review your profile to calculate readiness.`),
         findings: missingItems.slice(0, 5).map((m) => ({
           severity: 'warning',
           title: m.label || 'Screening Item',
@@ -298,13 +308,16 @@ export class AiCareerAssistantService {
       };
     }
 
+    const isAssessed = typeof score === 'number';
     return {
       summary: 'Career Copilot evaluated your request against your verified profile and workspace context.',
       findings: [
         {
           severity: 'info',
           title: 'Workspace Status',
-          description: `Application readiness is currently at ${score}%. ${connectedRepositories.length} repository source${connectedRepositories.length === 1 ? ' is' : 's are'} connected.`,
+          description: isAssessed
+            ? `Application readiness is currently at ${score}%. ${connectedRepositories.length} repository source${connectedRepositories.length === 1 ? ' is' : 's are'} connected.`
+            : `Application readiness is currently NOT_ASSESSED. ${connectedRepositories.length} repository source${connectedRepositories.length === 1 ? ' is' : 's are'} connected.`,
         },
       ],
       actions: [
@@ -449,7 +462,7 @@ export class AiCareerAssistantService {
             profileAnchor: '/profile',
           },
         ],
-        readinessScore: 0,
+        readinessScore: null,
         guidance: 'Please set up your candidate profile to enable readiness evaluation.',
       };
     }
@@ -814,13 +827,14 @@ export class AiCareerAssistantService {
    * @param {object} [params.candidateProfile] Current candidate profile
    * @returns {object} Structured proposals with confirmation requirements
    */
-  proposeProfileUpdates({ userInput = '', candidateProfile = {} }) {
+  proposeProfileUpdates({ userInput = '', candidateProfile = null }) {
     const text = String(userInput).trim();
     const proposals = [];
+    const profile = candidateProfile || {};
 
     const existingPrefs =
-      candidateProfile.jobPreferences ||
-      candidateProfile.profileMetadata?.careerPreferences ||
+      profile.jobPreferences ||
+      profile.profileMetadata?.careerPreferences ||
       {};
 
     // 1. Role Parsing
@@ -1255,9 +1269,8 @@ export class AiCareerAssistantService {
       throw new ValidationError('Message cannot be empty.');
     }
 
-    // Validate pageContext against strict enum, defaulting safely to 'dashboard'
-    const parsedContext = CopilotPageContextSchema.safeParse(pageContext);
-    const validPageContext = parsedContext.success ? parsedContext.data : 'dashboard';
+    // Normalize pageContext to exact canonical context
+    const validPageContext = normalizeCopilotPageContext(pageContext);
 
     // 1. Fetch candidate profile if not provided
     let profile = candidateProfile;
@@ -1411,7 +1424,7 @@ export class AiCareerAssistantService {
     }
 
     // 5. Check for profile field explanation intent (e.g. "explain notice period", "why do you need my salary floor")
-    const explainMatch = userText.match(/(?:explain|why do you need|what is|tell me about)\s+([a-zA-Z\s]+)/i);
+    const explainMatch = !/readiness|blocking|ready/i.test(userText) && userText.match(/(?:explain|why do you need|what is|tell me about)\s+([a-zA-Z\s]+)/i);
     if (explainMatch) {
       const targetTerm = explainMatch[1].replace(/field|my|\?|\./g, '').trim();
       const explanation = this.explainProfileField(targetTerm);
@@ -1515,13 +1528,19 @@ export class AiCareerAssistantService {
       try {
         const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
         const missingItems = missingInfo.missingItems || [];
-        const readinessScore = readinessData?.overallScore ?? readinessData?.score ?? missingInfo.readinessScore ?? 75;
+        const readinessScore = typeof readinessData?.overallScore === 'number'
+          ? readinessData.overallScore
+          : typeof readinessData?.score === 'number'
+            ? readinessData.score
+            : typeof missingInfo?.readinessScore === 'number'
+              ? missingInfo.readinessScore
+              : null;
 
         const contextSummary = [
           `Active Page Context: ${validPageContext}`,
           `Candidate Name: ${profile?.candidate?.displayName || profile?.displayName || 'Candidate'}`,
           `Headline: ${profile?.candidate?.headline || profile?.headline || 'Software Engineer'}`,
-          `Application Readiness Score: ${readinessScore}%`,
+          `Application Readiness: ${typeof readinessScore === 'number' ? `${readinessScore}%` : 'UNKNOWN (Readiness evaluation unavailable)'}`,
           `Deterministic Blockers / Missing Screening Items: ${missingItems.map((i) => i.label).join(', ') || 'None'}`,
           `Target Roles: ${(profile?.targetRoles || []).join(', ') || 'Not specified'}`,
           `Preferred Locations: ${(profile?.preferredLocations || []).join(', ') || 'Not specified'}`,
@@ -1631,21 +1650,32 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
     // Check for missing information / readiness intent
     if (/missing|readiness|ready to apply|what do i need|check (?:my )?application readiness|what(?:'s| is) blocking me/i.test(userText)) {
       const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
-      const score = readinessData?.overallScore ?? readinessData?.score ?? missingInfo.readinessScore ?? 75;
-      const missingItems = missingInfo.missingItems || [];
+      const score = typeof readinessData?.overallScore === 'number'
+        ? readinessData.overallScore
+        : typeof readinessData?.score === 'number'
+          ? readinessData.score
+          : typeof missingInfo?.readinessScore === 'number'
+            ? missingInfo.readinessScore
+            : null;
+      const missingItems = missingInfo?.missingItems || [];
+      const isAssessed = typeof score === 'number';
 
       const structured = {
-        summary: missingItems.length > 0
-          ? `Your profile is at ${score}% application readiness, with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
-          : `Your profile is at ${score}% application readiness with all essential screening fields verified.`,
+        summary: isAssessed
+          ? (missingItems.length > 0
+            ? `Your profile is at ${score}% application readiness, with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
+            : `Your profile is at ${score}% application readiness with all essential screening fields verified.`)
+          : (missingItems.length > 0
+            ? `Application readiness has not been evaluated yet, with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
+            : `Application readiness evaluation is currently unavailable. Review your profile to calculate readiness.`),
         findings: missingItems.slice(0, 5).map((m) => ({
           severity: 'warning',
           title: m.label,
           description: this._sanitizeNoRoutes(m.notes || 'Required for employer screening.'),
         })),
         actions: [
-          { id: 'complete_profile', label: 'Complete profile' },
-          { id: 'check_readiness', label: 'Check readiness' },
+          { id: 'complete_profile', label: 'Complete profile', primary: true },
+          { id: 'check_readiness', label: 'Check readiness', primary: false },
         ],
       };
 
@@ -1675,8 +1705,7 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
     // Check for profile improvement intent
     if (/improve (?:my )?profile|profile improvement|what should i do next/i.test(userText)) {
       const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
-      const score = readinessData?.overallScore ?? readinessData?.score ?? missingInfo.readinessScore ?? 75;
-      const missingItems = missingInfo.missingItems || [];
+      const missingItems = missingInfo?.missingItems || [];
 
       const structured = {
         summary: missingItems.length > 0
@@ -1688,8 +1717,8 @@ Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER
           description: this._sanitizeNoRoutes(m.notes || 'Required for screening.'),
         })),
         actions: [
-          { id: 'complete_profile', label: 'Complete profile' },
-          { id: 'review_sources', label: 'Review sources' },
+          { id: 'complete_profile', label: 'Complete profile', primary: true },
+          { id: 'review_sources', label: 'Review sources', primary: false },
         ],
       };
 

@@ -6,85 +6,63 @@
 ### P90: Career Copilot Final Hardening & Workspace Assistant Architecture
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-19  
-**Scope:** Final hardening of Career Copilot as a contextual career workspace assistant (not a generic chatbot or engineering console), resolving screen click backdrop dismissal, delivering app-wide drawer persistence, enforcing strict schema contracts and anti-hallucination boundaries, and verifying all 10 product phases across authenticated surfaces:
+**Scope:** Final architectural audit and hardening of P90 Career Copilot as a contextual career workspace assistant (not a generic chatbot or engineering console), strictly eliminating legacy navigation contracts, arbitrary readiness fallbacks, and alias duplication while enforcing canonical context normalization, non-invention boundaries, and UX invariants:
 
-1. **Header, Geometry & Desktop Screen-Click Non-Dismissal Fix (`src/views/components/copilot-drawer.js`):**
-   - Clean professional header: "Career Copilot" title, "Contextual career assistance" human subtitle, "Clear" conversation button (`#copilotClearBtn`), and accessible close button (`#copilotCloseBtn`).
-   - Zero technical badges: completely removed all developer/transport/status badges (Ready, Online, Gemini, Vertex, provider names, model IDs).
-   - Target geometry: ~400px width desktop, 360px tablet, responsive bottom sheet on mobile viewports.
-   - Desktop Screen-Click Non-Closing Resolution: Configured `@media (min-width: 901px) { .copilot-backdrop { display: none !important; pointer-events: none !important; } }`. On desktop, clicking anywhere on the screen (dashboard cards, profile fields, empty workspace) does NOT dismiss the drawer. The drawer functions as a persistent sidecar assistant. Mobile/tablet overlays retain subtle 25% non-blurred backdrop with tap-to-dismiss.
+1. **Legacy AI Navigation Contract Elimination (`src/domain/ai/career-assistant.schemas.js`, `src/services/ai-career-assistant.service.js`):**
+   - Enforced exactly one navigation mechanism: AI Action ID (`SUPPORTED_PRODUCT_ACTION_IDS`) $\rightarrow$ `TRUSTED_ACTION_NAVIGATION_MAP` $\rightarrow$ frontend client route.
+   - Quarantined `NavigationSuggestionSchema` with `.strict()` and marked `AssistantMessageSchema.navigationSuggestions` as a quarantined legacy field for backward compatibility with archived records.
+   - Preserved the seven canonical trusted action IDs: `complete_profile`, `review_sources`, `check_readiness`, `review_resume`, `view_matching_jobs`, `review_applications`, and `tailor_resume`.
+   - Verified via unit tests that any model payloads attempting to emit arbitrary `url`, `route`, `path`, or `href` targets are strictly rejected by Zod validation schemas.
 
-2. **App-Wide Persistence Across All Workspaces (`src/views/components/copilot-drawer.js`):**
-   - Synchronized drawer open state (`copilot_drawer_open`) and chat conversation (`copilot_chat_history`) in `sessionStorage`.
-   - Navigating across all 6 authenticated workspaces (`/dashboard`, `/profile`, `/apps/radar`, `/applications`, `/resumes`, `/sources`) keeps the drawer open and preserves recent conversation bubbles.
-   - Contextual prompt chips automatically adapt to the current workspace upon clearing conversation or starting fresh.
-   - Clear conversation control: `#copilotClearBtn` wipes session storage, resets conversation, and renders surface-specific contextual prompt chips.
+2. **Arbitrary Readiness Fallback Elimination (`src/services/ai-career-assistant.service.js`):**
+   - Audited and purged all hardcoded `75` readiness fallbacks across `_parseStructuredResponse`, deterministic offline intents, and prompt context summaries.
+   - Enforced explicit `UNKNOWN`, `NOT_ASSESSED`, and `UNAVAILABLE` semantics whenever `ApplicationReadinessService` data is unassessed or unavailable, returning concise user explanations instead of fabricated numerical scores.
+   - Preserved `ApplicationReadinessService` as the sole authoritative readiness engine across the entire platform.
 
-3. **Career Workspace Assistant UI & Action Hierarchy (`src/views/components/copilot-drawer.js`):**
-   - Action hierarchy: enforced exactly 1 primary action (prominent solid indigo button `.copilot-action-btn.primary` with arrow indicator) and maximum 2 secondary actions (compact outline buttons `.copilot-action-btn.secondary`).
-   - Compact findings presentation: findings rendered as compact scannable rows with color-coded severity badges (`BLOCKER` in rose, `ATTENTION` in amber, `INFO` in indigo) rather than bloated cards.
-   - Concise summary: assistant presents compact 1–2 sentence operational summaries instead of generic essay responses.
+3. **Canonical Copilot Page Context Normalization (`src/domain/ai/career-assistant.schemas.js`, `src/routes/web.routes.js`, `src/views/components/copilot-drawer.js`):**
+   - Enforced strictly six canonical page contexts: `dashboard`, `profile`, `jobs`, `applications`, `resumes`, `sources`.
+   - Implemented and exported `normalizeCopilotPageContext` which canonicalizes all routes and aliases before reaching Career Copilot:
+     - `/apps/radar`, `radar`, `job`, `/jobs`, `/jobs/:id` $\rightarrow$ `jobs`
+     - `/applications`, `/applications/:id`, `application`, `/apply`, `/handoff` $\rightarrow$ `applications`
+     - `/profile`, `/profile#*`, `preferences`, `eligibility` $\rightarrow$ `profile`
+     - `/resumes`, `/resumes/:id`, `resume` $\rightarrow$ `resumes`
+     - `/sources`, `/sources/*`, `source` $\rightarrow$ `sources`
+     - `/dashboard`, `dashboard`, `home`, `overview`, `/`, empty $\rightarrow$ `dashboard`
+   - Removed duplicate alias prompt sets (`radar`, `job`, `application`) from `CONTEXT_PROMPTS`, maintaining strictly the 6 canonical context keys.
+   - Wired route normalization directly at the request boundary in `POST /assistant/message` in `src/routes/web.routes.js`.
 
-4. **Strict Schema Contract & Navigation Safety (`src/domain/ai/career-assistant.schemas.js`, `src/services/ai-career-assistant.service.js`):**
-   - Strict Zod validation: `StructuredAssistantResponseSchema.strict()` and `StructuredAssistantActionSchema.strict()` reject any model payloads containing arbitrary `url`, `route`, or `href` properties.
-   - Strict action allowlist: action IDs restricted strictly to `SUPPORTED_PRODUCT_ACTION_IDS` (`complete_profile`, `review_sources`, `check_readiness`, `review_resume`, `view_matching_jobs`, `review_applications`, `tailor_resume`).
-   - Client-side navigation map: frontend maps verified action IDs to application paths (`TRUSTED_ACTION_NAVIGATION_MAP`). Arbitrary URLs from model output are impossible.
-   - Strict limits: enforced max 5 findings and max 3 actions with at most 1 primary action.
+4. **Preserved Professional Copilot UX & Header Polish (`src/views/components/copilot-drawer.js`):**
+   - Geometry: ~400px width on desktop, 360px on tablet, responsive bottom sheet on mobile viewports.
+   - Workspace clarity: subtle 25% non-blurred backdrop overlay (`background: rgba(15, 23, 42, 0.25); backdrop-filter: none;`).
+   - Desktop persistence: desktop backdrop is non-blocking (`display: none !important; pointer-events: none !important;`), allowing the drawer to function as an open sidecar assistant while interacting with workspace pages.
+   - Header polish: styled `#copilotClearBtn` as visually secondary to `#copilotCloseBtn` (borderless, transparent, muted text-only control with hover transition).
+   - Structured action hierarchy: enforced maximum 5 findings, maximum 3 actions, and strictly at most 1 primary action button.
+   - Focus and keyboard control: full `Escape`-to-close support with focus restoration to `#copilotOpenBtn` or triggering element.
 
-5. **Context Grounding, Authority & Anti-Invention Boundaries (`src/clients/ai/prompt-policies/career-assistant.policy.js`, `src/services/ai-career-assistant.service.js`):**
-   - Grounding in authentic context: passes canonical candidate profile, verified skills, connected active repositories, application readiness, active applications, active resume, and internal page context.
-   - Deterministic authority: deterministic readiness blockers from `ApplicationReadinessService` are given absolute priority over heuristic fallback text.
-   - Hard boundary on unsupplied context: the assistant NEVER implies access to unsupplied resources (e.g. if repositories are empty, it states "Based on the profile information available to me..." rather than "I reviewed your repositories...").
-   - Strict anti-invention invariant: prompt policy and unit tests prove the assistant does not invent skills, repositories, employment, education, certifications, applications, resume claims, job matches, or cloud experience.
-
-6. **Phase 6 Clean User-Facing Error States (`src/views/components/copilot-drawer.js`):**
-   - AI unavailability: renders exact string "Career Copilot is temporarily unavailable." with `[Try again]` recovery button.
-   - Insufficient context: renders exact string "I need more profile information to answer this reliably." with `[Review profile]` navigation button.
-   - Zero internal leaks: zero stack traces, exception names, provider names, Vertex errors, API URLs, request IDs, or JSON debug output exposed to users.
-
-7. **Full WCAG 2.2 AA Accessibility (`src/views/components/copilot-drawer.js`):**
-   - Dialog semantics: `role="dialog"`, `aria-modal="true"`, `aria-label="Career Copilot"`.
-   - Keyboard control: focus trap inside drawer, `Escape` key closes drawer and returns focus to launcher `#copilotOpenBtn`. Auto-grow textarea with `Enter` (submit) and `Shift+Enter` (newline).
-
-8. **Universal App Logo Branding Update (`src/views/layout.js`, `src/views/login.page.js`, `src/routes/oauth.routes.js`, `extension/popup/popup.html`, `extension/sidebar/sidebar.html`):**
-   - Standardized application branding logo to 'AI' across all platform surfaces:
-     - Updated primary navbar `.brand-icon` from 'AG' to 'AI'.
-     - Added inline SVG data URI favicon in layout `<head>` rendering the 'AI' brandmark.
-     - Updated login page card hero badge from 'CH' to 'AI'.
-     - Updated OAuth external client consent screen `.logo-badge` to 'AI'.
-     - Updated browser extension popup and sidebar headers with 'AI' brandmark badges.
-   - Strictly preserved user avatar badge (`.user-avatar-badge`) completely untouched.
+5. **Strict Isolation of Unrelated Systems:**
+   - Zero changes made to ATS deterministic scoring, candidate profile architecture, resume architecture, job discovery, application submission, GitHub repository persistence, Vertex AI transport, or Gemini Developer API preservation.
 
 **Verification Evidence & Test Results:**
-- `tests/unit/p90-copilot-contextual-hardening.test.js`: **25/25 PASS (100%)**
+- `tests/unit/p90-copilot-contextual-hardening.test.js`: **31/31 PASS (100%)**
   - Section A: Drawer UX Contract & Desktop Non-Dismissal (5/5 PASS)
-  - Section B: Controlled Page Context & Suggested Prompts (3/3 PASS)
-  - Section C: Structured Response Contract Validation (6/6 PASS)
+  - Section B: Controlled Page Context & Route Normalization (5/5 PASS)
+  - Section C: Structured Response Contract & Route Rejection (7/7 PASS)
   - Section D: Navigation Safety & Zero Route Exposure (3/3 PASS)
-  - Section E: Grounding & Deterministic Authority (3/3 PASS)
+  - Section E: Grounding, Deterministic Authority & Non-Invention (4/4 PASS)
   - Section F: Failure Handling & Safe Error States (3/3 PASS)
-  - Section G: App-Wide Persistence & Workspace Utility (2/2 PASS)
-- `tests/unit/p89-copilot-drawer-refinement.test.js`: **10/10 PASS (100%)**
-- `tests/unit/p87-ai-career-assistant.test.js`: **11/11 PASS (100%)**
-- `tests/unit/p89-ai-provider-architecture.test.js`: **15/15 PASS (100%)**
-- `tests/unit/p89-static-production-boundary.test.js`: **6/6 PASS (100%)**
-- **Total Unit & Regression Battery:** **67/67 PASS across 17 suites (100%, 0 failures)**
-- `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
-- **End-to-End Live Browser Automation (`browser_subagent`):**
-  - Authenticated via `http://localhost:3000/auth/dev-login`.
-  - Verified Dashboard load and confirmed 0 JavaScript errors in browser console.
-  - Verified clean header with title, subtitle, Clear button, close button, and NO technical badges.
-  - Verified desktop non-closing behavior: clicking content outside drawer at (200, 200) kept drawer open.
-  - Executed chip "What's blocking me from applying?": received concise summary, structured findings cards (BLOCKER, ATTENTION, INFO), and 1 primary solid action button "Complete profile →" with zero route leaks.
-  - Saved screenshot `copilot_response_dashboard_1789814401977.png`.
-  - Clicked primary action button: navigated to `/profile`.
-  - Verified app-wide persistence: drawer was ALREADY open on `/profile` and preserved chat message history.
-  - Verified clicking outside on `/profile` screen did not close drawer.
-  - Verified Clear button: wiped chat history and restored profile-specific prompt chips.
-  - Navigated across `/apps/radar`, `/applications`, `/resumes`, and `/sources`: drawer remained open and dynamically displayed surface-specific prompt chips.
-  - Pressed `Escape` key: drawer closed cleanly and restored focus.
-  - Saved screenshot `copilot_closed_sources_1789814564325.png`.
-  - Session recording: `p90_hardened_copilot_1789814264893.webp`.
+  - Section G: App-Wide Persistence, Keyboard Usability & Clear Button (4/4 PASS)
+- `tests/unit/p90-sources-profile-integrity.test.js`: **8/8 PASS (100%)**
+- **Total P90 Suite Battery:** **39/39 PASS (0 failures)**
+- **Broader Regression Battery:**
+  - `tests/unit/p89-ai-provider-architecture.test.js`: **15/15 PASS**
+  - `tests/unit/p89-candidate-workspace.test.js`: **15/15 PASS**
+  - `tests/unit/p89-copilot-drawer-refinement.test.js`: **10/10 PASS**
+  - `tests/unit/p89-static-production-boundary.test.js`: **6/6 PASS**
+  - `tests/unit/p87-ai-career-assistant.test.js`: **11/11 PASS**
+  - `tests/unit/p87-profile-sources-ux-hardening.test.js`: **16/16 PASS**
+  - `tests/unit/p87-profile-ux.test.js`: **8/8 PASS**
+  - **Total Broader Regression Battery:** **81/81 PASS across 24 suites (100%, 0 failures)**
+- **Secrets Audit:** `npm run scan:secrets` — **PASS (Zero exposed secrets or private tokens detected)**
 
 ---
 

@@ -87,7 +87,7 @@ import { defaultIngestionStateService } from '../services/ingestion-state.servic
 import { ApplicationReadinessService } from '../services/application-readiness.service.js';
 import { JobApplicationFlowService } from '../services/job-application-flow.service.js';
 import { AiCareerAssistantService } from '../services/ai-career-assistant.service.js';
-import { CopilotPageContextSchema } from '../domain/ai/career-assistant.schemas.js';
+import { CopilotPageContextSchema, normalizeCopilotPageContext } from '../domain/ai/career-assistant.schemas.js';
 import { NotFoundError } from '../errors/index.js';
 
 /**
@@ -4751,8 +4751,7 @@ export default async function webRoutes(app, opts = {}) {
     const body = req.body || {};
     const userMessage = body.message || '';
     const rawPageContext = body.pageContext;
-    const parsedContext = CopilotPageContextSchema.safeParse(rawPageContext);
-    const pageContext = parsedContext.success ? parsedContext.data : 'dashboard';
+    const pageContext = normalizeCopilotPageContext(rawPageContext);
 
     const context = {
       tenantId: tenant.id,

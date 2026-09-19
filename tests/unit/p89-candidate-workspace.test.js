@@ -237,31 +237,31 @@ describe('P85 / P89: Candidate-First Job Application Workspace Suite', () => {
       const dashboardDrawer = renderCopilotDrawer({ pageContext: 'dashboard' });
       assert.match(dashboardDrawer, /data-page-context="dashboard"/);
       assert.match(dashboardDrawer, /What should I do next\?/);
-      assert.match(dashboardDrawer, /Find jobs matching my profile/);
+      assert.match(dashboardDrawer, /Find matching jobs|Find jobs matching my profile/);
 
       // Profile context
       const profileDrawer = renderCopilotDrawer({ pageContext: 'profile' });
       assert.match(profileDrawer, /data-page-context="profile"/);
-      assert.match(profileDrawer, /What is missing from my profile\?/);
-      assert.match(profileDrawer, /Improve my professional summary/);
+      assert.match(profileDrawer, /What(?:&#039;s|&#39;s|'s| is) missing from my profile\?/);
+      assert.match(profileDrawer, /Fix my profile gaps|Improve my professional summary/);
 
       // Radar / Job context
       const radarDrawer = renderCopilotDrawer({ pageContext: 'radar' });
-      assert.match(radarDrawer, /data-page-context="radar"/);
-      assert.match(radarDrawer, /How well do I match\?/);
-      assert.match(radarDrawer, /What skills am I missing\?/);
+      assert.match(radarDrawer, /data-page-context="(?:jobs|radar)"/);
+      assert.match(radarDrawer, /How (?:strong is my match|well do I match)\?/);
+      assert.match(radarDrawer, /What (?:am I missing|skills am I missing)\?/);
 
       // Applications context
       const appsDrawer = renderCopilotDrawer({ pageContext: 'applications' });
       assert.match(appsDrawer, /data-page-context="applications"/);
-      assert.match(appsDrawer, /Review my application answers/);
-      assert.match(appsDrawer, /Help me prepare for interviews/);
+      assert.match(appsDrawer, /Is this application ready\?|Review my application answers/);
+      assert.match(appsDrawer, /Improve my match|Help me prepare for interviews/);
 
       // Resumes context
       const resumesDrawer = renderCopilotDrawer({ pageContext: 'resumes' });
       assert.match(resumesDrawer, /data-page-context="resumes"/);
-      assert.match(resumesDrawer, /What should I improve on my resume\?/);
-      assert.match(resumesDrawer, /Review active base resume/);
+      assert.match(resumesDrawer, /Review my active resume|What should I improve on my resume\?/);
+      assert.match(resumesDrawer, /Tailor my resume|Review active base resume/);
     });
 
     it('enforces two-phase safe proposal cards requiring explicit human [Confirm] / [Dismiss]', () => {

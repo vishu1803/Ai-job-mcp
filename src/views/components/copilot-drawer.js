@@ -15,12 +15,13 @@
 import { escapeHtml } from '../../utils/html-escaper.js';
 import { renderIcon } from './icons.js';
 import { renderAIUnavailableCard } from './state-views.js';
+import { normalizeCopilotPageContext } from '../../domain/ai/career-assistant.schemas.js';
 
 /**
- * Contextual suggested prompts mapped by page context.
- * At most 3 compact actions per context.
+ * Contextual suggested prompts mapped strictly by the six canonical page contexts.
+ * At most 3-4 compact actions per context.
  */
-const CONTEXT_PROMPTS = {
+export const CONTEXT_PROMPTS = {
   dashboard: [
     { label: 'What should I do next?', icon: 'sparkles', prompt: 'What should I do next?' },
     { label: "What's blocking me from applying?", icon: 'alertCircle', prompt: "What's blocking me from applying?" },
@@ -38,24 +39,7 @@ const CONTEXT_PROMPTS = {
     { label: 'Should I apply?', icon: 'check', prompt: 'Should I apply?' },
     { label: 'Tailor my resume', icon: 'resumes', prompt: 'Tailor my resume' },
   ],
-  radar: [
-    { label: 'How strong is my match?', icon: 'radar', prompt: 'How strong is my match?' },
-    { label: 'What am I missing?', icon: 'alertCircle', prompt: 'What am I missing?' },
-    { label: 'Should I apply?', icon: 'check', prompt: 'Should I apply?' },
-    { label: 'Tailor my resume', icon: 'resumes', prompt: 'Tailor my resume' },
-  ],
-  job: [
-    { label: 'How strong is my match?', icon: 'radar', prompt: 'How strong is my match?' },
-    { label: 'What am I missing?', icon: 'alertCircle', prompt: 'What am I missing?' },
-    { label: 'Should I apply?', icon: 'check', prompt: 'Should I apply?' },
-    { label: 'Tailor my resume', icon: 'resumes', prompt: 'Tailor my resume' },
-  ],
   applications: [
-    { label: 'Is this application ready?', icon: 'check', prompt: 'Is this application ready?' },
-    { label: 'What is missing?', icon: 'alertCircle', prompt: 'What is missing?' },
-    { label: 'Improve my match', icon: 'sparkles', prompt: 'Improve my match' },
-  ],
-  application: [
     { label: 'Is this application ready?', icon: 'check', prompt: 'Is this application ready?' },
     { label: 'What is missing?', icon: 'alertCircle', prompt: 'What is missing?' },
     { label: 'Improve my match', icon: 'sparkles', prompt: 'Improve my match' },
@@ -76,7 +60,7 @@ const CONTEXT_PROMPTS = {
  * Renders the Universal Career Copilot Slide-Over Drawer HTML markup.
  *
  * @param {object} params
- * @param {string} [params.pageContext='dashboard'] Current page context
+ * @param {string} [params.pageContext='dashboard'] Current page context or route
  * @param {Array<object>} [params.activeProposals=[]] Stored or current proposals
  * @param {Array<object>} [params.messages=[]] Conversation thread
  * @param {boolean} [params.aiAvailable=true] Whether AI assistant is online
@@ -90,7 +74,7 @@ export function renderCopilotDrawer({
   aiAvailable = true,
   initialIntent = null,
 }) {
-  const normalizedContext = CONTEXT_PROMPTS[pageContext] ? pageContext : 'dashboard';
+  const normalizedContext = normalizeCopilotPageContext(pageContext);
   const suggestedPrompts = CONTEXT_PROMPTS[normalizedContext] || CONTEXT_PROMPTS.dashboard;
 
   return `
@@ -229,10 +213,13 @@ export function renderCopilotDrawer({
           <button
             type="button"
             id="copilotClearBtn"
+            class="copilot-clear-btn"
             onclick="window.clearCopilotConversation && window.clearCopilotConversation()"
             aria-label="Clear conversation"
             title="Clear conversation"
-            style="padding:3px 7px; font-size:0.7rem; border-radius:5px; background:transparent; border:1px solid rgba(255,255,255,0.1); color:var(--text-dim, #64748B); cursor:pointer;"
+            style="padding:2px 6px; font-size:0.685rem; border-radius:4px; background:transparent; border:none; color:var(--text-dim, #64748B); cursor:pointer; opacity:0.75; transition:opacity 0.15s, color 0.15s;"
+            onmouseover="this.style.opacity='1'; this.style.color='var(--text-muted, #94A3B8)';"
+            onmouseout="this.style.opacity='0.75'; this.style.color='var(--text-dim, #64748B)';"
           >
             Clear
           </button>
@@ -484,11 +471,14 @@ export function renderCopilotDrawer({
 
             if (Array.isArray(structured.actions) && structured.actions.length > 0) {
               botBubbleContent += '<div class="copilot-actions-list" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">';
+              const hasExplicitPrimary = structured.actions.some(function(a) { return a.primary === true; });
+              let primaryAssigned = false;
               structured.actions.slice(0, 3).forEach(function(act, actIdx) {
                 const trusted = TRUSTED_ACTIONS[act.id];
                 if (trusted) {
                   const label = act.label || trusted.label;
-                  const isPrimary = act.primary === true || actIdx === 0;
+                  const isPrimary = (act.primary === true || (!hasExplicitPrimary && actIdx === 0)) && !primaryAssigned;
+                  if (isPrimary) primaryAssigned = true;
                   if (isPrimary) {
                     botBubbleContent += '<button type="button" class="copilot-action-btn primary" data-href="' + trusted.path + '" style="padding:5px 12px; font-size:0.75rem; font-weight:600; border-radius:6px; background:var(--accent-indigo, #6366F1); border:1px solid var(--accent-indigo, #6366F1); color:#FFFFFF; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(0,0,0,0.2);">' +
                       '<span>' + escapeText(label) + '</span> &rarr;' +
@@ -525,7 +515,7 @@ export function renderCopilotDrawer({
           messagesDiv.style.display = 'flex';
           const botBubble = document.createElement('div');
           botBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start;';
-          botBubble.innerHTML = '<div style="max-width:92%; width:100%; padding:10px 14px; border-radius:8px 8px 8px 2px; font-size:0.835rem; line-height:1.5; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle, #334155); color:var(--text-main, #F8FAFC); word-break:break-word;">' +
+          botBubble.innerHTML = '<div style="max-width:90%; width:100%; padding:10px 14px; border-radius:8px 8px 8px 2px; font-size:0.835rem; line-height:1.5; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle, #334155); color:var(--text-main, #F8FAFC); word-break:break-word;">' +
             buildAssistantHtml(structured, rawContent) + '</div>';
           messagesDiv.appendChild(botBubble);
 

@@ -31,18 +31,20 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderCopilotDrawer } from '../../src/views/components/copilot-drawer.js';
+import { renderCopilotDrawer, CONTEXT_PROMPTS } from '../../src/views/components/copilot-drawer.js';
 import { renderDashboardPage } from '../../src/views/dashboard.page.js';
 import { AiCareerAssistantService } from '../../src/services/ai-career-assistant.service.js';
 import {
   COPILOT_PAGE_CONTEXTS,
   CopilotPageContextSchema,
+  normalizeCopilotPageContext,
   SUPPORTED_PRODUCT_ACTION_IDS,
   SupportedProductActionIdSchema,
   StructuredAssistantFindingSchema,
   StructuredAssistantActionSchema,
   StructuredAssistantResponseSchema,
   TRUSTED_ACTION_NAVIGATION_MAP,
+  NavigationSuggestionSchema,
 } from '../../src/domain/ai/career-assistant.schemas.js';
 
 describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
@@ -125,6 +127,69 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       assert.strictEqual(CopilotPageContextSchema.safeParse('/profile').success, false);
       assert.strictEqual(CopilotPageContextSchema.safeParse('').success, false);
       assert.strictEqual(CopilotPageContextSchema.safeParse(null).success, false);
+    });
+
+    it('normalizes every supported route and legacy alias to exactly one canonical context', () => {
+      // Radar / jobs routes and aliases
+      assert.strictEqual(normalizeCopilotPageContext('/apps/radar'), 'jobs');
+      assert.strictEqual(normalizeCopilotPageContext('radar'), 'jobs');
+      assert.strictEqual(normalizeCopilotPageContext('job'), 'jobs');
+      assert.strictEqual(normalizeCopilotPageContext('jobs'), 'jobs');
+      assert.strictEqual(normalizeCopilotPageContext('/jobs'), 'jobs');
+      assert.strictEqual(normalizeCopilotPageContext('/jobs/backend-engineer-1'), 'jobs');
+      assert.strictEqual(normalizeCopilotPageContext('/job/senior-dev'), 'jobs');
+
+      // Applications routes and aliases
+      assert.strictEqual(normalizeCopilotPageContext('/applications'), 'applications');
+      assert.strictEqual(normalizeCopilotPageContext('/applications/app-uuid-123'), 'applications');
+      assert.strictEqual(normalizeCopilotPageContext('application'), 'applications');
+      assert.strictEqual(normalizeCopilotPageContext('applications'), 'applications');
+      assert.strictEqual(normalizeCopilotPageContext('/apply'), 'applications');
+      assert.strictEqual(normalizeCopilotPageContext('/handoff'), 'applications');
+
+      // Profile routes and aliases
+      assert.strictEqual(normalizeCopilotPageContext('/profile'), 'profile');
+      assert.strictEqual(normalizeCopilotPageContext('/profile#eligibility'), 'profile');
+      assert.strictEqual(normalizeCopilotPageContext('/profile#readiness'), 'profile');
+      assert.strictEqual(normalizeCopilotPageContext('profile'), 'profile');
+      assert.strictEqual(normalizeCopilotPageContext('preferences'), 'profile');
+      assert.strictEqual(normalizeCopilotPageContext('eligibility'), 'profile');
+
+      // Resumes routes and aliases
+      assert.strictEqual(normalizeCopilotPageContext('/resumes'), 'resumes');
+      assert.strictEqual(normalizeCopilotPageContext('/resumes/res-active-1'), 'resumes');
+      assert.strictEqual(normalizeCopilotPageContext('resume'), 'resumes');
+      assert.strictEqual(normalizeCopilotPageContext('resumes'), 'resumes');
+
+      // Sources routes and aliases
+      assert.strictEqual(normalizeCopilotPageContext('/sources'), 'sources');
+      assert.strictEqual(normalizeCopilotPageContext('/sources/github'), 'sources');
+      assert.strictEqual(normalizeCopilotPageContext('source'), 'sources');
+      assert.strictEqual(normalizeCopilotPageContext('sources'), 'sources');
+
+      // Dashboard routes and aliases
+      assert.strictEqual(normalizeCopilotPageContext('/dashboard'), 'dashboard');
+      assert.strictEqual(normalizeCopilotPageContext('dashboard'), 'dashboard');
+      assert.strictEqual(normalizeCopilotPageContext('home'), 'dashboard');
+      assert.strictEqual(normalizeCopilotPageContext('overview'), 'dashboard');
+      assert.strictEqual(normalizeCopilotPageContext('/'), 'dashboard');
+
+      // Edge cases: missing, null, undefined, unknown fallback to 'dashboard'
+      assert.strictEqual(normalizeCopilotPageContext(''), 'dashboard');
+      assert.strictEqual(normalizeCopilotPageContext(null), 'dashboard');
+      assert.strictEqual(normalizeCopilotPageContext(undefined), 'dashboard');
+      assert.strictEqual(normalizeCopilotPageContext('/unrecognized/arbitrary/path'), 'dashboard');
+    });
+
+    it('proves CONTEXT_PROMPTS has strictly the six canonical keys without duplicate aliases', () => {
+      assert.deepStrictEqual(Object.keys(CONTEXT_PROMPTS).sort(), [
+        'applications',
+        'dashboard',
+        'jobs',
+        'profile',
+        'resumes',
+        'sources',
+      ]);
     });
 
     it('defaults invalid or missing page context safely to dashboard in assistant service', async () => {
@@ -292,6 +357,9 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       const withHref = { id: 'complete_profile', label: 'Complete profile', href: '/profile' };
       assert.strictEqual(StructuredAssistantActionSchema.safeParse(withHref).success, false);
 
+      const withPath = { id: 'complete_profile', label: 'Complete profile', path: '/profile' };
+      assert.strictEqual(StructuredAssistantActionSchema.safeParse(withPath).success, false);
+
       const responseWithUrl = {
         summary: 'Summary with forbidden url key',
         findings: [],
@@ -299,6 +367,43 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
         url: 'https://evil.example.com',
       };
       assert.strictEqual(StructuredAssistantResponseSchema.safeParse(responseWithUrl).success, false);
+
+      const responseWithPath = {
+        summary: 'Summary with forbidden path key',
+        findings: [],
+        actions: [{ id: 'complete_profile', label: 'Complete profile' }],
+        path: '/profile',
+      };
+      assert.strictEqual(StructuredAssistantResponseSchema.safeParse(responseWithPath).success, false);
+
+      const responseWithRoute = {
+        summary: 'Summary with forbidden route key',
+        findings: [],
+        actions: [{ id: 'complete_profile', label: 'Complete profile' }],
+        route: '/profile',
+      };
+      assert.strictEqual(StructuredAssistantResponseSchema.safeParse(responseWithRoute).success, false);
+    });
+
+    it('confirms NavigationSuggestionSchema is quarantined and rejected from structured response', () => {
+      // StructuredAssistantResponseSchema is strict and rejects navigationSuggestions
+      const responseWithLegacyNav = {
+        summary: 'Summary attempting to inject legacy navigation suggestions',
+        findings: [],
+        actions: [{ id: 'complete_profile', label: 'Complete profile' }],
+        navigationSuggestions: [{ label: 'Go to profile', path: '/profile' }],
+      };
+      assert.strictEqual(StructuredAssistantResponseSchema.safeParse(responseWithLegacyNav).success, false);
+
+      // Legacy NavigationSuggestionSchema itself is quarantined as strict
+      assert.strictEqual(
+        NavigationSuggestionSchema.safeParse({ label: 'Profile', path: '/profile' }).success,
+        true
+      );
+      assert.strictEqual(
+        NavigationSuggestionSchema.safeParse({ label: 'Profile', path: '/profile', arbitraryField: 'bad' }).success,
+        false
+      );
     });
 
     it('enforces at most one primary action in structured response schema', () => {
@@ -544,6 +649,73 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       assert.strictEqual(response.state, 'SUCCESS');
       assert.match(response.structuredResponse.summary, /can't verify|unverified/i);
     });
+
+    it('proves missing readiness data never produces an invented numerical score (no 75 fallback)', async () => {
+      const assistant = new AiCareerAssistantService();
+
+      // Case 1: missing readiness intent without readiness data evaluated
+      const parsedWithoutScore = assistant._parseStructuredResponse(
+        'I need help.',
+        "What's blocking me from applying?",
+        { readinessData: null, profile: null }
+      );
+      assert.strictEqual(typeof parsedWithoutScore.summary, 'string');
+      // Must NOT contain hardcoded 75
+      assert.doesNotMatch(parsedWithoutScore.summary, /\b75%?\b/);
+      assert.match(parsedWithoutScore.summary, /not been evaluated|unavailable/i);
+
+      // Case 2: prompt context sent to AI uses explicit UNKNOWN/unavailable semantics
+      let promptSent = '';
+      const mockProvider = {
+        async generateText({ prompt }) {
+          promptSent = prompt;
+          return {
+            text: JSON.stringify({
+              summary: 'Readiness evaluation is currently unavailable.',
+              findings: [{ severity: 'info', title: 'Status', description: 'Readiness unassessed.' }],
+              actions: [{ id: 'complete_profile', label: 'Complete profile' }],
+            }),
+          };
+        },
+      };
+
+      const serviceWithMock = new AiCareerAssistantService({
+        aiProvider: mockProvider,
+        candidateProfileService: {
+          async getCareerProfile() {
+            return null; // Profile unavailable
+          },
+        },
+      });
+
+      // Send a general query with no profile so readiness cannot be assessed
+      const generalResp = await serviceWithMock.handleUserMessage({
+        message: 'What should I work on today?',
+        tenantId: 't-1',
+        userId: 'u-1',
+        candidateId: 'c-1',
+        readiness: null, // Zero readiness data supplied
+        candidateProfile: null, // Zero candidate profile supplied
+      });
+
+      assert.strictEqual(generalResp.state, 'SUCCESS');
+      // Prompt must NOT contain hardcoded 75%
+      assert.doesNotMatch(promptSent, /75%/);
+      assert.match(promptSent, /Application Readiness:\s*UNKNOWN \(Readiness evaluation unavailable\)/);
+
+      // Case 3: deterministic handler also returns no invented score
+      const readinessResp = await serviceWithMock.handleUserMessage({
+        message: 'What is my application readiness?',
+        tenantId: 't-1',
+        userId: 'u-1',
+        candidateId: 'c-1',
+        readiness: null,
+        candidateProfile: null,
+      });
+      assert.strictEqual(readinessResp.state, 'SUCCESS');
+      assert.doesNotMatch(readinessResp.structuredResponse.summary, /\b75%?\b/);
+      assert.match(readinessResp.structuredResponse.summary, /not been evaluated|unavailable/i);
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -628,6 +800,21 @@ describe('P90: Career Copilot UX/UI & Contextual Assistant Hardening', () => {
       const html = renderCopilotDrawer({ pageContext: 'dashboard' });
       assert.match(html, /copilot-action-btn primary/);
       assert.match(html, /copilot-action-btn secondary/);
+    });
+
+    it('provides Escape-to-close and focus restoration in drawer controller script', () => {
+      const html = renderCopilotDrawer({ pageContext: 'dashboard' });
+      assert.match(html, /e\.key === 'Escape'/);
+      assert.match(html, /lastFocusedElement/);
+      assert.match(html, /lastFocusedElement\.focus\(\)/);
+      assert.match(html, /copilotOpenBtn/);
+    });
+
+    it('renders Clear conversation button as visually secondary (borderless, muted, subordinate) to Close', () => {
+      const html = renderCopilotDrawer({ pageContext: 'dashboard' });
+      assert.match(html, /id="copilotClearBtn"[^>]*class="copilot-clear-btn"/);
+      assert.match(html, /background:transparent;\s*border:none;/);
+      assert.match(html, /id="copilotCloseBtn"/);
     });
   });
 });

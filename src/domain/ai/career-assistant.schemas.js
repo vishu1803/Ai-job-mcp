@@ -100,6 +100,104 @@ export const CopilotPageContextSchema = z.enum([
 ]);
 
 /**
+ * Normalizes any route path, URL string, or legacy context alias to exactly one of the six
+ * canonical Career Copilot page contexts:
+ * 'dashboard' | 'profile' | 'jobs' | 'applications' | 'resumes' | 'sources'.
+ *
+ * Route normalization mapping:
+ * - /apps/radar, radar, job, /jobs, /jobs/:id, /job/* -> 'jobs'
+ * - /applications, /applications/:id, application, /apply, /handoff -> 'applications'
+ * - /profile, /profile#*, preferences, eligibility -> 'profile'
+ * - /resumes, /resumes/:id, resume -> 'resumes'
+ * - /sources, /sources/*, source -> 'sources'
+ * - /dashboard, dashboard, home, overview, / -> 'dashboard'
+ * - Any unrecognized or missing context -> 'dashboard'
+ *
+ * @param {string} [rawContextOrPath='']
+ * @returns {'dashboard'|'profile'|'jobs'|'applications'|'resumes'|'sources'}
+ */
+export function normalizeCopilotPageContext(rawContextOrPath) {
+  if (!rawContextOrPath || typeof rawContextOrPath !== 'string') {
+    return 'dashboard';
+  }
+
+  const clean = rawContextOrPath.trim().toLowerCase().split('?')[0].split('#')[0];
+
+  // Direct canonical match
+  if (COPILOT_PAGE_CONTEXTS.includes(clean)) {
+    return clean;
+  }
+
+  // Jobs / Radar routes and legacy aliases
+  if (
+    clean === 'radar' ||
+    clean === 'job' ||
+    clean === 'jobs' ||
+    clean.includes('radar') ||
+    clean.startsWith('/apps/radar') ||
+    clean.startsWith('/jobs') ||
+    clean.startsWith('/job')
+  ) {
+    return 'jobs';
+  }
+
+  // Applications / Apply / Handoff routes and legacy aliases
+  if (
+    clean === 'application' ||
+    clean === 'applications' ||
+    clean.startsWith('/applications') ||
+    clean.startsWith('/application') ||
+    clean.startsWith('/apply') ||
+    clean.startsWith('/handoff')
+  ) {
+    return 'applications';
+  }
+
+  // Profile routes and aliases
+  if (
+    clean === 'profile' ||
+    clean.startsWith('/profile') ||
+    clean === 'preferences' ||
+    clean === 'eligibility'
+  ) {
+    return 'profile';
+  }
+
+  // Resumes routes and aliases
+  if (
+    clean === 'resume' ||
+    clean === 'resumes' ||
+    clean.startsWith('/resumes') ||
+    clean.startsWith('/resume')
+  ) {
+    return 'resumes';
+  }
+
+  // Sources routes and aliases
+  if (
+    clean === 'source' ||
+    clean === 'sources' ||
+    clean.startsWith('/sources') ||
+    clean.startsWith('/source')
+  ) {
+    return 'sources';
+  }
+
+  // Dashboard / home / root / overview aliases
+  if (
+    clean === 'dashboard' ||
+    clean === 'home' ||
+    clean === 'overview' ||
+    clean.startsWith('/dashboard') ||
+    clean === '/'
+  ) {
+    return 'dashboard';
+  }
+
+  return 'dashboard';
+}
+
+/**
  * Supported Product Action IDs (P90 Strict Allowlist).
  * The model must NEVER output executable routes or URLs directly.
  */
@@ -190,13 +288,21 @@ export const TRUSTED_ACTION_NAVIGATION_MAP = Object.freeze({
 });
 
 /**
- * Portal Navigation Suggestion Schema.
+ * Portal Navigation Suggestion Schema (QUARANTINED LEGACY CONTRACT).
+ *
+ * @deprecated QUARANTINED: Legacy AI navigation contract that allowed arbitrary paths.
+ * Career Copilot strictly enforces:
+ * AI action ID -> TRUSTED_ACTION_NAVIGATION_MAP -> frontend route.
+ * The model must NEVER output arbitrary url, href, route, or path strings.
+ * Preserved strictly for backward-compatibility with archived message records.
  */
-export const NavigationSuggestionSchema = z.object({
-  label: z.string().min(1),
-  path: z.string().min(1),
-  description: z.string().optional(),
-});
+export const NavigationSuggestionSchema = z
+  .object({
+    label: z.string().min(1),
+    path: z.string().min(1),
+    description: z.string().optional(),
+  })
+  .strict();
 
 /**
  * Assistant Conversational Message Schema.
@@ -210,6 +316,7 @@ export const AssistantMessageSchema = z.object({
   citations: z.array(EvidenceSourceSchema).default([]),
   proposals: z.array(SafeUpdateProposalSchema).default([]),
   conflicts: z.array(ProfileConflictSchema).default([]),
+  /** @deprecated Quarantined legacy navigation suggestions. Copilot navigation uses structuredResponse.actions */
   navigationSuggestions: z.array(NavigationSuggestionSchema).default([]),
   state: z.string().default('SUCCESS'),
   error: z.string().nullable().optional(),
