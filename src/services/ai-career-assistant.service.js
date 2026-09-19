@@ -41,6 +41,12 @@ import {
   AssistantMessageSchema,
   PROHIBITED_AUTO_MUTATION_FIELDS,
   CANONICAL_PORTAL_ROUTES,
+  COPILOT_PAGE_CONTEXTS,
+  CopilotPageContextSchema,
+  SUPPORTED_PRODUCT_ACTION_IDS,
+  SupportedProductActionIdSchema,
+  StructuredAssistantResponseSchema,
+  TRUSTED_ACTION_NAVIGATION_MAP,
 } from '../domain/ai/career-assistant.schemas.js';
 import {
   normalizeNoticePeriod,
@@ -129,6 +135,183 @@ export class AiCareerAssistantService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Sanitizes route paths and raw URLs from text, converting them to user-friendly section names.
+   * Hard P90 invariant: AI responses must never expose internal route paths or URLs.
+   *
+   * @param {string} text
+   * @returns {string}
+   */
+  _sanitizeNoRoutes(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+      .replace(/\/apps\/radar/gi, 'Job Radar')
+      .replace(/\/profile#eligibility/gi, 'Profile Eligibility section')
+      .replace(/\/profile#basics/gi, 'Profile Basics section')
+      .replace(/\/profile#roles/gi, 'Profile Roles section')
+      .replace(/\/profile#compensation/gi, 'Profile Compensation section')
+      .replace(/\/profile#skills/gi, 'Profile Skills section')
+      .replace(/\/profile#experience/gi, 'Profile Experience section')
+      .replace(/\/profile#education/gi, 'Profile Education section')
+      .replace(/\/profile/gi, 'Profile settings')
+      .replace(/\/resumes/gi, 'Resumes section')
+      .replace(/\/sources/gi, 'Connected Sources')
+      .replace(/\/applications/gi, 'Applications section')
+      .replace(/\/connect/gi, 'AI Connect & Tokens')
+      .replace(/\/dashboard/gi, 'Dashboard');
+  }
+
+  /**
+   * Parses and safely normalizes structured AI responses.
+   * If parsing fails or output is malformed, uses deterministic fallback data.
+   *
+   * @param {string} rawText
+   * @param {string} userText
+   * @param {object} fallbackContext
+   * @returns {object} Validated StructuredAssistantResponse
+   */
+  _parseStructuredResponse(rawText, userText, fallbackContext = {}) {
+    const { readinessData, profile, connectedRepositories = [] } = fallbackContext;
+    const score = readinessData?.overallScore ?? readinessData?.score ?? 75;
+    const missingItems = readinessData?.missingItems || [];
+
+    let parsed = null;
+
+    if (rawText && typeof rawText === 'string') {
+      try {
+        let clean = rawText.trim();
+        if (clean.startsWith('```')) {
+          clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
+        }
+        const jsonMatch = clean.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        }
+      } catch (err) {
+        this.logger.debug({ err }, 'Failed to parse raw JSON from AI assistant output');
+      }
+    }
+
+    // Validate using Zod schema
+    const validation = StructuredAssistantResponseSchema.safeParse(parsed);
+    if (validation.success) {
+      const data = validation.data;
+      const sanitizedSummary = this._sanitizeNoRoutes(data.summary).slice(0, 350);
+      const sanitizedFindings = data.findings.slice(0, 5).map((f) => ({
+        severity: f.severity,
+        title: this._sanitizeNoRoutes(f.title).slice(0, 120),
+        description: this._sanitizeNoRoutes(f.description).slice(0, 300),
+      }));
+      let primaryFound = false;
+      const validActions = data.actions
+        .filter((a) => SUPPORTED_PRODUCT_ACTION_IDS.includes(a.id))
+        .slice(0, 3)
+        .map((a, idx) => {
+          const isPrimary = a.primary === true || (!primaryFound && idx === 0);
+          if (isPrimary) primaryFound = true;
+          return {
+            id: a.id,
+            label: this._sanitizeNoRoutes(a.label).slice(0, 60),
+            primary: isPrimary,
+          };
+        });
+
+      return {
+        summary: sanitizedSummary,
+        findings: sanitizedFindings,
+        actions: validActions,
+      };
+    }
+
+    // Safe normalization attempt if partial object
+    if (parsed && typeof parsed === 'object') {
+      const summaryText = typeof parsed.summary === 'string'
+        ? this._sanitizeNoRoutes(parsed.summary).slice(0, 350)
+        : (typeof parsed.answer === 'string' || typeof parsed.message === 'string')
+          ? this._sanitizeNoRoutes(parsed.answer || parsed.message).slice(0, 350)
+          : null;
+
+      if (summaryText) {
+        const rawFindings = Array.isArray(parsed.findings) ? parsed.findings : [];
+        const validFindings = rawFindings.slice(0, 5).map((f) => ({
+          severity: ['critical', 'warning', 'info'].includes(f.severity) ? f.severity : 'info',
+          title: this._sanitizeNoRoutes(String(f.title || 'Note')).slice(0, 120),
+          description: this._sanitizeNoRoutes(String(f.description || f.detail || '')).slice(0, 300),
+        }));
+
+        const rawActions = Array.isArray(parsed.actions) ? parsed.actions : [];
+        let primaryFound = false;
+        const validActions = rawActions
+          .filter((a) => a && SUPPORTED_PRODUCT_ACTION_IDS.includes(a.id))
+          .slice(0, 3)
+          .map((a, idx) => {
+            const isPrimary = a.primary === true || (!primaryFound && idx === 0);
+            if (isPrimary) primaryFound = true;
+            return {
+              id: a.id,
+              label: this._sanitizeNoRoutes(String(a.label || 'View details')).slice(0, 60),
+              primary: isPrimary,
+            };
+          });
+
+        return {
+          summary: summaryText,
+          findings: validFindings,
+          actions: validActions.length > 0 ? validActions : [{ id: 'complete_profile', label: 'Complete profile', primary: true }],
+        };
+      }
+    }
+
+    // Deterministic authority: if query is about blockers or readiness, prioritize deterministic findings
+    if (/block|ready|readiness|missing/i.test(userText)) {
+      return {
+        summary: missingItems.length > 0
+          ? `Your profile is at ${score}% application readiness with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
+          : `Your profile is at ${score}% application readiness with all essential screening fields verified.`,
+        findings: missingItems.slice(0, 5).map((m) => ({
+          severity: 'warning',
+          title: m.label || 'Screening Item',
+          description: this._sanitizeNoRoutes(m.notes || 'Required for employer screening.'),
+        })),
+        actions: [
+          { id: 'complete_profile', label: 'Complete profile', primary: true },
+          { id: 'check_readiness', label: 'Check readiness', primary: false },
+        ],
+      };
+    }
+
+    // Safe normalization if AI returned non-JSON plain text
+    if (!parsed && rawText && typeof rawText === 'string' && rawText.trim().length > 0) {
+      const cleanText = this._sanitizeNoRoutes(rawText.trim()).slice(0, 350);
+      return {
+        summary: cleanText,
+        findings: [
+          {
+            severity: 'info',
+            title: 'Guidance',
+            description: cleanText,
+          },
+        ],
+        actions: [{ id: 'complete_profile', label: 'Review profile', primary: true }],
+      };
+    }
+
+    return {
+      summary: 'Career Copilot evaluated your request against your verified profile and workspace context.',
+      findings: [
+        {
+          severity: 'info',
+          title: 'Workspace Status',
+          description: `Application readiness is currently at ${score}%. ${connectedRepositories.length} repository source${connectedRepositories.length === 1 ? ' is' : 's are'} connected.`,
+        },
+      ],
+      actions: [
+        { id: 'complete_profile', label: 'Review profile' },
+        { id: 'view_matching_jobs', label: 'View matching jobs' },
+      ],
+    };
   }
 
   /**
@@ -1045,6 +1228,11 @@ export class AiCareerAssistantService {
    * @param {object} [params.candidateProfile] Full career profile
    * @param {object} [params.applicationAnswers] Active application screening answers
    * @param {object} [params.context]
+   * @param {object} [params.readiness] Authoritative application readiness evaluation
+   * @param {Array<object>} [params.connectedRepositories=[]] Connected repository resources
+   * @param {Array<object>} [params.candidateSkills=[]] Candidate verified skills
+   * @param {Array<object>} [params.applications=[]] Active tracked applications
+   * @param {Array<object>} [params.resumes=[]] Active candidate resumes
    * @returns {Promise<object>} Assistant response payload
    */
   async handleUserMessage({
@@ -1055,11 +1243,21 @@ export class AiCareerAssistantService {
     candidateProfile = null,
     applicationAnswers = {},
     context = null,
+    readiness = null,
+    connectedRepositories = [],
+    candidateSkills = [],
+    applications = [],
+    resumes = [],
+    pageContext = 'dashboard',
   }) {
     const userText = String(message).trim();
     if (!userText) {
       throw new ValidationError('Message cannot be empty.');
     }
+
+    // Validate pageContext against strict enum, defaulting safely to 'dashboard'
+    const parsedContext = CopilotPageContextSchema.safeParse(pageContext);
+    const validPageContext = parsedContext.success ? parsedContext.data : 'dashboard';
 
     // 1. Fetch candidate profile if not provided
     let profile = candidateProfile;
@@ -1072,6 +1270,16 @@ export class AiCareerAssistantService {
       }
     }
 
+    // Derive or consume authoritative application readiness
+    let readinessData = readiness;
+    if (!readinessData && profile) {
+      try {
+        readinessData = this.identifyMissingInformation({ candidateProfile: profile });
+      } catch {
+        readinessData = null;
+      }
+    }
+
     // 2. Safety Gate: Check for automatic application submission attempt
     if (/submit (?:my |the )?(?:application|job)|apply for me|submit to/i.test(userText)) {
       const submissionBlock = this.submitApplicationIntent();
@@ -1079,6 +1287,17 @@ export class AiCareerAssistantService {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: submissionBlock.reason,
+        structuredResponse: {
+          summary: submissionBlock.reason,
+          findings: [
+            {
+              severity: 'critical',
+              title: 'Automated Submission Blocked',
+              description: 'External job submission requires explicit candidate review and submission.',
+            },
+          ],
+          actions: [{ id: 'review_applications', label: 'Review applications' }],
+        },
         timestamp: new Date().toISOString(),
         citations: [],
         proposals: [],
@@ -1104,6 +1323,15 @@ export class AiCareerAssistantService {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: proposalResult.previewMessage,
+        structuredResponse: {
+          summary: 'I prepared suggested profile updates based on your request. Please confirm before they take effect.',
+          findings: proposalResult.proposals.slice(0, 5).map((p) => ({
+            severity: 'info',
+            title: p.fieldLabel || p.field,
+            description: `Proposed: ${String(p.proposedValue)}. Requires your explicit confirmation.`,
+          })),
+          actions: [{ id: 'complete_profile', label: 'Review profile' }],
+        },
         timestamp: new Date().toISOString(),
         citations: [
           {
@@ -1135,6 +1363,15 @@ export class AiCareerAssistantService {
           id: crypto.randomUUID(),
           role: 'assistant',
           content: `I identified ${conflicts.length} profile conflict(s):\n\n${conflictLines.join('\n')}\n\nPlease review these differences and confirm which value you intend to use. I will not choose one for you.`,
+          structuredResponse: {
+            summary: `I identified ${conflicts.length} profile discrepancy between your profile and application answers.`,
+            findings: conflicts.slice(0, 5).map((c) => ({
+              severity: 'warning',
+              title: c.fieldLabel,
+              description: `Profile states "${c.profileValue}", but application answers state "${c.applicationValue}".`,
+            })),
+            actions: [{ id: 'complete_profile', label: 'Complete profile' }],
+          },
           timestamp: new Date().toISOString(),
           citations: [
             {
@@ -1158,6 +1395,11 @@ export class AiCareerAssistantService {
           id: crypto.randomUUID(),
           role: 'assistant',
           content: 'No conflicts detected between your canonical profile and application answers.',
+          structuredResponse: {
+            summary: 'No conflicts detected between your canonical profile and application answers.',
+            findings: [],
+            actions: [{ id: 'check_readiness', label: 'Check readiness' }],
+          },
           timestamp: new Date().toISOString(),
           citations: [],
           proposals: [],
@@ -1168,22 +1410,250 @@ export class AiCareerAssistantService {
       }
     }
 
-    // 5. Check for missing information / readiness intent
-    if (/missing|readiness|ready to apply|what do i need/i.test(userText)) {
-      const missingInfo = this.identifyMissingInformation({ candidateProfile: profile });
-      const suggestions = missingInfo.missingItems.map(
-        (m) => `• ${m.label}: ${m.notes} (Update at ${m.profileAnchor || '/profile'})`
-      );
+    // 5. Check for profile field explanation intent (e.g. "explain notice period", "why do you need my salary floor")
+    const explainMatch = userText.match(/(?:explain|why do you need|what is|tell me about)\s+([a-zA-Z\s]+)/i);
+    if (explainMatch) {
+      const targetTerm = explainMatch[1].replace(/field|my|\?|\./g, '').trim();
+      const explanation = this.explainProfileField(targetTerm);
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `**${explanation.label}**\n\n${explanation.explanation}\n\n*ATS & Hiring Relevance:* ${explanation.atsImpact}`,
+        structuredResponse: {
+          summary: explanation.explanation.slice(0, 250),
+          findings: [
+            {
+              severity: 'info',
+              title: explanation.label,
+              description: this._sanitizeNoRoutes(explanation.atsImpact).slice(0, 300),
+            },
+          ],
+          actions: [{ id: 'complete_profile', label: 'Complete profile' }],
+        },
+        timestamp: new Date().toISOString(),
+        citations: [],
+        proposals: [],
+        conflicts: [],
+        navigationSuggestions: [
+          {
+            label: `Go to ${explanation.label}`,
+            path: explanation.navigationAnchor,
+          },
+        ],
+        state: 'SUCCESS',
+      };
+    }
 
-      const content =
-        missingInfo.missingCount === 0
-          ? 'Your profile is 100% complete and application-ready! All required fields are documented.'
-          : `Here is the missing or unconfirmed information in your profile:\n\n${suggestions.join('\n')}\n\n${missingInfo.guidance}`;
+    // 6. Check for resume wording / phrasing intent
+    if (/rephrase|improve wording|better way to say|rewrite/i.test(userText)) {
+      const wordingResult = this.suggestResumeWording({
+        bulletText: userText,
+      });
+
+      if (wordingResult.rejected) {
+        return {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: wordingResult.message,
+          structuredResponse: {
+            summary: wordingResult.message.slice(0, 250),
+            findings: [
+              {
+                severity: 'warning',
+                title: 'Wording Review Notice',
+                description: 'We cannot rewrite statements containing unsubstantiated claims or missing evidence.',
+              },
+            ],
+            actions: [{ id: 'review_resume', label: 'Review resume' }],
+          },
+          timestamp: new Date().toISOString(),
+          citations: [],
+          proposals: [],
+          conflicts: [],
+          navigationSuggestions: [],
+          state: 'SUCCESS',
+        };
+      }
 
       return {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content,
+        content: `Here is a suggested phrasing based on your authentic facts:\n\n"${wordingResult.suggestedText}"\n\n${wordingResult.message}`,
+        structuredResponse: {
+          summary: `Suggested phrasing: "${wordingResult.suggestedText.slice(0, 200)}"`,
+          findings: [
+            {
+              severity: 'info',
+              title: 'Evidence-Grounded Phrasing',
+              description: this._sanitizeNoRoutes(wordingResult.message).slice(0, 300),
+            },
+          ],
+          actions: [{ id: 'review_resume', label: 'Review resume' }, { id: 'tailor_resume', label: 'Tailor resume' }],
+        },
+        timestamp: new Date().toISOString(),
+        citations: [
+          {
+            type: 'USER_INPUT',
+            label: 'Original Candidate Bullet',
+            quote: wordingResult.originalText,
+            verified: false,
+          },
+        ],
+        proposals: [],
+        conflicts: [],
+        navigationSuggestions: [CANONICAL_PORTAL_ROUTES.RESUMES],
+        state: 'SUCCESS',
+      };
+    }
+
+    // 7. Navigation query
+    const navSuggestions = this.navigatePortal(userText);
+
+    // 8. Evidence-grounded response via active AI provider (with rich application context)
+    const provider = this._getProvider();
+    if (provider) {
+      try {
+        const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
+        const missingItems = missingInfo.missingItems || [];
+        const readinessScore = readinessData?.overallScore ?? readinessData?.score ?? missingInfo.readinessScore ?? 75;
+
+        const contextSummary = [
+          `Active Page Context: ${validPageContext}`,
+          `Candidate Name: ${profile?.candidate?.displayName || profile?.displayName || 'Candidate'}`,
+          `Headline: ${profile?.candidate?.headline || profile?.headline || 'Software Engineer'}`,
+          `Application Readiness Score: ${readinessScore}%`,
+          `Deterministic Blockers / Missing Screening Items: ${missingItems.map((i) => i.label).join(', ') || 'None'}`,
+          `Target Roles: ${(profile?.targetRoles || []).join(', ') || 'Not specified'}`,
+          `Preferred Locations: ${(profile?.preferredLocations || []).join(', ') || 'Not specified'}`,
+          `Work Authorization: ${profile?.workAuthorization || 'Not specified'}`,
+          `Visa Sponsorship: ${profile?.visaSponsorshipRequired === true ? 'Required' : profile?.visaSponsorshipRequired === false ? 'Not required' : 'Not set'}`,
+          `Verified Skills: ${(candidateSkills.length > 0 ? candidateSkills.map((s) => s.name) : (profile?.skills || [])).slice(0, 15).join(', ') || 'None'}`,
+          `Connected GitHub Repositories: ${connectedRepositories.length > 0 ? connectedRepositories.map((r) => r.displayName || r.url).slice(0, 10).join(', ') : 'None provided'}`,
+          `Tracked Applications: ${applications.length > 0 ? applications.map((a) => `${a.jobTitle} at ${a.companyName} (${a.status})`).join(', ') : 'None provided'}`,
+          `Resumes: ${resumes.length > 0 ? resumes.map((r) => `${r.fileName} (${r.status})`).join(', ') : 'None provided'}`,
+        ].join('\n');
+
+        const prompt = `You are Career Copilot, an integrated, context-aware career workspace assistant.
+
+APPLICATION CONTEXT:
+${contextSummary}
+
+USER QUERY:
+"${userText}"
+
+SAFETY & GROUNDING CONSTRAINTS:
+1. Ground your response strictly in the candidate's authentic profile, connected repositories, and application data provided above.
+2. If the user asks about skills, experience, or certifications NOT verified in their profile or repositories, state clearly: "I can't verify this from your profile." Never invent facts or qualifications.
+3. If information is genuinely missing, point it out specifically as a warning or critical finding.
+4. Do NOT claim that you lack access to profile, repository, or application information when it is provided in the context above. BOUNDARY ON UNSUPPLIED CONTEXT (HARD RULE): Ground your response strictly in the supplied context. You must NEVER claim or imply access to resources that were not supplied (e.g. if Connected GitHub Repositories is 'None provided', NEVER say 'I reviewed your repositories'. State clearly: 'Based on the profile information available to me' or 'No repositories have been connected yet').
+5. ANTI-INVENTION INVARIANT (HARD RULE): NEVER invent skills, repositories, employment history, education/degrees, certifications, applications, resume claims, or job matches. Never claim cloud experience (AWS, GCP, Azure) unless backed by code evidence.
+6. ZERO ROUTE EXPOSING: NEVER expose internal route paths or URLs (do NOT mention /profile, /resumes, /sources, etc.). Use human-friendly labels only.
+7. Output ONLY a valid JSON object strictly matching this schema:
+{
+  "summary": "Short 1-2 sentence direct answer.",
+  "findings": [
+    {
+      "severity": "critical" | "warning" | "info",
+      "title": "Short title",
+      "description": "Short specific explanation without route paths or URLs"
+    }
+  ],
+  "actions": [
+    {
+      "id": "one of: complete_profile, review_sources, check_readiness, review_resume, view_matching_jobs, review_applications, tailor_resume",
+      "label": "Short Human-friendly button label",
+      "primary": true | false
+    }
+  ]
+}
+Note: Max 1 primary action, max 2 secondary actions (total max 3 actions). NEVER include url, route, or href fields.`;
+
+        const aiResponse = await provider.generateText({
+          prompt,
+          taskType: 'CAREER_ASSISTANT',
+          temperature: 0.2,
+        });
+
+        const structured = this._parseStructuredResponse(aiResponse.text, userText, {
+          readinessData: { overallScore: readinessScore, missingItems },
+          profile,
+          connectedRepositories,
+        });
+
+        return {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: structured.summary,
+          structuredResponse: structured,
+          timestamp: new Date().toISOString(),
+          citations: [
+            {
+              type: 'EXISTING_PROFILE',
+              label: 'Canonical Candidate Profile',
+              verified: true,
+            },
+          ],
+          proposals: [],
+          conflicts: [],
+          navigationSuggestions: navSuggestions,
+          state: 'SUCCESS',
+        };
+      } catch (err) {
+        this.logger.warn({ err }, 'AI provider error during career assistant conversation; falling back gracefully');
+        return {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content:
+            'Career Copilot is temporarily unavailable. The core portal remains fully functional. You can update your profile, review readiness, and manage applications directly.',
+          structuredResponse: {
+            summary: 'Career Copilot is temporarily unavailable.',
+            findings: [
+              {
+                severity: 'warning',
+                title: 'Service Temporarily Unavailable',
+                description: 'The assistant could not be reached right now. Your workspace remains fully functional.',
+              },
+            ],
+            actions: [{ id: 'complete_profile', label: 'Review profile' }],
+          },
+          timestamp: new Date().toISOString(),
+          citations: [],
+          proposals: [],
+          conflicts: [],
+          navigationSuggestions: navSuggestions,
+          state: 'AI_FAILURE',
+          error: err.message,
+        };
+      }
+    }
+
+    // 9. Deterministic Fallbacks when AI Provider is not configured or offline
+    // Check for missing information / readiness intent
+    if (/missing|readiness|ready to apply|what do i need|check (?:my )?application readiness|what(?:'s| is) blocking me/i.test(userText)) {
+      const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
+      const score = readinessData?.overallScore ?? readinessData?.score ?? missingInfo.readinessScore ?? 75;
+      const missingItems = missingInfo.missingItems || [];
+
+      const structured = {
+        summary: missingItems.length > 0
+          ? `Your profile is at ${score}% application readiness, with ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} needing attention.`
+          : `Your profile is at ${score}% application readiness with all essential screening fields verified.`,
+        findings: missingItems.slice(0, 5).map((m) => ({
+          severity: 'warning',
+          title: m.label,
+          description: this._sanitizeNoRoutes(m.notes || 'Required for employer screening.'),
+        })),
+        actions: [
+          { id: 'complete_profile', label: 'Complete profile' },
+          { id: 'check_readiness', label: 'Check readiness' },
+        ],
+      };
+
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: structured.summary,
+        structuredResponse: structured,
         timestamp: new Date().toISOString(),
         citations: [
           {
@@ -1202,132 +1672,74 @@ export class AiCareerAssistantService {
       };
     }
 
-    // 6. Check for profile field explanation intent (e.g. "explain notice period", "why do you need my salary floor")
-    const explainMatch = userText.match(/(?:explain|why do you need|what is|tell me about)\s+([a-zA-Z\s]+)/i);
-    if (explainMatch) {
-      const targetTerm = explainMatch[1].replace(/field|my|\?|\./g, '').trim();
-      const explanation = this.explainProfileField(targetTerm);
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: `**${explanation.label}**\n\n${explanation.explanation}\n\n*ATS & Hiring Relevance:* ${explanation.atsImpact}`,
-        timestamp: new Date().toISOString(),
-        citations: [],
-        proposals: [],
-        conflicts: [],
-        navigationSuggestions: [
-          {
-            label: `Go to ${explanation.label}`,
-            path: explanation.navigationAnchor,
-          },
+    // Check for profile improvement intent
+    if (/improve (?:my )?profile|profile improvement|what should i do next/i.test(userText)) {
+      const missingInfo = readinessData?.missingItems ? readinessData : this.identifyMissingInformation({ candidateProfile: profile });
+      const score = readinessData?.overallScore ?? readinessData?.score ?? missingInfo.readinessScore ?? 75;
+      const missingItems = missingInfo.missingItems || [];
+
+      const structured = {
+        summary: missingItems.length > 0
+          ? `Your profile is missing ${missingItems.length} screening item${missingItems.length > 1 ? 's' : ''} that may affect match quality.`
+          : `Your profile is complete with all required screening fields, corroborated by ${connectedRepositories.length} connected repositor${connectedRepositories.length === 1 ? 'y' : 'ies'}.`,
+        findings: missingItems.slice(0, 5).map((m) => ({
+          severity: 'info',
+          title: m.label,
+          description: this._sanitizeNoRoutes(m.notes || 'Required for screening.'),
+        })),
+        actions: [
+          { id: 'complete_profile', label: 'Complete profile' },
+          { id: 'review_sources', label: 'Review sources' },
         ],
-        state: 'SUCCESS',
       };
-    }
-
-    // 7. Check for resume wording / phrasing intent
-    if (/rephrase|improve wording|better way to say|rewrite/i.test(userText)) {
-      const wordingResult = this.suggestResumeWording({
-        bulletText: userText,
-      });
-
-      if (wordingResult.rejected) {
-        return {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: wordingResult.message,
-          timestamp: new Date().toISOString(),
-          citations: [],
-          proposals: [],
-          conflicts: [],
-          navigationSuggestions: [],
-          state: 'SUCCESS',
-        };
-      }
 
       return {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Here is a suggested phrasing based on your authentic facts:\n\n"${wordingResult.suggestedText}"\n\n${wordingResult.message}`,
-        timestamp: new Date().toISOString(),
-        citations: [
-          {
-            type: 'USER_INPUT',
-            label: 'Original Candidate Bullet',
-            quote: wordingResult.originalText,
-            verified: false,
-          },
-        ],
-        proposals: [],
-        conflicts: [],
-        navigationSuggestions: [CANONICAL_PORTAL_ROUTES.RESUMES],
-        state: 'SUCCESS',
-      };
-    }
-
-    // 8. Navigation query
-    const navSuggestions = this.navigatePortal(userText);
-
-    // 9. Default evidence-grounded response with graceful AI degradation
-    const provider = this._getProvider();
-    if (!provider) {
-      // AI provider unavailable - fail gracefully
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content:
-          'The AI assistant is temporarily unavailable. The core portal remains fully functional. You can update your profile, review readiness, and manage applications directly.',
-        timestamp: new Date().toISOString(),
-        citations: [],
-        proposals: [],
-        conflicts: [],
-        navigationSuggestions: navSuggestions,
-        state: 'AI_FAILURE',
-      };
-    }
-
-    try {
-      // Call provider safely
-      const prompt = `User question: "${userText}". Provide a concise, evidence-grounded response. If the user asks about skills or credentials you cannot verify from their profile, state: "I can't verify this from your profile." Never invent facts.`;
-      const aiResponse = await provider.generateText({
-        prompt,
-        taskType: 'CAREER_ASSISTANT',
-        temperature: 0.2,
-      });
-
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: aiResponse.text,
+        content: structured.summary,
+        structuredResponse: structured,
         timestamp: new Date().toISOString(),
         citations: [
           {
             type: 'EXISTING_PROFILE',
-            label: 'Canonical Candidate Profile',
+            label: 'Candidate Profile & Readiness Evaluation',
             verified: true,
           },
         ],
         proposals: [],
         conflicts: [],
-        navigationSuggestions: navSuggestions,
+        navigationSuggestions: [
+          CANONICAL_PORTAL_ROUTES.PROFILE,
+          CANONICAL_PORTAL_ROUTES.ELIGIBILITY,
+          CANONICAL_PORTAL_ROUTES.PREFERENCES,
+        ],
         state: 'SUCCESS',
       };
-    } catch (err) {
-      this.logger.warn({ err }, 'AI provider error during career assistant conversation; falling back gracefully');
-      return {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content:
-          'The AI assistant is temporarily unavailable. The core portal remains fully functional. You can update your profile, review readiness, and manage applications directly.',
-        timestamp: new Date().toISOString(),
-        citations: [],
-        proposals: [],
-        conflicts: [],
-        navigationSuggestions: navSuggestions,
-        state: 'AI_FAILURE',
-        error: err.message,
-      };
     }
+
+    // Default graceful fallback when AI Provider is null
+    return {
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: 'Career Copilot is temporarily unavailable.',
+      structuredResponse: {
+        summary: 'Career Copilot is temporarily unavailable.',
+        findings: [
+          {
+            severity: 'info',
+            title: 'Core Workspace Available',
+            description: 'You can update your profile, review readiness, and manage applications directly.',
+          },
+        ],
+        actions: [{ id: 'complete_profile', label: 'Review profile' }],
+      },
+      timestamp: new Date().toISOString(),
+      citations: [],
+      proposals: [],
+      conflicts: [],
+      navigationSuggestions: navSuggestions,
+      state: 'AI_FAILURE',
+    };
   }
 }
 

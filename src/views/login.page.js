@@ -25,7 +25,7 @@ export function renderLoginPage({ returnTo = '', error = '', user = null } = {})
     <div style="min-height:75vh; display:flex; align-items:center; justify-content:center; padding:40px 16px;">
       <div class="card" style="max-width:440px; width:100%; text-align:center; padding:40px 32px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);">
         <div style="display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan)); color:#FFF; font-size:1.5rem; font-weight:800; margin-bottom:20px; box-shadow:0 8px 24px rgba(99,102,241,0.35);">
-          CH
+          AI
         </div>
 
         <h1 style="font-size:1.5rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px;">

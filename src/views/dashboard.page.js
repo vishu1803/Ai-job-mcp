@@ -495,29 +495,7 @@ export function renderDashboardPage({
           `
           }
         </div>
-      </section>
-
-      <!-- ================================================================= -->
-      <!-- SECTION 4: CONTEXTUAL COPILOT HELP STRIP                          -->
-      <!-- ================================================================= -->
-      <section class="card" style="padding:20px 24px; background:rgba(99,102,241,0.04); border:1px solid rgba(99,102,241,0.2); border-radius:var(--radius-md); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-        <div style="display:flex; align-items:center; gap:14px;">
-          <div style="width:38px; height:38px; border-radius:10px; background:rgba(99,102,241,0.15); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            ${renderIcon('sparkles', { size: 20 })}
-          </div>
-          <div>
-            <h3 style="font-size:0.95rem; font-weight:700; color:var(--text-main); margin:0 0 2px;">Career Copilot</h3>
-            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">
-              Get context-aware advice on screening readiness, interview preparation talking points, or tailoring narratives.
-            </p>
-          </div>
-        </div>
-        <button type="button" class="btn btn-primary btn-sm" onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(true, this)" style="display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
-          ${renderIcon('sparkles', { size: 14 })}
-          <span>Open Copilot</span>
-        </button>
-      </section>
-
+      </div>
     </div>
   `;
 

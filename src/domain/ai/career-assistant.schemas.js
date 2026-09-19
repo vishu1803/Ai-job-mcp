@@ -79,6 +79,117 @@ export const ProfileConflictSchema = z.object({
 });
 
 /**
+ * Valid Copilot Page Contexts (P90 Strict Enum).
+ */
+export const COPILOT_PAGE_CONTEXTS = Object.freeze([
+  'dashboard',
+  'profile',
+  'jobs',
+  'applications',
+  'resumes',
+  'sources',
+]);
+
+export const CopilotPageContextSchema = z.enum([
+  'dashboard',
+  'profile',
+  'jobs',
+  'applications',
+  'resumes',
+  'sources',
+]);
+
+/**
+ * Supported Product Action IDs (P90 Strict Allowlist).
+ * The model must NEVER output executable routes or URLs directly.
+ */
+export const SUPPORTED_PRODUCT_ACTION_IDS = Object.freeze([
+  'complete_profile',
+  'review_sources',
+  'check_readiness',
+  'review_resume',
+  'view_matching_jobs',
+  'review_applications',
+  'tailor_resume',
+]);
+
+export const SupportedProductActionIdSchema = z.enum([
+  'complete_profile',
+  'review_sources',
+  'check_readiness',
+  'review_resume',
+  'view_matching_jobs',
+  'review_applications',
+  'tailor_resume',
+]);
+
+/**
+ * Finding severity classification.
+ */
+export const StructuredFindingSeveritySchema = z.enum(['critical', 'warning', 'info']);
+
+/**
+ * Structured Finding Item.
+ */
+export const StructuredAssistantFindingSchema = z
+  .object({
+    severity: StructuredFindingSeveritySchema.default('info'),
+    title: z.string().min(1).max(120),
+    description: z.string().min(1).max(300),
+  })
+  .strict();
+
+/**
+ * Structured Action Item.
+ * Must NOT contain arbitrary URLs, routes, or href fields.
+ */
+export const StructuredAssistantActionSchema = z
+  .object({
+    id: SupportedProductActionIdSchema,
+    label: z.string().min(1).max(60),
+    primary: z.boolean().optional(),
+  })
+  .strict();
+
+/**
+ * Structured AI Response Contract (P90 Schema).
+ * Summary: 1–2 sentences maximum.
+ * Findings: Maximum 5 items.
+ * Actions: Maximum 3 items (at most 1 primary action).
+ */
+export const StructuredAssistantResponseSchema = z
+  .object({
+    summary: z.string().min(1).max(350),
+    findings: z.array(StructuredAssistantFindingSchema).max(5).default([]),
+    actions: z.array(StructuredAssistantActionSchema).max(3).default([]),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    const primaryCount = data.actions.filter((a) => a.primary === true).length;
+    if (primaryCount > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Maximum of one primary action allowed.',
+        path: ['actions'],
+      });
+    }
+  });
+
+/**
+ * Trusted Action Navigation Map.
+ * Application code strictly maps trusted action IDs to client routes.
+ */
+export const TRUSTED_ACTION_NAVIGATION_MAP = Object.freeze({
+  complete_profile: { path: '/profile', label: 'Complete profile' },
+  review_sources: { path: '/sources', label: 'Review sources' },
+  check_readiness: { path: '/profile#eligibility', label: 'Check readiness' },
+  review_resume: { path: '/resumes', label: 'Review resume' },
+  view_matching_jobs: { path: '/apps/radar', label: 'View matching jobs' },
+  review_applications: { path: '/applications', label: 'Review applications' },
+  tailor_resume: { path: '/resumes', label: 'Tailor resume' },
+});
+
+/**
  * Portal Navigation Suggestion Schema.
  */
 export const NavigationSuggestionSchema = z.object({
@@ -94,6 +205,7 @@ export const AssistantMessageSchema = z.object({
   id: z.string().uuid(),
   role: z.enum(['user', 'assistant', 'system']),
   content: z.string().min(1),
+  structuredResponse: StructuredAssistantResponseSchema.nullable().optional(),
   timestamp: z.string(),
   citations: z.array(EvidenceSourceSchema).default([]),
   proposals: z.array(SafeUpdateProposalSchema).default([]),
@@ -145,3 +257,4 @@ export const CANONICAL_PORTAL_ROUTES = Object.freeze({
   SOURCES: { path: '/sources', label: 'Connected Sources' },
   CONNECT: { path: '/connect', label: 'AI Connect & Tokens' },
 });
+

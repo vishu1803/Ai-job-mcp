@@ -264,7 +264,7 @@ function renderConsentHtml({ client, user, tenant, scopes, params }) {
 <body>
   <div class="consent-card">
     <div class="header">
-      <div class="logo-badge">⚡</div>
+      <div class="logo-badge" style="font-weight: 800; font-size: 20px; letter-spacing: -0.02em;">AI</div>
       <h1>Authorize ${escapeHtml(clientName)}</h1>
       <p class="subtitle">An external client is requesting access to your Career Hub MCP resources.</p>
     </div>

@@ -333,7 +333,7 @@ describe('P87 Phase 1: AI Career Assistant Safe Integration Battery', () => {
     });
 
     assert.equal(response.state, 'AI_FAILURE');
-    assert.match(response.content, /The AI assistant is temporarily unavailable/);
+    assert.match(response.content, /(?:The AI assistant|Career Copilot) is temporarily unavailable/);
     assert.match(response.content, /The core portal remains fully functional/);
     assert.ok(response.navigationSuggestions.length > 0);
   });

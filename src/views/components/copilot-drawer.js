@@ -1,16 +1,15 @@
 /**
  * @file Universal Contextual Career Copilot Drawer Component (P85 / P89).
  *
- * Provides a shared, responsive slide-over drawer (bottom sheet on mobile)
- * that is accessible across all candidate workspace surfaces:
- * - Dashboard
- * - Profile
- * - Jobs / Radar
- * - Applications
- * - Resumes
- *
- * Implements context-aware prompt chips, human-confirmed safe proposals,
- * fail-closed error recovery, deterministic SVG icons, and WCAG 2.2 AA keyboard accessibility.
+ * Provides a compact, professional right-side assistant integrated into the
+ * candidate workspace (Dashboard, Profile, Radar, Applications, Resumes, Sources):
+ * - Target width: ~400px desktop, 360px tablet, responsive bottom sheet on mobile.
+ * - Subtle non-blurred backdrop overlay preserving dashboard visibility.
+ * - Concise introduction with at most 3 compact quick actions.
+ * - Collapsible prompt chips upon starting a conversation.
+ * - Professional bottom composer with Enter/Shift+Enter support.
+ * - Grounded in verified profile and application context with human confirmation gates.
+ * - WCAG 2.2 AA keyboard accessibility and focus management.
  */
 
 import { escapeHtml } from '../../utils/html-escaper.js';
@@ -19,47 +18,57 @@ import { renderAIUnavailableCard } from './state-views.js';
 
 /**
  * Contextual suggested prompts mapped by page context.
+ * At most 3 compact actions per context.
  */
 const CONTEXT_PROMPTS = {
   dashboard: [
-    { label: 'What should I do next?', icon: 'arrowRight', prompt: 'What should I do next to improve my job search?' },
-    { label: 'Check my application readiness', icon: 'check', prompt: 'Check my application readiness and missing screening fields' },
-    { label: 'Find jobs matching my profile', icon: 'radar', prompt: 'Find jobs matching my verified skills and target roles' },
+    { label: 'What should I do next?', icon: 'sparkles', prompt: 'What should I do next?' },
+    { label: "What's blocking me from applying?", icon: 'alertCircle', prompt: "What's blocking me from applying?" },
+    { label: 'Improve my profile', icon: 'edit', prompt: 'Improve my profile' },
+    { label: 'Find matching jobs', icon: 'radar', prompt: 'Find matching jobs' },
   ],
   profile: [
-    { label: 'What is missing from my profile?', icon: 'alertCircle', prompt: 'What is missing for employer screening?' },
-    { label: 'Improve my professional summary', icon: 'edit', prompt: 'How can I improve my professional headline and summary based on my verified experience?' },
-    { label: 'Check application readiness', icon: 'check', prompt: 'Evaluate my profile readiness against standard employer requirements' },
+    { label: "What's missing from my profile?", icon: 'alertCircle', prompt: "What's missing from my profile?" },
+    { label: 'Fix my profile gaps', icon: 'edit', prompt: 'Fix my profile gaps' },
+    { label: 'What evidence is missing?', icon: 'check', prompt: 'What evidence is missing?' },
+  ],
+  jobs: [
+    { label: 'How strong is my match?', icon: 'radar', prompt: 'How strong is my match?' },
+    { label: 'What am I missing?', icon: 'alertCircle', prompt: 'What am I missing?' },
+    { label: 'Should I apply?', icon: 'check', prompt: 'Should I apply?' },
+    { label: 'Tailor my resume', icon: 'resumes', prompt: 'Tailor my resume' },
   ],
   radar: [
-    { label: 'How well do I match?', icon: 'radar', prompt: 'How well do my verified skills match this role?' },
-    { label: 'What skills am I missing?', icon: 'alertCircle', prompt: 'What are my top skill gaps for this position and how can I demonstrate them?' },
-    { label: 'Help me prepare my application', icon: 'applications', prompt: 'Help me prepare my application and tailored answers for this role' },
+    { label: 'How strong is my match?', icon: 'radar', prompt: 'How strong is my match?' },
+    { label: 'What am I missing?', icon: 'alertCircle', prompt: 'What am I missing?' },
+    { label: 'Should I apply?', icon: 'check', prompt: 'Should I apply?' },
+    { label: 'Tailor my resume', icon: 'resumes', prompt: 'Tailor my resume' },
   ],
   job: [
-    { label: 'How well do I match?', icon: 'radar', prompt: 'How well do my verified skills match this role?' },
-    { label: 'What skills am I missing?', icon: 'alertCircle', prompt: 'What are my top skill gaps for this position?' },
-    { label: 'Help me prepare my application', icon: 'applications', prompt: 'Help me prepare my application and tailored answers for this role' },
+    { label: 'How strong is my match?', icon: 'radar', prompt: 'How strong is my match?' },
+    { label: 'What am I missing?', icon: 'alertCircle', prompt: 'What am I missing?' },
+    { label: 'Should I apply?', icon: 'check', prompt: 'Should I apply?' },
+    { label: 'Tailor my resume', icon: 'resumes', prompt: 'Tailor my resume' },
   ],
   applications: [
-    { label: 'What fields still need my attention?', icon: 'alertCircle', prompt: 'Which of my applications have missing fields, conflicts, or require action?' },
-    { label: 'Review my application answers', icon: 'clipboard', prompt: 'Review my application answers before submission' },
-    { label: 'Help me prepare for interviews', icon: 'chat', prompt: 'Help me prepare technical talking points based on my verified code evidence' },
+    { label: 'Is this application ready?', icon: 'check', prompt: 'Is this application ready?' },
+    { label: 'What is missing?', icon: 'alertCircle', prompt: 'What is missing?' },
+    { label: 'Improve my match', icon: 'sparkles', prompt: 'Improve my match' },
   ],
   application: [
-    { label: 'What fields still need my attention?', icon: 'alertCircle', prompt: 'What items need my attention on this application before I can submit?' },
-    { label: 'Review my application answers', icon: 'clipboard', prompt: 'Review my screening answers for this application' },
-    { label: 'Help me prepare for interviews', icon: 'chat', prompt: 'Help me prepare for this role based on verified project evidence' },
+    { label: 'Is this application ready?', icon: 'check', prompt: 'Is this application ready?' },
+    { label: 'What is missing?', icon: 'alertCircle', prompt: 'What is missing?' },
+    { label: 'Improve my match', icon: 'sparkles', prompt: 'Improve my match' },
   ],
   resumes: [
-    { label: 'What should I improve on my resume?', icon: 'edit', prompt: 'How can I improve my resume bullet points while strictly preserving authentic metrics?' },
-    { label: 'Review active base resume', icon: 'resumes', prompt: 'Is my active base resume up to date with my verified repository skills?' },
-    { label: 'Tailor resume for target role', icon: 'radar', prompt: 'How should I tailor my resume narrative for my target role?' },
+    { label: 'Review my active resume', icon: 'resumes', prompt: 'Review my active resume' },
+    { label: 'What claims lack evidence?', icon: 'alertCircle', prompt: 'What claims lack evidence?' },
+    { label: 'Tailor my resume', icon: 'edit', prompt: 'Tailor my resume' },
   ],
   sources: [
-    { label: 'Which repositories best support my target role?', icon: 'code', prompt: 'Which repositories best support my target role and showcase verified skills?' },
-    { label: 'Review active base resume', icon: 'resumes', prompt: 'Review my active resume and extraction status' },
-    { label: 'What sources should I connect next?', icon: 'sources', prompt: 'What sources or repositories should I connect to increase my verified credentials?' },
+    { label: 'What evidence do my sources provide?', icon: 'code', prompt: 'What evidence do my sources provide?' },
+    { label: 'Which skills need stronger evidence?', icon: 'alertCircle', prompt: 'Which skills need stronger evidence?' },
+    { label: 'Review my connected sources', icon: 'sources', prompt: 'Review my connected sources' },
   ],
 };
 
@@ -90,9 +99,9 @@ export function renderCopilotDrawer({
       .copilot-backdrop {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.65);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
+        background: rgba(15, 23, 42, 0.25);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
         z-index: 1040;
         opacity: 0;
         pointer-events: none;
@@ -102,16 +111,22 @@ export function renderCopilotDrawer({
         opacity: 1;
         pointer-events: auto;
       }
+      @media (min-width: 901px) {
+        .copilot-backdrop {
+          display: none !important;
+          pointer-events: none !important;
+        }
+      }
       .copilot-drawer {
         position: fixed;
         top: 0;
         right: 0;
         bottom: 0;
-        width: 440px;
-        max-width: 92vw;
-        background: #0F172A;
-        border-left: 1px solid var(--border-highlight);
-        box-shadow: -8px 0 32px rgba(0, 0, 0, 0.6);
+        width: 400px;
+        max-width: 90vw;
+        background: #0B1120;
+        border-left: 1px solid var(--border-subtle, #334155);
+        box-shadow: -4px 0 24px rgba(0, 0, 0, 0.35);
         z-index: 1050;
         display: flex;
         flex-direction: column;
@@ -122,56 +137,70 @@ export function renderCopilotDrawer({
         transform: translateX(0);
       }
       .copilot-drawer-header {
-        padding: 16px 20px;
-        border-bottom: 1px solid var(--border-subtle);
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border-subtle, #334155);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: rgba(15, 23, 42, 0.98);
+        background: #0B1120;
         flex-shrink: 0;
       }
       .copilot-drawer-body {
         flex: 1;
         overflow-y: auto;
-        padding: 20px;
+        padding: 16px 18px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 14px;
       }
       .copilot-drawer-footer {
-        padding: 14px 20px;
-        border-top: 1px solid var(--border-subtle);
-        background: rgba(15, 23, 42, 0.98);
+        padding: 12px 18px 14px;
+        border-top: 1px solid var(--border-subtle, #334155);
+        background: #0B1120;
         flex-shrink: 0;
       }
       .copilot-chip {
         text-align: left;
-        background: var(--bg-surface);
-        border: 1px solid var(--border-subtle);
-        padding: 8px 12px;
+        background: var(--bg-surface, #1E293B);
+        border: 1px solid var(--border-subtle, #334155);
+        padding: 7px 11px;
         border-radius: 6px;
-        color: var(--text-main);
-        font-size: 0.825rem;
+        color: var(--text-main, #F8FAFC);
+        font-size: 0.8rem;
         cursor: pointer;
         transition: border-color 0.15s, background 0.15s;
         display: flex;
         align-items: center;
         gap: 8px;
         width: 100%;
+        line-height: 1.35;
       }
       .copilot-chip:hover {
-        border-color: var(--accent-indigo);
+        border-color: var(--accent-indigo, #6366F1);
         background: rgba(99, 102, 241, 0.08);
+      }
+      .copilot-composer-box:focus-within {
+        border-color: var(--accent-indigo, #6366F1) !important;
+        box-shadow: 0 0 0 1px var(--accent-indigo, #6366F1);
+      }
+      @keyframes copilotDotPulse {
+        0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+        40% { opacity: 1; transform: scale(1.1); }
+      }
+      @media (max-width: 900px) {
+        .copilot-drawer {
+          width: 360px;
+        }
       }
       @media (max-width: 600px) {
         .copilot-drawer {
           top: auto;
           width: 100vw;
           max-width: 100vw;
-          height: 85vh;
-          max-height: 85vh;
+          height: 80vh;
+          max-height: 80vh;
           border-left: none;
-          border-top: 1px solid var(--border-highlight);
+          border-top: 1px solid var(--border-subtle, #334155);
           border-radius: 16px 16px 0 0;
           transform: translateY(100%);
         }
@@ -190,60 +219,69 @@ export function renderCopilotDrawer({
       aria-modal="true"
       data-page-context="${escapeHtml(normalizedContext)}"
     >
+      <!-- Compact Professional Header (P90) -->
       <div class="copilot-drawer-header">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <div style="width:32px; height:32px; border-radius:8px; background:rgba(99,102,241,0.15); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-            ${renderIcon('copilot', { size: 18 })}
-          </div>
-          <div>
-            <h2 style="font-size:1rem; font-weight:700; color:var(--text-main); margin:0;">Career Copilot</h2>
-            <span style="font-size:0.75rem; color:var(--text-dim);">Context-aware application guidance</span>
-          </div>
+        <div class="copilot-header-info">
+          <h2 style="font-size:0.95rem; font-weight:600; color:var(--text-main, #F8FAFC); margin:0; letter-spacing:-0.01em;">Career Copilot</h2>
+          <span style="font-size:0.725rem; color:var(--text-dim, #94A3B8); margin-top:2px; display:block;">Contextual career assistance</span>
         </div>
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm"
-          id="copilotCloseBtn"
-          onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(false)"
-          aria-label="Close Career Copilot"
-          style="padding:4px 8px; border-radius:6px; font-size:0.8rem; cursor:pointer;"
-        >
-          ${renderIcon('cross', { size: 14 })}
-        </button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button
+            type="button"
+            id="copilotClearBtn"
+            onclick="window.clearCopilotConversation && window.clearCopilotConversation()"
+            aria-label="Clear conversation"
+            title="Clear conversation"
+            style="padding:3px 7px; font-size:0.7rem; border-radius:5px; background:transparent; border:1px solid rgba(255,255,255,0.1); color:var(--text-dim, #64748B); cursor:pointer;"
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            id="copilotCloseBtn"
+            onclick="window.toggleCopilotDrawer && window.toggleCopilotDrawer(false)"
+            aria-label="Close Career Copilot"
+            style="padding:5px 8px; border-radius:6px; background:transparent; border:1px solid var(--border-subtle, #334155); color:var(--text-muted, #94A3B8); cursor:pointer;"
+          >
+            ${renderIcon('cross', { size: 14 })}
+          </button>
+        </div>
       </div>
 
-      <div class="copilot-drawer-body">
+      <!-- Drawer Body -->
+      <div class="copilot-drawer-body" id="copilot-body">
         <!-- AI Unavailable Banner if service offline -->
         ${!aiAvailable ? renderAIUnavailableCard({ continueHref: '/profile' }) : ''}
 
-        <!-- Active Safe Proposals (Human-in-the-Loop Confirmation) -->
+        <!-- Active Safe Proposals (Human-in-the-Loop Confirmation Required) -->
         ${
           activeProposals.length > 0
             ? `
-          <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-left:4px solid var(--accent-amber); padding:14px; border-radius:var(--radius-sm);">
-            <div style="font-size:0.75rem; font-weight:700; color:var(--accent-amber); text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-              ${renderIcon('alertCircle', { size: 14 })}
+          <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-left:3px solid var(--accent-amber, #F59E0B); padding:12px; border-radius:6px;">
+            <div style="font-size:0.725rem; font-weight:700; color:var(--accent-amber, #F59E0B); text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+              ${renderIcon('alertCircle', { size: 13 })}
               <span>Proposed Profile Updates (Confirmation Required)</span>
             </div>
             ${activeProposals
               .map(
                 (p) => `
-              <div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.06);">
-                <div style="font-size:0.9rem; font-weight:600; color:var(--text-main);">${escapeHtml(p.fieldLabel || p.field)}</div>
-                <div style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 8px;">
-                  Current: <code>${escapeHtml(String(p.currentValue ?? 'Not set'))}</code> &rarr; Proposed: <strong style="color:var(--accent-emerald);">${escapeHtml(String(p.proposedValue))}</strong>
+              <div style="margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                <div style="font-size:0.85rem; font-weight:600; color:var(--text-main, #F8FAFC);">${escapeHtml(p.fieldLabel || p.field)}</div>
+                <div style="font-size:0.78rem; color:var(--text-muted, #94A3B8); margin:3px 0 6px;">
+                  Current: <code>${escapeHtml(String(p.currentValue ?? 'Not set'))}</code> &rarr; Proposed: <strong style="color:var(--accent-emerald, #10B981);">${escapeHtml(String(p.proposedValue))}</strong>
                 </div>
                 <div style="display:flex; gap:8px;">
                   <form method="POST" action="/assistant/proposals/confirm" style="display:inline;">
                     <input type="hidden" name="proposalId" value="${escapeHtml(p.id)}">
                     <input type="hidden" name="confirmedByUser" value="true">
-                    <button type="submit" class="btn btn-primary btn-sm" style="padding:4px 10px; font-size:0.75rem;">
+                    <button type="submit" class="btn btn-primary btn-sm" style="padding:3px 8px; font-size:0.75rem;">
                       ${renderIcon('check', { size: 12 })} <span>Confirm</span>
                     </button>
                   </form>
                   <form method="POST" action="/assistant/proposals/reject" style="display:inline;">
                     <input type="hidden" name="proposalId" value="${escapeHtml(p.id)}">
-                    <button type="submit" class="btn btn-secondary btn-sm" style="padding:4px 10px; font-size:0.75rem;">
+                    <button type="submit" class="btn btn-secondary btn-sm" style="padding:3px 8px; font-size:0.75rem;">
                       <span>Dismiss</span>
                     </button>
                   </form>
@@ -257,22 +295,23 @@ export function renderCopilotDrawer({
             : ''
         }
 
-        <!-- Context-Specific Suggested Prompts -->
-        <div id="copilotSuggestionsSection">
-          <div style="font-size:0.75rem; color:var(--text-dim); text-transform:uppercase; font-weight:600; margin-bottom:8px; letter-spacing:0.04em;">
-            Suggested prompts
-          </div>
-          <div style="display:flex; flex-direction:column; gap:6px;">
-            ${suggestedPrompts
-              .map(
-                (item) => `
-              <button type="button" class="copilot-chip" data-prompt="${escapeHtml(item.prompt)}">
-                <span style="color:var(--accent-indigo); flex-shrink:0;">${renderIcon(item.icon, { size: 13 })}</span>
-                <span>${escapeHtml(item.label)}</span>
-              </button>
-            `
-              )
-              .join('')}
+        <!-- Initial Concise Intro & Max 4 Contextual Actions -->
+        <div id="copilotIntroSection" style="${messages.length > 0 ? 'display:none;' : ''}">
+          <p style="font-size:0.825rem; color:var(--text-muted, #94A3B8); line-height:1.45; margin:0 0 10px 0;">
+            I can help you improve your profile, prepare applications, and decide what to do next.
+          </p>
+          <div id="copilotSuggestionsSection">
+            <div style="font-size:0.68rem; color:var(--text-dim, #64748B); text-transform:uppercase; font-weight:600; margin-bottom:6px; letter-spacing:0.04em;">
+              Suggested actions
+            </div>
+            <div class="copilot-chips-container" style="display:flex; flex-direction:column; gap:6px;">
+              ${suggestedPrompts.slice(0, 4).map((item) => `
+                <button type="button" class="copilot-chip" data-prompt="${escapeHtml(item.prompt)}">
+                  <span style="color:var(--accent-indigo, #6366F1); flex-shrink:0;">${renderIcon(item.icon || 'arrowRight', { size: 13 })}</span>
+                  <span>${escapeHtml(item.label)}</span>
+                </button>
+              `).join('')}
+            </div>
           </div>
         </div>
 
@@ -282,7 +321,7 @@ export function renderCopilotDrawer({
             .map(
               (m) => `
             <div style="display:flex; gap:8px; align-items:flex-start; ${m.role === 'user' ? 'justify-content:flex-end;' : ''}">
-              <div style="max-width:85%; padding:10px 14px; border-radius:10px; font-size:0.85rem; line-height:1.45; ${m.role === 'user' ? 'background:var(--accent-indigo); color:#FFFFFF;' : 'background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-main);'}">
+              <div style="max-width:85%; padding:8px 12px; border-radius:${m.role === 'user' ? '8px 8px 2px 8px' : '8px 8px 8px 2px'}; font-size:0.835rem; line-height:1.45; ${m.role === 'user' ? 'background:var(--accent-indigo, #6366F1); color:#FFFFFF;' : 'background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle, #334155); color:var(--text-main, #F8FAFC);'} word-break:break-word; white-space:pre-line;">
                 ${escapeHtml(m.content)}
               </div>
             </div>
@@ -292,77 +331,288 @@ export function renderCopilotDrawer({
         </div>
       </div>
 
+      <!-- Professional Bottom Composer -->
       <div class="copilot-drawer-footer">
-        <form id="copilot-form" method="POST" action="/assistant/message" style="display:flex; gap:8px; margin:0;">
-          <input
-            id="copilot-input"
-            type="text"
-            name="message"
-            class="form-control"
-            placeholder="Ask Career Copilot..."
-            required
-            autocomplete="off"
-            style="flex:1; height:40px; font-size:0.875rem;"
-            value="${initialIntent ? escapeHtml(initialIntent) : ''}"
-          />
-          <button id="copilot-submit-btn" type="submit" class="btn btn-primary" style="height:40px; padding:0 14px; font-size:0.875rem; font-weight:600; display:inline-flex; align-items:center; gap:6px;">
-            ${renderIcon('copilot', { size: 14 })}
-            <span>Send</span>
-          </button>
+        <form id="copilot-form" method="POST" action="/assistant/message" style="margin:0;">
+          <div class="copilot-composer-box" style="display:flex; align-items:flex-end; background:var(--bg-surface, #1E293B); border:1px solid var(--border-subtle, #334155); border-radius:8px; padding:6px 10px; transition:border-color 0.15s, box-shadow 0.15s;">
+            <textarea
+              id="copilot-input"
+              name="message"
+              rows="1"
+              placeholder="Ask Career Copilot..."
+              required
+              aria-label="Ask Career Copilot"
+              style="flex:1; border:none; background:transparent; resize:none; color:var(--text-main, #F8FAFC); font-size:0.835rem; line-height:1.4; outline:none; max-height:96px; padding:4px 0; font-family:inherit;"
+            >${initialIntent ? escapeHtml(initialIntent) : ''}</textarea>
+            <button
+              id="copilot-submit-btn"
+              type="submit"
+              class="copilot-send-btn"
+              aria-label="Send message"
+              style="border:none; background:var(--accent-indigo, #6366F1); color:#FFF; width:28px; height:28px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; margin-left:6px; transition:opacity 0.15s;"
+            >
+              ${renderIcon('arrowRight', { size: 13 })}
+            </button>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; font-size:0.68rem; color:var(--text-dim, #64748B); padding:0 2px;">
+            <span>Enter to send &bull; Shift+Enter for newline</span>
+            <span id="copilot-context-status">Grounded in verified profile</span>
+          </div>
         </form>
       </div>
     </aside>
 
-    <!-- Universal Copilot Controller Script -->
+    <!-- Universal Copilot Controller Script (P90 Hardened) -->
     <script>
       (function() {
         let lastFocusedElement = null;
+        window.__lastCopilotMessage = '';
+        const STORAGE_OPEN_KEY = 'copilot_drawer_open';
+        const STORAGE_HISTORY_KEY = 'copilot_chat_history';
+
+        const TRUSTED_ACTIONS = {
+          complete_profile: { path: '/profile', label: 'Complete profile' },
+          review_sources: { path: '/sources', label: 'Review sources' },
+          check_readiness: { path: '/profile#eligibility', label: 'Check readiness' },
+          review_resume: { path: '/resumes', label: 'Review resume' },
+          view_matching_jobs: { path: '/apps/radar', label: 'View matching jobs' },
+          review_applications: { path: '/applications', label: 'Review applications' },
+          tailor_resume: { path: '/resumes', label: 'Tailor resume' },
+        };
+
+        const drawerEl = document.getElementById('copilot-drawer');
+        const backdropEl = document.getElementById('copilot-drawer-backdrop');
+        const messagesDiv = document.getElementById('copilot-messages');
+        const introSection = document.getElementById('copilotIntroSection');
+        const input = document.getElementById('copilot-input');
+        const form = document.getElementById('copilot-form');
+        const submitBtn = document.getElementById('copilot-submit-btn');
+        const chips = document.querySelectorAll('.copilot-chip');
 
         window.toggleCopilotDrawer = function(open, explicitTrigger) {
-          const drawer = document.getElementById('copilot-drawer');
-          const backdrop = document.getElementById('copilot-drawer-backdrop');
-          if (!drawer || !backdrop) return;
+          if (!drawerEl) return;
 
           if (open) {
             lastFocusedElement = explicitTrigger || document.activeElement;
-            drawer.classList.add('open');
-            backdrop.classList.add('open');
+            drawerEl.classList.add('open');
+            if (backdropEl) backdropEl.classList.add('open');
+            try { sessionStorage.setItem(STORAGE_OPEN_KEY, 'true'); } catch (e) {}
             setTimeout(() => {
-              const input = document.getElementById('copilot-input');
               if (input) input.focus();
-            }, 150);
+            }, 120);
           } else {
-            drawer.classList.remove('open');
-            backdrop.classList.remove('open');
+            drawerEl.classList.remove('open');
+            if (backdropEl) backdropEl.classList.remove('open');
+            try { sessionStorage.setItem(STORAGE_OPEN_KEY, 'false'); } catch (e) {}
             if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
               lastFocusedElement.focus();
+            } else {
+              const launcher = document.getElementById('copilotOpenBtn');
+              if (launcher) launcher.focus();
             }
           }
         };
 
-        // Auto-open if query parameter copilot=open
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('copilot') === 'open' || urlParams.get('intent')) {
-          window.toggleCopilotDrawer(true);
+        window.retryLastCopilotMessage = function() {
+          if (window.__lastCopilotMessage && input && form) {
+            input.value = window.__lastCopilotMessage;
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+          }
+        };
+
+        window.clearCopilotConversation = function() {
+          try {
+            sessionStorage.removeItem(STORAGE_HISTORY_KEY);
+          } catch (e) {}
+          if (messagesDiv) {
+            messagesDiv.innerHTML = '';
+            messagesDiv.style.display = 'none';
+          }
+          if (introSection) {
+            introSection.style.display = 'block';
+          }
+        };
+
+        function saveHistoryItem(item) {
+          try {
+            const raw = sessionStorage.getItem(STORAGE_HISTORY_KEY);
+            const history = raw ? JSON.parse(raw) : [];
+            history.push(item);
+            const trimmed = history.slice(-12);
+            sessionStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(trimmed));
+          } catch (e) {}
         }
 
-        // Close on Escape key
+        function buildAssistantHtml(structured, rawContent) {
+          let botBubbleContent = '';
+
+          if (structured && typeof structured === 'object') {
+            botBubbleContent += '<div style="font-size:0.835rem; color:var(--text-main, #F8FAFC); line-height:1.45; margin-bottom:8px;">' +
+              escapeText(structured.summary || rawContent || '') + '</div>';
+
+            if (Array.isArray(structured.findings) && structured.findings.length > 0) {
+              botBubbleContent += '<div class="copilot-findings-list" style="display:flex; flex-direction:column; gap:5px; margin-bottom:8px;">';
+              structured.findings.slice(0, 5).forEach(function(f) {
+                let borderCol = 'var(--accent-indigo, #6366F1)';
+                let bgCol = 'rgba(99,102,241,0.04)';
+                let titleCol = '#C7D2FE';
+                let badgeText = 'INFO';
+                let badgeBg = 'rgba(99,102,241,0.15)';
+                if (f.severity === 'critical') {
+                  borderCol = 'var(--accent-rose, #EF4444)';
+                  bgCol = 'rgba(239,68,68,0.06)';
+                  titleCol = '#FCA5A5';
+                  badgeText = 'BLOCKER';
+                  badgeBg = 'rgba(239,68,68,0.18)';
+                } else if (f.severity === 'warning') {
+                  borderCol = 'var(--accent-amber, #F59E0B)';
+                  bgCol = 'rgba(245,158,11,0.06)';
+                  titleCol = '#FCD34D';
+                  badgeText = 'ATTENTION';
+                  badgeBg = 'rgba(245,158,11,0.18)';
+                }
+                botBubbleContent += '<div style="padding:6px 9px; border-radius:5px; border:1px solid rgba(255,255,255,0.04); border-left:3px solid ' + borderCol + '; background:' + bgCol + '; display:flex; flex-direction:column; gap:2px;">' +
+                  '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+                    '<span style="font-size:0.775rem; font-weight:600; color:' + titleCol + ';">' + escapeText(f.title) + '</span>' +
+                    '<span style="font-size:0.625rem; font-weight:700; padding:1px 5px; border-radius:3px; background:' + badgeBg + '; color:' + titleCol + '; text-transform:uppercase; letter-spacing:0.03em;">' + badgeText + '</span>' +
+                  '</div>' +
+                  '<div style="font-size:0.735rem; color:var(--text-muted, #94A3B8); line-height:1.35;">' + escapeText(f.description) + '</div>' +
+                  '</div>';
+              });
+              botBubbleContent += '</div>';
+            }
+
+            if (Array.isArray(structured.actions) && structured.actions.length > 0) {
+              botBubbleContent += '<div class="copilot-actions-list" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">';
+              structured.actions.slice(0, 3).forEach(function(act, actIdx) {
+                const trusted = TRUSTED_ACTIONS[act.id];
+                if (trusted) {
+                  const label = act.label || trusted.label;
+                  const isPrimary = act.primary === true || actIdx === 0;
+                  if (isPrimary) {
+                    botBubbleContent += '<button type="button" class="copilot-action-btn primary" data-href="' + trusted.path + '" style="padding:5px 12px; font-size:0.75rem; font-weight:600; border-radius:6px; background:var(--accent-indigo, #6366F1); border:1px solid var(--accent-indigo, #6366F1); color:#FFFFFF; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 1px 3px rgba(0,0,0,0.2);">' +
+                      '<span>' + escapeText(label) + '</span> &rarr;' +
+                      '</button>';
+                  } else {
+                    botBubbleContent += '<button type="button" class="copilot-action-btn secondary" data-href="' + trusted.path + '" style="padding:5px 10px; font-size:0.75rem; font-weight:500; border-radius:6px; background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle, #334155); color:var(--text-main, #F8FAFC); cursor:pointer; display:inline-flex; align-items:center; gap:4px;">' +
+                      '<span>' + escapeText(label) + '</span>' +
+                      '</button>';
+                  }
+                }
+              });
+              botBubbleContent += '</div>';
+            }
+          } else {
+            botBubbleContent = formatMarkdownLike(rawContent || 'I processed your request.');
+          }
+
+          return botBubbleContent;
+        }
+
+        function appendUserBubble(text, save = true) {
+          if (!messagesDiv) return;
+          messagesDiv.style.display = 'flex';
+          const userBubble = document.createElement('div');
+          userBubble.style.cssText = 'display:flex; justify-content:flex-end;';
+          userBubble.innerHTML = '<div style="max-width:85%; padding:8px 12px; border-radius:8px 8px 2px 8px; font-size:0.835rem; line-height:1.45; background:var(--accent-indigo, #6366F1); color:#FFFFFF; word-break:break-word;">' +
+            escapeText(text) + '</div>';
+          messagesDiv.appendChild(userBubble);
+          if (save) saveHistoryItem({ role: 'user', content: text });
+        }
+
+        function appendAssistantBubble(structured, rawContent, save = true) {
+          if (!messagesDiv) return;
+          messagesDiv.style.display = 'flex';
+          const botBubble = document.createElement('div');
+          botBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start;';
+          botBubble.innerHTML = '<div style="max-width:92%; width:100%; padding:10px 14px; border-radius:8px 8px 8px 2px; font-size:0.835rem; line-height:1.5; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle, #334155); color:var(--text-main, #F8FAFC); word-break:break-word;">' +
+            buildAssistantHtml(structured, rawContent) + '</div>';
+          messagesDiv.appendChild(botBubble);
+
+          botBubble.querySelectorAll('.copilot-action-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              const targetPath = btn.getAttribute('data-href');
+              if (targetPath) {
+                window.location.href = targetPath;
+              }
+            });
+          });
+
+          if (save) saveHistoryItem({ role: 'assistant', content: rawContent, structuredResponse: structured });
+        }
+
+        // Restore chat history from sessionStorage on load
+        try {
+          const savedHistory = sessionStorage.getItem(STORAGE_HISTORY_KEY);
+          if (savedHistory) {
+            const history = JSON.parse(savedHistory);
+            if (Array.isArray(history) && history.length > 0) {
+              if (introSection) introSection.style.display = 'none';
+              history.forEach(item => {
+                if (item.role === 'user') {
+                  appendUserBubble(item.content, false);
+                } else if (item.role === 'assistant') {
+                  appendAssistantBubble(item.structuredResponse, item.content, false);
+                }
+              });
+              if (messagesDiv) messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+          }
+        } catch (e) {}
+
+        // Auto-open if query parameter or if previously opened in sessionStorage
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const wasOpen = sessionStorage.getItem(STORAGE_OPEN_KEY) === 'true';
+          if (urlParams.get('copilot') === 'open' || urlParams.get('intent') || wasOpen) {
+            window.toggleCopilotDrawer(true);
+          }
+        } catch (e) {}
+
+        // Close on Escape key and restore focus
         document.addEventListener('keydown', function(e) {
           if (e.key === 'Escape') {
-            const drawer = document.getElementById('copilot-drawer');
-            if (drawer && drawer.classList.contains('open')) {
+            if (drawerEl && drawerEl.classList.contains('open')) {
               window.toggleCopilotDrawer(false);
             }
           }
         });
 
-        // Wire chips
-        const chips = document.querySelectorAll('.copilot-chip');
-        const input = document.getElementById('copilot-input');
-        const form = document.getElementById('copilot-form');
-        const messagesDiv = document.getElementById('copilot-messages');
-        const submitBtn = document.getElementById('copilot-submit-btn');
+        // Focus trap inside drawer
+        if (drawerEl) {
+          drawerEl.addEventListener('keydown', function(e) {
+            if (e.key !== 'Tab') return;
+            const focusables = drawerEl.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+            if (!focusables || focusables.length === 0) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
+          });
+        }
 
+        // Auto-grow textarea
+        if (input) {
+          input.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 96) + 'px';
+          });
+
+          // Enter submits, Shift+Enter creates newline
+          input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              if (form) form.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+          });
+        }
+
+        // Wire prompt chips
         chips.forEach(chip => {
           chip.addEventListener('click', () => {
             const prompt = chip.getAttribute('data-prompt');
@@ -379,61 +629,102 @@ export function renderCopilotDrawer({
             if (!msg) return;
 
             e.preventDefault();
+            window.__lastCopilotMessage = msg;
             input.value = '';
+            input.style.height = 'auto';
             if (submitBtn) submitBtn.disabled = true;
 
-            // Render user bubble
-            messagesDiv.style.display = 'flex';
-            const userBubble = document.createElement('div');
-            userBubble.style.cssText = 'display:flex; justify-content:flex-end; margin-bottom:8px;';
-            userBubble.innerHTML = '<div style="max-width:85%; padding:10px 14px; border-radius:10px; font-size:0.85rem; line-height:1.45; background:var(--accent-indigo); color:#FFFFFF;">' +
-              escapeText(msg) + '</div>';
-            messagesDiv.appendChild(userBubble);
+            // Collapse initial quick actions on interaction
+            if (introSection) introSection.style.display = 'none';
 
-            // Render thinking indicator
+            // Render user bubble
+            appendUserBubble(msg, true);
+
+            // Render compact typing indicator
             const thinkingBubble = document.createElement('div');
-            thinkingBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;';
-            thinkingBubble.innerHTML = '<div style="width:24px; height:24px; border-radius:6px; background:rgba(99,102,241,0.2); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>' +
-              '<div style="max-width:85%; padding:10px 14px; border-radius:10px; font-size:0.85rem; background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-muted); font-style:italic;">Thinking...</div>';
+            thinkingBubble.id = 'copilotThinkingBubble';
+            thinkingBubble.style.cssText = 'display:flex; gap:8px; align-items:center;';
+            thinkingBubble.innerHTML = '<div style="padding:8px 12px; border-radius:8px 8px 8px 2px; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle, #334155); display:inline-flex; align-items:center; gap:4px;">' +
+              '<span style="width:5px; height:5px; border-radius:50%; background:var(--accent-indigo, #6366F1); animation:copilotDotPulse 1.2s infinite ease-in-out;"></span>' +
+              '<span style="width:5px; height:5px; border-radius:50%; background:var(--accent-indigo, #6366F1); animation:copilotDotPulse 1.2s infinite ease-in-out 0.2s;"></span>' +
+              '<span style="width:5px; height:5px; border-radius:50%; background:var(--accent-indigo, #6366F1); animation:copilotDotPulse 1.2s infinite ease-in-out 0.4s;"></span>' +
+              '</div>';
             messagesDiv.appendChild(thinkingBubble);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
             try {
+              const currentPageContext = (drawerEl && drawerEl.getAttribute('data-page-context')) || 'dashboard';
               const res = await fetch('/assistant/message', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   'Accept': 'application/json'
                 },
-                body: JSON.stringify({ message: msg })
+                body: JSON.stringify({ message: msg, pageContext: currentPageContext })
               });
 
-              thinkingBubble.remove();
+              if (thinkingBubble && thinkingBubble.parentNode) {
+                thinkingBubble.remove();
+              }
 
               if (!res.ok) {
-                throw new Error('Assistant error: ' + res.status);
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || ('HTTP ' + res.status));
               }
 
               const data = await res.json();
-              const responseText = data?.response?.content || 'I processed your request.';
+              window.__lastCopilotData = data;
 
-              const botBubble = document.createElement('div');
-              botBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;';
-              botBubble.innerHTML = '<div style="width:24px; height:24px; border-radius:6px; background:rgba(99,102,241,0.2); color:var(--accent-indigo); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div>' +
-                '<div style="max-width:85%; padding:10px 14px; border-radius:10px; font-size:0.85rem; line-height:1.45; background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle); color:var(--text-main); white-space:pre-line;">' +
-                escapeText(responseText) + '</div>';
-              messagesDiv.appendChild(botBubble);
+              // Check for controlled failure states from backend
+              if (data?.response?.state === 'AI_FAILURE') {
+                const errBubble = document.createElement('div');
+                errBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start;';
+                errBubble.innerHTML = '<div style="padding:10px 14px; border-radius:8px; font-size:0.835rem; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:var(--accent-amber, #F59E0B); line-height:1.45; width:100%;">' +
+                  '<div style="margin-bottom:8px; font-weight:500;">Career Copilot is temporarily unavailable.</div>' +
+                  '<button type="button" class="copilot-retry-btn" onclick="window.retryLastCopilotMessage && window.retryLastCopilotMessage()" style="padding:4px 10px; font-size:0.75rem; font-weight:600; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.35); color:#FCD34D; border-radius:5px; cursor:pointer;">Try again</button>' +
+                  '</div>';
+                messagesDiv.appendChild(errBubble);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                return;
+              }
+
+              if (data?.response?.state === 'INSUFFICIENT_CONTEXT') {
+                const infoBubble = document.createElement('div');
+                infoBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start;';
+                infoBubble.innerHTML = '<div style="padding:10px 14px; border-radius:8px; font-size:0.835rem; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); color:var(--text-main, #F8FAFC); line-height:1.45; width:100%;">' +
+                  '<div style="margin-bottom:8px; font-weight:500;">I need more profile information to answer this reliably.</div>' +
+                  '<button type="button" class="copilot-nav-btn" data-href="/profile" style="padding:4px 10px; font-size:0.75rem; font-weight:600; background:var(--accent-indigo, #6366F1); color:#FFFFFF; border:none; border-radius:5px; cursor:pointer;">Review profile</button>' +
+                  '</div>';
+                const navBtn = infoBubble.querySelector('.copilot-nav-btn');
+                if (navBtn) {
+                  navBtn.addEventListener('click', function() {
+                    window.location.href = '/profile';
+                  });
+                }
+                messagesDiv.appendChild(infoBubble);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                return;
+              }
+
+              const structured = data?.response?.structuredResponse;
+              appendAssistantBubble(structured, data?.response?.content, true);
               messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
               if (data?.response?.proposals && data.response.proposals.length > 0) {
                 setTimeout(() => window.location.reload(), 900);
               }
             } catch (err) {
-              thinkingBubble.remove();
+              console.error('Career Copilot client fetch error:', err);
+              window.__lastCopilotError = err;
+              if (thinkingBubble && thinkingBubble.parentNode) {
+                thinkingBubble.remove();
+              }
               const errBubble = document.createElement('div');
-              errBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start; margin-bottom:8px;';
-              errBubble.innerHTML = '<div style="padding:10px 14px; border-radius:10px; font-size:0.85rem; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); color:var(--accent-amber);">' +
-                'Career Copilot is temporarily busy. You can continue manually.' + '</div>';
+              errBubble.style.cssText = 'display:flex; gap:8px; align-items:flex-start;';
+              errBubble.innerHTML = '<div style="padding:10px 14px; border-radius:8px; font-size:0.835rem; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); color:var(--accent-amber, #F59E0B); line-height:1.45; width:100%;">' +
+                '<div style="margin-bottom:8px; font-weight:500;">Career Copilot is temporarily unavailable.</div>' +
+                '<button type="button" class="copilot-retry-btn" onclick="window.retryLastCopilotMessage && window.retryLastCopilotMessage()" style="padding:4px 10px; font-size:0.75rem; font-weight:600; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.35); color:#FCD34D; border-radius:5px; cursor:pointer;">Try again</button>' +
+                '</div>';
               messagesDiv.appendChild(errBubble);
             } finally {
               if (submitBtn) submitBtn.disabled = false;
@@ -446,7 +737,22 @@ export function renderCopilotDrawer({
           div.textContent = str;
           return div.innerHTML;
         }
+
+        function formatMarkdownLike(str) {
+          try {
+            if (!str) return '';
+            return escapeText(String(str))
+              .split('**').map(function(part, idx) { return idx % 2 === 1 ? '<strong>' + part + '</strong>' : part; }).join('')
+              .split('*').map(function(part, idx) { return idx % 2 === 1 ? '<em>' + part + '</em>' : part; }).join('')
+              .split(String.fromCharCode(96)).map(function(part, idx) { return idx % 2 === 1 ? '<code>' + part + '</code>' : part; }).join('');
+          } catch (e) {
+            console.error('formatMarkdownLike error:', e);
+            return escapeText(String(str || ''));
+          }
+        }
       })();
     </script>
   `;
 }
+
+export default renderCopilotDrawer;

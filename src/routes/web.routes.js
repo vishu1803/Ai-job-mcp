@@ -87,6 +87,7 @@ import { defaultIngestionStateService } from '../services/ingestion-state.servic
 import { ApplicationReadinessService } from '../services/application-readiness.service.js';
 import { JobApplicationFlowService } from '../services/job-application-flow.service.js';
 import { AiCareerAssistantService } from '../services/ai-career-assistant.service.js';
+import { CopilotPageContextSchema } from '../domain/ai/career-assistant.schemas.js';
 import { NotFoundError } from '../errors/index.js';
 
 /**
@@ -4749,6 +4750,9 @@ export default async function webRoutes(app, opts = {}) {
     const candidate = await getOrCreateCandidate(database, tenant.id, user);
     const body = req.body || {};
     const userMessage = body.message || '';
+    const rawPageContext = body.pageContext;
+    const parsedContext = CopilotPageContextSchema.safeParse(rawPageContext);
+    const pageContext = parsedContext.success ? parsedContext.data : 'dashboard';
 
     const context = {
       tenantId: tenant.id,
@@ -4763,6 +4767,107 @@ export default async function webRoutes(app, opts = {}) {
       // Fallback
     }
 
+    let readiness = null;
+    try {
+      readiness = applicationReadinessService.evaluateReadiness({
+        candidateProfile,
+        candidate,
+      });
+    } catch {
+      // Fallback
+    }
+
+    let connectedRepositories = [];
+    try {
+      connectedRepositories = await database
+        .select({
+          id: resources.id,
+          displayName: resources.displayName,
+          url: resources.url,
+          status: resources.status,
+          externalResourceId: resources.externalResourceId,
+        })
+        .from(resources)
+        .where(
+          and(
+            eq(resources.tenantId, tenant.id),
+            eq(resources.candidateId, candidate.id),
+            eq(resources.status, 'ACTIVE')
+          )
+        );
+    } catch {
+      // Fallback
+    }
+
+    let candidateSkillList = [];
+    try {
+      candidateSkillList = await database
+        .select({
+          id: candidateSkills.id,
+          name: skills.name,
+          category: candidateSkills.category,
+          confidenceScore: candidateSkills.confidenceScore,
+          provenanceStatus: candidateSkills.provenanceStatus,
+        })
+        .from(candidateSkills)
+        .innerJoin(skills, eq(candidateSkills.skillId, skills.id))
+        .where(
+          and(
+            eq(candidateSkills.tenantId, tenant.id),
+            eq(candidateSkills.candidateId, candidate.id)
+          )
+        )
+        .orderBy(desc(candidateSkills.confidenceScore))
+        .limit(20);
+    } catch {
+      // Fallback
+    }
+
+    let trackedApplications = [];
+    try {
+      trackedApplications = await database
+        .select({
+          id: jobApplications.id,
+          jobTitle: jobApplications.jobTitle,
+          companyName: jobApplications.companyName,
+          status: jobApplications.status,
+          location: jobApplications.location,
+          matchScore: jobApplications.matchScore,
+        })
+        .from(jobApplications)
+        .where(
+          and(
+            eq(jobApplications.tenantId, tenant.id),
+            eq(jobApplications.candidateId, candidate.id)
+          )
+        )
+        .orderBy(desc(jobApplications.updatedAt))
+        .limit(5);
+    } catch {
+      // Fallback
+    }
+
+    let activeResumes = [];
+    try {
+      activeResumes = await database
+        .select({
+          id: resumes.id,
+          fileName: resumes.fileName,
+          status: resumes.status,
+          isBase: resumes.isBase,
+        })
+        .from(resumes)
+        .where(
+          and(
+            eq(resumes.tenantId, tenant.id),
+            eq(resumes.candidateId, candidate.id)
+          )
+        )
+        .limit(3);
+    } catch {
+      // Fallback
+    }
+
     const assistantResponse = await aiCareerAssistantService.handleUserMessage({
       message: userMessage,
       tenantId: tenant.id,
@@ -4770,6 +4875,12 @@ export default async function webRoutes(app, opts = {}) {
       candidateId: candidate.id,
       candidateProfile,
       context,
+      readiness,
+      connectedRepositories,
+      candidateSkills: candidateSkillList,
+      applications: trackedApplications,
+      resumes: activeResumes,
+      pageContext,
     });
 
     const isJsonRequest =
