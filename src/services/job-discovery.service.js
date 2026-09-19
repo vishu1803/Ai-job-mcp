@@ -538,8 +538,10 @@ export class JobDiscoveryService {
     this.logger = options.logger || defaultLogger;
     this.fetchTimeoutMs = options.fetchTimeoutMs || 8000;
     this.freshnessDays = options.freshnessDays || DEFAULT_FRESHNESS_DAYS;
-
-    // Initialize external adapters
+    this.includeSynthetic =
+      typeof options.includeSynthetic === 'boolean'
+        ? options.includeSynthetic
+        : process.env.NODE_ENV !== 'production';
     this.greenhouseBoards = (options.greenhouseBoards || []).map(
       (cfg) =>
         new GreenhouseAdapter({
@@ -694,10 +696,13 @@ export class JobDiscoveryService {
     // Parse boolean query
     const parsedExpr = parseQuery(validated.query);
 
-    // Merge: custom jobs + external API jobs + synthetic fallback dataset
+    // Merge: custom jobs + external API jobs + synthetic fallback dataset (test-only)
     const externalJobs = await this._fetchExternalJobs();
     const hasExternalJobs = externalJobs.length > 0;
-    const allJobs = [...this.customJobs, ...externalJobs, ...SYNTHETIC_JOBS];
+    const includeSynthetic =
+      params.includeSynthetic !== undefined ? Boolean(params.includeSynthetic) : this.includeSynthetic;
+    const syntheticFeed = includeSynthetic ? SYNTHETIC_JOBS : [];
+    const allJobs = [...this.customJobs, ...externalJobs, ...syntheticFeed];
 
     // Filter
     const filtered = allJobs.filter((job) => {
@@ -789,7 +794,10 @@ export class JobDiscoveryService {
   async getJobPosting(params = {}) {
     const validated = GetJobPostingInputSchema.parse(params);
     const externalJobs = await this._fetchExternalJobs();
-    const allJobs = [...this.customJobs, ...externalJobs, ...SYNTHETIC_JOBS];
+    const includeSynthetic =
+      params.includeSynthetic !== undefined ? Boolean(params.includeSynthetic) : this.includeSynthetic;
+    const syntheticFeed = includeSynthetic ? SYNTHETIC_JOBS : [];
+    const allJobs = [...this.customJobs, ...externalJobs, ...syntheticFeed];
 
     const found = allJobs.find(
       (j) =>

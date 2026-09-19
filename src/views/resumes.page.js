@@ -125,14 +125,14 @@ export function renderResumesPage({
       ${flashMessage ? `<div class="alert alert-success">${escapeHtml(flashMessage)}</div>` : ''}
       ${errorMessage ? `<div class="alert alert-error">${escapeHtml(errorMessage)}</div>` : ''}
 
-      <!-- Truth in AI Alert -->
+      <!-- Candidate Narrative & Corroboration -->
       <div class="card" style="margin-bottom:2rem; padding:20px; background:#111827; border:1px solid var(--border-subtle);">
         <div style="display:flex; gap:12px; align-items:flex-start;">
-          <span class="badge badge-indigo" style="font-size:0.7rem; flex-shrink:0; margin-top:2px;">TRUTH BOUNDARY</span>
+          <span class="badge badge-indigo" style="font-size:0.7rem; flex-shrink:0; margin-top:2px;">CANDIDATE NARRATIVE</span>
           <div>
-            <strong style="color:var(--text-main); font-size:0.925rem;">Evidence vs. Self-Reported Claim Separation</strong>
+            <strong style="color:var(--text-main); font-size:0.925rem;">Authentic Resume History</strong>
             <p style="color:var(--text-muted); font-size:0.85rem; margin:6px 0 0 0; line-height:1.5;">
-              Uploaded resume statements, skills, and dates are treated as <strong>candidate-provided claims</strong> and are tagged with the explicit <span class="badge badge-claimed" style="font-size:0.7rem;">CLAIMED [Unverified User Claim]</span> truth classification. They are <em>never</em> automatically marked as repository-verified without authentic code evidence.
+              Uploaded resume statements, experience, and skills establish your candidate-authored career narrative. Technical skills corroborated by your connected GitHub repositories are verified with code evidence.
             </p>
           </div>
         </div>
@@ -272,7 +272,7 @@ export function renderResumesPage({
                       <div style="font-size: 0.725rem; color: var(--text-dim); margin-top:2px;">
                         <span>${escapeHtml(r.mimeType)}</span>
                         <span>&bull;</span>
-                        <span title="${escapeHtml(r.contentHash)}">${escapeHtml(r.contentHash.slice(0, 10))}…</span>
+                        <span title="${escapeHtml(r.contentHash || '')}">${escapeHtml((r.contentHash || '').slice(0, 10))}…</span>
                       </div>
                     </td>
                     <td style="color: var(--text-muted); font-size: 0.8rem; font-family: var(--font-mono);">${formatBytes(r.fileSizeBytes)}</td>

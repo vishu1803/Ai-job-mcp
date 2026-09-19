@@ -262,7 +262,7 @@ export function renderSourcesPage({
             ${
               isConnected
                 ? `
-              <a href="/onboarding?step=3" class="btn btn-secondary btn-sm">Manage Repositories</a>
+              <a href="/onboarding?step=3&from=sources" class="btn btn-secondary btn-sm">Manage Repositories</a>
               <form action="/sources/disconnect" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to disconnect GitHub? Your existing evidence will be preserved.');">
                 <input type="hidden" name="connectionId" value="${escapeHtml(gitHubConnection.id)}" />
                 <button type="submit" class="btn btn-danger btn-sm">Disconnect</button>
@@ -300,7 +300,7 @@ export function renderSourcesPage({
             <h3 style="font-size:1rem; font-weight:700; color:var(--text-main); margin:0;">Selected Repositories</h3>
             ${
               isConnected
-                ? `<a href="/onboarding?step=3" class="btn btn-ghost btn-sm" style="font-size:0.8rem;">+ Add or Remove</a>`
+                ? `<a href="/onboarding?step=3&from=sources" class="btn btn-ghost btn-sm" style="font-size:0.8rem;">+ Add or Remove</a>`
                 : ''
             }
           </div>
@@ -316,7 +316,7 @@ export function renderSourcesPage({
               </p>
               ${
                 isConnected
-                  ? `<a href="/onboarding?step=3" class="btn btn-secondary btn-sm">Select Repositories &rarr;</a>`
+                  ? `<a href="/onboarding?step=3&from=sources" class="btn btn-secondary btn-sm">Select Repositories &rarr;</a>`
                   : `<a href="/integrations/github/install" class="btn btn-primary btn-sm">Connect GitHub &rarr;</a>`
               }
             </div>

@@ -11,7 +11,7 @@ import { AiInvalidRequestError } from '../../errors/ai.errors.js';
 const CANONICAL_POLICIES = Object.freeze([
   {
     taskType: 'RESUME_WORDING',
-    preferredModelId: 'gemini-3.7-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 2048,
@@ -25,7 +25,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'RESUME_ACCOMPLISHMENT_SYNTHESIS',
-    preferredModelId: 'gemini-3.5-flash-lite',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 4096,
@@ -39,7 +39,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'RESUME_SUMMARY_SYNTHESIS',
-    preferredModelId: 'gemini-3.5-flash-lite',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 4096,
@@ -53,7 +53,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'RESUME_EXPERIENCE_SYNTHESIS',
-    preferredModelId: 'gemini-3.7-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 2048,
@@ -67,7 +67,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'RESUME_DSA_SYNTHESIS',
-    preferredModelId: 'gemini-3.7-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 6000,
     maxOutputTokens: 1024,
@@ -81,7 +81,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'RESUME_CLAIM_REPAIR',
-    preferredModelId: 'gemini-3.7-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 6000,
     maxOutputTokens: 1024,
@@ -95,7 +95,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'COVER_LETTER',
-    preferredModelId: 'gemini-3.7-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 2048,
@@ -109,7 +109,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'JOB_EXPLANATION',
-    preferredModelId: 'gemini-3.6-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 6000,
     maxOutputTokens: 2048,
@@ -123,8 +123,8 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'CAREER_COACHING',
-    preferredModelId: 'gemini-3.7-flash',
-    fallbackModelId: 'gemini-3.6-flash',
+    preferredModelId: 'gemini-3.8-flash',
+    fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 2048,
     temperature: 0.4,
@@ -137,7 +137,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'PROJECT_CASE_STUDY',
-    preferredModelId: 'gemini-3.7-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 10000,
     maxOutputTokens: 4096,
@@ -151,7 +151,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'INTERVIEW_PREPARATION',
-    preferredModelId: 'gemini-3.6-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 2048,
@@ -165,7 +165,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'JOB_PARSER_FALLBACK',
-    preferredModelId: 'gemini-3.5-flash-lite',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 6000,
     maxOutputTokens: 1024,
@@ -179,7 +179,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'TITLE_NORMALIZATION',
-    preferredModelId: 'gemini-3.5-flash-lite',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 2000,
     maxOutputTokens: 256,
@@ -193,7 +193,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'PROJECT_IMPROVEMENT',
-    preferredModelId: 'gemini-3.7-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 10000,
     maxOutputTokens: 4096,
@@ -207,7 +207,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'SYNTHETIC_HEALTH_CHECK',
-    preferredModelId: 'gemini-3.5-flash-lite',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 500,
     maxOutputTokens: 64,
@@ -221,7 +221,7 @@ const CANONICAL_POLICIES = Object.freeze([
   },
   {
     taskType: 'CAREER_ASSISTANT',
-    preferredModelId: 'gemini-3.7-flash',
+    preferredModelId: 'gemini-3.8-flash',
     fallbackModelId: 'gemini-2.5-flash',
     maxInputTokens: 8000,
     maxOutputTokens: 2048,

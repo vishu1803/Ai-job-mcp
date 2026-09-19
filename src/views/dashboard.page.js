@@ -205,12 +205,23 @@ export function renderDashboardPage({
                 <div style="font-size:0.85rem; color:var(--text-muted); margin-top:2px;">
                   ${candidateHeadline ? escapeHtml(candidateHeadline) : 'Candidate Workspace'} &bull; <span>${escapeHtml(candidateEmail)}</span>${tenant?.name ? ` &bull; <span>${escapeHtml(tenant.name)}</span>` : ''}${gitHubConnection ? ` &bull; <span>GitHub App</span>` : ''}
                 </div>
-                ${(skills.length > 0 || projects.length > 0) ? `
-                <div style="margin-top:6px; font-size:0.75rem; color:var(--text-dim); display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
-                  ${skills.slice(0, 3).map(s => `<span class="badge badge-indigo" style="font-size:0.7rem; padding:1px 6px;">${escapeHtml(s.name || s.slug)}</span>`).join('')}
-                  ${projects.slice(0, 2).map(p => `<span class="badge badge-neutral" style="font-size:0.7rem; padding:1px 6px;">${escapeHtml(p.name || p.displayName)}</span>`).join('')}
+                ${
+                  projects && projects.length > 0
+                    ? `
+                <div style="margin-top:6px; font-size:0.775rem; color:var(--text-dim); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span style="color:var(--accent-cyan); display:inline-flex; align-items:center; gap:4px;">
+                    ${renderIcon('code', { size: 12 })}
+                    <span>Verified Projects:</span>
+                  </span>
+                  ${projects
+                    .slice(0, 3)
+                    .map((p) => `<a href="/projects/${escapeHtml(p.id)}" style="color:var(--text-muted); text-decoration:none; background:rgba(255,255,255,0.04); padding:2px 8px; border-radius:4px; border:1px solid var(--border-subtle); font-family:var(--font-mono); font-size:0.75rem;">${escapeHtml(p.name)}</a>`)
+                    .join('')}
+                  ${projects.length > 3 ? `<span style="font-size:0.75rem; color:var(--text-dim);">+${projects.length - 3} more</span>` : ''}
                 </div>
-                ` : ''}
+                `
+                    : ''
+                }
               </div>
             </div>
           </div>

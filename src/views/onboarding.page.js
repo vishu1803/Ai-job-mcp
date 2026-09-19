@@ -40,6 +40,7 @@ export function renderOnboardingPage({
   success = null,
   ingestionJob = null,
   ingestionRun: explicitIngestionRun = null,
+  from = '',
 }) {
   const step = Math.max(1, Math.min(5, parseInt(currentStep, 10) || 1));
 
@@ -131,6 +132,7 @@ export function renderOnboardingPage({
           selectedRepoIds,
           syncResult,
           ingestionRun,
+          from,
         })}
       </div>
     </div>
@@ -155,6 +157,7 @@ function renderStepContent({
   selectedRepoIds,
   syncResult,
   ingestionRun,
+  from = '',
 }) {
   switch (step) {
     case 1:
@@ -167,6 +170,7 @@ function renderStepContent({
         selectedRepos,
         selectedRepoIds,
         isGitHubConnected,
+        from,
       });
     case 4:
       return renderStep4Ingestion({ selectedRepos, syncResult, ingestionRun });
@@ -323,6 +327,7 @@ function renderStep3Repositories({
   selectedRepos,
   selectedRepoIds,
   isGitHubConnected,
+  from = '',
 }) {
   const hasRepos = availableRepos.length > 0 || selectedRepos.length > 0;
   const reposToDisplay = availableRepos.length > 0 ? availableRepos : selectedRepos;
@@ -380,6 +385,7 @@ function renderStep3Repositories({
       </div>
 
       <form action="/onboarding/repositories/select" method="POST" id="repoSelectionForm">
+        <input type="hidden" name="from" value="${escapeHtml(from || '')}">
         ${
           hasRepos
             ? `
@@ -468,7 +474,7 @@ function renderStep3Repositories({
                     <label for="repo_${escapeHtml(String(repoKey))}" style="font-size:0.9rem; font-weight:700; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0;">
                       <span>${escapeHtml(repo.name || repo.displayName)}</span>
                       <span style="font-size:0.75rem; color:var(--text-dim); font-weight:400; font-family:var(--font-mono);">${escapeHtml(fullName)}</span>
-                      ${isPrivate ? `<span class="badge badge-amber" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('shield', { size: 10 })} <span>🔒 PRIVATE</span></span>` : `<span class="badge badge-cyan" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('link', { size: 10 })} <span>🌐 PUBLIC</span></span>`}
+                      ${isPrivate ? `<span class="badge badge-amber" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('shield', { size: 10 })} <span>PRIVATE</span></span>` : `<span class="badge badge-cyan" style="font-size:0.65rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('link', { size: 10 })} <span>PUBLIC</span></span>`}
                     </label>
                     <p style="font-size:0.8rem; color:var(--text-muted); margin:3px 0 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%; line-height:1.4;">
                       ${escapeHtml(desc)}
@@ -478,7 +484,7 @@ function renderStep3Repositories({
                 <div style="flex-shrink:0; margin-left:12px;">
                   ${
                     isSelected
-                      ? `<span class="badge badge-verified" style="font-size:0.72rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('check', { size: 10 })} <span>✓ INDEXED</span></span>`
+                      ? `<span class="badge badge-verified" style="font-size:0.72rem; display:inline-flex; align-items:center; gap:3px;">${renderIcon('check', { size: 10 })} <span>INDEXED</span></span>`
                       : '<span class="badge badge-indigo" style="font-size:0.72rem;">AVAILABLE</span>'
                   }
                 </div>
@@ -616,8 +622,8 @@ function renderStep3Repositories({
         }
 
         <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border-subtle);">
-          <a href="/onboarding?step=2" class="btn btn-secondary">← Back to GitHub</a>
-          <button type="submit" class="btn btn-primary">Save Selection &amp; Run Ingestion →</button>
+          <a href="${from === 'sources' ? '/sources' : '/onboarding?step=2'}" class="btn btn-secondary">${from === 'sources' ? '← Back to Sources' : '← Back to GitHub'}</a>
+          <button type="submit" class="btn btn-primary">${from === 'sources' ? 'Save Repositories & Return to Sources →' : 'Save Selection &amp; Run Ingestion →'}</button>
         </div>
       </form>
     </div>

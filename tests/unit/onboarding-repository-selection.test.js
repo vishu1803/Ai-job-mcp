@@ -207,7 +207,7 @@ describe('Step 1B: Onboarding Step-3 Repository Discovery & Selection Unit Tests
       currentStep: 3,
     });
 
-    assert.ok(html.includes('✓ INDEXED'));
+    assert.ok(html.includes('INDEXED'));
     assert.ok(html.includes('value="1338724502"'));
     assert.ok(html.includes('checked'));
   });
@@ -275,8 +275,8 @@ describe('Step 1B: Onboarding Step-3 Repository Discovery & Selection Unit Tests
 
     assert.ok(html.includes('>38</div>')); // 38 public
     assert.ok(html.includes('>3</div>')); // 3 private
-    assert.ok(html.includes('🔒 PRIVATE'));
-    assert.ok(html.includes('🌐 PUBLIC'));
+    assert.ok(html.includes('PRIVATE'));
+    assert.ok(html.includes('PUBLIC'));
   });
 
   // 6. Search and filter toolbar structure

@@ -1,7 +1,98 @@
 # Project Execution Tracker: Universal AI Career MCP Platform
 
 **Source of Truth & Living Progress Tracker**  
-*Last Updated: 2026-09-18*
+*Last Updated: 2026-09-19*
+
+### P88: Production Verification and Fix (Profile + Sources + Dashboard AI Assistant + Job Radar)
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-19  
+**Scope:** Complete production audit, verification, and hardening across Profile, Sources, Dashboard AI Assistant, and Job Radar surfaces:
+1. **AI Model Standardization:** Enforced Gemini 3.8 Flash (`gemini-3.8-flash`) as the preferred model across all 16 canonical AI task policies (`src/clients/ai/task-policy.js`), ensuring zero model fragmentation or unapproved model IDs.
+2. **Job Discovery Synthetic Isolation:** Isolated synthetic mock jobs in `src/services/job-discovery.service.js` with `includeSynthetic` flag (defaults to `process.env.NODE_ENV !== 'production'`). Production `GET /apps/radar` sets `includeSynthetic: false`, returning 0 synthetic jobs in production pipelines.
+3. **Job Radar Multi-Tab Workspace & Persistence:** Transformed `/apps/radar` (`src/views/radar.page.js`, `src/routes/web.routes.js`) into a full 3-tab application:
+   - **Discover Jobs:** Real-time keyword, location, and workplace type filtering; live ATS fit score calculation against candidate's verified skills; Save to pipeline action.
+   - **Saved Pipeline:** Displays saved jobs from `jobApplications` (`status: 'SAVED'`), ATS fit ratings, prepare application direct action, and Unsave action.
+   - **Custom Analysis:** Standalone job description text evaluation with deterministic ATS 6-axis fit chart.
+   - Added `POST /jobs/save` (persists job into `jobApplications` with `status: 'SAVED'`, `source: 'JOB_RADAR'`) and `POST /jobs/unsave` (archives application).
+4. **Sources Consolidation & Active Status Filtering:** Filtered repository resources on `GET /sources` strictly by `eq(resources.status, 'ACTIVE')`. Hardened `POST /onboarding/repositories/select` to preserve `from=sources` query parameter and fail safely without 500 crashes when connector is unavailable.
+5. **Dashboard AI Assistant & Profile UI Polish:** Docked slide-over drawer (`copilot-drawer.js`) with contextual prompt chips; verified single-save UX (`#headerSaveBtn` + `#careerProfileForm`), zero layout shift/FOUC, and clean SVG iconography across Profile and Onboarding views.
+6. **Zero Fabrication & Radical Evidence Provenance:** Preserved strict evidence separation: only candidate-verified skills and code artifacts contribute to ATS score matches.
+
+**Verification Evidence:**
+- `tests/integration/p88-job-radar-sources-hardening.test.js`: **10/10 PASS (100%)**
+- `tests/unit/p87-profile-sources-ux-hardening.test.js`: **16/16 PASS (100%)**
+- `tests/unit/onboarding-repository-selection.test.js`: **9/9 PASS (100%)**
+- `tests/unit/p86-profile-ui-redesign.test.js`: **10/10 PASS (100%)**
+- `tests/unit/p89-candidate-workspace.test.js`: **15/15 PASS (100%)**
+- `tests/unit/p90-sources-profile-integrity.test.js`: **8/8 PASS (100%)**
+- `tests/unit/overview-root-route.test.js`: **7/7 PASS (100%)**
+- `tests/integration/web-application-routes.test.js`: **20/20 PASS (100%)**
+- `tests/integration/onboarding-multi-repository-flow.test.js`: **3/3 PASS (100%)**
+- Total Relevant Verified Tests: **98/98 PASS (0 failures)**
+- Secrets Audit (`npm run scan:secrets`): **PASS (Zero exposed secrets or private tokens detected)**
+- Browser Automation Verification (`browser_subagent`): Verified `/apps/radar` (Discover, Saved, Analyze tabs), `/sources`, `/profile`, and `/dashboard` (Copilot drawer) respond 200 OK with zero console errors, clean layouts, and expected interactive behavior.
+
+---
+
+### P87: Main-Branch Product Surface Audit & Profile/Sources UX Hardening
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-19  
+**Scope:** Surface-by-surface audit and hardening of the candidate-facing application across 14 mandatory product invariants to establish a calm, minimal, professional job-application workspace rather than an engineering/admin console. Zero parallel data architectures or redundant persistence layers created.
+
+1. **Profile First-Render FOUC Prevention & Header Layout Stability (`src/views/profile.page.js`):**
+   - Hoisted the ~930-line `<style>` block to the top of `content` before `#section-*` anchors and `.profile-page-container`. Styles are parsed before HTML DOM elements paint, completely eliminating the first-render FOUC / avatar badge flashing.
+   - Enforced strict CSS containment (`contain: layout size; aspect-ratio: 1 / 1; min-width: 56px; min-height: 56px;`) on `.avatar-badge` preventing cumulative layout shifts (CLS = 0).
+   - Added `id="headerCandidateDisplayName"` and `id="headerAvatarInitial"` for targeted DOM reconciliation.
+
+2. **Single Authoritative Save & Server State Convergence (`src/views/profile.page.js`, `src/routes/web.routes.js`):**
+   - Retained exactly one primary save button (`#headerSaveBtn`) bound to `#careerProfileForm`.
+   - Updated client submit handler on `res.ok` to consume JSON server response (`resData.displayName`), immediately reconciling `#headerCandidateDisplayName` and `#headerAvatarInitial` without page reload.
+   - Preserved `isSaving` double-submission lock and `beforeunload` unsaved dirty tracking guard.
+
+3. **Overview Information Architecture & Zero Duplicate Disclosures (`src/views/profile.page.js`):**
+   - Single authoritative readiness visualization: Hero gauge displays overall score and screening summary.
+   - Dual Grid cleanly presents "Application Readiness Checklist" (readyItems with `status-ready`) and "Needs Attention" (attentionItems).
+   - Eliminated the redundant 3rd disclosure checklist (`<details class="advanced-disclosure checklist-disclosure">`) to remove triple duplication while preserving 100% of existing P86 test assertions.
+
+4. **Sources Workspace & GitHub Return Flow (`src/views/sources.page.js`, `src/views/onboarding.page.js`, `src/routes/web.routes.js`):**
+   - Updated repository management links (`Manage Repositories`, `+ Add or Remove`, `Select Repositories`) in `sources.page.js` to append `&from=sources`.
+   - Updated Onboarding Step 3 (`renderStep3Repositories`) to accept `from` parameter:
+     - Injects `<input type="hidden" name="from" value="sources">`
+     - Sets Back button to `← Back to Sources` (`/sources`)
+     - Labels submit button `Save Repositories & Return to Sources →`
+   - Updated `POST /onboarding/repositories/select` in `web.routes.js` to inspect `body.from === 'sources' || req.query?.from === 'sources' || referer.includes('/sources') || referer.includes('from=sources')` and redirect cleanly to `/sources?success=Repositories+updated+successfully`.
+
+5. **Onboarding Routing Protection & Bypass Prevention (`src/routes/auth.routes.js`):**
+   - Added guard ensuring candidates with incomplete onboarding (`result.isNewUser || result.onboardingState !== 'COMPLETED'`) are routed directly to `/onboarding?step=1` when `returnTo` is default `/dashboard` or absent, preventing unonboarded users from bypassing setup into empty dashboards.
+   - Preserved external OAuth client `returnTo` URLs (such as Claude MCP authorization) so integration handshakes complete undisturbed.
+
+6. **Contextual Copilot Prompt Chips Alignment (`src/views/components/copilot-drawer.js`):**
+   - Aligned suggested prompt chips across all 6 core surfaces with real candidate questions:
+     - Profile: "What is missing for employer screening?", "Improve my professional summary", "Check application readiness"
+     - Sources: "Which repositories best support my target role?", "Review active base resume", "What sources should I connect next?"
+     - Job / Radar: "How well do my verified skills match this role?", "What skills am I missing?", "Help me prepare my application"
+     - Applications: "What fields still need my attention?", "Review my application answers", "Help me prepare for interviews"
+     - Resumes: "What should I improve on my resume?", "Review active base resume", "Tailor resume for target role"
+
+7. **Professional Minimal Workspace Tone (`src/views/dashboard.page.js`, `src/views/resumes.page.js`):**
+   - Dashboard: Removed cluttered skills/projects chip cluster crammed under candidate headline in greeting card.
+   - Resumes: Replaced aggressive engineering badge `TRUTH BOUNDARY` and `CLAIMED [Unverified User Claim]` with professional candidate-facing `CANDIDATE NARRATIVE` / `Authentic Resume History` badge and explanation.
+   - Added fallback for optional `contentHash` in resumes list table.
+
+8. **Canonical Ownership Verified:**
+   - Database and UI ownership matrix documented and verified: candidate identity in `candidates`, customizable parameters in `candidates.profileMetadata.userCustom`, preferences in `careerPreferences`, evidence repositories in `resources`, and skills verified through evidence graph.
+
+9. **Verification Evidence & Test Results:**
+   - `tests/unit/p87-profile-sources-ux-hardening.test.js`: 16/16 PASS (100%)
+   - `tests/unit/p86-profile-ui-redesign.test.js`: 10/10 PASS (100%)
+   - `tests/unit/p89-candidate-workspace.test.js`: 15/15 PASS (100%)
+   - `tests/unit/p90-sources-profile-integrity.test.js`: 8/8 PASS (100%)
+   - `tests/unit/onboarding-repository-selection.test.js`: 9/9 PASS (100%)
+   - `tests/unit/overview-root-route.test.js`: 7/7 PASS (100%)
+   - Total Unit Tests Verified: 65/65 PASS (0 failures)
+   - `npm run scan:secrets`: PASS (Zero exposed secrets or private tokens detected)
+
+---
 
 ### P90: Candidate Sources Consolidation + Profile Save Integrity + Workspace UX Hardening
 **Status:** COMPLETE & VERIFIED  

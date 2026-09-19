@@ -238,1142 +238,6 @@ export function renderProfilePage({
   ];
 
   const content = `
-    <!-- Hidden Anchors for Backward Compatibility & Deep Links -->
-    <div id="section-contact" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-readiness" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-links" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-preferences" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-experience" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-education" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-skills" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-projects" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-credentials" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-    <div id="section-eligibility" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
-
-    <div class="profile-page-container">
-      <!-- Profile Header Bar -->
-      <header class="profile-header-card">
-        <div class="header-main-info">
-          <div class="avatar-badge" aria-hidden="true" style="width:56px; height:56px; min-width:56px; min-height:56px; border-radius:50%; background:linear-gradient(135deg, #6366F1, #8B5CF6); display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700; color:#FFFFFF; flex-shrink:0; contain:layout size;">
-            <span>${escapeHtml((displayName || 'C').charAt(0).toUpperCase())}</span>
-          </div>
-          <div class="header-text">
-            <div class="header-title-row">
-              <h1 class="candidate-display-name">${escapeHtml(displayName || 'Your Profile')}</h1>
-              <span class="status-pill status-${careerStatusVal.toLowerCase()}">${escapeHtml(careerStatusVal)}</span>
-              ${userLocation ? `<span class="location-pill" style="display:inline-flex; align-items:center; gap:4px;">${renderIcon('mapPin', { size: 12 })} <span>${escapeHtml(userLocation)}</span></span>` : ''}
-            </div>
-            <p class="candidate-headline">${escapeHtml(headline || currentRole || 'Complete your professional identity to begin applying')}</p>
-          </div>
-        </div>
-
-        <div class="header-actions">
-          <div class="save-status-indicator" id="globalSaveIndicator" aria-live="polite">
-            <span class="status-dot"></span>
-            <span class="status-text">All changes saved</span>
-          </div>
-          <button type="submit" form="careerProfileForm" class="btn btn-primary btn-save" id="headerSaveBtn" data-testid="saveProfileBtn">
-            <span class="btn-save-icon" style="display:inline-flex; align-items:center;">${renderIcon('check', { size: 14 })}</span>
-            <span class="btn-save-text">Save changes</span>
-          </button>
-        </div>
-      </header>
-
-      <!-- Flash Messages -->
-      ${flashMessage ? `
-        <div class="alert alert-success" role="alert" id="flashSuccessAlert">
-          <span class="alert-icon">${renderIcon('check', { size: 16 })}</span>
-          <span>${escapeHtml(flashMessage)}</span>
-        </div>
-      ` : ''}
-      ${errorMessage ? `
-        <div class="alert alert-error" role="alert" id="flashErrorAlert">
-          <span class="alert-icon">${renderIcon('alertTriangle', { size: 16 })}</span>
-          <span>${escapeHtml(errorMessage)}</span>
-        </div>
-      ` : ''}
-
-      <!-- Target Navigation Tab Bar (6 Consolidated Groups) -->
-      <nav class="profile-nav-tabs" aria-label="Profile Sections" role="tablist">
-        ${navTabs.map((tab) => `
-          <button
-            type="button"
-            role="tab"
-            class="tab-btn ${tab.id === normalizedSection ? 'active' : ''}"
-            id="tab-${tab.id}"
-            data-tab="${tab.id}"
-            aria-selected="${tab.id === normalizedSection ? 'true' : 'false'}"
-            aria-controls="panel-${tab.id}"
-            tabindex="${tab.id === normalizedSection ? '0' : '-1'}"
-          >
-            <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${tab.icon}"/>
-            </svg>
-            <span class="tab-label">${tab.label}</span>
-            ${tab.id === 'eligibility' && attentionItems.length > 0 ? `<span class="tab-badge-warning">${attentionItems.length}</span>` : ''}
-          </button>
-        `).join('')}
-      </nav>
-
-      <!-- Main Profile Form -->
-      <form id="careerProfileForm" action="/profile" method="POST" class="profile-form">
-        <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}">
-        <input type="hidden" name="activeTab" id="activeTabInput" value="${escapeHtml(normalizedSection)}">
-
-        <!-- ================================================================= -->
-        <!-- DOMAIN 1: OVERVIEW DASHBOARD                                      -->
-        <!-- ================================================================= -->
-        <section
-          id="panel-overview"
-          class="tab-panel ${normalizedSection === 'overview' ? 'active' : ''}"
-          role="tabpanel"
-          aria-labelledby="tab-overview"
-        >
-          <!-- Readiness Hero Card -->
-          <div class="overview-readiness-hero card">
-            <div class="readiness-gauge-col">
-              <div class="gauge-circle" style="--gauge-pct: ${readinessPercentage}%;">
-                <span class="gauge-value">${readinessPercentage}%</span>
-                <span class="gauge-label">Ready</span>
-              </div>
-              <div class="gauge-meta">
-                <h2 class="readiness-title">
-                  Career Profile: ${profile?.profileReadiness?.score != null ? profile.profileReadiness.score : readinessPercentage}% Populated
-                </h2>
-                <p class="readiness-subtitle">
-                  ${escapeHtml(readinessSemantics.summary || 'Profile readiness is evaluated against standard employer screening requirements.')}
-                </p>
-              </div>
-            </div>
-
-            <!-- Actionable Attention Items -->
-            <div class="action-items-container">
-              <h3 class="action-items-heading">
-                ${attentionItems.length > 0 ? `${attentionItems.length} issue(s) require your attention` : `${renderIcon('check', { size: 16 })} All screening fields verified`}
-              </h3>
-              ${attentionItems.length > 0 ? `
-                <ul class="action-items-list" aria-label="Unresolved screening items">
-                  ${attentionItems.map((item) => {
-                    const targetTab = item.field === 'workAuthorization' || item.field === 'visaSponsorship' || item.field === 'noticePeriod' || item.field === 'availability'
-                      ? 'eligibility'
-                      : 'contact';
-                    const actionVerb = item.status === 'MISSING' ? 'Add' : 'Confirm';
-                    return `
-                      <li class="action-item">
-                        <span class="action-item-icon">${renderIcon('alertCircle', { size: 14 })}</span>
-                        <div class="action-item-details">
-                          <span class="action-item-label">${escapeHtml(item.label)}</span>
-                          <span class="action-item-notes">${escapeHtml(item.notes || 'Information required for automated application matching')}</span>
-                        </div>
-                        <div style="display:flex; gap:6px; flex-shrink:0;">
-                          <button type="button" class="btn btn-secondary btn-sm switch-tab-trigger" data-target-tab="${targetTab}">
-                            ${actionVerb}
-                          </button>
-                          <a href="/dashboard?copilot=open&intent=complete_profile" class="btn btn-secondary btn-sm" title="Ask Copilot to help" style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px;">
-                            ${renderIcon('copilot', { size: 12 })}
-                            <span>Fix</span>
-                          </a>
-                        </div>
-                      </li>
-                    `;
-                  }).join('')}
-                </ul>
-              ` : `
-                <p class="empty-action-notes">Your profile contains verified work authorization, contact information, availability, and professional credentials.</p>
-              `}
-            </div>
-          </div>
-
-          <!-- Calm "Ready to Apply" vs "Needs Attention" Grid (apply.page.js pattern) -->
-          <div class="readiness-dual-grid">
-            <!-- Ready to Apply Column -->
-            <div class="card readiness-split-card">
-              <div class="split-card-header">
-                <h3 class="card-heading" style="display:flex; align-items:center; gap:8px;">
-                  <span style="color:#10B981;">${renderIcon('check', { size: 16 })}</span>
-                  Ready to Apply (${readyItems.length})
-                </h3>
-                <span class="split-card-badge status-ready-badge">Verified</span>
-              </div>
-              <p class="card-subtitle">Information populated and ready for employer review.</p>
-              <div class="ready-list">
-                ${readyItems.map((item) => `
-                  <div class="ready-item">
-                    <div class="ready-item-left">
-                      <span class="check-circle">${renderIcon('check', { size: 13 })}</span>
-                      <span class="ready-label">${escapeHtml(item.label)}</span>
-                    </div>
-                    <span class="ready-val">${escapeHtml(item.value || 'Verified')}</span>
-                  </div>
-                `).join('')}
-                ${readyItems.length === 0 ? '<p class="text-muted" style="padding:12px; font-size:0.85rem;">No items ready yet. Complete your profile sections below.</p>' : ''}
-              </div>
-            </div>
-
-            <!-- Needs Attention Column -->
-            <div class="card readiness-split-card">
-              <div class="split-card-header">
-                <h3 class="card-heading" style="display:flex; align-items:center; gap:8px;">
-                  <span style="color:#F59E0B;">${renderIcon('alertCircle', { size: 16 })}</span>
-                  Needs Attention (${attentionItems.length})
-                </h3>
-                <span class="split-card-badge status-pending-badge">${attentionItems.length === 0 ? 'All Clear' : 'Action Needed'}</span>
-              </div>
-              <p class="card-subtitle">Critical parameters required by employer screening questionnaires.</p>
-              <div class="attention-stack">
-                ${attentionItems.map((item) => {
-                  const targetTab = item.field === 'workAuthorization' || item.field === 'visaSponsorship' || item.field === 'noticePeriod' || item.field === 'availability'
-                    ? 'eligibility'
-                    : 'contact';
-                  return `
-                    <div class="attention-item-card">
-                      <div>
-                        <div class="attention-title">${escapeHtml(item.label)}</div>
-                        <div class="attention-desc">${escapeHtml(item.notes || 'Required for automated screening and recruiter outreach.')}</div>
-                      </div>
-                      <button type="button" class="btn btn-secondary btn-sm switch-tab-trigger" data-target-tab="${targetTab}">
-                        ${item.status === 'MISSING' ? 'Add' : 'Confirm'} →
-                      </button>
-                    </div>
-                  `;
-                }).join('')}
-                ${attentionItems.length === 0 ? `
-                  <div class="all-clear-box">
-                    <span style="color:#10B981;">${renderIcon('check', { size: 18 })}</span>
-                    <div>
-                      <strong>All screening requirements satisfied</strong>
-                      <p style="margin:4px 0 0; font-size:0.8rem; color:#9CA3AF;">Your profile contains verified work authorization, contact information, and availability parameters.</p>
-                    </div>
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-          </div>
-
-          <!-- Application Readiness Checklist (Secondary progressive disclosure) -->
-          <details class="advanced-disclosure checklist-disclosure" style="margin-top: 1.5rem;">
-            <summary style="font-size:0.875rem; color:var(--text-muted); cursor:pointer; font-weight:600;">
-              <span>Application Readiness Checklist (Full breakdown)</span>
-            </summary>
-            <div class="checklist-grid" style="margin-top:14px;">
-              ${readinessItems.map((item) => `
-                <div class="checklist-item ${item.status === 'READY' ? 'status-ready' : 'status-pending'}">
-                  <span class="checklist-icon">${item.status === 'READY' ? renderIcon('check', { size: 14 }) : renderIcon('alertCircle', { size: 14 })}</span>
-                  <div class="checklist-item-body">
-                    <span class="checklist-item-title">${escapeHtml(item.label)}</span>
-                    <span class="checklist-item-sub">
-                      ${item.status === 'READY' ? (escapeHtml(item.value || 'Verified')) : (item.status === 'NEEDS_CONFIRMATION' ? 'Needs Confirmation' : 'Missing')}
-                    </span>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </details>
-
-          <!-- Overview Snapshots Grid (5 Cards linking to the other 5 domains) -->
-          <div class="overview-snapshots-grid" style="margin-top: 1.5rem;">
-            <!-- Professional Snapshot -->
-            <div class="card snapshot-card">
-              <div class="snapshot-header">
-                <h3>Professional Identity</h3>
-                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="professional">Manage</button>
-              </div>
-              <div class="snapshot-body">
-                <p><strong>Role:</strong> ${escapeHtml(currentRole || 'Not specified')}</p>
-                <p><strong>Headline:</strong> ${escapeHtml(headline || 'None')}</p>
-                <p><strong>Experience:</strong> ${experienceList.length} position(s) documented</p>
-                <p><strong>Education:</strong> ${educationList.length} qualification(s) documented</p>
-              </div>
-            </div>
-
-            <!-- Skills & Projects Snapshot -->
-            <div class="card snapshot-card">
-              <div class="snapshot-header">
-                <h3>Skills &amp; Projects</h3>
-                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="skills-projects">Manage</button>
-              </div>
-              <div class="snapshot-body">
-                <p><strong>Primary Skills:</strong> ${primarySkillsList.length} technical competencies</p>
-                <p><strong>Highlighted Projects:</strong> ${projectsList.length} project(s)</p>
-                <p><strong>Certifications:</strong> ${certsList.length} credential(s)</p>
-                <div class="chips-cluster" style="margin-top:8px;">
-                  ${primarySkillsList.slice(0, 4).map((s) => `
-                    <span class="skill-chip ${s.provenanceStatus === 'VERIFIED' ? 'chip-verified' : ''}">
-                      ${escapeHtml(s.skillName || s.name || s)}
-                    </span>
-                  `).join('')}
-                </div>
-              </div>
-            </div>
-
-            <!-- Job Preferences Snapshot -->
-            <div class="card snapshot-card">
-              <div class="snapshot-header">
-                <h3>Job Preferences</h3>
-                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="preferences">Edit</button>
-              </div>
-              <div class="snapshot-body">
-                <p><strong>Target Roles:</strong> ${targetRolesList.length > 0 ? escapeHtml(targetRolesList.join(', ')) : 'Any'}</p>
-                <p><strong>Workplace:</strong> ${escapeHtml(remotePref || 'Not specified')}</p>
-                <p><strong>Locations:</strong> ${preferredLocationsList.length > 0 ? escapeHtml(preferredLocationsList.join(', ')) : 'Flexible'}</p>
-                <p><strong>Compensation Floor:</strong> ${salaryFloor ? escapeHtml(`${salaryFloor} ${salaryCurrency || 'USD'}`) : 'Flexible'}</p>
-              </div>
-            </div>
-
-            <!-- Application & Eligibility Snapshot -->
-            <div class="card snapshot-card">
-              <div class="snapshot-header">
-                <h3>Application &amp; Eligibility</h3>
-                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="eligibility">Manage</button>
-              </div>
-              <div class="snapshot-body">
-                <p><strong>Work Auth:</strong> ${workAuthList.length > 0 ? escapeHtml(workAuthList.join(', ')) : 'Not set'}</p>
-                <p><strong>Visa Sponsorship:</strong> ${visaSponsorshipVal === 'NO' ? 'Not Required' : (visaSponsorshipVal === 'YES' ? 'Required' : 'Not Set')}</p>
-                <p><strong>Notice Period:</strong> ${escapeHtml(formatNoticePeriodLabel(noticePeriodVal, customNoticeVal))}</p>
-                <p><strong>Availability:</strong> ${availabilityDateVal ? escapeHtml(availabilityDateVal) : 'Immediate / Flexible'}</p>
-              </div>
-            </div>
-
-            <!-- Contact & Links Snapshot -->
-            <div class="card snapshot-card">
-              <div class="snapshot-header">
-                <h3>Contact &amp; Links</h3>
-                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="contact">Manage</button>
-              </div>
-              <div class="snapshot-body">
-                <p><strong>Email:</strong> ${escapeHtml(authenticEmail || 'None')}</p>
-                <p><strong>Phone:</strong> ${initialPhoneNumber ? escapeHtml(`${initialCountryCode} ${initialPhoneNumber}`) : 'None'}</p>
-                <p><strong>LinkedIn:</strong> ${linkedinUrl ? 'Linked' : 'Not set'}</p>
-                <p><strong>GitHub:</strong> ${githubUrl ? 'Linked' : 'Not set'}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ================================================================= -->
-        <!-- DOMAIN 2: PROFESSIONAL (Identity, Experience, Education)          -->
-        <!-- ================================================================= -->
-        <section
-          id="panel-professional"
-          class="tab-panel ${normalizedSection === 'professional' ? 'active' : ''}"
-          role="tabpanel"
-          aria-labelledby="tab-professional"
-        >
-          <!-- Section 2.1: Identity & Summary -->
-          <div class="card">
-            <h2 class="card-heading">Professional Identity</h2>
-            <p class="card-subtitle">Your core professional identity shown on applications, resumes, and matched against job requirements.</p>
-
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label for="displayName">Full Name <span class="required-star">*</span></label>
-                <input type="text" id="displayName" name="displayName" value="${escapeHtml(displayName)}" class="form-control" required>
-                <span class="field-hint">Legal or preferred professional name used in applications.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="headline">Professional Headline <span class="optional-tag">(optional)</span></label>
-                <input type="text" id="headline" name="headline" value="${escapeHtml(headline)}" class="form-control" placeholder="e.g. Senior Backend Engineer | Distributed Systems">
-                <span class="field-hint">Brief headline summarizing your domain expertise.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="currentRole">Current Role Title <span class="optional-tag">(optional)</span></label>
-                <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" class="form-control" placeholder="e.g. Full Stack Developer">
-              </div>
-
-              <div class="form-group">
-                <label for="careerStatus">Career Stage <span class="required-star">*</span></label>
-                <select id="careerStatus" name="careerStatus" class="form-control">
-                  <option value="FRESHER" ${careerStatusVal === 'FRESHER' ? 'selected' : ''}>Early Career / Fresher (0–2 yrs)</option>
-                  <option value="MID_LEVEL" ${careerStatusVal === 'MID_LEVEL' ? 'selected' : ''}>Mid-Level Engineer (3–5 yrs)</option>
-                  <option value="SENIOR" ${careerStatusVal === 'SENIOR' ? 'selected' : ''}>Senior Engineer (5–8 yrs)</option>
-                  <option value="LEAD" ${careerStatusVal === 'LEAD' ? 'selected' : ''}>Staff / Lead / Principal (8+ yrs)</option>
-                  <option value="EXECUTIVE" ${careerStatusVal === 'EXECUTIVE' ? 'selected' : ''}>Engineering Leadership / Manager</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="location">Location / City <span class="optional-tag">(optional)</span></label>
-                <input type="text" id="location" name="location" value="${escapeHtml(userLocation)}" class="form-control" placeholder="e.g. Bengaluru, India or San Francisco, CA">
-                <span class="field-hint">Used to evaluate location match and commute compatibility.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="timezone">Timezone <span class="optional-tag">(optional)</span></label>
-                <input type="text" id="timezone" name="timezone" value="${escapeHtml(timezoneVal)}" class="form-control" placeholder="e.g. Asia/Kolkata or America/Los_Angeles">
-                <span class="field-hint">Used to coordinate interview availability across distributed teams.</span>
-              </div>
-            </div>
-
-            <div class="form-group" style="margin-top: 1rem;">
-              <label for="summary">Executive Summary <span class="optional-tag">(optional)</span></label>
-              <textarea id="summary" name="summary" rows="4" class="form-control" placeholder="A concise 2-4 sentence summary of your technical background, impact, and engineering philosophy...">${escapeHtml(summaryText)}</textarea>
-              <span class="field-hint">Used to introduce your application to hiring managers.</span>
-            </div>
-          </div>
-
-          <!-- Section 2.2: Work Experience (Consolidated from former Tab 3) -->
-          <div class="card" id="experience-section-anchor">
-            <div class="card-header-row">
-              <div>
-                <h2 class="card-heading">Work Experience</h2>
-                <p class="card-subtitle">Document your professional employment history. Verified code contributions are linked automatically.</p>
-              </div>
-              <button type="button" class="btn btn-secondary btn-sm" id="addExperienceBtn">
-                + Add Position
-              </button>
-            </div>
-
-            <div id="experienceItemsContainer" class="records-container">
-              ${experienceList.map((exp, idx) => `
-                <div class="record-card" data-index="${idx}">
-                  <div class="record-card-header">
-                    <div>
-                      <h3 class="record-title">${escapeHtml(exp.title || exp.role || 'Position')}</h3>
-                      <span class="record-subtitle">${escapeHtml(exp.company || 'Company')} • ${escapeHtml(exp.location || 'Remote')}</span>
-                    </div>
-                    <span class="record-dates">${escapeHtml(exp.startDate || '')} — ${escapeHtml(exp.endDate || (exp.isCurrent ? 'Present' : ''))}</span>
-                  </div>
-                  ${exp.description ? `<p class="record-description">${escapeHtml(exp.description)}</p>` : ''}
-                  ${Array.isArray(exp.highlights) && exp.highlights.length > 0 ? `
-                    <ul class="record-bullets">
-                      ${exp.highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
-                    </ul>
-                  ` : ''}
-
-                  <!-- Progressive Disclosure for Code Verification -->
-                  ${exp.astEvidenceCount || exp.repositoryCorroboration ? `
-                    <details class="advanced-disclosure">
-                      <summary>Show repository verification details</summary>
-                      <div class="disclosure-content">
-                        <p style="display:flex; align-items:center; gap:4px; margin:4px 0;">${renderIcon('check', { size: 14 })} <span>Corroborated with repository code commits.</span></p>
-                        ${exp.repositoryCorroboration ? `<p>Repository: <code>${escapeHtml(exp.repositoryCorroboration)}</code></p>` : ''}
-                      </div>
-                    </details>
-                  ` : ''}
-                </div>
-              `).join('')}
-              ${experienceList.length === 0 ? '<p class="empty-state-notice">No positions recorded yet. Click "+ Add Position" to add your work history.</p>' : ''}
-            </div>
-
-            <input type="hidden" name="experience" id="experienceHiddenInput" value="${escapeHtml(JSON.stringify(experienceList))}">
-          </div>
-
-          <!-- Section 2.3: Education History (Consolidated from former Tab 4) -->
-          <div class="card" id="education-section-anchor">
-            <div class="card-header-row">
-              <div>
-                <h2 class="card-heading">Education History</h2>
-                <p class="card-subtitle">Your academic qualifications, degrees, and institutions.</p>
-              </div>
-              <button type="button" class="btn btn-secondary btn-sm" id="addEducationBtn">
-                + Add Education
-              </button>
-            </div>
-
-            <div id="educationItemsContainer" class="records-container">
-              ${educationList.map((edu, idx) => `
-                <div class="record-card" data-index="${idx}">
-                  <div class="record-card-header">
-                    <div>
-                      <h3 class="record-title">${escapeHtml(edu.degree || 'Degree')}</h3>
-                      <span class="record-subtitle">${escapeHtml(edu.institution || 'University')} • ${escapeHtml(edu.fieldOfStudy || '')}</span>
-                    </div>
-                    <span class="record-dates">${escapeHtml(edu.graduationYear || edu.year || '')}</span>
-                  </div>
-                </div>
-              `).join('')}
-              ${educationList.length === 0 ? '<p class="empty-state-notice">No education entries yet. Click "+ Add Education" to add your degree or coursework.</p>' : ''}
-            </div>
-
-            <input type="hidden" name="education" id="educationHiddenInput" value="${escapeHtml(JSON.stringify(educationList))}">
-          </div>
-        </section>
-
-        <!-- ================================================================= -->
-        <!-- DOMAIN 3: SKILLS & PROJECTS (Skills, Projects, Credentials)       -->
-        <!-- ================================================================= -->
-        <section
-          id="panel-skills-projects"
-          class="tab-panel ${normalizedSection === 'skills-projects' ? 'active' : ''}"
-          role="tabpanel"
-          aria-labelledby="tab-skills-projects"
-        >
-          <!-- Section 3.1: Skills Inventory (Consolidated from former Tab 5) -->
-          <div class="card" id="skills-section-anchor">
-            <h2 class="card-heading">Career Skills (${primarySkillsList.length + additionalSkills.length})</h2>
-            <p class="card-subtitle">Evidence-verified skills grounded in your repositories, alongside self-declared technical capabilities.</p>
-
-            <!-- Evidence-Backed Skills -->
-            <div class="skills-section-block">
-              <h3 class="sub-heading">Primary Technical Skills (${primarySkillsList.length})</h3>
-              <div class="chips-cluster">
-                ${primarySkillsList.map((s) => `
-                  <div class="skill-badge-chip">
-                    <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
-                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Claimed'}</span>
-                  </div>
-                `).join('')}
-                ${primarySkillsList.length === 0 ? '<p class="text-muted">No primary skills indexed.</p>' : ''}
-              </div>
-            </div>
-
-            <!-- Additional / Self-Declared Skills -->
-            <div class="skills-section-block" style="margin-top: 1.5rem;">
-              <div class="card-header-row">
-                <h3 class="sub-heading">Additional Libraries & Tools (${technologySignalsList.length + additionalSkills.length})</h3>
-              </div>
-              <div class="chips-cluster" id="additionalSkillsChips">
-                ${additionalSkills.map((s) => `
-                  <div class="skill-badge-chip chip-declared">
-                    <span class="skill-name">${escapeHtml(s.canonicalName || s.name || s.slug || 'Tool')}</span>
-                    <span class="skill-proficiency-tag">${escapeHtml(s.proficiency || 'Proficient')}</span>
-                  </div>
-                `).join('')}
-                ${technologySignalsList.map((s) => `
-                  <div class="skill-badge-chip chip-signal">
-                    <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
-                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Signal'}</span>
-                  </div>
-                `).join('')}
-                ${additionalSkills.length === 0 && technologySignalsList.length === 0 ? '<p class="text-muted">No additional skills added.</p>' : ''}
-              </div>
-            </div>
-
-            <!-- Progressive Disclosure for AST Code Evidence -->
-            ${technologySignalsList.length > 0 ? `
-              <details class="advanced-disclosure" style="margin-top: 1.5rem;">
-                <summary>Show secondary technology signals (${technologySignalsList.length})</summary>
-                <div class="disclosure-content">
-                  <p class="text-muted" style="margin-bottom: 0.5rem;">Technologies detected in repository configuration or dependencies:</p>
-                  <div class="chips-cluster">
-                    ${technologySignalsList.map((s) => `
-                      <span class="skill-chip chip-signal">${escapeHtml(s.skillName || s.name || s)}</span>
-                    `).join('')}
-                  </div>
-                </div>
-              </details>
-            ` : ''}
-          </div>
-
-          <!-- Section 3.2: Highlighted Projects (Consolidated from former Tab 6) -->
-          <div class="card" id="projects-section-anchor">
-            <h2 class="card-heading">Highlighted Projects (${projectsList.length})</h2>
-            <p class="card-subtitle">Real-world technical projects demonstrating applied architecture, engineering rigor, and code quality.</p>
-
-            <div class="projects-grid">
-              ${projectsList.map((p) => `
-                <div class="project-card">
-                  <div class="project-card-header">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                      <h3 class="project-title">${escapeHtml(p.name || 'Project')}</h3>
-                      ${(p.provenanceStatus === 'CORROBORATED' || p.corroborated) ? `
-                        <span class="badge badge-verified" style="font-size: 0.7rem;">✓ Corroborated</span>
-                      ` : (p.provenanceStatus === 'VERIFIED' ? `
-                        <span class="badge badge-verified" style="font-size: 0.7rem;">✓ Verified</span>
-                      ` : (p.provenanceStatus ? `
-                        <span class="badge badge-claimed" style="font-size: 0.7rem;">Claimed</span>
-                      ` : ''))}
-                    </div>
-                    ${p.repositoryUrl ? `
-                      <a href="${escapeHtml(p.repositoryUrl)}" target="_blank" rel="noopener noreferrer" class="link-icon-btn" aria-label="View repository">
-                        <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                      </a>
-                    ` : ''}
-                  </div>
-                  <p class="project-desc">${escapeHtml(p.description || 'Technical project application.')}</p>
-                  ${Array.isArray(p.technologies) && p.technologies.length > 0 ? `
-                    <div class="project-tech-tags">
-                      ${p.technologies.map((t) => `<span class="tech-tag">${escapeHtml(t)}</span>`).join('')}
-                    </div>
-                  ` : ''}
-
-                  ${p.astEvidence || p.commitCount ? `
-                    <details class="advanced-disclosure">
-                      <summary>Show verification details</summary>
-                      <div class="disclosure-content">
-                        <p>Evidence: Grounded in repository commit history.</p>
-                      </div>
-                    </details>
-                  ` : ''}
-                </div>
-              `).join('')}
-              ${projectsList.length === 0 ? '<p class="empty-state-notice">No highlighted projects found. Connect your GitHub account to automatically index repositories.</p>' : ''}
-            </div>
-          </div>
-
-          <!-- Section 3.3: Credentials & Languages (Consolidated from former Tab 7) -->
-          <div class="card" id="credentials-section-anchor">
-            <h2 class="card-heading">Certifications &amp; Spoken Languages</h2>
-            <p class="card-subtitle">Industry credentials, professional licenses, and spoken languages.</p>
-
-            <div class="credentials-split-grid">
-              <div>
-                <h3 class="sub-heading">Certifications (${certsList.length})</h3>
-                <div class="records-container">
-                  ${certsList.map((c) => `
-                    <div class="record-card">
-                      <h4 class="record-title">${escapeHtml(c.name || 'Certification')}</h4>
-                      <span class="record-subtitle">${escapeHtml(c.issuer || 'Issuing Body')} • ${escapeHtml(c.issueDate || '')}</span>
-                    </div>
-                  `).join('')}
-                  ${certsList.length === 0 ? '<p class="text-muted">No certifications recorded.</p>' : ''}
-                </div>
-              </div>
-
-              <div>
-                <h3 class="sub-heading">Spoken Languages (${languagesList.length})</h3>
-                <div class="records-container">
-                  ${languagesList.map((l) => `
-                    <div class="record-card">
-                      <h4 class="record-title">${escapeHtml(l.language || l.name || 'Language')}</h4>
-                      <span class="record-subtitle">${escapeHtml(l.proficiency || 'Native / Fluent')}</span>
-                    </div>
-                  `).join('')}
-                  ${languagesList.length === 0 ? '<p class="text-muted">No languages specified.</p>' : ''}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ================================================================= -->
-        <!-- DOMAIN 4: JOB PREFERENCES (Roles, Locations, Remote, Pay)         -->
-        <!-- ================================================================= -->
-        <section
-          id="panel-preferences"
-          class="tab-panel ${normalizedSection === 'preferences' ? 'active' : ''}"
-          role="tabpanel"
-          aria-labelledby="tab-preferences"
-        >
-          <div class="card">
-            <h2 class="card-heading">Job Search Intent &amp; Preferences</h2>
-            <p class="card-subtitle">Configure your target roles, locations, compensation floor, and workplace model.</p>
-
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label for="targetRoles">Target Roles <span class="required-star">* Required for matching</span></label>
-                <input type="text" id="targetRoles" name="targetRoles" value="${escapeHtml(targetRolesList.join(', '))}" class="form-control" placeholder="e.g. Backend Engineer, Distributed Systems Engineer">
-                <span class="field-hint">Comma-separated job titles you are actively seeking.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="preferredLocations">Preferred Locations <span class="optional-tag">(optional)</span></label>
-                <input type="text" id="preferredLocations" name="preferredLocations" value="${escapeHtml(preferredLocationsList.join(', '))}" class="form-control" placeholder="e.g. Remote, San Francisco, Bengaluru">
-                <span class="field-hint">Cities, regions, or "Remote" where you are open to working.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="remotePreference">Workplace Model <span class="optional-tag">(optional)</span></label>
-                <select id="remotePreference" name="remotePreference" class="form-control">
-                  <option value="" ${!remotePref ? 'selected' : ''}>No preference (Not Set)</option>
-                  <option value="REMOTE_ONLY" ${remotePref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
-                  <option value="HYBRID" ${remotePref === 'HYBRID' ? 'selected' : ''}>Hybrid</option>
-                  <option value="ONSITE" ${remotePref === 'ONSITE' ? 'selected' : ''}>Onsite</option>
-                  <option value="FLEXIBLE" ${remotePref === 'FLEXIBLE' ? 'selected' : ''}>Flexible</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="relocationPreference">Relocation Preference <span class="optional-tag">(optional)</span></label>
-                <select id="relocationPreference" name="relocationPreference" class="form-control">
-                  <option value="" ${!jobPrefs.relocationPreference ? 'selected' : ''}>Not Set</option>
-                  <option value="WILL_RELOCATE" ${jobPrefs.relocationPreference === 'WILL_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
-                  <option value="REMOTE_ONLY" ${jobPrefs.relocationPreference === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only (No Relocation)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="salaryFloor">Minimum Compensation (Floor) <span class="optional-tag">(optional)</span></label>
-                <input type="number" id="salaryFloor" name="salaryFloor" value="${escapeHtml(salaryFloor)}" class="form-control" placeholder="e.g. 120000">
-                <span class="field-hint">Minimum acceptable rate or annual base salary.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="targetSalary">Target Compensation <span class="optional-tag">(optional)</span></label>
-                <input type="number" id="targetSalary" name="targetSalary" value="${escapeHtml(targetSalary)}" class="form-control" placeholder="e.g. 150000">
-                <span class="field-hint">Desired target compensation.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="salaryCurrency">Currency <span class="optional-tag">(optional)</span></label>
-                <select id="salaryCurrency" name="salaryCurrency" class="form-control">
-                  <option value="" ${!salaryCurrency ? 'selected' : ''}>Not Set</option>
-                  <option value="USD" ${salaryCurrency === 'USD' ? 'selected' : ''}>USD ($)</option>
-                  <option value="EUR" ${salaryCurrency === 'EUR' ? 'selected' : ''}>EUR (€)</option>
-                  <option value="GBP" ${salaryCurrency === 'GBP' ? 'selected' : ''}>GBP (£)</option>
-                  <option value="CAD" ${salaryCurrency === 'CAD' ? 'selected' : ''}>CAD ($)</option>
-                  <option value="AUD" ${salaryCurrency === 'AUD' ? 'selected' : ''}>AUD ($)</option>
-                  <option value="INR" ${salaryCurrency === 'INR' ? 'selected' : ''}>INR (₹)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="compensationPeriod">Pay Period <span class="optional-tag">(optional)</span></label>
-                <select id="compensationPeriod" name="compensationPeriod" class="form-control">
-                  <option value="" ${!compensationPeriod ? 'selected' : ''}>Not Set</option>
-                  <option value="ANNUAL" ${compensationPeriod === 'ANNUAL' ? 'selected' : ''}>Annual (per year)</option>
-                  <option value="MONTHLY" ${compensationPeriod === 'MONTHLY' ? 'selected' : ''}>Monthly</option>
-                  <option value="HOURLY" ${compensationPeriod === 'HOURLY' ? 'selected' : ''}>Hourly rate</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ================================================================= -->
-        <!-- DOMAIN 5: APPLICATION & ELIGIBILITY                               -->
-        <!-- ================================================================= -->
-        <section
-          id="panel-eligibility"
-          class="tab-panel ${normalizedSection === 'eligibility' ? 'active' : ''}"
-          role="tabpanel"
-          aria-labelledby="tab-eligibility"
-        >
-          <div class="card">
-            <h2 class="card-heading">Work Authorization &amp; Availability</h2>
-            <p class="card-subtitle">Explicit legal eligibility and timeline parameters required by employer screening questionnaires.</p>
-
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label for="workAuthInput">Work Authorization Status <span class="required-star">*</span></label>
-                <input type="text" id="workAuthInput" name="workAuthorization" value="${escapeHtml(workAuthList.join(', '))}" class="form-control" placeholder="e.g. US Citizen, Permanent Resident, H1-B, UK Citizen">
-                <span class="field-hint">Jurisdictions and legal statuses where you are authorized to work.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="visaSponsorshipRequired">Visa Sponsorship Required <span class="required-star">*</span></label>
-                <select id="visaSponsorshipRequired" name="visaSponsorshipRequired" class="form-control">
-                  <option value="NOT_SET" ${visaSponsorshipVal === '' || visaSponsorshipVal === 'NOT_SET' ? 'selected' : ''}>Choose answer (Not Set)</option>
-                  <option value="NO" ${visaSponsorshipVal === 'false' || visaSponsorshipVal === 'NO' ? 'selected' : ''}>No — I do not require visa sponsorship</option>
-                  <option value="YES" ${visaSponsorshipVal === 'true' || visaSponsorshipVal === 'YES' ? 'selected' : ''}>Yes — I require visa sponsorship</option>
-                  <option value="UNKNOWN" ${visaSponsorshipVal === 'UNKNOWN' ? 'selected' : ''}>Uncertain / Depends on role</option>
-                </select>
-                <span class="field-hint">Critical for screening filter matching; false defaults strictly avoided.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="noticePeriodSelect">Notice Period <span class="required-star">*</span></label>
-                <select id="noticePeriodSelect" name="noticePeriod" class="form-control">
-                  <option value="" ${!noticePeriodVal ? 'selected' : ''}>Choose notice period...</option>
-                  <option value="immediate" ${noticePeriodVal === 'immediate' ? 'selected' : ''}>Immediate (Available immediately)</option>
-                  <option value="less_than_1_week" ${noticePeriodVal === 'less_than_1_week' ? 'selected' : ''}>Less than 1 week</option>
-                  <option value="1_to_2_weeks" ${noticePeriodVal === '1_to_2_weeks' ? 'selected' : ''}>1 to 2 weeks</option>
-                  <option value="30_days" ${noticePeriodVal === '30_days' ? 'selected' : ''}>30 days (1 month)</option>
-                  <option value="60_days" ${noticePeriodVal === '60_days' ? 'selected' : ''}>60 days (2 months)</option>
-                  <option value="90_days" ${noticePeriodVal === '90_days' ? 'selected' : ''}>90 days (3 months)</option>
-                  <option value="custom" ${noticePeriodVal === 'custom' ? 'selected' : ''}>Custom duration...</option>
-                </select>
-                <span class="field-hint">Standardized notice period required by application screening.</span>
-              </div>
-
-              <div class="form-group" id="customNoticeGroup" style="${noticePeriodVal === 'custom' ? '' : 'display: none;'}">
-                <label for="customNoticePeriod">Custom Notice Period</label>
-                <input type="text" id="customNoticePeriod" name="customNoticePeriod" value="${escapeHtml(customNoticeVal)}" class="form-control" placeholder="e.g. 45 days, 3 weeks">
-              </div>
-
-              <div class="form-group">
-                <label for="availabilityDate">Earliest Start Date <span class="optional-tag">(optional)</span></label>
-                <input type="date" id="availabilityDate" name="availabilityDate" value="${escapeHtml(availabilityDateVal)}" class="form-control">
-                <span class="field-hint">Specific calendar date you can commence employment.</span>
-              </div>
-            </div>
-
-            <!-- Confirmation Toggles for Application Readiness -->
-            <div class="confirmation-box" style="margin-top: 1.5rem;">
-              <h3 class="sub-heading">Candidate Confirmations</h3>
-              <p class="field-hint" style="margin-bottom: 0.75rem;">Confirming these answers transitions screening items directly to READY status for automated handoffs.</p>
-
-              <div class="checkbox-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" name="workAuthConfirmedByUser" value="true" ${workAuthConfirmedByUser ? 'checked' : ''}>
-                  <span>I confirm my work authorization status is accurate and substantiated.</span>
-                </label>
-              </div>
-
-              <div class="checkbox-group" style="margin-top: 0.5rem;">
-                <label class="checkbox-label">
-                  <input type="checkbox" name="visaSponsorshipConfirmedByUser" value="true" ${visaSponsorshipConfirmedByUser ? 'checked' : ''}>
-                  <span>I confirm my visa sponsorship requirement answer is accurate.</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ================================================================= -->
-        <!-- DOMAIN 6: CONTACT & LINKS (Email, Phone, Profiles)                -->
-        <!-- ================================================================= -->
-        <section
-          id="panel-contact"
-          class="tab-panel ${normalizedSection === 'contact' ? 'active' : ''}"
-          role="tabpanel"
-          aria-labelledby="tab-contact"
-        >
-          <div class="card">
-            <h2 class="card-heading">Contact Information &amp; Links</h2>
-            <p class="card-subtitle">Authoritative contact information required for job applications and recruiter outreach.</p>
-
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label for="contactEmail">Email Address <span class="required-star">*</span></label>
-                <input type="email" id="contactEmail" value="${escapeHtml(authenticEmail)}" class="form-control" readonly disabled>
-                <span class="field-hint">Primary account and submission email address.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="contactPhoneInput">Phone Number <span class="required-star">*</span></label>
-                <div class="phone-input-group">
-                  <select id="contactCountryCodeSelect" name="contactCountryCode" class="form-control phone-code-select">
-                    <option value="">Choose code...</option>
-                    ${COUNTRY_CALLING_CODES.map((c) => `
-                      <option value="${escapeHtml(c.dialCode)}" ${initialCountryCode === c.dialCode ? 'selected' : ''}>
-                        ${escapeHtml(c.flag)} ${escapeHtml(c.name)} (${escapeHtml(c.dialCode)})
-                      </option>
-                    `).join('')}
-                  </select>
-                  <input
-                    type="tel"
-                    id="contactPhoneInput"
-                    name="contactPhoneNumber"
-                    value="${escapeHtml(initialPhoneNumber)}"
-                    class="form-control phone-number-input"
-                    placeholder="7905087928"
-                  >
-                </div>
-                <span class="field-hint">Required for recruiter outreach and ATS verification.</span>
-              </div>
-
-              <div class="form-group">
-                <label for="contactLinkedinInput">LinkedIn URL <span class="optional-tag">(optional)</span></label>
-                <input type="url" id="contactLinkedinInput" name="linkedin" value="${escapeHtml(linkedinUrl)}" class="form-control" placeholder="https://linkedin.com/in/username">
-              </div>
-
-              <div class="form-group">
-                <label for="contactGithubInput">GitHub Profile URL <span class="optional-tag">(optional)</span></label>
-                <input type="url" id="contactGithubInput" name="github" value="${escapeHtml(githubUrl)}" class="form-control" placeholder="https://github.com/username">
-              </div>
-
-              <div class="form-group">
-                <label for="contactPortfolioInput">Portfolio / Personal Website <span class="optional-tag">(optional)</span></label>
-                <input type="url" id="contactPortfolioInput" name="portfolio" value="${escapeHtml(portfolioUrl)}" class="form-control" placeholder="https://yourname.dev">
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Sticky Save Status Indicator (No Duplicate Button — Exactly One Save Action in Document) -->
-        <div class="sticky-save-bar" id="stickySaveBar" style="display:none;" aria-hidden="true">
-          <div class="save-bar-content">
-            <span class="save-bar-status" id="saveBarStatus">All changes saved</span>
-          </div>
-        </div>
-      </form>
-    </div>
-
-    <!-- Embedded Initial Profile State for AJAX / Dirty Tracking -->
-    <script>
-      window.__INITIAL_PROFILE__ = ${JSON.stringify(initialProfileState)};
-    </script>
-
-    <!-- Client-Side Tab & State Controller -->
-    <script>
-      (function () {
-        const tabs = document.querySelectorAll('.tab-btn');
-        const panels = document.querySelectorAll('.tab-panel');
-        const activeTabInput = document.getElementById('activeTabInput');
-        const noticeSelect = document.getElementById('noticePeriodSelect');
-        const customNoticeGroup = document.getElementById('customNoticeGroup');
-        const globalIndicator = document.getElementById('globalSaveIndicator');
-        const saveBarStatus = document.getElementById('saveBarStatus');
-        const form = document.getElementById('careerProfileForm');
-
-        let isDirty = false;
-
-        const TAB_ALIASES = {
-          'links': 'contact',
-          'experience': 'professional',
-          'education': 'professional',
-          'skills': 'skills-projects',
-          'projects': 'skills-projects',
-          'credentials': 'skills-projects',
-          'readiness': 'overview',
-        };
-
-        function switchTab(rawTabId, subSection) {
-          const tabId = TAB_ALIASES[rawTabId] || rawTabId;
-
-          tabs.forEach((t) => {
-            const isMatch = t.getAttribute('data-tab') === tabId;
-            t.classList.toggle('active', isMatch);
-            t.setAttribute('aria-selected', isMatch ? 'true' : 'false');
-            t.setAttribute('tabindex', isMatch ? '0' : '-1');
-          });
-
-          panels.forEach((p) => {
-            const isMatch = p.id === 'panel-' + tabId;
-            p.classList.toggle('active', isMatch);
-          });
-
-          if (activeTabInput) {
-            activeTabInput.value = tabId;
-          }
-
-          if (history.replaceState) {
-            history.replaceState(null, '', '#section-' + (rawTabId || tabId));
-          }
-
-          if (subSection) {
-            const anchor = document.getElementById(subSection + '-section-anchor');
-            if (anchor) {
-              anchor.scrollIntoView({ behavior: 'smooth' });
-            }
-          }
-        }
-
-        // Tab click listeners
-        tabs.forEach((tab) => {
-          tab.addEventListener('click', function () {
-            const tabId = this.getAttribute('data-tab');
-            switchTab(tabId);
-          });
-
-          // Keyboard arrow navigation
-          tab.addEventListener('keydown', function (e) {
-            let targetTab = null;
-            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-              e.preventDefault();
-              targetTab = this.nextElementSibling || tabs[0];
-            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-              e.preventDefault();
-              targetTab = this.previousElementSibling || tabs[tabs.length - 1];
-            }
-            if (targetTab) {
-              targetTab.focus();
-              targetTab.click();
-            }
-          });
-        });
-
-        // Deep link button triggers from Overview & Attention cards
-        document.querySelectorAll('.switch-tab-trigger').forEach((btn) => {
-          btn.addEventListener('click', function () {
-            const target = this.getAttribute('data-target-tab');
-            if (target) {
-              switchTab(target, target);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
-          });
-        });
-
-        // Notice period custom toggle
-        if (noticeSelect && customNoticeGroup) {
-          noticeSelect.addEventListener('change', function () {
-            customNoticeGroup.style.display = this.value === 'custom' ? 'block' : 'none';
-          });
-        }
-
-        // Handle URL hash on initial page load
-        const hash = window.location.hash;
-        if (hash) {
-          const matchedSection = hash.replace(/^#section-/, '').replace(/^#/, '');
-          const mapped = TAB_ALIASES[matchedSection] || matchedSection;
-          const validTab = Array.from(tabs).find((t) => t.getAttribute('data-tab') === mapped);
-          if (validTab) {
-            switchTab(matchedSection, matchedSection);
-          }
-        }
-
-        // Save button & status management
-        const saveBtn = document.getElementById('headerSaveBtn') || document.getElementById('saveProfileBtn');
-        let isSaving = false;
-
-        function updateSaveUI(state) {
-          if (!globalIndicator) return;
-          const statusText = globalIndicator.querySelector('.status-text');
-          const saveBtnText = saveBtn ? saveBtn.querySelector('.btn-save-text') : null;
-
-          if (state === 'CLEAN') {
-            globalIndicator.classList.remove('dirty', 'saving', 'error');
-            if (statusText) statusText.textContent = 'All changes saved';
-            if (saveBarStatus) saveBarStatus.textContent = 'All changes saved';
-            if (saveBtn) {
-              saveBtn.disabled = false;
-              saveBtn.removeAttribute('aria-busy');
-              if (saveBtnText) saveBtnText.textContent = 'Save changes';
-            }
-          } else if (state === 'DIRTY') {
-            globalIndicator.classList.add('dirty');
-            globalIndicator.classList.remove('saving', 'error');
-            if (statusText) statusText.textContent = 'Unsaved changes';
-            if (saveBarStatus) saveBarStatus.textContent = 'Unsaved changes';
-            if (saveBtn) {
-              saveBtn.disabled = false;
-              saveBtn.removeAttribute('aria-busy');
-              if (saveBtnText) saveBtnText.textContent = 'Save changes';
-            }
-          } else if (state === 'SAVING') {
-            globalIndicator.classList.add('saving');
-            globalIndicator.classList.remove('error');
-            if (statusText) statusText.textContent = 'Saving…';
-            if (saveBarStatus) saveBarStatus.textContent = 'Saving…';
-            if (saveBtn) {
-              saveBtn.disabled = true;
-              saveBtn.setAttribute('aria-busy', 'true');
-              if (saveBtnText) saveBtnText.textContent = 'Saving…';
-            }
-          } else if (state === 'SUCCESS') {
-            globalIndicator.classList.remove('dirty', 'saving', 'error');
-            if (statusText) statusText.textContent = 'Saved';
-            if (saveBarStatus) saveBarStatus.textContent = 'Saved';
-            if (saveBtn) {
-              saveBtn.disabled = false;
-              saveBtn.removeAttribute('aria-busy');
-              if (saveBtnText) saveBtnText.textContent = 'Saved';
-            }
-            setTimeout(() => {
-              if (!isDirty && !isSaving) {
-                if (statusText) statusText.textContent = 'All changes saved';
-                if (saveBarStatus) saveBarStatus.textContent = 'All changes saved';
-                if (saveBtnText) saveBtnText.textContent = 'Save changes';
-              }
-            }, 2500);
-          } else if (state === 'ERROR') {
-            globalIndicator.classList.add('error');
-            globalIndicator.classList.remove('saving');
-            if (statusText) statusText.textContent = 'Could not save changes. Try again.';
-            if (saveBarStatus) saveBarStatus.textContent = 'Could not save changes. Try again.';
-            if (saveBtn) {
-              saveBtn.disabled = false;
-              saveBtn.removeAttribute('aria-busy');
-              if (saveBtnText) saveBtnText.textContent = 'Save changes';
-            }
-          }
-        }
-
-        // Form change & dirty tracking
-        if (form) {
-          form.addEventListener('input', function () {
-            if (!isDirty) {
-              isDirty = true;
-              updateSaveUI('DIRTY');
-            }
-          });
-
-          // Single Canonical Form Submit with Idempotency Guard
-          form.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            if (isSaving) return; // Prevent double-clicks
-            isSaving = true;
-            updateSaveUI('SAVING');
-
-            const formData = new FormData(form);
-            const payload = {
-              displayName: formData.get('displayName'),
-              headline: formData.get('headline'),
-              currentRole: formData.get('currentRole'),
-              careerStatus: formData.get('careerStatus'),
-              location: formData.get('location'),
-              timezone: formData.get('timezone'),
-              summary: formData.get('summary'),
-              contactCountryCode: formData.get('contactCountryCode'),
-              contactPhoneNumber: formData.get('contactPhoneNumber'),
-              phone: formData.get('contactPhoneNumber'),
-              linkedin: formData.get('linkedin'),
-              github: formData.get('github'),
-              portfolio: formData.get('portfolio'),
-              targetRoles: formData.get('targetRoles'),
-              preferredLocations: formData.get('preferredLocations'),
-              remotePreference: formData.get('remotePreference'),
-              relocationPreference: formData.get('relocationPreference'),
-              salaryFloor: formData.get('salaryFloor'),
-              targetSalary: formData.get('targetSalary'),
-              salaryCurrency: formData.get('salaryCurrency'),
-              compensationPeriod: formData.get('compensationPeriod'),
-              workAuthorization: formData.get('workAuthorization'),
-              visaSponsorshipRequired: formData.get('visaSponsorshipRequired'),
-              noticePeriod: formData.get('noticePeriod'),
-              customNoticePeriod: formData.get('customNoticePeriod'),
-              availabilityDate: formData.get('availabilityDate'),
-              workAuthConfirmedByUser: formData.get('workAuthConfirmedByUser'),
-              visaSponsorshipConfirmedByUser: formData.get('visaSponsorshipConfirmedByUser'),
-              activeSection: activeTabInput ? activeTabInput.value : 'overview',
-              sections: {
-                identity: {
-                  displayName: formData.get('displayName'),
-                  headline: formData.get('headline'),
-                  currentRole: formData.get('currentRole'),
-                  careerStatus: formData.get('careerStatus'),
-                  location: formData.get('location'),
-                  timezone: formData.get('timezone'),
-                  summary: formData.get('summary'),
-                },
-                contact: {
-                  countryCode: formData.get('contactCountryCode'),
-                  phoneNumber: formData.get('contactPhoneNumber'),
-                  phone: formData.get('contactPhoneNumber'),
-                  linkedin: formData.get('linkedin'),
-                  github: formData.get('github'),
-                  portfolio: formData.get('portfolio'),
-                },
-                preferences: {
-                  targetRoles: (formData.get('targetRoles') || '').split(',').map((s) => s.trim()).filter(Boolean),
-                  preferredLocations: (formData.get('preferredLocations') || '').split(',').map((s) => s.trim()).filter(Boolean),
-                  remotePreference: formData.get('remotePreference') || null,
-                  relocationPreference: formData.get('relocationPreference') || null,
-                  salaryFloor: formData.get('salaryFloor') ? Number(formData.get('salaryFloor')) : null,
-                  targetSalary: formData.get('targetSalary') ? Number(formData.get('targetSalary')) : null,
-                  salaryCurrency: formData.get('salaryCurrency') || null,
-                  compensationPeriod: formData.get('compensationPeriod') || null,
-                },
-                eligibility: {
-                  workAuthorization: (formData.get('workAuthorization') || '').split(',').map((s) => s.trim()).filter(Boolean),
-                  visaSponsorshipRequired: formData.get('visaSponsorshipRequired'),
-                  noticePeriod: formData.get('noticePeriod') || null,
-                  customNoticePeriod: formData.get('customNoticePeriod') || null,
-                  availabilityDate: formData.get('availabilityDate') || null,
-                  workAuthConfirmedByUser: formData.get('workAuthConfirmedByUser') === 'true',
-                  visaSponsorshipConfirmedByUser: formData.get('visaSponsorshipConfirmedByUser') === 'true',
-                },
-              },
-            };
-
-            try {
-              const res = await fetch('/profile', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                },
-                body: JSON.stringify(payload),
-              });
-
-              if (res.ok) {
-                isDirty = false;
-                isSaving = false;
-                updateSaveUI('SUCCESS');
-              } else {
-                throw new Error('Save failed with HTTP ' + res.status);
-              }
-            } catch (err) {
-              isSaving = false;
-              // Failed save preserves dirty state and alerts candidate
-              updateSaveUI('ERROR');
-            }
-          });
-        }
-
-        // Beforeunload confirmation to prevent accidental data loss
-        window.addEventListener('beforeunload', function (e) {
-          if (isDirty) {
-            e.preventDefault();
-            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-          }
-        });
-      })();
-    </script>
-
     <!-- Profile Styling -->
     <style>
       .profile-page-container {
@@ -1402,6 +266,10 @@ export function renderProfilePage({
       }
 
       .avatar-badge {
+        contain: layout size;
+        aspect-ratio: 1 / 1;
+        min-width: 56px;
+        min-height: 56px;
         width: 56px;
         height: 56px;
         border-radius: 50%;
@@ -2303,6 +1171,1131 @@ export function renderProfilePage({
         border: 1px solid rgba(239, 68, 68, 0.3);
       }
     </style>
+
+    <!-- Hidden Anchors for Backward Compatibility & Deep Links -->
+    <div id="section-contact" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-readiness" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-links" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-preferences" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-experience" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-education" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-skills" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-projects" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-credentials" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+    <div id="section-eligibility" style="position: absolute; top: 0; left: 0; pointer-events: none;" aria-hidden="true"></div>
+
+    <div class="profile-page-container">
+      <!-- Profile Header Bar -->
+      <header class="profile-header-card">
+        <div class="header-main-info">
+          <div class="avatar-badge" aria-hidden="true" style="width:56px; height:56px; min-width:56px; min-height:56px; border-radius:50%; background:linear-gradient(135deg, #6366F1, #8B5CF6); display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700; color:#FFFFFF; flex-shrink:0; contain:layout size;">
+            <span id="headerAvatarInitial">${escapeHtml((displayName || 'C').charAt(0).toUpperCase())}</span>
+          </div>
+          <div class="header-text">
+            <div class="header-title-row">
+              <h1 class="candidate-display-name" id="headerCandidateDisplayName">${escapeHtml(displayName || 'Your Profile')}</h1>
+              <span class="status-pill status-${careerStatusVal.toLowerCase()}">${escapeHtml(careerStatusVal)}</span>
+              ${userLocation ? `<span class="location-pill" style="display:inline-flex; align-items:center; gap:4px;">${renderIcon('mapPin', { size: 12 })} <span>${escapeHtml(userLocation)}</span></span>` : ''}
+            </div>
+            <p class="candidate-headline">${escapeHtml(headline || currentRole || 'Complete your professional identity to begin applying')}</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <div class="save-status-indicator" id="globalSaveIndicator" aria-live="polite">
+            <span class="status-dot"></span>
+            <span class="status-text">All changes saved</span>
+          </div>
+          <button type="submit" form="careerProfileForm" class="btn btn-primary btn-save" id="headerSaveBtn" data-testid="saveProfileBtn">
+            <span class="btn-save-icon" style="display:inline-flex; align-items:center;">${renderIcon('check', { size: 14 })}</span>
+            <span class="btn-save-text">Save changes</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Flash Messages -->
+      ${flashMessage ? `
+        <div class="alert alert-success" role="alert" id="flashSuccessAlert">
+          <span class="alert-icon">${renderIcon('check', { size: 16 })}</span>
+          <span>${escapeHtml(flashMessage)}</span>
+        </div>
+      ` : ''}
+      ${errorMessage ? `
+        <div class="alert alert-error" role="alert" id="flashErrorAlert">
+          <span class="alert-icon">${renderIcon('alertTriangle', { size: 16 })}</span>
+          <span>${escapeHtml(errorMessage)}</span>
+        </div>
+      ` : ''}
+
+      <!-- Target Navigation Tab Bar (6 Consolidated Groups) -->
+      <nav class="profile-nav-tabs" aria-label="Profile Sections" role="tablist">
+        ${navTabs.map((tab) => `
+          <button
+            type="button"
+            role="tab"
+            class="tab-btn ${tab.id === normalizedSection ? 'active' : ''}"
+            id="tab-${tab.id}"
+            data-tab="${tab.id}"
+            aria-selected="${tab.id === normalizedSection ? 'true' : 'false'}"
+            aria-controls="panel-${tab.id}"
+            tabindex="${tab.id === normalizedSection ? '0' : '-1'}"
+          >
+            <svg class="tab-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${tab.icon}"/>
+            </svg>
+            <span class="tab-label">${tab.label}</span>
+            ${tab.id === 'eligibility' && attentionItems.length > 0 ? `<span class="tab-badge-warning">${attentionItems.length}</span>` : ''}
+          </button>
+        `).join('')}
+      </nav>
+
+      <!-- Main Profile Form -->
+      <form id="careerProfileForm" action="/profile" method="POST" class="profile-form">
+        <input type="hidden" name="csrfToken" value="${escapeHtml(csrfToken)}">
+        <input type="hidden" name="activeTab" id="activeTabInput" value="${escapeHtml(normalizedSection)}">
+
+        <!-- ================================================================= -->
+        <!-- DOMAIN 1: OVERVIEW DASHBOARD                                      -->
+        <!-- ================================================================= -->
+        <section
+          id="panel-overview"
+          class="tab-panel ${normalizedSection === 'overview' ? 'active' : ''}"
+          role="tabpanel"
+          aria-labelledby="tab-overview"
+        >
+          <!-- Readiness Hero Card -->
+          <div class="overview-readiness-hero card">
+            <div class="readiness-gauge-col">
+              <div class="gauge-circle" style="--gauge-pct: ${readinessPercentage}%;">
+                <span class="gauge-value">${readinessPercentage}%</span>
+                <span class="gauge-label">Ready</span>
+              </div>
+              <div class="gauge-meta">
+                <h2 class="readiness-title">
+                  Career Profile: ${profile?.profileReadiness?.score != null ? profile.profileReadiness.score : readinessPercentage}% Populated
+                </h2>
+                <p class="readiness-subtitle">
+                  ${escapeHtml(readinessSemantics.summary || 'Profile readiness is evaluated against standard employer screening requirements.')}
+                </p>
+              </div>
+            </div>
+
+            <!-- Actionable Attention Items -->
+            <div class="action-items-container">
+              <h3 class="action-items-heading">
+                ${attentionItems.length > 0 ? `${attentionItems.length} issue(s) require your attention` : `${renderIcon('check', { size: 16 })} All screening fields verified`}
+              </h3>
+              ${attentionItems.length > 0 ? `
+                <ul class="action-items-list" aria-label="Unresolved screening items">
+                  ${attentionItems.map((item) => {
+                    const targetTab = item.field === 'workAuthorization' || item.field === 'visaSponsorship' || item.field === 'noticePeriod' || item.field === 'availability'
+                      ? 'eligibility'
+                      : 'contact';
+                    const actionVerb = item.status === 'MISSING' ? 'Add' : 'Confirm';
+                    return `
+                      <li class="action-item">
+                        <span class="action-item-icon">${renderIcon('alertCircle', { size: 14 })}</span>
+                        <div class="action-item-details">
+                          <span class="action-item-label">${escapeHtml(item.label)}</span>
+                          <span class="action-item-notes">${escapeHtml(item.notes || 'Information required for automated application matching')}</span>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-shrink:0;">
+                          <button type="button" class="btn btn-secondary btn-sm switch-tab-trigger" data-target-tab="${targetTab}">
+                            ${actionVerb}
+                          </button>
+                          <a href="/dashboard?copilot=open&intent=complete_profile" class="btn btn-secondary btn-sm" title="Ask Copilot to help" style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px;">
+                            ${renderIcon('copilot', { size: 12 })}
+                            <span>Fix</span>
+                          </a>
+                        </div>
+                      </li>
+                    `;
+                  }).join('')}
+                </ul>
+              ` : `
+                <p class="empty-action-notes">Your profile contains verified work authorization, contact information, availability, and professional credentials.</p>
+              `}
+            </div>
+          </div>
+
+          <!-- Calm "Ready to Apply" vs "Needs Attention" Grid (apply.page.js pattern) -->
+          <div class="readiness-dual-grid">
+            <!-- Ready to Apply Column -->
+            <div class="card readiness-split-card">
+              <div class="split-card-header">
+                <h3 class="card-heading" style="display:flex; align-items:center; gap:8px;">
+                  <span style="color:#10B981;">${renderIcon('check', { size: 16 })}</span>
+                  Application Readiness Checklist (${readyItems.length})
+                </h3>
+                <span class="split-card-badge status-ready-badge">Verified</span>
+              </div>
+              <p class="card-subtitle">Information populated and ready for employer review.</p>
+              <div class="ready-list">
+                ${readyItems.map((item) => `
+                  <div class="ready-item status-ready">
+                    <div class="ready-item-left">
+                      <span class="check-circle">${renderIcon('check', { size: 13 })}</span>
+                      <span class="ready-label">${escapeHtml(item.label)}</span>
+                    </div>
+                    <span class="ready-val">${escapeHtml(item.value || 'Verified')}</span>
+                  </div>
+                `).join('')}
+                ${readyItems.length === 0 ? '<p class="text-muted" style="padding:12px; font-size:0.85rem;">No items ready yet. Complete your profile sections below.</p>' : ''}
+              </div>
+            </div>
+
+            <!-- Needs Attention Column -->
+            <div class="card readiness-split-card">
+              <div class="split-card-header">
+                <h3 class="card-heading" style="display:flex; align-items:center; gap:8px;">
+                  <span style="color:#F59E0B;">${renderIcon('alertCircle', { size: 16 })}</span>
+                  Needs Attention (${attentionItems.length})
+                </h3>
+                <span class="split-card-badge status-pending-badge">${attentionItems.length === 0 ? 'All Clear' : 'Action Needed'}</span>
+              </div>
+              <p class="card-subtitle">Critical parameters required by employer screening questionnaires.</p>
+              <div class="attention-stack">
+                ${attentionItems.map((item) => {
+                  const targetTab = item.field === 'workAuthorization' || item.field === 'visaSponsorship' || item.field === 'noticePeriod' || item.field === 'availability'
+                    ? 'eligibility'
+                    : 'contact';
+                  return `
+                    <div class="attention-item-card">
+                      <div>
+                        <div class="attention-title">${escapeHtml(item.label)}</div>
+                        <div class="attention-desc">${escapeHtml(item.notes || 'Required for automated screening and recruiter outreach.')}</div>
+                      </div>
+                      <button type="button" class="btn btn-secondary btn-sm switch-tab-trigger" data-target-tab="${targetTab}">
+                        ${item.status === 'MISSING' ? 'Add' : 'Confirm'} →
+                      </button>
+                    </div>
+                  `;
+                }).join('')}
+                ${attentionItems.length === 0 ? `
+                  <div class="all-clear-box">
+                    <span style="color:#10B981;">${renderIcon('check', { size: 18 })}</span>
+                    <div>
+                      <strong>All screening requirements satisfied</strong>
+                      <p style="margin:4px 0 0; font-size:0.8rem; color:#9CA3AF;">Your profile contains verified work authorization, contact information, and availability parameters.</p>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Overview Snapshots Grid (5 Cards linking to the other 5 domains) -->
+          <div class="overview-snapshots-grid" style="margin-top: 1.5rem;">
+            <!-- Professional Snapshot -->
+            <div class="card snapshot-card">
+              <div class="snapshot-header">
+                <h3>Professional Identity</h3>
+                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="professional">Manage</button>
+              </div>
+              <div class="snapshot-body">
+                <p><strong>Role:</strong> ${escapeHtml(currentRole || 'Not specified')}</p>
+                <p><strong>Headline:</strong> ${escapeHtml(headline || 'None')}</p>
+                <p><strong>Experience:</strong> ${experienceList.length} position(s) documented</p>
+                <p><strong>Education:</strong> ${educationList.length} qualification(s) documented</p>
+              </div>
+            </div>
+
+            <!-- Skills & Projects Snapshot -->
+            <div class="card snapshot-card">
+              <div class="snapshot-header">
+                <h3>Skills &amp; Projects</h3>
+                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="skills-projects">Manage</button>
+              </div>
+              <div class="snapshot-body">
+                <p><strong>Primary Skills:</strong> ${primarySkillsList.length} technical competencies</p>
+                <p><strong>Highlighted Projects:</strong> ${projectsList.length} project(s)</p>
+                <p><strong>Certifications:</strong> ${certsList.length} credential(s)</p>
+                <div class="chips-cluster" style="margin-top:8px;">
+                  ${primarySkillsList.slice(0, 4).map((s) => `
+                    <span class="skill-chip ${s.provenanceStatus === 'VERIFIED' ? 'chip-verified' : ''}">
+                      ${escapeHtml(s.skillName || s.name || s)}
+                    </span>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+
+            <!-- Job Preferences Snapshot -->
+            <div class="card snapshot-card">
+              <div class="snapshot-header">
+                <h3>Job Preferences</h3>
+                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="preferences">Edit</button>
+              </div>
+              <div class="snapshot-body">
+                <p><strong>Target Roles:</strong> ${targetRolesList.length > 0 ? escapeHtml(targetRolesList.join(', ')) : 'Any'}</p>
+                <p><strong>Workplace:</strong> ${escapeHtml(remotePref || 'Not specified')}</p>
+                <p><strong>Locations:</strong> ${preferredLocationsList.length > 0 ? escapeHtml(preferredLocationsList.join(', ')) : 'Flexible'}</p>
+                <p><strong>Compensation Floor:</strong> ${salaryFloor ? escapeHtml(`${salaryFloor} ${salaryCurrency || 'USD'}`) : 'Flexible'}</p>
+              </div>
+            </div>
+
+            <!-- Application & Eligibility Snapshot -->
+            <div class="card snapshot-card">
+              <div class="snapshot-header">
+                <h3>Application &amp; Eligibility</h3>
+                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="eligibility">Manage</button>
+              </div>
+              <div class="snapshot-body">
+                <p><strong>Work Auth:</strong> ${workAuthList.length > 0 ? escapeHtml(workAuthList.join(', ')) : 'Not set'}</p>
+                <p><strong>Visa Sponsorship:</strong> ${visaSponsorshipVal === 'NO' ? 'Not Required' : (visaSponsorshipVal === 'YES' ? 'Required' : 'Not Set')}</p>
+                <p><strong>Notice Period:</strong> ${escapeHtml(formatNoticePeriodLabel(noticePeriodVal, customNoticeVal))}</p>
+                <p><strong>Availability:</strong> ${availabilityDateVal ? escapeHtml(availabilityDateVal) : 'Immediate / Flexible'}</p>
+              </div>
+            </div>
+
+            <!-- Contact & Links Snapshot -->
+            <div class="card snapshot-card">
+              <div class="snapshot-header">
+                <h3>Contact &amp; Links</h3>
+                <button type="button" class="btn btn-ghost btn-sm switch-tab-trigger" data-target-tab="contact">Manage</button>
+              </div>
+              <div class="snapshot-body">
+                <p><strong>Email:</strong> ${escapeHtml(authenticEmail || 'None')}</p>
+                <p><strong>Phone:</strong> ${initialPhoneNumber ? escapeHtml(`${initialCountryCode} ${initialPhoneNumber}`) : 'None'}</p>
+                <p><strong>LinkedIn:</strong> ${linkedinUrl ? 'Linked' : 'Not set'}</p>
+                <p><strong>GitHub:</strong> ${githubUrl ? 'Linked' : 'Not set'}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- DOMAIN 2: PROFESSIONAL (Identity, Experience, Education)          -->
+        <!-- ================================================================= -->
+        <section
+          id="panel-professional"
+          class="tab-panel ${normalizedSection === 'professional' ? 'active' : ''}"
+          role="tabpanel"
+          aria-labelledby="tab-professional"
+        >
+          <!-- Section 2.1: Identity & Summary -->
+          <div class="card">
+            <h2 class="card-heading">Professional Identity</h2>
+            <p class="card-subtitle">Your core professional identity shown on applications, resumes, and matched against job requirements.</p>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="displayName">Full Name <span class="required-star">*</span></label>
+                <input type="text" id="displayName" name="displayName" value="${escapeHtml(displayName)}" class="form-control" required>
+                <span class="field-hint">Legal or preferred professional name used in applications.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="headline">Professional Headline <span class="optional-tag">(optional)</span></label>
+                <input type="text" id="headline" name="headline" value="${escapeHtml(headline)}" class="form-control" placeholder="e.g. Senior Backend Engineer | Distributed Systems">
+                <span class="field-hint">Brief headline summarizing your domain expertise.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="currentRole">Current Role Title <span class="optional-tag">(optional)</span></label>
+                <input type="text" id="currentRole" name="currentRole" value="${escapeHtml(currentRole)}" class="form-control" placeholder="e.g. Full Stack Developer">
+              </div>
+
+              <div class="form-group">
+                <label for="careerStatus">Career Stage <span class="required-star">*</span></label>
+                <select id="careerStatus" name="careerStatus" class="form-control">
+                  <option value="FRESHER" ${careerStatusVal === 'FRESHER' ? 'selected' : ''}>Early Career / Fresher (0–2 yrs)</option>
+                  <option value="MID_LEVEL" ${careerStatusVal === 'MID_LEVEL' ? 'selected' : ''}>Mid-Level Engineer (3–5 yrs)</option>
+                  <option value="SENIOR" ${careerStatusVal === 'SENIOR' ? 'selected' : ''}>Senior Engineer (5–8 yrs)</option>
+                  <option value="LEAD" ${careerStatusVal === 'LEAD' ? 'selected' : ''}>Staff / Lead / Principal (8+ yrs)</option>
+                  <option value="EXECUTIVE" ${careerStatusVal === 'EXECUTIVE' ? 'selected' : ''}>Engineering Leadership / Manager</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="location">Location / City <span class="optional-tag">(optional)</span></label>
+                <input type="text" id="location" name="location" value="${escapeHtml(userLocation)}" class="form-control" placeholder="e.g. Bengaluru, India or San Francisco, CA">
+                <span class="field-hint">Used to evaluate location match and commute compatibility.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="timezone">Timezone <span class="optional-tag">(optional)</span></label>
+                <input type="text" id="timezone" name="timezone" value="${escapeHtml(timezoneVal)}" class="form-control" placeholder="e.g. Asia/Kolkata or America/Los_Angeles">
+                <span class="field-hint">Used to coordinate interview availability across distributed teams.</span>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1rem;">
+              <label for="summary">Executive Summary <span class="optional-tag">(optional)</span></label>
+              <textarea id="summary" name="summary" rows="4" class="form-control" placeholder="A concise 2-4 sentence summary of your technical background, impact, and engineering philosophy...">${escapeHtml(summaryText)}</textarea>
+              <span class="field-hint">Used to introduce your application to hiring managers.</span>
+            </div>
+          </div>
+
+          <!-- Section 2.2: Work Experience (Consolidated from former Tab 3) -->
+          <div class="card" id="experience-section-anchor">
+            <div class="card-header-row">
+              <div>
+                <h2 class="card-heading">Work Experience</h2>
+                <p class="card-subtitle">Document your professional employment history. Verified code contributions are linked automatically.</p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="addExperienceBtn">
+                + Add Position
+              </button>
+            </div>
+
+            <div id="experienceItemsContainer" class="records-container">
+              ${experienceList.map((exp, idx) => `
+                <div class="record-card" data-index="${idx}">
+                  <div class="record-card-header">
+                    <div>
+                      <h3 class="record-title">${escapeHtml(exp.title || exp.role || 'Position')}</h3>
+                      <span class="record-subtitle">${escapeHtml(exp.company || 'Company')} • ${escapeHtml(exp.location || 'Remote')}</span>
+                    </div>
+                    <span class="record-dates">${escapeHtml(exp.startDate || '')} — ${escapeHtml(exp.endDate || (exp.isCurrent ? 'Present' : ''))}</span>
+                  </div>
+                  ${exp.description ? `<p class="record-description">${escapeHtml(exp.description)}</p>` : ''}
+                  ${Array.isArray(exp.highlights) && exp.highlights.length > 0 ? `
+                    <ul class="record-bullets">
+                      ${exp.highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join('')}
+                    </ul>
+                  ` : ''}
+
+                  <!-- Progressive Disclosure for Code Verification -->
+                  ${exp.astEvidenceCount || exp.repositoryCorroboration ? `
+                    <details class="advanced-disclosure">
+                      <summary>Show repository verification details</summary>
+                      <div class="disclosure-content">
+                        <p style="display:flex; align-items:center; gap:4px; margin:4px 0;">${renderIcon('check', { size: 14 })} <span>Corroborated with repository code commits.</span></p>
+                        ${exp.repositoryCorroboration ? `<p>Repository: <code>${escapeHtml(exp.repositoryCorroboration)}</code></p>` : ''}
+                      </div>
+                    </details>
+                  ` : ''}
+                </div>
+              `).join('')}
+              ${experienceList.length === 0 ? '<p class="empty-state-notice">No positions recorded yet. Click "+ Add Position" to add your work history.</p>' : ''}
+            </div>
+
+            <input type="hidden" name="experience" id="experienceHiddenInput" value="${escapeHtml(JSON.stringify(experienceList))}">
+          </div>
+
+          <!-- Section 2.3: Education History (Consolidated from former Tab 4) -->
+          <div class="card" id="education-section-anchor">
+            <div class="card-header-row">
+              <div>
+                <h2 class="card-heading">Education History</h2>
+                <p class="card-subtitle">Your academic qualifications, degrees, and institutions.</p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="addEducationBtn">
+                + Add Education
+              </button>
+            </div>
+
+            <div id="educationItemsContainer" class="records-container">
+              ${educationList.map((edu, idx) => `
+                <div class="record-card" data-index="${idx}">
+                  <div class="record-card-header">
+                    <div>
+                      <h3 class="record-title">${escapeHtml(edu.degree || 'Degree')}</h3>
+                      <span class="record-subtitle">${escapeHtml(edu.institution || 'University')} • ${escapeHtml(edu.fieldOfStudy || '')}</span>
+                    </div>
+                    <span class="record-dates">${escapeHtml(edu.graduationYear || edu.year || '')}</span>
+                  </div>
+                </div>
+              `).join('')}
+              ${educationList.length === 0 ? '<p class="empty-state-notice">No education entries yet. Click "+ Add Education" to add your degree or coursework.</p>' : ''}
+            </div>
+
+            <input type="hidden" name="education" id="educationHiddenInput" value="${escapeHtml(JSON.stringify(educationList))}">
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- DOMAIN 3: SKILLS & PROJECTS (Skills, Projects, Credentials)       -->
+        <!-- ================================================================= -->
+        <section
+          id="panel-skills-projects"
+          class="tab-panel ${normalizedSection === 'skills-projects' ? 'active' : ''}"
+          role="tabpanel"
+          aria-labelledby="tab-skills-projects"
+        >
+          <!-- Section 3.1: Skills Inventory (Consolidated from former Tab 5) -->
+          <div class="card" id="skills-section-anchor">
+            <h2 class="card-heading">Career Skills (${primarySkillsList.length + additionalSkills.length})</h2>
+            <p class="card-subtitle">Evidence-verified skills grounded in your repositories, alongside self-declared technical capabilities.</p>
+
+            <!-- Evidence-Backed Skills -->
+            <div class="skills-section-block">
+              <h3 class="sub-heading">Primary Technical Skills (${primarySkillsList.length})</h3>
+              <div class="chips-cluster">
+                ${primarySkillsList.map((s) => `
+                  <div class="skill-badge-chip">
+                    <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
+                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Claimed'}</span>
+                  </div>
+                `).join('')}
+                ${primarySkillsList.length === 0 ? '<p class="text-muted">No primary skills indexed.</p>' : ''}
+              </div>
+            </div>
+
+            <!-- Additional / Self-Declared Skills -->
+            <div class="skills-section-block" style="margin-top: 1.5rem;">
+              <div class="card-header-row">
+                <h3 class="sub-heading">Additional Libraries & Tools (${technologySignalsList.length + additionalSkills.length})</h3>
+              </div>
+              <div class="chips-cluster" id="additionalSkillsChips">
+                ${additionalSkills.map((s) => `
+                  <div class="skill-badge-chip chip-declared">
+                    <span class="skill-name">${escapeHtml(s.canonicalName || s.name || s.slug || 'Tool')}</span>
+                    <span class="skill-proficiency-tag">${escapeHtml(s.proficiency || 'Proficient')}</span>
+                  </div>
+                `).join('')}
+                ${technologySignalsList.map((s) => `
+                  <div class="skill-badge-chip chip-signal">
+                    <span class="skill-name">${escapeHtml(s.skillName || s.name || s)}</span>
+                    <span class="skill-proof-tag">${s.provenanceStatus === 'VERIFIED' ? `${renderIcon('check', { size: 11, style: 'vertical-align:middle; margin-right:2px;' })} Corroborated` : 'Signal'}</span>
+                  </div>
+                `).join('')}
+                ${additionalSkills.length === 0 && technologySignalsList.length === 0 ? '<p class="text-muted">No additional skills added.</p>' : ''}
+              </div>
+            </div>
+
+            <!-- Progressive Disclosure for AST Code Evidence -->
+            ${technologySignalsList.length > 0 ? `
+              <details class="advanced-disclosure" style="margin-top: 1.5rem;">
+                <summary>Show secondary technology signals (${technologySignalsList.length})</summary>
+                <div class="disclosure-content">
+                  <p class="text-muted" style="margin-bottom: 0.5rem;">Technologies detected in repository configuration or dependencies:</p>
+                  <div class="chips-cluster">
+                    ${technologySignalsList.map((s) => `
+                      <span class="skill-chip chip-signal">${escapeHtml(s.skillName || s.name || s)}</span>
+                    `).join('')}
+                  </div>
+                </div>
+              </details>
+            ` : ''}
+          </div>
+
+          <!-- Section 3.2: Highlighted Projects (Consolidated from former Tab 6) -->
+          <div class="card" id="projects-section-anchor">
+            <h2 class="card-heading">Highlighted Projects (${projectsList.length})</h2>
+            <p class="card-subtitle">Real-world technical projects demonstrating applied architecture, engineering rigor, and code quality.</p>
+
+            <div class="projects-grid">
+              ${projectsList.map((p) => `
+                <div class="project-card">
+                  <div class="project-card-header">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <h3 class="project-title">${escapeHtml(p.name || 'Project')}</h3>
+                      ${(p.provenanceStatus === 'CORROBORATED' || p.corroborated) ? `
+                        <span class="badge badge-verified" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px;">${renderIcon('check', { size: 10 })} Corroborated</span>
+                      ` : (p.provenanceStatus === 'VERIFIED' ? `
+                        <span class="badge badge-verified" style="font-size: 0.7rem; display: inline-flex; align-items: center; gap: 4px;">${renderIcon('check', { size: 10 })} Verified</span>
+                      ` : (p.provenanceStatus ? `
+                        <span class="badge badge-claimed" style="font-size: 0.7rem;">Claimed</span>
+                      ` : ''))}
+                    </div>
+                    ${p.repositoryUrl ? `
+                      <a href="${escapeHtml(p.repositoryUrl)}" target="_blank" rel="noopener noreferrer" class="link-icon-btn" aria-label="View repository">
+                        <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                      </a>
+                    ` : ''}
+                  </div>
+                  <p class="project-desc">${escapeHtml(p.description || 'Technical project application.')}</p>
+                  ${Array.isArray(p.technologies) && p.technologies.length > 0 ? `
+                    <div class="project-tech-tags">
+                      ${p.technologies.map((t) => `<span class="tech-tag">${escapeHtml(t)}</span>`).join('')}
+                    </div>
+                  ` : ''}
+
+                  ${p.astEvidence || p.commitCount ? `
+                    <details class="advanced-disclosure">
+                      <summary>Show verification details</summary>
+                      <div class="disclosure-content">
+                        <p>Evidence: Grounded in repository commit history.</p>
+                      </div>
+                    </details>
+                  ` : ''}
+                </div>
+              `).join('')}
+              ${projectsList.length === 0 ? '<p class="empty-state-notice">No highlighted projects found. Connect your GitHub account to automatically index repositories.</p>' : ''}
+            </div>
+          </div>
+
+          <!-- Section 3.3: Credentials & Languages (Consolidated from former Tab 7) -->
+          <div class="card" id="credentials-section-anchor">
+            <h2 class="card-heading">Certifications &amp; Spoken Languages</h2>
+            <p class="card-subtitle">Industry credentials, professional licenses, and spoken languages.</p>
+
+            <div class="credentials-split-grid">
+              <div>
+                <h3 class="sub-heading">Certifications (${certsList.length})</h3>
+                <div class="records-container">
+                  ${certsList.map((c) => `
+                    <div class="record-card">
+                      <h4 class="record-title">${escapeHtml(c.name || 'Certification')}</h4>
+                      <span class="record-subtitle">${escapeHtml(c.issuer || 'Issuing Body')} • ${escapeHtml(c.issueDate || '')}</span>
+                    </div>
+                  `).join('')}
+                  ${certsList.length === 0 ? '<p class="text-muted">No certifications recorded.</p>' : ''}
+                </div>
+              </div>
+
+              <div>
+                <h3 class="sub-heading">Spoken Languages (${languagesList.length})</h3>
+                <div class="records-container">
+                  ${languagesList.map((l) => `
+                    <div class="record-card">
+                      <h4 class="record-title">${escapeHtml(l.language || l.name || 'Language')}</h4>
+                      <span class="record-subtitle">${escapeHtml(l.proficiency || 'Native / Fluent')}</span>
+                    </div>
+                  `).join('')}
+                  ${languagesList.length === 0 ? '<p class="text-muted">No languages specified.</p>' : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- DOMAIN 4: JOB PREFERENCES (Roles, Locations, Remote, Pay)         -->
+        <!-- ================================================================= -->
+        <section
+          id="panel-preferences"
+          class="tab-panel ${normalizedSection === 'preferences' ? 'active' : ''}"
+          role="tabpanel"
+          aria-labelledby="tab-preferences"
+        >
+          <div class="card">
+            <h2 class="card-heading">Job Search Intent &amp; Preferences</h2>
+            <p class="card-subtitle">Configure your target roles, locations, compensation floor, and workplace model.</p>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="targetRoles">Target Roles <span class="required-star">* Required for matching</span></label>
+                <input type="text" id="targetRoles" name="targetRoles" value="${escapeHtml(targetRolesList.join(', '))}" class="form-control" placeholder="e.g. Backend Engineer, Distributed Systems Engineer">
+                <span class="field-hint">Comma-separated job titles you are actively seeking.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="preferredLocations">Preferred Locations <span class="optional-tag">(optional)</span></label>
+                <input type="text" id="preferredLocations" name="preferredLocations" value="${escapeHtml(preferredLocationsList.join(', '))}" class="form-control" placeholder="e.g. Remote, San Francisco, Bengaluru">
+                <span class="field-hint">Cities, regions, or "Remote" where you are open to working.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="remotePreference">Workplace Model <span class="optional-tag">(optional)</span></label>
+                <select id="remotePreference" name="remotePreference" class="form-control">
+                  <option value="" ${!remotePref ? 'selected' : ''}>No preference (Not Set)</option>
+                  <option value="REMOTE_ONLY" ${remotePref === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only</option>
+                  <option value="HYBRID" ${remotePref === 'HYBRID' ? 'selected' : ''}>Hybrid</option>
+                  <option value="ONSITE" ${remotePref === 'ONSITE' ? 'selected' : ''}>Onsite</option>
+                  <option value="FLEXIBLE" ${remotePref === 'FLEXIBLE' ? 'selected' : ''}>Flexible</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="relocationPreference">Relocation Preference <span class="optional-tag">(optional)</span></label>
+                <select id="relocationPreference" name="relocationPreference" class="form-control">
+                  <option value="" ${!jobPrefs.relocationPreference ? 'selected' : ''}>Not Set</option>
+                  <option value="WILL_RELOCATE" ${jobPrefs.relocationPreference === 'WILL_RELOCATE' ? 'selected' : ''}>Willing to Relocate</option>
+                  <option value="REMOTE_ONLY" ${jobPrefs.relocationPreference === 'REMOTE_ONLY' ? 'selected' : ''}>Remote Only (No Relocation)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="salaryFloor">Minimum Compensation (Floor) <span class="optional-tag">(optional)</span></label>
+                <input type="number" id="salaryFloor" name="salaryFloor" value="${escapeHtml(salaryFloor)}" class="form-control" placeholder="e.g. 120000">
+                <span class="field-hint">Minimum acceptable rate or annual base salary.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="targetSalary">Target Compensation <span class="optional-tag">(optional)</span></label>
+                <input type="number" id="targetSalary" name="targetSalary" value="${escapeHtml(targetSalary)}" class="form-control" placeholder="e.g. 150000">
+                <span class="field-hint">Desired target compensation.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="salaryCurrency">Currency <span class="optional-tag">(optional)</span></label>
+                <select id="salaryCurrency" name="salaryCurrency" class="form-control">
+                  <option value="" ${!salaryCurrency ? 'selected' : ''}>Not Set</option>
+                  <option value="USD" ${salaryCurrency === 'USD' ? 'selected' : ''}>USD ($)</option>
+                  <option value="EUR" ${salaryCurrency === 'EUR' ? 'selected' : ''}>EUR (€)</option>
+                  <option value="GBP" ${salaryCurrency === 'GBP' ? 'selected' : ''}>GBP (£)</option>
+                  <option value="CAD" ${salaryCurrency === 'CAD' ? 'selected' : ''}>CAD ($)</option>
+                  <option value="AUD" ${salaryCurrency === 'AUD' ? 'selected' : ''}>AUD ($)</option>
+                  <option value="INR" ${salaryCurrency === 'INR' ? 'selected' : ''}>INR (₹)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="compensationPeriod">Pay Period <span class="optional-tag">(optional)</span></label>
+                <select id="compensationPeriod" name="compensationPeriod" class="form-control">
+                  <option value="" ${!compensationPeriod ? 'selected' : ''}>Not Set</option>
+                  <option value="ANNUAL" ${compensationPeriod === 'ANNUAL' ? 'selected' : ''}>Annual (per year)</option>
+                  <option value="MONTHLY" ${compensationPeriod === 'MONTHLY' ? 'selected' : ''}>Monthly</option>
+                  <option value="HOURLY" ${compensationPeriod === 'HOURLY' ? 'selected' : ''}>Hourly rate</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- DOMAIN 5: APPLICATION & ELIGIBILITY                               -->
+        <!-- ================================================================= -->
+        <section
+          id="panel-eligibility"
+          class="tab-panel ${normalizedSection === 'eligibility' ? 'active' : ''}"
+          role="tabpanel"
+          aria-labelledby="tab-eligibility"
+        >
+          <div class="card">
+            <h2 class="card-heading">Work Authorization &amp; Availability</h2>
+            <p class="card-subtitle">Explicit legal eligibility and timeline parameters required by employer screening questionnaires.</p>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="workAuthInput">Work Authorization Status <span class="required-star">*</span></label>
+                <input type="text" id="workAuthInput" name="workAuthorization" value="${escapeHtml(workAuthList.join(', '))}" class="form-control" placeholder="e.g. US Citizen, Permanent Resident, H1-B, UK Citizen">
+                <span class="field-hint">Jurisdictions and legal statuses where you are authorized to work.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="visaSponsorshipRequired">Visa Sponsorship Required <span class="required-star">*</span></label>
+                <select id="visaSponsorshipRequired" name="visaSponsorshipRequired" class="form-control">
+                  <option value="NOT_SET" ${visaSponsorshipVal === '' || visaSponsorshipVal === 'NOT_SET' ? 'selected' : ''}>Choose answer (Not Set)</option>
+                  <option value="NO" ${visaSponsorshipVal === 'false' || visaSponsorshipVal === 'NO' ? 'selected' : ''}>No — I do not require visa sponsorship</option>
+                  <option value="YES" ${visaSponsorshipVal === 'true' || visaSponsorshipVal === 'YES' ? 'selected' : ''}>Yes — I require visa sponsorship</option>
+                  <option value="UNKNOWN" ${visaSponsorshipVal === 'UNKNOWN' ? 'selected' : ''}>Uncertain / Depends on role</option>
+                </select>
+                <span class="field-hint">Critical for screening filter matching; false defaults strictly avoided.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="noticePeriodSelect">Notice Period <span class="required-star">*</span></label>
+                <select id="noticePeriodSelect" name="noticePeriod" class="form-control">
+                  <option value="" ${!noticePeriodVal ? 'selected' : ''}>Choose notice period...</option>
+                  <option value="immediate" ${noticePeriodVal === 'immediate' ? 'selected' : ''}>Immediate (Available immediately)</option>
+                  <option value="less_than_1_week" ${noticePeriodVal === 'less_than_1_week' ? 'selected' : ''}>Less than 1 week</option>
+                  <option value="1_to_2_weeks" ${noticePeriodVal === '1_to_2_weeks' ? 'selected' : ''}>1 to 2 weeks</option>
+                  <option value="30_days" ${noticePeriodVal === '30_days' ? 'selected' : ''}>30 days (1 month)</option>
+                  <option value="60_days" ${noticePeriodVal === '60_days' ? 'selected' : ''}>60 days (2 months)</option>
+                  <option value="90_days" ${noticePeriodVal === '90_days' ? 'selected' : ''}>90 days (3 months)</option>
+                  <option value="custom" ${noticePeriodVal === 'custom' ? 'selected' : ''}>Custom duration...</option>
+                </select>
+                <span class="field-hint">Standardized notice period required by application screening.</span>
+              </div>
+
+              <div class="form-group" id="customNoticeGroup" style="${noticePeriodVal === 'custom' ? '' : 'display: none;'}">
+                <label for="customNoticePeriod">Custom Notice Period</label>
+                <input type="text" id="customNoticePeriod" name="customNoticePeriod" value="${escapeHtml(customNoticeVal)}" class="form-control" placeholder="e.g. 45 days, 3 weeks">
+              </div>
+
+              <div class="form-group">
+                <label for="availabilityDate">Earliest Start Date <span class="optional-tag">(optional)</span></label>
+                <input type="date" id="availabilityDate" name="availabilityDate" value="${escapeHtml(availabilityDateVal)}" class="form-control">
+                <span class="field-hint">Specific calendar date you can commence employment.</span>
+              </div>
+            </div>
+
+            <!-- Confirmation Toggles for Application Readiness -->
+            <div class="confirmation-box" style="margin-top: 1.5rem;">
+              <h3 class="sub-heading">Candidate Confirmations</h3>
+              <p class="field-hint" style="margin-bottom: 0.75rem;">Confirming these answers transitions screening items directly to READY status for automated handoffs.</p>
+
+              <div class="checkbox-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" name="workAuthConfirmedByUser" value="true" ${workAuthConfirmedByUser ? 'checked' : ''}>
+                  <span>I confirm my work authorization status is accurate and substantiated.</span>
+                </label>
+              </div>
+
+              <div class="checkbox-group" style="margin-top: 0.5rem;">
+                <label class="checkbox-label">
+                  <input type="checkbox" name="visaSponsorshipConfirmedByUser" value="true" ${visaSponsorshipConfirmedByUser ? 'checked' : ''}>
+                  <span>I confirm my visa sponsorship requirement answer is accurate.</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- DOMAIN 6: CONTACT & LINKS (Email, Phone, Profiles)                -->
+        <!-- ================================================================= -->
+        <section
+          id="panel-contact"
+          class="tab-panel ${normalizedSection === 'contact' ? 'active' : ''}"
+          role="tabpanel"
+          aria-labelledby="tab-contact"
+        >
+          <div class="card">
+            <h2 class="card-heading">Contact Information &amp; Links</h2>
+            <p class="card-subtitle">Authoritative contact information required for job applications and recruiter outreach.</p>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="contactEmail">Email Address <span class="required-star">*</span></label>
+                <input type="email" id="contactEmail" value="${escapeHtml(authenticEmail)}" class="form-control" readonly disabled>
+                <span class="field-hint">Primary account and submission email address.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="contactPhoneInput">Phone Number <span class="required-star">*</span></label>
+                <div class="phone-input-group">
+                  <select id="contactCountryCodeSelect" name="contactCountryCode" class="form-control phone-code-select">
+                    <option value="">Choose code...</option>
+                    ${COUNTRY_CALLING_CODES.map((c) => `
+                      <option value="${escapeHtml(c.dialCode)}" ${initialCountryCode === c.dialCode ? 'selected' : ''}>
+                        ${escapeHtml(c.flag)} ${escapeHtml(c.name)} (${escapeHtml(c.dialCode)})
+                      </option>
+                    `).join('')}
+                  </select>
+                  <input
+                    type="tel"
+                    id="contactPhoneInput"
+                    name="contactPhoneNumber"
+                    value="${escapeHtml(initialPhoneNumber)}"
+                    class="form-control phone-number-input"
+                    placeholder="7905087928"
+                  >
+                </div>
+                <span class="field-hint">Required for recruiter outreach and ATS verification.</span>
+              </div>
+
+              <div class="form-group">
+                <label for="contactLinkedinInput">LinkedIn URL <span class="optional-tag">(optional)</span></label>
+                <input type="url" id="contactLinkedinInput" name="linkedin" value="${escapeHtml(linkedinUrl)}" class="form-control" placeholder="https://linkedin.com/in/username">
+              </div>
+
+              <div class="form-group">
+                <label for="contactGithubInput">GitHub Profile URL <span class="optional-tag">(optional)</span></label>
+                <input type="url" id="contactGithubInput" name="github" value="${escapeHtml(githubUrl)}" class="form-control" placeholder="https://github.com/username">
+              </div>
+
+              <div class="form-group">
+                <label for="contactPortfolioInput">Portfolio / Personal Website <span class="optional-tag">(optional)</span></label>
+                <input type="url" id="contactPortfolioInput" name="portfolio" value="${escapeHtml(portfolioUrl)}" class="form-control" placeholder="https://yourname.dev">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Sticky Save Status Indicator (No Duplicate Button — Exactly One Save Action in Document) -->
+        <div class="sticky-save-bar" id="stickySaveBar" style="display:none;" aria-hidden="true">
+          <div class="save-bar-content">
+            <span class="save-bar-status" id="saveBarStatus">All changes saved</span>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Embedded Initial Profile State for AJAX / Dirty Tracking -->
+    <script>
+      window.__INITIAL_PROFILE__ = ${JSON.stringify(initialProfileState)};
+    </script>
+
+    <!-- Client-Side Tab & State Controller -->
+    <script>
+      (function () {
+        const tabs = document.querySelectorAll('.tab-btn');
+        const panels = document.querySelectorAll('.tab-panel');
+        const activeTabInput = document.getElementById('activeTabInput');
+        const noticeSelect = document.getElementById('noticePeriodSelect');
+        const customNoticeGroup = document.getElementById('customNoticeGroup');
+        const globalIndicator = document.getElementById('globalSaveIndicator');
+        const saveBarStatus = document.getElementById('saveBarStatus');
+        const form = document.getElementById('careerProfileForm');
+
+        let isDirty = false;
+
+        const TAB_ALIASES = {
+          'links': 'contact',
+          'experience': 'professional',
+          'education': 'professional',
+          'skills': 'skills-projects',
+          'projects': 'skills-projects',
+          'credentials': 'skills-projects',
+          'readiness': 'overview',
+        };
+
+        function switchTab(rawTabId, subSection) {
+          const tabId = TAB_ALIASES[rawTabId] || rawTabId;
+
+          tabs.forEach((t) => {
+            const isMatch = t.getAttribute('data-tab') === tabId;
+            t.classList.toggle('active', isMatch);
+            t.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+            t.setAttribute('tabindex', isMatch ? '0' : '-1');
+          });
+
+          panels.forEach((p) => {
+            const isMatch = p.id === 'panel-' + tabId;
+            p.classList.toggle('active', isMatch);
+          });
+
+          if (activeTabInput) {
+            activeTabInput.value = tabId;
+          }
+
+          if (history.replaceState) {
+            history.replaceState(null, '', '#section-' + (rawTabId || tabId));
+          }
+
+          if (subSection) {
+            const anchor = document.getElementById(subSection + '-section-anchor');
+            if (anchor) {
+              anchor.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        }
+
+        // Tab click listeners
+        tabs.forEach((tab) => {
+          tab.addEventListener('click', function () {
+            const tabId = this.getAttribute('data-tab');
+            switchTab(tabId);
+          });
+
+          // Keyboard arrow navigation
+          tab.addEventListener('keydown', function (e) {
+            let targetTab = null;
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              targetTab = this.nextElementSibling || tabs[0];
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              targetTab = this.previousElementSibling || tabs[tabs.length - 1];
+            }
+            if (targetTab) {
+              targetTab.focus();
+              targetTab.click();
+            }
+          });
+        });
+
+        // Deep link button triggers from Overview & Attention cards
+        document.querySelectorAll('.switch-tab-trigger').forEach((btn) => {
+          btn.addEventListener('click', function () {
+            const target = this.getAttribute('data-target-tab');
+            if (target) {
+              switchTab(target, target);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          });
+        });
+
+        // Notice period custom toggle
+        if (noticeSelect && customNoticeGroup) {
+          noticeSelect.addEventListener('change', function () {
+            customNoticeGroup.style.display = this.value === 'custom' ? 'block' : 'none';
+          });
+        }
+
+        // Handle URL hash on initial page load
+        const hash = window.location.hash;
+        if (hash) {
+          const matchedSection = hash.replace(/^#section-/, '').replace(/^#/, '');
+          const mapped = TAB_ALIASES[matchedSection] || matchedSection;
+          const validTab = Array.from(tabs).find((t) => t.getAttribute('data-tab') === mapped);
+          if (validTab) {
+            switchTab(matchedSection, matchedSection);
+          }
+        }
+
+        // Save button & status management
+        const saveBtn = document.getElementById('headerSaveBtn') || document.getElementById('saveProfileBtn');
+        let isSaving = false;
+
+        function updateSaveUI(state) {
+          if (!globalIndicator) return;
+          const statusText = globalIndicator.querySelector('.status-text');
+          const saveBtnText = saveBtn ? saveBtn.querySelector('.btn-save-text') : null;
+
+          if (state === 'CLEAN') {
+            globalIndicator.classList.remove('dirty', 'saving', 'error');
+            if (statusText) statusText.textContent = 'All changes saved';
+            if (saveBarStatus) saveBarStatus.textContent = 'All changes saved';
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.removeAttribute('aria-busy');
+              if (saveBtnText) saveBtnText.textContent = 'Save changes';
+            }
+          } else if (state === 'DIRTY') {
+            globalIndicator.classList.add('dirty');
+            globalIndicator.classList.remove('saving', 'error');
+            if (statusText) statusText.textContent = 'Unsaved changes';
+            if (saveBarStatus) saveBarStatus.textContent = 'Unsaved changes';
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.removeAttribute('aria-busy');
+              if (saveBtnText) saveBtnText.textContent = 'Save changes';
+            }
+          } else if (state === 'SAVING') {
+            globalIndicator.classList.add('saving');
+            globalIndicator.classList.remove('error');
+            if (statusText) statusText.textContent = 'Saving…';
+            if (saveBarStatus) saveBarStatus.textContent = 'Saving…';
+            if (saveBtn) {
+              saveBtn.disabled = true;
+              saveBtn.setAttribute('aria-busy', 'true');
+              if (saveBtnText) saveBtnText.textContent = 'Saving…';
+            }
+          } else if (state === 'SUCCESS') {
+            globalIndicator.classList.remove('dirty', 'saving', 'error');
+            if (statusText) statusText.textContent = 'Saved';
+            if (saveBarStatus) saveBarStatus.textContent = 'Saved';
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.removeAttribute('aria-busy');
+              if (saveBtnText) saveBtnText.textContent = 'Saved';
+            }
+            setTimeout(() => {
+              if (!isDirty && !isSaving) {
+                if (statusText) statusText.textContent = 'All changes saved';
+                if (saveBarStatus) saveBarStatus.textContent = 'All changes saved';
+                if (saveBtnText) saveBtnText.textContent = 'Save changes';
+              }
+            }, 2500);
+          } else if (state === 'ERROR') {
+            globalIndicator.classList.add('error');
+            globalIndicator.classList.remove('saving');
+            if (statusText) statusText.textContent = 'Could not save changes. Try again.';
+            if (saveBarStatus) saveBarStatus.textContent = 'Could not save changes. Try again.';
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.removeAttribute('aria-busy');
+              if (saveBtnText) saveBtnText.textContent = 'Save changes';
+            }
+          }
+        }
+
+        // Form change & dirty tracking
+        if (form) {
+          form.addEventListener('input', function () {
+            if (!isDirty) {
+              isDirty = true;
+              updateSaveUI('DIRTY');
+            }
+          });
+
+          // Single Canonical Form Submit with Idempotency Guard
+          form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            if (isSaving) return; // Prevent double-clicks
+            isSaving = true;
+            updateSaveUI('SAVING');
+
+            const formData = new FormData(form);
+            const payload = {
+              displayName: formData.get('displayName'),
+              headline: formData.get('headline'),
+              currentRole: formData.get('currentRole'),
+              careerStatus: formData.get('careerStatus'),
+              location: formData.get('location'),
+              timezone: formData.get('timezone'),
+              summary: formData.get('summary'),
+              contactCountryCode: formData.get('contactCountryCode'),
+              contactPhoneNumber: formData.get('contactPhoneNumber'),
+              phone: formData.get('contactPhoneNumber'),
+              linkedin: formData.get('linkedin'),
+              github: formData.get('github'),
+              portfolio: formData.get('portfolio'),
+              targetRoles: formData.get('targetRoles'),
+              preferredLocations: formData.get('preferredLocations'),
+              remotePreference: formData.get('remotePreference'),
+              relocationPreference: formData.get('relocationPreference'),
+              salaryFloor: formData.get('salaryFloor'),
+              targetSalary: formData.get('targetSalary'),
+              salaryCurrency: formData.get('salaryCurrency'),
+              compensationPeriod: formData.get('compensationPeriod'),
+              workAuthorization: formData.get('workAuthorization'),
+              visaSponsorshipRequired: formData.get('visaSponsorshipRequired'),
+              noticePeriod: formData.get('noticePeriod'),
+              customNoticePeriod: formData.get('customNoticePeriod'),
+              availabilityDate: formData.get('availabilityDate'),
+              workAuthConfirmedByUser: formData.get('workAuthConfirmedByUser'),
+              visaSponsorshipConfirmedByUser: formData.get('visaSponsorshipConfirmedByUser'),
+              activeSection: activeTabInput ? activeTabInput.value : 'overview',
+              sections: {
+                identity: {
+                  displayName: formData.get('displayName'),
+                  headline: formData.get('headline'),
+                  currentRole: formData.get('currentRole'),
+                  careerStatus: formData.get('careerStatus'),
+                  location: formData.get('location'),
+                  timezone: formData.get('timezone'),
+                  summary: formData.get('summary'),
+                },
+                contact: {
+                  countryCode: formData.get('contactCountryCode'),
+                  phoneNumber: formData.get('contactPhoneNumber'),
+                  phone: formData.get('contactPhoneNumber'),
+                  linkedin: formData.get('linkedin'),
+                  github: formData.get('github'),
+                  portfolio: formData.get('portfolio'),
+                },
+                preferences: {
+                  targetRoles: (formData.get('targetRoles') || '').split(',').map((s) => s.trim()).filter(Boolean),
+                  preferredLocations: (formData.get('preferredLocations') || '').split(',').map((s) => s.trim()).filter(Boolean),
+                  remotePreference: formData.get('remotePreference') || null,
+                  relocationPreference: formData.get('relocationPreference') || null,
+                  salaryFloor: formData.get('salaryFloor') ? Number(formData.get('salaryFloor')) : null,
+                  targetSalary: formData.get('targetSalary') ? Number(formData.get('targetSalary')) : null,
+                  salaryCurrency: formData.get('salaryCurrency') || null,
+                  compensationPeriod: formData.get('compensationPeriod') || null,
+                },
+                eligibility: {
+                  workAuthorization: (formData.get('workAuthorization') || '').split(',').map((s) => s.trim()).filter(Boolean),
+                  visaSponsorshipRequired: formData.get('visaSponsorshipRequired'),
+                  noticePeriod: formData.get('noticePeriod') || null,
+                  customNoticePeriod: formData.get('customNoticePeriod') || null,
+                  availabilityDate: formData.get('availabilityDate') || null,
+                  workAuthConfirmedByUser: formData.get('workAuthConfirmedByUser') === 'true',
+                  visaSponsorshipConfirmedByUser: formData.get('visaSponsorshipConfirmedByUser') === 'true',
+                },
+              },
+            };
+
+            try {
+              const res = await fetch('/profile', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+                body: JSON.stringify(payload),
+              });
+
+              if (res.ok) {
+                const resData = await res.json().catch(() => ({}));
+                if (resData && resData.displayName) {
+                  const nameEl = document.getElementById('headerCandidateDisplayName');
+                  if (nameEl) nameEl.textContent = resData.displayName;
+                  const avatarEl = document.getElementById('headerAvatarInitial');
+                  if (avatarEl) avatarEl.textContent = resData.displayName.charAt(0).toUpperCase();
+                }
+                isDirty = false;
+                isSaving = false;
+                updateSaveUI('SUCCESS');
+              } else {
+                throw new Error('Save failed with HTTP ' + res.status);
+              }
+            } catch (err) {
+              isSaving = false;
+              // Failed save preserves dirty state and alerts candidate
+              updateSaveUI('ERROR');
+            }
+          });
+        }
+
+        // Beforeunload confirmation to prevent accidental data loss
+        window.addEventListener('beforeunload', function (e) {
+          if (isDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+          }
+        });
+      })();
+    </script>
+
+
   `;
 
   return renderLayout({

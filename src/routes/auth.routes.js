@@ -217,8 +217,10 @@ export default async function authRoutes(app, opts = {}) {
         maxAge: cookieOpts.maxAge,
       });
 
-      // If a validated returnTo URL was stored in transit state, follow it
-      if (result.returnTo && isValidReturnTo(result.returnTo)) {
+      const isIncomplete = result.isNewUser || (result.onboardingState && result.onboardingState !== 'COMPLETED');
+
+      // If a validated returnTo URL was stored in transit state, follow it (unless it's default /dashboard for an incomplete candidate)
+      if (result.returnTo && isValidReturnTo(result.returnTo) && (!isIncomplete || (result.returnTo !== '/dashboard' && result.returnTo !== '/'))) {
         return reply.redirect(result.returnTo);
       }
 
@@ -248,8 +250,12 @@ export default async function authRoutes(app, opts = {}) {
         });
       }
 
-      if (result.isNewUser || (result.onboardingState && result.onboardingState !== 'COMPLETED')) {
+      if (isIncomplete) {
         return reply.redirect('/onboarding?step=1');
+      }
+
+      if (result.returnTo && isValidReturnTo(result.returnTo)) {
+        return reply.redirect(result.returnTo);
       }
 
       return reply.redirect('/dashboard');
