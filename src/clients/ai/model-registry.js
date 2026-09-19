@@ -10,11 +10,16 @@ import { ModelMetadataSchema } from '../../domain/ai/ai.schemas.js';
 import { AiInvalidRequestError } from '../../errors/ai.errors.js';
 
 /**
+ * Single canonical production default workhorse model identifier (P89).
+ */
+export const CANONICAL_DEFAULT_MODEL_ID = 'gemini-3.8-flash';
+
+/**
  * Canonical 2026 Model Catalog.
  */
 const CANONICAL_MODELS = Object.freeze([
   {
-    modelId: 'gemini-3.8-flash',
+    modelId: CANONICAL_DEFAULT_MODEL_ID,
     displayName: 'Google Gemini 3.8 Flash',
     provider: 'gemini',
     stability: 'STABLE',
@@ -243,8 +248,8 @@ export class ModelRegistry {
         return m;
       }
     }
-    const flash = this.models.get('gemini-3.7-flash');
-    if (flash) return flash;
+    const defaultModel = this.models.get(CANONICAL_DEFAULT_MODEL_ID);
+    if (defaultModel) return defaultModel;
     throw new Error('No valid production default model found in ModelRegistry.');
   }
 

@@ -18,7 +18,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { GeminiProviderAdapter } from '../../src/clients/gemini/gemini-adapter.js';
-import { ModelRegistry } from '../../src/clients/ai/model-registry.js';
+import { ModelRegistry, CANONICAL_DEFAULT_MODEL_ID } from '../../src/clients/ai/model-registry.js';
 import { buildGeminiPromptEnvelope } from '../../src/clients/gemini/gemini-prompt-builder.js';
 import {
   toGeminiResponseSchema,
@@ -51,9 +51,9 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
   // ---------------------------------------------------------------------------
   // 1. Model Registry & Default Selection
   // ---------------------------------------------------------------------------
-  it('1. ModelRegistry defines gemini-3.7-flash as GA production default and rejects deprecated models', () => {
+  it('1. ModelRegistry defines CANONICAL_DEFAULT_MODEL_ID as GA production default and rejects deprecated models', () => {
     const defaultModel = modelRegistry.getDefaultModel();
-    assert.strictEqual(defaultModel.modelId, 'gemini-3.7-flash');
+    assert.strictEqual(defaultModel.modelId, CANONICAL_DEFAULT_MODEL_ID);
     assert.strictEqual(defaultModel.stability, 'STABLE');
     assert.strictEqual(defaultModel.isProductionDefault, true);
 
@@ -170,7 +170,7 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
 
     assert.strictEqual(res.text, 'Synthesized active-voice resume bullet point.');
     assert.strictEqual(res.provider, 'gemini');
-    assert.strictEqual(res.modelId, 'gemini-3.7-flash');
+    assert.strictEqual(res.modelId, CANONICAL_DEFAULT_MODEL_ID);
     assert.strictEqual(res.usage.totalTokens, 180);
     assert.strictEqual(res.finishReason, 'STOP');
     assert.strictEqual(res.safetyResult.status, 'ALLOWED');
@@ -412,7 +412,7 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
       models: {
         generateContent: async ({ model }) => {
           modelUsed.push(model);
-          if (model === 'gemini-3.7-flash') {
+          if (model === CANONICAL_DEFAULT_MODEL_ID) {
             // Primary model fails with 429 rate limit
             const err = new Error('Resource exhausted: 429 quota exceeded');
             err.status = 429;
@@ -439,7 +439,7 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
 
     assert.strictEqual(res.text, 'Output from fallback model.');
     assert.strictEqual(res.modelId, 'gemini-2.5-flash');
-    assert.ok(modelUsed.includes('gemini-3.7-flash'));
+    assert.ok(modelUsed.includes(CANONICAL_DEFAULT_MODEL_ID));
     assert.ok(modelUsed.includes('gemini-2.5-flash'));
   });
 
@@ -476,10 +476,10 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
     });
 
     assert.strictEqual(res.text, 'Recovered from 503 successfully.');
-    assert.strictEqual(res.modelId, 'gemini-3.7-flash');
+    assert.strictEqual(res.modelId, CANONICAL_DEFAULT_MODEL_ID);
     assert.strictEqual(attempt, 2);
     assert.strictEqual(
-      modelUsed.every((m) => m === 'gemini-3.7-flash'),
+      modelUsed.every((m) => m === CANONICAL_DEFAULT_MODEL_ID),
       true
     );
   });
@@ -545,12 +545,12 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
         generateContent: async ({ model }) => {
           modelsCalled.push(model);
           turn++;
-          if (model === 'gemini-3.7-flash') {
+          if (model === CANONICAL_DEFAULT_MODEL_ID) {
             const err = new Error('Resource exhausted: 429 quota exceeded');
             err.status = 429;
             throw err;
           }
-          // Secondary model gemini-3.6-flash succeeds
+          // Secondary model gemini-2.5-flash succeeds
           if (turn <= 4) {
             // First successful turn on secondary model: emit function call
             return {
@@ -597,8 +597,8 @@ describe('GeminiProviderAdapter Unit Tests (P8-001)', () => {
     });
 
     assert.ok(res.finalResponse.text.includes('Alice is a verified architect from fallback model'));
-    assert.strictEqual(res.finalResponse.modelId, 'gemini-3.6-flash');
-    assert.ok(modelsCalled.includes('gemini-3.7-flash'));
-    assert.ok(modelsCalled.includes('gemini-3.6-flash'));
+    assert.strictEqual(res.finalResponse.modelId, 'gemini-2.5-flash');
+    assert.ok(modelsCalled.includes(CANONICAL_DEFAULT_MODEL_ID));
+    assert.ok(modelsCalled.includes('gemini-2.5-flash'));
   });
 });

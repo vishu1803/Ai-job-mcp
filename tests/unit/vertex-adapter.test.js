@@ -10,6 +10,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { GeminiVertexAdapter } from '../../src/clients/vertex/vertex-adapter.js';
+import { CANONICAL_DEFAULT_MODEL_ID } from '../../src/clients/ai/model-registry.js';
 import {
   AiAuthenticationError,
   AiInvalidRequestError,
@@ -70,7 +71,7 @@ describe('Vertex AI Provider Adapter Unit Tests (P8-004)', () => {
     const mockSdk = {
       models: {
         generateContent: async ({ model, contents, config }) => {
-          assert.strictEqual(model, 'gemini-3.7-flash');
+          assert.strictEqual(model, CANONICAL_DEFAULT_MODEL_ID);
           assert.ok(contents);
           assert.ok(config.systemInstruction);
 
@@ -99,7 +100,7 @@ describe('Vertex AI Provider Adapter Unit Tests (P8-004)', () => {
     });
 
     assert.strictEqual(response.provider, 'vertex');
-    assert.strictEqual(response.modelId, 'gemini-3.7-flash');
+    assert.strictEqual(response.modelId, CANONICAL_DEFAULT_MODEL_ID);
     assert.strictEqual(response.text, 'Here is the tailored resume bullet explanation.');
     assert.strictEqual(response.finishReason, 'STOP');
     assert.strictEqual(response.usage.inputTokens, 120);
@@ -416,7 +417,7 @@ describe('Vertex AI Provider Adapter Unit Tests (P8-004)', () => {
       models: {
         generateContent: async ({ model }) => {
           callAttempts++;
-          if (model === 'gemini-3.7-flash') {
+          if (model === CANONICAL_DEFAULT_MODEL_ID) {
             const err = new Error('Resource exhausted / Quota exceeded');
             err.status = 429;
             throw err;
@@ -484,7 +485,7 @@ describe('Vertex AI Provider Adapter Unit Tests (P8-004)', () => {
     });
 
     assert.strictEqual(response.provider, 'vertex');
-    assert.strictEqual(response.modelId, 'gemini-3.6-flash');
+    assert.strictEqual(response.modelId, CANONICAL_DEFAULT_MODEL_ID);
     assert.strictEqual(response.text, 'Succeeded on retry attempt 2');
     assert.strictEqual(callAttempts, 2);
   });

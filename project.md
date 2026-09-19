@@ -3,6 +3,56 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-19*
 
+### P89: Production AI Transport Hardening + Sources/Repository Verification
+**Status:** COMPLETE & VERIFIED  
+**Date:** 2026-09-19  
+**Scope:** Hardening production AI transport to Google Cloud Vertex AI with Application Default Credentials (ADC), preserving the Gemini Developer API transport behind a unified provider interface, enforcing zero silent fallbacks, centralizing model authority, and verifying authentic candidate repository persistence with zero duplicates:
+
+1. **Google Cloud Vertex AI Primary Production Transport:**
+   - Standardized `GeminiVertexAdapter` (`src/clients/vertex/vertex-adapter.js`) using official `@google/genai` SDK and Google Cloud Application Default Credentials (ADC) via `GoogleGenAI({ vertexAI: { project, location } })`.
+   - Updated `createAiProvider` and `getDefaultAiProvider()` (`src/clients/ai/ai-provider-factory.js`) to resolve `AI_PROVIDERS.GEMINI_VERTEX` as the canonical default.
+   - Provider factory correctly prioritizes `process.env.AI_PROVIDER`: `gemini-developer` or `gemini` instantiates `GeminiProviderAdapter`; default or `gemini-vertex` instantiates `GeminiVertexAdapter`.
+
+2. **Preserved Gemini Developer API Transport for Future Use:**
+   - Retained `GeminiProviderAdapter` (`src/clients/gemini/gemini-client.js`) intact, adhering to the exact same `AiProvider` interface contract (`generateText`, `generateStructured`, `validateHealth`, `listModels`).
+   - Domain services (`AiResumeContentGeneratorService`, `AiCareerAssistantService`, `ExtensionAssistantService`, `AtsFitScoreService`) remain 100% provider-agnostic, interacting purely with the `AiProvider` abstraction.
+
+3. **Zero Silent Fallback Invariant:**
+   - Vertex AI transport failures fail closed with controlled, user-safe operational errors (`AiRateLimitedError`, `AiAuthenticationError`, `AiTimeoutError`, `AiProviderError`).
+   - Vertex AI failures NEVER silently fallback to the Gemini Developer API or leak API keys. Model fallback occurs strictly within Vertex AI models (e.g. `gemini-3.8-flash` -> `gemini-2.5-flash`), with all errors normalized and audited.
+
+4. **Centralized Model Authority (`CANONICAL_DEFAULT_MODEL_ID`):**
+   - Exported `export const CANONICAL_DEFAULT_MODEL_ID = 'gemini-3.8-flash';` from `src/clients/ai/model-registry.js`.
+   - Bound `CANONICAL_MODELS.DEFAULT` and `getDefaultModel()` to this centralized constant, eliminating scattered hardcoded model strings across production adapters and tests.
+
+5. **Sources & Connected Repositories Verification (10 -> 9 -> 10 Zero Duplicates):**
+   - Candidate Vishwanath Nishad (`10a2b51b-09bf-4090-8040-1f60ebeb89c9`) has all 10 authentic GitHub repositories (`Ai-job-mcp`, `careermate`, `carrer-agent`, `e-commerce-microservices`, `job-agent`, `job-board-platform`, `job-finder`, `microservice-project-app`, `netflix-clone`, `whatsapp-agent`) persisted in PostgreSQL with status `ACTIVE`.
+   - Verified that `GET /sources` returns all 10 repositories and survives full page/session reloads.
+   - Verified $10 \rightarrow 9 \rightarrow 10$ lifecycle: de-selecting a repository marks it `ARCHIVED`; re-selecting it restores it to `ACTIVE`.
+   - Zero duplicate records: enforced by PostgreSQL composite unique index `resources_tenant_provider_external_id_unique` on `(tenant_id, provider, external_resource_id)`.
+   - Production code remains 100% repository-agnostic; zero hardcoding of repository names or IDs.
+
+6. **Dashboard AI Copilot Drawer & Navigation Integrity:**
+   - AI Copilot is strictly an off-canvas drawer inside `/dashboard` (`#copilotDrawer`), collapsed by default on initial render with smooth slide-over interaction upon clicking `[✦ Copilot]`.
+   - Confirmed zero duplicate navigation links and zero standalone `/assistant` page in primary navigation. Removed dead route import in `src/routes/web.routes.js`.
+
+7. **Static Production Boundary & Secrets Verification:**
+   - Static analysis confirms zero direct SDK imports (`@google/genai`), zero `new GoogleGenAI`, and zero raw Google API URLs in any domain service in `src/services/`.
+   - `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**.
+
+**Verification Evidence & Test Results:**
+- `tests/unit/p89-ai-provider-architecture.test.js`: **15/15 PASS (100%)**
+- `tests/unit/p89-static-production-boundary.test.js`: **6/6 PASS (100%)**
+- `tests/unit/vertex-adapter.test.js`: **17/17 PASS (100%)**
+- `tests/unit/gemini-client.test.js`: **16/16 PASS (100%)**
+- `tests/integration/p89-sources-repositories-verification.test.js`: **6/6 PASS (100%)**
+- **Total P89 Test Battery:** **60/60 PASS (0 failures)**
+- **Regression Suite:** `tests/integration/p88-job-radar-sources-hardening.test.js` **10/10 PASS**
+- **Secrets Audit:** **PASS** (`npm run scan:secrets` — 0 exposed secrets or private tokens)
+- **Browser Automation Verification:** Verified `/dashboard` (Copilot drawer off-canvas default, opens smoothly to contextual prompt chips) and `/sources` (10 connected repositories, clean GitHub connector layout).
+
+---
+
 ### P88: Production Verification and Fix (Profile + Sources + Dashboard AI Assistant + Job Radar)
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-19  

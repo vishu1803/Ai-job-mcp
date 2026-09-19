@@ -73,7 +73,6 @@ import { renderSecurityPage } from '../views/security.page.js';
 import { renderDataDeletionPage } from '../views/data-deletion.page.js';
 import { renderAccessibilityPage } from '../views/accessibility.page.js';
 import { renderSubprocessorsPage } from '../views/subprocessors.page.js';
-import { renderAssistantPage } from '../views/assistant.page.js';
 import { renderJobFitRadarAppHtml } from '../mcp/apps/job-fit-radar.app.js';
 import { renderRadarPage, renderRadarFormPage, renderRadarResultPage } from '../views/radar.page.js';
 import { JobDiscoveryService } from '../services/job-discovery.service.js';

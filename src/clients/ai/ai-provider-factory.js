@@ -30,7 +30,7 @@ export function createAiProvider(options = {}) {
   const selected = (
     options.provider ||
     process.env.AI_PROVIDER ||
-    AI_PROVIDERS.GEMINI_DEVELOPER
+    AI_PROVIDERS.GEMINI_VERTEX
   ).toLowerCase();
 
   if (
@@ -58,19 +58,22 @@ export function createAiProvider(options = {}) {
 
 /**
  * Resolves the default configured singleton AI provider.
+ * Defaults to Google Cloud Vertex AI (ARCH-028 / P89).
+ * Preserves Developer API provider when explicitly configured via AI_PROVIDER.
  *
  * @returns {import('./ai-provider.interface.js').AiProvider} Default AiProvider instance
  */
 export function getDefaultAiProvider() {
-  const selected = (process.env.AI_PROVIDER || AI_PROVIDERS.GEMINI_DEVELOPER).toLowerCase();
+  const selected = (process.env.AI_PROVIDER || AI_PROVIDERS.GEMINI_VERTEX).toLowerCase();
   if (
-    selected === AI_PROVIDERS.GEMINI_VERTEX ||
-    selected === 'vertex' ||
-    selected === 'gemini-vertex'
+    selected === AI_PROVIDERS.GEMINI_DEVELOPER ||
+    selected === 'gemini' ||
+    selected === 'gemini-developer' ||
+    selected === 'developer'
   ) {
-    return defaultVertexAdapter;
+    return defaultGeminiAdapter;
   }
-  return defaultGeminiAdapter;
+  return defaultVertexAdapter;
 }
 
 export default createAiProvider;
