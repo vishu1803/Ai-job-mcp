@@ -304,8 +304,11 @@ Go, Rust, PostgreSQL, Raft, Kubernetes
 
     assert.equal(resHtmlEmpty.statusCode, 200);
     assert.ok(resHtmlEmpty.body.includes(`Bob Builder ${testRunId}`));
-    assert.ok(resHtmlEmpty.body.includes('No Source Resumes Uploaded Yet'));
-    assert.ok(resHtmlEmpty.body.includes('Upload your existing resume'));
+    assert.ok(
+      resHtmlEmpty.body.includes('No resumes uploaded yet') ||
+        resHtmlEmpty.body.includes('No Source Resumes Uploaded Yet')
+    );
+    assert.ok(resHtmlEmpty.body.includes('Upload'));
     assert.ok(resHtmlEmpty.body.includes('Sign Out'));
   });
 

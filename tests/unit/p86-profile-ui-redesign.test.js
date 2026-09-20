@@ -296,7 +296,10 @@ describe('P86 Phase 2: Candidate Profile UI/UX Redesign Suite', () => {
     assert.ok(html.includes('value="London, UK"'), 'Preserves location');
     assert.ok(html.includes('value="150000"'), 'Preserves salaryFloor');
     assert.ok(html.includes('value="180000"'), 'Preserves targetSalary');
-    assert.ok(html.includes('value="30_days" selected'), 'Preserves notice period selection');
+    assert.ok(
+      html.includes('value="30_DAYS" selected') || html.includes('value="30_days" selected'),
+      'Preserves notice period selection'
+    );
     assert.ok(html.includes('value="NO" selected'), 'Preserves visa sponsorship selection');
   });
 

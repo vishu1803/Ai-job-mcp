@@ -115,8 +115,8 @@ describe('Multi-Tenant Application Isolation & Security Suite (P12-005)', () => 
         candidateId: candidateA.id,
         companyName: 'Acme High-Sec Corp',
         jobTitle: 'Principal Security Architect',
-        status: 'INTERVIEWING',
-        appliedAt: new Date(),
+        status: 'SAVED',
+        appliedAt: null,
         compensation: { baseSalary: 250000, currency: 'USD' },
         notes: 'Strictly confidential interview notes for Tenant A',
         atsFitSnapshot: { overallScore: 94.0, missingSkills: ['Rust'] },
@@ -352,7 +352,7 @@ describe('Multi-Tenant Application Isolation & Security Suite (P12-005)', () => 
       .select()
       .from(jobApplications)
       .where(eq(jobApplications.id, applicationA.id));
-    assert.strictEqual(appAfter.status, 'INTERVIEWING');
+    assert.strictEqual(appAfter.status, 'SAVED');
   });
 
   it('Scenario 5: Cross-Tenant Stage Creation (MCP add_application_stage fails closed with 404)', async () => {

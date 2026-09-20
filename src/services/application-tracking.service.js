@@ -101,15 +101,8 @@ export class ApplicationTrackingService {
     });
 
     return await this.db.transaction(async (tx) => {
-      // 1. Verify candidate exists within authenticated tenant
-      const [candidate] = await tx
-        .select({ id: candidates.id })
-        .from(candidates)
-        .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
-
-      if (!candidate) {
-        throw new NotFoundError(`Candidate not found: ${candidateId}`);
-      }
+      // 1. Verify candidate exists within authenticated tenant and caller has access
+      await this._assertCandidateOwnership(context, candidateId, tx);
 
       // 2. Active Application Duplicate Check & Reuse
       const canonicalJobId =
@@ -308,6 +301,8 @@ export class ApplicationTrackingService {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
 
+      await this._assertApplicationAccess(context, existing, tx);
+
       // 2. Validate Transition via State Machine
       assertValidStatusTransition(existing.status, newStatus);
 
@@ -392,7 +387,7 @@ export class ApplicationTrackingService {
     return await this.db.transaction(async (tx) => {
       // 1. Verify parent application exists and belongs to tenant
       const [application] = await tx
-        .select({ id: jobApplications.id })
+        .select()
         .from(jobApplications)
         .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
         .for('update');
@@ -400,6 +395,8 @@ export class ApplicationTrackingService {
       if (!application) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      await this._assertApplicationAccess(context, application, tx);
 
       // 2. Deterministic Monotonic Order Index Calculation
       const [maxOrder] = await tx
@@ -495,6 +492,8 @@ export class ApplicationTrackingService {
         throw new NotFoundError(`Application stage not found: ${stageId}`);
       }
 
+      await this._assertApplicationAccess(context, stage.applicationId, tx);
+
       const now = new Date();
       let completedAt = stage.completedAt;
       let scheduledAt = stage.scheduledAt;
@@ -574,6 +573,8 @@ export class ApplicationTrackingService {
       if (!application) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      await this._assertApplicationAccess(context, application, tx);
 
       if (application.candidateId !== validated.candidateId) {
         throw new ValidationError('Document candidateId does not match application candidateId', {
@@ -690,14 +691,8 @@ export class ApplicationTrackingService {
       throw new ValidationError('target.company and target.title are required');
     }
 
-    // 1. Candidate must exist within the tenant
-    const [candidate] = await this.db
-      .select({ id: candidates.id })
-      .from(candidates)
-      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
-    if (!candidate) {
-      throw new NotFoundError(`Candidate not found: ${candidateId}`);
-    }
+    // 1. Candidate must exist within the tenant and caller must have access
+    await this._assertCandidateOwnership(context, candidateId);
 
     // 2. Priority 0: Explicit applicationId lookup
     if (explicitApplicationId) {
@@ -899,6 +894,8 @@ export class ApplicationTrackingService {
       if (!application) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      await this._assertApplicationAccess(context, application, tx);
 
       // 1b. SAFE PRESERVE INVARIANT: If application was submitted, do not overwrite with a different package
       const isSubmitted =
@@ -1103,6 +1100,8 @@ export class ApplicationTrackingService {
       throw new NotFoundError(`Job application not found: ${applicationId}`);
     }
 
+    await this._assertApplicationAccess(context, application);
+
     let packageRow;
     if (packageVersion !== undefined && packageVersion !== null) {
       const versionNum = Number(packageVersion);
@@ -1292,6 +1291,7 @@ export class ApplicationTrackingService {
     if (!applicationId) {
       throw new ValidationError('applicationId is required');
     }
+    await this._assertApplicationAccess(context, applicationId);
     const tenantId = context.tenantId;
     const candidateId = context.candidateId || null;
 
@@ -1330,14 +1330,7 @@ export class ApplicationTrackingService {
     }
     const tenantId = context.tenantId;
 
-    const [application] = await this.db
-      .select({ id: jobApplications.id })
-      .from(jobApplications)
-      .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)));
-
-    if (!application) {
-      throw new NotFoundError(`Job application not found: ${applicationId}`);
-    }
+    await this._assertApplicationAccess(context, applicationId);
 
     const packages = await this.db
       .select()
@@ -1395,6 +1388,7 @@ export class ApplicationTrackingService {
     if (versionOrHash === undefined || versionOrHash === null || versionOrHash === '') {
       throw new ValidationError('version or packageHash is required');
     }
+    await this._assertApplicationAccess(context, applicationId);
     const tenantId = context.tenantId;
     const candidateId = context.candidateId || null;
 
@@ -1480,6 +1474,8 @@ export class ApplicationTrackingService {
       if (!application) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      await this._assertApplicationAccess(context, application, tx);
 
       const [targetPackage] = await tx
         .select()
@@ -1578,6 +1574,8 @@ export class ApplicationTrackingService {
     const tenantId = context.tenantId;
 
     return await this.db.transaction(async (tx) => {
+      await this._assertApplicationAccess(context, applicationId, tx);
+
       const [targetPackage] = await tx
         .select()
         .from(applicationPackages)
@@ -1648,6 +1646,8 @@ export class ApplicationTrackingService {
       if (!application) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      await this._assertApplicationAccess(context, application, tx);
 
       // SAFE DELETE RULE 1: Never delete packages for submitted or progressed applications
       if (
@@ -1825,6 +1825,8 @@ export class ApplicationTrackingService {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
 
+      await this._assertApplicationAccess(context, application, tx);
+
       const [currentPackage] = await tx
         .select({ packageHash: applicationPackages.packageHash })
         .from(applicationPackages)
@@ -1905,6 +1907,8 @@ export class ApplicationTrackingService {
       throw new NotFoundError(`Job application not found: ${applicationId}`);
     }
 
+    await this._assertApplicationAccess(context, application);
+
     // 2. Fetch Chronological Stages
     const stages = await this.db
       .select()
@@ -1977,15 +1981,8 @@ export class ApplicationTrackingService {
 
     const tenantId = context.tenantId;
 
-    // 1. Verify candidate belongs to tenant
-    const [candidate] = await this.db
-      .select({ id: candidates.id })
-      .from(candidates)
-      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
-
-    if (!candidate) {
-      throw new NotFoundError(`Candidate not found: ${candidateId}`);
-    }
+    // 1. Verify candidate belongs to tenant and caller has access
+    await this._assertCandidateOwnership(context, candidateId);
 
     // 2. Construct Filter Conditions
     const conditions = [
@@ -2074,6 +2071,7 @@ export class ApplicationTrackingService {
     if (!application) {
       throw new NotFoundError(`Job application not found: ${applicationId}`);
     }
+    await this._assertApplicationAccess(context, application);
     return application;
   }
 
@@ -2103,6 +2101,8 @@ export class ApplicationTrackingService {
       if (!existing) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      await this._assertApplicationAccess(context, existing, tx);
 
       const updates = {};
       if (patch.notes !== undefined) updates.notes = patch.notes;
@@ -2191,12 +2191,8 @@ export class ApplicationTrackingService {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
 
-      // 2. Strict Candidate Authorization
-      if (context.candidateId && application.candidateId !== context.candidateId) {
-        throw new AuthorizationError(
-          `Candidate not authorized to delete application: ${applicationId}`
-        );
-      }
+      // 2. Strict Candidate Authorization & Ownership
+      await this._assertApplicationAccess(context, application, tx);
 
       // 3. SAFE DELETE INVARIANT: Block deletion if application was submitted
       if (
@@ -2421,13 +2417,7 @@ export class ApplicationTrackingService {
     }
     const tenantId = context.tenantId;
 
-    const [candidate] = await this.db
-      .select({ id: candidates.id })
-      .from(candidates)
-      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
-    if (!candidate) {
-      throw new NotFoundError(`Candidate not found: ${candidateId}`);
-    }
+    await this._assertCandidateOwnership(context, candidateId);
 
     const rows = await this.db
       .select()
@@ -2520,6 +2510,8 @@ export class ApplicationTrackingService {
       if (!application) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      await this._assertApplicationAccess(context, application, tx);
       const kit = application.metadata?.handoffKit;
       if (!kit || !kit.packageHash) {
         throw new NotFoundError(`No handoff kit found on application: ${applicationId}`);
@@ -2593,6 +2585,8 @@ export class ApplicationTrackingService {
       if (!application) {
         throw new NotFoundError(`Job application not found: ${applicationId}`);
       }
+
+      await this._assertApplicationAccess(context, application, tx);
       const kit = application.metadata?.handoffKit;
       if (!kit || !kit.packageHash) {
         throw new NotFoundError(`No handoff kit found on application: ${applicationId}`);
@@ -2704,5 +2698,99 @@ export class ApplicationTrackingService {
     if (requireWrite && context.role === 'READONLY') {
       throw new AuthorizationError('READONLY role is not authorized to perform write operations');
     }
+  }
+
+  /**
+   * Asserts candidate belongs to authenticated tenant and caller has access.
+   *
+   * @private
+   * @param {object} context Authenticated context { tenantId, userId, role }
+   * @param {string} candidateId Candidate UUID
+   * @param {object} [tx=null] Optional transaction handle
+   * @returns {Promise<object>} Candidate record
+   */
+  async _assertCandidateOwnership(context, candidateId, tx = null) {
+    const database = tx || this.db;
+    const tenantId = context.tenantId;
+    const [candidate] = await database
+      .select({ id: candidates.id, userId: candidates.userId, tenantId: candidates.tenantId })
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
+
+    if (!candidate) {
+      throw new NotFoundError(`Candidate not found: ${candidateId}`);
+    }
+
+    if (
+      context.userId &&
+      candidate.userId &&
+      candidate.userId !== context.userId &&
+      context.role !== 'OWNER'
+    ) {
+      throw new AuthorizationError(
+        'Forbidden: You do not have permission to access this candidate profile',
+        'FORBIDDEN'
+      );
+    }
+
+    return candidate;
+  }
+
+  /**
+   * Asserts application belongs to authenticated tenant and caller has candidate/user access.
+   *
+   * @private
+   * @param {object} context Authenticated context { tenantId, userId, candidateId, role }
+   * @param {object|string} applicationOrId Job application object or UUID
+   * @param {object} [tx=null] Optional transaction handle
+   * @returns {Promise<object>} Application record
+   */
+  async _assertApplicationAccess(context, applicationOrId, tx = null) {
+    const database = tx || this.db;
+    let application = applicationOrId;
+
+    if (typeof applicationOrId === 'string') {
+      const [found] = await database
+        .select()
+        .from(jobApplications)
+        .where(
+          and(
+            eq(jobApplications.id, applicationOrId),
+            eq(jobApplications.tenantId, context.tenantId)
+          )
+        );
+
+      if (!found) {
+        throw new NotFoundError(`Job application not found: ${applicationOrId}`);
+      }
+      application = found;
+    }
+
+    // 1. Explicit candidateId check
+    if (context.candidateId && application.candidateId !== context.candidateId) {
+      throw new AuthorizationError(
+        `Candidate not authorized to access application: ${application.id}`,
+        'FORBIDDEN'
+      );
+    }
+
+    // 2. User-to-candidate ownership check for non-owners when candidateId was not provided on context
+    if (!context.candidateId && context.userId && context.role !== 'OWNER') {
+      const [cand] = await database
+        .select({ id: candidates.id, userId: candidates.userId })
+        .from(candidates)
+        .where(
+          and(eq(candidates.id, application.candidateId), eq(candidates.tenantId, context.tenantId))
+        );
+
+      if (!cand || (cand.userId && cand.userId !== context.userId)) {
+        throw new AuthorizationError(
+          `User not authorized to access application: ${application.id}`,
+          'FORBIDDEN'
+        );
+      }
+    }
+
+    return application;
   }
 }

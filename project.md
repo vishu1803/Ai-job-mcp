@@ -3,6 +3,59 @@
 **Source of Truth & Living Progress Tracker**  
 *Last Updated: 2026-09-20*
 
+### Phase 2: Object-Level Authorization & IDOR Defense (Tenant & Candidate Boundary Hardening)
+**Status:** COMPLETE & VERIFIED
+**Date:** 2026-09-20
+**Scope:** Hardened the multi-tenant and multi-candidate boundary with end-to-end Insecure Direct Object Reference (IDOR) defense and object-level authorization across domain services and web routes before expensive operations, storage access, AI/LLM tailoring, PDF compilation, or database mutations:
+
+1. **Source Resume Ingestion & Vault Isolation (`src/services/source-resume-ingestion.service.js`):**
+   - Implemented `_assertCandidateOwnership(candidateId, tenantId, userId, role)` helper enforcing that candidate profile rows match the authenticated `userId` (unless `role === 'OWNER'`).
+   - Attached pre-execution ownership enforcement across `getResumeById`, `getResumeByCandidateId`, `downloadResumeFile`, `approveParsedResumeClaims`, and `deleteResumeById`.
+   - Guaranteed that cross-candidate unauthorized access is blocked *before* invoking `DocumentStorageService` storage reads or storage deletions.
+
+2. **Application Tracking & Safe Deletion Boundary (`src/services/application-tracking.service.js`):**
+   - Enforced `_assertApplicationAccess(context, applicationId)` and `_assertCandidateOwnership(candidateId, context)` across all 23 application, stage, package, and handoff kit methods.
+   - Enforced pre-mutation and pre-query tenant/candidate isolation across `listApplications`, `getApplicationDetails`, `updateApplication`, `updateApplicationStatus`, `safeDeleteApplication`, `listApplicationStages`, `recordApplicationStage`, `listApplicationPackages`, `getApplicationPackage`, `recordApplicationPackage`, `restorePackageVersion`, `archivePackageVersion`, `deletePackageVersion`, `listApplicationHandoffKits`, `recordApplicationHandoffKit`, `archiveApplicationHandoffKit`, and `deleteApplicationHandoffKit`.
+   - Guaranteed cross-tenant queries fail-closed with 404 (preventing resource enumeration) and cross-candidate attacks within the same tenant fail-closed with 403 Forbidden. Preserved legitimate `OWNER` administrative supervision.
+
+3. **Application Workflow & Pre-Execution Safety (`src/services/job-application-workflow.service.js`):**
+   - Implemented early object ownership and candidate alignment checks in `prepareJobApplication`, `regenerateApplicationPackage`, and `requestApplicationApproval`.
+   - Guaranteed that cross-candidate attacks fail-closed with 403 Forbidden *before* invoking project ranking, ATS fit calculations, AI/LLM resume tailoring (`generateApplicationDocuments`), or LaTeX/PDF compilation (`buildApplicationHandoffKit`).
+   - Prevented application ID hijacking by asserting `appRow.candidateId === candidateId`.
+
+4. **Candidate Profile & Skills/Evidence Access Control (`src/services/candidate-profile.service.js`):**
+   - Implemented `_assertCanReadCandidate(context, candidate)` ensuring non-owners can only read profiles, career preferences, career profiles, and skills/evidence belonging to their authenticated `userId`.
+   - Scoped `listCandidates` to filter by `userId` for member users, preventing intra-tenant candidate enumeration while allowing `OWNER` users to supervise all tenant candidates.
+
+5. **Web Route Boundary IDOR Hardening (`src/routes/web.routes.js`):**
+   - Hardened `POST /applications/:id/status`, `POST /applications/:id/delete`, `POST /applications/:id/regenerate`, package version lifecycle routes (`POST /applications/:id/packages/:version/restore`, `POST /applications/:id/packages/:version/archive`, `POST /applications/:id/packages/:version/delete`), and artifact download/view endpoints (`GET /api/applications/:id/artifacts/resume/download`, `GET /api/applications/:id/artifacts/resume/view`).
+   - Bound HTTP requests to the authenticated session context (`tenantId`, `userId`, `role`), returning 404 for cross-tenant/cross-candidate unauthorized attempts (preventing existence leakage) while redirecting (302) or returning 200 for legitimate candidate actions.
+
+6. **Attack-Oriented Integration Test Suite (`tests/integration/security-authorization.test.js`):**
+   - Developed a comprehensive 39-test attack battery across 8 subsuites verifying:
+     - Cross-tenant attacks fail-closed with 404 (zero existence leakage).
+     - Cross-candidate attacks fail-closed with 403 or 404.
+     - Storage reads/deletions, PDF compilation, AI/LLM calls, and DB mutations are never reached on unauthorized requests.
+     - Legitimate candidate access and OWNER admin privileges function cleanly.
+     - Invalid/missing context fails closed.
+
+**Verification Evidence & Test Results:**
+- `tests/integration/security-authorization.test.js`: **39/39 PASS (100%)**
+- `tests/integration/candidate-tenant-isolation.test.js`: **24/24 PASS (100%)**
+- `tests/integration/multi-tenant-application-isolation.test.js`: **14/14 PASS (100%)**
+- `tests/integration/source-resume-ingestion.test.js`: **10/10 PASS (100%)**
+- `tests/integration/web-application-routes.test.js`: **20/20 PASS (100%)**
+- `tests/integration/security-web-mutation-boundary.test.js`: **14/14 PASS (100%)**
+- `tests/unit/safe-application-delete.test.js`: **11/11 PASS (100%)**
+- `tests/unit/candidate-career-profile.test.js`: **41/41 PASS (100%)**
+- `tests/unit/p90-profile-enum-copilot-scroll.test.js`: **18/18 PASS (100%)**
+- `tests/unit/p86-profile-ui-redesign.test.js`: **10/10 PASS (100%)**
+- Total Targeted Verification Battery: **201/201 PASS (100%)**
+- ESLint: `npx eslint tests/integration/security-authorization.test.js`: **PASS (0 errors, 0 warnings)**
+- Secrets Scanner: `npm run scan:secrets`: **PASS (Zero exposed secrets or private tokens detected)**
+- Formatting: `npm run format:check`: **PASS (All matched files use Prettier code style)**
+- Whitespace Check: `git diff --check`: **PASS (0 errors)**
+
 ### Phase 1: Web Security Mutation Boundary (CSRF & State-Changing Protections)
 **Status:** COMPLETE & VERIFIED  
 **Date:** 2026-09-20  

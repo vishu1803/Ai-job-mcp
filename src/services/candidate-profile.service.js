@@ -37,13 +37,7 @@ import {
   UpdateCareerPreferencesInputSchema,
   CandidateCareerProfileSchema,
   normalizeNoticePeriod,
-  normalizeRemotePreference,
-  normalizeRelocationPreference,
-  normalizeCompensationPeriod,
-  normalizeCompensationType,
-  normalizeEmploymentTypes,
   normalizeVisaSponsorship,
-  normalizeCareerStatus,
   normalizeSeniorityLevel,
   canonicalizeCareerPreferencesInput,
 } from '../domain/candidate/career-preferences.schemas.js';
@@ -173,6 +167,8 @@ export class CandidateProfileService {
     if (!candidate) {
       throw new NotFoundError(`Candidate not found: ${candidateId}`);
     }
+
+    await this._assertCanReadCandidate(context, candidate);
 
     const userEmail = await this._fetchUserEmail(tenantId, candidate.userId);
     const resolvedCanonicalEmail = resolveCandidateEmail(candidate, userEmail, {
@@ -333,7 +329,7 @@ export class CandidateProfileService {
         }
       }
 
-      let bullets =
+      const bullets =
         Array.isArray(proj.bullets) && proj.bullets.length > 0
           ? [...proj.bullets]
           : Array.isArray(proj.metadata?.bullets)
@@ -525,7 +521,7 @@ export class CandidateProfileService {
         ) {
           const lines = text
             .split('\n')
-            .map((l) => l.replace(/^[●•\-\*]\s*/, '').trim())
+            .map((l) => l.replace(/^[●•\-*]\s*/, '').trim())
             .filter(
               (l) =>
                 l.length > 10 && !/^\s*(?:problem\s*solving|algorithmic\s*practice)\s*$/i.test(l)
@@ -598,10 +594,16 @@ export class CandidateProfileService {
     const pageSize = Math.min(100, Math.max(1, parseInt(options.pageSize, 10) || 20));
     const offset = (page - 1) * pageSize;
 
+    const role = context.role || (await this._resolveUserRole(context));
+    const conditions = [eq(candidates.tenantId, tenantId)];
+    if (role !== 'OWNER' && context.userId) {
+      conditions.push(eq(candidates.userId, context.userId));
+    }
+
     const rows = await this._db
       .select()
       .from(candidates)
-      .where(eq(candidates.tenantId, tenantId))
+      .where(and(...conditions))
       .orderBy(desc(candidates.createdAt))
       .limit(pageSize)
       .offset(offset);
@@ -609,7 +611,7 @@ export class CandidateProfileService {
     const [totalRow] = await this._db
       .select({ count: sql`count(*)` })
       .from(candidates)
-      .where(eq(candidates.tenantId, tenantId));
+      .where(and(...conditions));
 
     const totalItems = parseInt(totalRow?.count || '0', 10);
     const totalPages = Math.ceil(totalItems / pageSize);
@@ -1127,6 +1129,26 @@ export class CandidateProfileService {
   }
 
   /**
+   * Role-Based Access Control Guard for reading candidate profiles.
+   *
+   * @param {object} context
+   * @param {object} candidate
+   * @private
+   */
+  async _assertCanReadCandidate(context, candidate) {
+    const role = context.role || (await this._resolveUserRole(context));
+    if (role === 'OWNER') {
+      return; // OWNER can read any candidate in their tenant
+    }
+    if (context.userId && candidate.userId && candidate.userId !== context.userId) {
+      throw new AuthorizationError(
+        'Forbidden: You do not have permission to view this candidate profile',
+        'FORBIDDEN'
+      );
+    }
+  }
+
+  /**
    * Role-Based Access Control Guard for mutating candidate profiles.
    *
    * @param {object} context
@@ -1180,11 +1202,17 @@ export class CandidateProfileService {
     if (!candidateId) throw new ValidationError('candidateId is required');
 
     const [candidate] = await this._db
-      .select({ profileMetadata: candidates.profileMetadata })
+      .select({
+        id: candidates.id,
+        userId: candidates.userId,
+        profileMetadata: candidates.profileMetadata,
+      })
       .from(candidates)
       .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, context.tenantId)));
 
     if (!candidate) throw new NotFoundError(`Candidate not found: ${candidateId}`);
+
+    await this._assertCanReadCandidate(context, candidate);
 
     const rawPreferences = candidate.profileMetadata?.careerPreferences || {};
     return CareerPreferencesSchema.parse(rawPreferences);
@@ -1615,6 +1643,7 @@ export class CandidateProfileService {
         ? options.profileView
         : await this.getProfile(context, candidateId);
     const candidate = profileView.candidate;
+    await this._assertCanReadCandidate(context, candidate);
 
     // 1. Resolve Resume Data (from profileMetadata or dynamic fallback from latest parsed resume)
     let resumeData = candidate.profileMetadata?.resumeData || null;
@@ -2540,6 +2569,17 @@ export class CandidateProfileService {
 
     const tenantId = context.tenantId;
     const limit = Math.min(Math.max(1, Number(options.limit) || 100), 100);
+
+    const [candidate] = await this._db
+      .select({ id: candidates.id, userId: candidates.userId })
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)));
+
+    if (!candidate) {
+      throw new NotFoundError(`Candidate not found: ${candidateId}`);
+    }
+
+    await this._assertCanReadCandidate(context, candidate);
 
     const conditions = [
       eq(candidateSkills.tenantId, tenantId),

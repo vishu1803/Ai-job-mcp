@@ -97,7 +97,6 @@ import { ApplicationReadinessService } from '../services/application-readiness.s
 import { JobApplicationFlowService } from '../services/job-application-flow.service.js';
 import { AiCareerAssistantService } from '../services/ai-career-assistant.service.js';
 import {
-  CopilotPageContextSchema,
   normalizeCopilotPageContext,
 } from '../domain/ai/career-assistant.schemas.js';
 import {
@@ -108,7 +107,6 @@ import {
   normalizeCompensationType,
   normalizeEmploymentTypes,
   normalizeVisaSponsorship,
-  normalizeCareerStatus,
 } from '../domain/candidate/career-preferences.schemas.js';
 import { NotFoundError } from '../errors/index.js';
 
@@ -348,7 +346,7 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     // Derive recommended matching jobs based on candidate target roles, skills, and tracked applications
-    const targetRoles =
+    const _targetRoles =
       candidateProfile?.targetRoles || candidate?.profileMetadata?.targetRoles || [];
     const topSkills = candidateSkillList.slice(0, 5).map((s) => s.name);
 
@@ -896,7 +894,7 @@ export default async function webRoutes(app, opts = {}) {
             isPrivate: Boolean(repo.isPrivate),
             status: 'ACTIVE',
           });
-        } catch (_insertErr) {
+        } catch {
           await database
             .update(resources)
             .set({
@@ -2658,14 +2656,6 @@ export default async function webRoutes(app, opts = {}) {
       return val !== undefined ? val : fallback;
     };
 
-    const parseVisaSponsorship = (val) => {
-      if (val === 'true' || val === true || val === 'YES') return 'YES';
-      if (val === 'false' || val === false || val === 'NO') return 'NO';
-      if (val === 'UNKNOWN') return 'UNKNOWN';
-      if (val === 'NOT_SET') return 'NOT_SET';
-      return null;
-    };
-
     // Parse user profile updates with support for flat body or nested sections
     const sections = body.sections || {};
     const identitySec = sections.identity || {};
@@ -3611,23 +3601,32 @@ export default async function webRoutes(app, opts = {}) {
     const appId = req.params.id;
     const newStatus = req.body?.status;
 
-    if (newStatus) {
-      await database
-        .update(jobApplications)
-        .set({
-          status: newStatus,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(jobApplications.id, appId),
-            eq(jobApplications.tenantId, tenant.id),
-            eq(jobApplications.candidateId, candidate.id)
-          )
-        );
+    const [existing] = await database
+      .select({ id: jobApplications.id, candidateId: jobApplications.candidateId })
+      .from(jobApplications)
+      .where(and(eq(jobApplications.id, appId), eq(jobApplications.tenantId, tenant.id)));
+
+    if (!existing || existing.candidateId !== candidate.id) {
+      return reply.code(404).send('Application not found');
     }
 
-    return reply.redirect('/applications?success=Application+status+updated');
+    if (!newStatus) {
+      return reply.redirect('/applications?error=Status+is+required');
+    }
+
+    const context = {
+      tenantId: tenant.id,
+      userId: user.id,
+      candidateId: candidate.id,
+      role: user.role || 'MEMBER',
+    };
+
+    try {
+      await applicationTrackingService.updateApplicationStatus(context, appId, newStatus);
+      return reply.redirect('/applications?success=Application+status+updated');
+    } catch (err) {
+      return reply.redirect(`/applications?error=${encodeURIComponent(err.message)}`);
+    }
   });
 
   // -------------------------------------------------------------------------
@@ -3648,7 +3647,7 @@ export default async function webRoutes(app, opts = {}) {
         tenantId: tenant.id,
         userId: user.id,
         candidateId: candidate.id,
-        role: 'MEMBER',
+        role: user.role || 'MEMBER',
       };
       await applicationTrackingService.safeDeleteApplication(context, appId);
 
@@ -3656,6 +3655,12 @@ export default async function webRoutes(app, opts = {}) {
         `/applications?success=${encodeURIComponent('Application safely deleted')}`
       );
     } catch (err) {
+      if (err.name === 'NotFoundError') {
+        return reply.code(404).send('Application not found');
+      }
+      if (err.name === 'AuthorizationError') {
+        return reply.code(403).send('Forbidden: You do not have access to this application');
+      }
       req.log.error({ err: err.message, appId }, 'Application delete failed');
       return reply.redirect(
         `/applications?error=${encodeURIComponent('Delete failed: ' + err.message)}`
@@ -3691,7 +3696,12 @@ export default async function webRoutes(app, opts = {}) {
       return reply.code(404).send('Application not found or unauthorized');
     }
 
-    const context = { tenantId: tenant.id, userId: user.id, role: 'MEMBER' };
+    const context = {
+      tenantId: tenant.id,
+      userId: user.id,
+      candidateId: candidate.id,
+      role: user.role || 'MEMBER',
+    };
 
     // Fetch complete package version history
     let packageHistory = [];
@@ -4009,12 +4019,19 @@ export default async function webRoutes(app, opts = {}) {
         applicationId: appId,
         scope,
         reason,
+        role: user.role || 'MEMBER',
       });
 
       return reply.redirect(
         `/applications/${appId}/handoff?success=Package+regenerated+successfully`
       );
     } catch (err) {
+      if (err.name === 'NotFoundError') {
+        return reply.code(404).send('Application not found');
+      }
+      if (err.name === 'AuthorizationError') {
+        return reply.code(403).send('Forbidden: You do not have access to this application');
+      }
       req.log.error({ err: err.message, appId }, 'Package regeneration failed');
       return reply.redirect(
         `/applications/${appId}/handoff?error=${encodeURIComponent('Regeneration failed: ' + err.message)}`
@@ -4032,7 +4049,7 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     const { user, tenant } = sessionContext;
-    await getOrCreateCandidate(database, tenant.id, user);
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
     const appId = req.params.id;
     const version = Number(req.params.version);
 
@@ -4040,7 +4057,8 @@ export default async function webRoutes(app, opts = {}) {
       const context = {
         tenantId: tenant.id,
         userId: user.id,
-        role: 'MEMBER',
+        candidateId: candidate.id,
+        role: user.role || 'MEMBER',
       };
       await applicationTrackingService.restoreApplicationPackage(context, appId, version);
 
@@ -4048,6 +4066,12 @@ export default async function webRoutes(app, opts = {}) {
         `/applications/${appId}/handoff?success=${encodeURIComponent(`Package version v${version} restored as current`)}`
       );
     } catch (err) {
+      if (err.name === 'NotFoundError') {
+        return reply.code(404).send('Application or package not found');
+      }
+      if (err.name === 'AuthorizationError') {
+        return reply.code(403).send('Forbidden: You do not have access to this application');
+      }
       req.log.error({ err: err.message, appId, version }, 'Package restore failed');
       return reply.redirect(
         `/applications/${appId}/handoff?error=${encodeURIComponent('Restore failed: ' + err.message)}`
@@ -4065,7 +4089,7 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     const { user, tenant } = sessionContext;
-    await getOrCreateCandidate(database, tenant.id, user);
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
     const appId = req.params.id;
     const version = Number(req.params.version);
 
@@ -4073,7 +4097,8 @@ export default async function webRoutes(app, opts = {}) {
       const context = {
         tenantId: tenant.id,
         userId: user.id,
-        role: 'MEMBER',
+        candidateId: candidate.id,
+        role: user.role || 'MEMBER',
       };
       await applicationTrackingService.archiveApplicationPackage(context, appId, version);
 
@@ -4081,6 +4106,12 @@ export default async function webRoutes(app, opts = {}) {
         `/applications/${appId}/handoff?success=${encodeURIComponent(`Package version v${version} archived`)}`
       );
     } catch (err) {
+      if (err.name === 'NotFoundError') {
+        return reply.code(404).send('Application or package not found');
+      }
+      if (err.name === 'AuthorizationError') {
+        return reply.code(403).send('Forbidden: You do not have access to this application');
+      }
       req.log.error({ err: err.message, appId, version }, 'Package archive failed');
       return reply.redirect(
         `/applications/${appId}/handoff?error=${encodeURIComponent('Archive failed: ' + err.message)}`
@@ -4098,18 +4129,29 @@ export default async function webRoutes(app, opts = {}) {
     }
 
     const { user, tenant } = sessionContext;
-    await getOrCreateCandidate(database, tenant.id, user);
+    const candidate = await getOrCreateCandidate(database, tenant.id, user);
     const appId = req.params.id;
     const version = Number(req.params.version);
 
     try {
-      const context = { tenantId: tenant.id, userId: user.id, role: 'MEMBER' };
+      const context = {
+        tenantId: tenant.id,
+        userId: user.id,
+        candidateId: candidate.id,
+        role: user.role || 'MEMBER',
+      };
       await applicationTrackingService.safeDeleteApplicationPackage(context, appId, version);
 
       return reply.redirect(
         `/applications/${appId}/handoff?success=${encodeURIComponent(`Package version v${version} safely deleted`)}`
       );
     } catch (err) {
+      if (err.name === 'NotFoundError') {
+        return reply.code(404).send('Application or package not found');
+      }
+      if (err.name === 'AuthorizationError') {
+        return reply.code(403).send('Forbidden: You do not have access to this application');
+      }
       req.log.error({ err: err.message, appId, version }, 'Package delete failed');
       return reply.redirect(
         `/applications/${appId}/handoff?error=${encodeURIComponent('Delete failed: ' + err.message)}`

@@ -21,7 +21,6 @@ import { ApplicationHandoffService } from './application-handoff.service.js';
 import { AtsFitScoreService } from './ats-fit-score.service.js';
 import { EvidenceMatchingService } from './evidence-matching.service.js';
 import { ProjectRelevanceService } from './project-relevance.service.js';
-import { JobDescriptionParser } from '../domain/career/job-parser.js';
 import { normalizeJobInput } from './job-normalization.service.js';
 import { SkillTaxonomyEngine } from '../domain/career/skill-taxonomy.js';
 import { boundRequirementText } from '../domain/career/job-requirement.schemas.js';
@@ -657,12 +656,38 @@ export class JobApplicationWorkflowService {
    * @param {object} [params.answers={}] User-provided questions/answers
    * @returns {Promise<object>} Complete Application Package
    */
-  async prepareJobApplication({ tenantId, candidateId, applicationId, jobPosting, answers = {} }) {
+  async prepareJobApplication({
+    tenantId,
+    candidateId,
+    applicationId,
+    jobPosting,
+    answers = {},
+    userId = null,
+    role = null,
+  }) {
     if (!tenantId || !candidateId || !jobPosting) {
       throw new ValidationError(
         'tenantId, candidateId, and jobPosting are required.',
         'INVALID_PARAMETERS'
       );
+    }
+
+    if (applicationId) {
+      const [appRow] = await this.db
+        .select({ id: jobApplications.id, candidateId: jobApplications.candidateId })
+        .from(jobApplications)
+        .where(and(eq(jobApplications.id, applicationId), eq(jobApplications.tenantId, tenantId)))
+        .limit(1);
+
+      if (!appRow) {
+        throw new NotFoundError(`Job application not found: ${applicationId}`);
+      }
+      if (appRow.candidateId !== candidateId) {
+        throw new AuthorizationError(
+          `Application ${applicationId} does not belong to candidate ${candidateId}`,
+          'FORBIDDEN'
+        );
+      }
     }
 
     // 1. Fetch Candidate Profile and Linked User
@@ -681,6 +706,14 @@ export class JobApplicationWorkflowService {
     }
 
     const cand = candRow.candidate || candRow;
+
+    if (userId && cand.userId && cand.userId !== userId && role !== 'OWNER') {
+      throw new AuthorizationError(
+        'Forbidden: You do not have permission to prepare applications for this candidate',
+        'FORBIDDEN'
+      );
+    }
+
     const userEmail = candRow.userEmail || null;
     const candidateEmail = resolveCandidateEmail(cand, userEmail);
 
@@ -1256,6 +1289,7 @@ export class JobApplicationWorkflowService {
     applicationId,
     scope = 'BOTH',
     reason = '',
+    role = 'MEMBER',
   }) {
     if (!tenantId || !candidateId || !applicationId) {
       throw new ValidationError(
@@ -1264,7 +1298,12 @@ export class JobApplicationWorkflowService {
       );
     }
 
-    const context = { tenantId, userId: userId || null, role: 'MEMBER' };
+    const context = {
+      tenantId,
+      userId: userId || null,
+      candidateId,
+      role: role || 'MEMBER',
+    };
 
     // 1. Fetch Application & verify state
     const appDetails = await this.applicationTrackingService.getApplicationDetails(
@@ -1272,6 +1311,13 @@ export class JobApplicationWorkflowService {
       applicationId
     );
     const application = appDetails.application;
+
+    if (application.candidateId !== candidateId) {
+      throw new AuthorizationError(
+        `Application ${applicationId} does not belong to candidate ${candidateId}`,
+        'FORBIDDEN'
+      );
+    }
 
     if (
       application.status !== 'SAVED' ||
@@ -1300,6 +1346,14 @@ export class JobApplicationWorkflowService {
     }
 
     const cand = candRow.candidate || candRow;
+
+    if (userId && cand.userId && cand.userId !== userId && role !== 'OWNER') {
+      throw new AuthorizationError(
+        'Forbidden: You do not have permission to regenerate packages for this candidate',
+        'FORBIDDEN'
+      );
+    }
+
     const userEmail = candRow.userEmail || null;
     const candidateEmail = resolveCandidateEmail(cand, userEmail);
 
@@ -2139,11 +2193,28 @@ ${pkg.portfolioLinks.map((p) => `- 🚀 **${p.projectName}** ${p.repositoryUrl ?
     jobId,
     destinationUrl,
     packageHash,
+    role = 'MEMBER',
   }) {
     if (!tenantId || !userId || !candidateId || !packageHash || !destinationUrl) {
       throw new ValidationError(
         'All context parameters and packageHash are required.',
         'INVALID_APPROVAL_REQUEST'
+      );
+    }
+
+    const [cand] = await this.db
+      .select({ id: candidates.id, userId: candidates.userId })
+      .from(candidates)
+      .where(and(eq(candidates.id, candidateId), eq(candidates.tenantId, tenantId)))
+      .limit(1);
+
+    if (!cand) {
+      throw new NotFoundError(`Candidate not found: ${candidateId}`);
+    }
+    if (cand.userId && cand.userId !== userId && role !== 'OWNER') {
+      throw new AuthorizationError(
+        'Forbidden: You do not have permission to request approvals for this candidate',
+        'FORBIDDEN'
       );
     }
 

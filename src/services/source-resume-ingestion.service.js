@@ -49,14 +49,16 @@ export class SourceResumeIngestionService {
   }
 
   /**
-   * Asserts candidate belongs to authenticated tenant.
+   * Asserts candidate belongs to authenticated tenant and is owned by the calling user.
    *
    * @private
    * @param {string} candidateId
    * @param {string} tenantId
+   * @param {string} [userId]
+   * @param {string} [role]
    * @returns {Promise<object>}
    */
-  async _assertCandidateOwnership(candidateId, tenantId) {
+  async _assertCandidateOwnership(candidateId, tenantId, userId = null, role = null) {
     const [candidate] = await this.db
       .select()
       .from(candidates)
@@ -64,6 +66,13 @@ export class SourceResumeIngestionService {
 
     if (!candidate) {
       throw new NotFoundError(`Candidate not found: ${candidateId}`);
+    }
+
+    if (userId && candidate.userId && candidate.userId !== userId && role !== 'OWNER') {
+      throw new AuthorizationError(
+        'Forbidden: You do not have permission to access this candidate profile',
+        'FORBIDDEN'
+      );
     }
 
     return candidate;
@@ -84,7 +93,7 @@ export class SourceResumeIngestionService {
     this._validateContext(context);
     const tenantId = context.tenantId;
 
-    await this._assertCandidateOwnership(candidateId, tenantId);
+    await this._assertCandidateOwnership(candidateId, tenantId, context.userId, context.role);
 
     // 1. Validate file format, magic bytes, size limits, and sanitize filename
     const { format, detectedMimeType, sanitizedFileName } = this.resumeParser.validateFile({
@@ -218,7 +227,7 @@ export class SourceResumeIngestionService {
   async listResumes({ context, candidateId }) {
     this._validateContext(context);
     const tenantId = context.tenantId;
-    await this._assertCandidateOwnership(candidateId, tenantId);
+    await this._assertCandidateOwnership(candidateId, tenantId, context.userId, context.role);
 
     return this.resumeRepo.listResumesByCandidate({ tenantId, candidateId });
   }
@@ -241,6 +250,13 @@ export class SourceResumeIngestionService {
       tenantId,
       candidateId,
     });
+
+    await this._assertCandidateOwnership(
+      resume.candidateId,
+      tenantId,
+      context.userId,
+      context.role
+    );
 
     const [sections, claims] = await Promise.all([
       this.resumeRepo.getResumeSections({ resumeId: resume.id, tenantId }),
@@ -283,11 +299,20 @@ export class SourceResumeIngestionService {
     this._validateContext(context);
     const tenantId = context.tenantId;
 
+    await this._assertCandidateOwnership(candidateId, tenantId, context.userId, context.role);
+
     const existingResume = await this.resumeRepo.getResumeById({
       id: resumeId,
       tenantId,
       candidateId,
     });
+
+    await this._assertCandidateOwnership(
+      existingResume.candidateId,
+      tenantId,
+      context.userId,
+      context.role
+    );
 
     let updatedResume;
     if (promoteToBase) {
@@ -530,6 +555,13 @@ export class SourceResumeIngestionService {
       candidateId,
     });
 
+    await this._assertCandidateOwnership(
+      resume.candidateId,
+      tenantId,
+      context.userId,
+      context.role
+    );
+
     const decryptedBuffer = await this.documentStorage.getDecryptedDocument({
       tenantId,
       storageKey: resume.storageKey,
@@ -561,6 +593,13 @@ export class SourceResumeIngestionService {
       tenantId,
       candidateId,
     });
+
+    await this._assertCandidateOwnership(
+      resume.candidateId,
+      tenantId,
+      context.userId,
+      context.role
+    );
 
     // 1. Delete encrypted blob from storage
     await this.documentStorage.deleteEncryptedDocument({
