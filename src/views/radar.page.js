@@ -55,7 +55,7 @@ export function renderRadarPage({
     <div class="container" style="max-width: 1120px; margin: 0 auto 60px; padding: 0 20px;">
       <!-- Back Navigation -->
       <a href="/dashboard" class="back-nav-link" style="display:inline-flex; align-items:center; gap:6px; color:var(--text-muted); text-decoration:none; font-size:0.875rem; margin-bottom:12px;">
-        <span aria-hidden="true">&larr;</span> Back to Dashboard
+        ← Back to Dashboard
       </a>
 
       <!-- Breadcrumbs -->
@@ -518,7 +518,7 @@ export function renderRadarResultPage({
   const content = `
     <div class="container" style="max-width: 900px; margin: 0 auto 60px; padding: 0 20px;">
       <a href="/apps/radar?tab=analyze" class="back-nav-link" style="display:inline-flex; align-items:center; gap:6px; color:var(--text-muted); text-decoration:none; font-size:0.875rem; margin-bottom:12px;">
-        &larr; New Analysis
+        ← New Analysis
       </a>
       <div class="breadcrumb" style="display:flex; align-items:center; gap:8px; font-size:0.825rem; color:var(--text-dim); margin-bottom:24px;">
         <a href="/dashboard" style="color:var(--text-muted); text-decoration:none;">Overview</a>
@@ -694,9 +694,9 @@ function renderEmbeddedRadarWidget(data) {
             ${points.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="#818cf8"/>`).join('')}
 
             <!-- Axis Labels -->
-            <text x="0" y="-110" text-anchor="middle" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Required</text>
-            <text x="96" y="-55" text-anchor="start" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Preferred</text>
-            <text x="96" y="55" text-anchor="start" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Projects</text>
+            <text x="0" y="-110" text-anchor="middle" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Req Skills</text>
+            <text x="96" y="-55" text-anchor="start" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Pref Skills</text>
+            <text x="96" y="55" text-anchor="start" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Relevance</text>
             <text x="0" y="118" text-anchor="middle" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Experience</text>
             <text x="-96" y="55" text-anchor="end" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Education</text>
             <text x="-96" y="-55" text-anchor="end" fill="var(--text-dim)" font-size="9" font-family="var(--font-sans)">Confidence</text>
@@ -738,7 +738,7 @@ function renderEmbeddedRadarWidget(data) {
         <div style="background: #111827; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <span style="font-size: 0.75rem; font-weight: 700; color: #34d399; text-transform: uppercase; letter-spacing: 0.05em;">Matched Requirements</span>
-            <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">${matched} of ${total}</span>
+            <span style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim);">${matched} / ${total} Matched</span>
           </div>
           <div style="display: flex; flex-wrap: wrap; gap: 6px;">
             ${

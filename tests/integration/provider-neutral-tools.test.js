@@ -478,7 +478,7 @@ describe('Provider-Neutral Tool Response Parity Tests (P10-003)', () => {
         sourceLocation: {
           filePath: 'cmd/server/main.go',
           commitSha: 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678',
-          lineRange: '10-45',
+          lineRange: { start: 10, end: 45 },
         },
         excerpt: 'func main() { router := gin.Default(); router.Run(":8080") }',
         metadata: {
@@ -501,7 +501,7 @@ describe('Provider-Neutral Tool Response Parity Tests (P10-003)', () => {
         sourceLocation: {
           filePath: 'internal/db/postgres.go',
           commitSha: 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678',
-          lineRange: '25-70',
+          lineRange: { start: 25, end: 70 },
         },
         excerpt: 'db, err := sql.Open("postgres", connStr)',
         metadata: {
@@ -524,7 +524,7 @@ describe('Provider-Neutral Tool Response Parity Tests (P10-003)', () => {
         sourceLocation: {
           filePath: 'Dockerfile',
           commitSha: 'a1b2c3d4e5f60718293a4b5c6d7e8f9012345678',
-          lineRange: '1-18',
+          lineRange: { start: 1, end: 18 },
         },
         excerpt: 'FROM golang:1.24-alpine AS builder\nCOPY . .',
         metadata: {

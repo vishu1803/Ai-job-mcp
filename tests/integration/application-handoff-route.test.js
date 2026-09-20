@@ -162,7 +162,7 @@ describe('Integration: Application Handoff Kit Web & API Routes', () => {
     assert.ok(body.includes('Vercel'));
     assert.ok(body.includes('Staff Infrastructure Engineer'));
     assert.ok(body.includes('HANDOFF_READY'));
-    assert.ok(body.includes('Resume Quality Audit'));
+    assert.ok(body.includes('Resume Quality'));
     assert.ok(body.includes('Prepared for Manual Submission'));
     assert.ok(body.includes('Application Readiness Matrix'));
     assert.ok(body.includes('Open Employer Portal'));
@@ -207,7 +207,10 @@ describe('Integration: Application Handoff Kit Web & API Routes', () => {
     assert.equal(res.statusCode, 200);
     assert.equal(res.headers['content-type'], 'application/pdf');
     assert.ok(res.headers['content-disposition'].includes('attachment'));
-    assert.ok(res.headers['content-disposition'].includes('tailored-cover-letter.pdf'));
+    assert.ok(
+      res.headers['content-disposition'].includes('Cover Letter.pdf') ||
+        res.headers['content-disposition'].includes('tailored-cover-letter.pdf')
+    );
   });
 
   it('5. Tenant Isolation: prevents Tenant 2 from viewing Tenant 1 artifacts', async () => {

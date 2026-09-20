@@ -168,6 +168,11 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
           summary: 'Scalable REST API built with Fastify and PostgreSQL.',
           role: 'Primary Author',
           isHighlighted: true,
+          bullets: [
+            'Architected high-throughput REST API using Fastify and TypeScript.',
+            'Optimized PostgreSQL query latency across primary transaction tables.',
+            'Integrated caching layer reducing database read load significantly.',
+          ],
           evidence: [
             {
               id: crypto.randomUUID(),
@@ -190,6 +195,11 @@ describe('MCP Application Artifact Tools Unit Tests (P7-005)', () => {
           summary: 'Stream processing service in Node.js.',
           role: 'Lead Maintainer',
           isHighlighted: false,
+          bullets: [
+            'Built real-time data ingestion pipeline processing event streams.',
+            'Implemented automated schema validation for inbound JSON payloads.',
+            'Maintained high availability across production streaming consumers.',
+          ],
           evidence: [],
         },
       ],

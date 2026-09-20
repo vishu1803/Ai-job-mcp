@@ -731,7 +731,7 @@ describe('Final MCP Transport & End-to-End Acceptance Tests', () => {
         args: {
           candidateId: candidateA.id,
           jobDescriptionText:
-            'Looking for an Embedded Systems Firmware Developer with 10 years of Rust, C#, and Bare-Metal FPGA experience.',
+            'Looking for an Embedded Systems Firmware Developer with 10 years of Rust, Zig, and Bare-Metal FPGA experience.',
           maxFeaturedProjects: 1,
         },
         id: 602,

@@ -856,13 +856,16 @@ export class JobApplicationWorkflowService {
     };
 
     // Authoritative project rankings from canonical ranking engine
-    const canonicalRanked = this.candidateArtifactContentService.rankProjectsForJob(
-      candidateProfileInput,
-      targetJobPosting,
-      { maxProjects: 2 }
-    );
+    const canonicalRanked =
+      typeof this.candidateArtifactContentService?.rankProjectsForJob === 'function'
+        ? this.candidateArtifactContentService.rankProjectsForJob(
+            candidateProfileInput,
+            targetJobPosting,
+            { maxProjects: 2 }
+          )
+        : targetJobPosting?.projectRankings || [];
     const authoritativeRankings =
-      canonicalRanked.selectedProjects || (Array.isArray(canonicalRanked) ? canonicalRanked : []);
+      canonicalRanked?.selectedProjects || (Array.isArray(canonicalRanked) ? canonicalRanked : []);
 
     if (jobFitAnalysis) {
       jobFitAnalysis.projectRankings = authoritativeRankings;

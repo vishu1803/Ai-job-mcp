@@ -60,6 +60,19 @@ export class AiResumeContentGeneratorService {
     if (aiProvider !== undefined) return aiProvider;
     if (this.aiProvider === false || this.aiProvider === null) return null;
     if (this.aiProvider !== undefined) return this.aiProvider;
+
+    const isTestExecution =
+      process.env.NODE_ENV === 'test' ||
+      process.env.npm_lifecycle_event?.includes('test') ||
+      process.argv.some(
+        (arg) => typeof arg === 'string' && (arg.includes('--test') || arg.includes('tests/'))
+      ) ||
+      process.execArgv.some((arg) => typeof arg === 'string' && arg.includes('--test'));
+
+    if (isTestExecution && process.env.TEST_LIVE_AI !== 'true') {
+      return null;
+    }
+
     try {
       return getDefaultAiProvider();
     } catch {

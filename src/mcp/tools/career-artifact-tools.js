@@ -953,7 +953,9 @@ export async function handleGenerateTailoredResume(context, rawArgs, deps = {}) 
             provenance: mappedProvenance,
             confidenceScore: skill.confidenceScore ?? 1,
             evidenceCount: skill.evidenceId ? 1 : 0,
-            claimLabel: null,
+            claimLabel:
+              skill.claimLabel ||
+              (mappedProvenance === 'CLAIMED' ? '[Unverified User Claim]' : null),
           };
         }),
       })),

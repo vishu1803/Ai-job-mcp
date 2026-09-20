@@ -93,9 +93,9 @@ export function estimateProjectCapacity({
     return 2;
   }
 
-  // Moderate experience: 1 role
-  if (expCount === 1) {
-    return hasMeaningfulDsa ? 2 : 3;
+  // Professional experience: 1+ roles allocate 2 projects to preserve 1-page budget
+  if (expCount >= 1) {
+    return 2;
   }
 
   // Fresher / 0 experience entries:
@@ -438,11 +438,15 @@ export function buildStructuredResumeDocument({
     hasMeaningfulDsa: hasMeaningfulDsaContent,
     education: meta.education || source.education || [],
     explicitBudget:
-      options?.projectBudget ||
-      options?.maxProjects ||
-      incomingPlan?.projectBudget ||
-      structuralProjectCapacity,
+      options?.projectBudget || options?.maxProjects || incomingPlan?.projectBudget || null,
   });
+  const effectiveProjectCapacity =
+    options?.projectBudget ||
+    options?.maxProjects ||
+    incomingPlan?.projectBudget ||
+    dynamicProjectBudget ||
+    structuralProjectCapacity ||
+    2;
 
   /**
    * Evaluates whether a candidate project has authentic content strength to occupy a slot.
@@ -532,7 +536,7 @@ export function buildStructuredResumeDocument({
     // by structuralProjectCapacity.
     const explicitIds = incomingPlan?.selectedProjectIds || options.selectedProjectIds;
     authoritativeEligibleProjectCount = explicitIds.length;
-    selectedProjectIds = explicitIds.slice(0, structuralProjectCapacity);
+    selectedProjectIds = explicitIds.slice(0, effectiveProjectCapacity);
   } else {
     if (Array.isArray(resolvedAuthoritativeRankings) && resolvedAuthoritativeRankings.length > 0) {
       const candProjMap = new Map();
@@ -554,6 +558,10 @@ export function buildStructuredResumeDocument({
         const isArchived =
           candProj.isArchived === true || candProj.metadata?.portfolioStatus === 'ARCHIVED';
         if (isArchived) continue;
+
+        if (r.status === 'OMITTED_BUDGET' || r.status === 'OMITTED' || r.status === 'REJECTED') {
+          continue;
+        }
 
         const score =
           typeof r.relevanceScore === 'number'
@@ -579,13 +587,13 @@ export function buildStructuredResumeDocument({
 
         if (!isProjectStrongEnough(candProj, r)) continue;
 
-        const candProjId = candProj.id || candProj.projectId;
+        const candProjId = candProj.id || candProj.projectId || rId || rSlug;
         if (candProjId && !eligibleAuthoritativeProjectIds.includes(candProjId)) {
           eligibleAuthoritativeProjectIds.push(candProjId);
         }
       }
       authoritativeEligibleProjectCount = eligibleAuthoritativeProjectIds.length;
-      selectedProjectIds = eligibleAuthoritativeProjectIds.slice(0, structuralProjectCapacity);
+      selectedProjectIds = eligibleAuthoritativeProjectIds.slice(0, effectiveProjectCapacity);
     } else if (
       Array.isArray(canonicalJob?.recommendedProjects) &&
       canonicalJob.recommendedProjects.length > 0
@@ -612,7 +620,7 @@ export function buildStructuredResumeDocument({
         }
       }
       authoritativeEligibleProjectCount = eligibleRecs.length;
-      selectedProjectIds = eligibleRecs.slice(0, structuralProjectCapacity);
+      selectedProjectIds = eligibleRecs.slice(0, effectiveProjectCapacity);
     } else if (
       !canonicalJob ||
       ((!canonicalJob.requirements || canonicalJob.requirements.length === 0) &&
@@ -627,7 +635,7 @@ export function buildStructuredResumeDocument({
       authoritativeEligibleProjectCount = Array.isArray(rawProjects) ? rawProjects.length : 0;
       selectedProjectIds = Array.isArray(rawProjects)
         ? rawProjects
-            .slice(0, structuralProjectCapacity)
+            .slice(0, effectiveProjectCapacity)
             .map((p, i) => p.id || p.projectId || `proj-${i + 1}`)
         : [];
     } else {
@@ -1206,9 +1214,9 @@ export function buildStructuredResumeDocument({
     return {
       projectId: selectedId,
       name:
+        proj.name ||
         proj.displayName ||
         formatProjectDisplayName(proj.title || proj.name) ||
-        proj.name ||
         `Project ${idx + 1}`,
       displayName:
         proj.displayName ||
@@ -1244,8 +1252,22 @@ export function buildStructuredResumeDocument({
 
   for (let idx = 0; idx < parsedPlan.selectedProjectIds.length; idx++) {
     const selectedId = parsedPlan.selectedProjectIds[idx];
-    const proj = candProjMap.get(selectedId);
-    if (!proj) continue;
+    let proj = candProjMap.get(selectedId);
+    if (!proj) {
+      const ranking = rankingByProjId.get(selectedId);
+      const rSlug = slugifyProject(ranking?.projectName || ranking?.name || '');
+      if (rSlug) proj = candProjMap.get(rSlug);
+    }
+    if (!proj) {
+      skippedProjectIds.add(selectedId);
+      projectRemovalRecords.push({
+        projectId: selectedId,
+        reason: 'NOT_FOUND_IN_CANDIDATE_PROFILE',
+        stage: 'STRUCTURED_COMPOSITION',
+        replacementProjectId: null,
+      });
+      continue;
+    }
     if (skippedProjectIds.has(selectedId)) continue;
     if (isAlreadyRendered(proj)) continue;
 
@@ -1860,11 +1882,8 @@ export function buildStructuredResumeSnapshot({
     const weakOptional = contentQualityGate.findings.filter(
       (f) => f.code === 'WEAK_OPTIONAL_SECTION' && f.suggestion === 'OMIT_SECTION'
     );
-    // P43: Never drop candidate-owned authentic DSA (valid URL or real bullets) merely because relevance is weak (Req 9 & 13)
-    const hasAuthenticDsa = Boolean(
-      structuredResume.dsa?.profileUrl ||
-      (Array.isArray(structuredResume.dsa?.bullets) && structuredResume.dsa.bullets.length > 0)
-    );
+    // P43: Never drop candidate-owned authentic DSA (valid URL or non-filler bullets) merely because relevance is weak (Req 9 & 13)
+    const hasAuthenticDsa = isMeaningfulDsa(structuredResume.dsa);
     if (weakOptional.length > 0 && !hasAuthenticDsa) {
       structuredResume.dsa = { ...(structuredResume.dsa || {}), hasSection: false };
       if (

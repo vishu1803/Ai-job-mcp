@@ -900,7 +900,7 @@ export function composeProfessionalSummary({
     },
     {
       id: 'frontend',
-      domain: 'Modern Web Applications',
+      domain: 'Frontend & Web Applications',
       subdomains: ['Component Architecture', 'User Experience'],
       keywords: [
         'frontend',

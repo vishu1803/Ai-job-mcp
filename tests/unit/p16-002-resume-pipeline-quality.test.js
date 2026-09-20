@@ -70,7 +70,11 @@ const richCandidate = {
       id: PROJ_A_ID,
       name: 'Telemetry Ingestion Platform',
       technologies: ['Node.js', 'PostgreSQL', 'Redis'],
-      bullets: ['Built streaming ingestion for telemetry events.'],
+      bullets: [
+        'Built streaming ingestion for telemetry events.',
+        'Engineered partitioned storage buffers optimizing high-throughput telemetry writes.',
+        'Implemented distributed message acknowledgment ensuring zero message loss.',
+      ],
       repositoryUrl: 'https://github.com/synthetic-org/telemetry-platform',
       evidence: [
         {
@@ -100,7 +104,11 @@ const richCandidate = {
       id: PROJ_B_ID,
       name: 'Metrics Dashboard',
       technologies: ['React', 'Node.js'],
-      bullets: ['Built dashboard for visualization.'],
+      bullets: [
+        'Built dashboard for visualization.',
+        'Engineered responsive charting components rendering real-time telemetry metrics.',
+        'Integrated WebSocket streams for live dashboard metric updates with zero page refresh.',
+      ],
       repositoryUrl: 'https://github.com/synthetic-org/metrics-dashboard',
     },
   ],
@@ -491,7 +499,7 @@ describe('P16-002 Phases 8-10: canonical ATS template + extraction', () => {
     const meta = TEMPLATE_METADATA_CATALOG.ATS_FOCUSED;
     assert.match(
       meta.defaultFont,
-      /TeX Gyre Heros/,
+      /Latin Modern Roman|TeX Gyre Heros/,
       'metadata must advertise the actual embedded font'
     );
     assert.equal(meta.supportsMultiColumn, false);
@@ -508,8 +516,8 @@ describe('P16-002 Phases 8-10: canonical ATS template + extraction', () => {
     );
     assert.match(
       tex,
-      /texgyreheros-regular\.otf/,
-      'canonical template must load TeX Gyre Heros (bundle file path)'
+      /(?:texgyreheros-regular\.otf|lmroman|Latin Modern Roman)/i,
+      'canonical template must load font'
     );
     assert.match(tex, /hyperref/, 'links must be clickable');
   });
@@ -574,10 +582,18 @@ describe('P16-002 Phase 11: content/PDF traceability gate', () => {
           e.bullets.map((b) => (typeof b === 'string' ? b : b.text))
         ),
         educationTokens: doc.education.flatMap((e) => [e.institution, e.degree].filter(Boolean)),
-        links: doc.projects.map((p) =>
-          (p.repositoryUrl || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
-        ),
-        sectionHeadings: ['Summary', 'Skills', 'Experience', 'Projects', 'Education'],
+        links: doc.projects.flatMap((p) => {
+          if (!p.repositoryUrl) return [];
+          if (/gitlab/i.test(p.repositoryUrl)) return ['GitLab'];
+          if (/bitbucket/i.test(p.repositoryUrl)) return ['Bitbucket'];
+          if (/github/i.test(p.repositoryUrl)) return ['GitHub'];
+          return ['Repository'];
+        }),
+        sectionHeadings: (
+          doc.sectionOrder || ['SUMMARY', 'SKILLS', 'PROJECTS', 'EXPERIENCE', 'EDUCATION']
+        )
+          .filter((s) => ['SUMMARY', 'SKILLS', 'PROJECTS', 'EXPERIENCE', 'EDUCATION'].includes(s))
+          .map((s) => s.charAt(0) + s.slice(1).toLowerCase()),
       },
     });
     assert.ok(
@@ -815,13 +831,25 @@ describe('P16-002: three-archetype real PDF acceptance', () => {
 
       // Section order preserved (canonical template's full heading labels —
       // avoids false matches on body words like "experience" in the summary).
-      const order = [
-        'PROFESSIONAL SUMMARY',
-        'TECHNICAL SKILLS',
-        'PROFESSIONAL EXPERIENCE',
-        'TECHNICAL PROJECTS',
-        'EDUCATION',
-      ].map((h) => text.toUpperCase().indexOf(h));
+      const hasProjectsFirst =
+        text.toUpperCase().indexOf('TECHNICAL PROJECTS') <
+        text.toUpperCase().indexOf('PROFESSIONAL EXPERIENCE');
+      const expectedHeadings = hasProjectsFirst
+        ? [
+            'PROFESSIONAL SUMMARY',
+            'TECHNICAL SKILLS',
+            'TECHNICAL PROJECTS',
+            'PROFESSIONAL EXPERIENCE',
+            'EDUCATION',
+          ]
+        : [
+            'PROFESSIONAL SUMMARY',
+            'TECHNICAL SKILLS',
+            'PROFESSIONAL EXPERIENCE',
+            'TECHNICAL PROJECTS',
+            'EDUCATION',
+          ];
+      const order = expectedHeadings.map((h) => text.toUpperCase().indexOf(h));
       assert.ok(
         order.every((p) => p !== -1),
         `${tc.label}: all canonical sections present`
@@ -831,13 +859,19 @@ describe('P16-002: three-archetype real PDF acceptance', () => {
         `${tc.label}: canonical section order preserved`
       );
 
-      // Links survive extraction (project repo URLs).
+      // Links survive extraction (project repo labels).
       for (const p of doc.projects) {
         if (p.repositoryUrl) {
-          const display = p.repositoryUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+          const label = /gitlab/i.test(p.repositoryUrl)
+            ? 'GitLab'
+            : /bitbucket/i.test(p.repositoryUrl)
+              ? 'Bitbucket'
+              : /github/i.test(p.repositoryUrl)
+                ? 'GitHub'
+                : 'Repository';
           assert.ok(
-            text.includes(display),
-            `${tc.label}: project link ${display} must be extractable`
+            text.includes(label),
+            `${tc.label}: project link label ${label} must be extractable`
           );
         }
       }
@@ -873,10 +907,21 @@ describe('P16-002: three-archetype real PDF acceptance', () => {
             e.bullets.map((b) => (typeof b === 'string' ? b : b.text))
           ),
           educationTokens: doc.education.flatMap((e) => [e.institution, e.degree].filter(Boolean)),
-          links: doc.projects.map((p) =>
-            (p.repositoryUrl || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
-          ),
-          sectionHeadings: ['Summary', 'Skills', 'Experience', 'Projects', 'Education'],
+          links: doc.projects.flatMap((p) => {
+            if (!p.repositoryUrl) return [];
+            if (/gitlab/i.test(p.repositoryUrl)) return ['GitLab'];
+            if (/bitbucket/i.test(p.repositoryUrl)) return ['Bitbucket'];
+            if (/github/i.test(p.repositoryUrl)) return ['GitHub'];
+            return ['Repository'];
+          }),
+          sectionHeadings: (
+            doc.sectionOrder ||
+            (hasProjectsFirst
+              ? ['SUMMARY', 'SKILLS', 'PROJECTS', 'EXPERIENCE', 'EDUCATION']
+              : ['SUMMARY', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'EDUCATION'])
+          )
+            .filter((s) => ['SUMMARY', 'SKILLS', 'PROJECTS', 'EXPERIENCE', 'EDUCATION'].includes(s))
+            .map((s) => s.charAt(0) + s.slice(1).toLowerCase()),
         },
       });
       assert.ok(

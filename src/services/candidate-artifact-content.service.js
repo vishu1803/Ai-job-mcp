@@ -1811,7 +1811,7 @@ export class CandidateArtifactContentService {
       const techText = `${(proj.technologies || []).join(' ')} ${bullets.join(' ')}`.toLowerCase();
 
       if (
-        /fastify|express|fastapi|flask|django|nest|node|rest|graphql|mcp|model context protocol|socket\.io/i.test(
+        /fastify|express|fastapi|flask|django|nest|node|rest|graphql|mcp|model context protocol|socket\.io|rust|golang|systems|distributed|raft|streaming/i.test(
           techText
         )
       ) {
@@ -1824,7 +1824,9 @@ export class CandidateArtifactContentService {
         technicalDepth += 7;
       }
       if (
-        /async|webhook|real-time|realtime|socket|latency|optimization|concurrency/i.test(techText)
+        /async|webhook|real-time|realtime|socket|latency|optimization|concurrency|throughput|streaming|fault-tolerant|zero-copy|telemetry|consensus|replication/i.test(
+          techText
+        )
       ) {
         technicalDepth += 7;
       }
@@ -1836,6 +1838,17 @@ export class CandidateArtifactContentService {
         if (/rest|api|crud|endpoints/i.test(techText)) backendSignals += 10;
         if (/postgres|database|prisma|drizzle|sql/i.test(techText)) backendSignals += 10;
         if (/backend|fastapi|flask|fastify|express|node|server/i.test(techText))
+          backendSignals += 10;
+        if (
+          /distributed|systems|streaming|raft|consensus|infrastructure|telemetry|microservice|concurrency|networking|edge|protocol|serialization/i.test(
+            techText
+          )
+        )
+          backendSignals += 10;
+        if (
+          /infrastructure|systems|distributed|edge|networking/i.test(jobTitle) &&
+          /rust|raft|consensus|streaming|distributed|telemetry|zero-copy/i.test(techText)
+        )
           backendSignals += 10;
         roleRelevance = Math.min(30, backendSignals);
         if (roleRelevance === 0) roleRelevance = 5;
@@ -1865,6 +1878,12 @@ export class CandidateArtifactContentService {
         const inBullets = bullets.some((b) => b.toLowerCase().includes(s));
         if (inTechs || inBullets) {
           matchedJobTechs.add(s);
+        }
+      }
+      for (const tech of proj.technologies || []) {
+        const t = String(tech || '').toLowerCase();
+        if (t.length >= 3 && jobDesc.includes(t)) {
+          matchedJobTechs.add(t);
         }
       }
       technologyOverlap = Math.min(20, matchedJobTechs.size * 5);
@@ -2228,30 +2247,31 @@ export class CandidateArtifactContentService {
       ...(Array.isArray(candidateData.additionalSkills) ? candidateData.additionalSkills : []),
     ];
     for (const s of allCandidateSkillsList) {
-      const rawName = s.name || s.skillName;
+      const rawName = typeof s === 'string' ? s : s?.name || s?.skillName;
       if (!rawName) continue;
       const lower = rawName.toLowerCase().trim();
       const canonical = CANONICAL_ALIAS_MAP[lower] || rawName.trim();
       const key = canonical.toLowerCase();
 
-      const isVerified = s.provenanceStatus === 'VERIFIED' || s.provenanceStatus === 'CORROBORATED';
-      const evidenceCount = s.evidenceCount || s.evidence?.length || 0;
-      const evidenceId = s.evidenceId || s.primaryEvidenceId || s.primaryEvidence?.id || null;
-      const sourceSkillId = s.id || s.skillId || null;
+      const isVerified =
+        s?.provenanceStatus === 'VERIFIED' || s?.provenanceStatus === 'CORROBORATED';
+      const evidenceCount = s?.evidenceCount || s?.evidence?.length || 0;
+      const evidenceId = s?.evidenceId || s?.primaryEvidenceId || s?.primaryEvidence?.id || null;
+      const sourceSkillId = s?.id || s?.skillId || null;
 
-      let rawProvenance = s.provenanceStatus || s.provenance;
+      let rawProvenance = s?.provenanceStatus || s?.provenance;
       if (!rawProvenance) {
-        rawProvenance = s.source === 'CANDIDATE_DECLARED' || s.isUserClaim ? 'CLAIMED' : 'VERIFIED';
+        rawProvenance =
+          s?.source === 'CANDIDATE_DECLARED' || s?.isUserClaim ? 'CLAIMED' : 'VERIFIED';
       }
-      if (rawProvenance === 'SELF_DECLARED') rawProvenance = 'USER_PROVIDED';
 
       const existing = skillMap.get(key);
       if (!existing) {
         skillMap.set(key, {
-          ...s,
+          ...(typeof s === 'object' && s !== null ? s : {}),
           name: canonical,
-          slug: s.slug || key.replace(/[^a-z0-9-]/g, '-'),
-          category: getCategory(canonical, s.category),
+          slug: s?.slug || key.replace(/[^a-z0-9-]/g, '-'),
+          category: getCategory(canonical, s?.category),
           provenanceStatus: rawProvenance,
           evidenceCount,
           evidenceId,
@@ -2400,7 +2420,7 @@ export class CandidateArtifactContentService {
 
         if (category === 'Cloud, DevOps & Systems') {
           if (lowerName === 'aws' || lowerName === 'docker') {
-            score += isCloudDevOpsTarget ? 20 : 10;
+            score += isCloudDevOpsTarget ? 20 : 15;
             if (!matchReason) {
               matchReason = isCloudDevOpsTarget
                 ? 'Candidate-declared cloud / DevOps platform relevant to target role'
@@ -2704,7 +2724,7 @@ export class CandidateArtifactContentService {
       profileLinkParts.push(`[Portfolio](${portfolioLink.url})`);
     }
     const leetcodeLink = portfolioLinksList.find((l) =>
-      /leetcode/i.test(l.label || l.platform || '')
+      /leetcode/i.test(l.label || l.platform || l.url || l.href || '')
     );
     if (leetcodeLink?.url && isRealUrl(leetcodeLink.url)) {
       profileLinkParts.push(`[LeetCode](${leetcodeLink.url})`);
@@ -2787,9 +2807,19 @@ export class CandidateArtifactContentService {
 
     // P19: DSA section can render with link-only when no authored bullets exist.
     // Only throw if explicitly selected but no bullets AND no profile URL exist.
+    const dsaProfileUrl =
+      candidateData.hasProblemSolvingSection && leetcodeLink?.url && isRealUrl(leetcodeLink.url)
+        ? leetcodeLink.url
+        : candidateData.problemSolving?.profileUrl &&
+            isRealUrl(candidateData.problemSolving.profileUrl)
+          ? candidateData.problemSolving.profileUrl
+          : candidateData.resumeData?.problemSolving?.profileUrl &&
+              isRealUrl(candidateData.resumeData.problemSolving.profileUrl)
+            ? candidateData.resumeData.problemSolving.profileUrl
+            : null;
+
     if (includeProblemSolving) {
-      const dsaProfileUrl = candidateData.problemSolving?.profileUrl;
-      if ((!candidateDsaBullets || candidateDsaBullets.length === 0) && !isRealUrl(dsaProfileUrl)) {
+      if ((!candidateDsaBullets || candidateDsaBullets.length === 0) && !dsaProfileUrl) {
         throw new ValidationError(
           'Problem Solving & Algorithmic Practice section is selected by Content Strategy, but valid candidate-owned DSA content is missing from snapshot; refusing to invent unverified content.'
         );
@@ -3202,17 +3232,6 @@ export class CandidateArtifactContentService {
     }
 
     // ---- Problem Solving & Algorithmic Practice (candidate-reported truthful framing) ----
-    const dsaProfileUrl =
-      leetcodeLink?.url && isRealUrl(leetcodeLink.url)
-        ? leetcodeLink.url
-        : candidateData.problemSolving?.profileUrl &&
-            isRealUrl(candidateData.problemSolving.profileUrl)
-          ? candidateData.problemSolving.profileUrl
-          : candidateData.resumeData?.problemSolving?.profileUrl &&
-              isRealUrl(candidateData.resumeData.problemSolving.profileUrl)
-            ? candidateData.resumeData.problemSolving.profileUrl
-            : null;
-
     if (includeProblemSolving) {
       lines.push('## Problem Solving & Algorithmic Practice');
       lines.push('');

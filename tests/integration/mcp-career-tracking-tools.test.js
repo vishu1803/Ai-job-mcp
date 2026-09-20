@@ -165,11 +165,11 @@ describe('MCP Career Tracking Tools Integration Tests (P12-003)', () => {
   });
 
   describe('1. Server Factory Registration & Catalog', () => {
-    it('createCareerMcpServer registers exactly 29 total tools (4 read, 3 artifact, 2 write, 10 tracking incl. Handoff Kit lifecycle)', () => {
+    it('createCareerMcpServer registers exactly 30 total tools (4 read, 3 artifact, 2 write, 10 tracking incl. Handoff Kit lifecycle, job workflow & career preferences)', () => {
       const server = createCareerMcpServer();
       const toolNames = Array.from(server.registeredTools.keys());
-      // 26 pre-existing tools + 3 Handoff Kit lifecycle tools (P14-006)
-      assert.strictEqual(toolNames.length, 29);
+      // 26 pre-existing tools + 3 Handoff Kit lifecycle tools (P14-006) + 1 Career Preferences tool
+      assert.strictEqual(toolNames.length, 30);
 
       // Verify all 10 tracking tools are present
       assert.ok(toolNames.includes('track_job_application'));

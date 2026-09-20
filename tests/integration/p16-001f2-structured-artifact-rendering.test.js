@@ -236,8 +236,15 @@ describe('Integration: P16-001F-2 Structured Resume Artifact Rendering', () => {
       headline: 'High throughput event log replication',
       summary: 'Distributed log with Raft consensus in Node.js',
       metadata: {
+        portfolioStatus: 'FEATURED',
         technologies: ['Node.js', 'PostgreSQL', 'TypeScript'],
+        skills: ['Node.js', 'PostgreSQL', 'TypeScript'],
         repositoryUrl: 'https://github.com/morganharper/event-bus-replica',
+        bullets: [
+          'Engineered high-throughput event log replication engine in Node.js using Raft consensus.',
+          'Optimized PostgreSQL persistence layer with zero-copy stream processing and WAL checkpoints.',
+          'Designed fault-tolerant cluster failover protocol ensuring continuous availability during node loss.',
+        ],
       },
     });
 

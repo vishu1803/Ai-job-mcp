@@ -382,7 +382,8 @@ export function evaluateResumeWritingQuality({
           (f) =>
             (b.composedFromFactIds && b.composedFromFactIds.includes(f.id)) ||
             (b.evidenceRefs &&
-              b.evidenceRefs.some((er) => er.id === f.id || er.resourceId === f.id))
+              b.evidenceRefs.some((er) => er.id === f.id || er.resourceId === f.id)) ||
+            (f.text && typeof b.text === 'string' && (f.text === b.text || b.text.includes(f.text)))
         );
 
         if (bulletContributingFacts.length > 0) {

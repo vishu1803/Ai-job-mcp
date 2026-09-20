@@ -194,7 +194,11 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
             id: 'p-' + name,
             name,
             technologies: ['Go'],
-            bullets: ['Authored core network transport handler.'],
+            bullets: [
+              'Authored core network transport handler.',
+              'Engineered concurrent request dispatcher handling asynchronous socket events.',
+              'Integrated structured logging and telemetry for connection error rates.',
+            ],
           },
         ],
         experience: [],
@@ -399,7 +403,11 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
           id: 'p1',
           name: 'Telemetry',
           technologies: ['Rust'],
-          bullets: ['Authored lock-free circular ring buffer in Rust.'],
+          bullets: [
+            'Authored lock-free circular ring buffer in Rust.',
+            'Engineered concurrent producer-consumer queues with atomic operations.',
+            'Implemented benchmark harness measuring zero-contention throughput.',
+          ],
         },
       ],
       dsa: { hasSection: true, bullets: ['Engaged in problem solving.'] }, // Weak DSA: should be remediated
@@ -432,7 +440,11 @@ describe('P16-004: Semantic Invariants & Hardening Regression Suite', () => {
           id: 'p1',
           name: 'Trading Core',
           technologies: ['C++'],
-          bullets: [authoredBullet],
+          bullets: [
+            authoredBullet,
+            'Documented internal component interfaces and usage patterns.',
+            'Assisted team with unit test harness maintenance.',
+          ],
         },
       ],
       experience: [],

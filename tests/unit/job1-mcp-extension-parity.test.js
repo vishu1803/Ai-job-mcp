@@ -22,6 +22,7 @@ import {
   computeResumeSemanticFingerprint,
   freezeSemanticResume,
 } from '../../src/services/structured-resume.service.js';
+import { defaultAiResumeContentGenerator } from '../../src/services/ai-resume-content-generator.service.js';
 
 describe('Job 1 MCP vs Extension Parity Regression Test', () => {
   const CANDIDATE_ID = '10a2b51b-09bf-4090-8040-1f60ebeb89c9';
@@ -86,12 +87,24 @@ Requirements:
   };
 
   let workflowService;
+  let originalGenerate;
+  let cachedAiContent = null;
 
   before(() => {
     workflowService = new JobApplicationWorkflowService({ database: db });
+    originalGenerate = defaultAiResumeContentGenerator.generateResumeAiContent;
+    defaultAiResumeContentGenerator.generateResumeAiContent = async function (...args) {
+      if (!cachedAiContent) {
+        cachedAiContent = await originalGenerate.apply(this, args);
+      }
+      return cachedAiContent;
+    };
   });
 
   after(async () => {
+    if (originalGenerate) {
+      defaultAiResumeContentGenerator.generateResumeAiContent = originalGenerate;
+    }
     await pool.end();
   });
 

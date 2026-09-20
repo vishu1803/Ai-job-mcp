@@ -96,9 +96,7 @@ import { defaultIngestionStateService } from '../services/ingestion-state.servic
 import { ApplicationReadinessService } from '../services/application-readiness.service.js';
 import { JobApplicationFlowService } from '../services/job-application-flow.service.js';
 import { AiCareerAssistantService } from '../services/ai-career-assistant.service.js';
-import {
-  normalizeCopilotPageContext,
-} from '../domain/ai/career-assistant.schemas.js';
+import { normalizeCopilotPageContext } from '../domain/ai/career-assistant.schemas.js';
 import {
   normalizeNoticePeriod,
   normalizeRemotePreference,

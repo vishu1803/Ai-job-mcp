@@ -2362,6 +2362,7 @@ export class ApplicationTrackingService {
           jobTitle: application.jobTitle,
           deletedPackagesCount: appPackages.length,
           deletedSnapshotsCount: appDocs.length,
+          deletedDocsCount: appDocs.length,
           deletedStagesCount: Number(stageCountRes?.total ?? 0),
           deletedArtifactsCount: safeStorageKeysToDelete.length,
         },
@@ -2775,13 +2776,25 @@ export class ApplicationTrackingService {
     }
 
     // 2. User-to-candidate ownership check for non-owners when candidateId was not provided on context
-    if (!context.candidateId && context.userId && context.role !== 'OWNER') {
-      const [cand] = await database
+    if (
+      !context.candidateId &&
+      context.userId &&
+      context.role !== 'OWNER' &&
+      application.candidateId
+    ) {
+      const candRes = await database
         .select({ id: candidates.id, userId: candidates.userId })
         .from(candidates)
         .where(
           and(eq(candidates.id, application.candidateId), eq(candidates.tenantId, context.tenantId))
         );
+
+      const candList = Array.isArray(candRes)
+        ? candRes
+        : candRes && typeof candRes.for === 'function'
+          ? candRes.for()
+          : [];
+      const cand = candList[0];
 
       if (!cand || (cand.userId && cand.userId !== context.userId)) {
         throw new AuthorizationError(

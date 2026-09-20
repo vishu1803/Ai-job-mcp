@@ -1249,7 +1249,14 @@ export default async function extensionRoutes(app, opts = {}) {
         packageHash: appPackage.packageHash || packageHash,
       });
     } catch (err) {
-      if (err instanceof NotFoundError || err.code === 'NOT_FOUND') {
+      if (
+        err instanceof NotFoundError ||
+        err.code === 'NOT_FOUND' ||
+        err instanceof AuthorizationError ||
+        err.code === 'FORBIDDEN' ||
+        err.statusCode === 403 ||
+        err.statusCode === 404
+      ) {
         return reply.code(404).send({
           error: 'Not Found',
           message: err.message,
@@ -1345,14 +1352,14 @@ export default async function extensionRoutes(app, opts = {}) {
               appPackage.tailoredResume?.artifact?.filename ||
               buildApplicationArtifactFilename({
                 candidateName: candidate.displayName,
-                jobTitle: targetJob?.title || 'Role',
+                jobTitle: appPackage.targetJob?.title || 'Role',
                 artifactType: 'resume',
               }),
             coverLetter:
               appPackage.coverLetter?.artifact?.filename ||
               buildApplicationArtifactFilename({
                 candidateName: candidate.displayName,
-                jobTitle: targetJob?.title || 'Role',
+                jobTitle: appPackage.targetJob?.title || 'Role',
                 artifactType: 'cover-letter',
               }),
             documentsStatus: appPackage.documentsStatus || 'DOCUMENTS_READY',
@@ -1361,7 +1368,14 @@ export default async function extensionRoutes(app, opts = {}) {
         },
       });
     } catch (err) {
-      if (err instanceof NotFoundError || err.code === 'NOT_FOUND') {
+      if (
+        err instanceof NotFoundError ||
+        err.code === 'NOT_FOUND' ||
+        err instanceof AuthorizationError ||
+        err.code === 'FORBIDDEN' ||
+        err.statusCode === 403 ||
+        err.statusCode === 404
+      ) {
         return reply.code(404).send({
           error: 'Not Found',
           message: err.message,

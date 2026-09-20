@@ -367,7 +367,7 @@ describe('Multi-Tenant Registration & Onboarding Flow Integration Tests (P13-001
     });
 
     assert.strictEqual(callbackRes.statusCode, 302);
-    assert.strictEqual(callbackRes.headers.location, '/onboarding');
+    assert.match(callbackRes.headers.location, /^\/onboarding(?:\?step=1)?$/);
 
     // Track user2 tenant for cleanup
     const [user2Record] = await db.select().from(users).where(eq(users.email, user2Email));
@@ -376,6 +376,17 @@ describe('Multi-Tenant Registration & Onboarding Flow Integration Tests (P13-001
   });
 
   it('5. Open redirect injection is rejected and constrained to safe paths', async () => {
+    // Ensure user1 has completed onboarding so default destination is /dashboard
+    await db
+      .update(candidates)
+      .set({
+        profileMetadata: {
+          userCustom: { preferredRole: 'Staff Backend' },
+          systemInferred: { onboardingState: 'COMPLETED' },
+        },
+      })
+      .where(eq(candidates.id, user1CandidateId));
+
     const evilUrl = 'https://evil-attacker.com/steal-token';
     const flowRes = await app.inject({
       method: 'GET',

@@ -36,7 +36,37 @@ import { parseFormBody } from './utils/form-parser.js';
  * @returns {import('fastify').FastifyInstance} Configured Fastify instance
  */
 export function buildApp(opts = {}) {
-  const { logger: customLogger, loggerInstance, ...fastifyOpts } = opts;
+  const {
+    logger: customLogger,
+    loggerInstance,
+    db: _db,
+    database: _database,
+    tokenCache: _tokenCache,
+    connectorCache: _connectorCache,
+    rateLimiter: _rateLimiter,
+    concurrencySemaphore: _concurrencySemaphore,
+    dbPoolGuard: _dbPoolGuard,
+    authService: _authService,
+    connectionService: _connectionService,
+    installationService: _installationService,
+    webhookService: _webhookService,
+    mcpServer: _mcpServer,
+    mcpToolDeps: _mcpToolDeps,
+    jobDiscoveryService: _jobDiscoveryService,
+    jobApplicationWorkflowService: _jobApplicationWorkflowService,
+    applicationTrackingService: _applicationTrackingService,
+    tokenService: _tokenService,
+    oauthService: _oauthService,
+    auditService: _auditService,
+    ingestionService: _ingestionService,
+    dataSovereigntyService: _dataSovereigntyService,
+    snapshotService: _snapshotService,
+    careerReadToolsOverride: _careerReadToolsOverride,
+    careerArtifactToolsOverride: _careerArtifactToolsOverride,
+    extensionAllowedOriginsOverride: _extensionAllowedOriginsOverride,
+    resumeService: _resumeService,
+    ...fastifyOpts
+  } = opts;
 
   /** @type {object} */
   let loggerConfig;

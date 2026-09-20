@@ -63,7 +63,7 @@ export class GenericCareerPageAdapter {
     /boards\.greenhouse\.io\//i,
     /wellfound\.com\/jobs\b/i,
     /wellfound\.com\/company\/[a-z0-9_-]+\/jobs\b/i,
-    /\/(?:careers?|jobs?|openings?|positions?|apply)\/[a-z0-9_-]+/i,
+    /\/(?:careers?|jobs?|openings?|positions?|apply|posts?)(?:\/[a-z0-9_-]+|\/?$|\?[^#]*)/i,
     /\/(?:job-detail|job-posting|view-job|job-description)\b/i,
   ];
 
@@ -136,7 +136,9 @@ export class GenericCareerPageAdapter {
         doc.querySelector?.('[class*="job-details" i]') ||
         doc.querySelector?.('#job-details') ||
         doc.querySelector?.('[data-qa*="description" i]') ||
-        doc.querySelector?.('article')
+        doc.querySelector?.('article') ||
+        doc.querySelector?.('main') ||
+        doc.querySelector?.('[role="main"]')
       );
       const hasApplyOrMeta = Boolean(
         doc.querySelector?.('button[class*="apply" i]') ||
@@ -358,6 +360,8 @@ export class GenericCareerPageAdapter {
       doc.querySelector?.('#job-details'),
       doc.querySelector?.('[data-qa*="description" i]'),
       doc.querySelector?.('article'),
+      doc.querySelector?.('main'),
+      doc.querySelector?.('[role="main"]'),
     ].filter(Boolean);
 
     const descContainer = candidateContainers[0] || null;

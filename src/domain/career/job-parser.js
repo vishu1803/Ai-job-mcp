@@ -78,7 +78,7 @@ const SECTION_PATTERNS = Object.freeze([
   {
     name: 'REQUIREMENTS',
     regex:
-      /^(?:#{1,6}\s*)?(?:minimum\s+|basic\s+|key\s+|core\s+|technical\s+)?(?:requirements|qualifications|what\s+you(?:'ll|\s+will)\s+need|who\s+you\s+are|what\s+we(?:'re|\s+are)\s+looking\s+for|what\s+you\s+bring|you\s+have|your\s+background|about\s+you|must\s+haves?)(?:\s+(?:qualifications|skills|experience|requirements))?\b[:\s-]*/i,
+      /^(?:#{1,6}\s*)?(?:minimum\s+|basic\s+|key\s+|core\s+|technical\s+|required\s+)?(?:technical\s+)?(?:requirements|qualifications|skills|what\s+you(?:'ll|\s+will)\s+need|who\s+you\s+are|what\s+we(?:'re|\s+are)\s+looking\s+for|what\s+you\s+bring|you\s+have|your\s+background|about\s+you|must\s+haves?)(?:\s+(?:qualifications|skills|experience|requirements))?\b[:\s-]*/i,
   },
   {
     name: 'RESPONSIBILITIES',
@@ -686,33 +686,37 @@ export class JobDescriptionParser {
             /\b(?:practical|hands[- ]on|proven|demonstrated|solid|deep|extensive|prior)\s+experience\s+(?:developing|building|architecting|improving|designing|implementing|maintaining)\s+([^.,;\n]+)/i
           );
           if (qualExpMatch) {
+            const target = qualExpMatch[1].trim();
             const mentionedSkills = JobDescriptionParser.extractSkillsFromLine(cleanLine);
-            if (mentionedSkills.length === 0) {
-              const target = qualExpMatch[1].trim();
-              const qualKey = `EXPERIENCE:qualitative:${target.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-              if (!seenRequirementKeys.has(qualKey)) {
-                seenRequirementKeys.add(qualKey);
-                requirements.push({
-                  id: crypto.randomUUID(),
-                  tenantId,
-                  jobDescriptionId,
-                  category: 'EXPERIENCE',
-                  importance,
-                  weight,
-                  skillSlug: null,
-                  rawSnippet: cleanLine.slice(0, 450),
-                  originalText: boundRequirementText(cleanLine),
-                  extractedValue: `Experience in ${target.slice(0, 50)}`,
-                  normalizedCriteria: {
-                    experienceType: 'PRACTICAL_DEVELOPMENT',
-                    target: target.slice(0, 100),
-                    context: cleanLine,
-                  },
-                  confidenceScore: 0.85,
-                  sourceSpan,
-                  createdAt: new Date().toISOString(),
-                });
-              }
+            const associatedSkill = mentionedSkills.length > 0 ? mentionedSkills[0] : null;
+            const targetSkillName = associatedSkill ? associatedSkill.name : target;
+            const qualKey = `EXPERIENCE:qualitative:${(associatedSkill?.slug || target).toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+            if (!seenRequirementKeys.has(qualKey)) {
+              seenRequirementKeys.add(qualKey);
+              requirements.push({
+                id: crypto.randomUUID(),
+                tenantId,
+                jobDescriptionId,
+                category: 'EXPERIENCE',
+                importance,
+                weight,
+                skillSlug: associatedSkill?.slug || null,
+                rawSnippet: cleanLine.slice(0, 450),
+                originalText: boundRequirementText(cleanLine),
+                extractedValue: associatedSkill
+                  ? `Practical experience in ${associatedSkill.name} development`
+                  : `Experience in ${target.slice(0, 50)}`,
+                normalizedCriteria: {
+                  experienceType: 'PRACTICAL_DEVELOPMENT',
+                  target: target.slice(0, 100),
+                  technology: targetSkillName,
+                  ...(associatedSkill?.slug ? { associatedSkillSlug: associatedSkill.slug } : {}),
+                  context: cleanLine,
+                },
+                confidenceScore: 0.85,
+                sourceSpan,
+                createdAt: new Date().toISOString(),
+              });
             }
           }
         }
@@ -927,6 +931,8 @@ export class JobDescriptionParser {
       'scrum',
       'devops', // too broad when not paired with specific tooling
       'microservices', // architecture pattern, not a specific technology
+      'rest-api',
+      'restful-api',
       'api-design',
       'data-structures',
       'algorithms',

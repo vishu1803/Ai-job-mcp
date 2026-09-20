@@ -914,7 +914,11 @@ describe('P16-001G: Professional Resume Composition', () => {
               id: 'p-9',
               name: 'Service',
               technologies: ['Node.js'],
-              bullets: ['Built service layer in order to handle billing operations.'],
+              bullets: [
+                'Built service layer in order to handle billing operations.',
+                'Designed transactional billing schemas with idempotency guarantees.',
+                'Integrated payment webhooks processing asynchronous charge events.',
+              ],
               repositoryUrl: 'https://github.com/x/service',
             },
           ],

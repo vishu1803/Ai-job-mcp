@@ -94,15 +94,33 @@ export function errorHandler(error, request, reply) {
   }
 
   // 3. API / JSON requests: Safe, structured JSON response adhering to contracts
+  const isInternal = userFacing.statusCode >= 500;
+  const isOperational = error instanceof AppError && error.isOperational;
+  const message = isOperational
+    ? error.message
+    : isInternal
+      ? error?.message === 'Response contract validation failed'
+        ? error.message
+        : 'An unexpected internal server error occurred'
+      : userFacing.message;
+
+  const code = error?.code || (isInternal ? 'INTERNAL_ERROR' : userFacing.state);
+  const details =
+    Array.isArray(error?.details) && error.details.length > 0
+      ? error.details
+      : userFacing.fieldErrors.length > 0
+        ? userFacing.fieldErrors
+        : null;
+
   return reply.code(userFacing.statusCode).send({
     success: false,
     data: null,
     error: {
-      code: error?.code || userFacing.state,
+      code,
       state: userFacing.state,
       title: userFacing.title,
-      message: userFacing.message,
-      details: userFacing.fieldErrors.length > 0 ? userFacing.fieldErrors : null,
+      message,
+      details,
       supportId: userFacing.supportId,
       recoveryAction: userFacing.recoveryAction,
       requestId,

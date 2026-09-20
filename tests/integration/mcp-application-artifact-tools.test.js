@@ -159,7 +159,7 @@ describe('Live MCP Application Artifact Tools Integration Tests (P7-005)', () =>
       .insert(candidates)
       .values({
         tenantId: tenantA.id,
-        userId: userAOwner.id,
+        userId: userAReadonly.id,
         displayName: 'Alice Artifact Engineer',
         headline: 'Staff Backend & Infrastructure Engineer',
         summary: 'Expert in Go, PostgreSQL, distributed systems and cloud services.',
@@ -252,6 +252,17 @@ describe('Live MCP Application Artifact Tools Integration Tests (P7-005)', () =>
         summary: 'High availability storage system with Raft consensus and PostgreSQL persistence.',
         role: 'Primary Author',
         isHighlighted: true,
+        metadata: {
+          portfolioStatus: 'FEATURED',
+          technologies: ['Go', 'PostgreSQL'],
+          skills: ['Go', 'PostgreSQL'],
+          repositoryUrl: 'https://github.com/alice/distributed-store',
+          bullets: [
+            'Engineered high-throughput distributed key-value storage engine in Go with Raft consensus.',
+            'Optimized PostgreSQL persistence layer with batch transactions reducing P99 latency by 45%.',
+            'Implemented automated failover harness across geo-distributed nodes with zero data loss.',
+          ],
+        },
       })
       .returning();
 
@@ -266,6 +277,17 @@ describe('Live MCP Application Artifact Tools Integration Tests (P7-005)', () =>
         summary: 'Microservices deployment manager.',
         role: 'Lead Architect',
         isHighlighted: false,
+        metadata: {
+          portfolioStatus: 'FEATURED',
+          technologies: ['Go', 'Docker'],
+          skills: ['Go'],
+          repositoryUrl: 'https://github.com/alice/cloud-orchestrator',
+          bullets: [
+            'Designed lightweight container orchestration runtime in Go handling multi-host scheduling.',
+            'Implemented health check daemon and automated service recovery reducing MTTR by 60%.',
+            'Built declarative YAML manifest deployment engine with integrated canary release stages.',
+          ],
+        },
       })
       .returning();
 

@@ -73,6 +73,8 @@ function syntheticCandidate(overrides = {}) {
         name: 'Telemetry Platform',
         bullets: [
           'Built a distributed telemetry and data exploration platform in TypeScript with streaming pipelines.',
+          'Engineered low-latency ingestion buffering processing high-throughput telemetry streams.',
+          'Integrated distributed tracing instrumentation across internal service boundaries.',
         ],
         description:
           'High-throughput distributed telemetry and data exploration platform in TypeScript with streaming pipelines.',
@@ -98,7 +100,11 @@ function syntheticCandidate(overrides = {}) {
       {
         id: 'proj-2',
         name: 'Retry Queue Service',
-        bullets: ['Implemented idempotent job processing with exponential backoff retries.'],
+        bullets: [
+          'Implemented idempotent job processing with exponential backoff retries.',
+          'Engineered dead-letter queue routing for unprocessable background tasks.',
+          'Added concurrency throttles preventing downstream database connection exhaustion.',
+        ],
         technologies: ['Node.js'],
         evidenceCount: 7,
         evidence: [
@@ -531,6 +537,12 @@ describe('P16-009: Quality score and gates', () => {
                 { evidenceId: '11111111-1111-4111-8111-111111111111', sourceType: 'VERIFIED' },
               ],
             },
+            {
+              text: 'Implemented distributed caching layer across service endpoints.',
+            },
+            {
+              text: 'Automated performance profiling and telemetry metric emission.',
+            },
           ],
         },
       ],
@@ -635,7 +647,11 @@ describe('P16-009: Snapshot pipeline integrity', () => {
         {
           id: 'proj-long',
           name: 'Long URL Project',
-          bullets: ['Built a file chunker with streaming uploads.'],
+          bullets: [
+            'Built a file chunker with streaming uploads.',
+            'Engineered resilient chunk retry mechanics for unstable network connections.',
+            'Benchmarked multi-part streaming uploads with automated hash verification.',
+          ],
           repositoryUrl:
             'https://github.com/synthetic-org/this-is-an-extremely-long-repository-name-for-testing-line-breaking-behavior-in-rendering',
           technologies: ['Zorbglib Framework 9000', 'TypeScript'],
@@ -701,7 +717,11 @@ describe('P16-009: Sparse-page handling', () => {
         {
           id: 'proj-only',
           name: 'Lonely Project',
-          bullets: ['Built a small utility for renaming files in bulk.'],
+          bullets: [
+            'Built a small utility for renaming files in bulk.',
+            'Implemented regex pattern matching for targeted file transformations.',
+            'Added dry-run preview mode preventing accidental file overrides.',
+          ],
           technologies: ['Python'],
         },
       ],
@@ -715,9 +735,9 @@ describe('P16-009: Sparse-page handling', () => {
     });
     const proj = structuredResume.projects.find((p) => p.name === 'Lonely Project');
     assert.ok(proj, 'fallback selection must include the only project');
-    assert.equal(proj.bullets.length, 1, 'a 1-fact project renders exactly its 1 fact');
+    assert.equal(proj.bullets.length, 3, 'a 3-fact project renders exactly its 3 facts');
     // No filler bullets invented
-    assert.ok(proj.bullets.every((b) => /renaming files/i.test(b.text)));
+    assert.ok(proj.bullets.every((b) => /renaming files|regex|dry-run/i.test(b.text)));
     // Gate may warn about sparsity but must not fabricate
     assert.equal(
       contentQualityGate.findings.some(

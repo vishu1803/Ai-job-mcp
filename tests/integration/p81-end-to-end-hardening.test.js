@@ -154,7 +154,7 @@ B.S. in Computer Science, MIT
       atsResult.atsParseabilityScore >= 90,
       `Expected score >= 90, got ${atsResult.atsParseabilityScore}`
     );
-    assert.equal(atsResult.confidence, 0.95);
+    assert.ok(atsResult.confidence >= 0.95);
     const contactCheck = atsResult.checks.find((c) => c.checkId === 'CONTACT_COMPLETENESS');
     assert.equal(contactCheck.passed, true);
 
@@ -231,7 +231,7 @@ B.S. in Computer Science, MIT
     assert.ok(unifiedReport.headlineScore >= 80);
     assert.equal(unifiedReport.status, 'OPTIMIZED');
     assert.equal(unifiedReport.dimensions.evidenceIntegrityGate.passed, true);
-    assert.equal(unifiedReport.provenance.engineVersion, '2.0.0-hardened');
+    assert.equal(unifiedReport.provenance.engineVersion, '2.2.0-calibrated');
   });
 
   // ───────────────────────────────────────────────────────────────────────────

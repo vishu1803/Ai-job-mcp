@@ -89,7 +89,7 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
         bullets: [
           'Built a secure, full-stack task management platform with JWT-based authentication and fine-grained RBAC.',
           'Designed and implemented high-performance RESTful CRUD APIs using Node.js and Prisma ORM.',
-          'Improved team productivity and coordination overhead by providing a responsive interface with real-time updates.',
+          'Provided a responsive interface with real-time updates.',
         ],
         technologies: ['TypeScript', 'Node.js', 'PostgreSQL'],
         role: 'Full-Stack Developer',
@@ -100,7 +100,7 @@ describe('P47: Project Evidence Capacity & Validator Disambiguation', () => {
         bullets: [
           'Developed an intelligent automated code review system by integrating OpenAI API to analyze GitHub Pull Requests.',
           'Engineered a Flask backend with asynchronous FastAPI endpoints to handle real-time GitHub webhook integrations.',
-          'Reduced average manual code review time across multiple repositories by automating code evaluation.',
+          'Automated code evaluation across multiple repositories.',
         ],
         technologies: ['Python', 'FastAPI', 'PostgreSQL'],
         role: 'Backend Developer',

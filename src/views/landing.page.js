@@ -25,7 +25,7 @@ export function renderLandingPage({ user = null } = {}) {
       <section style="text-align: center; padding: 56px 0 48px;">
         <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: var(--radius-full); padding: 5px 16px; margin-bottom: 24px;">
           <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-emerald);"></span>
-          <span style="font-size: 0.825rem; font-weight: 600; color: var(--text-main); letter-spacing: 0.02em;">Evidence-Grounded Job Application Workspace</span>
+          <span style="font-size: 0.825rem; font-weight: 600; color: var(--text-main); letter-spacing: 0.02em;">The Evidence-Backed AI Career Platform</span>
         </div>
         
         <h1 style="font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: 800; line-height: 1.15; letter-spacing: -0.03em; max-width: 820px; margin: 0 auto 20px; color: var(--text-main);">

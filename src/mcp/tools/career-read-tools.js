@@ -1672,9 +1672,11 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
           ? rawExpMatch.eligibilityStatus ||
             (rawExpMatch.matchStatus === 'MATCHED'
               ? 'ELIGIBLE'
-              : rawExpMatch.matchStatus === 'MISSING' || rawExpMatch.matchStatus === 'PARTIAL'
-                ? 'NOT_ELIGIBLE'
-                : 'UNKNOWN')
+              : rawExpMatch.matchStatus === 'PARTIAL'
+                ? 'PARTIAL'
+                : rawExpMatch.matchStatus === 'MISSING'
+                  ? 'NOT_ELIGIBLE'
+                  : 'UNKNOWN')
           : 'NOT_APPLICABLE';
         const resolvedExperienceFit = {
           status: expStatus,
@@ -1754,9 +1756,11 @@ export async function handleAnalyzeJobFit(context, rawArgs, deps = {}) {
         ? rawExpMatch.eligibilityStatus ||
           (rawExpMatch.matchStatus === 'MATCHED'
             ? 'ELIGIBLE'
-            : rawExpMatch.matchStatus === 'MISSING' || rawExpMatch.matchStatus === 'PARTIAL'
-              ? 'NOT_ELIGIBLE'
-              : 'UNKNOWN')
+            : rawExpMatch.matchStatus === 'PARTIAL'
+              ? 'PARTIAL'
+              : rawExpMatch.matchStatus === 'MISSING'
+                ? 'NOT_ELIGIBLE'
+                : 'UNKNOWN')
         : 'NOT_SPECIFIED';
       return {
         status: expStatus,

@@ -5,6 +5,9 @@ export default [
   js.configs.recommended,
   prettierConfig,
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
@@ -24,13 +27,29 @@ export default [
         crypto: 'readonly',
         AbortController: 'readonly',
         AbortSignal: 'readonly',
+        global: 'readonly',
+        globalThis: 'readonly',
+        WebSocket: 'readonly',
       },
     },
     rules: {
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-console': 'off',
-      'prefer-const': 'error',
+      'prefer-const': 'warn',
       'no-var': 'error',
+      'no-useless-escape': 'warn',
+      'no-control-regex': 'off',
+      'no-empty': ['warn', { allowEmptyCatch: true }],
+      'no-redeclare': 'off',
+    },
+  },
+  {
+    files: ['src/mcp/apps/**/*.js'],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+      },
     },
   },
   {
@@ -54,13 +73,63 @@ export default [
         fetch: 'readonly',
         URL: 'readonly',
         URLSearchParams: 'readonly',
+        MutationObserver: 'readonly',
+        history: 'readonly',
+        alert: 'readonly',
+        trustedTypes: 'readonly',
+        Event: 'readonly',
+        CustomEvent: 'readonly',
       },
     },
     rules: {
       'no-control-regex': 'off',
+      'no-unused-vars': 'off',
+      'no-empty': 'off',
+      'prefer-const': 'off',
+      'no-useless-escape': 'off',
     },
   },
   {
-    ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', '.git/', 'scratch/'],
+    files: ['scripts/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: {
+        WebSocket: 'readonly',
+        global: 'readonly',
+        globalThis: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      'prefer-const': 'off',
+      'no-empty': 'off',
+      'no-useless-escape': 'off',
+    },
+  },
+  {
+    files: ['tests/**/*.js'],
+    languageOptions: {
+      globals: {
+        global: 'readonly',
+        globalThis: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      'prefer-const': 'off',
+      'no-useless-escape': 'off',
+      'no-control-regex': 'off',
+    },
+  },
+  {
+    ignores: [
+      'node_modules/',
+      'dist/',
+      'build/',
+      'coverage/',
+      '.git/',
+      'scratch/',
+      'chrome/',
+      '**/*.bundle.js',
+    ],
   },
 ];

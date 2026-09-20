@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { buildApp } from '../../src/app.js';
 import { db, closeDatabase } from '../../src/db/index.js';
-import { tenants, users, sessions } from '../../src/db/schema.js';
+import { tenants, users, sessions, candidates } from '../../src/db/schema.js';
 import { GitHubProvider } from '../../src/security/providers/github.provider.js';
 import { AuthService } from '../../src/security/auth.service.js';
 import { OAUTH_TRANSIT_COOKIE_NAME } from '../../src/security/oauth-state.js';
@@ -570,6 +570,16 @@ describe('GitHub OAuth & Server-Side Session Authentication Integration Tests (P
   });
 
   it('13. GET /auth/github/callback redirects to /dashboard upon successful browser login', async () => {
+    // Complete onboarding for the existing candidate so login goes to /dashboard
+    await db
+      .update(candidates)
+      .set({
+        profileMetadata: {
+          systemInferred: { onboardingState: 'COMPLETED' },
+        },
+      })
+      .where(eq(candidates.userId, createdUserId));
+
     const flowRes = await app.inject({
       method: 'GET',
       url: '/auth/github',

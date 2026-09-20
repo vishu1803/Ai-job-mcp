@@ -198,6 +198,14 @@ describe('P16-001A: Structured Resume Contracts & Immutability Suite', () => {
                   },
                 ],
               },
+              {
+                text: 'Engineered write-ahead logging with fsync guarantees preventing state machine divergence.',
+                provenanceStatus: 'VERIFIED',
+              },
+              {
+                text: 'Benchmarked leader failover recovery completing cluster re-election in under 150ms.',
+                provenanceStatus: 'VERIFIED',
+              },
             ],
           },
         ],

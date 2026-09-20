@@ -354,9 +354,12 @@ describe('JobPageDetector & Adapters (P15-001)', () => {
 
     for (const { Adapter, name, provider, url } of cases) {
       it(`${name}: healthy provider DOM still wins over JSON-LD (provider identity preserved)`, () => {
+        const titleSelector =
+          name === 'LinkedIn' ? '.job-details-jobs-unified-top-card__job-title' : 'h1';
         const doc = createMockDocument({
           elements: {
-            [name === 'Greenhouse' ? 'h1' : 'h1']: { textContent: `  ${name} DOM Role  ` },
+            h1: { textContent: `  ${name} DOM Role  ` },
+            [titleSelector]: { textContent: `  ${name} DOM Role  ` },
           },
           meta: { 'og:site_name': 'DOM Co' },
           scripts: [],

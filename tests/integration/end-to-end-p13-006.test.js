@@ -639,7 +639,7 @@ B.S. Computer Science — University of California, Berkeley
     };
 
     const registeredTools = mcpServer.getRegisteredTools();
-    assert.equal(registeredTools.length, 26);
+    assert.equal(registeredTools.length, 30);
 
     // Step 11: analyze_job_fit Tool Execution & UI Resource Linkage
     const analyzeJobFitTool = mcpServer.registeredTools.get('analyze_job_fit');

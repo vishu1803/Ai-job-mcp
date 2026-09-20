@@ -572,7 +572,7 @@ describe('MCP Candidate Profile Contract Completeness Suite', () => {
       const realContext = {
         requestId: 'req-real-candidate-test',
         tenantId: realTenantId,
-        userId: 'u-real-test',
+        userId: '9dd8e4fb-456b-4104-9cb1-c839a544b721',
         role: 'MEMBER',
         tokenScopes: ['career:read'],
         authMethod: 'MCP_API_TOKEN',

@@ -300,6 +300,17 @@ describe('ChatGPT Remote MCP & OAuth 2.1 Connector Integration Tests (P11-001, P
           role: 'Lead Architect',
           isHighlighted: true,
           startDate: '2023-01-01',
+          metadata: {
+            portfolioStatus: 'FEATURED',
+            technologies: ['Node.js', 'PostgreSQL'],
+            skills: ['Node.js', 'PostgreSQL'],
+            repositoryUrl: 'https://github.com/vishu1803/Ai-job-mcp',
+            bullets: [
+              'Architected high-throughput transactional event processing mesh in Node.js and PostgreSQL.',
+              'Engineered resilient two-phase commit protocol across distributed microservices.',
+              'Optimized connection pooling and query pipelines achieving 99.99% transaction reliability.',
+            ],
+          },
         })
         .returning();
 

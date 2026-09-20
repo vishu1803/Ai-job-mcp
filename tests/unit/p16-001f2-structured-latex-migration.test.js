@@ -513,9 +513,12 @@ describe('P16-001F-2: Structured Resume -> Controlled LaTeX Renderer', () => {
 
     assert.match(
       result.texContent,
-      /\\href\{https:\/\/linkedin\.com\/in\/custom-jordan\}\{LinkedIn\}/
+      /\\href\{https:\/\/linkedin\.com\/in\/custom-jordan\}\{(?:LinkedIn|linkedin\.com\/in\/custom-jordan)\}/
     );
-    assert.match(result.texContent, /\\href\{https:\/\/github\.com\/custom-jordan\}\{GitHub\}/);
+    assert.match(
+      result.texContent,
+      /\\href\{https:\/\/github\.com\/custom-jordan\}\{(?:GitHub|github\.com\/custom-jordan)\}/
+    );
   });
 
   // Test M

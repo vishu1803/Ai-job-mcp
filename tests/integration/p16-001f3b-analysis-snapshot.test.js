@@ -42,6 +42,7 @@ import { createSession } from '../../src/security/session.service.js';
 import { JobApplicationWorkflowService } from '../../src/services/job-application-workflow.service.js';
 import { ApplicationTrackingService } from '../../src/services/application-tracking.service.js';
 import { JobAnalysisSnapshotService } from '../../src/services/job-analysis-snapshot.service.js';
+import { defaultAiResumeContentGenerator } from '../../src/services/ai-resume-content-generator.service.js';
 
 const CLOUDFLARE_JOB_PAYLOAD = {
   sourceUrl: 'https://boards.greenhouse.io/cloudflare/jobs/8102350?gh_jid=8102350',
@@ -79,8 +80,23 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
   let flow1CanonicalJobId;
   let flow1AnalyzeScore;
   let flow1TopProject;
+  let originalGenerateResumeAiContent = null;
 
   before(async () => {
+    originalGenerateResumeAiContent = defaultAiResumeContentGenerator.generateResumeAiContent;
+    defaultAiResumeContentGenerator.generateResumeAiContent = async () => ({
+      success: true,
+      summary:
+        'Experienced systems engineer specializing in Rust, distributed systems, and telemetry.',
+      projectBullets: {
+        all: [
+          'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.',
+          'Implemented zero-copy serialization layer reducing network egress bandwidth.',
+          'Designed fault-tolerant streaming consumers with automated node recovery protocols.',
+        ],
+      },
+    });
+
     workflowService = new JobApplicationWorkflowService({ database: db });
     workflowService.applicationHandoffService.latexCompilerService = {
       compileDocument: async () => ({
@@ -166,6 +182,8 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
                 technologies: ['Rust', 'Distributed Systems', 'Raft', 'Streaming', 'TypeScript'],
                 bullets: [
                   'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.',
+                  'Implemented zero-copy serialization layer reducing network egress bandwidth.',
+                  'Designed fault-tolerant streaming consumers with automated node recovery protocols.',
                 ],
                 url: 'https://github.com/alice/product-data-explorer',
               },
@@ -177,6 +195,8 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
                 technologies: ['TypeScript', 'Node.js', 'PostgreSQL', 'WebSockets'],
                 bullets: [
                   'Built real-time task manager using Node.js, TypeScript, and WebSockets.',
+                  'Designed relational schema and optimized indexing in PostgreSQL for low-latency queries.',
+                  'Implemented JWT session authentication and role-based access control across endpoints.',
                 ],
                 url: 'https://github.com/alice/collaborative-task-manager',
               },
@@ -186,7 +206,11 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
                 title: 'Ai-powered-code-review-assistant',
                 summary: 'Static analysis and LLM reviews.',
                 technologies: ['Python', 'LLM', 'GitHub API', 'FastAPI'],
-                bullets: ['Automated PR code reviews using LLMs and FastAPI webhook services.'],
+                bullets: [
+                  'Automated PR code reviews using LLMs and FastAPI webhook services.',
+                  'Engineered asynchronous GitHub event dispatcher with Redis-backed worker queues.',
+                  'Integrated static analysis tooling to detect syntax regressions and stylistic anomalies.',
+                ],
                 url: 'https://github.com/alice/code-review-assistant',
               },
             ],
@@ -228,6 +252,8 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
           skills: ['Rust', 'Distributed Systems', 'Streaming'],
           bullets: [
             'Engineered high-throughput distributed telemetry pipelines in Rust with Raft consensus.',
+            'Implemented zero-copy serialization layer reducing network egress bandwidth.',
+            'Designed fault-tolerant streaming consumers with automated node recovery protocols.',
           ],
         },
       },
@@ -243,7 +269,11 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
           description: 'Real-time collaborative task manager.',
           technologies: ['TypeScript', 'Node.js', 'PostgreSQL', 'WebSockets'],
           skills: ['TypeScript', 'Node.js', 'PostgreSQL', 'WebSockets'],
-          bullets: ['Built real-time task manager using Node.js, TypeScript, and WebSockets.'],
+          bullets: [
+            'Built real-time task manager using Node.js, TypeScript, and WebSockets.',
+            'Designed relational schema and optimized indexing in PostgreSQL for low-latency queries.',
+            'Implemented JWT session authentication and role-based access control across endpoints.',
+          ],
         },
       },
       {
@@ -258,7 +288,11 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
           description: 'Static analysis and LLM reviews.',
           technologies: ['Python', 'LLM', 'GitHub API', 'FastAPI'],
           skills: ['Python', 'LLM', 'FastAPI'],
-          bullets: ['Automated PR code reviews using LLMs and FastAPI webhook services.'],
+          bullets: [
+            'Automated PR code reviews using LLMs and FastAPI webhook services.',
+            'Engineered asynchronous GitHub event dispatcher with Redis-backed worker queues.',
+            'Integrated static analysis tooling to detect syntax regressions and stylistic anomalies.',
+          ],
         },
       },
     ]);
@@ -423,6 +457,9 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
 
   after(async () => {
     try {
+      if (originalGenerateResumeAiContent) {
+        defaultAiResumeContentGenerator.generateResumeAiContent = originalGenerateResumeAiContent;
+      }
       if (createdTenantIds.length > 0) {
         await db
           .delete(jobAnalysisSnapshots)
@@ -536,7 +573,10 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
     assert.ok(structuredProjects.length > 0, 'Structured resume must include tailored projects');
 
     // Flow 6: Top project is identical
-    const topProjTitle = structuredProjects[0].title || structuredProjects[0].name;
+    const topProjTitle =
+      structuredProjects[0].title ||
+      structuredProjects[0].name ||
+      structuredProjects[0].projectName;
     assert.ok(
       topProjTitle.toLowerCase().includes('product-data-explorer') ||
         topProjTitle.toLowerCase().includes('product'),
@@ -732,7 +772,10 @@ describe('P16-001F-3B: Integration Flows 1 through 13', () => {
       packagePayload?.tailoredResume?.structuredResume?.projects ||
       [];
     assert.ok(structuredProjects.length > 0);
-    const topProjTitle = structuredProjects[0].title || structuredProjects[0].name;
+    const topProjTitle =
+      structuredProjects[0].title ||
+      structuredProjects[0].name ||
+      structuredProjects[0].projectName;
 
     assert.ok(
       topProjTitle.toLowerCase().includes('product-data-explorer') ||

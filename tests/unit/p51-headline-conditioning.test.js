@@ -17,8 +17,9 @@
  * 8. Pipeline parity: MCP and Extension share the same canonical headline-generation authority.
  */
 
-import { describe, it } from 'node:test';
+import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { closeDatabase } from '../../src/db/index.js';
 import { CandidateProfileService } from '../../src/services/candidate-profile.service.js';
 import {
   buildStructuredResumeSnapshot,
@@ -458,5 +459,9 @@ describe('P51: Tailored Professional Headline Conditioning Regression Suite', ()
         'Full-Stack & Backend Developer'
       );
     });
+  });
+
+  after(async () => {
+    await closeDatabase();
   });
 });

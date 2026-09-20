@@ -195,14 +195,25 @@ export const GitCommitShaSchema = z.string().regex(/^[0-9a-fA-F]{40}$/, {
 /**
  * Structured line range object.
  */
-export const EvidenceLineRangeSchema = z
-  .strictObject({
-    start: z.number().int().positive({ message: 'lineRange.start must be a positive integer' }),
-    end: z.number().int().positive({ message: 'lineRange.end must be a positive integer' }),
-  })
-  .refine((range) => range.end >= range.start, {
-    message: 'lineRange.end must be greater than or equal to lineRange.start',
-  });
+export const EvidenceLineRangeSchema = z.union([
+  z
+    .strictObject({
+      start: z.number().int().positive({ message: 'lineRange.start must be a positive integer' }),
+      end: z.number().int().positive({ message: 'lineRange.end must be a positive integer' }),
+    })
+    .refine((range) => range.end >= range.start, {
+      message: 'lineRange.end must be greater than or equal to lineRange.start',
+    }),
+  z
+    .string()
+    .regex(/^\d+(?:-\d+)?$/, { message: 'lineRange string must be start-end or single integer' })
+    .transform((val) => {
+      const parts = val.split('-').map(Number);
+      const start = parts[0];
+      const end = parts.length > 1 ? parts[1] : parts[0];
+      return { start, end };
+    }),
+]);
 
 /**
  * Structured AST symbol context.

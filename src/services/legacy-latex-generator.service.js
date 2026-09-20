@@ -726,7 +726,8 @@ export class LegacyLatexGenerator {
       }
 
       // If DSA is selected but valid DSA content is missing, fail validation rather than inventing content
-      if (dsaBullets.length === 0) {
+      const hasDsaContent = dsaBullets.length > 0 || Boolean(dsaUrl);
+      if (!hasDsaContent) {
         throw new ValidationError(
           'DSA section is selected by Content Strategy, but valid candidate-owned DSA content is missing from snapshot; refusing to invent content.'
         );
@@ -742,14 +743,12 @@ export class LegacyLatexGenerator {
         ? `\\href{${escapeLatexUrl(dsaUrl)}}{\\small\\textbf{${escapeLatex(cleanLeetcodeDisplay)}}}`
         : `{\\small\\textit{Candidate-Reported}}`;
 
-      const bulletTex = formatLatexBullets(dsaBullets);
+      const bulletTex = dsaBullets.length > 0 ? formatLatexBullets(dsaBullets) : '';
 
       dsaLatexSection = `\\atssection{Problem Solving \\& Algorithmic Practice}
 \\textbf{${escapeLatex(dsaTitle)}} \\hfill ${headerRight}\\par
 \\vspace{\\atsRoleToMetadata}
-{\\small\\textit{${escapeLatex(dsaSubtitle)}}}\\par
-\\vspace{\\atsMetadataToBullets}
-${bulletTex}`;
+{\\small\\textit{${escapeLatex(dsaSubtitle)}}}\\par${bulletTex ? `\n\\vspace{\\atsMetadataToBullets}\n${bulletTex}` : ''}`;
     }
 
     // 5. Professional Experience — real stored records only.

@@ -165,11 +165,14 @@ function isAiError(error) {
   const msg = (error.message || '').toLowerCase();
   const code = (error.code || '').toLowerCase();
   return (
-    code.includes('ai') ||
     code.includes('gemini') ||
     code.includes('vertex') ||
     code.includes('llm') ||
-    code.includes('model') ||
+    code.startsWith('ai_') ||
+    code.endsWith('_ai') ||
+    code.includes('_ai_') ||
+    code.includes('model_') ||
+    /\b(ai|model)\b/i.test(code) ||
     msg.includes('gemini') ||
     msg.includes('google genai') ||
     msg.includes('vertex') ||
@@ -438,7 +441,33 @@ export function sanitizeUserFacingError(error, context = {}) {
     };
   }
 
-  // 9. Generic Server Failure (500) - With explicit reassurance that data was not lost
+  // 9. Dependency / Upstream Provider Unavailable Error (503)
+  if (
+    error instanceof DependencyError ||
+    error?.statusCode === 503 ||
+    error?.code === 'DEPENDENCY_ERROR' ||
+    error?.code === 'PROVIDER_UNAVAILABLE'
+  ) {
+    return {
+      state: UserFacingStateEnum.NETWORK_FAILURE,
+      statusCode: 503,
+      title: 'Service temporarily unavailable',
+      message:
+        error?.message && !containsTechnicalLeak(error.message)
+          ? error.message
+          : 'An upstream service or dependency is temporarily unavailable. Please try again shortly.',
+      supportId: requestId,
+      recoveryAction: {
+        type: RecoveryActionType.RETRY,
+        label: 'Try again',
+      },
+      fieldErrors: [],
+      isAiFailure: false,
+      isRecoverable: true,
+    };
+  }
+
+  // 10. Generic Server Failure (500) - With explicit reassurance that data was not lost
   let actionFailureTitle = "We couldn't complete your request";
   if (action === 'save_profile') {
     actionFailureTitle = "We couldn't save your profile";

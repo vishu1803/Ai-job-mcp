@@ -86,6 +86,54 @@ const UNSUPPORTED_ACTOR_PATTERNS = [
   /\b(?:serving|reaching)\s+\d+[\d,]*\+?\s+(?:users|customers|clients)\b/i,
 ];
 
+export const OUTCOME_PATTERN =
+  /\b(?:resulting in|leading to|yielding|saved \$|decreased by \d+|increased revenue by)\b/i;
+export const TIME_SAVINGS_PATTERN =
+  /\b(?:reduced|saved|decreased|cut|lowered)\s+(?:average\s+)?(?:manual\s+)?(?:code\s+)?review\s+time\b|\btime\s+savings\b|\bsaved\s+\d+\+?\s+(?:hours|mins|minutes)\b/i;
+export const VELOCITY_PATTERN =
+  /\b(?:developer\s+velocity|team\s+velocity|engineering\s+velocity)\b/i;
+export const QUALITY_PATTERN =
+  /\b(?:code\s+quality\s+standards|improved\s+code\s+quality|higher\s+code\s+quality)\b/i;
+export const PRODUCTIVITY_PATTERN =
+  /\b(?:improved|boosted|increased|enhanced)\s+(?:team\s+|developer\s+)?productivity\b/i;
+export const OVERHEAD_PATTERN =
+  /\b(?:reduced|improved|minimized|decreased|cut)\s+(?:team\s+)?coordination\s+overhead\b|\bcoordination\s+overhead\b/i;
+export const PERCENTAGE_REDUCTION_PATTERN =
+  /\b(?:reduced|decreased|lowered|slashed|cut)\s+(?:[a-z0-9\s_-]+?\s+)?(?:by\s+)?\d+%/i;
+export const PERF_PATTERN =
+  /\b(?:\d+x\s+faster|reduced\s+latency\s+to\s+\d+|lowered\s+memory\s+by\s+\d+)\b/i;
+
+export const isVerifiedOutcomeFact = (f) =>
+  Boolean(
+    f &&
+    f.sourceType !== 'bullet' &&
+    f.sourceType !== 'summary' &&
+    (f.canonicalFactType === 'OUTCOME' ||
+      f.canonicalFactType === 'METRIC' ||
+      f.evidenceRole === 'OUTCOME' ||
+      f.contributionClass === 'CANDIDATE_OUTCOME' ||
+      (Array.isArray(f.metrics) && f.metrics.length > 0)) &&
+    (f.provenanceStatus === 'VERIFIED' ||
+      f.provenance === 'VERIFIED' ||
+      f.corroborated === true ||
+      f.agencyLevel === 'CANDIDATE')
+  );
+
+export const isVerifiedMetricFact = (f) =>
+  Boolean(
+    f &&
+    f.sourceType !== 'bullet' &&
+    f.sourceType !== 'summary' &&
+    (f.canonicalFactType === 'METRIC' ||
+      f.evidenceRole === 'OUTCOME' ||
+      f.contributionClass === 'CANDIDATE_OUTCOME' ||
+      (Array.isArray(f.metrics) && f.metrics.length > 0)) &&
+    (f.provenanceStatus === 'VERIFIED' ||
+      f.provenance === 'VERIFIED' ||
+      f.corroborated === true ||
+      f.agencyLevel === 'CANDIDATE')
+  );
+
 /**
  * Validates whether a metric in a bullet claim is authorized by contributing facts,
  * supporting both EXPLICIT facts and mathematically DERIVED percentage/multiplier facts.
@@ -353,35 +401,7 @@ export class ResumeClaimValidationService {
     }
 
     // ── 7. No unsupported outcome claims ──────────────────────────────────────
-    // Helper to identify verified, non-bullet outcome/metric evidence
-    const isVerifiedOutcomeFact = (f) =>
-      Boolean(
-        f &&
-        f.sourceType !== 'bullet' &&
-        f.sourceType !== 'summary' &&
-        (f.canonicalFactType === 'OUTCOME' ||
-          f.canonicalFactType === 'METRIC' ||
-          f.evidenceRole === 'OUTCOME' ||
-          (Array.isArray(f.metrics) && f.metrics.length > 0)) &&
-        (f.provenanceStatus === 'VERIFIED' ||
-          f.provenance === 'VERIFIED' ||
-          f.corroborated === true)
-      );
-
-    const isVerifiedMetricFact = (f) =>
-      Boolean(
-        f &&
-        f.sourceType !== 'bullet' &&
-        f.sourceType !== 'summary' &&
-        (f.canonicalFactType === 'METRIC' || (Array.isArray(f.metrics) && f.metrics.length > 0)) &&
-        (f.provenanceStatus === 'VERIFIED' ||
-          f.provenance === 'VERIFIED' ||
-          f.corroborated === true)
-      );
-
-    const outcomePattern =
-      /\b(?:resulting in|leading to|yielding|saved \$|decreased by \d+|increased revenue by)\b/i;
-    if (outcomePattern.test(text)) {
+    if (OUTCOME_PATTERN.test(text)) {
       const supportedInFacts = contributingFacts.some(isVerifiedOutcomeFact);
       if (!supportedInFacts) {
         violations.push({
@@ -393,9 +413,7 @@ export class ResumeClaimValidationService {
 
     // Strict Grounding Invariant (Part 55 / Part 56): Specific outcomes cannot be inferred from mere automation
     // (a) Review time / manual time savings
-    const timeSavingsPattern =
-      /\b(?:reduced|saved|decreased|cut|lowered)\s+(?:average\s+)?(?:manual\s+)?(?:code\s+)?review\s+time\b|\btime\s+savings\b|\bsaved\s+\d+\+?\s+(?:hours|mins|minutes)\b/i;
-    if (timeSavingsPattern.test(text)) {
+    if (TIME_SAVINGS_PATTERN.test(text)) {
       const supported = contributingFacts.some(isVerifiedOutcomeFact);
       if (!supported) {
         violations.push({
@@ -407,8 +425,7 @@ export class ResumeClaimValidationService {
     }
 
     // (b) Developer velocity
-    const velocityPattern = /\b(?:developer\s+velocity|team\s+velocity|engineering\s+velocity)\b/i;
-    if (velocityPattern.test(text)) {
+    if (VELOCITY_PATTERN.test(text)) {
       const supported = contributingFacts.some(isVerifiedOutcomeFact);
       if (!supported) {
         violations.push({
@@ -420,9 +437,7 @@ export class ResumeClaimValidationService {
     }
 
     // (c) Code quality standards / improvements
-    const qualityPattern =
-      /\b(?:code\s+quality\s+standards|improved\s+code\s+quality|higher\s+code\s+quality)\b/i;
-    if (qualityPattern.test(text)) {
+    if (QUALITY_PATTERN.test(text)) {
       const supported = contributingFacts.some(isVerifiedOutcomeFact);
       if (!supported) {
         violations.push({
@@ -434,9 +449,7 @@ export class ResumeClaimValidationService {
     }
 
     // (d) Team / developer productivity
-    const productivityPattern =
-      /\b(?:improved|boosted|increased|enhanced)\s+(?:team\s+|developer\s+)?productivity\b/i;
-    if (productivityPattern.test(text)) {
+    if (PRODUCTIVITY_PATTERN.test(text)) {
       const supported = contributingFacts.some(isVerifiedOutcomeFact);
       if (!supported) {
         violations.push({
@@ -448,9 +461,7 @@ export class ResumeClaimValidationService {
     }
 
     // (e) Coordination / operational overhead
-    const overheadPattern =
-      /\b(?:reduced|improved|minimized|decreased|cut)\s+(?:team\s+)?coordination\s+overhead\b|\bcoordination\s+overhead\b/i;
-    if (overheadPattern.test(text)) {
+    if (OVERHEAD_PATTERN.test(text)) {
       const supported = contributingFacts.some(isVerifiedOutcomeFact);
       if (!supported) {
         violations.push({
@@ -462,9 +473,7 @@ export class ResumeClaimValidationService {
     }
 
     // (f) Percentage reductions
-    const percentageReductionPattern =
-      /\b(?:reduced|decreased|lowered|slashed|cut)\s+(?:[a-z0-9\s_-]+?\s+)?(?:by\s+)?\d+%/i;
-    if (percentageReductionPattern.test(text)) {
+    if (PERCENTAGE_REDUCTION_PATTERN.test(text)) {
       const supported = contributingFacts.some(isVerifiedMetricFact);
       if (!supported) {
         violations.push({
@@ -476,9 +485,7 @@ export class ResumeClaimValidationService {
     }
 
     // ── 8. No unsupported performance statement ──────────────────────────────
-    const perfPattern =
-      /\b(?:\d+x\s+faster|reduced\s+latency\s+to\s+\d+|lowered\s+memory\s+by\s+\d+)\b/i;
-    if (perfPattern.test(text)) {
+    if (PERF_PATTERN.test(text)) {
       const supported = contributingFacts.some(isVerifiedMetricFact);
       if (!supported) {
         violations.push({
@@ -625,8 +632,13 @@ export class ResumeClaimValidationService {
         /^(?:intelligent\s+automated|real-time\s+collaborative|full-stack\s+[a-z]+(?:\s+platform|\s+application|\s+manager|\s+system)?\s+built|a\s+[a-z]+|an\s+[a-z]+|the\s+[a-z]+)/i.test(
           trimmed
         );
+      const firstWord = trimmed
+        .split(/\s+/)[0]
+        ?.toLowerCase()
+        .replace(/[^a-z]/g, '');
       const startsWithActionVerb =
-        /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured|improved|reduced|delivered|achieved|saved|accelerated|expanded|created|established|maintained|monitored|profiled|formulated|synthesized|provided|standardized|containerized|migrated|introduced|authored|constructed)\b/i.test(
+        ACTIVE_OPENER_VERBS.has(firstWord) ||
+        /^(?:engineered|architected|implemented|built|designed|developed|optimized|scaled|refactored|automated|deployed|integrated|configured|secured|improved|reduced|delivered|achieved|saved|accelerated|expanded|created|established|maintained|monitored|profiled|formulated|synthesized|provided|standardized|containerized|migrated|introduced|authored|constructed|benchmarked|orchestrated|spearheaded|debugged|streamlined)\b/i.test(
           trimmed
         ) ||
         /^designed\s+and\s+implemented\b/i.test(trimmed) ||
@@ -1148,71 +1160,28 @@ export function sanitizeAccomplishmentClaim(text) {
 export function hasUnsupportedOutcomeOrMetric(text, contributingFacts = []) {
   if (!text || typeof text !== 'string') return false;
 
-  const isVerifiedOutcomeFact = (f) =>
-    Boolean(
-      f &&
-      f.sourceType !== 'bullet' &&
-      f.sourceType !== 'summary' &&
-      (f.canonicalFactType === 'OUTCOME' ||
-        f.canonicalFactType === 'METRIC' ||
-        f.evidenceRole === 'OUTCOME' ||
-        (Array.isArray(f.metrics) && f.metrics.length > 0)) &&
-      (f.provenanceStatus === 'VERIFIED' || f.provenance === 'VERIFIED' || f.corroborated === true)
-    );
-
-  const isVerifiedMetricFact = (f) =>
-    Boolean(
-      f &&
-      f.sourceType !== 'bullet' &&
-      f.sourceType !== 'summary' &&
-      (f.canonicalFactType === 'METRIC' || (Array.isArray(f.metrics) && f.metrics.length > 0)) &&
-      (f.provenanceStatus === 'VERIFIED' || f.provenance === 'VERIFIED' || f.corroborated === true)
-    );
-
-  const outcomePattern =
-    /\b(?:resulting in|leading to|yielding|saved \$|decreased by \d+|increased revenue by)\b/i;
-  if (outcomePattern.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
+  if (OUTCOME_PATTERN.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
     return true;
   }
-
-  const timeSavingsPattern =
-    /\b(?:reduced|saved|decreased|cut|lowered)\s+(?:average\s+)?(?:manual\s+)?(?:code\s+)?review\s+time\b|\btime\s+savings\b|\bsaved\s+\d+\+?\s+(?:hours|mins|minutes)\b/i;
-  if (timeSavingsPattern.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
+  if (TIME_SAVINGS_PATTERN.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
     return true;
   }
-
-  const velocityPattern = /\b(?:developer\s+velocity|team\s+velocity|engineering\s+velocity)\b/i;
-  if (velocityPattern.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
+  if (VELOCITY_PATTERN.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
     return true;
   }
-
-  const qualityPattern =
-    /\b(?:code\s+quality\s+standards|improved\s+code\s+quality|higher\s+code\s+quality)\b/i;
-  if (qualityPattern.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
+  if (QUALITY_PATTERN.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
     return true;
   }
-
-  const productivityPattern =
-    /\b(?:improved|boosted|increased|enhanced)\s+(?:team\s+|developer\s+)?productivity\b/i;
-  if (productivityPattern.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
+  if (PRODUCTIVITY_PATTERN.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
     return true;
   }
-
-  const overheadPattern =
-    /\b(?:reduced|improved|minimized|decreased|cut)\s+(?:team\s+)?coordination\s+overhead\b|\bcoordination\s+overhead\b/i;
-  if (overheadPattern.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
+  if (OVERHEAD_PATTERN.test(text) && !contributingFacts.some(isVerifiedOutcomeFact)) {
     return true;
   }
-
-  const percentageReductionPattern =
-    /\b(?:reduced|decreased|lowered|slashed|cut)\s+(?:[a-z0-9\s_-]+?\s+)?(?:by\s+)?\d+%/i;
-  if (percentageReductionPattern.test(text) && !contributingFacts.some(isVerifiedMetricFact)) {
+  if (PERCENTAGE_REDUCTION_PATTERN.test(text) && !contributingFacts.some(isVerifiedMetricFact)) {
     return true;
   }
-
-  const perfPattern =
-    /\b(?:\d+x\s+faster|reduced\s+latency\s+to\s+\d+|lowered\s+memory\s+by\s+\d+)\b/i;
-  if (perfPattern.test(text) && !contributingFacts.some(isVerifiedMetricFact)) {
+  if (PERF_PATTERN.test(text) && !contributingFacts.some(isVerifiedMetricFact)) {
     return true;
   }
 
